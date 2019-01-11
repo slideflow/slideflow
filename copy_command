@@ -1,0 +1,1 @@
+find ~/histcon/packing_results/normal/ -name '*.jpg' -exec cp -t ~/histcon/train_data/0 {} +
