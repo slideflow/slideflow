@@ -31,6 +31,29 @@ SAVE_FOLDER = join(ROOT_FOLDER, str(SIZE))
 CASES = [f[:-5] for f in os.listdir(AN_F) if (isfile(join(AN_F, f)) 
 										and f[-4:] == 'json')]
 
+class Packer:
+	"""Module used to contain automatic packing functions.
+
+	Args:
+		size: Full-size area will be subdivided into tiles of this size
+		factor: Annotated *.json file is compressed at this factor.  
+				Subdivion testing is performed *
+	"""
+
+	def __init__(self, size, factor, gca):
+		pass
+
+	def place_squares():
+		pass
+
+	def square_iterator(self, area, ann_num, exclusions = None):
+		tile_size = int(self.SIZE/(self.FACTOR ** 2))
+		pass
+
+	def subdivider():
+		pass
+
+
 def place_squares(area, offset_x = 0, offset_y = 0, gca = None, graph = False, 
 					image = None, label = None, num = None, exclusions = None, 
 					tile_size = SIZE, color='g', max_squares = None):
@@ -130,20 +153,6 @@ def square_iterator(gca, area, ann_num, tile_size, exclusions=None):
 
 	return max_squares, max_coord
 
-def subdivider(area, label, offset, im):
-	"""Based on a pre-calculated optimal starting point, subdivide
-	    area into squares."""
-	x_min = min(p[0] for p in area) + offset[0]
-	x_max = max(p[0] for p in area) + offset[1]
-	x_range = x_max - x_min
-	y_min = min(p[1] for p in area) + offset[0]
-	y_max = max(p[1] for p in area) + offset[1]
-	y_range = y_max - y_min
-
-	for j in range(int(y_range)/SIZE):
-		for i in range(int(x_range)/SIZE):
-			x = x_
-
 if __name__==("__main__"):
 	for CASE_ID in CASES:
 		print("Working on case %s" % CASE_ID)
@@ -177,6 +186,12 @@ if __name__==("__main__"):
 				if label == "case": continue
 
 				#squares, sq_co = square_iterator(gca, area, ann_num, int(SIZE/FACTOR))
+
+				# ------------
+				packer = Packer(SIZE, FACTOR, gca)
+				squares, square_count = packer.square_iterator(area_small, ann_num) # change sq_co for square count
+				# ------------
+
 				squares, sq_co = square_iterator(gca, area_small, ann_num, 
 													int(SIZE/(FACTOR*FACTOR)))
 
