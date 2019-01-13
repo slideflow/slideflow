@@ -1,7 +1,7 @@
 # Copyright (C) James Dolezal - All Rights Reserved
 # Unauthorized copying of this file, via any medium is strictly prohibited
 # Proprietary and confidential
-# Written by James Dolezal <jamesmdolezal@gmail.com>, October 2017
+# Written by James Dolezal <jamesmdolezal@gmail.com>, October 2017, Updated 12/16/18
 # ==========================================================================
 
 from __future__ import absolute_import
