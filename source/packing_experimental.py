@@ -26,7 +26,7 @@ from os.path import isfile, join
 SIZE = 256
 FACTOR = 1 # Annotation compression factor, to multiply annotation coordinates
 ROOT_FOLDER = "/Users/James/thyroid/images"
-AN_F = join(ROOT_FOLDER, "Annotated") # Folder with annotated .json files
+ANNOTATED_FOLDER = join(ROOT_FOLDER, "Annotated") # Folder with annotated .json files
 SAVE_FOLDER = join(ROOT_FOLDER, str(SIZE))
 CASES = [f[:-5] for f in os.listdir(AN_F) if (isfile(join(AN_F, f)) 
 										and f[-4:] == 'json')]
@@ -40,15 +40,134 @@ class Packer:
 				Subdivion testing is performed *
 	"""
 
-	def __init__(self, size, factor, gca):
+	def __init__(self, size, factor, casefile):
+		"""Initializes module by opening *.json and starting MatPlotLib graph"""
+		with open(casefile) as case:
+			self.data = json.load(open(casefile))
+
+		# Initialize grid for drawing
+		plt.axes(label=CASE_ID)
+		self.gca = plt.gca()
+		self.gca.invert_yaxis()
+		self.gca.tick_params(axis="x", top=True, labeltop=True, bottom = False, 
+								labelbottom = False)
+
+	def subdivide(self, display=True):
+		"""Finds optimal tile subdivision solution, generates tiles from whole
+		image, and graphically displays results."""
+		self.find_max_tiles()
+		self.tile_whole_image()
+
+		# Subdivide normal background
+		# print('Subdividing normal background...')
+		# place_squares(case_shape['points'], 0, 0, gca, graph=True, image=im, label='normal', num=0, exclusions = other_shapes, color='r')
+
+		# Display results
+		if display:
+			plt.axis('scaled')
+			plt.show()
+
+	def find_max_tiles(self):
+		"""Iterates through all annotations and finds starting points
+		which produce maximum number of subdivided tiles."""
+
+		ann_num = 1
+		for s in self.data['shapes']:
+			area = s['points']
+			area_full = np.multiply(area, FACTOR)
+			area_small = np.divide(area, FACTOR)
+
+			label = s['label']
+
+			if label == "case":
+				mPolygon = plt.Polygon(area_full, facecolor="none", edgecolor="r")
+			else: 
+				mPolygon = plt.Polygon(area_full)
+
+
+			if label == "case": continue
+			self.gca.add_patch(mPolygon)
+
+			sys.stdout.write("\rAnalyzing annotation #%s: " % ann_num)
+			squares, coordinates = self.square_iterator(area_small)
+
+			s['square_offset'] = coordinates
+			s['number'] = ann_num
+			s['max_squares'] = squares
+
+			ann_num += 1
+
+	def tile_whole_image(self):
+		"""Based on a given tile size, area, and starting position, subdivides 
+		a whole image into smaller tiles"""
+
+		# Open the image
+		with warnings.catch_warnings():
+			warnings.simplefilter("ignore")
+			im = Image.open((join(ANNOTATED_FOLDER, "%s.jpg" % CASE_ID)))
+		print('Opened %s image "%s.jpg" %s %s' % (im.format, CASE_ID, 
+													im.size, im.mode))
+
+		case_shape = None
+		other_shapes = []
+		
+		# Subdivide annotations into squares
+		for s in d['shapes']:
+			label = s['label']
+
+			if label == "case":
+				case_shape = s
+				continue
+			else:
+				other_shapes.append(s)
+
+			area_reduced = s['points']
+			area = np.multiply(area_reduced, FACTOR)
+			offset = s['square_offset']
+			ann_num = s['number']
+			max_squares = s['max_squares']
+
+			with warnings.catch_warnings():
+				warnings.simplefilter("ignore")
+				place_squares(area, offset[0], offset[1], gca, graph=True, 
+								image=im, label=CASE_ID, num=ann_num, 
+								max_squares = max_squares)
+
+			sys.stdout.write("\n")
+
+	def place_squares(self):
 		pass
 
-	def place_squares():
-		pass
+	def square_iterator(self, area, exclusions = None):
+		"""Iterate through possible square placement starting points and 
+	   find the placement which maximizes number of squares placed."""
 
-	def square_iterator(self, area, ann_num, exclusions = None):
-		tile_size = int(self.SIZE/(self.FACTOR ** 2))
-		pass
+		tile_size = int(self.size/(self.factor ** 2))
+
+		max_squares = 0
+		max_coord = []
+
+		max_it = tile_size ** 2
+
+		for j in range(tile_size):
+			for i in range(tile_size):
+				progress.bar((j*tile_size)+i, max_it, newline=False)
+				count = place_squares(area, i, j, self.gca, exclusions = exclusions, 
+										tile_size = tile_size)
+				if count >= max_squares: 
+					max_squares = count
+					max_coord = [i, j]
+		sys.stdout.write("\n")
+
+		print("Number of sections: %i" % max_squares)
+					if max_squares > 0: print("Starting point: (%s, %s)\n" % 
+											(max_coord[0]*self.factor, max_coord[1]*self.factor))
+					else: print("\n")
+
+		# Show final result
+		# place_squares(area, max_coord[0], max_coord[1], gca, True)
+
+		return max_squares, max_coord
 
 	def subdivider():
 		pass
@@ -128,122 +247,9 @@ def place_squares(area, offset_x = 0, offset_y = 0, gca = None, graph = False,
 				square_count += 1
 	return square_count
 
-def square_iterator(gca, area, ann_num, tile_size, exclusions=None):
-	"""Iterate through possible square placement starting points and 
-	   find the placement which maximizes number of squares placed."""
-
-	max_squares = 0
-	max_coord = []
-
-	max_it = tile_size*tile_size
-
-	for j in range(tile_size):
-		for i in range(tile_size):
-			sys.stdout.write("\rAnalyzing annotation #%s: " % ann_num)
-			progress.bar((j*tile_size)+i, max_it, newline=False)
-			count = place_squares(area, i, j, gca, exclusions = exclusions, 
-									tile_size = tile_size)
-			if count >= max_squares: 
-				max_squares = count
-				max_coord = [i, j]
-	sys.stdout.write("\n")
-
-	# Show final result
-	#place_squares(area, max_coord[0], max_coord[1], gca, True)
-
-	return max_squares, max_coord
-
 if __name__==("__main__"):
 	for CASE_ID in CASES:
 		print("Working on case %s" % CASE_ID)
-		with open (join(AN_F, "%s.json" % CASE_ID)) as case:
-			d = json.load(case)
-
-			# Initiate grid for drawing
-			plt.axes(label=CASE_ID)
-			gca = plt.gca()
-			gca.invert_yaxis()
-			gca.tick_params(axis="x", top=True, labeltop=True, bottom = False, 
-							labelbottom = False)
-
-			# Iterate through each annotation
-			ann_num = 1
-			for s in d['shapes']:
-				area = s['points']
-				area_full = np.multiply(area, FACTOR)
-				area_small = np.divide(area, FACTOR)
-
-				label = s['label']
-
-				if label == "case":
-					mPolygon = plt.Polygon(area_full, facecolor="none", edgecolor="r")
-				else: 
-					mPolygon = plt.Polygon(area_full)
-
-				# Add annotation polygon to the grid
-				gca.add_patch(mPolygon)		
-
-				if label == "case": continue
-
-				#squares, sq_co = square_iterator(gca, area, ann_num, int(SIZE/FACTOR))
-
-				# ------------
-				packer = Packer(SIZE, FACTOR, gca)
-				squares, square_count = packer.square_iterator(area_small, ann_num) # change sq_co for square count
-				# ------------
-
-				squares, sq_co = square_iterator(gca, area_small, ann_num, 
-													int(SIZE/(FACTOR*FACTOR)))
-
-				print("Number of sections: %i" % squares)
-				if squares > 0: print("Starting point: (%s, %s)\n" % 
-										(sq_co[0]*FACTOR, sq_co[1]*FACTOR))
-				else: print("\n")
-
-				s['square_offset'] = sq_co
-				s['number'] = ann_num
-				s['max_squares'] = squares
-
-				ann_num += 1
-
-			# Now open the image
-			with warnings.catch_warnings():
-				warnings.simplefilter("ignore")
-				im = Image.open((join(AN_F, "%s.jpg" % CASE_ID)))
-			print('Opened %s image "%s.jpg" %s %s' % (im.format, CASE_ID, 
-														im.size, im.mode))
-
-			case_shape = None
-			other_shapes = []
-
-			# Subdivide annotations into squares
-			for s in d['shapes']:
-				label = s['label']
-
-				if label == "case":
-					case_shape = s
-					continue
-				else:
-					other_shapes.append(s)
-
-				area_reduced = s['points']
-				area = np.multiply(area_reduced, FACTOR)
-				offset = s['square_offset']
-				ann_num = s['number']
-				max_squares = s['max_squares']
-
-				with warnings.catch_warnings():
-					warnings.simplefilter("ignore")
-					place_squares(area, offset[0], offset[1], gca, graph=True, 
-									image=im, label=CASE_ID, num=ann_num, 
-									max_squares = max_squares)
-
-				sys.stdout.write("\n")
-
-			# Subdivide normal background
-			#print('Subdividing normal background...')
-			#place_squares(case_shape['points'], 0, 0, gca, graph=True, image=im, label='normal', num=0, exclusions = other_shapes, color='r')
-
-			# Show grid
-			#plt.axis('scaled')
-			#plt.show()
+		case = join(ANNOTATED_FOLDER, '%s.json' % CASE_ID)
+		packer = Packer(SIZE, FACTOR, CASE_ID, case)
+		packer.subdivide(False)
