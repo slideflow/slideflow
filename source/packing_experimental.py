@@ -30,7 +30,6 @@ ANNOTATED_FOLDER = join(ROOT_FOLDER, "Annotated") # Folder with annotated .json 
 SAVE_FOLDER = join(ROOT_FOLDER, str(SIZE))
 CASES = [f[:-5] for f in os.listdir(AN_F) if (isfile(join(AN_F, f)) 
 										and f[-4:] == 'json')]
-
 class Packer:
 	"""Module used to contain automatic packing functions.
 
@@ -40,62 +39,65 @@ class Packer:
 				Subdivion testing is performed *
 	"""
 
-	def __init__(self, size, factor, casefile):
+	def __init__(self, size, factor, case_data):
 		"""Initializes module by opening *.json and starting MatPlotLib graph"""
-		with open(casefile) as case:
-			self.data = json.load(open(casefile))
+		self.data = case_data
+		self.factor = factor
+		self.size = size
 
 		# Initialize grid for drawing
-		plt.axes(label=CASE_ID)
+		plt.axes(label="Packing Result")
 		self.gca = plt.gca()
 		self.gca.invert_yaxis()
 		self.gca.tick_params(axis="x", top=True, labeltop=True, bottom = False, 
 								labelbottom = False)
 
-	def subdivide(self, display=True):
+	def subdivide_all_annotations(self, exclude_annotations = None, display=True):
+		"""Finds optimal tile subdivision solution for all annotations, generating
+		generates tiles from whole image, and graphically displays results."""
+
+		for index, shape in enumerate(self.data['shapes']):
+			if shape['label'] not in exclude_annotations: 
+				square_count, coordinates = self.subdivide(shape)
+
+		if display:
+			plt.axis('scaled')
+			plt.show()
+
+	def subdivide(self, shape):
 		"""Finds optimal tile subdivision solution, generates tiles from whole
 		image, and graphically displays results."""
-		self.find_max_tiles()
-		self.tile_whole_image()
+		self.find_max_tiles(shape)
+		self.tile_whole_image(shape)
 
 		# Subdivide normal background
 		# print('Subdividing normal background...')
 		# place_squares(case_shape['points'], 0, 0, gca, graph=True, image=im, label='normal', num=0, exclusions = other_shapes, color='r')
 
-		# Display results
-		if display:
-			plt.axis('scaled')
-			plt.show()
 
-	def find_max_tiles(self):
+	def find_max_tiles(self, shape):
 		"""Iterates through all annotations and finds starting points
 		which produce maximum number of subdivided tiles."""
 
-		ann_num = 1
-		for s in self.data['shapes']:
-			area = s['points']
-			area_full = np.multiply(area, FACTOR)
-			area_small = np.divide(area, FACTOR)
+		label = shape['label']
+		area = shape['points']
+		area_full = np.multiply(area, self.factor)
+		area_small = np.divide(area, self.factor)
 
-			label = s['label']
+		# If the current shape is the case (outlining) shape, display it as a single outline
+		if label == "case":
+			mPolygon = plt.Polygon(area_full, facecolor="none", edgecolor="r")
+		else: 
+			mPolygon = plt.Polygon(area_full)
+		
+		self.gca.add_patch(mPolygon)
 
-			if label == "case":
-				mPolygon = plt.Polygon(area_full, facecolor="none", edgecolor="r")
-			else: 
-				mPolygon = plt.Polygon(area_full)
+		sys.stdout.write("\rAnalyzing annotation #%s: " % ann_num)
+		squares, coordinates = self.square_iterator(area_small)
 
-
-			if label == "case": continue
-			self.gca.add_patch(mPolygon)
-
-			sys.stdout.write("\rAnalyzing annotation #%s: " % ann_num)
-			squares, coordinates = self.square_iterator(area_small)
-
-			s['square_offset'] = coordinates
-			s['number'] = ann_num
-			s['max_squares'] = squares
-
-			ann_num += 1
+		s['square_offset'] = coordinates
+		s['number'] = ann_num
+		s['max_squares'] = squares
 
 	def tile_whole_image(self):
 		"""Based on a given tile size, area, and starting position, subdivides 
@@ -135,7 +137,7 @@ class Packer:
 
 			sys.stdout.write("\n")
 
-	def place_squares(self):
+	def place_squares(self, offset_x, offset_y):
 		pass
 
 	def square_iterator(self, area, exclusions = None):
@@ -143,16 +145,14 @@ class Packer:
 	   find the placement which maximizes number of squares placed."""
 
 		tile_size = int(self.size/(self.factor ** 2))
-
+		max_it = tile_size ** 2
 		max_squares = 0
 		max_coord = []
-
-		max_it = tile_size ** 2
 
 		for j in range(tile_size):
 			for i in range(tile_size):
 				progress.bar((j*tile_size)+i, max_it, newline=False)
-				count = place_squares(area, i, j, self.gca, exclusions = exclusions, 
+				count = self.place_squares(area, i, j, self.gca, exclusions = exclusions, 
 										tile_size = tile_size)
 				if count >= max_squares: 
 					max_squares = count
@@ -249,7 +249,8 @@ def place_squares(area, offset_x = 0, offset_y = 0, gca = None, graph = False,
 
 if __name__==("__main__"):
 	for CASE_ID in CASES:
-		print("Working on case %s" % CASE_ID)
-		case = join(ANNOTATED_FOLDER, '%s.json' % CASE_ID)
-		packer = Packer(SIZE, FACTOR, CASE_ID, case)
-		packer.subdivide(False)
+		with open(join(ANNOTATED_FOLDER, '%s.json' % CASE_ID)) as case
+			print("Working on case %s" % CASE_ID)
+			case_data = json.load(case)
+			packer = Packer(SIZE, FACTOR, CASE_ID, case_data)
+			packer.subdivide_all_annotations(False)
