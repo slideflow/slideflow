@@ -1,0 +1,306 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>packing module &mdash; thyroid 1.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> thyroid
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">thyroid</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>packing module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/packing.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-packing">
+<span id="packing-module"></span><h1>packing module<a class="headerlink" href="#module-packing" title="Permalink to this headline">¶</a></h1>
+<dl class="docutils">
+<dt>For a given whole-slide image (WSI), subdivides the image into smaller tiles</dt>
+<dd>using an annotated <a href="#id1"><span class="problematic" id="id2">*</span></a>.json file generated with LabelMe.</dd>
+</dl>
+<p>James M Dolezal, 2019</p>
+<dl class="class">
+<dt id="packing.Packer">
+<em class="property">class </em><code class="descclassname">packing.</code><code class="descname">Packer</code><span class="sig-paren">(</span><em>case_data</em>, <em>case_id</em>, <em>factor</em>, <em>size</em>, <em>full_image</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/packing.html#Packer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#packing.Packer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Module which loads a LabelMe json annotation file and subdivides annotations
+into smaller tiles in an optimal fashion.</p>
+<dl class="docutils">
+<dt>Example use:</dt>
+<dd>p = Packer(json_data, case_id, 1, 256, “/home/full_image.jpg”)
+p.subdivide_all_annotations()
+p.export_all_tiles(“/home/export_directory”)
+p.show_graph()</dd>
+</dl>
+<dl class="method">
+<dt id="packing.Packer.export_tiles">
+<code class="descname">export_tiles</code><span class="sig-paren">(</span><em>export_dir</em>, <em>background_label='case'</em>, <em>ignore_background=True</em>, <em>origin_optimization=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/packing.html#Packer.export_tiles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#packing.Packer.export_tiles" title="Permalink to this definition">¶</a></dt>
+<dd><p>For all annotated shapes, exports extracted tiles from a full-size image.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>export_dir</strong> – Directory in which to export tiles</li>
+<li><strong>background_label</strong> – Label in the json file which designates the bounding background shape</li>
+<li><strong>ignore_background</strong> – If true, will not extract any image tiles from the background shape</li>
+<li><strong>origin_optimization</strong> – Increases number of tiles extracted by ~10%, but CPU-intensive</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="packing.Packer.optimize_annotations">
+<code class="descname">optimize_annotations</code><span class="sig-paren">(</span><em>background_label</em>, <em>ignore_background</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/packing.html#Packer.optimize_annotations"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#packing.Packer.optimize_annotations" title="Permalink to this definition">¶</a></dt>
+<dd><p>For all annotated shapes, find the starting tile placement which maximizes
+the number of tiles placed.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>background_label</strong> – Label in the json file which designates the bounding background shape</li>
+<li><strong>ignore_background</strong> – If true, will not extract any image tiles from the background shape</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="packing.Packer.place_tiles">
+<code class="descname">place_tiles</code><span class="sig-paren">(</span><em>area</em>, <em>offset</em>, <em>tile_size</em>, <em>export_dir=None</em>, <em>image=None</em>, <em>_id=None</em>, <em>graph=False</em>, <em>exclusions=None</em>, <em>color='g'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/packing.html#Packer.place_tiles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#packing.Packer.place_tiles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fills a given area with squares and returns the total number of squares/tiles placed.
+If an image is provided, will export extracted tiles.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>area</strong> – Bounding box shape, extracted from LabelMe json, in which to place tiles</li>
+<li><strong>offset</strong> – Coordinates for which to offset tile placement</li>
+<li><strong>tile_size</strong> – Pixel size of tiles to be placed</li>
+<li><strong>export_dir</strong> – Directory in which to save  tiles, if extraction from whole image is performed.</li>
+<li><strong>image</strong> – Full-size image from which to extract tiles.</li>
+<li><strong>_id</strong> – ID of the annotation being tiled</li>
+<li><strong>max_squares</strong> – Maximum number of tiles that can be placed, if already determined.</li>
+<li><strong>graph</strong> – Whether or not to display tiling results</li>
+<li><strong>exclusions</strong> – Array of shapes to exclude from tiling</li>
+<li><strong>color</strong> – Color code for displaying tile placement, e.g. ‘r’, ‘g’</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Total number of tiles placed.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="packing.Packer.show_graph">
+<code class="descname">show_graph</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/packing.html#Packer.show_graph"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#packing.Packer.show_graph" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="packing.Packer.tile_iterator">
+<code class="descname">tile_iterator</code><span class="sig-paren">(</span><em>area, _id, tile_size, stride=[1, 1], exclusions=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/packing.html#Packer.tile_iterator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#packing.Packer.tile_iterator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate through possible tile placement starting points and
+find the placement which maximizes number of tiles placed.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, James M Dolezal
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+
+  
+
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
