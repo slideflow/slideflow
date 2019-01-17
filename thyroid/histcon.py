@@ -35,7 +35,7 @@ parser.add_argument('--data_dir', type=str, default='/home/james/thyroid',
 parser.add_argument('--use_fp16', type=bool, default=True,
 	help='Train the model using fp16.')
 
-parser.add_argument('--model_dir', type=str, default='/home/james/thyroid/model',
+parser.add_argument('--model_dir', type=str, default='/home/james/thyroid/models/active',
 	help='Directory where to write event logs and checkpoints.')
 
 parser.add_argument('--eval_dir', type=str, default='/home/james/thyroid/eval',

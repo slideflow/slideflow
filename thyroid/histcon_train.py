@@ -28,14 +28,14 @@ def train():
 
 		# Get images and labels.
 		# Force input pipeline to CPU:0 to avoid operations ending up on GPU.
-		with tf.device('/cpu:0'):
+		with tf.device('/cpu'):
 			images, labels = histcon.processed_inputs()
 
 		# Build a Graph that computes the logits predictions from
 		# the inference model.
 		#logits = histcon.inference(images)
 		logits, end_points = inception_v4.inception_v4(images, num_classes=histcon.NUM_CLASSES)
-
+		
 		# Calculate the loss.
 		loss = histcon.loss(logits, labels)
 
