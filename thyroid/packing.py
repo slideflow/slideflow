@@ -24,7 +24,7 @@ from os.path import isfile, join
 Image.MAX_IMAGE_PIXELS = None
 TILE_SIZE = 256
 ANNOTATION_COMPRESSION_FACTOR = 1
-DIRECTORY = "/home/shawarma/thyroid/images/Annotated"
+DIRECTORY = "/home/shawarma/thyroid/images/annotated"
 
 class Packer:
 	"""Module which loads a LabelMe json annotation file and subdivides annotations
