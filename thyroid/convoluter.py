@@ -20,7 +20,7 @@ import numpy as np
 import tensorflow as tf
 
 import histcon
-import inception
+import inception_v4
 import conv_display
 import progress_bar
 
@@ -28,19 +28,19 @@ import progress_bar
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--whole_image', type=str, default="half_images/234807-1.jpg",
+parser.add_argument('--whole_image', type=str, default="images/234807-1.jpg",
     help='Filename of whole image (JPG) to evaluate with saved model.')
 
-parser.add_argument('--data_dir', type=str, default='/home/falafel/histcon',
+parser.add_argument('--data_dir', type=str, default='/home/james/thyroid',
     help='Path to the HISTCON data directory.')
 
 parser.add_argument('--batch_size', type=int, default=32,
     help='Number of images to process in a batch.')
 
-parser.add_argument('--conv_dir', type=str, default='/home/falafel/histcon/conv',
+parser.add_argument('--conv_dir', type=str, default='/home/james/thyroid/conv',
     help='Directory where to write logs and summaries for the convoluter.')
 
-parser.add_argument('--model_dir', type=str, default='/home/falafel/histcon/model',
+parser.add_argument('--model_dir', type=str, default='/home/james/thyroid/models/trained001',
     help='Directory where to write event logs and checkpoints.')
 
 SIZE = histcon.IMAGE_SIZE
@@ -83,7 +83,7 @@ def scan_image():
 
         batch_pl = tf.placeholder(DTYPE, shape=[FLAGS.batch_size, SIZE, SIZE, 3])
         standardized_batch = tf.map_fn(lambda patch: tf.cast(tf.image.per_image_standardization(patch), DTYPE), batch_pl, dtype=DTYPE)
-        _, end_points = inception.inception_v4(standardized_batch, num_classes=2)
+        _, end_points = inception_v4.inception_v4(standardized_batch, num_classes=2)
         slogits = end_points['Predictions']
         saver = tf.train.Saver()
 

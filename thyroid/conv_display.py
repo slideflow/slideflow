@@ -18,7 +18,7 @@ import matplotlib.image as mpimg
 import matplotlib.cm as cm
 import matplotlib.colors as mcol
 import numpy as np
-import progress as pb
+import progress_bar as pb
 import sys
 
 from multiprocessing import Pool
