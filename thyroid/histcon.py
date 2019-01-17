@@ -29,19 +29,19 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', type=int, default=32,
 	help='Number of images to process in a batch.')
 
-parser.add_argument('--data_dir', type=str, default='/home/falafel/histcon',
+parser.add_argument('--data_dir', type=str, default='/home/james/thyroid',
 	help='Path to the HISTCON data directory.')
 
 parser.add_argument('--use_fp16', type=bool, default=True,
 	help='Train the model using fp16.')
 
-parser.add_argument('--model_dir', type=str, default='/home/falafel/histcon/model',
+parser.add_argument('--model_dir', type=str, default='/home/james/thyroid/model',
 	help='Directory where to write event logs and checkpoints.')
 
-parser.add_argument('--eval_dir', type=str, default='/home/falafel/histcon/eval',
+parser.add_argument('--eval_dir', type=str, default='/home/james/thyroid/eval',
 	help='Directory where to write eval logs and summaries.')
 
-parser.add_argument('--conv_dir', type=str, default='/home/falafel/histcon/conv',
+parser.add_argument('--conv_dir', type=str, default='/home/james/thyroid/conv',
 	help='Directory where to write logs and summaries for the convoluter.')
 
 parser.add_argument('--max_steps', type=int, default=1000000,
