@@ -16,8 +16,8 @@ import time
 import tensorflow as tf
 
 import histcon
-import tf_cnnvis
-import inception
+#import tf_cnnvis
+import inception_v4
 
 parser = histcon.parser
 
@@ -34,7 +34,7 @@ def train():
 		# Build a Graph that computes the logits predictions from
 		# the inference model.
 		#logits = histcon.inference(images)
-		logits, end_points = inception.inception_v4(images, num_classes=histcon.NUM_CLASSES)
+		logits, end_points = inception_v4.inception_v4(images, num_classes=histcon.NUM_CLASSES)
 
 		# Calculate the loss.
 		loss = histcon.loss(logits, labels)
