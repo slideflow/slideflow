@@ -26,22 +26,22 @@ parser = argparse.ArgumentParser()
 
 # Model parameters.
 
-parser.add_argument('--batch_size', type=int, default=32,
+parser.add_argument('--batch_size', type=int, default=16,
 	help='Number of images to process in a batch.')
 
-parser.add_argument('--data_dir', type=str, default='/home/james/thyroid',
+parser.add_argument('--data_dir', type=str, default='/home/shawarma/thyroid',
 	help='Path to the HISTCON data directory.')
 
-parser.add_argument('--use_fp16', type=bool, default=True,
+parser.add_argument('--use_fp16', type=bool, default=False,
 	help='Train the model using fp16.')
 
-parser.add_argument('--model_dir', type=str, default='/home/james/thyroid/models/active',
+parser.add_argument('--model_dir', type=str, default='/home/shawarma/thyroid/models/active',
 	help='Directory where to write event logs and checkpoints.')
 
-parser.add_argument('--eval_dir', type=str, default='/home/james/thyroid/eval',
+parser.add_argument('--eval_dir', type=str, default='/home/shawarma/thyroid/eval',
 	help='Directory where to write eval logs and summaries.')
 
-parser.add_argument('--conv_dir', type=str, default='/home/james/thyroid/conv',
+parser.add_argument('--conv_dir', type=str, default='/home/shawarma/thyroid/conv',
 	help='Directory where to write logs and summaries for the convoluter.')
 
 parser.add_argument('--max_steps', type=int, default=1000000,
