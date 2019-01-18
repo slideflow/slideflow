@@ -44,17 +44,18 @@ def _generate_image_and_label_batch(image, label, min_queue_images,
 	# Create a queue that shuffles images, and then
 	# read "batch_size" number of images + labels from the queue.
 	num_preprocess_threads = 8
+	batch_size_tensor = tf.placeholder_with_default(128, shape=[])
 	if shuffle:
 		images, label_batch = tf.train.shuffle_batch(
 			[image, label],
-			batch_size=batch_size,
+			batch_size=batch_size_tensor,
 			num_threads=num_preprocess_threads,
 			capacity=min_queue_images + 3 * batch_size,
 			min_after_dequeue=min_queue_images)
 	else:
 		images, label_batch = tf.train.batch(
 			[image, label],
-			batch_size=batch_size,
+			batch_size=batch_size_tensor,
 			num_threads=num_preprocess_threads,
 			capacity=min_queue_images + 3 * batch_size)
 
