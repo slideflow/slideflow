@@ -36,7 +36,7 @@ parser.add_argument('--whole_image', type=str, default="images/WSI_25/234794-1_2
 parser.add_argument('--data_dir', type=str, default='/home/shawarma/thyroid',
     help='Path to the HISTCON data directory.')
 
-parser.add_argument('--batch_size', type=int, default=32,
+parser.add_argument('--batch_size', type=int, default=16,
     help='Number of images to process in a batch.')
 
 parser.add_argument('--conv_dir', type=str, default='/home/shawarma/thyroid/conv',
@@ -231,7 +231,7 @@ def scan_image():
                         patches_height = 1 + int((int(y_end - y_start) - int(SIZE)) / STRIDES[1])
                         patches_width  = 1 + int((int(x_end - x_start) - int(SIZE)) / STRIDES[2])
 
-                        reshaped_slogs = np.reshape(all_slogs, [patches_height, patches_width, 2])
+                        reshaped_slogs = np.reshape(all_slogs, [patches_height, patches_width, histcon.NUM_CLASSES])
 
                         output[y_index][x_index] = reshaped_slogs
 
