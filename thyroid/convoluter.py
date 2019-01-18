@@ -30,14 +30,14 @@ import progress_bar
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--whole_image', type=str, default="images/WSI_25/234794-1_25.jpg",
+parser.add_argument('--whole_image', type=str, default="images/WSI_25/234807-1_25.jpg",
     help='Filename of whole image (JPG) to evaluate with saved model.')
 
 parser.add_argument('--data_dir', type=str, default='/home/shawarma/thyroid',
     help='Path to the HISTCON data directory.')
 
 parser.add_argument('--batch_size', type=int, default=16,
-    help='Number of images to process in a batch.')
+    help='Number of images to process in a batch. MUST match the batch size used during training.')
 
 parser.add_argument('--conv_dir', type=str, default='/home/shawarma/thyroid/conv',
     help='Directory where to write logs and summaries for the convoluter.')
