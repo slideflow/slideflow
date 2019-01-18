@@ -23,39 +23,64 @@ import histcon
 import inception_v4
 from inception_utils import inception_arg_scope
 
+import sys
+
 parser = histcon.parser
 
-RETRAIN_MODEL = '/home/james/thyroid/models/inception_v4_2018_04_27/inception_v4.pb'
+RETRAIN_MODEL = '/home/shawarma/thyroid/models/inception_v4_2018_04_27/inception_v4.pb'
 
 def train():
 	'''Train HISTCON for a number of steps.'''
+
+	variables_to_ignore = ("InceptionV4/Logits/Logits/weights:0", "InceptionV4/Logits/Logits/biases:0")
+
 	with tf.Graph().as_default():
 		with gfile.GFile(RETRAIN_MODEL, 'rb') as f:
 			graph_def = tf.GraphDef()
 			graph_def.ParseFromString(f.read())
 		tf.import_graph_def(graph_def, name='')
 
-		global_step = tf.train.get_or_create_global_step()
-
 		with tf.device('/cpu'):
 			images, labels = histcon.processed_inputs()
 
-		graph_nodes = [n for n in tf.get_default_graph().as_graph_def().node]
-		wts = [n for n in graph_nodes if n.op=='Const']
-		for n in wts:
-			print(n.name)
-			#print("Value:", tensor_util.MakeNdarray(n.attr['value'].tensor))
+		imported_variable_dict = {}
 
 		with arg_scope(inception_arg_scope()):
 			with tf.variable_scope('NewModel'):
 				logits, end_points = inception_v4.inception_v4(images, num_classes=histcon.NUM_CLASSES, create_aux_logits=False)		
 
-			for var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='NewModel'):
-				print(tf.get_default_graph().get_tensor_by_name(var.name[9:]))
-			
-		#logits = tf.get_default_graph().get_tensor_by_name('InceptionV4/Logits/Logits/BiasAdd:0') #or tf.get_default_graph
-		#input_placeholder = tf.get_default_graph().get_tensor_by_name('input:0')
-		#tf.contrib.graph_editor.connect(images, input_placeholder)
+			print("Importing saved values...")
+
+			with tf.Session() as sess:
+				for trainable_var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='NewModel'):
+					variable_name = trainable_var.name[9:]
+					if variable_name in variables_to_ignore:
+						continue
+					imported_value = tf.get_default_graph().get_tensor_by_name(variable_name).eval(session=sess)
+					imported_variable_dict[variable_name] = imported_value
+
+	tf.reset_default_graph()
+
+	with tf.Graph().as_default():
+		global_step = tf.train.get_or_create_global_step()
+
+		with tf.device('/cpu'):
+			images, labels = histcon.processed_inputs()
+
+		with arg_scope(inception_arg_scope()):
+			logits, end_points = inception_v4.inception_v4(images, num_classes=histcon.NUM_CLASSES, create_aux_logits=False)
+
+			assign_ops = []
+
+			for trainable_var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+				var_name = trainable_var.name
+				if variable_name in variables_to_ignore:
+					continue
+				assign_op = trainable_var.assign(imported_variable_dict[var_name])
+				assign_ops.append(assign_op)
+
+		with tf.Session() as sess:
+			sess.run(assign_ops)
 
 		loss = histcon.loss(logits, labels)
 		train_op = histcon.train(loss, global_step)		
