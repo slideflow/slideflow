@@ -47,7 +47,7 @@ def train():
 
 		with arg_scope(inception_arg_scope()):
 			with tf.variable_scope('NewModel'):
-				logits, end_points = inception_v4.inception_v4(images, num_classes=histcon.NUM_CLASSES, create_aux_logits=False)		
+				inception_v4.inception_v4(images, num_classes=histcon.NUM_CLASSES, create_aux_logits=False)		
 
 			print("Importing saved values...")
 
@@ -68,7 +68,7 @@ def train():
 			images, labels = histcon.processed_inputs()
 
 		with arg_scope(inception_arg_scope()):
-			logits, end_points = inception_v4.inception_v4(images, num_classes=histcon.NUM_CLASSES, create_aux_logits=False)
+			logits, end_points = inception_v4.inception_v4(images, num_classes=histcon.NUM_CLASSES, create_aux_logits=True)
 
 			assign_ops = []
 
