@@ -11,7 +11,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import argparse
 import os
 import re
 import sys
@@ -22,53 +21,8 @@ import tensorflow as tf
 
 import histcon_input
 
-parser = argparse.ArgumentParser()
-
-# Model parameters.
-
-parser.add_argument('--batch_size', type=int, default=16,
-	help='Number of images to process in a batch.')
-
-parser.add_argument('--data_dir', type=str, default='/home/shawarma/thyroid',
-	help='Path to the HISTCON data directory.')
-
-parser.add_argument('--use_fp16', type=bool, default=False,
-	help='Train the model using fp16.')
-
-parser.add_argument('--model_dir', type=str, default='/home/shawarma/thyroid/models/active',
-	help='Directory where to write event logs and checkpoints.')
-
-parser.add_argument('--eval_dir', type=str, default='/home/shawarma/thyroid/eval',
-	help='Directory where to write eval logs and summaries.')
-
-parser.add_argument('--conv_dir', type=str, default='/home/shawarma/thyroid/conv',
-	help='Directory where to write logs and summaries for the convoluter.')
-
-parser.add_argument('--max_steps', type=int, default=1000000,
-	help='Number of batches to run.')
-
-parser.add_argument('--log_frequency', type=int, default=10,
-	help='How often to log results to the console.')
-
-parser.add_argument('--summary_steps', type=int, default=25,
-	help='How often to save summaries for Tensorboard display, in steps.')
-
-parser.add_argument('--eval_data', type=str, default='test',
-	help='Either "test" or "train", indicating the type of data to use for evaluation.')
-
-parser.add_argument('--eval_interval_secs', type=int, default=300,
-	help='How often to run the eval.')
-
-parser.add_argument('--num_examples', type=int, default=10000,
-	help='Number of examples to run.')
-
-parser.add_argument('--run_once', type=bool, default=False,
-	help='True/False; whether to run eval only once.')
-
-parser.add_argument('--whole_image', type=str,
-	help='Filename of whole image (JPG) to evaluate with saved model.')
-
-FLAGS = parser.parse_args()
+parser = histcon_input.parser
+FLAGS = histcon_input.FLAGS
 
 # Global constants describing the HISTCON data set.
 IMAGE_SIZE = histcon_input.IMAGE_SIZE
