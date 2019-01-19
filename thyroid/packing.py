@@ -15,16 +15,16 @@ import warnings
 import shapely.geometry as sg
 import matplotlib.pyplot as plt
 import numpy as np
-import progress
+import progress_bar
 from matplotlib import path
 from PIL import Image
 from os.path import isfile, join
 
 
 Image.MAX_IMAGE_PIXELS = None
-TILE_SIZE = 256
-ANNOTATION_COMPRESSION_FACTOR = 1
-DIRECTORY = "/home/shawarma/thyroid/images/annotated"
+TILE_SIZE = 2048
+ANNOTATION_COMPRESSION_FACTOR = 10
+DIRECTORY = "/home/james/thyroid/images/WSI_25/"
 
 class Packer:
 	"""Module which loads a LabelMe json annotation file and subdivides annotations
@@ -124,7 +124,7 @@ class Packer:
 
 			with warnings.catch_warnings():
 				warnings.simplefilter("ignore")
-				self.place_tiles(area, offset, self.size, export_dir, im, index, True)
+				self.place_tiles(area, offset, self.size, export_dir, im, index, False)
 
 		print("Export complete.")
 
@@ -140,7 +140,7 @@ class Packer:
 		for j in range(0, tile_size, stride[1]):
 			for i in range(0, tile_size, stride[0]):
 				sys.stdout.write("\rOptimizing annotation #%s: " % _id)
-				progress.bar((j*tile_size)+i, max_it, newline=False)
+				progress_bar.bar((j*tile_size)+i, max_it, newline=False)
 				count = self.place_tiles(area, [i, j], tile_size, exclusions = exclusions)
 				if count >= max_squares: 
 					max_squares = count

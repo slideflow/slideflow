@@ -11,12 +11,61 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import argparse
 
 from six.moves import urllib, xrange
 import tensorflow as tf
 
 # Process images of the below size. If this number is altered, the
 # model architecture will change and will need to be retrained.
+
+parser = argparse.ArgumentParser()
+
+# Model parameters.
+
+parser.add_argument('--batch_size', type=int, default=64,
+	help='Number of images to process in a batch.')
+
+parser.add_argument('--data_dir', type=str, default='/home/james/thyroid',
+	help='Path to the HISTCON data directory.')
+
+parser.add_argument('--use_fp16', type=bool, default=True,
+	help='Train the model using fp16.')
+
+parser.add_argument('--model_dir', type=str, default='/home/james/thyroid/models/active',
+	help='Directory where to write event logs and checkpoints.')
+
+parser.add_argument('--eval_dir', type=str, default='/home/james/thyroid/eval',
+	help='Directory where to write eval logs and summaries.')
+
+parser.add_argument('--conv_dir', type=str, default='/home/james/thyroid/conv',
+	help='Directory where to write logs and summaries for the convoluter.')
+
+parser.add_argument('--max_steps', type=int, default=1000000,
+	help='Number of batches to run.')
+
+parser.add_argument('--log_frequency', type=int, default=10,
+	help='How often to log results to the console.')
+
+parser.add_argument('--summary_steps', type=int, default=25,
+	help='How often to save summaries for Tensorboard display, in steps.')
+
+parser.add_argument('--eval_data', type=str, default='test',
+	help='Either "test" or "train", indicating the type of data to use for evaluation.')
+
+parser.add_argument('--eval_interval_secs', type=int, default=300,
+	help='How often to run the eval.')
+
+parser.add_argument('--num_examples', type=int, default=10000,
+	help='Number of examples to run.')
+
+parser.add_argument('--run_once', type=bool, default=False,
+	help='True/False; whether to run eval only once.')
+
+parser.add_argument('--whole_image', type=str,
+	help='Filename of whole image (JPG) to evaluate with saved model.')
+
+FLAGS = parser.parse_args()
 
 IMAGE_SIZE = 512
 
@@ -44,7 +93,7 @@ def _generate_image_and_label_batch(image, label, min_queue_images,
 	# Create a queue that shuffles images, and then
 	# read "batch_size" number of images + labels from the queue.
 	num_preprocess_threads = 8
-	batch_size_tensor = tf.placeholder_with_default(128, shape=[])
+	batch_size_tensor = tf.placeholder_with_default(FLAGS.batch_size, shape=[])
 	if shuffle:
 		images, label_batch = tf.train.shuffle_batch(
 			[image, label],
@@ -62,7 +111,7 @@ def _generate_image_and_label_batch(image, label, min_queue_images,
 	# Display the training images in Tensorboard.
 	tf.summary.image('images', images, max_outputs = 4)
 
-	return images, tf.reshape(label_batch, [batch_size])
+	return images, tf.reshape(label_batch, [batch_size_tensor])
 
 def processed_inputs(data_dir, batch_size, eval_data):
 	'''Applies some sort of pre-processing, corruption, or distortion to images for training.
@@ -122,4 +171,4 @@ def inputs(data_dir, batch_size, eval_data):
 			# Generate a batch of images and labels by building a queue.
 			return _generate_image_and_label_batch(float_image, label,
 												min_queue_examples, batch_size,
-												shuffle=False)
+												shuffle=True)

@@ -26,33 +26,31 @@ from inception_utils import inception_arg_scope
 import conv_display
 import progress_bar
 
-# TODO: fix compatibility with float16 and 32
+# NOTE!! THIS MODULE IS CURRENTLY NOT WORKING, THERE IS A BUG WITH WINDOWING
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--whole_image', type=str, default="images/WSI_25/234807-1_25.jpg",
+parser.add_argument('--whole_image', type=str, default="images/WSI_25/234797-1_25.jpg",
     help='Filename of whole image (JPG) to evaluate with saved model.')
 
-parser.add_argument('--data_dir', type=str, default='/home/shawarma/thyroid',
+parser.add_argument('--data_dir', type=str, default='/home/james/thyroid',
     help='Path to the HISTCON data directory.')
 
-parser.add_argument('--batch_size', type=int, default=16,
-    help='Number of images to process in a batch. MUST match the batch size used during training.')
-
-parser.add_argument('--conv_dir', type=str, default='/home/shawarma/thyroid/conv',
+parser.add_argument('--conv_dir', type=str, default='/home/james/thyroid/conv',
     help='Directory where to write logs and summaries for the convoluter.')
 
-parser.add_argument('--model_dir', type=str, default='/home/shawarma/thyroid/models/active',
+parser.add_argument('--model_dir', type=str, default='/home/james/thyroid/models/active/saved_snapshot',
     help='Directory where to write event logs and checkpoints.')
 
 SIZE = histcon.IMAGE_SIZE
 THREADS = 2
 stride_divisor = 4
 STRIDES = [1, int(SIZE/stride_divisor), int(SIZE/stride_divisor), 1]
-WINDOW_SIZE = 2000
+WINDOW_SIZE = 12000
 VERBOSE = True
 DTYPE = tf.float16 if histcon.FLAGS.use_fp16 else tf.float32
 DTYPE_INT = tf.int16 if histcon.FLAGS.use_fp16 else tf.int32
+BATCH_SIZE = histcon.FLAGS.batch_size
 
 def batch(iterable, n=1):
     l =len(iterable)
@@ -83,10 +81,10 @@ def scan_image():
 
         patches = tf.cast(tf.reshape(unshaped_patches, [-1, SIZE, SIZE, 3]), DTYPE)
 
-        batch_pl = tf.placeholder(DTYPE, shape=[FLAGS.batch_size, SIZE, SIZE, 3])
+        batch_pl = tf.placeholder(DTYPE, shape=[BATCH_SIZE, SIZE, SIZE, 3])
         standardized_batch = tf.map_fn(lambda patch: tf.cast(tf.image.per_image_standardization(patch), DTYPE), batch_pl, dtype=DTYPE)
-        with arg_scope(inception_arg_scope()):
-            _, end_points = inception_v4.inception_v4(standardized_batch, num_classes=2, create_aux_logits=True)
+        #with arg_scope(inception_arg_scope()):
+        _, end_points = inception_v4.inception_v4(standardized_batch, num_classes=histcon.NUM_CLASSES, create_aux_logits=True)
         slogits = end_points['Predictions']
         saver = tf.train.Saver()
 
@@ -98,7 +96,6 @@ def scan_image():
         #variables_to_restore = variable_averages.variables_to_restore()
         #saver = tf.train.Saver(variables_to_restore)
         
-
         summary_op = tf.summary.merge_all()
         summary_writer = tf.summary.FileWriter(FLAGS.conv_dir, g)
 
@@ -106,7 +103,8 @@ def scan_image():
             print("\n" + "="*20 + "\n")
             # Load image through PIL
             im = Image.open(filename)
-            imported_image = np.array(im, dtype=np.int32)
+            dtype = np.int16 if histcon.FLAGS.use_fp16 else np.int32
+            imported_image = np.array(im, dtype=dtype)
             print("Image size: ", imported_image.shape)
 
             init = (tf.global_variables_initializer(), tf.local_variables_initializer())
@@ -203,10 +201,10 @@ def scan_image():
                             progress_bar.bar(patch_index, total_patches)
                             patch_index += 1
 
-                        num_batches = int(patch_array.shape[0]/FLAGS.batch_size)
+                        num_batches = int(patch_array.shape[0]/BATCH_SIZE)
 
-                        for i, x in enumerate(batch(patch_array, FLAGS.batch_size)):
-                            if x.shape[0] == FLAGS.batch_size:
+                        for i, x in enumerate(batch(patch_array, BATCH_SIZE)):
+                            if x.shape[0] == BATCH_SIZE:
                                 # Full batch
                                 if VERBOSE: progress_bar.bar(i, num_batches)
                                 sl = sess.run(slogits, feed_dict = {batch_pl: x})
@@ -217,7 +215,7 @@ def scan_image():
                                     all_slogs = np.concatenate((all_slogs, sl), axis=0)
                             else:
                                 if VERBOSE: progress_bar.bar(1, 1)
-                                num_pad = FLAGS.batch_size - x.shape[0]
+                                num_pad = BATCH_SIZE - x.shape[0]
                                 z = np.zeros([num_pad, SIZE, SIZE, 3])
                                 padded_x = np.concatenate((x, z), axis=0)
                                 padded_sl = sess.run(slogits, feed_dict = {batch_pl: padded_x})
