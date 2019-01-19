@@ -23,25 +23,25 @@ parser = argparse.ArgumentParser()
 
 # Model parameters.
 
-parser.add_argument('--batch_size', type=int, default=64,
+parser.add_argument('--batch_size', type=int, default=16,
 	help='Number of images to process in a batch.')
 
-parser.add_argument('--data_dir', type=str, default='/home/james/thyroid',
+parser.add_argument('--data_dir', type=str, default='/home/shawarma/thyroid',
 	help='Path to the HISTCON data directory.')
 
 parser.add_argument('--use_fp16', type=bool, default=True,
 	help='Train the model using fp16.')
 
-parser.add_argument('--model_dir', type=str, default='/home/james/thyroid/models/active',
+parser.add_argument('--model_dir', type=str, default='/home/shawarma/thyroid/models/pretrained',
 	help='Directory where to write event logs and checkpoints.')
 
-parser.add_argument('--eval_dir', type=str, default='/home/james/thyroid/eval',
+parser.add_argument('--eval_dir', type=str, default='/home/shawarma/thyroid/eval',
 	help='Directory where to write eval logs and summaries.')
 
-parser.add_argument('--conv_dir', type=str, default='/home/james/thyroid/conv',
+parser.add_argument('--conv_dir', type=str, default='/home/shawarma/thyroid/conv',
 	help='Directory where to write logs and summaries for the convoluter.')
 
-parser.add_argument('--max_steps', type=int, default=1000000,
+parser.add_argument('--max_steps', type=int, default=20000,
 	help='Number of batches to run.')
 
 parser.add_argument('--log_frequency', type=int, default=10,
@@ -71,7 +71,7 @@ IMAGE_SIZE = 512
 
 # Global constants describing the histopathologic annotations.
 NUM_CLASSES = 2
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 100000
+NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 200000
 NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 1024
 
 def _generate_image_and_label_batch(image, label, min_queue_images,
