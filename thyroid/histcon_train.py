@@ -15,6 +15,7 @@ import time
 
 import tensorflow as tf
 from tensorflow.contrib.framework import arg_scope
+from tensorflow.python import debug as tf_debug
 
 import histcon
 #import tf_cnnvis
@@ -35,7 +36,7 @@ def train():
 
 		# Build a Graph that computes the logits predictions from
 		# the inference model.
-		#logits = histcon.inference(images)
+		
 		with arg_scope(inception_arg_scope()):
 			logits, end_points = inception_v4.inception_v4(images, num_classes=histcon.NUM_CLASSES)
 		

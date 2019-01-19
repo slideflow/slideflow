@@ -14,11 +14,12 @@ from datetime import datetime
 import time
 
 from tensorflow.python.platform import gfile
-from tensorflow.python.framework import tensor_util
 from tensorflow.contrib.framework import arg_scope
+from tensorflow.python import debug as tf_debug
 import tensorflow as tf
 
 import histcon
+import pickle
 #import tf_cnnvis
 import inception_v4
 from inception_utils import inception_arg_scope
@@ -27,49 +28,16 @@ import sys
 
 parser = histcon.parser
 
-RETRAIN_MODEL = '/home/james/thyroid/models/inception_v4_2018_04_27/inception_v4.pb'
+RETRAIN_MODEL = '/home/shawarma/thyroid/models/inception_v4_2018_04_27/inception_v4.pb'
+MODEL_VALUES_FILE = '/home/shawarma/thyroid/thyroid/obj/inception_v4_imagenet_pretrained.pkl'
 DTYPE = tf.float16 if histcon.FLAGS.use_fp16 else tf.float32
 
 def retrain():
 	# Do not import the final layer of the saved network, as we will be working with 
 	#  different output classes
-	variables_to_ignore = ("InceptionV4/Logits/Logits/weights:0", "InceptionV4/Logits/Logits/biases:0")
-	trainable_vars = []
-	imported_variable_dict = {}
 
-	with tf.Graph().as_default():
-		# Create an inception_v4 network to find names of trainable variables
-		with arg_scope(inception_arg_scope()):
-			input_placeholder = tf.placeholder(DTYPE, shape=[None, histcon.IMAGE_SIZE, histcon.IMAGE_SIZE, 3])
-			inception_v4.inception_v4(input_placeholder, num_classes=histcon.NUM_CLASSES, create_aux_logits=False)					
-
-			# Start a session to extract the imported tensor values
-			with tf.Session() as sess:
-				# First, get a list of trainable variables from our newly created inception_v4 network
-				for trainable_var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
-					variable_name = trainable_var.name
-					if variable_name not in variables_to_ignore:
-						trainable_vars.append(variable_name)
-
-	tf.reset_default_graph()
-
-	with tf.Graph().as_default():
-		# Import the graph from the saved *.rb file
-		with gfile.GFile(RETRAIN_MODEL, 'rb') as f:
-			graph_def = tf.GraphDef()
-			graph_def.ParseFromString(f.read())
-		tf.import_graph_def(graph_def, name='')
-
-		
-		with arg_scope(inception_arg_scope()):
-			with tf.Session() as sess:
-				for var in trainable_vars:
-					# For each trainable variable, put the saved value from our imported graph
-					#  into a python dictionary for later use
-					imported_value = tf.get_default_graph().get_tensor_by_name(var).eval(session=sess)
-					imported_variable_dict[var] = imported_value
-
-	tf.reset_default_graph()
+	with open(MODEL_VALUES_FILE, 'rb') as f:
+		var_dict = pickle.load(f)
 
 	# Start a new graph and build a new inception_v4 network
 	with tf.Graph().as_default():
@@ -79,17 +47,16 @@ def retrain():
 			images, labels = histcon.processed_inputs()
 
 		with arg_scope(inception_arg_scope()):
-			logits, end_points = inception_v4.inception_v4(images, num_classes=histcon.NUM_CLASSES, create_aux_logits=True)
+			logits, end_points = inception_v4.inception_v4(images, num_classes=histcon.NUM_CLASSES)
 
 			assign_ops = []
 
 			# For each trainable variable, create an op that will assign to it the value we saved
 			for trainable_var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
 				var_name = trainable_var.name
-				if variable_name in variables_to_ignore:
-					continue
-				assign_op = trainable_var.assign(imported_variable_dict[var_name])
-				assign_ops.append(assign_op)
+				if var_name in var_dict:
+					assign_op = trainable_var.assign(var_dict[var_name])
+					assign_ops.append(assign_op)
 
 		# Run the ops which will execute the variable data transfer
 		with tf.Session() as sess:
