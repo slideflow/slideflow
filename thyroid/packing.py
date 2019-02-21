@@ -24,7 +24,7 @@ from os.path import isfile, join
 Image.MAX_IMAGE_PIXELS = None
 TILE_SIZE = 2048
 ANNOTATION_COMPRESSION_FACTOR = 10
-DIRECTORY = "/home/james/thyroid/images/WSI_25/"
+DIRECTORY = "/home/shawarma/thyroid/images/normal_background"
 
 class Packer:
 	"""Module which loads a LabelMe json annotation file and subdivides annotations
@@ -81,7 +81,7 @@ class Packer:
 			elif label != background_label:
 				mPolygon = plt.Polygon(area_full)
 				self.other_shapes.append(shape)
-				squares, coordinates = self.tile_iterator(area, index, self.size, [4,4])
+				squares, coordinates = self.tile_iterator(area, index, int(self.size / self.factor), [4,4])
 				print("Number of tiles: %i" % squares)
 				if squares > 0:
 					print ("Optimal starting point: (%s, %s)" %
@@ -89,7 +89,7 @@ class Packer:
 				self.data[index]['square_offset'] = coordinates
 				self.data[index]['max_squares'] = squares
 
-	def export_tiles(self, export_dir, background_label = "case", ignore_background = True, origin_optimization = True):
+	def export_tiles(self, export_dir, background_label = "background", ignore_background = True, origin_optimization = True):
 		"""For all annotated shapes, exports extracted tiles from a full-size image.
 
 		Args:
@@ -218,7 +218,7 @@ class Packer:
 
 	def show_graph(self):
 		plt.axis('scaled')
-		plt.show()
+		#plt.show()
 
 if __name__==('__main__'):
 	cases = [f[:-5] for f in os.listdir(DIRECTORY) if (isfile(join(DIRECTORY, f)) 
