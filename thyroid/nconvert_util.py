@@ -2,7 +2,7 @@ import os
 from os.path import isfile, join
 import subprocess
 
-root_folder = "/home/shawarma/thyroid/images/normal_background/2048"
+root_folder = "/home/shawarma/thyroid/images/Five_Category_512_from_2048/to_resize"
 resize_name = "512_from_2048"
 resize_folder = join(root_folder, resize_name)
 if not os.path.isdir(resize_folder): 
