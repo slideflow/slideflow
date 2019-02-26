@@ -10,7 +10,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
+import os, sys
 import argparse
 
 from six.moves import urllib, xrange
@@ -23,7 +23,7 @@ parser = argparse.ArgumentParser()
 
 # Model parameters.
 
-parser.add_argument('--batch_size', type=int, default=16,
+parser.add_argument('--batch_size', type=int, default=32,
 	help='Number of images to process in a batch.')
 
 parser.add_argument('--data_dir', type=str, default='/home/shawarma/thyroid',
@@ -32,7 +32,7 @@ parser.add_argument('--data_dir', type=str, default='/home/shawarma/thyroid',
 parser.add_argument('--use_fp16', type=bool, default=True,
 	help='Train the model using fp16.')
 
-parser.add_argument('--model_dir', type=str, default='/home/shawarma/thyroid/models/pretrained',
+parser.add_argument('--model_dir', type=str, default='/home/shawarma/thyroid/models/active',
 	help='Directory where to write event logs and checkpoints.')
 
 parser.add_argument('--eval_dir', type=str, default='/home/shawarma/thyroid/eval',
@@ -70,8 +70,8 @@ FLAGS = parser.parse_args()
 IMAGE_SIZE = 512
 
 # Global constants describing the histopathologic annotations.
-NUM_CLASSES = 2
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 200000
+NUM_CLASSES = 5
+NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 1024
 NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 1024
 
 def _generate_image_and_label_batch(image, label, min_queue_images,
@@ -109,7 +109,9 @@ def _generate_image_and_label_batch(image, label, min_queue_images,
 			capacity=min_queue_images + 3 * batch_size)
 
 	# Display the training images in Tensorboard.
-	tf.summary.image('images', images, max_outputs = 4)
+	summary_string = tf.strings.join([tf.dtypes.as_string(label_batch[tf.constant(s, dtype=tf.int32)]) for s in range(0, 5)])
+	tf.summary.image('images', images, max_outputs = 5)
+	tf.summary.text('image_labels', summary_string)
 
 	return images, tf.reshape(label_batch, [batch_size_tensor])
 
@@ -133,10 +135,10 @@ def inputs(data_dir, batch_size, eval_data):
 		labels: Labels. 1D tensor of [batch_size] size.
 	'''
 	if not eval_data:
-		filenames = os.path.join(data_dir, "train_data/*/*.jpg")
+		filenames = os.path.join(data_dir, "train_data/*/*/*.jpg")
 		num_examples_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
 	else:
-		filenames = os.path.join(data_dir, "eval_data/*/*.jpg")
+		filenames = os.path.join(data_dir, "eval_data/*/*/*.jpg")
 		num_examples_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_EVAL
 
 	with tf.name_scope('input'):
@@ -150,7 +152,7 @@ def inputs(data_dir, batch_size, eval_data):
 			image_reader = tf.WholeFileReader()
 			key, image_file = image_reader.read(filename_queue)
 			S = tf.string_split([key],'/')
-			label = tf.string_to_number(S.values[tf.constant(-2, dtype=tf.int32)],
+			label = tf.string_to_number(S.values[tf.constant(-3, dtype=tf.int32)],
 										out_type=tf.int32)
 			image = tf.image.decode_jpeg(image_file)
 
