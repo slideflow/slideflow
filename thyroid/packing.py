@@ -24,7 +24,7 @@ from os.path import isfile, join
 Image.MAX_IMAGE_PIXELS = None
 TILE_SIZE = 2048
 ANNOTATION_COMPRESSION_FACTOR = 10
-DIRECTORY = "/home/shawarma/thyroid/images/normal_background"
+DIRECTORY = "/media/shawarma/Backup/Other files/Thyroid/Annotations/All/to_convert"
 
 class Packer:
 	"""Module which loads a LabelMe json annotation file and subdivides annotations

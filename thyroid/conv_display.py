@@ -41,7 +41,7 @@ def display(image_file, logits, size, stride):
 	cmMap = cm.nipy_spectral(jetMap)
 	newMap = mcol.ListedColormap(cmMap)
 
-	sl = logits[:, :, 0]
+	sl = logits[:, :, 1]
 	
 	# Consider alternate interpolations: none, bicubic, quadric, lanczos
 	heatmap = plt.imshow(sl, extent=extent, cmap=newMap, alpha = 0.3, interpolation='bicubic', zorder=10)

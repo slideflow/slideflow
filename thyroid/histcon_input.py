@@ -41,7 +41,7 @@ parser.add_argument('--eval_dir', type=str, default='/home/shawarma/thyroid/eval
 parser.add_argument('--conv_dir', type=str, default='/home/shawarma/thyroid/conv',
 	help='Directory where to write logs and summaries for the convoluter.')
 
-parser.add_argument('--max_steps', type=int, default=20000,
+parser.add_argument('--max_steps', type=int, default=70000,
 	help='Number of batches to run.')
 
 parser.add_argument('--log_frequency', type=int, default=10,
