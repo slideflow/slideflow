@@ -30,7 +30,7 @@ import progress_bar
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--whole_image', type=str, default="images/WSI_25/234807-1_25.jpg",
+parser.add_argument('--whole_image', type=str, default="images/WSI_25/234797-1_25.jpg",
     help='Filename of whole image (JPG) to evaluate with saved model.')
 
 parser.add_argument('--data_dir', type=str, default='/home/shawarma/thyroid',
