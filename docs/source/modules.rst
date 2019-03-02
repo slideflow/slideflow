@@ -5,14 +5,10 @@ thyroid
    :maxdepth: 4
 
    conv_display
-   conv_test
    convoluter
    histcon
    histcon_eval
-   histcon_input
    histcon_train
-   multi
+   histcon_retrain
    packing
-   progress
-   tftest
-   tiler
+   progress_bar

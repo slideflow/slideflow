@@ -17,32 +17,36 @@
   
 
   
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
 
-  
-  
     
 
   
-
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" /> 
-
-  
-  <script src="_static/js/modernizr.min.js"></script>
-
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="histcon_eval module" href="histcon_eval.html" />
+    <link rel="prev" title="convoluter module" href="convoluter.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
-
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search">
+        <div class="wy-side-nav-search" >
           
 
           
@@ -81,8 +85,19 @@
             
             
               <p class="caption"><span class="caption-text">Contents:</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">thyroid</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="conv_display.html">conv_display module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="convoluter.html">convoluter module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">histcon module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histcon_eval.html">histcon_eval module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histcon_train.html">histcon_train module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histcon_retrain.html">histcon_retrain module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="packing.html">packing module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="progress_bar.html">progress module</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
 </ul>
 
@@ -129,6 +144,8 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
+          <li><a href="modules.html">thyroid</a> &raquo;</li>
+        
       <li>histcon module</li>
     
     
@@ -148,8 +165,99 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="histcon-module">
-<h1>histcon module<a class="headerlink" href="#histcon-module" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="module-histcon">
+<span id="histcon-module"></span><h1>histcon module<a class="headerlink" href="#module-histcon" title="Permalink to this headline">¶</a></h1>
+<p>‘Builds the HISTCON network.</p>
+<dl class="function">
+<dt id="histcon.inference">
+<code class="descclassname">histcon.</code><code class="descname">inference</code><span class="sig-paren">(</span><em>input_tensor</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/histcon.html#inference"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#histcon.inference" title="Permalink to this definition">¶</a></dt>
+<dd><p>Build the HISTCON model.</p>
+<dl class="docutils">
+<dt>Layer types:</dt>
+<dd>conv: Convolutional layers with a kernel size and feature map size.
+pool: Pooling layers.
+norm: Normalization layers.
+local: Fully-connected layers.
+linear: final layer with linear transformation to produce logits.</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>input_tensor</strong> – Images Tensor returned from distorted_inputs() or inputs().</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Logits.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="histcon.inputs">
+<code class="descclassname">histcon.</code><code class="descname">inputs</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/histcon.html#inputs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#histcon.inputs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Construct processed input for HISTCON training.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Images. 4D tensor of [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3] size.
+labels: Labels. 1D tensor of [batch_size] size.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">images</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.7)"><code class="xref py py-exc docutils literal notranslate"><span class="pre">ValueError</span></code></a> – if no data_dir</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="histcon.loss">
+<code class="descclassname">histcon.</code><code class="descname">loss</code><span class="sig-paren">(</span><em>logits</em>, <em>labels</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/histcon.html#loss"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#histcon.loss" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add L2Loss to all trainable variables, and a summary for “Loss” and “Loss/avg”.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>logits</strong> – Logits from inference().</li>
+<li><strong>labels</strong> – Labels from distorted_inputs() or inputs(). 1D tensor of shape [batch_size]</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Loss Tensor of type float.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="histcon.train">
+<code class="descclassname">histcon.</code><code class="descname">train</code><span class="sig-paren">(</span><em>total_loss</em>, <em>global_step</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/histcon.html#train"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#histcon.train" title="Permalink to this definition">¶</a></dt>
+<dd><p>Train the HISTCON model.</p>
+<p>Create an optimizer and apply to all trainable variables. Add moving
+average for all trainable variables.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>total_loss</strong> – Total loss from loss().</li>
+<li><strong>global_step</strong> – Integer variable counting the number of training steps processed.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">op for training.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">train_op</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </div>
 
 
@@ -157,6 +265,15 @@
            
           </div>
           <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="histcon_eval.html" class="btn btn-neutral float-right" title="histcon_eval module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="convoluter.html" class="btn btn-neutral float-left" title="convoluter module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
   
 
   <hr/>
@@ -180,26 +297,16 @@
   
 
 
-  
-
-    
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
-    
-
-  
-
-  <script type="text/javascript" src="_static/js/theme.js"></script>
-
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
+
+  
+  
+    
+   
 
 </body>
 </html>
