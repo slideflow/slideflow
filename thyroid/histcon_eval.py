@@ -20,8 +20,6 @@ import tensorflow as tf
 
 import histcon
 
-parser = histcon.parser
-
 def eval_once(saver, summary_writer, top_k_op, summary_op):
 	'''Run eval once.
 
@@ -37,7 +35,7 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
 		sess.run(init)
 
 		# Restore checkpoint
-		ckpt = tf.train.get_checkpoint_state(FLAGS.model_dir)
+		ckpt = tf.train.get_checkpoint_state(histcon.MODEL_DIR)
 		if ckpt and ckpt.model_checkpoint_path:
 			# Restores from checkpoint
 			saver.restore(sess, ckpt.model_checkpoint_path)
@@ -56,9 +54,9 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
 			for qr in tf.get_collection(tf.GraphKeys.QUEUE_RUNNERS):
 				threads.extend(qr.create_threads(sess, coord=coord, daemon=True, start=True))
 
-			num_iter = int(math.ceil(FLAGS.num_examples / FLAGS.batch_size)) # Number of examples to test.
+			num_iter = int(math.ceil(histcon.NUM_EXAMPLES / histcon.BATCH_SIZE)) # Number of examples to test.
 			true_count = 0 # Counts the number of correct predictions.
-			total_sample_count = num_iter * FLAGS.batch_size
+			total_sample_count = num_iter * histcon.BATCH_SIZE
 			step = 0
 			while step < num_iter and not coord.should_stop():
 				predictions = sess.run([top_k_op])
@@ -83,7 +81,7 @@ def evaluate():
 	'''Eval HISTCON for a number of steps.'''
 	with tf.Graph().as_default() as g:
 		# Get images and labels for HISTCON.
-		eval_data = FLAGS.eval_data == 'test'
+		eval_data = histcon.EVAL_DATA == 'test'
 		images, labels = histcon.inputs(eval_data=eval_data)
 
 		# Build a Graph that computes the logits predictions from the inference model.
@@ -100,22 +98,19 @@ def evaluate():
 
 		# Build the summary op based on the TF collection of Summaries.
 		summary_op = tf.summary.merge_all()
-		summary_writer = tf.summary.FileWriter(FLAGS.eval_dir, g)
+		summary_writer = tf.summary.FileWriter(histcon.EVAL_DIR, g)
 
 		while True:
 			eval_once(saver, summary_writer, top_k_op, summary_op)
-			if FLAGS.run_once:
-				break
-			time.sleep(FLAGS.eval_interval_secs)
+			time.sleep(histcon.EVAL_INTERVAL_SECS)
 
 def main(argv=None):
-	if tf.gfile.Exists(FLAGS.eval_dir):
-		tf.gfile.DeleteRecursively(FLAGS.eval_dir)
-	tf.gfile.MakeDirs(FLAGS.eval_dir)
+	if tf.gfile.Exists(histcon.EVAL_DIR):
+		tf.gfile.DeleteRecursively(histcon.EVAL_DIR)
+	tf.gfile.MakeDirs(histcon.EVAL_DIR)
 	evaluate()
 
 if __name__ == '__main__':
-	FLAGS = parser.parse_args()
 	tf.app.run()
 
 
