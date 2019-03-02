@@ -25,28 +25,28 @@ parser = argparse.ArgumentParser()
 
 # Model parameters.
 
-parser.add_argument('--batch_size', type=int, default=32,
+parser.add_argument('--batch_size', type=int, default=2,
 	help='Number of images to process in a batch.')
 
-parser.add_argument('--data_dir', type=str, default='/home/shawarma/thyroid',
+parser.add_argument('--data_dir', type=str, default='/Users/james/thyroid',
 	help='Path to the HISTCON data directory.')
 
 parser.add_argument('--use_fp16', type=bool, default=True,
 	help='Train the model using fp16.')
 
-parser.add_argument('--model_dir', type=str, default='/home/shawarma/thyroid/models/active',
+parser.add_argument('--model_dir', type=str, default='/Users/james/thyroid/models/active',
 	help='Directory where to write event logs and checkpoints.')
 
-parser.add_argument('--eval_dir', type=str, default='/home/shawarma/thyroid/eval',
+parser.add_argument('--eval_dir', type=str, default='/Users/james/thyroid/models/eval',
 	help='Directory where to write eval logs and summaries.')
 
-parser.add_argument('--conv_dir', type=str, default='/home/shawarma/thyroid/conv',
+parser.add_argument('--conv_dir', type=str, default='/Users/james/thyroid/models/conv',
 	help='Directory where to write logs and summaries for the convoluter.')
 
-parser.add_argument('--max_steps', type=int, default=70000,
+parser.add_argument('--max_epoch', type=int, default=30,
 	help='Number of batches to run.')
 
-parser.add_argument('--log_frequency', type=int, default=10,
+parser.add_argument('--log_frequency', type=int, default=1,
 	help='How often to log results to the console.')
 
 parser.add_argument('--summary_steps', type=int, default=25,
@@ -76,53 +76,28 @@ NUM_CLASSES = 5
 NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 1024
 NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 1024
 
-def _generate_image_and_label_batch(image, label, min_queue_images,
-									batch_size, shuffle):
-	'''Construct a queued batch of images and labels.
+def _parse_function(filename, label):
+	image_string = tf.read_file(filename)
+	image = tf.image.decode_jpeg(image_string, channels = 3)
+	image = tf.image.per_image_standardization(image)
 
-	Args:
-		image: 3D Tensor of [height, width, 3] of type.float32.
-		label: 1D Tensor of type.int32
-		min_queue_images: int32, minimum number of samples to retain
-			in the queue that provides batches of images.
-		batch_size: Number of images per batch.
-		shuffle: bool, whether to use a shuffling queue.
+	dtype = tf.float16 if FLAGS.use_fp16 else tf.float32
+	image = tf.image.convert_image_dtype(image, dtype)
+	image = tf.image.resize_images(image, [128,128])
+	image.set_shape([128, 128, 3])#[IMAGE_SIZE, IMAGE_SIZE, 3])
 
-	Return:
-		images: Images. 4D Tensor of [batch_size, height, width, 3] size.
-		labels: Labels. 1D Tensor of [batch_size] size.
-	'''
-	# Create a queue that shuffles images, and then
-	# read "batch_size" number of images + labels from the queue.
-	num_preprocess_threads = 8
-	batch_size_tensor = tf.placeholder_with_default(FLAGS.batch_size, shape=[])
-	if shuffle:
-		images, label_batch = tf.train.shuffle_batch(
-			[image, label],
-			batch_size=batch_size_tensor,
-			num_threads=num_preprocess_threads,
-			capacity=min_queue_images + 3 * batch_size,
-			min_after_dequeue=min_queue_images)
-	else:
-		images, label_batch = tf.train.batch(
-			[image, label],
-			batch_size=batch_size_tensor,
-			num_threads=num_preprocess_threads,
-			capacity=min_queue_images + 3 * batch_size)
+	# Optional image resizing
+	
+	return image, label
 
-	# Display the training images in Tensorboard.
-	summary_string = tf.strings.join([tf.dtypes.as_string(label_batch[tf.constant(s, dtype=tf.int32)]) for s in range(0, 5)])
-	tf.summary.image('images', images, max_outputs = 5)
-	tf.summary.text('image_labels', summary_string)
+def _train_preprocess(image, label):
+	# Optional pre-processing
+	#image = tf.image.random_flip_left_right(image)
+	#image = tf.image.random_brightness(image, max_delta = 32.0 / 255.0)
+	#image = tf.image.random_saturation(image, lower=0.5, upper = 1.5)
+	#image = tf.clip_by_value(image, 0.0, 1.0)
 
-	return images, tf.reshape(label_batch, [batch_size_tensor])
-
-def processed_inputs(data_dir, batch_size, eval_data):
-	'''Applies some sort of pre-processing, corruption, or distortion to images for training.
-
-	Currently, this feature has not been implemented.
-	'''
-	return inputs(data_dir, batch_size, eval_data)
+	return image, label
 
 def inputs(data_dir, batch_size, eval_data):
 	'''Construct input for HISTCON evaluation.
@@ -133,46 +108,38 @@ def inputs(data_dir, batch_size, eval_data):
 		batch_size: Number of images per batch.
 
 	Returns:
-		images: Images. 4D tensor of [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3] size.
-		labels: Labels. 1D tensor of [batch_size] size.
+		next_batch_images: Images. 4D tensor of [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3] size.
+		next_batch_labels: Labels. 1D tensor of [batch_size] size.
 	'''
 	if not eval_data:
-		filenames = os.path.join(data_dir, "train_data/*/*/*.jpg")
+		files = os.path.join(data_dir, "train_data/*/*/*.jpg")
 		num_examples_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
 	else:
-		filenames = os.path.join(data_dir, "eval_data/*/*/*.jpg")
+		files = os.path.join(data_dir, "eval_data/*/*/*.jpg")
 		num_examples_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_EVAL
+
+	with tf.name_scope('filename_input'):
+		with tf.Session() as sess:
+			tf_filenames = tf.train.match_filenames_once(files)
+			tf_labels = tf.map_fn(lambda f: tf.string_to_number(tf.string_split([f], '/').values[tf.constant(-3, dtype=tf.int32)],
+															out_type=tf.int32), tf_filenames, dtype=tf.int32)
+
+			init = (tf.global_variables_initializer(), tf.local_variables_initializer())
+			sess.run(init)
+			filenames, labels = sess.run([tf_filenames, tf_labels])
 
 	with tf.name_scope('input'):
 
-		with tf.name_scope('queue'):
-			# Create a queue that produces filenames to read
-			filename_queue = tf.train.string_input_producer(tf.train.match_filenames_once(filenames))
+		dataset = tf.data.Dataset.from_tensor_slices((filenames, labels))
+		dataset = dataset.shuffle(tf.size(filenames, out_type=tf.int64))
+		dataset = dataset.map(_parse_function, num_parallel_calls = 8)
+		dataset = dataset.map(_train_preprocess, num_parallel_calls = 8)
+		dataset = dataset.batch(FLAGS.batch_size)
+		dataset = dataset.repeat(FLAGS.max_epoch)
+		dataset = dataset.prefetch(1)
 
-		with tf.name_scope('image_reader'):
-			# Create Tensor that reads an image and label from the filename queue
-			image_reader = tf.WholeFileReader()
-			key, image_file = image_reader.read(filename_queue)
-			S = tf.string_split([key],'/')
-			label = tf.string_to_number(S.values[tf.constant(-3, dtype=tf.int32)],
-										out_type=tf.int32)
-			image = tf.image.decode_jpeg(image_file)
+		with tf.name_scope('iterator'):
+			iterator = dataset.make_one_shot_iterator()
+			next_batch_images, next_batch_labels = iterator.get_next()
 
-		with tf.name_scope('image_processing'):
-			# Image processing
-			# To input: resize image as appropriate (e.g. down-scaling if necessary)
-			# Subtract off the mean and divide by the variance of the pixels.
-			float_image = tf.image.per_image_standardization(image)
-
-			float_image.set_shape([IMAGE_SIZE, IMAGE_SIZE, 3])
-
-		with tf.name_scope('batching'):
-			# Ensure that random shuffling has good mixing properties
-			min_fraction_of_examples_in_queue = 0.01
-			min_queue_examples = int(num_examples_per_epoch *
-									min_fraction_of_examples_in_queue)
-
-			# Generate a batch of images and labels by building a queue.
-			return _generate_image_and_label_batch(float_image, label,
-												min_queue_examples, batch_size,
-												shuffle=True)
+	return next_batch_images, next_batch_labels

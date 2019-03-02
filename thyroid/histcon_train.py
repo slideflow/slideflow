@@ -34,16 +34,16 @@ def train():
 		# Get images and labels.
 		# Force input pipeline to CPU:0 to avoid operations ending up on GPU.
 		with tf.device('/cpu'):
-			images, labels = histcon.processed_inputs()
+			next_batch_images, next_batch_labels = histcon.inputs()
 
 		# Build a Graph that computes the logits predictions from
 		# the inference model.
 		
 		with arg_scope(inception_arg_scope()):
-			logits, end_points = inception_v4.inception_v4(images, num_classes=histcon.NUM_CLASSES)
+			logits, end_points = inception_v4.inception_v4(next_batch_images, num_classes=histcon.NUM_CLASSES)
 		
 		# Calculate the loss.
-		loss = histcon.loss(logits, labels)
+		loss = histcon.loss(logits, next_batch_labels)
 
 		# Build a Graph that trains the model with one batch of
 		# examples and updates the model parameters.
@@ -79,12 +79,12 @@ def train():
 
 		with tf.train.MonitoredTrainingSession(
 			checkpoint_dir = FLAGS.model_dir,
-			hooks = [tf.train.StopAtStepHook(last_step = FLAGS.max_steps),
-					tf.train.NanTensorHook(loss),
+			hooks = [tf.train.NanTensorHook(loss),
 					_LoggerHook()],
 			config = tf.ConfigProto(
 					log_device_placement=False),
 			save_summaries_steps = FLAGS.summary_steps) as mon_sess:
+
 			while not mon_sess.should_stop():
 				mon_sess.run(train_op)
 
