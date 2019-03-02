@@ -7,6 +7,8 @@
 
 # Update 3/2/2019: Beginning tf.data implementation
 
+# In the process of merging histcon & histcon_input
+
 ''''Builds the HISTCON network.'''
 
 from __future__ import absolute_import
@@ -21,22 +23,126 @@ import tarfile
 from six.moves import urllib, xrange
 import tensorflow as tf
 
-import histcon_input
-
-parser = histcon_input.parser
-FLAGS = histcon_input.FLAGS
-
 # Global constants describing the HISTCON data set.
-IMAGE_SIZE = histcon_input.IMAGE_SIZE
-NUM_CLASSES = histcon_input.NUM_CLASSES
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = histcon_input.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
-NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = histcon_input.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL
+
+# Process images of the below size. If this number is altered, the
+# model architecture will change and will need to be retrained.
+
+IMAGE_SIZE = 512
+NUM_CLASSES = 5
+
+NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 1024
+NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 1024
 
 # Constants for the training process.
 MOVING_AVERAGE_DECAY = 0.9999 		# Decay to use for the moving average.
 NUM_EPOCHS_PER_DECAY = 240.0		# Epochs after which learning rate decays.
 LEARNING_RATE_DECAY_FACTOR = 0.05	# Learning rate decay factor.
 INITIAL_LEARNING_RATE = 0.001			# Initial learning rate.
+
+# Variables previous created with parser & FLAGS
+BATCH_SIZE = 2
+DATA_DIR = '/Users/james/thyroid'
+MODEL_DIR = '/Users/james/thyroid/models/active' # Directory where to write event logs and checkpoints.
+EVAL_DIR = '/Users/james/thyroid/models/eval' # Directory where to write eval logs and summaries.
+CONV_DIR = '/Users/james/thyroid/models/conv' # Directory where to write logs and summaries for the convoluter.
+WHOLE_IMAGE = '' # Filename of whole image (JPG) to evaluate with saved model
+MAX_EPOCH = 30
+LOG_FREQUENCY = 1 # How often to log results to console
+SUMMARY_STEPS = 25 # How often to save summaries for Tensorboard display, in steps
+EVAL_DATA = 'test' # Either "test" or "train", indicating the type of data to use for evaluation.
+EVAL_INTERVAL_SECS = 300 # How often to run eval/validation
+NUM_EXAMPLES = 10000 # Number of examples to run?
+USE_FP16 = True
+
+def _parse_function(filename, label):
+	'''Loads image file data into Tensor.
+
+	Args:
+		filename: 	a string containing directory/filename of .jpg file
+		label: 		accompanying image label
+
+	Returns:
+		image: a Tensor of shape [size, size, 3] containing image data
+		label: accompanying label
+	'''
+	image_string = tf.read_file(filename)
+	image = tf.image.decode_jpeg(image_string, channels = 3)
+	image = tf.image.per_image_standardization(image)
+
+	dtype = tf.float16 if USE_FP16 else tf.float32
+	image = tf.image.convert_image_dtype(image, dtype)
+	image = tf.image.resize_images(image, [128,128])
+	image.set_shape([128, 128, 3])#[IMAGE_SIZE, IMAGE_SIZE, 3])
+
+	# Optional image resizing
+	
+	return image, label
+
+def _train_preprocess(image, label):
+	'''Performs image pre-processing, including flipping, and changes to brightness and saturation.
+
+	Args:
+		image: a Tensor of shape [size, size, 3]
+		label: accompanying label
+
+	Returns:
+		image: a Tensor of shape [size, size, 3]
+		label: accompanying label
+	'''
+
+	# Optional pre-processing
+	#image = tf.image.random_flip_left_right(image)
+	#image = tf.image.random_brightness(image, max_delta = 32.0 / 255.0)
+	#image = tf.image.random_saturation(image, lower=0.5, upper = 1.5)
+	#image = tf.clip_by_value(image, 0.0, 1.0)
+
+	return image, label
+
+def inputs(data_dir, batch_size, eval_data):
+	'''Construct input for HISTCON evaluation.
+
+	Args:
+		eval_data: bool indicating if one should use the training or eval data set.
+		data_dir: Path to the data directory.
+		batch_size: Number of images per batch.
+
+	Returns:
+		next_batch_images: Images. 4D tensor of [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3] size.
+		next_batch_labels: Labels. 1D tensor of [batch_size] size.
+	'''
+	if not eval_data:
+		files = os.path.join(data_dir, "train_data/*/*/*.jpg")
+		num_examples_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
+	else:
+		files = os.path.join(data_dir, "eval_data/*/*/*.jpg")
+		num_examples_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_EVAL
+
+	with tf.name_scope('filename_input'):
+		with tf.Session() as sess:
+			tf_filenames = tf.train.match_filenames_once(files)
+			tf_labels = tf.map_fn(lambda f: tf.string_to_number(tf.string_split([f], '/').values[tf.constant(-3, dtype=tf.int32)],
+															out_type=tf.int32), tf_filenames, dtype=tf.int32)
+
+			init = (tf.global_variables_initializer(), tf.local_variables_initializer())
+			sess.run(init)
+			filenames, labels = sess.run([tf_filenames, tf_labels])
+
+	with tf.name_scope('input'):
+
+		dataset = tf.data.Dataset.from_tensor_slices((filenames, labels))
+		dataset = dataset.shuffle(tf.size(filenames, out_type=tf.int64))
+		dataset = dataset.map(_parse_function, num_parallel_calls = 8)
+		dataset = dataset.map(_train_preprocess, num_parallel_calls = 8)
+		dataset = dataset.batch(BATCH_SIZE)
+		dataset = dataset.repeat(MAX_EPOCH)
+		dataset = dataset.prefetch(1)
+
+		with tf.name_scope('iterator'):
+			iterator = dataset.make_one_shot_iterator()
+			next_batch_images, next_batch_labels = iterator.get_next()
+
+	return next_batch_images, next_batch_labels
 
 def _activation_summary(x):
 	'''Helper to create summaries for activations.
@@ -65,7 +171,7 @@ def _variable_on_cpu(name, shape, initializer):
 		Variable Tensor
 	'''
 	with tf.device('/cpu:0'):
-		dtype = tf.float16 if FLAGS.use_fp16 else tf.float32
+		dtype = tf.float16 if USE_FP16 else tf.float32
 		var = tf.get_variable(name, shape, initializer=initializer, dtype=dtype)
 	return var
 
@@ -85,7 +191,7 @@ def _variable_with_weight_decay(name, shape, stddev, wd):
 	Returns:
 		Variable Tensor
 	'''
-	dtype = tf.float16 if FLAGS.use_fp16 else tf.float32
+	dtype = tf.float16 if USE_FP16 else tf.float32
 	var = _variable_on_cpu(
 		name,
 		shape,
@@ -105,12 +211,12 @@ def inputs():
 	Raises:
 		ValueError: if no data_dir
 	'''
-	if not FLAGS.data_dir:
+	if not DATA_DIR:
 		raise ValueError('Please designate a data_dir.')
-	images, labels = histcon_input.inputs(data_dir=FLAGS.data_dir,
-													batch_size=FLAGS.batch_size,
+	images, labels = inputs(data_dir=DATA_DIR,
+													batch_size=BATCH_SIZE,
 													eval_data=False)
-	if FLAGS.use_fp16:
+	if USE_FP16:
 		images = tf.cast(images, tf.float16)
 		labels = tf.cast(labels, tf.float16)
 	return images, labels
@@ -200,7 +306,7 @@ def inference(input_tensor):
 
 		with tf.variable_scope('reshape_fully_connect') as scope:
 			# Move output from last layer into depth so a single matrix multiplication can be performed.
-			reshape = tf.reshape(conv4, [FLAGS.batch_size, -1])
+			reshape = tf.reshape(conv4, [BATCH_SIZE, -1])
 			dim = reshape.get_shape()[1].value
 
 		# local5
@@ -282,7 +388,7 @@ def train(total_loss, global_step):
 	'''
 
 	# Variables that affect learning rate.
-	num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size
+	num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / BATCH_SIZE
 	decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY)
 
 	# Decay the learning rate exponentially based on the number of steps.
