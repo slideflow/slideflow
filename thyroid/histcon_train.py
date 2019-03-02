@@ -20,14 +20,11 @@ from tensorflow.contrib.framework import arg_scope
 from tensorflow.python import debug as tf_debug
 
 import histcon
-#import tf_cnnvis
 import inception_v4
 from inception_utils import inception_arg_scope
 
-parser = histcon.parser
-
 def train():
-	'''Train HISTCON for a number of steps.'''
+	'''Train HISTCON for a number of steps, according to flags set by the argument parser.'''
 	with tf.Graph().as_default():
 		global_step = tf.train.get_or_create_global_step()
 
@@ -64,36 +61,36 @@ def train():
 				return tf.train.SessionRunArgs(loss) # Asks for loss value.
 
 			def after_run(self, run_context, run_values):
-				if self._step % FLAGS.log_frequency == 0:
+				if self._step % LOG_FREQUENCY == 0:
 					current_time = time.time()
 					duration = current_time - self._start_time
 					self._start_time = current_time
 
 					loss_value = run_values.results
-					images_per_sec = FLAGS.log_frequency * FLAGS.batch_size / duration
-					sec_per_batch = float(duration / FLAGS.log_frequency)
+					images_per_sec = histcon.LOG_FREQUENCY * histcon.BATCH_SIZE / duration
+					sec_per_batch = float(duration / histcon.LOG_FREQUENCY)
 
 					format_str = ('%s: step %d, loss = %.2f (%.1f images/sec; %.3f sec/batch)')
 					print(format_str % (datetime.now(), self._step, loss_value,
 										images_per_sec, sec_per_batch))
 
 		with tf.train.MonitoredTrainingSession(
-			checkpoint_dir = FLAGS.model_dir,
+			checkpoint_dir = histcon.MODEL_DIR,
 			hooks = [tf.train.NanTensorHook(loss),
 					_LoggerHook()],
 			config = tf.ConfigProto(
 					log_device_placement=False),
-			save_summaries_steps = FLAGS.summary_steps) as mon_sess:
+			save_summaries_steps = histcon.SUMMARY_STEPS) as mon_sess:
 
 			while not mon_sess.should_stop():
 				mon_sess.run(train_op)
 
 def main(argv=None):
-	if tf.gfile.Exists(FLAGS.model_dir):
-		tf.gfile.DeleteRecursively(FLAGS.model_dir)
-	tf.gfile.MakeDirs(FLAGS.model_dir)
+	'''Initialize directories and start the main Tensorflow app.'''
+	if tf.gfile.Exists(histcon.MODEL_DIR):
+		tf.gfile.DeleteRecursively(histcon.MODEL_DIR)
+	tf.gfile.MakeDirs(histcon.MODEL_DIR)
 	train()
 
 if __name__ == "__main__":
-	FLAGS = parser.parse_args()
 	tf.app.run()

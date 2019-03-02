@@ -4,6 +4,7 @@
 # Written by James Dolezal <jamesmdolezal@gmail.com>, October 2017, Updated 12/16/18
 # ==========================================================================
 
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -20,7 +21,6 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.framework import arg_scope
 
-import histcon
 import inception_v4
 from inception_utils import inception_arg_scope
 import conv_display
@@ -28,232 +28,242 @@ import progress_bar
 
 # NOTE!! THIS MODULE IS CURRENTLY NOT WORKING, THERE IS A BUG WITH WINDOWING
 
-parser = argparse.ArgumentParser()
+class Convoluter:
+    # Model variables
+    SIZE = 64
+    NUM_CLASSES = 5
+    BATCH_SIZE = 32
 
-parser.add_argument('--whole_image', type=str, default="images/WSI_25/234797-1_25.jpg",
-    help='Filename of whole image (JPG) to evaluate with saved model.')
+    # Display variables
+    stride_divisor = 4
+    STRIDES = [1, int(SIZE/stride_divisor), int(SIZE/stride_divisor), 1]
+    WINDOW_SIZE = 6000
+    VERBOSE = True
 
-parser.add_argument('--data_dir', type=str, default='/home/shawarma/thyroid',
-    help='Path to the HISTCON data directory.')
+    def __init__(self):
+        parser = argparse.ArgumentParser()
 
-parser.add_argument('--conv_dir', type=str, default='/home/shawarma/thyroid/conv',
-    help='Directory where to write logs and summaries for the convoluter.')
+        parser.add_argument('--whole_image', type=str, default="images/WSI_25/234797-1_25.jpg",
+            help='Filename of whole image (JPG) to evaluate with saved model.')
 
-parser.add_argument('--model_dir', type=str, default='/home/shawarma/thyroid/models/active',
-    help='Directory where to write event logs and checkpoints.')
+        parser.add_argument('--data_dir', type=str, default='/home/shawarma/thyroid',
+            help='Path to the HISTCON data directory.')
 
-SIZE = histcon.IMAGE_SIZE
-THREADS = 2
-stride_divisor = 4
-STRIDES = [1, int(SIZE/stride_divisor), int(SIZE/stride_divisor), 1]
-WINDOW_SIZE = 6000
-VERBOSE = True
-DTYPE = tf.float16 if histcon.FLAGS.use_fp16 else tf.float32
-DTYPE_INT = tf.int16 if histcon.FLAGS.use_fp16 else tf.int32
-BATCH_SIZE = histcon.FLAGS.batch_size
+        parser.add_argument('--conv_dir', type=str, default='/home/shawarma/thyroid/conv',
+            help='Directory where to write logs and summaries for the convoluter.')
 
-def batch(iterable, n=1):
-    l =len(iterable)
-    for ndx in range(0, l, n):
-        yield iterable[ndx:min(ndx+n, l)]
+        parser.add_argument('--model_dir', type=str, default='/home/shawarma/thyroid/models/active',
+            help='Directory where to write event logs and checkpoints.')
 
-def concat_output(arr):
-    new_output = []
-    for row in arr:
-        row_height = len(row[0])
-        for y in range(row_height):
-            new_x = []
-            for window in row:
-                new_x += window[y].tolist()
-            new_output.append(new_x)
-    return np.array(new_output)
+        parser.add_argument('--use_fp16', type=str, default='/home/shawarma/thyroid/models/active',
+            help='Directory where to write event logs and checkpoints.')
 
-def scan_image():
-    warnings.simplefilter('ignore', Image.DecompressionBombWarning)
-    with tf.Graph().as_default() as g:
-        filename = os.path.join(FLAGS.data_dir, FLAGS.whole_image)
+        self.FLAGS = parser.parse_args()
 
-        ri = tf.placeholder(DTYPE_INT, shape=[None, None, 3])
+        self.DTYPE = tf.float16 if parser.FLAGS.use_fp16 else tf.float32
+        self.DTYPE_INT = tf.int16 if parser.FLAGS.use_fp16 else tf.int32
 
-        unshaped_patches = tf.extract_image_patches(images=[ri], ksizes=[1, SIZE, SIZE, 1],
-                                                    strides = STRIDES, rates = [1, 1, 1, 1],
-                                                    padding = "VALID")
+    def batch(iterable, n=1):
+        l =len(iterable)
+        for ndx in range(0, l, n):
+            yield iterable[ndx:min(ndx+n, l)]
 
-        patches = tf.cast(tf.reshape(unshaped_patches, [-1, SIZE, SIZE, 3]), DTYPE)
+    def concat_output(arr):
+        new_output = []
+        for row in arr:
+            row_height = len(row[0])
+            for y in range(row_height):
+                new_x = []
+                for window in row:
+                    new_x += window[y].tolist()
+                new_output.append(new_x)
+        return np.array(new_output)
 
-        batch_pl = tf.placeholder(DTYPE, shape=[BATCH_SIZE, SIZE, SIZE, 3])
-        standardized_batch = tf.map_fn(lambda patch: tf.cast(tf.image.per_image_standardization(patch), DTYPE), batch_pl, dtype=DTYPE)
-        with arg_scope(inception_arg_scope()):
-            _, end_points = inception_v4.inception_v4(standardized_batch, num_classes=histcon.NUM_CLASSES)
-        slogits = end_points['Predictions']
-        saver = tf.train.Saver()
+    def scan_image():
+        warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+        with tf.Graph().as_default() as g:
+            filename = os.path.join(FLAGS.data_dir, FLAGS.whole_image)
 
-        #logits = histcon.inference(standardized_batch)
-        #slogits = tf.nn.softmax(logits)
+            ri = tf.placeholder(self.DTYPE_INT, shape=[None, None, 3])
 
-        # Restore model
-        #variable_averages = tf.train.ExponentialMovingAverage(histcon.MOVING_AVERAGE_DECAY)
-        #variables_to_restore = variable_averages.variables_to_restore()
-        #saver = tf.train.Saver(variables_to_restore)
-        
-        summary_op = tf.summary.merge_all()
-        summary_writer = tf.summary.FileWriter(FLAGS.conv_dir, g)
+            unshaped_patches = tf.extract_image_patches(images=[ri], ksizes=[1, self.SIZE, self.SIZE, 1],
+                                                        strides = self.STRIDES, rates = [1, 1, 1, 1],
+                                                        padding = "VALID")
 
-        with tf.Session() as sess:
-            print("\n" + "="*20 + "\n")
-            # Load image through PIL
-            im = Image.open(filename)
-            dtype = np.int16 if histcon.FLAGS.use_fp16 else np.int32
-            imported_image = np.array(im, dtype=dtype)
-            print("Image size: ", imported_image.shape)
+            patches = tf.cast(tf.reshape(unshaped_patches, [-1, self.SIZE, self.SIZE, 3]), self.DTYPE)
 
-            init = (tf.global_variables_initializer(), tf.local_variables_initializer())
-            sess.run(init)
+            batch_pl = tf.placeholder(self.DTYPE, shape=[self.BATCH_SIZE, self.SIZE, self.SIZE, 3])
+            standardized_batch = tf.map_fn(lambda patch: tf.cast(tf.image.per_image_standardization(patch), self.DTYPE), batch_pl, dtype=self.DTYPE)
+            with arg_scope(inception_arg_scope()):
+                _, end_points = inception_v4.inception_v4(standardized_batch, num_classes=self.NUM_CLASSES)
+            slogits = end_points['Predictions']
+            saver = tf.train.Saver()
 
-            # Restore checkpoint
-            ckpt = tf.train.get_checkpoint_state(FLAGS.model_dir)
-            if ckpt and ckpt.model_checkpoint_path:
-                saver.restore(sess, ckpt.model_checkpoint_path)
-            else:
-                print('No checkpoint file found.')
-                return
+            #logits = histcon.inference(standardized_batch)
+            #slogits = tf.nn.softmax(logits)
 
-            coord = tf.train.Coordinator()
-            try:
-                threads = []
-                for qr in tf.get_collection(tf.GraphKeys.QUEUE_RUNNERS):
-                        threads.extend(qr.create_threads(sess, coord=coord, daemon=True, start=True))
+            # Restore model
+            #variable_averages = tf.train.ExponentialMovingAverage(histcon.MOVING_AVERAGE_DECAY)
+            #variables_to_restore = variable_averages.variables_to_restore()
+            #saver = tf.train.Saver(variables_to_restore)
+            
+            summary_op = tf.summary.merge_all()
+            summary_writer = tf.summary.FileWriter(FLAGS.conv_dir, g)
 
-                len_y = imported_image.shape[0]
-                len_x = imported_image.shape[1]
-                margin = int(SIZE/2)
+            with tf.Session() as sess:
+                print("\n" + "="*20 + "\n")
+                # Load image through PIL
+                im = Image.open(filename)
+                imported_image = np.array(im, dtype=self.DTYPE)
+                print("Image size: ", imported_image.shape)
 
-                # First, determine how to divide x and y
-                num_full_windows_y = int((len_y - margin*2) / (WINDOW_SIZE - margin*2))
-                leftover_y = (len_y - margin*2) % (WINDOW_SIZE - margin*2)
+                init = (tf.global_variables_initializer(), tf.local_variables_initializer())
+                sess.run(init)
 
-                num_full_windows_x = int((len_x - margin*2) / (WINDOW_SIZE - margin*2))
-                leftover_x = (len_x - margin*2) % (WINDOW_SIZE - margin*2)
+                # Restore checkpoint
+                ckpt = tf.train.get_checkpoint_state(FLAGS.model_dir)
+                if ckpt and ckpt.model_checkpoint_path:
+                    saver.restore(sess, ckpt.model_checkpoint_path)
+                else:
+                    print('No checkpoint file found.')
+                    return
 
-                if VERBOSE: print("Leftovers:       x: %s   y: %s" % (leftover_x, leftover_y))
-                if VERBOSE: print("Whole patches:   x: %s   y: %s" % (num_full_windows_x, num_full_windows_y))
+                coord = tf.train.Coordinator()
+                try:
+                    threads = []
+                    for qr in tf.get_collection(tf.GraphKeys.QUEUE_RUNNERS):
+                            threads.extend(qr.create_threads(sess, coord=coord, daemon=True, start=True))
 
-                total_patches = (num_full_windows_x + (1 if leftover_x else 0)) * (num_full_windows_y + (1 if leftover_y else 0))
-                patch_index = 0
+                    len_y = imported_image.shape[0]
+                    len_x = imported_image.shape[1]
+                    margin = int(self.SIZE/2)
 
-                # {start: [x, y], end: [x,y]}
-                window_list = []
+                    # First, determine how to divide x and y
+                    num_full_windows_y = int((len_y - margin*2) / (self.WINDOW_SIZE - margin*2))
+                    leftover_y = (len_y - margin*2) % (self.WINDOW_SIZE - margin*2)
 
-                # Create list of coordinates for full y-length windows
-                for j in range(num_full_windows_y):
-                    y_start = j * (WINDOW_SIZE - margin*2)
-                    y_end = y_start + WINDOW_SIZE
-                    window_x_list = []
+                    num_full_windows_x = int((len_x - margin*2) / (self.WINDOW_SIZE - margin*2))
+                    leftover_x = (len_x - margin*2) % (self.WINDOW_SIZE - margin*2)
 
-                    for i in range(num_full_windows_x):
-                        x_start = i * (WINDOW_SIZE - margin*2)
-                        x_end = x_start + WINDOW_SIZE
-                        window_x_list.append({  'start' : [x_start, y_start],
-                                                'end'   : [x_end, y_end]      })
-                    if leftover_x:
-                        x_start = num_full_windows_x * (WINDOW_SIZE - margin*2)
-                        x_end = x_start + leftover_x + margin*2
-                        window_x_list.append({  'start' : [x_start, y_start],
-                                                'end'   : [x_end, y_end]      })
-                    window_list.append(window_x_list)
+                    if self.VERBOSE: print("Leftovers:       x: %s   y: %s" % (leftover_x, leftover_y))
+                    if self.VERBOSE: print("Whole patches:   x: %s   y: %s" % (num_full_windows_x, num_full_windows_y))
 
-                if leftover_y:
-                    y_start = num_full_windows_y * (WINDOW_SIZE - margin*2)
-                    y_end = y_start + leftover_y + margin*2
-                    window_x_list = []
+                    total_patches = (num_full_windows_x + (1 if leftover_x else 0)) * (num_full_windows_y + (1 if leftover_y else 0))
+                    patch_index = 0
 
-                    for i in range(num_full_windows_x):
-                        x_start = i * (WINDOW_SIZE - margin*2)
-                        x_end = x_start + WINDOW_SIZE
-                        window_x_list.append({  'start' : [x_start, y_start],
-                                                'end'   : [x_end, y_end]      })
-                    if leftover_x:
-                        x_start = num_full_windows_x * (WINDOW_SIZE - margin*2)
-                        x_end = x_start + leftover_x + margin*2
-                        window_x_list.append({  'start' : [x_start, y_start],
-                                                'end'   : [x_end, y_end]      })
-                    window_list.append(window_x_list)
+                    # {start: [x, y], end: [x,y]}
+                    window_list = []
 
-                output = np.zeros([len(window_list), len(window_list[0])]).tolist()
+                    # Create list of coordinates for full y-length windows
+                    for j in range(num_full_windows_y):
+                        y_start = j * (self.WINDOW_SIZE - margin*2)
+                        y_end = y_start + self.WINDOW_SIZE
+                        window_x_list = []
 
-                for y_index, window_x_list in enumerate(window_list):
-                    for x_index, window in enumerate(window_x_list):
-                        x_start = window['start'][0]
-                        x_end = window['end'][0]
-                        y_start = window['start'][1]
-                        y_end = window['end'][1]
-                        index = (x_index, y_index)
+                        for i in range(num_full_windows_x):
+                            x_start = i * (self.WINDOW_SIZE - margin*2)
+                            x_end = x_start + self.WINDOW_SIZE
+                            window_x_list.append({  'start' : [x_start, y_start],
+                                                    'end'   : [x_end, y_end]      })
+                        if leftover_x:
+                            x_start = num_full_windows_x * (self.WINDOW_SIZE - margin*2)
+                            x_end = x_start + leftover_x + margin*2
+                            window_x_list.append({  'start' : [x_start, y_start],
+                                                    'end'   : [x_end, y_end]      })
+                        window_list.append(window_x_list)
 
-                        image_window = np.array([x[x_start:x_end] for x in imported_image[y_start:y_end]])
+                    if leftover_y:
+                        y_start = num_full_windows_y * (self.WINDOW_SIZE - margin*2)
+                        y_end = y_start + leftover_y + margin*2
+                        window_x_list = []
 
-                        all_slogs = np.array([])
-                        patch_array = np.array(sess.run(patches, feed_dict = {ri:image_window}))
+                        for i in range(num_full_windows_x):
+                            x_start = i * (self.WINDOW_SIZE - margin*2)
+                            x_end = x_start + self.WINDOW_SIZE
+                            window_x_list.append({  'start' : [x_start, y_start],
+                                                    'end'   : [x_end, y_end]      })
+                        if leftover_x:
+                            x_start = num_full_windows_x * (self.WINDOW_SIZE - margin*2)
+                            x_end = x_start + leftover_x + margin*2
+                            window_x_list.append({  'start' : [x_start, y_start],
+                                                    'end'   : [x_end, y_end]      })
+                        window_list.append(window_x_list)
 
-                        if VERBOSE:
-                            print("\nPatch array %s (size: %s)" % (index, patch_array.shape[0]))
-                            print("X: %s - %s,  Y: %s - %s" %(x_start, x_end, y_start, y_end))
-                        else:
-                            progress_bar.bar(patch_index, total_patches)
-                            patch_index += 1
+                    output = np.zeros([len(window_list), len(window_list[0])]).tolist()
 
-                        num_batches = int(patch_array.shape[0]/BATCH_SIZE)
+                    for y_index, window_x_list in enumerate(window_list):
+                        for x_index, window in enumerate(window_x_list):
+                            x_start = window['start'][0]
+                            x_end = window['end'][0]
+                            y_start = window['start'][1]
+                            y_end = window['end'][1]
+                            index = (x_index, y_index)
 
-                        for i, x in enumerate(batch(patch_array, BATCH_SIZE)):
-                            if x.shape[0] == BATCH_SIZE:
-                                # Full batch
-                                if VERBOSE: progress_bar.bar(i, num_batches)
-                                sl = sess.run(slogits, feed_dict = {batch_pl: x})
+                            image_window = np.array([x[x_start:x_end] for x in imported_image[y_start:y_end]])
 
-                                if not all_slogs.any(): 
-                                    all_slogs = sl
-                                else: 
-                                    all_slogs = np.concatenate((all_slogs, sl), axis=0)
+                            all_slogs = np.array([])
+                            patch_array = np.array(sess.run(patches, feed_dict = {ri:image_window}))
+
+                            if self.VERBOSE:
+                                print("\nPatch array %s (size: %s)" % (index, patch_array.shape[0]))
+                                print("X: %s - %s,  Y: %s - %s" %(x_start, x_end, y_start, y_end))
                             else:
-                                if VERBOSE: progress_bar.bar(1, 1)
-                                num_pad = BATCH_SIZE - x.shape[0]
-                                z = np.zeros([num_pad, SIZE, SIZE, 3])
-                                padded_x = np.concatenate((x, z), axis=0)
-                                padded_sl = sess.run(slogits, feed_dict = {batch_pl: padded_x})
-                                trimmed_sl = padded_sl[:x.shape[0]]
+                                progress_bar.bar(patch_index, total_patches)
+                                patch_index += 1
 
-                                if not all_slogs.any():
-                                    all_slogs = trimmed_sl
+                            num_batches = int(patch_array.shape[0]/self.BATCH_SIZE)
+
+                            for i, x in enumerate(self.batch(patch_array, self.BATCH_SIZE)):
+                                if x.shape[0] == self.BATCH_SIZE:
+                                    # Full batch
+                                    if self.VERBOSE: progress_bar.bar(i, num_batches)
+                                    sl = sess.run(slogits, feed_dict = {batch_pl: x})
+
+                                    if not all_slogs.any(): 
+                                        all_slogs = sl
+                                    else: 
+                                        all_slogs = np.concatenate((all_slogs, sl), axis=0)
                                 else:
-                                    all_slogs = np.concatenate((all_slogs, trimmed_sl), axis=0)
+                                    if self.VERBOSE: progress_bar.bar(1, 1)
+                                    num_pad = self.BATCH_SIZE - x.shape[0]
+                                    z = np.zeros([num_pad, self.SIZE, self.SIZE, 3])
+                                    padded_x = np.concatenate((x, z), axis=0)
+                                    padded_sl = sess.run(slogits, feed_dict = {batch_pl: padded_x})
+                                    trimmed_sl = padded_sl[:x.shape[0]]
 
-                        patches_height = 1 + int((int(y_end - y_start) - int(SIZE)) / STRIDES[1])
-                        patches_width  = 1 + int((int(x_end - x_start) - int(SIZE)) / STRIDES[2])
+                                    if not all_slogs.any():
+                                        all_slogs = trimmed_sl
+                                    else:
+                                        all_slogs = np.concatenate((all_slogs, trimmed_sl), axis=0)
 
-                        reshaped_slogs = np.reshape(all_slogs, [patches_height, patches_width, histcon.NUM_CLASSES])
+                            patches_height = 1 + int((int(y_end - y_start) - int(self.SIZE)) / self.STRIDES[1])
+                            patches_width  = 1 + int((int(x_end - x_start) - int(self.SIZE)) / self.STRIDES[2])
 
-                        output[y_index][x_index] = reshaped_slogs
+                            reshaped_slogs = np.reshape(all_slogs, [patches_height, patches_width, self.NUM_CLASSES])
 
-                        if VERBOSE:
-                            progress_bar.end()
-                            print(" ", reshaped_slogs.shape)
+                            output[y_index][x_index] = reshaped_slogs
 
-                output = concat_output(output)
-                if not VERBOSE:
-                    progress_bar.end()
-                print("\nFormatted output shape:", output.shape)
+                            if self.VERBOSE:
+                                progress_bar.end()
+                                print(" ", reshaped_slogs.shape)
 
-            except Exception as e:
-                    coord.request_stop(e)
-                    print("\n")
+                    output = self.concat_output(output)
+                    if not self.VERBOSE:
+                        progress_bar.end()
+                    print("\nFormatted output shape:", output.shape)
 
-            coord.request_stop()
-            coord.join(threads, stop_grace_period_secs=10)
-            print("\nFinished.")
-            conv_display.display(filename, output, SIZE, STRIDES)
+                except Exception as e:
+                        coord.request_stop(e)
+                        print("\n")
+
+                coord.request_stop()
+                coord.join(threads, stop_grace_period_secs=10)
+                print("\nFinished.")
+                conv_display.display(filename, output, self.SIZE, self.STRIDES)
 
 def main(argv=None):
-    scan_image()
+    c = Convoluter()
+    c.scan_image()
 
 if __name__ == '__main__':
-    FLAGS = parser.parse_args()
     tf.app.run()
