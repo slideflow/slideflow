@@ -51,35 +51,24 @@ class Convoluter:
     WINDOW_SIZE = 6000
     VERBOSE = True
 
+    WHOLE_IMAGE = "images/WSI_25/234797-1_25.jpg" # Filename of whole image (JPG) to evaluate with saved model
+    DATA_DIR = '/home/shawarma/thyroid' # Path to histcon data directory
+    CONV_DIR = '/home/shawarma/thyroid/conv' # Directory where to write logs and summaries for the convoluter
+    MODEL_DIR = '/home/shawarma/thyroid/models/active' # Directory where to write event logs and checkpoints.
+    USE_FP16 = True
+
     def __init__(self):
-        parser = argparse.ArgumentParser()
-
-        parser.add_argument('--whole_image', type=str, default="images/WSI_25/234797-1_25.jpg",
-            help='Filename of whole image (JPG) to evaluate with saved model.')
-
-        parser.add_argument('--data_dir', type=str, default='/home/shawarma/thyroid',
-            help='Path to the HISTCON data directory.')
-
-        parser.add_argument('--conv_dir', type=str, default='/home/shawarma/thyroid/conv',
-            help='Directory where to write logs and summaries for the convoluter.')
-
-        parser.add_argument('--model_dir', type=str, default='/home/shawarma/thyroid/models/active',
-            help='Directory where to write event logs and checkpoints.')
-
-        parser.add_argument('--use_fp16', type=str, default='/home/shawarma/thyroid/models/active',
-            help='Directory where to write event logs and checkpoints.')
-
-        self.FLAGS = parser.parse_args()
-
-        self.DTYPE = tf.float16 if parser.FLAGS.use_fp16 else tf.float32
-        self.DTYPE_INT = tf.int16 if parser.FLAGS.use_fp16 else tf.int32
+        self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
+        self.DTYPE_INT = tf.int16 if self.USE_FP16 else tf.int32
 
     def batch(iterable, n=1):
+        '''Organizes image tiles into workable batches for transfer to the GPU.'''
         l =len(iterable)
         for ndx in range(0, l, n):
             yield iterable[ndx:min(ndx+n, l)]
 
     def concat_output(arr):
+        '''Converts a 2D collection of 2D patches into a single large 2D array'''
         new_output = []
         for row in arr:
             row_height = len(row[0])
@@ -91,9 +80,14 @@ class Convoluter:
         return np.array(new_output)
 
     def scan_image():
+        '''Opens a whole-slide image, sections it into tiles, loads a saved Tensorflow model,
+        and applies the model to each of the image tiles. The output - a 3D array of logits
+        that correspond to model predictions at each location on the whole-slide iamge, is then
+        restructured into an array that can be displayed as a heatmap overlay.'''
+
         warnings.simplefilter('ignore', Image.DecompressionBombWarning)
         with tf.Graph().as_default() as g:
-            filename = os.path.join(FLAGS.data_dir, FLAGS.whole_image)
+            filename = os.path.join(self.DATA_DIR, self.WHOLE_IMAGE)
 
             ri = tf.placeholder(self.DTYPE_INT, shape=[None, None, 3])
 
@@ -119,7 +113,7 @@ class Convoluter:
             #saver = tf.train.Saver(variables_to_restore)
             
             summary_op = tf.summary.merge_all()
-            summary_writer = tf.summary.FileWriter(FLAGS.conv_dir, g)
+            summary_writer = tf.summary.FileWriter(self.CONV_DIR, g)
 
             with tf.Session() as sess:
                 print("\n" + "="*20 + "\n")
@@ -132,7 +126,7 @@ class Convoluter:
                 sess.run(init)
 
                 # Restore checkpoint
-                ckpt = tf.train.get_checkpoint_state(FLAGS.model_dir)
+                ckpt = tf.train.get_checkpoint_state(self.MODEL_DIR)
                 if ckpt and ckpt.model_checkpoint_path:
                     saver.restore(sess, ckpt.model_checkpoint_path)
                 else:
@@ -273,6 +267,7 @@ class Convoluter:
                 self.display(filename, output, self.SIZE, self.STRIDES)
 
     def display(image_file, logits, size, stride):
+        '''Displays logits calculated using scan_image as a heatmap overlay.'''
         print("Received logits, size=%s, stride=%sx%s (%s x %s)" % (size, stride[1], stride[2], len(logits), len(logits[0])))
         print("Calculating overlay matrix...")
 
