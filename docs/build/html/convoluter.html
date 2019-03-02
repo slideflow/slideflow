@@ -36,7 +36,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="histcon module" href="histcon.html" />
-    <link rel="prev" title="conv_display module" href="conv_display.html" /> 
+    <link rel="prev" title="thyroid" href="modules.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -88,7 +88,6 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="modules.html">thyroid</a><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="conv_display.html">conv_display module</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">convoluter module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="histcon.html">histcon module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="histcon_eval.html">histcon_eval module</a></li>
@@ -167,6 +166,8 @@
             
   <div class="section" id="module-convoluter">
 <span id="convoluter-module"></span><h1>convoluter module<a class="headerlink" href="#module-convoluter" title="Permalink to this headline">¶</a></h1>
+<p>Convolutionally applies a saved Tensorflow model to a larger image, displaying
+the result as a heatmap overlay.</p>
 <dl class="class">
 <dt id="convoluter.Convoluter">
 <em class="property">class </em><code class="descclassname">convoluter.</code><code class="descname">Convoluter</code><a class="reference internal" href="_modules/convoluter.html#Convoluter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter" title="Permalink to this definition">¶</a></dt>
@@ -174,6 +175,21 @@
 <dl class="attribute">
 <dt id="convoluter.Convoluter.BATCH_SIZE">
 <code class="descname">BATCH_SIZE</code><em class="property"> = 32</em><a class="headerlink" href="#convoluter.Convoluter.BATCH_SIZE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="convoluter.Convoluter.CONV_DIR">
+<code class="descname">CONV_DIR</code><em class="property"> = '/home/shawarma/thyroid/conv'</em><a class="headerlink" href="#convoluter.Convoluter.CONV_DIR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="convoluter.Convoluter.DATA_DIR">
+<code class="descname">DATA_DIR</code><em class="property"> = '/home/shawarma/thyroid'</em><a class="headerlink" href="#convoluter.Convoluter.DATA_DIR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="convoluter.Convoluter.MODEL_DIR">
+<code class="descname">MODEL_DIR</code><em class="property"> = '/home/shawarma/thyroid/models/active'</em><a class="headerlink" href="#convoluter.Convoluter.MODEL_DIR" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -192,8 +208,18 @@
 <dd></dd></dl>
 
 <dl class="attribute">
+<dt id="convoluter.Convoluter.USE_FP16">
+<code class="descname">USE_FP16</code><em class="property"> = True</em><a class="headerlink" href="#convoluter.Convoluter.USE_FP16" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
 <dt id="convoluter.Convoluter.VERBOSE">
 <code class="descname">VERBOSE</code><em class="property"> = True</em><a class="headerlink" href="#convoluter.Convoluter.VERBOSE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="convoluter.Convoluter.WHOLE_IMAGE">
+<code class="descname">WHOLE_IMAGE</code><em class="property"> = 'images/WSI_25/234797-1_25.jpg'</em><a class="headerlink" href="#convoluter.Convoluter.WHOLE_IMAGE" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -204,17 +230,29 @@
 <dl class="method">
 <dt id="convoluter.Convoluter.batch">
 <code class="descname">batch</code><span class="sig-paren">(</span><em>n=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.batch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.batch" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Organizes image tiles into workable batches for transfer to the GPU.</p>
+</dd></dl>
 
 <dl class="method">
 <dt id="convoluter.Convoluter.concat_output">
 <code class="descname">concat_output</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.concat_output"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.concat_output" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Converts a 2D collection of 2D patches into a single large 2D array</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="convoluter.Convoluter.display">
+<code class="descname">display</code><span class="sig-paren">(</span><em>logits</em>, <em>size</em>, <em>stride</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.display"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.display" title="Permalink to this definition">¶</a></dt>
+<dd><p>Displays logits calculated using scan_image as a heatmap overlay.</p>
+</dd></dl>
 
 <dl class="method">
 <dt id="convoluter.Convoluter.scan_image">
 <code class="descname">scan_image</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.scan_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.scan_image" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Opens a whole-slide image, sections it into tiles, loads a saved Tensorflow model,
+and applies the model to each of the image tiles. The output - a 3D array of logits
+that correspond to model predictions at each location on the whole-slide iamge, is then
+restructured into an array that can be displayed as a heatmap overlay.</p>
+</dd></dl>
 
 <dl class="attribute">
 <dt id="convoluter.Convoluter.stride_divisor">
@@ -241,7 +279,7 @@
         <a href="histcon.html" class="btn btn-neutral float-right" title="histcon module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="conv_display.html" class="btn btn-neutral float-left" title="conv_display module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="modules.html" class="btn btn-neutral float-left" title="thyroid" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

@@ -156,6 +156,8 @@
 <span class="c1"># Written by James Dolezal &lt;jamesmdolezal@gmail.com&gt;, October 2017, Updated 12/16/18</span>
 <span class="c1"># ==========================================================================</span>
 
+<span class="sd">&#39;&#39;&#39;Convolutionally applies a saved Tensorflow model to a larger image, displaying</span>
+<span class="sd">the result as a heatmap overlay.&#39;&#39;&#39;</span>
 
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
@@ -175,10 +177,18 @@
 
 <span class="kn">import</span> <span class="nn">inception_v4</span>
 <span class="kn">from</span> <span class="nn">inception_utils</span> <span class="k">import</span> <span class="n">inception_arg_scope</span>
-<span class="kn">import</span> <span class="nn">conv_display</span>
 <span class="kn">import</span> <span class="nn">progress_bar</span>
 
+<span class="kn">from</span> <span class="nn">multiprocessing</span> <span class="k">import</span> <span class="n">Pool</span>
+<span class="kn">from</span> <span class="nn">matplotlib.widgets</span> <span class="k">import</span> <span class="n">Slider</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">matplotlib.image</span> <span class="k">as</span> <span class="nn">mpimg</span>
+<span class="kn">import</span> <span class="nn">matplotlib.cm</span> <span class="k">as</span> <span class="nn">cm</span>
+<span class="kn">import</span> <span class="nn">matplotlib.colors</span> <span class="k">as</span> <span class="nn">mcol</span>
+
 <span class="c1"># NOTE!! THIS MODULE IS CURRENTLY NOT WORKING, THERE IS A BUG WITH WINDOWING</span>
+<span class="c1"># Not currently working; overlay is offset</span>
+<span class="c1"># Also not efficient; an alternative solution using multiprocessing has been half implemented here</span>
 
 <div class="viewcode-block" id="Convoluter"><a class="viewcode-back" href="../convoluter.html#convoluter.Convoluter">[docs]</a><span class="k">class</span> <span class="nc">Convoluter</span><span class="p">:</span>
     <span class="c1"># Model variables</span>
@@ -192,35 +202,24 @@
     <span class="n">WINDOW_SIZE</span> <span class="o">=</span> <span class="mi">6000</span>
     <span class="n">VERBOSE</span> <span class="o">=</span> <span class="kc">True</span>
 
+    <span class="n">WHOLE_IMAGE</span> <span class="o">=</span> <span class="s2">&quot;images/WSI_25/234797-1_25.jpg&quot;</span> <span class="c1"># Filename of whole image (JPG) to evaluate with saved model</span>
+    <span class="n">DATA_DIR</span> <span class="o">=</span> <span class="s1">&#39;/home/shawarma/thyroid&#39;</span> <span class="c1"># Path to histcon data directory</span>
+    <span class="n">CONV_DIR</span> <span class="o">=</span> <span class="s1">&#39;/home/shawarma/thyroid/conv&#39;</span> <span class="c1"># Directory where to write logs and summaries for the convoluter</span>
+    <span class="n">MODEL_DIR</span> <span class="o">=</span> <span class="s1">&#39;/home/shawarma/thyroid/models/active&#39;</span> <span class="c1"># Directory where to write event logs and checkpoints.</span>
+    <span class="n">USE_FP16</span> <span class="o">=</span> <span class="kc">True</span>
+
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
-
-        <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--whole_image&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;images/WSI_25/234797-1_25.jpg&quot;</span><span class="p">,</span>
-            <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Filename of whole image (JPG) to evaluate with saved model.&#39;</span><span class="p">)</span>
-
-        <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--data_dir&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;/home/shawarma/thyroid&#39;</span><span class="p">,</span>
-            <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Path to the HISTCON data directory.&#39;</span><span class="p">)</span>
-
-        <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--conv_dir&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;/home/shawarma/thyroid/conv&#39;</span><span class="p">,</span>
-            <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Directory where to write logs and summaries for the convoluter.&#39;</span><span class="p">)</span>
-
-        <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--model_dir&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;/home/shawarma/thyroid/models/active&#39;</span><span class="p">,</span>
-            <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Directory where to write event logs and checkpoints.&#39;</span><span class="p">)</span>
-
-        <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--use_fp16&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;/home/shawarma/thyroid/models/active&#39;</span><span class="p">,</span>
-            <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Directory where to write event logs and checkpoints.&#39;</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">FLAGS</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">DTYPE</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">float16</span> <span class="k">if</span> <span class="n">parser</span><span class="o">.</span><span class="n">FLAGS</span><span class="o">.</span><span class="n">use_fp16</span> <span class="k">else</span> <span class="n">tf</span><span class="o">.</span><span class="n">float32</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">DTYPE_INT</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">int16</span> <span class="k">if</span> <span class="n">parser</span><span class="o">.</span><span class="n">FLAGS</span><span class="o">.</span><span class="n">use_fp16</span> <span class="k">else</span> <span class="n">tf</span><span class="o">.</span><span class="n">int32</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">DTYPE</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">float16</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">USE_FP16</span> <span class="k">else</span> <span class="n">tf</span><span class="o">.</span><span class="n">float32</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">DTYPE_INT</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">int16</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">USE_FP16</span> <span class="k">else</span> <span class="n">tf</span><span class="o">.</span><span class="n">int32</span>
 
 <div class="viewcode-block" id="Convoluter.batch"><a class="viewcode-back" href="../convoluter.html#convoluter.Convoluter.batch">[docs]</a>    <span class="k">def</span> <span class="nf">batch</span><span class="p">(</span><span class="n">iterable</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Organizes image tiles into workable batches for transfer to the GPU.&#39;&#39;&#39;</span>
         <span class="n">l</span> <span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">iterable</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">ndx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">l</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
             <span class="k">yield</span> <span class="n">iterable</span><span class="p">[</span><span class="n">ndx</span><span class="p">:</span><span class="nb">min</span><span class="p">(</span><span class="n">ndx</span><span class="o">+</span><span class="n">n</span><span class="p">,</span> <span class="n">l</span><span class="p">)]</span></div>
 
 <div class="viewcode-block" id="Convoluter.concat_output"><a class="viewcode-back" href="../convoluter.html#convoluter.Convoluter.concat_output">[docs]</a>    <span class="k">def</span> <span class="nf">concat_output</span><span class="p">(</span><span class="n">arr</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Converts a 2D collection of 2D patches into a single large 2D array&#39;&#39;&#39;</span>
         <span class="n">new_output</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">arr</span><span class="p">:</span>
             <span class="n">row_height</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
@@ -232,9 +231,14 @@
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">new_output</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Convoluter.scan_image"><a class="viewcode-back" href="../convoluter.html#convoluter.Convoluter.scan_image">[docs]</a>    <span class="k">def</span> <span class="nf">scan_image</span><span class="p">():</span>
+        <span class="sd">&#39;&#39;&#39;Opens a whole-slide image, sections it into tiles, loads a saved Tensorflow model,</span>
+<span class="sd">        and applies the model to each of the image tiles. The output - a 3D array of logits</span>
+<span class="sd">        that correspond to model predictions at each location on the whole-slide iamge, is then</span>
+<span class="sd">        restructured into an array that can be displayed as a heatmap overlay.&#39;&#39;&#39;</span>
+
         <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">,</span> <span class="n">Image</span><span class="o">.</span><span class="n">DecompressionBombWarning</span><span class="p">)</span>
         <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">Graph</span><span class="p">()</span><span class="o">.</span><span class="n">as_default</span><span class="p">()</span> <span class="k">as</span> <span class="n">g</span><span class="p">:</span>
-            <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FLAGS</span><span class="o">.</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">FLAGS</span><span class="o">.</span><span class="n">whole_image</span><span class="p">)</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">DATA_DIR</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">WHOLE_IMAGE</span><span class="p">)</span>
 
             <span class="n">ri</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">placeholder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">DTYPE_INT</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
 
@@ -260,7 +264,7 @@
             <span class="c1">#saver = tf.train.Saver(variables_to_restore)</span>
             
             <span class="n">summary_op</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">summary</span><span class="o">.</span><span class="n">merge_all</span><span class="p">()</span>
-            <span class="n">summary_writer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">summary</span><span class="o">.</span><span class="n">FileWriter</span><span class="p">(</span><span class="n">FLAGS</span><span class="o">.</span><span class="n">conv_dir</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span>
+            <span class="n">summary_writer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">summary</span><span class="o">.</span><span class="n">FileWriter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CONV_DIR</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span>
 
             <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span> <span class="k">as</span> <span class="n">sess</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;=&quot;</span><span class="o">*</span><span class="mi">20</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -273,7 +277,7 @@
                 <span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">init</span><span class="p">)</span>
 
                 <span class="c1"># Restore checkpoint</span>
-                <span class="n">ckpt</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">get_checkpoint_state</span><span class="p">(</span><span class="n">FLAGS</span><span class="o">.</span><span class="n">model_dir</span><span class="p">)</span>
+                <span class="n">ckpt</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">get_checkpoint_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">MODEL_DIR</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">ckpt</span> <span class="ow">and</span> <span class="n">ckpt</span><span class="o">.</span><span class="n">model_checkpoint_path</span><span class="p">:</span>
                     <span class="n">saver</span><span class="o">.</span><span class="n">restore</span><span class="p">(</span><span class="n">sess</span><span class="p">,</span> <span class="n">ckpt</span><span class="o">.</span><span class="n">model_checkpoint_path</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
@@ -411,7 +415,41 @@
                 <span class="n">coord</span><span class="o">.</span><span class="n">request_stop</span><span class="p">()</span>
                 <span class="n">coord</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">threads</span><span class="p">,</span> <span class="n">stop_grace_period_secs</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
                 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Finished.&quot;</span><span class="p">)</span>
-                <span class="n">conv_display</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SIZE</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">STRIDES</span><span class="p">)</span></div></div>
+                <span class="bp">self</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SIZE</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">STRIDES</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Convoluter.display"><a class="viewcode-back" href="../convoluter.html#convoluter.Convoluter.display">[docs]</a>    <span class="k">def</span> <span class="nf">display</span><span class="p">(</span><span class="n">image_file</span><span class="p">,</span> <span class="n">logits</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">stride</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Displays logits calculated using scan_image as a heatmap overlay.&#39;&#39;&#39;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Received logits, size=</span><span class="si">%s</span><span class="s2">, stride=</span><span class="si">%s</span><span class="s2">x</span><span class="si">%s</span><span class="s2"> (</span><span class="si">%s</span><span class="s2"> x </span><span class="si">%s</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">stride</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">stride</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="nb">len</span><span class="p">(</span><span class="n">logits</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">logits</span><span class="p">[</span><span class="mi">0</span><span class="p">])))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Calculating overlay matrix...&quot;</span><span class="p">)</span>
+
+        <span class="n">im</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">image_file</span><span class="p">)</span>
+        <span class="n">implot</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">im</span><span class="p">,</span><span class="n">zorder</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">gca</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+        <span class="n">gca</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">top</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">labeltop</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">bottom</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">labelbottom</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="n">im_extent</span> <span class="o">=</span> <span class="n">implot</span><span class="o">.</span><span class="n">get_extent</span><span class="p">()</span>
+        <span class="n">extent</span> <span class="o">=</span> <span class="p">[</span><span class="n">im_extent</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">size</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">im_extent</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">size</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">im_extent</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">size</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">im_extent</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">+</span> <span class="n">size</span><span class="o">/</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># Define color map</span>
+        <span class="n">jetMap</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.45</span><span class="p">,</span> <span class="mf">0.95</span><span class="p">,</span> <span class="mi">255</span><span class="p">)</span>
+        <span class="n">cmMap</span> <span class="o">=</span> <span class="n">cm</span><span class="o">.</span><span class="n">nipy_spectral</span><span class="p">(</span><span class="n">jetMap</span><span class="p">)</span>
+        <span class="n">newMap</span> <span class="o">=</span> <span class="n">mcol</span><span class="o">.</span><span class="n">ListedColormap</span><span class="p">(</span><span class="n">cmMap</span><span class="p">)</span>
+
+        <span class="n">sl</span> <span class="o">=</span> <span class="n">logits</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">]</span>
+        
+        <span class="c1"># Consider alternate interpolations: none, bicubic, quadric, lanczos</span>
+        <span class="n">heatmap</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">sl</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">newMap</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="mf">0.3</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="s1">&#39;bicubic&#39;</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">update_opacity</span><span class="p">(</span><span class="n">val</span><span class="p">):</span>
+            <span class="n">heatmap</span><span class="o">.</span><span class="n">set_alpha</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+
+        <span class="c1"># Show sliders to adjust heatmap overlay</span>
+        <span class="n">ax_opac</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">axes</span><span class="p">([</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.03</span><span class="p">],</span> <span class="n">facecolor</span><span class="o">=</span><span class="s1">&#39;lightgoldenrodyellow&#39;</span><span class="p">)</span>
+        <span class="n">opac</span> <span class="o">=</span> <span class="n">Slider</span><span class="p">(</span><span class="n">ax_opac</span><span class="p">,</span> <span class="s1">&#39;Opacity&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">valinit</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">opac</span><span class="o">.</span><span class="n">on_changed</span><span class="p">(</span><span class="n">update_opacity</span><span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;scaled&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div></div>
 
 <div class="viewcode-block" id="main"><a class="viewcode-back" href="../convoluter.html#convoluter.main">[docs]</a><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="n">c</span> <span class="o">=</span> <span class="n">Convoluter</span><span class="p">()</span>

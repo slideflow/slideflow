@@ -3,8 +3,7 @@ thyroid
 
 .. toctree::
    :maxdepth: 4
-
-   conv_display
+   
    convoluter
    histcon
    histcon_eval
