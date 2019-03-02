@@ -95,7 +95,7 @@ def _variable_with_weight_decay(name, shape, stddev, wd):
 		tf.add_to_collection('losses', weight_decay)
 	return var
 
-def processed_inputs():
+def inputs():
 	'''Construct processed input for HISTCON training.
 
 	Returns:
@@ -107,32 +107,9 @@ def processed_inputs():
 	'''
 	if not FLAGS.data_dir:
 		raise ValueError('Please designate a data_dir.')
-	images, labels = histcon_input.processed_inputs(data_dir=FLAGS.data_dir,
+	images, labels = histcon_input.inputs(data_dir=FLAGS.data_dir,
 													batch_size=FLAGS.batch_size,
 													eval_data=False)
-	if FLAGS.use_fp16:
-		images = tf.cast(images, tf.float16)
-		labels = tf.cast(labels, tf.float16)
-	return images, labels
-
-def inputs(eval_data):
-	'''Construct input for HISTCON evaluation.
-
-	Args:
-		eval_data: bool, indicating if one should use the train or eval data set.
-
-	Returns:
-		images: Images. 4D tensor of [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3] size.
-		labels: Labels. 1D tensor of [batch_size] size.
-
-	Raises:
-		ValueError: if no data_dir
-	'''
-	if not FLAGS.data_dir:
-		raise ValueError("Please designate a data_dir.")
-	images, labels = histcon_input.inputs(  data_dir=FLAGS.data_dir,
-											batch_size=FLAGS.batch_size,
-											eval_data=eval_data)
 	if FLAGS.use_fp16:
 		images = tf.cast(images, tf.float16)
 		labels = tf.cast(labels, tf.float16)
