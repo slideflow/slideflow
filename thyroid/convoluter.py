@@ -25,7 +25,6 @@ from tensorflow.contrib.framework import arg_scope
 
 import inception_v4
 from inception_utils import inception_arg_scope
-import conv_display
 import progress_bar
 
 from multiprocessing import Pool
