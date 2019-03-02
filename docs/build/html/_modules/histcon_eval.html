@@ -1,0 +1,310 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>histcon_eval &mdash; thyroid 1.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> thyroid
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">thyroid</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples.html">Examples</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">thyroid</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="index.html">Module code</a> &raquo;</li>
+        
+      <li>histcon_eval</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for histcon_eval</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (C) James Dolezal - All Rights Reserved</span>
+<span class="c1">#</span>
+<span class="c1"># Unauthorized copying of this file, via any medium is strictly prohibited</span>
+<span class="c1"># Proprietary and confidential</span>
+<span class="c1"># Written by James Dolezal &lt;jamesmdolezal@gmail.com&gt;, October 2017</span>
+<span class="c1"># ==========================================================================</span>
+
+<span class="sd">&#39;&#39;&#39;&#39;Builds the HISTCON network.&#39;&#39;&#39;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
+
+<span class="kn">import</span> <span class="nn">histcon</span>
+
+<div class="viewcode-block" id="eval_once"><a class="viewcode-back" href="../histcon_eval.html#histcon_eval.eval_once">[docs]</a><span class="k">def</span> <span class="nf">eval_once</span><span class="p">(</span><span class="n">saver</span><span class="p">,</span> <span class="n">summary_writer</span><span class="p">,</span> <span class="n">top_k_op</span><span class="p">,</span> <span class="n">summary_op</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;Run eval once.</span>
+
+<span class="sd">	Args:</span>
+<span class="sd">		saver: Saver.</span>
+<span class="sd">		summary_writer: Summary writer.</span>
+<span class="sd">		top_k_op: Top K op.</span>
+<span class="sd">		summary_op: Summary op.</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span> <span class="k">as</span> <span class="n">sess</span><span class="p">:</span>
+		<span class="c1"># Initialize variables (not in example code)</span>
+		<span class="n">init</span> <span class="o">=</span> <span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">global_variables_initializer</span><span class="p">(),</span> <span class="n">tf</span><span class="o">.</span><span class="n">local_variables_initializer</span><span class="p">())</span>
+		<span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">init</span><span class="p">)</span>
+
+		<span class="c1"># Restore checkpoint</span>
+		<span class="n">ckpt</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">get_checkpoint_state</span><span class="p">(</span><span class="n">histcon</span><span class="o">.</span><span class="n">MODEL_DIR</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">ckpt</span> <span class="ow">and</span> <span class="n">ckpt</span><span class="o">.</span><span class="n">model_checkpoint_path</span><span class="p">:</span>
+			<span class="c1"># Restores from checkpoint</span>
+			<span class="n">saver</span><span class="o">.</span><span class="n">restore</span><span class="p">(</span><span class="n">sess</span><span class="p">,</span> <span class="n">ckpt</span><span class="o">.</span><span class="n">model_checkpoint_path</span><span class="p">)</span>
+			<span class="c1"># Assuming model_checkpoint_path looks like:</span>
+			<span class="c1"># 	/directory_path/model.ckpt-0,</span>
+			<span class="c1"># extract the step from the filename.</span>
+			<span class="n">global_step</span> <span class="o">=</span> <span class="n">ckpt</span><span class="o">.</span><span class="n">model_checkpoint_path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;No checkpoint file found.&#39;</span><span class="p">)</span>
+			<span class="k">return</span>
+
+		<span class="c1"># Start the queue runners</span>
+		<span class="n">coord</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Coordinator</span><span class="p">()</span>
+		<span class="k">try</span><span class="p">:</span>
+			<span class="n">threads</span> <span class="o">=</span> <span class="p">[]</span>
+			<span class="k">for</span> <span class="n">qr</span> <span class="ow">in</span> <span class="n">tf</span><span class="o">.</span><span class="n">get_collection</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">GraphKeys</span><span class="o">.</span><span class="n">QUEUE_RUNNERS</span><span class="p">):</span>
+				<span class="n">threads</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">qr</span><span class="o">.</span><span class="n">create_threads</span><span class="p">(</span><span class="n">sess</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="n">coord</span><span class="p">,</span> <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+
+			<span class="n">num_iter</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">histcon</span><span class="o">.</span><span class="n">NUM_EXAMPLES</span> <span class="o">/</span> <span class="n">histcon</span><span class="o">.</span><span class="n">BATCH_SIZE</span><span class="p">))</span> <span class="c1"># Number of examples to test.</span>
+			<span class="n">true_count</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># Counts the number of correct predictions.</span>
+			<span class="n">total_sample_count</span> <span class="o">=</span> <span class="n">num_iter</span> <span class="o">*</span> <span class="n">histcon</span><span class="o">.</span><span class="n">BATCH_SIZE</span>
+			<span class="n">step</span> <span class="o">=</span> <span class="mi">0</span>
+			<span class="k">while</span> <span class="n">step</span> <span class="o">&lt;</span> <span class="n">num_iter</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">coord</span><span class="o">.</span><span class="n">should_stop</span><span class="p">():</span>
+				<span class="n">predictions</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="n">top_k_op</span><span class="p">])</span>
+				<span class="n">true_count</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">predictions</span><span class="p">)</span>
+				<span class="n">step</span> <span class="o">+=</span> <span class="mi">1</span>
+
+			<span class="c1"># Compute precision @ 1.</span>
+			<span class="n">precision</span> <span class="o">=</span> <span class="n">true_count</span> <span class="o">/</span> <span class="n">total_sample_count</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">: precision @ 1 = </span><span class="si">%.3f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(),</span> <span class="n">precision</span><span class="p">))</span>
+
+			<span class="n">summary</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Summary</span><span class="p">()</span>
+			<span class="n">summary</span><span class="o">.</span><span class="n">ParseFromString</span><span class="p">(</span><span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">summary_op</span><span class="p">))</span>
+			<span class="n">summary</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">tag</span><span class="o">=</span><span class="s1">&#39;Precision @ 1&#39;</span><span class="p">,</span> <span class="n">simple_value</span><span class="o">=</span><span class="n">precision</span><span class="p">)</span>
+			<span class="n">summary_writer</span><span class="o">.</span><span class="n">add_summary</span><span class="p">(</span><span class="n">summary</span><span class="p">,</span> <span class="n">global_step</span><span class="p">)</span>
+		<span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+			<span class="n">coord</span><span class="o">.</span><span class="n">request_stop</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+		<span class="n">coord</span><span class="o">.</span><span class="n">request_stop</span><span class="p">()</span>
+		<span class="n">coord</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">threads</span><span class="p">,</span> <span class="n">stop_grace_period_secs</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="evaluate"><a class="viewcode-back" href="../histcon_eval.html#histcon_eval.evaluate">[docs]</a><span class="k">def</span> <span class="nf">evaluate</span><span class="p">():</span>
+	<span class="sd">&#39;&#39;&#39;Eval HISTCON for a number of steps.&#39;&#39;&#39;</span>
+	<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">Graph</span><span class="p">()</span><span class="o">.</span><span class="n">as_default</span><span class="p">()</span> <span class="k">as</span> <span class="n">g</span><span class="p">:</span>
+		<span class="c1"># Get images and labels for HISTCON.</span>
+		<span class="n">eval_data</span> <span class="o">=</span> <span class="n">histcon</span><span class="o">.</span><span class="n">EVAL_DATA</span> <span class="o">==</span> <span class="s1">&#39;test&#39;</span>
+		<span class="n">images</span><span class="p">,</span> <span class="n">labels</span> <span class="o">=</span> <span class="n">histcon</span><span class="o">.</span><span class="n">inputs</span><span class="p">(</span><span class="n">eval_data</span><span class="o">=</span><span class="n">eval_data</span><span class="p">)</span>
+
+		<span class="c1"># Build a Graph that computes the logits predictions from the inference model.</span>
+		<span class="n">logits</span> <span class="o">=</span> <span class="n">histcon</span><span class="o">.</span><span class="n">inference</span><span class="p">(</span><span class="n">images</span><span class="p">)</span>
+
+		<span class="c1"># Calculate predictions.</span>
+		<span class="n">top_k_op</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">in_top_k</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+		<span class="c1"># Restore the moving average version of the learned variables for eval.</span>
+		<span class="n">variable_averages</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">ExponentialMovingAverage</span><span class="p">(</span>
+			<span class="n">histcon</span><span class="o">.</span><span class="n">MOVING_AVERAGE_DECAY</span><span class="p">)</span>
+		<span class="n">variables_to_restore</span> <span class="o">=</span> <span class="n">variable_averages</span><span class="o">.</span><span class="n">variables_to_restore</span><span class="p">()</span>
+		<span class="n">saver</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Saver</span><span class="p">(</span><span class="n">variables_to_restore</span><span class="p">)</span>
+
+		<span class="c1"># Build the summary op based on the TF collection of Summaries.</span>
+		<span class="n">summary_op</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">summary</span><span class="o">.</span><span class="n">merge_all</span><span class="p">()</span>
+		<span class="n">summary_writer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">summary</span><span class="o">.</span><span class="n">FileWriter</span><span class="p">(</span><span class="n">histcon</span><span class="o">.</span><span class="n">EVAL_DIR</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span>
+
+		<span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+			<span class="n">eval_once</span><span class="p">(</span><span class="n">saver</span><span class="p">,</span> <span class="n">summary_writer</span><span class="p">,</span> <span class="n">top_k_op</span><span class="p">,</span> <span class="n">summary_op</span><span class="p">)</span>
+			<span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">histcon</span><span class="o">.</span><span class="n">EVAL_INTERVAL_SECS</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="main"><a class="viewcode-back" href="../histcon_eval.html#histcon_eval.main">[docs]</a><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+	<span class="k">if</span> <span class="n">tf</span><span class="o">.</span><span class="n">gfile</span><span class="o">.</span><span class="n">Exists</span><span class="p">(</span><span class="n">histcon</span><span class="o">.</span><span class="n">EVAL_DIR</span><span class="p">):</span>
+		<span class="n">tf</span><span class="o">.</span><span class="n">gfile</span><span class="o">.</span><span class="n">DeleteRecursively</span><span class="p">(</span><span class="n">histcon</span><span class="o">.</span><span class="n">EVAL_DIR</span><span class="p">)</span>
+	<span class="n">tf</span><span class="o">.</span><span class="n">gfile</span><span class="o">.</span><span class="n">MakeDirs</span><span class="p">(</span><span class="n">histcon</span><span class="o">.</span><span class="n">EVAL_DIR</span><span class="p">)</span>
+	<span class="n">evaluate</span><span class="p">()</span></div>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+	<span class="n">tf</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, James M Dolezal
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,7 +1,7 @@
 progress module
 ===============
 
-.. automodule:: progress
+.. automodule:: progress_bar
     :members:
     :undoc-members:
     :show-inheritance:
