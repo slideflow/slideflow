@@ -5,6 +5,8 @@
 # Written by James Dolezal <jamesmdolezal@gmail.com>, October 2017
 # ==========================================================================
 
+# Update 3/2/2019: Beginning tf.data implementation
+
 ''''Builds the HISTCON network.'''
 
 from __future__ import absolute_import
