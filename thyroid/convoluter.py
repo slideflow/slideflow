@@ -1,7 +1,7 @@
 # Copyright (C) James Dolezal - All Rights Reserved
 # Unauthorized copying of this file, via any medium is strictly prohibited
 # Proprietary and confidential
-# Written by James Dolezal <jamesmdolezal@gmail.com>, October 2017, Updated 12/16/18
+# Written by James Dolezal <jamesmdolezal@gmail.com>, October 2017, Updated 3/2/19
 # ==========================================================================
 
 '''Convolutionally applies a saved Tensorflow model to a larger image, displaying
@@ -11,7 +11,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import argparse
 import os
 import sys
 import warnings
@@ -41,7 +40,7 @@ import matplotlib.colors as mcol
 class Convoluter:
     # Model variables
     SIZE = 64
-    NUM_CLASSES = 5
+    NUM_CLASSES = 1
     BATCH_SIZE = 32
 
     # Display variables
@@ -50,23 +49,23 @@ class Convoluter:
     WINDOW_SIZE = 6000
     VERBOSE = True
 
-    WHOLE_IMAGE = "images/WSI_25/234797-1_25.jpg" # Filename of whole image (JPG) to evaluate with saved model
-    DATA_DIR = '/home/shawarma/thyroid' # Path to histcon data directory
-    CONV_DIR = '/home/shawarma/thyroid/conv' # Directory where to write logs and summaries for the convoluter
-    MODEL_DIR = '/home/shawarma/thyroid/models/active' # Directory where to write event logs and checkpoints.
+    WHOLE_IMAGE = "images/234781-2.jpg" # Filename of whole image (JPG) to evaluate with saved model
+    DATA_DIR = '/Users/james/thyroid' # Path to histcon data directory
+    CONV_DIR = '/Users/james/thyroid/conv' # Directory where to write logs and summaries for the convoluter
+    MODEL_DIR = '/Users/james/thyroid/models/active' # Directory where to write event logs and checkpoints.
     USE_FP16 = True
 
     def __init__(self):
         self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
         self.DTYPE_INT = tf.int16 if self.USE_FP16 else tf.int32
 
-    def batch(iterable, n=1):
+    def batch(self, iterable, n=1):
         '''Organizes image tiles into workable batches for transfer to the GPU.'''
         l =len(iterable)
         for ndx in range(0, l, n):
             yield iterable[ndx:min(ndx+n, l)]
 
-    def concat_output(arr):
+    def concat_output(self, arr):
         '''Converts a 2D collection of 2D patches into a single large 2D array'''
         new_output = []
         for row in arr:
@@ -78,7 +77,7 @@ class Convoluter:
                 new_output.append(new_x)
         return np.array(new_output)
 
-    def scan_image():
+    def scan_image(self):
         '''Opens a whole-slide image, sections it into tiles, loads a saved Tensorflow model,
         and applies the model to each of the image tiles. The output - a 3D array of logits
         that correspond to model predictions at each location on the whole-slide iamge, is then
@@ -98,6 +97,7 @@ class Convoluter:
 
             batch_pl = tf.placeholder(self.DTYPE, shape=[self.BATCH_SIZE, self.SIZE, self.SIZE, 3])
             standardized_batch = tf.map_fn(lambda patch: tf.cast(tf.image.per_image_standardization(patch), self.DTYPE), batch_pl, dtype=self.DTYPE)
+
             with arg_scope(inception_arg_scope()):
                 _, end_points = inception_v4.inception_v4(standardized_batch, num_classes=self.NUM_CLASSES)
             slogits = end_points['Predictions']
@@ -265,7 +265,7 @@ class Convoluter:
                 print("\nFinished.")
                 self.display(filename, output, self.SIZE, self.STRIDES)
 
-    def display(image_file, logits, size, stride):
+    def display(self, image_file, logits, size, stride):
         '''Displays logits calculated using scan_image as a heatmap overlay.'''
         print("Received logits, size=%s, stride=%sx%s (%s x %s)" % (size, stride[1], stride[2], len(logits), len(logits[0])))
         print("Calculating overlay matrix...")
@@ -283,7 +283,7 @@ class Convoluter:
         cmMap = cm.nipy_spectral(jetMap)
         newMap = mcol.ListedColormap(cmMap)
 
-        sl = logits[:, :, 1]
+        sl = logits[:, :, 0]
         
         # Consider alternate interpolations: none, bicubic, quadric, lanczos
         heatmap = plt.imshow(sl, extent=extent, cmap=newMap, alpha = 0.3, interpolation='bicubic', zorder=10)
