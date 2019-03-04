@@ -61,7 +61,7 @@ def train():
 				return tf.train.SessionRunArgs(loss) # Asks for loss value.
 
 			def after_run(self, run_context, run_values):
-				if self._step % LOG_FREQUENCY == 0:
+				if self._step % histcon.LOG_FREQUENCY == 0:
 					current_time = time.time()
 					duration = current_time - self._start_time
 					self._start_time = current_time
