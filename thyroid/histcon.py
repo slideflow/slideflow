@@ -41,15 +41,15 @@ LEARNING_RATE_DECAY_FACTOR = 0.05	# Learning rate decay factor.
 INITIAL_LEARNING_RATE = 0.001			# Initial learning rate.
 
 # Variables previous created with parser & FLAGS
-BATCH_SIZE = 2
-DATA_DIR = '/Users/james/thyroid'
-MODEL_DIR = '/Users/james/thyroid/models/active' # Directory where to write event logs and checkpoints.
-EVAL_DIR = '/Users/james/thyroid/models/eval' # Directory where to write eval logs and summaries.
-CONV_DIR = '/Users/james/thyroid/models/conv' # Directory where to write logs and summaries for the convoluter.
+BATCH_SIZE = 128
+DATA_DIR = '/home/shawarma/thyroid'
+MODEL_DIR = '/home/shawarma/thyroid/models/active' # Directory where to write event logs and checkpoints.
+EVAL_DIR = '/home/shawarma/thyroid/models/eval' # Directory where to write eval logs and summaries.
+CONV_DIR = '/home/shawarma/thyroid/models/conv' # Directory where to write logs and summaries for the convoluter.
 WHOLE_IMAGE = '' # Filename of whole image (JPG) to evaluate with saved model
 MAX_EPOCH = 30
-LOG_FREQUENCY = 1 # How often to log results to console
-SUMMARY_STEPS = 25 # How often to save summaries for Tensorboard display, in steps
+LOG_FREQUENCY = 20 # How often to log results to console
+SUMMARY_STEPS = 20 # How often to save summaries for Tensorboard display, in steps
 EVAL_DATA = 'test' # Either "test" or "train", indicating the type of data to use for evaluation.
 EVAL_INTERVAL_SECS = 300 # How often to run eval/validation
 NUM_EXAMPLES = 10000 # Number of examples to run?
@@ -99,7 +99,7 @@ def _train_preprocess(image, label):
 
 	return image, label
 
-def inputs(data_dir, batch_size, eval_data):
+def build_inputs(data_dir, batch_size, eval_data):
 	'''Construct input for HISTCON evaluation.
 
 	Args:
@@ -213,9 +213,7 @@ def inputs():
 	'''
 	if not DATA_DIR:
 		raise ValueError('Please designate a data_dir.')
-	images, labels = inputs(data_dir=DATA_DIR,
-													batch_size=BATCH_SIZE,
-													eval_data=False)
+	images, labels = build_inputs(data_dir=DATA_DIR, batch_size=BATCH_SIZE, eval_data=False)
 	if USE_FP16:
 		images = tf.cast(images, tf.float16)
 		labels = tf.cast(labels, tf.float16)
