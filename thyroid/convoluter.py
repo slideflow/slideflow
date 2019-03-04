@@ -151,7 +151,6 @@ class Convoluter:
 		print("Received logits, size=%s, (%s x %s)" % (size, len(logits), len(logits[0])))
 		print("Calculating overlay matrix...")
 
-
 		axis_color = 'lightgoldenrodyellow'
 
 		fig = plt.figure()
@@ -182,7 +181,7 @@ class Convoluter:
 		# Make heatmaps and sliders
 		for i in range(self.NUM_CLASSES):
 			ax_slider = fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor=axis_color)
-			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
+			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='bicubic', zorder=10)
 			slider = Slider(ax_slider, 'Class {}'.format(i), 0, 1, valinit = 0)
 			heatmap_dict.update({"Class{}".format(i): [heatmap, slider]})
 			slider.on_changed(slider_func)
