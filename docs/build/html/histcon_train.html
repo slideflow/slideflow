@@ -17,32 +17,36 @@
   
 
   
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
 
-  
-  
     
 
   
-
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" /> 
-
-  
-  <script src="_static/js/modernizr.min.js"></script>
-
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="histcon_retrain module" href="histcon_retrain.html" />
+    <link rel="prev" title="histcon_eval module" href="histcon_eval.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
-
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search">
+        <div class="wy-side-nav-search" >
           
 
           
@@ -81,8 +85,19 @@
             
             
               <p class="caption"><span class="caption-text">Contents:</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">thyroid</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="conv_display.html">conv_display module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="convoluter.html">convoluter module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histcon.html">histcon module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histcon_eval.html">histcon_eval module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">histcon_train module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histcon_retrain.html">histcon_retrain module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="packing.html">packing module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="progress_bar.html">progress module</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
 </ul>
 
@@ -129,6 +144,8 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
+          <li><a href="modules.html">thyroid</a> &raquo;</li>
+        
       <li>histcon_train module</li>
     
     
@@ -148,8 +165,21 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="histcon-train-module">
-<h1>histcon_train module<a class="headerlink" href="#histcon-train-module" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="module-histcon_train">
+<span id="histcon-train-module"></span><h1>histcon_train module<a class="headerlink" href="#module-histcon_train" title="Permalink to this headline">¶</a></h1>
+<p>Builds the HISTCON network.</p>
+<dl class="function">
+<dt id="histcon_train.main">
+<code class="descclassname">histcon_train.</code><code class="descname">main</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/histcon_train.html#main"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#histcon_train.main" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize directories and start the main Tensorflow app.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="histcon_train.train">
+<code class="descclassname">histcon_train.</code><code class="descname">train</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/histcon_train.html#train"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#histcon_train.train" title="Permalink to this definition">¶</a></dt>
+<dd><p>Train HISTCON for a number of steps, according to flags set by the argument parser.</p>
+</dd></dl>
+
 </div>
 
 
@@ -157,6 +187,15 @@
            
           </div>
           <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="histcon_retrain.html" class="btn btn-neutral float-right" title="histcon_retrain module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="histcon_eval.html" class="btn btn-neutral float-left" title="histcon_eval module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
   
 
   <hr/>
@@ -180,26 +219,16 @@
   
 
 
-  
-
-    
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
-    
-
-  
-
-  <script type="text/javascript" src="_static/js/theme.js"></script>
-
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
+
+  
+  
+    
+   
 
 </body>
 </html>

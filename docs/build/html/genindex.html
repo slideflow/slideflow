@@ -18,32 +18,34 @@
   
 
   
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
 
-  
-  
     
 
   
-
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="#" />
     <link rel="search" title="Search" href="search.html" /> 
-
-  
-  <script src="_static/js/modernizr.min.js"></script>
-
 </head>
 
 <body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
-
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search">
+        <div class="wy-side-nav-search" >
           
 
           
@@ -84,6 +86,7 @@
               <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">thyroid</a></li>
 <li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
 </ul>
 
@@ -155,17 +158,31 @@
  | <a href="#C"><strong>C</strong></a>
  | <a href="#D"><strong>D</strong></a>
  | <a href="#E"><strong>E</strong></a>
+ | <a href="#H"><strong>H</strong></a>
+ | <a href="#I"><strong>I</strong></a>
+ | <a href="#L"><strong>L</strong></a>
  | <a href="#M"><strong>M</strong></a>
+ | <a href="#N"><strong>N</strong></a>
  | <a href="#O"><strong>O</strong></a>
  | <a href="#P"><strong>P</strong></a>
+ | <a href="#R"><strong>R</strong></a>
  | <a href="#S"><strong>S</strong></a>
  | <a href="#T"><strong>T</strong></a>
+ | <a href="#U"><strong>U</strong></a>
+ | <a href="#V"><strong>V</strong></a>
+ | <a href="#W"><strong>W</strong></a>
  
 </div>
 <h2 id="B">B</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="progress.html#progress.bar">bar() (in module progress)</a>
+      <li><a href="progress_bar.html#progress_bar.bar">bar() (in module progress_bar)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="convoluter.html#convoluter.Convoluter.batch">batch() (convoluter.Convoluter method)</a>
+</li>
+      <li><a href="convoluter.html#convoluter.Convoluter.BATCH_SIZE">BATCH_SIZE (convoluter.Convoluter attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -173,7 +190,15 @@
 <h2 id="C">C</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="conv_display.html#module-conv_display">conv_display (module)</a>
+      <li><a href="convoluter.html#convoluter.Convoluter.concat_output">concat_output() (convoluter.Convoluter method)</a>
+</li>
+      <li><a href="convoluter.html#convoluter.Convoluter.CONV_DIR">CONV_DIR (convoluter.Convoluter attribute)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="convoluter.html#convoluter.Convoluter">Convoluter (class in convoluter)</a>
+</li>
+      <li><a href="convoluter.html#module-convoluter">convoluter (module)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -181,13 +206,11 @@
 <h2 id="D">D</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="conv_display.html#conv_display.display">display() (in module conv_display)</a>
+      <li><a href="convoluter.html#convoluter.Convoluter.DATA_DIR">DATA_DIR (convoluter.Convoluter attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="multi.html#multi.double_list">double_list() (in module multi)</a>
-</li>
-      <li><a href="multi.html#multi.doubler">doubler() (in module multi)</a>
+      <li><a href="convoluter.html#convoluter.Convoluter.display">display() (convoluter.Convoluter method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -195,11 +218,51 @@
 <h2 id="E">E</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="progress.html#progress.end">end() (in module progress)</a>
+      <li><a href="progress_bar.html#progress_bar.end">end() (in module progress_bar)</a>
+</li>
+      <li><a href="histcon_eval.html#histcon_eval.eval_once">eval_once() (in module histcon_eval)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="histcon_eval.html#histcon_eval.evaluate">evaluate() (in module histcon_eval)</a>
+</li>
       <li><a href="packing.html#packing.Packer.export_tiles">export_tiles() (packing.Packer method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="H">H</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="histcon.html#module-histcon">histcon (module)</a>
+</li>
+      <li><a href="histcon_eval.html#module-histcon_eval">histcon_eval (module)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="histcon_retrain.html#module-histcon_retrain">histcon_retrain (module)</a>
+</li>
+      <li><a href="histcon_train.html#module-histcon_train">histcon_train (module)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="I">I</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="histcon.html#histcon.inference">inference() (in module histcon)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="histcon.html#histcon.inputs">inputs() (in module histcon)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="L">L</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="histcon.html#histcon.loss">loss() (in module histcon)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -207,7 +270,27 @@
 <h2 id="M">M</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="multi.html#module-multi">multi (module)</a>
+      <li><a href="convoluter.html#convoluter.main">main() (in module convoluter)</a>
+
+      <ul>
+        <li><a href="histcon_eval.html#histcon_eval.main">(in module histcon_eval)</a>
+</li>
+        <li><a href="histcon_retrain.html#histcon_retrain.main">(in module histcon_retrain)</a>
+</li>
+        <li><a href="histcon_train.html#histcon_train.main">(in module histcon_train)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="convoluter.html#convoluter.Convoluter.MODEL_DIR">MODEL_DIR (convoluter.Convoluter attribute)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="N">N</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="convoluter.html#convoluter.Convoluter.NUM_CLASSES">NUM_CLASSES (convoluter.Convoluter attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -231,7 +314,15 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="packing.html#packing.Packer.place_tiles">place_tiles() (packing.Packer method)</a>
 </li>
-      <li><a href="progress.html#module-progress">progress (module)</a>
+      <li><a href="progress_bar.html#module-progress_bar">progress_bar (module)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="R">R</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="histcon_retrain.html#histcon_retrain.retrain">retrain() (in module histcon_retrain)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -239,7 +330,17 @@
 <h2 id="S">S</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="convoluter.html#convoluter.Convoluter.scan_image">scan_image() (convoluter.Convoluter method)</a>
+</li>
       <li><a href="packing.html#packing.Packer.show_graph">show_graph() (packing.Packer method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="convoluter.html#convoluter.Convoluter.SIZE">SIZE (convoluter.Convoluter attribute)</a>
+</li>
+      <li><a href="convoluter.html#convoluter.Convoluter.stride_divisor">stride_divisor (convoluter.Convoluter attribute)</a>
+</li>
+      <li><a href="convoluter.html#convoluter.Convoluter.STRIDES">STRIDES (convoluter.Convoluter attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -251,7 +352,39 @@
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="tiler.html#module-tiler">tiler (module)</a>
+      <li><a href="histcon.html#histcon.train">train() (in module histcon)</a>
+
+      <ul>
+        <li><a href="histcon_train.html#histcon_train.train">(in module histcon_train)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="U">U</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="convoluter.html#convoluter.Convoluter.USE_FP16">USE_FP16 (convoluter.Convoluter attribute)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="V">V</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="convoluter.html#convoluter.Convoluter.VERBOSE">VERBOSE (convoluter.Convoluter attribute)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="W">W</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="convoluter.html#convoluter.Convoluter.WHOLE_IMAGE">WHOLE_IMAGE (convoluter.Convoluter attribute)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="convoluter.html#convoluter.Convoluter.WINDOW_SIZE">WINDOW_SIZE (convoluter.Convoluter attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -285,26 +418,16 @@
   
 
 
-  
-
-    
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
-    
-
-  
-
-  <script type="text/javascript" src="_static/js/theme.js"></script>
-
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
+
+  
+  
+    
+   
 
 </body>
 </html>
