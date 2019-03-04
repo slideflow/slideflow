@@ -1,7 +1,7 @@
 # Copyright (C) James Dolezal - All Rights Reserved
 # Unauthorized copying of this file, via any medium is strictly prohibited
 # Proprietary and confidential
-# Written by James Dolezal <jamesmdolezal@gmail.com>, October 2017, Updated 3/2/19
+# Written by James Dolezal <jamesmdolezal@gmail.com>, March 2019
 # ==========================================================================
 
 '''Convolutionally applies a saved Tensorflow model to a larger image, displaying
@@ -11,297 +11,187 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
-import sys
+import os, sys
 import warnings
 
-from datetime import datetime
-from PIL import Image
-
-import numpy as np
-import tensorflow as tf
-from tensorflow.contrib.framework import arg_scope
-
-import inception_v4
-from inception_utils import inception_arg_scope
 import progress_bar
 
-from multiprocessing import Pool
+import tensorflow as tf
+import numpy as np
+import inception_v4
+from tensorflow.contrib.framework import arg_scope
+from inception_utils import inception_arg_scope
+from PIL import Image
+
 from matplotlib.widgets import Slider
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 import matplotlib.cm as cm
 import matplotlib.colors as mcol
 
-# NOTE!! THIS MODULE IS CURRENTLY NOT WORKING, THERE IS A BUG WITH WINDOWING
-# Not currently working; overlay is offset
-# Also not efficient; an alternative solution using multiprocessing has been half implemented here
+# TODO: extract_image_patches expands data too unnecessarily, creating large memory pressure.
+#  Need to find iterator method to only extract as many patches as are needed to generate a batch
 
 class Convoluter:
-    # Model variables
-    SIZE = 64
-    NUM_CLASSES = 1
-    BATCH_SIZE = 32
+	# Model variables
+	SIZE = 512
+	NUM_CLASSES = 5
+	BATCH_SIZE = 512
+	USE_FP16 = True
 
-    # Display variables
-    stride_divisor = 4
-    STRIDES = [1, int(SIZE/stride_divisor), int(SIZE/stride_divisor), 1]
-    WINDOW_SIZE = 6000
-    VERBOSE = True
+	# Display variables
+	stride_divisor = 4
+	STRIDES = [1, int(SIZE/stride_divisor), int(SIZE/stride_divisor), 1]
+	WINDOW_SIZE = 6000
 
-    WHOLE_IMAGE = "images/234781-2.jpg" # Filename of whole image (JPG) to evaluate with saved model
-    DATA_DIR = '/Users/james/thyroid' # Path to histcon data directory
-    CONV_DIR = '/Users/james/thyroid/conv' # Directory where to write logs and summaries for the convoluter
-    MODEL_DIR = '/Users/james/thyroid/models/active' # Directory where to write event logs and checkpoints.
-    USE_FP16 = True
+	WHOLE_IMAGE = '/home/shawarma/thyroid/images/WSI_25/234807-1_25.jpg'
+	MODEL_DIR = '/home/shawarma/thyroid/models/active' # Directory where to write event logs and checkpoints.
 
-    def __init__(self):
-        self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
-        self.DTYPE_INT = tf.int16 if self.USE_FP16 else tf.int32
+	def __init__(self):
+		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
+		self.DTYPE_INT = tf.int16 if self.USE_FP16 else tf.int32
 
-    def batch(self, iterable, n=1):
-        '''Organizes image tiles into workable batches for transfer to the GPU.'''
-        l =len(iterable)
-        for ndx in range(0, l, n):
-            yield iterable[ndx:min(ndx+n, l)]
+	def scan_image(self):
+		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+		with tf.Graph().as_default() as g:
 
-    def concat_output(self, arr):
-        '''Converts a 2D collection of 2D patches into a single large 2D array'''
-        new_output = []
-        for row in arr:
-            row_height = len(row[0])
-            for y in range(row_height):
-                new_x = []
-                for window in row:
-                    new_x += window[y].tolist()
-                new_output.append(new_x)
-        return np.array(new_output)
+			image_string = tf.read_file(self.WHOLE_IMAGE)
+			image = tf.cast(tf.image.decode_jpeg(image_string, channels = 3), tf.int32)
 
-    def scan_image(self):
-        '''Opens a whole-slide image, sections it into tiles, loads a saved Tensorflow model,
-        and applies the model to each of the image tiles. The output - a 3D array of logits
-        that correspond to model predictions at each location on the whole-slide iamge, is then
-        restructured into an array that can be displayed as a heatmap overlay.'''
+			window_size = [self.SIZE, self.SIZE]
+			window_stride = [int(self.SIZE/4), int(self.SIZE/4)]
 
-        warnings.simplefilter('ignore', Image.DecompressionBombWarning)
-        with tf.Graph().as_default() as g:
-            filename = os.path.join(self.DATA_DIR, self.WHOLE_IMAGE)
+			with tf.Session() as sess:
+				init = (tf.global_variables_initializer(), tf.local_variables_initializer())
+				sess.run(init)
 
-            ri = tf.placeholder(self.DTYPE_INT, shape=[None, None, 3])
+				shape = sess.run(tf.shape(image))
 
-            unshaped_patches = tf.extract_image_patches(images=[ri], ksizes=[1, self.SIZE, self.SIZE, 1],
-                                                        strides = self.STRIDES, rates = [1, 1, 1, 1],
-                                                        padding = "VALID")
+				print("Loading image of size {} x {}".format(shape[0], shape[1]))
 
-            patches = tf.cast(tf.reshape(unshaped_patches, [-1, self.SIZE, self.SIZE, 3]), self.DTYPE)
+				if (window_size[0] > shape[0]) or (window_size[1] > shape[1]):
+					raise IndexError("Window size is too large")
 
-            batch_pl = tf.placeholder(self.DTYPE, shape=[self.BATCH_SIZE, self.SIZE, self.SIZE, 3])
-            standardized_batch = tf.map_fn(lambda patch: tf.cast(tf.image.per_image_standardization(patch), self.DTYPE), batch_pl, dtype=self.DTYPE)
+				coord = []
 
-            with arg_scope(inception_arg_scope()):
-                _, end_points = inception_v4.inception_v4(standardized_batch, num_classes=self.NUM_CLASSES)
-            slogits = end_points['Predictions']
-            saver = tf.train.Saver()
+				self.Y_SIZE = shape[0] - window_size[0]
+				self.X_SIZE = shape[1] - window_size[1]
 
-            #logits = histcon.inference(standardized_batch)
-            #slogits = tf.nn.softmax(logits)
+				for y in range(0, (shape[0]+1) - window_size[0], window_stride[0]):
+					for x in range(0, (shape[1]+1) - window_size[1], window_stride[1]):
+						coord.append([y, x])
 
-            # Restore model
-            #variable_averages = tf.train.ExponentialMovingAverage(histcon.MOVING_AVERAGE_DECAY)
-            #variables_to_restore = variable_averages.variables_to_restore()
-            #saver = tf.train.Saver(variables_to_restore)
-            
-            summary_op = tf.summary.merge_all()
-            summary_writer = tf.summary.FileWriter(self.CONV_DIR, g)
+				coord_dataset = tf.data.Dataset.from_tensor_slices(coord)
+				coord_dataset = coord_dataset.map(lambda c: tf.cast(c, dtype=tf.int32))
+				coord_dataset = coord_dataset.map(lambda c: image[c[0]:c[0]+window_size[0], c[1]:c[1]+window_size[1],], num_parallel_calls = 8)
+				coord_dataset = coord_dataset.map(lambda patch: tf.cast(tf.image.per_image_standardization(patch), self.DTYPE), num_parallel_calls = 8)
 
-            with tf.Session() as sess:
-                print("\n" + "="*20 + "\n")
-                # Load image through PIL
-                im = Image.open(filename)
-                imported_image = np.array(im, dtype=self.DTYPE)
-                print("Image size: ", imported_image.shape)
+				coord_dataset = coord_dataset.batch(self.BATCH_SIZE, drop_remainder = False)
+				coord_dataset.prefetch(1)
 
-                init = (tf.global_variables_initializer(), tf.local_variables_initializer())
-                sess.run(init)
+				iterator = coord_dataset.make_one_shot_iterator()
+				batch = iterator.get_next()
 
-                # Restore checkpoint
-                ckpt = tf.train.get_checkpoint_state(self.MODEL_DIR)
-                if ckpt and ckpt.model_checkpoint_path:
-                    saver.restore(sess, ckpt.model_checkpoint_path)
-                else:
-                    print('No checkpoint file found.')
-                    return
+				# Pad the batch if necessary to create a batch of minimum size BATCH_SIZE
+				padded_batch = tf.concat([batch, tf.zeros([self.BATCH_SIZE - tf.shape(batch)[0], 512, 512, 3], 
+															dtype=self.DTYPE)], 0)
 
-                coord = tf.train.Coordinator()
-                try:
-                    threads = []
-                    for qr in tf.get_collection(tf.GraphKeys.QUEUE_RUNNERS):
-                            threads.extend(qr.create_threads(sess, coord=coord, daemon=True, start=True))
+			padded_batch.set_shape([self.BATCH_SIZE, self.SIZE, self.SIZE, 3])
 
-                    len_y = imported_image.shape[0]
-                    len_x = imported_image.shape[1]
-                    margin = int(self.SIZE/2)
+			with arg_scope(inception_arg_scope()):
+				_, end_points = inception_v4.inception_v4(padded_batch, num_classes = self.NUM_CLASSES)
 
-                    # First, determine how to divide x and y
-                    num_full_windows_y = int((len_y - margin*2) / (self.WINDOW_SIZE - margin*2))
-                    leftover_y = (len_y - margin*2) % (self.WINDOW_SIZE - margin*2)
+			slogits = end_points['Predictions']
+			saver = tf.train.Saver()
 
-                    num_full_windows_x = int((len_x - margin*2) / (self.WINDOW_SIZE - margin*2))
-                    leftover_x = (len_x - margin*2) % (self.WINDOW_SIZE - margin*2)
+			with tf.Session() as sess:
+				init = (tf.global_variables_initializer(), tf.local_variables_initializer())
+				sess.run(init)
 
-                    if self.VERBOSE: print("Leftovers:       x: %s   y: %s" % (leftover_x, leftover_y))
-                    if self.VERBOSE: print("Whole patches:   x: %s   y: %s" % (num_full_windows_x, num_full_windows_y))
+				ckpt = tf.train.get_checkpoint_state(self.MODEL_DIR)
+				if ckpt and ckpt.model_checkpoint_path:
+					print("Restoring saved checkpoint model.")
+					saver.restore(sess, ckpt.model_checkpoint_path)
+				else:
+					raise Exception('Unable to find checkpoint file.')
 
-                    total_patches = (num_full_windows_x + (1 if leftover_x else 0)) * (num_full_windows_y + (1 if leftover_y else 0))
-                    patch_index = 0
+				logits_arr = []
 
-                    # {start: [x, y], end: [x,y]}
-                    window_list = []
+				x_logits_len = int(self.X_SIZE / window_stride[0])+1
+				y_logits_len = int(self.Y_SIZE / window_stride[1])+1
+				total_logits_count = x_logits_len * y_logits_len
 
-                    # Create list of coordinates for full y-length windows
-                    for j in range(num_full_windows_y):
-                        y_start = j * (self.WINDOW_SIZE - margin*2)
-                        y_end = y_start + self.WINDOW_SIZE
-                        window_x_list = []
+				if total_logits_count != len(coord):
+					raise Exception("The expected total number of window tiles does not match the number of generated starting points for window tiles.")
 
-                        for i in range(num_full_windows_x):
-                            x_start = i * (self.WINDOW_SIZE - margin*2)
-                            x_end = x_start + self.WINDOW_SIZE
-                            window_x_list.append({  'start' : [x_start, y_start],
-                                                    'end'   : [x_end, y_end]      })
-                        if leftover_x:
-                            x_start = num_full_windows_x * (self.WINDOW_SIZE - margin*2)
-                            x_end = x_start + leftover_x + margin*2
-                            window_x_list.append({  'start' : [x_start, y_start],
-                                                    'end'   : [x_end, y_end]      })
-                        window_list.append(window_x_list)
+				count = 0
 
-                    if leftover_y:
-                        y_start = num_full_windows_y * (self.WINDOW_SIZE - margin*2)
-                        y_end = y_start + leftover_y + margin*2
-                        window_x_list = []
+				while True:
+					try:
+						count = min(count, total_logits_count)
+						progress_bar.bar(count, total_logits_count, text = "Calculated {} images out of {}. "
+																			.format(min(count, total_logits_count),
+																			 total_logits_count))
+						new_logits = sess.run(tf.cast(slogits, tf.float32))
+						logits_arr = new_logits if logits_arr == [] else np.concatenate([logits_arr, new_logits])
+					except tf.errors.OutOfRangeError:
+						print("End of image detected.")
+						break
+					count += self.BATCH_SIZE
+				progress_bar.end()
+			
+			# Crop the output to exclude padding
+			print("total size of padded dataset: {}".format(logits_arr.shape))
+			logits_arr = logits_arr[0:total_logits_count]
+			logits_out = np.resize(logits_arr, [y_logits_len, x_logits_len, self.NUM_CLASSES])
+			
+			self.display(self.WHOLE_IMAGE, logits_out, self.SIZE)
 
-                        for i in range(num_full_windows_x):
-                            x_start = i * (self.WINDOW_SIZE - margin*2)
-                            x_end = x_start + self.WINDOW_SIZE
-                            window_x_list.append({  'start' : [x_start, y_start],
-                                                    'end'   : [x_end, y_end]      })
-                        if leftover_x:
-                            x_start = num_full_windows_x * (self.WINDOW_SIZE - margin*2)
-                            x_end = x_start + leftover_x + margin*2
-                            window_x_list.append({  'start' : [x_start, y_start],
-                                                    'end'   : [x_end, y_end]      })
-                        window_list.append(window_x_list)
+	def display(self, image_file, logits, size):
+		'''Displays logits calculated using scan_image as a heatmap overlay.'''
+		print("Received logits, size=%s, (%s x %s)" % (size, len(logits), len(logits[0])))
+		print("Calculating overlay matrix...")
 
-                    output = np.zeros([len(window_list), len(window_list[0])]).tolist()
 
-                    for y_index, window_x_list in enumerate(window_list):
-                        for x_index, window in enumerate(window_x_list):
-                            x_start = window['start'][0]
-                            x_end = window['end'][0]
-                            y_start = window['start'][1]
-                            y_end = window['end'][1]
-                            index = (x_index, y_index)
+		axis_color = 'lightgoldenrodyellow'
 
-                            image_window = np.array([x[x_start:x_end] for x in imported_image[y_start:y_end]])
+		fig = plt.figure()
+		ax = fig.add_subplot(111)
 
-                            all_slogs = np.array([])
-                            patch_array = np.array(sess.run(patches, feed_dict = {ri:image_window}))
+		fig.subplots_adjust(bottom = 0.25)
 
-                            if self.VERBOSE:
-                                print("\nPatch array %s (size: %s)" % (index, patch_array.shape[0]))
-                                print("X: %s - %s,  Y: %s - %s" %(x_start, x_end, y_start, y_end))
-                            else:
-                                progress_bar.bar(patch_index, total_patches)
-                                patch_index += 1
+		im = plt.imread(image_file)
+		implot = ax.imshow(im, zorder=0)
+		gca = plt.gca()
+		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
 
-                            num_batches = int(patch_array.shape[0]/self.BATCH_SIZE)
+		# Calculations to determine appropriate offset for heatmap
+		im_extent = implot.get_extent()
+		extent = [im_extent[0] + size/2, im_extent[1] - size/2, im_extent[2] - size/2, im_extent[3] + size/2]
 
-                            for i, x in enumerate(self.batch(patch_array, self.BATCH_SIZE)):
-                                if x.shape[0] == self.BATCH_SIZE:
-                                    # Full batch
-                                    if self.VERBOSE: progress_bar.bar(i, num_batches)
-                                    sl = sess.run(slogits, feed_dict = {batch_pl: x})
+		# Define color map
+		jetMap = np.linspace(0.45, 0.95, 255)
+		cmMap = cm.nipy_spectral(jetMap)
+		newMap = mcol.ListedColormap(cmMap)
 
-                                    if not all_slogs.any(): 
-                                        all_slogs = sl
-                                    else: 
-                                        all_slogs = np.concatenate((all_slogs, sl), axis=0)
-                                else:
-                                    if self.VERBOSE: progress_bar.bar(1, 1)
-                                    num_pad = self.BATCH_SIZE - x.shape[0]
-                                    z = np.zeros([num_pad, self.SIZE, self.SIZE, 3])
-                                    padded_x = np.concatenate((x, z), axis=0)
-                                    padded_sl = sess.run(slogits, feed_dict = {batch_pl: padded_x})
-                                    trimmed_sl = padded_sl[:x.shape[0]]
+		heatmap_dict = {}
 
-                                    if not all_slogs.any():
-                                        all_slogs = trimmed_sl
-                                    else:
-                                        all_slogs = np.concatenate((all_slogs, trimmed_sl), axis=0)
+		def slider_func(val):
+			for h, s in heatmap_dict.values():
+				h.set_alpha(s.val)
 
-                            patches_height = 1 + int((int(y_end - y_start) - int(self.SIZE)) / self.STRIDES[1])
-                            patches_width  = 1 + int((int(x_end - x_start) - int(self.SIZE)) / self.STRIDES[2])
+		# Make heatmaps and sliders
+		for i in range(self.NUM_CLASSES):
+			ax_slider = fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor=axis_color)
+			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
+			slider = Slider(ax_slider, 'Class {}'.format(i), 0, 1, valinit = 0)
+			heatmap_dict.update({"Class{}".format(i): [heatmap, slider]})
+			slider.on_changed(slider_func)
 
-                            reshaped_slogs = np.reshape(all_slogs, [patches_height, patches_width, self.NUM_CLASSES])
+		plt.show()
 
-                            output[y_index][x_index] = reshaped_slogs
+if __name__==('__main__'):
+	os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+	tf.logging.set_verbosity(tf.logging.ERROR)
+	c = Convoluter()
+	c.scan_image()
 
-                            if self.VERBOSE:
-                                progress_bar.end()
-                                print(" ", reshaped_slogs.shape)
-
-                    output = self.concat_output(output)
-                    if not self.VERBOSE:
-                        progress_bar.end()
-                    print("\nFormatted output shape:", output.shape)
-
-                except Exception as e:
-                        coord.request_stop(e)
-                        print("\n")
-
-                coord.request_stop()
-                coord.join(threads, stop_grace_period_secs=10)
-                print("\nFinished.")
-                self.display(filename, output, self.SIZE, self.STRIDES)
-
-    def display(self, image_file, logits, size, stride):
-        '''Displays logits calculated using scan_image as a heatmap overlay.'''
-        print("Received logits, size=%s, stride=%sx%s (%s x %s)" % (size, stride[1], stride[2], len(logits), len(logits[0])))
-        print("Calculating overlay matrix...")
-
-        im = plt.imread(image_file)
-        implot = plt.imshow(im,zorder=0)
-        gca = plt.gca()
-        gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
-
-        im_extent = implot.get_extent()
-        extent = [im_extent[0] + size/2, im_extent[1] - size/2, im_extent[2] - size/2, im_extent[3] + size/2]
-
-        # Define color map
-        jetMap = np.linspace(0.45, 0.95, 255)
-        cmMap = cm.nipy_spectral(jetMap)
-        newMap = mcol.ListedColormap(cmMap)
-
-        sl = logits[:, :, 0]
-        
-        # Consider alternate interpolations: none, bicubic, quadric, lanczos
-        heatmap = plt.imshow(sl, extent=extent, cmap=newMap, alpha = 0.3, interpolation='bicubic', zorder=10)
-
-        def update_opacity(val):
-            heatmap.set_alpha(val)
-
-        # Show sliders to adjust heatmap overlay
-        ax_opac = plt.axes([0.25, 0.05, 0.5, 0.03], facecolor='lightgoldenrodyellow')
-        opac = Slider(ax_opac, 'Opacity', 0, 1, valinit = 1)
-        opac.on_changed(update_opacity)
-
-        plt.axis('scaled')
-        plt.show()
-
-def main(argv=None):
-    c = Convoluter()
-    c.scan_image()
-
-if __name__ == '__main__':
-    tf.app.run()
