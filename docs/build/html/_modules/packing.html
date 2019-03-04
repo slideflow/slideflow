@@ -17,32 +17,34 @@
   
 
   
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
 
-  
-  
     
 
   
-
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" /> 
-
-  
-  <script src="../_static/js/modernizr.min.js"></script>
-
 </head>
 
 <body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
-
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search">
+        <div class="wy-side-nav-search" >
           
 
           
@@ -83,6 +85,7 @@
               <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">thyroid</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../examples.html">Examples</a></li>
 </ul>
 
@@ -164,16 +167,16 @@
 <span class="kn">import</span> <span class="nn">shapely.geometry</span> <span class="k">as</span> <span class="nn">sg</span>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">import</span> <span class="nn">progress</span>
+<span class="kn">import</span> <span class="nn">progress_bar</span>
 <span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">path</span>
 <span class="kn">from</span> <span class="nn">PIL</span> <span class="k">import</span> <span class="n">Image</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="k">import</span> <span class="n">isfile</span><span class="p">,</span> <span class="n">join</span>
 
 
 <span class="n">Image</span><span class="o">.</span><span class="n">MAX_IMAGE_PIXELS</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="n">TILE_SIZE</span> <span class="o">=</span> <span class="mi">256</span>
-<span class="n">ANNOTATION_COMPRESSION_FACTOR</span> <span class="o">=</span> <span class="mi">1</span>
-<span class="n">DIRECTORY</span> <span class="o">=</span> <span class="s2">&quot;/home/shawarma/thyroid/images/Annotated&quot;</span>
+<span class="n">TILE_SIZE</span> <span class="o">=</span> <span class="mi">2048</span>
+<span class="n">ANNOTATION_COMPRESSION_FACTOR</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">DIRECTORY</span> <span class="o">=</span> <span class="s2">&quot;/media/shawarma/Backup/Other files/Thyroid/Annotations/All/to_convert&quot;</span>
 
 <div class="viewcode-block" id="Packer"><a class="viewcode-back" href="../packing.html#packing.Packer">[docs]</a><span class="k">class</span> <span class="nc">Packer</span><span class="p">:</span>
 	<span class="sd">&quot;&quot;&quot;Module which loads a LabelMe json annotation file and subdivides annotations</span>
@@ -230,7 +233,7 @@
 			<span class="k">elif</span> <span class="n">label</span> <span class="o">!=</span> <span class="n">background_label</span><span class="p">:</span>
 				<span class="n">mPolygon</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">Polygon</span><span class="p">(</span><span class="n">area_full</span><span class="p">)</span>
 				<span class="bp">self</span><span class="o">.</span><span class="n">other_shapes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
-				<span class="n">squares</span><span class="p">,</span> <span class="n">coordinates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_iterator</span><span class="p">(</span><span class="n">area</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span><span class="mi">4</span><span class="p">])</span>
+				<span class="n">squares</span><span class="p">,</span> <span class="n">coordinates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_iterator</span><span class="p">(</span><span class="n">area</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">factor</span><span class="p">),</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span><span class="mi">4</span><span class="p">])</span>
 				<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Number of tiles: </span><span class="si">%i</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">squares</span><span class="p">)</span>
 				<span class="k">if</span> <span class="n">squares</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
 					<span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Optimal starting point: (</span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">)&quot;</span> <span class="o">%</span>
@@ -238,7 +241,7 @@
 				<span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">index</span><span class="p">][</span><span class="s1">&#39;square_offset&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">coordinates</span>
 				<span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">index</span><span class="p">][</span><span class="s1">&#39;max_squares&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">squares</span></div>
 
-<div class="viewcode-block" id="Packer.export_tiles"><a class="viewcode-back" href="../packing.html#packing.Packer.export_tiles">[docs]</a>	<span class="k">def</span> <span class="nf">export_tiles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">export_dir</span><span class="p">,</span> <span class="n">background_label</span> <span class="o">=</span> <span class="s2">&quot;case&quot;</span><span class="p">,</span> <span class="n">ignore_background</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">origin_optimization</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="Packer.export_tiles"><a class="viewcode-back" href="../packing.html#packing.Packer.export_tiles">[docs]</a>	<span class="k">def</span> <span class="nf">export_tiles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">export_dir</span><span class="p">,</span> <span class="n">background_label</span> <span class="o">=</span> <span class="s2">&quot;background&quot;</span><span class="p">,</span> <span class="n">ignore_background</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">origin_optimization</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
 		<span class="sd">&quot;&quot;&quot;For all annotated shapes, exports extracted tiles from a full-size image.</span>
 
 <span class="sd">		Args:</span>
@@ -273,7 +276,7 @@
 
 			<span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
 				<span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
-				<span class="bp">self</span><span class="o">.</span><span class="n">place_tiles</span><span class="p">(</span><span class="n">area</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">export_dir</span><span class="p">,</span> <span class="n">im</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">place_tiles</span><span class="p">(</span><span class="n">area</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">export_dir</span><span class="p">,</span> <span class="n">im</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
 
 		<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Export complete.&quot;</span><span class="p">)</span></div>
 
@@ -289,7 +292,7 @@
 		<span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">tile_size</span><span class="p">,</span> <span class="n">stride</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
 			<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">tile_size</span><span class="p">,</span> <span class="n">stride</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
 				<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r</span><span class="s2">Optimizing annotation #</span><span class="si">%s</span><span class="s2">: &quot;</span> <span class="o">%</span> <span class="n">_id</span><span class="p">)</span>
-				<span class="n">progress</span><span class="o">.</span><span class="n">bar</span><span class="p">((</span><span class="n">j</span><span class="o">*</span><span class="n">tile_size</span><span class="p">)</span><span class="o">+</span><span class="n">i</span><span class="p">,</span> <span class="n">max_it</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+				<span class="n">progress_bar</span><span class="o">.</span><span class="n">bar</span><span class="p">((</span><span class="n">j</span><span class="o">*</span><span class="n">tile_size</span><span class="p">)</span><span class="o">+</span><span class="n">i</span><span class="p">,</span> <span class="n">max_it</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 				<span class="n">count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">place_tiles</span><span class="p">(</span><span class="n">area</span><span class="p">,</span> <span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">],</span> <span class="n">tile_size</span><span class="p">,</span> <span class="n">exclusions</span> <span class="o">=</span> <span class="n">exclusions</span><span class="p">)</span>
 				<span class="k">if</span> <span class="n">count</span> <span class="o">&gt;=</span> <span class="n">max_squares</span><span class="p">:</span> 
 					<span class="n">max_squares</span> <span class="o">=</span> <span class="n">count</span>
@@ -366,8 +369,8 @@
 		<span class="k">return</span> <span class="n">square_count</span></div>
 
 <div class="viewcode-block" id="Packer.show_graph"><a class="viewcode-back" href="../packing.html#packing.Packer.show_graph">[docs]</a>	<span class="k">def</span> <span class="nf">show_graph</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-		<span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;scaled&#39;</span><span class="p">)</span>
-		<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div></div>
+		<span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;scaled&#39;</span><span class="p">)</span></div></div>
+		<span class="c1">#plt.show()</span>
 
 <span class="k">if</span> <span class="vm">__name__</span><span class="o">==</span><span class="p">(</span><span class="s1">&#39;__main__&#39;</span><span class="p">):</span>
 	<span class="n">cases</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="p">[:</span><span class="o">-</span><span class="mi">5</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">DIRECTORY</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">isfile</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">DIRECTORY</span><span class="p">,</span> <span class="n">f</span><span class="p">))</span> 
@@ -415,26 +418,16 @@
   
 
 
-  
-
-    
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../_static/jquery.js"></script>
-        <script type="text/javascript" src="../_static/underscore.js"></script>
-        <script type="text/javascript" src="../_static/doctools.js"></script>
-        <script type="text/javascript" src="../_static/language_data.js"></script>
-    
-
-  
-
-  <script type="text/javascript" src="../_static/js/theme.js"></script>
-
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
+
+  
+  
+    
+   
 
 </body>
 </html>

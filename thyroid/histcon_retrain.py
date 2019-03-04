@@ -26,11 +26,9 @@ from inception_utils import inception_arg_scope
 
 import sys
 
-parser = histcon.parser
-
 RETRAIN_MODEL = '/home/shawarma/thyroid/models/inception_v4_2018_04_27/inception_v4.pb'
 MODEL_VALUES_FILE = '/home/shawarma/thyroid/thyroid/obj/inception_v4_imagenet_pretrained.pkl'
-DTYPE = tf.float16 if histcon.FLAGS.use_fp16 else tf.float32
+DTYPE = tf.float16 if histcon.USE_FP16 else tf.float32
 
 def retrain():
 	# Do not import the final layer of the saved network, as we will be working with 
@@ -77,37 +75,36 @@ def retrain():
 				return tf.train.SessionRunArgs(loss) # Asks for loss value.
 
 			def after_run(self, run_context, run_values):
-				if self._step % FLAGS.log_frequency == 0:
+				if self._step % histcon.LOG_FREQUENCY == 0:
 					current_time = time.time()
 					duration = current_time - self._start_time
 					self._start_time = current_time
 
 					loss_value = run_values.results
-					images_per_sec = FLAGS.log_frequency * FLAGS.batch_size / duration
-					sec_per_batch = float(duration / FLAGS.log_frequency)
+					images_per_sec = histcon.LOG_FREQUENCY * histcon.BATCH_SIZE / duration
+					sec_per_batch = float(duration / histcon.LOG_FREQUENCY)
 
 					format_str = ('%s: step %d, loss = %.2f (%.1f images/sec; %.3f sec/batch)')
 					print(format_str % (datetime.now(), self._step, loss_value,
 										images_per_sec, sec_per_batch))
 
 		with tf.train.MonitoredTrainingSession(
-			checkpoint_dir = FLAGS.model_dir,
-			hooks = [tf.train.StopAtStepHook(last_step = FLAGS.max_steps),
+			checkpoint_dir = histcon.MODEL_DIR,
+			hooks = [tf.train.StopAtStepHook(last_step = histcon.MAX_STEPS),
 					tf.train.NanTensorHook(loss),
 					_LoggerHook()],
 			config = tf.ConfigProto(
 					log_device_placement=False),
-			save_summaries_steps = FLAGS.summary_steps) as mon_sess:
+			save_summaries_steps = histcon.SUMMARY_STEPS) as mon_sess:
 
 			while not mon_sess.should_stop():
 				mon_sess.run(train_op)
 
 def main(argv=None):
-	if tf.gfile.Exists(FLAGS.model_dir):
-		tf.gfile.DeleteRecursively(FLAGS.model_dir)
-	tf.gfile.MakeDirs(FLAGS.model_dir)
+	if tf.gfile.Exists(histcon.MODEL_DIR):
+		tf.gfile.DeleteRecursively(histcon.MODEL_DIR)
+	tf.gfile.MakeDirs(histcon.MODEL_DIR)
 	retrain()
 
 if __name__ == "__main__":
-	FLAGS = parser.parse_args()
 	tf.app.run()
