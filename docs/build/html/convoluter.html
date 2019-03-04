@@ -174,17 +174,7 @@ the result as a heatmap overlay.</p>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <dl class="attribute">
 <dt id="convoluter.Convoluter.BATCH_SIZE">
-<code class="descname">BATCH_SIZE</code><em class="property"> = 32</em><a class="headerlink" href="#convoluter.Convoluter.BATCH_SIZE" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="convoluter.Convoluter.CONV_DIR">
-<code class="descname">CONV_DIR</code><em class="property"> = '/home/shawarma/thyroid/conv'</em><a class="headerlink" href="#convoluter.Convoluter.CONV_DIR" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="convoluter.Convoluter.DATA_DIR">
-<code class="descname">DATA_DIR</code><em class="property"> = '/home/shawarma/thyroid'</em><a class="headerlink" href="#convoluter.Convoluter.DATA_DIR" title="Permalink to this definition">¶</a></dt>
+<code class="descname">BATCH_SIZE</code><em class="property"> = 512</em><a class="headerlink" href="#convoluter.Convoluter.BATCH_SIZE" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -199,12 +189,12 @@ the result as a heatmap overlay.</p>
 
 <dl class="attribute">
 <dt id="convoluter.Convoluter.SIZE">
-<code class="descname">SIZE</code><em class="property"> = 64</em><a class="headerlink" href="#convoluter.Convoluter.SIZE" title="Permalink to this definition">¶</a></dt>
+<code class="descname">SIZE</code><em class="property"> = 512</em><a class="headerlink" href="#convoluter.Convoluter.SIZE" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
 <dt id="convoluter.Convoluter.STRIDES">
-<code class="descname">STRIDES</code><em class="property"> = [1, 16, 16, 1]</em><a class="headerlink" href="#convoluter.Convoluter.STRIDES" title="Permalink to this definition">¶</a></dt>
+<code class="descname">STRIDES</code><em class="property"> = [1, 128, 128, 1]</em><a class="headerlink" href="#convoluter.Convoluter.STRIDES" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -213,13 +203,8 @@ the result as a heatmap overlay.</p>
 <dd></dd></dl>
 
 <dl class="attribute">
-<dt id="convoluter.Convoluter.VERBOSE">
-<code class="descname">VERBOSE</code><em class="property"> = True</em><a class="headerlink" href="#convoluter.Convoluter.VERBOSE" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
 <dt id="convoluter.Convoluter.WHOLE_IMAGE">
-<code class="descname">WHOLE_IMAGE</code><em class="property"> = 'images/WSI_25/234797-1_25.jpg'</em><a class="headerlink" href="#convoluter.Convoluter.WHOLE_IMAGE" title="Permalink to this definition">¶</a></dt>
+<code class="descname">WHOLE_IMAGE</code><em class="property"> = '/home/shawarma/thyroid/images/WSI_25/234807-1_25.jpg'</em><a class="headerlink" href="#convoluter.Convoluter.WHOLE_IMAGE" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -228,31 +213,15 @@ the result as a heatmap overlay.</p>
 <dd></dd></dl>
 
 <dl class="method">
-<dt id="convoluter.Convoluter.batch">
-<code class="descname">batch</code><span class="sig-paren">(</span><em>n=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.batch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.batch" title="Permalink to this definition">¶</a></dt>
-<dd><p>Organizes image tiles into workable batches for transfer to the GPU.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="convoluter.Convoluter.concat_output">
-<code class="descname">concat_output</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.concat_output"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.concat_output" title="Permalink to this definition">¶</a></dt>
-<dd><p>Converts a 2D collection of 2D patches into a single large 2D array</p>
-</dd></dl>
-
-<dl class="method">
 <dt id="convoluter.Convoluter.display">
-<code class="descname">display</code><span class="sig-paren">(</span><em>logits</em>, <em>size</em>, <em>stride</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.display"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.display" title="Permalink to this definition">¶</a></dt>
+<code class="descname">display</code><span class="sig-paren">(</span><em>image_file</em>, <em>logits</em>, <em>size</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.display"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.display" title="Permalink to this definition">¶</a></dt>
 <dd><p>Displays logits calculated using scan_image as a heatmap overlay.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="convoluter.Convoluter.scan_image">
 <code class="descname">scan_image</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.scan_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.scan_image" title="Permalink to this definition">¶</a></dt>
-<dd><p>Opens a whole-slide image, sections it into tiles, loads a saved Tensorflow model,
-and applies the model to each of the image tiles. The output - a 3D array of logits
-that correspond to model predictions at each location on the whole-slide iamge, is then
-restructured into an array that can be displayed as a heatmap overlay.</p>
-</dd></dl>
+<dd></dd></dl>
 
 <dl class="attribute">
 <dt id="convoluter.Convoluter.stride_divisor">
@@ -260,11 +229,6 @@ restructured into an array that can be displayed as a heatmap overlay.</p>
 <dd></dd></dl>
 
 </dd></dl>
-
-<dl class="function">
-<dt id="convoluter.main">
-<code class="descclassname">convoluter.</code><code class="descname">main</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#main"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.main" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
 
 </div>
 
