@@ -72,8 +72,8 @@ def _parse_function(filename, label):
 
 	dtype = tf.float16 if USE_FP16 else tf.float32
 	image = tf.image.convert_image_dtype(image, dtype)
-	image = tf.image.resize_images(image, [128,128])
-	image.set_shape([128, 128, 3])#[IMAGE_SIZE, IMAGE_SIZE, 3])
+	#image = tf.image.resize_images(image, [128,128])
+	image.set_shape([IMAGE_SIZE, IMAGE_SIZE, 3])
 
 	# Optional image resizing
 	
