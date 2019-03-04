@@ -7,11 +7,11 @@ Welcome to thyroid's documentation!
 ===================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
    intro
-   thyroid
+   modules
    examples
 
 Indices and tables

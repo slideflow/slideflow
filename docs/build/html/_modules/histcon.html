@@ -1,0 +1,624 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>histcon &mdash; thyroid 1.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> thyroid
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">thyroid</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples.html">Examples</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">thyroid</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="index.html">Module code</a> &raquo;</li>
+        
+      <li>histcon</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for histcon</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (C) James Dolezal - All Rights Reserved</span>
+<span class="c1">#</span>
+<span class="c1"># Unauthorized copying of this file, via any medium is strictly prohibited</span>
+<span class="c1"># Proprietary and confidential</span>
+<span class="c1"># Written by James Dolezal &lt;jamesmdolezal@gmail.com&gt;, October 2017</span>
+<span class="c1"># ==========================================================================</span>
+
+<span class="c1"># Update 3/2/2019: Beginning tf.data implementation</span>
+
+<span class="c1"># In the process of merging histcon &amp; histcon_input</span>
+
+<span class="sd">&#39;&#39;&#39;&#39;Builds the HISTCON network.&#39;&#39;&#39;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">tarfile</span>
+
+<span class="kn">from</span> <span class="nn">six.moves</span> <span class="k">import</span> <span class="n">urllib</span><span class="p">,</span> <span class="n">xrange</span>
+<span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
+
+<span class="c1"># Global constants describing the HISTCON data set.</span>
+
+<span class="c1"># Process images of the below size. If this number is altered, the</span>
+<span class="c1"># model architecture will change and will need to be retrained.</span>
+
+<span class="n">IMAGE_SIZE</span> <span class="o">=</span> <span class="mi">512</span>
+<span class="n">NUM_CLASSES</span> <span class="o">=</span> <span class="mi">5</span>
+
+<span class="n">NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN</span> <span class="o">=</span> <span class="mi">1024</span>
+<span class="n">NUM_EXAMPLES_PER_EPOCH_FOR_EVAL</span> <span class="o">=</span> <span class="mi">1024</span>
+
+<span class="c1"># Constants for the training process.</span>
+<span class="n">MOVING_AVERAGE_DECAY</span> <span class="o">=</span> <span class="mf">0.9999</span> 		<span class="c1"># Decay to use for the moving average.</span>
+<span class="n">NUM_EPOCHS_PER_DECAY</span> <span class="o">=</span> <span class="mf">240.0</span>		<span class="c1"># Epochs after which learning rate decays.</span>
+<span class="n">LEARNING_RATE_DECAY_FACTOR</span> <span class="o">=</span> <span class="mf">0.05</span>	<span class="c1"># Learning rate decay factor.</span>
+<span class="n">INITIAL_LEARNING_RATE</span> <span class="o">=</span> <span class="mf">0.001</span>			<span class="c1"># Initial learning rate.</span>
+
+<span class="c1"># Variables previous created with parser &amp; FLAGS</span>
+<span class="n">BATCH_SIZE</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">DATA_DIR</span> <span class="o">=</span> <span class="s1">&#39;/Users/james/thyroid&#39;</span>
+<span class="n">MODEL_DIR</span> <span class="o">=</span> <span class="s1">&#39;/Users/james/thyroid/models/active&#39;</span> <span class="c1"># Directory where to write event logs and checkpoints.</span>
+<span class="n">EVAL_DIR</span> <span class="o">=</span> <span class="s1">&#39;/Users/james/thyroid/models/eval&#39;</span> <span class="c1"># Directory where to write eval logs and summaries.</span>
+<span class="n">CONV_DIR</span> <span class="o">=</span> <span class="s1">&#39;/Users/james/thyroid/models/conv&#39;</span> <span class="c1"># Directory where to write logs and summaries for the convoluter.</span>
+<span class="n">WHOLE_IMAGE</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span> <span class="c1"># Filename of whole image (JPG) to evaluate with saved model</span>
+<span class="n">MAX_EPOCH</span> <span class="o">=</span> <span class="mi">30</span>
+<span class="n">LOG_FREQUENCY</span> <span class="o">=</span> <span class="mi">1</span> <span class="c1"># How often to log results to console</span>
+<span class="n">SUMMARY_STEPS</span> <span class="o">=</span> <span class="mi">25</span> <span class="c1"># How often to save summaries for Tensorboard display, in steps</span>
+<span class="n">EVAL_DATA</span> <span class="o">=</span> <span class="s1">&#39;test&#39;</span> <span class="c1"># Either &quot;test&quot; or &quot;train&quot;, indicating the type of data to use for evaluation.</span>
+<span class="n">EVAL_INTERVAL_SECS</span> <span class="o">=</span> <span class="mi">300</span> <span class="c1"># How often to run eval/validation</span>
+<span class="n">NUM_EXAMPLES</span> <span class="o">=</span> <span class="mi">10000</span> <span class="c1"># Number of examples to run?</span>
+<span class="n">USE_FP16</span> <span class="o">=</span> <span class="kc">True</span>
+
+<span class="k">def</span> <span class="nf">_parse_function</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;Loads image file data into Tensor.</span>
+
+<span class="sd">	Args:</span>
+<span class="sd">		filename: 	a string containing directory/filename of .jpg file</span>
+<span class="sd">		label: 		accompanying image label</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		image: a Tensor of shape [size, size, 3] containing image data</span>
+<span class="sd">		label: accompanying label</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="n">image_string</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+	<span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">decode_jpeg</span><span class="p">(</span><span class="n">image_string</span><span class="p">,</span> <span class="n">channels</span> <span class="o">=</span> <span class="mi">3</span><span class="p">)</span>
+	<span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">per_image_standardization</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+
+	<span class="n">dtype</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">float16</span> <span class="k">if</span> <span class="n">USE_FP16</span> <span class="k">else</span> <span class="n">tf</span><span class="o">.</span><span class="n">float32</span>
+	<span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">convert_image_dtype</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+	<span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">resize_images</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span><span class="mi">128</span><span class="p">])</span>
+	<span class="n">image</span><span class="o">.</span><span class="n">set_shape</span><span class="p">([</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span><span class="c1">#[IMAGE_SIZE, IMAGE_SIZE, 3])</span>
+
+	<span class="c1"># Optional image resizing</span>
+	
+	<span class="k">return</span> <span class="n">image</span><span class="p">,</span> <span class="n">label</span>
+
+<span class="k">def</span> <span class="nf">_train_preprocess</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;Performs image pre-processing, including flipping, and changes to brightness and saturation.</span>
+
+<span class="sd">	Args:</span>
+<span class="sd">		image: a Tensor of shape [size, size, 3]</span>
+<span class="sd">		label: accompanying label</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		image: a Tensor of shape [size, size, 3]</span>
+<span class="sd">		label: accompanying label</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+
+	<span class="c1"># Optional pre-processing</span>
+	<span class="c1">#image = tf.image.random_flip_left_right(image)</span>
+	<span class="c1">#image = tf.image.random_brightness(image, max_delta = 32.0 / 255.0)</span>
+	<span class="c1">#image = tf.image.random_saturation(image, lower=0.5, upper = 1.5)</span>
+	<span class="c1">#image = tf.clip_by_value(image, 0.0, 1.0)</span>
+
+	<span class="k">return</span> <span class="n">image</span><span class="p">,</span> <span class="n">label</span>
+
+<span class="k">def</span> <span class="nf">inputs</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">eval_data</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;Construct input for HISTCON evaluation.</span>
+
+<span class="sd">	Args:</span>
+<span class="sd">		eval_data: bool indicating if one should use the training or eval data set.</span>
+<span class="sd">		data_dir: Path to the data directory.</span>
+<span class="sd">		batch_size: Number of images per batch.</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		next_batch_images: Images. 4D tensor of [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3] size.</span>
+<span class="sd">		next_batch_labels: Labels. 1D tensor of [batch_size] size.</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">eval_data</span><span class="p">:</span>
+		<span class="n">files</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="s2">&quot;train_data/*/*/*.jpg&quot;</span><span class="p">)</span>
+		<span class="n">num_examples_per_epoch</span> <span class="o">=</span> <span class="n">NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="n">files</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="s2">&quot;eval_data/*/*/*.jpg&quot;</span><span class="p">)</span>
+		<span class="n">num_examples_per_epoch</span> <span class="o">=</span> <span class="n">NUM_EXAMPLES_PER_EPOCH_FOR_EVAL</span>
+
+	<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;filename_input&#39;</span><span class="p">):</span>
+		<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span> <span class="k">as</span> <span class="n">sess</span><span class="p">:</span>
+			<span class="n">tf_filenames</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">match_filenames_once</span><span class="p">(</span><span class="n">files</span><span class="p">)</span>
+			<span class="n">tf_labels</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">map_fn</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">string_to_number</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">string_split</span><span class="p">([</span><span class="n">f</span><span class="p">],</span> <span class="s1">&#39;/&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">tf</span><span class="o">.</span><span class="n">constant</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">int32</span><span class="p">)],</span>
+															<span class="n">out_type</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">int32</span><span class="p">),</span> <span class="n">tf_filenames</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+
+			<span class="n">init</span> <span class="o">=</span> <span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">global_variables_initializer</span><span class="p">(),</span> <span class="n">tf</span><span class="o">.</span><span class="n">local_variables_initializer</span><span class="p">())</span>
+			<span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">init</span><span class="p">)</span>
+			<span class="n">filenames</span><span class="p">,</span> <span class="n">labels</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="n">tf_filenames</span><span class="p">,</span> <span class="n">tf_labels</span><span class="p">])</span>
+
+	<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;input&#39;</span><span class="p">):</span>
+
+		<span class="n">dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="o">.</span><span class="n">from_tensor_slices</span><span class="p">((</span><span class="n">filenames</span><span class="p">,</span> <span class="n">labels</span><span class="p">))</span>
+		<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">filenames</span><span class="p">,</span> <span class="n">out_type</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">int64</span><span class="p">))</span>
+		<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">_parse_function</span><span class="p">,</span> <span class="n">num_parallel_calls</span> <span class="o">=</span> <span class="mi">8</span><span class="p">)</span>
+		<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">_train_preprocess</span><span class="p">,</span> <span class="n">num_parallel_calls</span> <span class="o">=</span> <span class="mi">8</span><span class="p">)</span>
+		<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">BATCH_SIZE</span><span class="p">)</span>
+		<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">MAX_EPOCH</span><span class="p">)</span>
+		<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">prefetch</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+		<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;iterator&#39;</span><span class="p">):</span>
+			<span class="n">iterator</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">make_one_shot_iterator</span><span class="p">()</span>
+			<span class="n">next_batch_images</span><span class="p">,</span> <span class="n">next_batch_labels</span> <span class="o">=</span> <span class="n">iterator</span><span class="o">.</span><span class="n">get_next</span><span class="p">()</span>
+
+	<span class="k">return</span> <span class="n">next_batch_images</span><span class="p">,</span> <span class="n">next_batch_labels</span>
+
+<span class="k">def</span> <span class="nf">_activation_summary</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;Helper to create summaries for activations.</span>
+
+<span class="sd">	Creates a summary that provides a histogram of activations.</span>
+<span class="sd">	Creates a summary that measures the sparsity of activations.</span>
+
+<span class="sd">	Args:</span>
+<span class="sd">		x: Tensor</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		None</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="n">tf</span><span class="o">.</span><span class="n">summary</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">op</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;/activations&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+	<span class="n">tf</span><span class="o">.</span><span class="n">summary</span><span class="o">.</span><span class="n">scalar</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">op</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;/sparsity&#39;</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">zero_fraction</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+
+<span class="k">def</span> <span class="nf">_variable_on_cpu</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">initializer</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;Helper to create a Variable stored on CPU memory.</span>
+
+<span class="sd">	Args:</span>
+<span class="sd">		name: variable name</span>
+<span class="sd">		shape: list of ints</span>
+<span class="sd">		initializer: Variable initializer</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		Variable Tensor</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s1">&#39;/cpu:0&#39;</span><span class="p">):</span>
+		<span class="n">dtype</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">float16</span> <span class="k">if</span> <span class="n">USE_FP16</span> <span class="k">else</span> <span class="n">tf</span><span class="o">.</span><span class="n">float32</span>
+		<span class="n">var</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">initializer</span><span class="o">=</span><span class="n">initializer</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">var</span>
+
+<span class="k">def</span> <span class="nf">_variable_with_weight_decay</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">stddev</span><span class="p">,</span> <span class="n">wd</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;Helper to create an initialized Variable with weight decay.</span>
+
+<span class="sd">	The Variable is initialized with a truncated normal distribution.</span>
+<span class="sd">	A weight decay is added only if one is specified.</span>
+
+<span class="sd">	Args:</span>
+<span class="sd">		name: Variable name</span>
+<span class="sd">		shape: list of ints</span>
+<span class="sd">		stddev: standard deviation of a truncated Gaussian</span>
+<span class="sd">		wd: add L2Loss weight decay multiplied by this float. If None, weight</span>
+<span class="sd">			decay is not added for this Variable.</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		Variable Tensor</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="n">dtype</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">float16</span> <span class="k">if</span> <span class="n">USE_FP16</span> <span class="k">else</span> <span class="n">tf</span><span class="o">.</span><span class="n">float32</span>
+	<span class="n">var</span> <span class="o">=</span> <span class="n">_variable_on_cpu</span><span class="p">(</span>
+		<span class="n">name</span><span class="p">,</span>
+		<span class="n">shape</span><span class="p">,</span>
+		<span class="n">tf</span><span class="o">.</span><span class="n">truncated_normal_initializer</span><span class="p">(</span><span class="n">stddev</span><span class="o">=</span><span class="n">stddev</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">))</span>
+	<span class="k">if</span> <span class="n">wd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+		<span class="n">weight_decay</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">l2_loss</span><span class="p">(</span><span class="n">var</span><span class="p">),</span> <span class="n">wd</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;weight_loss&#39;</span><span class="p">)</span>
+		<span class="n">tf</span><span class="o">.</span><span class="n">add_to_collection</span><span class="p">(</span><span class="s1">&#39;losses&#39;</span><span class="p">,</span> <span class="n">weight_decay</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">var</span>
+
+<div class="viewcode-block" id="inputs"><a class="viewcode-back" href="../histcon.html#histcon.inputs">[docs]</a><span class="k">def</span> <span class="nf">inputs</span><span class="p">():</span>
+	<span class="sd">&#39;&#39;&#39;Construct processed input for HISTCON training.</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		images: Images. 4D tensor of [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3] size.</span>
+<span class="sd">		labels: Labels. 1D tensor of [batch_size] size.</span>
+
+<span class="sd">	Raises:</span>
+<span class="sd">		ValueError: if no data_dir</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">DATA_DIR</span><span class="p">:</span>
+		<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Please designate a data_dir.&#39;</span><span class="p">)</span>
+	<span class="n">images</span><span class="p">,</span> <span class="n">labels</span> <span class="o">=</span> <span class="n">inputs</span><span class="p">(</span><span class="n">data_dir</span><span class="o">=</span><span class="n">DATA_DIR</span><span class="p">,</span>
+													<span class="n">batch_size</span><span class="o">=</span><span class="n">BATCH_SIZE</span><span class="p">,</span>
+													<span class="n">eval_data</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+	<span class="k">if</span> <span class="n">USE_FP16</span><span class="p">:</span>
+		<span class="n">images</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">images</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
+		<span class="n">labels</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">images</span><span class="p">,</span> <span class="n">labels</span></div>
+
+<span class="k">def</span> <span class="nf">_conv_layer</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">,</span> <span class="n">_id</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">ksize</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">strides</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;Helper to create convolutional layers with or without pooling.</span>
+
+<span class="sd">	Args:</span>
+<span class="sd">		input_tensor: Input Tensor.</span>
+<span class="sd">		_id: Layer number.</span>
+<span class="sd">		shape: Convolutional layer shape (4D).</span>
+<span class="sd">		kisze: Size of pooling mask. If None, there is no pooling.</span>
+<span class="sd">		strides: Stride size for pooling. If None, there is no pooling.</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		Pooling Tensor if pooling, otherwise convolutional Tensor.</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="c1"># Convolutional layer</span>
+	<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">variable_scope</span><span class="p">(</span><span class="s1">&#39;conv</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">_id</span><span class="p">)</span> <span class="k">as</span> <span class="n">scope</span><span class="p">:</span>
+		<span class="n">kernel</span> <span class="o">=</span> <span class="n">_variable_with_weight_decay</span><span class="p">(</span><span class="s1">&#39;weights&#39;</span><span class="p">,</span>
+											<span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span>
+											<span class="n">stddev</span><span class="o">=</span><span class="mf">5e-2</span><span class="p">,</span>
+											<span class="n">wd</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+		<span class="n">conv</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">padding</span><span class="o">=</span><span class="s1">&#39;SAME&#39;</span><span class="p">)</span>
+		<span class="n">biases</span> <span class="o">=</span> <span class="n">_variable_on_cpu</span><span class="p">(</span><span class="s1">&#39;biases&#39;</span><span class="p">,</span> <span class="p">[</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]],</span> <span class="n">tf</span><span class="o">.</span><span class="n">constant_initializer</span><span class="p">(</span><span class="mf">0.0</span><span class="p">))</span>
+		<span class="n">pre_activation</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">bias_add</span><span class="p">(</span><span class="n">conv</span><span class="p">,</span> <span class="n">biases</span><span class="p">)</span>
+		<span class="n">conv_output</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">pre_activation</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">scope</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+		<span class="n">_activation_summary</span><span class="p">(</span><span class="n">conv_output</span><span class="p">)</span>
+
+	<span class="c1"># Pooling layer</span>
+	<span class="k">if</span> <span class="n">ksize</span> <span class="ow">and</span> <span class="n">strides</span><span class="p">:</span>
+		<span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">max_pool</span><span class="p">(</span><span class="n">conv_output</span><span class="p">,</span> <span class="n">ksize</span><span class="o">=</span><span class="n">ksize</span><span class="p">,</span> <span class="n">strides</span><span class="o">=</span><span class="n">strides</span><span class="p">,</span>
+							<span class="n">padding</span><span class="o">=</span><span class="s1">&#39;SAME&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;pool</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">_id</span><span class="p">)</span>
+	<span class="k">else</span><span class="p">:</span> <span class="k">return</span> <span class="n">conv_output</span>
+
+<span class="k">def</span> <span class="nf">_fully_con_layer</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">,</span> <span class="n">_id</span><span class="p">,</span> <span class="n">shape</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;Helper to create fully-connected layers.</span>
+
+<span class="sd">	Args:</span>
+<span class="sd">		input_tensor: Input Tensor.</span>
+<span class="sd">		_id: Layer number.</span>
+<span class="sd">		shape: Fully-connected layer shape (4D).</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		Tensor.</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">variable_scope</span><span class="p">(</span><span class="s1">&#39;local</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">_id</span><span class="p">)</span> <span class="k">as</span> <span class="n">scope</span><span class="p">:</span>
+		<span class="n">weights</span> <span class="o">=</span> <span class="n">_variable_with_weight_decay</span><span class="p">(</span><span class="s1">&#39;weights&#39;</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span>
+												<span class="n">stddev</span><span class="o">=</span><span class="mf">0.04</span><span class="p">,</span> <span class="n">wd</span> <span class="o">=</span> <span class="mf">0.004</span><span class="p">)</span>
+		<span class="n">biases</span> <span class="o">=</span> <span class="n">_variable_on_cpu</span><span class="p">(</span><span class="s1">&#39;biases&#39;</span><span class="p">,</span> <span class="p">[</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]],</span> <span class="n">tf</span><span class="o">.</span><span class="n">constant_initializer</span><span class="p">(</span><span class="mf">0.1</span><span class="p">))</span>
+		<span class="n">local</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span> <span class="o">+</span> <span class="n">biases</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">scope</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+		<span class="n">_activation_summary</span><span class="p">(</span><span class="n">local</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">local</span>
+
+<div class="viewcode-block" id="inference"><a class="viewcode-back" href="../histcon.html#histcon.inference">[docs]</a><span class="k">def</span> <span class="nf">inference</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;Build the HISTCON model.</span>
+
+<span class="sd">	Layer types:</span>
+<span class="sd">		conv: Convolutional layers with a kernel size and feature map size.</span>
+<span class="sd">		pool: Pooling layers.</span>
+<span class="sd">		norm: Normalization layers.</span>
+<span class="sd">		local: Fully-connected layers.</span>
+<span class="sd">		linear: final layer with linear transformation to produce logits.</span>
+
+<span class="sd">	Args:</span>
+<span class="sd">		input_tensor: Images Tensor returned from distorted_inputs() or inputs().</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		Logits.</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+
+	<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s2">&quot;Convolutional_Network&quot;</span><span class="p">):</span>
+		<span class="c1"># Create conv + pool for layer 1</span>
+		<span class="n">pool1</span> <span class="o">=</span> <span class="n">_conv_layer</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">32</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+											<span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+		<span class="c1"># Create conv + pool for layer 2</span>
+		<span class="n">pool2</span> <span class="o">=</span> <span class="n">_conv_layer</span><span class="p">(</span><span class="n">pool1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+											<span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+		<span class="c1"># Create conv for layer 3</span>
+		<span class="n">pool3</span> <span class="o">=</span> <span class="n">_conv_layer</span><span class="p">(</span><span class="n">pool2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">],</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+		<span class="c1"># Create conv for layer 4</span>
+		<span class="n">conv4</span> <span class="o">=</span> <span class="n">_conv_layer</span><span class="p">(</span><span class="n">pool3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">],</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+		<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">variable_scope</span><span class="p">(</span><span class="s1">&#39;reshape_fully_connect&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">scope</span><span class="p">:</span>
+			<span class="c1"># Move output from last layer into depth so a single matrix multiplication can be performed.</span>
+			<span class="n">reshape</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">conv4</span><span class="p">,</span> <span class="p">[</span><span class="n">BATCH_SIZE</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+			<span class="n">dim</span> <span class="o">=</span> <span class="n">reshape</span><span class="o">.</span><span class="n">get_shape</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+
+		<span class="c1"># local5</span>
+		<span class="n">local5</span> <span class="o">=</span> <span class="n">_fully_con_layer</span><span class="p">(</span><span class="n">reshape</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="p">[</span><span class="n">dim</span><span class="p">,</span> <span class="mi">2048</span><span class="p">])</span>
+
+		<span class="c1"># local6</span>
+		<span class="n">local6</span> <span class="o">=</span> <span class="n">_fully_con_layer</span><span class="p">(</span><span class="n">local5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="p">[</span><span class="mi">2048</span><span class="p">,</span> <span class="mi">1024</span><span class="p">])</span>
+
+		<span class="c1"># linear layer (Wx + b)</span>
+		<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">variable_scope</span><span class="p">(</span><span class="s1">&#39;softmax_linear&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">scope</span><span class="p">:</span>
+			<span class="n">weights</span> <span class="o">=</span> <span class="n">_variable_with_weight_decay</span><span class="p">(</span><span class="s1">&#39;weights&#39;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1024</span><span class="p">,</span> <span class="n">NUM_CLASSES</span><span class="p">],</span>
+													<span class="n">stddev</span><span class="o">=</span><span class="mi">1</span><span class="o">/</span><span class="mf">1024.0</span><span class="p">,</span> <span class="n">wd</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+			<span class="n">biases</span> <span class="o">=</span> <span class="n">_variable_on_cpu</span><span class="p">(</span><span class="s1">&#39;biases&#39;</span><span class="p">,</span> <span class="p">[</span><span class="n">NUM_CLASSES</span><span class="p">],</span>
+										<span class="n">tf</span><span class="o">.</span><span class="n">constant_initializer</span><span class="p">(</span><span class="mf">0.0</span><span class="p">))</span>
+			<span class="n">softmax_linear</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">local6</span><span class="p">,</span> <span class="n">weights</span><span class="p">),</span> <span class="n">biases</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">scope</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+			<span class="n">_activation_summary</span><span class="p">(</span><span class="n">softmax_linear</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">softmax_linear</span></div>
+
+<div class="viewcode-block" id="loss"><a class="viewcode-back" href="../histcon.html#histcon.loss">[docs]</a><span class="k">def</span> <span class="nf">loss</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">labels</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;Add L2Loss to all trainable variables, and a summary for &quot;Loss&quot; and &quot;Loss/avg&quot;.</span>
+
+<span class="sd">	Args:</span>
+<span class="sd">		logits: Logits from inference().</span>
+<span class="sd">		labels: Labels from distorted_inputs() or inputs(). 1D tensor of shape [batch_size]</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		Loss Tensor of type float.</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="c1"># Calculate average cross entropy loss across the batch.</span>
+	<span class="n">labels</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+	<span class="n">cross_entropy</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">sparse_softmax_cross_entropy_with_logits</span><span class="p">(</span>
+		<span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">logits</span><span class="o">=</span><span class="n">logits</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;cross_entropy_per_example&#39;</span><span class="p">)</span>
+	<span class="n">cross_entropy_mean</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reduce_mean</span><span class="p">(</span><span class="n">cross_entropy</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;cross_entropy&#39;</span><span class="p">)</span>
+	<span class="n">tf</span><span class="o">.</span><span class="n">add_to_collection</span><span class="p">(</span><span class="s1">&#39;losses&#39;</span><span class="p">,</span> <span class="n">cross_entropy_mean</span><span class="p">)</span>
+
+	<span class="c1"># Total loss is defined as the cross entropy loss plus all of the weight decay terms (L2 loss)</span>
+	<span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">add_n</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">get_collection</span><span class="p">(</span><span class="s1">&#39;losses&#39;</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;total_loss&#39;</span><span class="p">)</span></div>
+
+<span class="k">def</span> <span class="nf">_add_loss_summaries</span><span class="p">(</span><span class="n">total_loss</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;Add summaries for losses in HISTCON model.</span>
+
+<span class="sd">	Generates moving average for all losses and associated sumaries for</span>
+<span class="sd">	visualizing network performance with Tensorboard.</span>
+
+<span class="sd">	Args:</span>
+<span class="sd">		total_loss: Total loss from loss().</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		loss_averages_op: op fro generating moving averages of losses.</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="c1"># Compute moving average of all individual losses and the total loss.</span>
+	<span class="n">loss_averages</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">ExponentialMovingAverage</span><span class="p">(</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;avg&#39;</span><span class="p">)</span>
+	<span class="n">losses</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">get_collection</span><span class="p">(</span><span class="s1">&#39;losses&#39;</span><span class="p">)</span>
+	<span class="n">loss_averages_op</span> <span class="o">=</span> <span class="n">loss_averages</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">losses</span> <span class="o">+</span> <span class="p">[</span><span class="n">total_loss</span><span class="p">])</span>
+
+	<span class="c1"># Attach a scalar summary to all individual losses and the total loss; do the</span>
+	<span class="c1"># same for the averaged version of the losses.</span>
+	<span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">losses</span> <span class="o">+</span> <span class="p">[</span><span class="n">total_loss</span><span class="p">]:</span>
+		<span class="c1"># Name each loss as &#39;(raw)&#39; and name the moving average version of the loss as</span>
+		<span class="c1"># the original loss name.</span>
+		<span class="n">tf</span><span class="o">.</span><span class="n">summary</span><span class="o">.</span><span class="n">scalar</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">op</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39; (raw)&#39;</span><span class="p">,</span> <span class="n">l</span><span class="p">)</span>
+		<span class="n">tf</span><span class="o">.</span><span class="n">summary</span><span class="o">.</span><span class="n">scalar</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">op</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">loss_averages</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">l</span><span class="p">))</span>
+
+	<span class="k">return</span> <span class="n">loss_averages_op</span>
+
+<div class="viewcode-block" id="train"><a class="viewcode-back" href="../histcon.html#histcon.train">[docs]</a><span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="n">total_loss</span><span class="p">,</span> <span class="n">global_step</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;Train the HISTCON model.</span>
+
+<span class="sd">	Create an optimizer and apply to all trainable variables. Add moving</span>
+<span class="sd">	average for all trainable variables.</span>
+
+<span class="sd">	Args:</span>
+<span class="sd">		total_loss: Total loss from loss().</span>
+<span class="sd">		global_step: Integer variable counting the number of training steps processed.</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		train_op: op for training.</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+
+	<span class="c1"># Variables that affect learning rate.</span>
+	<span class="n">num_batches_per_epoch</span> <span class="o">=</span> <span class="n">NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN</span> <span class="o">/</span> <span class="n">BATCH_SIZE</span>
+	<span class="n">decay_steps</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">num_batches_per_epoch</span> <span class="o">*</span> <span class="n">NUM_EPOCHS_PER_DECAY</span><span class="p">)</span>
+
+	<span class="c1"># Decay the learning rate exponentially based on the number of steps.</span>
+	<span class="n">lr</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">exponential_decay</span><span class="p">(</span><span class="n">INITIAL_LEARNING_RATE</span><span class="p">,</span>
+									<span class="n">global_step</span><span class="p">,</span>
+									<span class="n">decay_steps</span><span class="p">,</span>
+									<span class="n">LEARNING_RATE_DECAY_FACTOR</span><span class="p">,</span>
+									<span class="n">staircase</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+	<span class="n">tf</span><span class="o">.</span><span class="n">summary</span><span class="o">.</span><span class="n">scalar</span><span class="p">(</span><span class="s1">&#39;learning_rate&#39;</span><span class="p">,</span> <span class="n">lr</span><span class="p">)</span>
+
+	<span class="c1"># Generate moving averages of all losses and associated summaries.</span>
+	<span class="n">loss_averages_op</span> <span class="o">=</span> <span class="n">_add_loss_summaries</span><span class="p">(</span><span class="n">total_loss</span><span class="p">)</span>
+
+	<span class="c1"># Compute gradients.</span>
+	<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">control_dependencies</span><span class="p">([</span><span class="n">loss_averages_op</span><span class="p">]):</span>
+		<span class="n">opt</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">GradientDescentOptimizer</span><span class="p">(</span><span class="n">lr</span><span class="p">)</span>
+		<span class="n">grads</span> <span class="o">=</span> <span class="n">opt</span><span class="o">.</span><span class="n">compute_gradients</span><span class="p">(</span><span class="n">total_loss</span><span class="p">)</span>
+
+	<span class="c1"># Apply gradients.</span>
+	<span class="n">apply_gradient_op</span> <span class="o">=</span> <span class="n">opt</span><span class="o">.</span><span class="n">apply_gradients</span><span class="p">(</span><span class="n">grads</span><span class="p">,</span> <span class="n">global_step</span><span class="o">=</span><span class="n">global_step</span><span class="p">)</span>
+
+	<span class="c1"># Add histograms for trainable variables.</span>
+	<span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">tf</span><span class="o">.</span><span class="n">trainable_variables</span><span class="p">():</span>
+		<span class="n">tf</span><span class="o">.</span><span class="n">summary</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">var</span><span class="o">.</span><span class="n">op</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">var</span><span class="p">)</span>
+
+	<span class="c1"># Add histograms for gradients.</span>
+	<span class="k">for</span> <span class="n">grad</span><span class="p">,</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">grads</span><span class="p">:</span>
+		<span class="k">if</span> <span class="n">grad</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">tf</span><span class="o">.</span><span class="n">summary</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">var</span><span class="o">.</span><span class="n">op</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;/gradients&#39;</span><span class="p">,</span> <span class="n">grad</span><span class="p">)</span>
+
+	<span class="c1"># Track moving averages of all trainable variables.</span>
+	<span class="n">variable_averages</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">ExponentialMovingAverage</span><span class="p">(</span>
+		<span class="n">MOVING_AVERAGE_DECAY</span><span class="p">,</span> <span class="n">global_step</span><span class="p">)</span>
+	<span class="n">variables_averages_op</span> <span class="o">=</span> <span class="n">variable_averages</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">trainable_variables</span><span class="p">())</span>
+
+	<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">control_dependencies</span><span class="p">([</span><span class="n">apply_gradient_op</span><span class="p">,</span> <span class="n">variables_averages_op</span><span class="p">]):</span>
+		<span class="n">train_op</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">no_op</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;train&#39;</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">train_op</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, James M Dolezal
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
