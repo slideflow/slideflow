@@ -28,7 +28,7 @@ import tensorflow as tf
 # Process images of the below size. If this number is altered, the
 # model architecture will change and will need to be retrained.
 
-IMAGE_SIZE = 512
+IMAGE_SIZE = 128
 NUM_CLASSES = 5
 
 NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 1024
@@ -42,15 +42,15 @@ INITIAL_LEARNING_RATE = 0.001			# Initial learning rate.
 
 # Variables previous created with parser & FLAGS
 BATCH_SIZE = 128
-DATA_DIR = '/home/shawarma/thyroid'
-MODEL_DIR = '/home/shawarma/thyroid/models/active' # Directory where to write event logs and checkpoints.
-EVAL_DIR = '/home/shawarma/thyroid/models/eval' # Directory where to write eval logs and summaries.
-CONV_DIR = '/home/shawarma/thyroid/models/conv' # Directory where to write logs and summaries for the convoluter.
+DATA_DIR = '/Users/james/histcon'
+MODEL_DIR = '/Users/james/histcon/models/active' # Directory where to write event logs and checkpoints.
+EVAL_DIR = '/Users/james/histcon/models/eval' # Directory where to write eval logs and summaries.
+CONV_DIR = '/Users/james/histcon/models/conv' # Directory where to write logs and summaries for the convoluter.
 WHOLE_IMAGE = '' # Filename of whole image (JPG) to evaluate with saved model
 MAX_EPOCH = 30
-LOG_FREQUENCY = 20 # How often to log results to console
-SUMMARY_STEPS = 20 # How often to save summaries for Tensorboard display, in steps
-EVAL_DATA = 'test' # Either "test" or "train", indicating the type of data to use for evaluation.
+LOG_FREQUENCY = 1 # How often to log results to console, in steps
+TEST_FREQUENCY = 2 # How often to run validation testing, in steps
+SUMMARY_STEPS = 5 # How often to save summaries for Tensorboard display, in steps
 EVAL_INTERVAL_SECS = 300 # How often to run eval/validation
 NUM_EXAMPLES = 10000 # Number of examples to run?
 USE_FP16 = True
@@ -72,7 +72,7 @@ def _parse_function(filename, label):
 
 	dtype = tf.float16 if USE_FP16 else tf.float32
 	image = tf.image.convert_image_dtype(image, dtype)
-	#image = tf.image.resize_images(image, [128,128])
+	image = tf.image.resize_images(image, [128,128])
 	image.set_shape([IMAGE_SIZE, IMAGE_SIZE, 3])
 
 	# Optional image resizing
@@ -99,7 +99,21 @@ def _train_preprocess(image, label):
 
 	return image, label
 
-def build_inputs(data_dir, batch_size, eval_data):
+def gen_filenames_op(dir_string):
+	filenames_op = tf.train.match_filenames_once(dir_string)
+	labels_op = tf.map_fn(lambda f: tf.string_to_number(tf.string_split([f], '/').values[tf.constant(-3, dtype=tf.int32)],
+												out_type=tf.int32), filenames_op, dtype=tf.int32)
+	return filenames_op, labels_op
+
+def generate_dataset(filenames, labels):
+	dataset = tf.data.Dataset.from_tensor_slices((filenames, labels))
+	dataset = dataset.shuffle(tf.size(filenames, out_type=tf.int64))
+	dataset = dataset.map(_parse_function, num_parallel_calls = 8)
+	dataset = dataset.map(_train_preprocess, num_parallel_calls = 8)
+	dataset = dataset.batch(BATCH_SIZE)
+	return dataset
+
+def build_inputs(data_dir, batch_size):
 	'''Construct input for HISTCON evaluation.
 
 	Args:
@@ -111,38 +125,41 @@ def build_inputs(data_dir, batch_size, eval_data):
 		next_batch_images: Images. 4D tensor of [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3] size.
 		next_batch_labels: Labels. 1D tensor of [batch_size] size.
 	'''
-	if not eval_data:
-		files = os.path.join(data_dir, "train_data/*/*/*.jpg")
-		num_examples_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
-	else:
-		files = os.path.join(data_dir, "eval_data/*/*/*.jpg")
-		num_examples_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_EVAL
+	num_examples_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
+	train_files = os.path.join(data_dir, "train_data/*/*/*.jpg")
+	test_files = os.path.join(data_dir, "eval_data/*/*/*.jpg")
 
 	with tf.name_scope('filename_input'):
 		with tf.Session() as sess:
-			tf_filenames = tf.train.match_filenames_once(files)
-			tf_labels = tf.map_fn(lambda f: tf.string_to_number(tf.string_split([f], '/').values[tf.constant(-3, dtype=tf.int32)],
-															out_type=tf.int32), tf_filenames, dtype=tf.int32)
-
 			init = (tf.global_variables_initializer(), tf.local_variables_initializer())
 			sess.run(init)
-			filenames, labels = sess.run([tf_filenames, tf_labels])
+			train_filenames, train_labels = sess.run(gen_filenames_op(train_files))
+			test_filenames, test_labels = sess.run(gen_filenames_op(test_files))
 
 	with tf.name_scope('input'):
+		train_dataset = generate_dataset(train_filenames, train_labels)
+		train_dataset = train_dataset.repeat(MAX_EPOCH)
+		train_dataset = train_dataset.prefetch(1)
 
-		dataset = tf.data.Dataset.from_tensor_slices((filenames, labels))
-		dataset = dataset.shuffle(tf.size(filenames, out_type=tf.int64))
-		dataset = dataset.map(_parse_function, num_parallel_calls = 8)
-		dataset = dataset.map(_train_preprocess, num_parallel_calls = 8)
-		dataset = dataset.batch(BATCH_SIZE)
-		dataset = dataset.repeat(MAX_EPOCH)
-		dataset = dataset.prefetch(1)
+		test_dataset = generate_dataset(test_filenames, test_labels)
+		test_dataset = test_dataset.prefetch(1)
 
 		with tf.name_scope('iterator'):
-			iterator = dataset.make_one_shot_iterator()
-			next_batch_images, next_batch_labels = iterator.get_next()
+			train_iterator = train_dataset.make_one_shot_iterator()
+			train_iterator_handle = sess.run(train_iterator.string_handle())
 
-	return next_batch_images, next_batch_labels
+			# Will likely need to be re-initializable iterator to repeat testing
+			test_iterator = test_dataset.make_one_shot_iterator()
+			test_iterator_handle = sess.run(test_iterator.string_handle())
+
+			handle = tf.placeholder(tf.string, shape=[], "ih")
+			iterator = tf.data.Iterator.from_string_handle(handle, train_iterator.output_types)
+
+		next_batch_images, next_batch_labels = iterator.get_next()
+
+		handles = {'iterator':iterator, 'train':train_iterator_handle, 'test':test_iterator_handle}
+
+	return next_batch_images, next_batch_labels, handles
 
 def _activation_summary(x):
 	'''Helper to create summaries for activations.
@@ -213,11 +230,11 @@ def inputs():
 	'''
 	if not DATA_DIR:
 		raise ValueError('Please designate a data_dir.')
-	images, labels = build_inputs(data_dir=DATA_DIR, batch_size=BATCH_SIZE, eval_data=False)
+	images, labels, handles = build_inputs(data_dir=DATA_DIR, batch_size=BATCH_SIZE)
 	if USE_FP16:
 		images = tf.cast(images, tf.float16)
 		labels = tf.cast(labels, tf.float16)
-	return images, labels
+	return images, labels, handles
 
 def _conv_layer(input_tensor, _id, shape, ksize=None, strides=None):
 	'''Helper to create convolutional layers with or without pooling.
