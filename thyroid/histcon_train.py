@@ -31,7 +31,7 @@ def train():
 		# Get images and labels.
 		# Force input pipeline to CPU:0 to avoid operations ending up on GPU.
 		with tf.device('/cpu'):
-			next_batch_images, next_batch_labels = histcon.inputs()
+			next_batch_images, next_batch_labels, handles = histcon.inputs()
 
 		# Build a Graph that computes the logits predictions from
 		# the inference model.
@@ -43,9 +43,13 @@ def train():
 		loss = histcon.loss(logits, next_batch_labels)
 		
 		# Create summary op for validation
-		losses = tf.get_collection('losses')
-		for l in losses + [loss]
-			summary_op = tf.summary.scalar(l.op.name + ' (raw)', l)
+		'''losses = tf.get_collection('losses')
+		for l in losses + [loss]:
+			summary_op = tf.summary.scalar(l.op.name + ' (raw)', l)'''
+
+		# Define summary writer for saving validation logs
+		#  (training logs handled by MonitoredTrainingSession)
+		test_writer = tf.summary.FileWriter("./logs/validation", graph=tf.get_default_graph())
 
 		# Build a Graph that trains the model with one batch of
 		# examples and updates the model parameters.
@@ -59,16 +63,15 @@ def train():
 			
 			def validation(self):
 				# Run through validation dataset
-				vlosses = []
+				test_losses = []
 				while True:
 					try:
-						#vlosses.append(sess.run([loss], feed_dict={...})
-						pass
+						test_losses.append(sess.run([loss], feed_dict={handles['iterator']:handles['test']}))
 					except tf.OutOfRangeError:
 						break
-				average_loss = np.mean(vlosses)
-				summary_op = tf.summary.scalar(loss.name + ' (raw)', loss)
-				
+				average_loss = np.mean(test_losses)
+				summary = tf.summary.scalar(loss.name+ ' (raw)', average_loss)
+				test_writer.add_summary(summary, self._step)
 					
 			def begin(self):
 				self._step = -1
@@ -92,6 +95,9 @@ def train():
 					print(format_str % (datetime.now(), self._step, loss_value,
 										images_per_sec, sec_per_batch))
 
+					if self._step % histcon.TEST_FREQUENCY == 0:
+						self.validation()
+
 		with tf.train.MonitoredTrainingSession(
 			checkpoint_dir = histcon.MODEL_DIR,
 			hooks = [tf.train.NanTensorHook(loss),
@@ -101,7 +107,7 @@ def train():
 			save_summaries_steps = histcon.SUMMARY_STEPS) as mon_sess:
 
 			while not mon_sess.should_stop():
-				mon_sess.run(train_op)
+				mon_sess.run(train_op, feed_dict={handles['iterator']:handles['train']})
 
 def main(argv=None):
 	'''Initialize directories and start the main Tensorflow app.'''
