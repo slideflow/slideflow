@@ -39,8 +39,13 @@ def train():
 		with arg_scope(inception_arg_scope()):
 			logits, end_points = inception_v4.inception_v4(next_batch_images, num_classes=histcon.NUM_CLASSES)
 		
-		# Calculate the loss.
+		# Calculate training loss.
 		loss = histcon.loss(logits, next_batch_labels)
+		
+		# Create summary op for validation
+		losses = tf.get_collection('losses')
+		for l in losses + [loss]
+			summary_op = tf.summary.scalar(l.op.name + ' (raw)', l)
 
 		# Build a Graph that trains the model with one batch of
 		# examples and updates the model parameters.
@@ -51,7 +56,20 @@ def train():
 
 		class _LoggerHook(tf.train.SessionRunHook):
 			'''Logs loss and runtime.'''
-
+			
+			def validation(self):
+				# Run through validation dataset
+				vlosses = []
+				while True:
+					try:
+						#vlosses.append(sess.run([loss], feed_dict={...})
+						pass
+					except tf.OutOfRangeError:
+						break
+				average_loss = np.mean(vlosses)
+				summary_op = tf.summary.scalar(loss.name + ' (raw)', loss)
+				
+					
 			def begin(self):
 				self._step = -1
 				self._start_time = time.time()
