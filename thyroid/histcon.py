@@ -39,7 +39,7 @@ class HistconModel:
 	# Process images of the below size. If this number is altered, the
 	# model architecture will change and will need to be retrained.
 
-	IMAGE_SIZE = 128
+	IMAGE_SIZE = 512
 	NUM_CLASSES = 5
 
 	NUM_EXAMPLES_PER_EPOCH = 1024
@@ -51,32 +51,26 @@ class HistconModel:
 	INITIAL_LEARNING_RATE = 0.001			# Initial learning rate.
 
 	# Variables previous created with parser & FLAGS
-	BATCH_SIZE = 2
+	BATCH_SIZE = 32
 	WHOLE_IMAGE = '' # Filename of whole image (JPG) to evaluate with saved model
-	MAX_EPOCH = 30000
-	LOG_FREQUENCY = 1 # How often to log results to console, in steps
-	TEST_FREQUENCY = 10 # How often to run validation testing, in steps
-	SUMMARY_STEPS = 5 # How often to save summaries for Tensorboard display, in steps
-	EVAL_INTERVAL_SECS = 300 # How often to run eval/validation
+	MAX_EPOCH = 30
+	LOG_FREQUENCY = 20 # How often to log results to console, in steps
+	TEST_FREQUENCY = 60 # How often to run validation testing, in steps
+	SUMMARY_STEPS = 20 # How often to save summaries for Tensorboard display, in steps
 	NUM_EXAMPLES = 10000 # Number of examples to run?
-	USE_FP16 = False
+	USE_FP16 = True
 
 	''' ANSWER: 
-	https://stackoverflow.com/questions/46111072/how-to-use-feedable-iterator-from-tensorflow-dataset-api-along-with-monitoredtra
-	https://github.com/jke-zq/tensorflow120/blob/master/dataset_switch.py
-	https://github.com/tensorflow/tensorflow/issues/14613
-	I don't think there was any change that would cause this error. From the error message though it looks like the handle might have been captured (using Iterator.to_string_handle()) in a different session from which it is being used. Since you're using tf.train.MonitoredTrainingSession, is it possible that the session has been recreated? If that's the case, you'll need to make sure to recompute the handle—and potentially reinitialize the iterator—in the new session.
-
-	A possible workaround, which might or might not work depending on the actual cause of the problem, would be to set a shared_name when you create the iterator. I believe that should make the handle string stable across restarts of the session (as long as it's not in a task that could have failed).
+	https://stackoverflow.com/questions/51542304/how-to-plot-different-summary-metrics-on-the-same-plot-with-tensorboard
 	'''
 
 	def __init__(self, data_directory):
 		self.DATA_DIR = data_directory
 		self.MODEL_DIR = os.path.join(self.DATA_DIR, 'models/active') # Directory where to write event logs and checkpoints.
-		self.EVAL_DIR = os.path.join(self.DATA_DIR, 'models/eval') # Directory where to write eval logs and summaries.
-		self.CONV_DIR = os.path.join(self.DATA_DIR, 'models/conv') # Directory where to write logs and summaries for the convoluter.
+		self.TRAIN_DIR = os.path.join(self.MODEL_DIR, 'train') # Directory where to write eval logs and summaries.
+		self.TEST_DIR = os.path.join(self.MODEL_DIR, 'test') # Directory where to write eval logs and summaries.
 		self.TRAIN_FILES = os.path.join(self.DATA_DIR, "train_data/*/*/*.jpg")
-		self.TEST_FILES = os.path.join(self.DATA_DIR, "train_data/*/*/*.jpg")
+		self.TEST_FILES = os.path.join(self.DATA_DIR, "eval_data/*/*/*.jpg")
 
 		if tf.gfile.Exists(self.MODEL_DIR):
 			tf.gfile.DeleteRecursively(self.MODEL_DIR)
@@ -99,7 +93,7 @@ class HistconModel:
 
 		dtype = tf.float16 if self.USE_FP16 else tf.float32
 		image = tf.image.convert_image_dtype(image, dtype)
-		image = tf.image.resize_images(image, [128,128])
+		#image = tf.image.resize_images(image, [128,128])
 		image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
 
 		# Optional image resizing
@@ -317,7 +311,7 @@ class HistconModel:
 
 		# Define summary writer for saving validation logs
 		#  (training logs handled by MonitoredTrainingSession)
-		test_writer = tf.summary.FileWriter("./logs/validation", graph=tf.get_default_graph())
+		test_writer = tf.summary.FileWriter(self.TEST_DIR, graph=tf.get_default_graph())
 
 		train_op = self.build_train_op(loss, global_step)
 
@@ -328,10 +322,7 @@ class HistconModel:
 		stream_vars = [v for v in tf.local_variables() if v.name.startswith('mean_validation_loss')]
 		stream_vars_reset = [v.initializer for v in stream_vars]
 		
-		validation_accuracy_scalar = tf.summary.scalar(loss.name+ ' (raw)', validation_accuracy)
-
-		# Op to reset validation mean (for use between epochs)
-		#reset_validation_average = tf.variables_initializer(tf.get_collection(tf.GraphKeys.METRIC_VARIABLES))
+		validation_accuracy_scalar = tf.summary.scalar('total loss (raw)', validation_accuracy)
 
 		init = (tf.global_variables_initializer(), tf.local_variables_initializer())
 
@@ -352,8 +343,7 @@ class HistconModel:
 				print ('doing string-handle work...')
 				if self.train_str is not None:
 					self.train_iterator_handle, self.test_iterator_handle = session.run([self.train_str, self.test_str])
-					session.run([train_initializer, test_initializer])
-					session.run(init)
+					session.run([train_initializer, test_initializer, init])
 
 				print ('String handle work done')
 					
@@ -388,7 +378,8 @@ class HistconModel:
 			hooks = [loggerhook],#tf.train.NanTensorHook(loss),
 			config = tf.ConfigProto(
 					log_device_placement=False),
-			save_summaries_steps = self.SUMMARY_STEPS) as mon_sess:
+			save_summaries_steps = self.SUMMARY_STEPS,
+			summary_dir=self.TRAIN_DIR) as mon_sess:
 			
 			while not mon_sess.should_stop():
 				_, step = mon_sess.run([train_op, global_step], feed_dict={iterator:loggerhook.train_iterator_handle})
@@ -405,15 +396,94 @@ class HistconModel:
 							_, val_acc_sum, val_acc = mon_sess.run([validation_accuracy_update, validation_accuracy_scalar, validation_accuracy], feed_dict={iterator:loggerhook.test_iterator_handle})
 						except tf.errors.OutOfRangeError:
 							break
-					#summary = tf.summary.scalar(loss.name+ ' (raw)', average_loss)
 					print("Validation testing almost done.")
 					test_writer.add_summary(val_acc_sum, step)
 					print("Validation testing finished: {}".format(val_acc))
 					mon_sess.run(test_initializer, feed_dict={iterator:loggerhook.test_iterator_handle})
+					loggerhook._start_time = time.time()
+
+'''
+# View graphs with (Linux): $ tensorboard --logdir=/tmp/my_tf_model
+
+import os
+import tempfile
+import tensorflow as tf
+import numpy as np
+from tensorboard import summary as summary_lib
+from tensorboard.plugins.custom_scalar import layout_pb2
+
+def train_data_gen():
+    yield np.random.normal(size=[3]), np.array([0.5, 0.5, 0.5])
+
+def valid_data_gen():
+    yield np.random.normal(size=[3]), np.array([0.8, 0.8, 0.8])
+
+batch_size = 25
+n_training_batches = 4
+n_valid_batches = 2
+n_epochs = 5
+summary_loc = os.path.join(tempfile.gettempdir(), 'my_tf_model')
+print("Summaries written to " + summary_loc)
+
+# Dummy data
+train_data = tf.data.Dataset.from_generator(
+    train_data_gen, (tf.float32, tf.float32)).repeat().batch(batch_size)
+valid_data = tf.data.Dataset.from_generator(
+    valid_data_gen, (tf.float32, tf.float32)).repeat().batch(batch_size)
+handle = tf.placeholder(tf.string, shape=[])
+iterator = tf.data.Iterator.from_string_handle(handle, train_data.output_types,
+                                               train_data.output_shapes)
+batch_x, batch_y = iterator.get_next()
+train_iter = train_data.make_initializable_iterator()
+valid_iter = valid_data.make_initializable_iterator()
+
+# Some ops on the data
+loss = tf.losses.mean_squared_error(batch_x, batch_y)
+valid_loss, valid_loss_update = tf.metrics.mean(loss)
+
+with tf.name_scope('loss'):
+    train_summ = summary_lib.scalar('training', loss)
+    valid_summ = summary_lib.scalar('valid', valid_loss)
+
+with tf.Session() as sess:
+    sess.run(tf.global_variables_initializer())
+    train_handle, valid_handle = sess.run([train_iter.string_handle(), valid_iter.string_handle()])
+    sess.run([train_iter.initializer, valid_iter.initializer])
+
+    writer_train = tf.summary.FileWriter(os.path.join(summary_loc, 'train'), sess.graph)
+    writer_valid = tf.summary.FileWriter(os.path.join(summary_loc, 'valid'), sess.graph)
+
+    layout_summary = summary_lib.custom_scalar_pb(
+        layout_pb2.Layout(category=[
+            layout_pb2.Category(
+                title='losses',
+                chart=[
+                    layout_pb2.Chart(
+                        title='losses',
+                        multiline=layout_pb2.MultilineChartContent(tag=[
+                            'loss/training', 'loss/valid'
+                        ]))
+                ])
+        ]))
+    writer_train.add_summary(layout_summary)
+
+    global_step = 0
+    for i in range(n_epochs):
+        for j in range(n_training_batches): # "Training"
+            global_step += 1
+            summ = sess.run(train_summ, feed_dict={handle: train_handle})
+            writer_train.add_summary(summary=summ, global_step=global_step)
+
+        sess.run(tf.local_variables_initializer())
+        for j in range(n_valid_batches):  # "Validation"
+            _, batch_summ = sess.run([valid_loss_update, train_summ], feed_dict={handle: valid_handle})
+        summ = sess.run(valid_summ)
+        writer_valid.add_summary(summary=summ, global_step=global_step)
+'''
 
 def main(argv=None):
 	'''Initialize directories and start the main Tensorflow app.'''
-	histcon = HistconModel('/Users/james/histcon')
+	histcon = HistconModel('/home/shawarma/histcon')
 	histcon.train()
 
 if __name__ == "__main__":
