@@ -39,8 +39,8 @@ class HistconModel:
 	# Process images of the below size. If this number is altered, the
 	# model architecture will change and will need to be retrained.
 
-	IMAGE_SIZE = 512
-	NUM_CLASSES = 5
+	IMAGE_SIZE = 128
+	NUM_CLASSES = 2
 
 	NUM_EXAMPLES_PER_EPOCH = 1024
 
@@ -51,12 +51,12 @@ class HistconModel:
 	INITIAL_LEARNING_RATE = 0.001			# Initial learning rate.
 
 	# Variables previous created with parser & FLAGS
-	BATCH_SIZE = 32
+	BATCH_SIZE = 2
 	WHOLE_IMAGE = '' # Filename of whole image (JPG) to evaluate with saved model
 	MAX_EPOCH = 30
-	LOG_FREQUENCY = 20 # How often to log results to console, in steps
-	TEST_FREQUENCY = 60 # How often to run validation testing, in steps
-	SUMMARY_STEPS = 20 # How often to save summaries for Tensorboard display, in steps
+	LOG_FREQUENCY = 2 # How often to log results to console, in steps
+	SUMMARY_STEPS = 4 # How often to save summaries for Tensorboard display, in steps
+	TEST_FREQUENCY = 8 # How often to run validation testing, in steps
 	NUM_EXAMPLES = 10000 # Number of examples to run?
 	USE_FP16 = True
 
@@ -375,7 +375,7 @@ class HistconModel:
 
 		with tf.train.MonitoredTrainingSession(
 			checkpoint_dir = self.MODEL_DIR,
-			hooks = [loggerhook],#tf.train.NanTensorHook(loss),
+			hooks = [loggerhook], #tf.train.NanTensorHook(loss),
 			config = tf.ConfigProto(
 					log_device_placement=False),
 			save_summaries_steps = self.SUMMARY_STEPS,
@@ -483,7 +483,7 @@ with tf.Session() as sess:
 
 def main(argv=None):
 	'''Initialize directories and start the main Tensorflow app.'''
-	histcon = HistconModel('/home/shawarma/histcon')
+	histcon = HistconModel('/Users/james/histcon')
 	histcon.train()
 
 if __name__ == "__main__":
