@@ -42,7 +42,3 @@ def merge_validation(train_dir, eval_dir):
 			for file in files:
 				shutil.move(join(eval_dir, cat_dir, case_dir, file), join(train_dir, cat_dir, case_dir, file))
 			print("  Merged {} files for case {}".format(len(files), case_dir))
-
-if __name__==('__main__'):
-	#build_validation('/Users/james/histcon/train_data', '/Users/james/histcon/eval_data', fraction = 0.1)
-	merge_validation('/Users/james/histcon/train_data', '/Users/james/histcon/eval_data')
