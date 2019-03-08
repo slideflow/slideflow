@@ -33,8 +33,6 @@ import inception_v4
 from inception_utils import inception_arg_scope
 from six.moves import urllib, xrange
 
-# TODO: Re-write monitored training session as tf.Session() for more flexibility
-
 class HistconModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
@@ -44,8 +42,8 @@ class HistconModel:
 	# Process images of the below size. If this number is altered, the
 	# model architecture will change and will need to be retrained.
 
-	IMAGE_SIZE = 128
-	NUM_CLASSES = 2
+	IMAGE_SIZE = 512
+	NUM_CLASSES = 5
 
 	NUM_EXAMPLES_PER_EPOCH = 1024
 
@@ -56,17 +54,13 @@ class HistconModel:
 	INITIAL_LEARNING_RATE = 0.001			# Initial learning rate.
 
 	# Variables previous created with parser & FLAGS
-	BATCH_SIZE = 2
+	BATCH_SIZE = 32
 	WHOLE_IMAGE = '' # Filename of whole image (JPG) to evaluate with saved model
 	MAX_EPOCH = 30
-	LOG_FREQUENCY = 2 # How often to log results to console, in steps
-	SUMMARY_STEPS = 4 # How often to save summaries for Tensorboard display, in steps
-	TEST_FREQUENCY = 8 # How often to run validation testing, in steps
+	LOG_FREQUENCY = 20 # How often to log results to console, in steps
+	SUMMARY_STEPS = 20 # How often to save summaries for Tensorboard display, in steps
+	TEST_FREQUENCY = 200 # How often to run validation testing, in steps
 	USE_FP16 = True
-
-	''' ANSWER: 
-	https://stackoverflow.com/questions/51542304/how-to-plot-different-summary-metrics-on-the-same-plot-with-tensorboard
-	'''
 
 	def __init__(self, data_directory):
 		self.DATA_DIR = data_directory
@@ -262,7 +256,11 @@ class HistconModel:
 
 		# Compute gradients.
 		with tf.control_dependencies([loss_averages_op]):
-			opt = tf.train.GradientDescentOptimizer(lr)
+			#opt = tf.train.GradientDescentOptimizer(lr)
+			opt = tf.train.AdamOptimizer(learning_rate=0.001,
+    									 beta1=0.9,
+    									 beta2=0.999,
+    									 epsilon=1.0)
 			grads = opt.compute_gradients(total_loss)
 
 		# Apply gradients.
@@ -360,11 +358,11 @@ class HistconModel:
 
 			def after_create_session(self, session, coord):
 				del coord
-				print ('doing string-handle work...')
+				print ('Initializing data input stream...')
 				if self.train_str is not None:
 					self.train_iterator_handle, self.test_iterator_handle = session.run([self.train_str, self.test_str])
 					session.run([init, train_initializer, test_initializer])
-				print ('String handle work done')
+				print ('complete.')
 					
 			def begin(self):
 				self._step = -1
@@ -377,7 +375,9 @@ class HistconModel:
 					return tf.train.SessionRunArgs(loss) # Asks for loss value.
 
 			def after_run(self, run_context, run_values):
-				if (self._step % self.parent.LOG_FREQUENCY == 0) and (run_context.original_args.feed_dict[iterator] == self.train_iterator_handle):
+				if ((self._step % self.parent.LOG_FREQUENCY == 0) and
+				   (run_context.original_args.feed_dict) and
+				   (run_context.original_args.feed_dict[iterator] == self.train_iterator_handle)):
 					current_time = time.time()
 					duration = current_time - self._start_time
 					self._start_time = current_time
@@ -432,7 +432,7 @@ def main(argv=None):
 	'''Initialize directories and start the main Tensorflow app.'''
 	os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 	tf.logging.set_verbosity(tf.logging.ERROR)
-	histcon = HistconModel('/Users/james/histcon')
+	histcon = HistconModel('/home/shawarma/histcon')
 	histcon.train()
 
 if __name__ == "__main__":
