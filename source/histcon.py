@@ -29,6 +29,7 @@ from tensorboard.plugins.custom_scalar import layout_pb2
 import numpy as np
 
 import histcon
+import pickle
 import inception_v4
 from inception_utils import inception_arg_scope
 from six.moves import urllib, xrange
@@ -69,6 +70,7 @@ class HistconModel:
 		self.TEST_DIR = os.path.join(self.MODEL_DIR, 'test') # Directory where to write eval logs and summaries.
 		self.TRAIN_FILES = os.path.join(self.DATA_DIR, "train_data/*/*/*.jpg")
 		self.TEST_FILES = os.path.join(self.DATA_DIR, "eval_data/*/*/*.jpg")
+		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
 
 		if tf.gfile.Exists(self.MODEL_DIR):
 			tf.gfile.DeleteRecursively(self.MODEL_DIR)
@@ -285,7 +287,7 @@ class HistconModel:
 
 		return train_op
 
-	def train(self):
+	def train(self, retrain_model = None, retrain_weights = None):
 		'''Train HISTCON for a number of steps, according to flags set by the argument parser.'''
 		
 		global_step = tf.train.get_or_create_global_step()
@@ -307,6 +309,18 @@ class HistconModel:
 		# Build model
 		with arg_scope(inception_arg_scope()):
 			logits, end_points = inception_v4.inception_v4(next_batch_images, num_classes=self.NUM_CLASSES)
+
+			# Retrain model if indicated
+			assign_ops = []
+			if retrain_model:
+				for trainable_var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+					var_name = trainable_var.name
+					if var_name in var_dict:
+						assign_op = trainable_var.assign(var_dict[var_name])
+						assign_ops.append(assign_op)
+			with tf.Session() as sess:
+				sess.run(assign_ops)
+
 
 		# Calculate training loss.
 		loss = self.loss(logits, next_batch_labels)
@@ -427,6 +441,17 @@ class HistconModel:
 					print("Validation loss: {}".format(val_acc))
 					mon_sess.run(test_initializer, feed_dict={iterator:loggerhook.test_iterator_handle})
 					loggerhook._start_time = time.time()
+
+	def retrain(self, model = '/home/shawarma/thyroid/models/inception_v4_2018_04_27/inception_v4.pb',
+				 weights = '/home/shawarma/thyroid/thyroid/obj/inception_v4_imagenet_pretrained.pkl'):
+		
+		# Load the stored weights
+		with open(weights, 'rb') as f:
+			var_dict = pickle.load(f)
+
+		# Start a new graph and build a new inception-v4 network
+		self.train(retrain_model = model, retrain_weights = var_dict)
+
 
 def main(argv=None):
 	'''Initialize directories and start the main Tensorflow app.'''
