@@ -60,7 +60,7 @@ class HistconModel:
 	MAX_EPOCH = 30
 	LOG_FREQUENCY = 20 # How often to log results to console, in steps
 	SUMMARY_STEPS = 20 # How often to save summaries for Tensorboard display, in steps
-	TEST_FREQUENCY = 200 # How often to run validation testing, in steps
+	TEST_FREQUENCY = 800 # How often to run validation testing, in steps
 	USE_FP16 = True
 
 	def __init__(self, data_directory):
