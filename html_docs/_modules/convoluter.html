@@ -1,0 +1,389 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>convoluter &mdash; thyroid 1.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> thyroid
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">Source code</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">thyroid</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="index.html">Module code</a> &raquo;</li>
+        
+      <li>convoluter</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for convoluter</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (C) James Dolezal - All Rights Reserved</span>
+<span class="c1"># Unauthorized copying of this file, via any medium is strictly prohibited</span>
+<span class="c1"># Proprietary and confidential</span>
+<span class="c1"># Written by James Dolezal &lt;jamesmdolezal@gmail.com&gt;, March 2019</span>
+<span class="c1"># ==========================================================================</span>
+
+<span class="sd">&#39;&#39;&#39;Convolutionally applies a saved Tensorflow model to a larger image, displaying</span>
+<span class="sd">the result as a heatmap overlay.&#39;&#39;&#39;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">os</span><span class="o">,</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">import</span> <span class="nn">progress_bar</span>
+
+<span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">inception_v4</span>
+<span class="kn">from</span> <span class="nn">tensorflow.contrib.framework</span> <span class="k">import</span> <span class="n">arg_scope</span>
+<span class="kn">from</span> <span class="nn">inception_utils</span> <span class="k">import</span> <span class="n">inception_arg_scope</span>
+<span class="kn">from</span> <span class="nn">PIL</span> <span class="k">import</span> <span class="n">Image</span>
+
+<span class="kn">from</span> <span class="nn">matplotlib.widgets</span> <span class="k">import</span> <span class="n">Slider</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">matplotlib.cm</span> <span class="k">as</span> <span class="nn">cm</span>
+<span class="kn">import</span> <span class="nn">matplotlib.colors</span> <span class="k">as</span> <span class="nn">mcol</span>
+
+<span class="c1"># TODO: extract_image_patches expands data too unnecessarily, creating large memory pressure.</span>
+<span class="c1">#  Need to find iterator method to only extract as many patches as are needed to generate a batch</span>
+
+<div class="viewcode-block" id="Convoluter"><a class="viewcode-back" href="../convoluter.html#convoluter.Convoluter">[docs]</a><span class="k">class</span> <span class="nc">Convoluter</span><span class="p">:</span>
+	<span class="c1"># Model variables</span>
+	<span class="n">SIZE</span> <span class="o">=</span> <span class="mi">512</span>
+	<span class="n">NUM_CLASSES</span> <span class="o">=</span> <span class="mi">5</span>
+	<span class="n">BATCH_SIZE</span> <span class="o">=</span> <span class="mi">512</span>
+	<span class="n">USE_FP16</span> <span class="o">=</span> <span class="kc">True</span>
+
+	<span class="c1"># Display variables</span>
+	<span class="n">stride_divisor</span> <span class="o">=</span> <span class="mi">4</span>
+	<span class="n">STRIDES</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">SIZE</span><span class="o">/</span><span class="n">stride_divisor</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">SIZE</span><span class="o">/</span><span class="n">stride_divisor</span><span class="p">),</span> <span class="mi">1</span><span class="p">]</span>
+	<span class="n">WINDOW_SIZE</span> <span class="o">=</span> <span class="mi">6000</span>
+
+	<span class="n">WHOLE_IMAGE</span> <span class="o">=</span> <span class="s1">&#39;/home/shawarma/thyroid/images/WSI_25/234807-1_25.jpg&#39;</span>
+	<span class="n">MODEL_DIR</span> <span class="o">=</span> <span class="s1">&#39;/home/shawarma/thyroid/models/active&#39;</span> <span class="c1"># Directory where to write event logs and checkpoints.</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">DTYPE</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">float16</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">USE_FP16</span> <span class="k">else</span> <span class="n">tf</span><span class="o">.</span><span class="n">float32</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">DTYPE_INT</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">int16</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">USE_FP16</span> <span class="k">else</span> <span class="n">tf</span><span class="o">.</span><span class="n">int32</span>
+
+<div class="viewcode-block" id="Convoluter.scan_image"><a class="viewcode-back" href="../convoluter.html#convoluter.Convoluter.scan_image">[docs]</a>	<span class="k">def</span> <span class="nf">scan_image</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">,</span> <span class="n">Image</span><span class="o">.</span><span class="n">DecompressionBombWarning</span><span class="p">)</span>
+		<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">Graph</span><span class="p">()</span><span class="o">.</span><span class="n">as_default</span><span class="p">()</span> <span class="k">as</span> <span class="n">g</span><span class="p">:</span>
+
+			<span class="n">image_string</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">WHOLE_IMAGE</span><span class="p">)</span>
+			<span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">decode_jpeg</span><span class="p">(</span><span class="n">image_string</span><span class="p">,</span> <span class="n">channels</span> <span class="o">=</span> <span class="mi">3</span><span class="p">),</span> <span class="n">tf</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+
+			<span class="n">window_size</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">SIZE</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SIZE</span><span class="p">]</span>
+			<span class="n">window_stride</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">SIZE</span><span class="o">/</span><span class="mi">4</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">SIZE</span><span class="o">/</span><span class="mi">4</span><span class="p">)]</span>
+
+			<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span> <span class="k">as</span> <span class="n">sess</span><span class="p">:</span>
+				<span class="n">init</span> <span class="o">=</span> <span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">global_variables_initializer</span><span class="p">(),</span> <span class="n">tf</span><span class="o">.</span><span class="n">local_variables_initializer</span><span class="p">())</span>
+				<span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">init</span><span class="p">)</span>
+
+				<span class="n">shape</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">image</span><span class="p">))</span>
+
+				<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Loading image of size </span><span class="si">{}</span><span class="s2"> x </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+
+				<span class="k">if</span> <span class="p">(</span><span class="n">window_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="ow">or</span> <span class="p">(</span><span class="n">window_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+					<span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="s2">&quot;Window size is too large&quot;</span><span class="p">)</span>
+
+				<span class="n">coord</span> <span class="o">=</span> <span class="p">[]</span>
+
+				<span class="bp">self</span><span class="o">.</span><span class="n">Y_SIZE</span> <span class="o">=</span> <span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">window_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">X_SIZE</span> <span class="o">=</span> <span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">window_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+				<span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">window_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">window_stride</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+					<span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">window_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">window_stride</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+						<span class="n">coord</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">])</span>
+
+				<span class="n">coord_dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="o">.</span><span class="n">from_tensor_slices</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span>
+				<span class="n">coord_dataset</span> <span class="o">=</span> <span class="n">coord_dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">c</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">int32</span><span class="p">))</span>
+				<span class="n">coord_dataset</span> <span class="o">=</span> <span class="n">coord_dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">c</span><span class="p">:</span> <span class="n">image</span><span class="p">[</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="n">window_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span><span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="n">window_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],],</span> <span class="n">num_parallel_calls</span> <span class="o">=</span> <span class="mi">8</span><span class="p">)</span>
+				<span class="n">coord_dataset</span> <span class="o">=</span> <span class="n">coord_dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">patch</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">per_image_standardization</span><span class="p">(</span><span class="n">patch</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">DTYPE</span><span class="p">),</span> <span class="n">num_parallel_calls</span> <span class="o">=</span> <span class="mi">8</span><span class="p">)</span>
+
+				<span class="n">coord_dataset</span> <span class="o">=</span> <span class="n">coord_dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">BATCH_SIZE</span><span class="p">,</span> <span class="n">drop_remainder</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+				<span class="n">coord_dataset</span><span class="o">.</span><span class="n">prefetch</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+				<span class="n">iterator</span> <span class="o">=</span> <span class="n">coord_dataset</span><span class="o">.</span><span class="n">make_one_shot_iterator</span><span class="p">()</span>
+				<span class="n">batch</span> <span class="o">=</span> <span class="n">iterator</span><span class="o">.</span><span class="n">get_next</span><span class="p">()</span>
+
+				<span class="c1"># Pad the batch if necessary to create a batch of minimum size BATCH_SIZE</span>
+				<span class="n">padded_batch</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">batch</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">BATCH_SIZE</span> <span class="o">-</span> <span class="n">tf</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">batch</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> 
+															<span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">DTYPE</span><span class="p">)],</span> <span class="mi">0</span><span class="p">)</span>
+
+			<span class="n">padded_batch</span><span class="o">.</span><span class="n">set_shape</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">BATCH_SIZE</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SIZE</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SIZE</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+
+			<span class="k">with</span> <span class="n">arg_scope</span><span class="p">(</span><span class="n">inception_arg_scope</span><span class="p">()):</span>
+				<span class="n">_</span><span class="p">,</span> <span class="n">end_points</span> <span class="o">=</span> <span class="n">inception_v4</span><span class="o">.</span><span class="n">inception_v4</span><span class="p">(</span><span class="n">padded_batch</span><span class="p">,</span> <span class="n">num_classes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">NUM_CLASSES</span><span class="p">)</span>
+
+			<span class="n">slogits</span> <span class="o">=</span> <span class="n">end_points</span><span class="p">[</span><span class="s1">&#39;Predictions&#39;</span><span class="p">]</span>
+			<span class="n">saver</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Saver</span><span class="p">()</span>
+
+			<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span> <span class="k">as</span> <span class="n">sess</span><span class="p">:</span>
+				<span class="n">init</span> <span class="o">=</span> <span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">global_variables_initializer</span><span class="p">(),</span> <span class="n">tf</span><span class="o">.</span><span class="n">local_variables_initializer</span><span class="p">())</span>
+				<span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">init</span><span class="p">)</span>
+
+				<span class="n">ckpt</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">get_checkpoint_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">MODEL_DIR</span><span class="p">)</span>
+				<span class="k">if</span> <span class="n">ckpt</span> <span class="ow">and</span> <span class="n">ckpt</span><span class="o">.</span><span class="n">model_checkpoint_path</span><span class="p">:</span>
+					<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Restoring saved checkpoint model.&quot;</span><span class="p">)</span>
+					<span class="n">saver</span><span class="o">.</span><span class="n">restore</span><span class="p">(</span><span class="n">sess</span><span class="p">,</span> <span class="n">ckpt</span><span class="o">.</span><span class="n">model_checkpoint_path</span><span class="p">)</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Unable to find checkpoint file.&#39;</span><span class="p">)</span>
+
+				<span class="n">logits_arr</span> <span class="o">=</span> <span class="p">[]</span>
+
+				<span class="n">x_logits_len</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X_SIZE</span> <span class="o">/</span> <span class="n">window_stride</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">+</span><span class="mi">1</span>
+				<span class="n">y_logits_len</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Y_SIZE</span> <span class="o">/</span> <span class="n">window_stride</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">+</span><span class="mi">1</span>
+				<span class="n">total_logits_count</span> <span class="o">=</span> <span class="n">x_logits_len</span> <span class="o">*</span> <span class="n">y_logits_len</span>
+
+				<span class="k">if</span> <span class="n">total_logits_count</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">coord</span><span class="p">):</span>
+					<span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;The expected total number of window tiles does not match the number of generated starting points for window tiles.&quot;</span><span class="p">)</span>
+
+				<span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+
+				<span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+					<span class="k">try</span><span class="p">:</span>
+						<span class="n">count</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="n">total_logits_count</span><span class="p">)</span>
+						<span class="n">progress_bar</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="n">total_logits_count</span><span class="p">,</span> <span class="n">text</span> <span class="o">=</span> <span class="s2">&quot;Calculated </span><span class="si">{}</span><span class="s2"> images out of </span><span class="si">{}</span><span class="s2">. &quot;</span>
+																			<span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="n">total_logits_count</span><span class="p">),</span>
+																			 <span class="n">total_logits_count</span><span class="p">))</span>
+						<span class="n">new_logits</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">slogits</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+						<span class="n">logits_arr</span> <span class="o">=</span> <span class="n">new_logits</span> <span class="k">if</span> <span class="n">logits_arr</span> <span class="o">==</span> <span class="p">[]</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">logits_arr</span><span class="p">,</span> <span class="n">new_logits</span><span class="p">])</span>
+					<span class="k">except</span> <span class="n">tf</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">OutOfRangeError</span><span class="p">:</span>
+						<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;End of image detected.&quot;</span><span class="p">)</span>
+						<span class="k">break</span>
+					<span class="n">count</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">BATCH_SIZE</span>
+				<span class="n">progress_bar</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
+			
+			<span class="c1"># Crop the output to exclude padding</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;total size of padded dataset: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">logits_arr</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+			<span class="n">logits_arr</span> <span class="o">=</span> <span class="n">logits_arr</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">total_logits_count</span><span class="p">]</span>
+			<span class="n">logits_out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">logits_arr</span><span class="p">,</span> <span class="p">[</span><span class="n">y_logits_len</span><span class="p">,</span> <span class="n">x_logits_len</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">NUM_CLASSES</span><span class="p">])</span>
+			
+			<span class="bp">self</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">WHOLE_IMAGE</span><span class="p">,</span> <span class="n">logits_out</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SIZE</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Convoluter.display"><a class="viewcode-back" href="../convoluter.html#convoluter.Convoluter.display">[docs]</a>	<span class="k">def</span> <span class="nf">display</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image_file</span><span class="p">,</span> <span class="n">logits</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;Displays logits calculated using scan_image as a heatmap overlay.&#39;&#39;&#39;</span>
+		<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Received logits, size=</span><span class="si">%s</span><span class="s2">, (</span><span class="si">%s</span><span class="s2"> x </span><span class="si">%s</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">logits</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">logits</span><span class="p">[</span><span class="mi">0</span><span class="p">])))</span>
+		<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Calculating overlay matrix...&quot;</span><span class="p">)</span>
+
+		<span class="n">axis_color</span> <span class="o">=</span> <span class="s1">&#39;lightgoldenrodyellow&#39;</span>
+
+		<span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+		<span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">111</span><span class="p">)</span>
+
+		<span class="n">fig</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">bottom</span> <span class="o">=</span> <span class="mf">0.25</span><span class="p">)</span>
+
+		<span class="n">im</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">image_file</span><span class="p">)</span>
+		<span class="n">implot</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+		<span class="n">gca</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+		<span class="n">gca</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">top</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">labeltop</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">bottom</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">labelbottom</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+		<span class="c1"># Calculations to determine appropriate offset for heatmap</span>
+		<span class="n">im_extent</span> <span class="o">=</span> <span class="n">implot</span><span class="o">.</span><span class="n">get_extent</span><span class="p">()</span>
+		<span class="n">extent</span> <span class="o">=</span> <span class="p">[</span><span class="n">im_extent</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">size</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">im_extent</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">size</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">im_extent</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">size</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">im_extent</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">+</span> <span class="n">size</span><span class="o">/</span><span class="mi">2</span><span class="p">]</span>
+
+		<span class="c1"># Define color map</span>
+		<span class="n">jetMap</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.45</span><span class="p">,</span> <span class="mf">0.95</span><span class="p">,</span> <span class="mi">255</span><span class="p">)</span>
+		<span class="n">cmMap</span> <span class="o">=</span> <span class="n">cm</span><span class="o">.</span><span class="n">nipy_spectral</span><span class="p">(</span><span class="n">jetMap</span><span class="p">)</span>
+		<span class="n">newMap</span> <span class="o">=</span> <span class="n">mcol</span><span class="o">.</span><span class="n">ListedColormap</span><span class="p">(</span><span class="n">cmMap</span><span class="p">)</span>
+
+		<span class="n">heatmap_dict</span> <span class="o">=</span> <span class="p">{}</span>
+
+		<span class="k">def</span> <span class="nf">slider_func</span><span class="p">(</span><span class="n">val</span><span class="p">):</span>
+			<span class="k">for</span> <span class="n">h</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">heatmap_dict</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+				<span class="n">h</span><span class="o">.</span><span class="n">set_alpha</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">val</span><span class="p">)</span>
+
+		<span class="c1"># Make heatmaps and sliders</span>
+		<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">NUM_CLASSES</span><span class="p">):</span>
+			<span class="n">ax_slider</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_axes</span><span class="p">([</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.2</span><span class="o">-</span><span class="p">(</span><span class="mf">0.2</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">NUM_CLASSES</span><span class="p">)</span><span class="o">*</span><span class="n">i</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.03</span><span class="p">],</span> <span class="n">facecolor</span><span class="o">=</span><span class="n">axis_color</span><span class="p">)</span>
+			<span class="n">heatmap</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">logits</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">i</span><span class="p">],</span> <span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">newMap</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="s1">&#39;bicubic&#39;</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+			<span class="n">slider</span> <span class="o">=</span> <span class="n">Slider</span><span class="p">(</span><span class="n">ax_slider</span><span class="p">,</span> <span class="s1">&#39;Class </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">valinit</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span>
+			<span class="n">heatmap_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;Class</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">):</span> <span class="p">[</span><span class="n">heatmap</span><span class="p">,</span> <span class="n">slider</span><span class="p">]})</span>
+			<span class="n">slider</span><span class="o">.</span><span class="n">on_changed</span><span class="p">(</span><span class="n">slider_func</span><span class="p">)</span>
+
+		<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div></div>
+
+<span class="k">if</span> <span class="vm">__name__</span><span class="o">==</span><span class="p">(</span><span class="s1">&#39;__main__&#39;</span><span class="p">):</span>
+	<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;TF_CPP_MIN_LOG_LEVEL&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;3&quot;</span>
+	<span class="n">tf</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">set_verbosity</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">ERROR</span><span class="p">)</span>
+	<span class="n">c</span> <span class="o">=</span> <span class="n">Convoluter</span><span class="p">()</span>
+	<span class="n">c</span><span class="o">.</span><span class="n">scan_image</span><span class="p">()</span>
+
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, James M Dolezal
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
