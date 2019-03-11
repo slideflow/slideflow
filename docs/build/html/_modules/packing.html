@@ -85,8 +85,7 @@
               <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../modules.html">thyroid</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">Source code</a></li>
 </ul>
 
             
@@ -168,15 +167,13 @@
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">progress_bar</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
 <span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">path</span>
 <span class="kn">from</span> <span class="nn">PIL</span> <span class="k">import</span> <span class="n">Image</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="k">import</span> <span class="n">isfile</span><span class="p">,</span> <span class="n">join</span>
 
 
 <span class="n">Image</span><span class="o">.</span><span class="n">MAX_IMAGE_PIXELS</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="n">TILE_SIZE</span> <span class="o">=</span> <span class="mi">2048</span>
-<span class="n">ANNOTATION_COMPRESSION_FACTOR</span> <span class="o">=</span> <span class="mi">10</span>
-<span class="n">DIRECTORY</span> <span class="o">=</span> <span class="s2">&quot;/media/shawarma/Backup/Other files/Thyroid/Annotations/All/to_convert&quot;</span>
 
 <div class="viewcode-block" id="Packer"><a class="viewcode-back" href="../packing.html#packing.Packer">[docs]</a><span class="k">class</span> <span class="nc">Packer</span><span class="p">:</span>
 	<span class="sd">&quot;&quot;&quot;Module which loads a LabelMe json annotation file and subdivides annotations</span>
@@ -373,6 +370,16 @@
 		<span class="c1">#plt.show()</span>
 
 <span class="k">if</span> <span class="vm">__name__</span><span class="o">==</span><span class="p">(</span><span class="s1">&#39;__main__&#39;</span><span class="p">):</span>
+	<span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;Packing algorithm to extract tiles for annotated images.&quot;</span><span class="p">)</span>
+	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-d&#39;</span><span class="p">,</span> <span class="s1">&#39;--dir&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Path to directories containing matching .jpg images with .json annotations.&#39;</span><span class="p">)</span>
+	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-t&#39;</span><span class="p">,</span> <span class="s1">&#39;--tile&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Pixel size of tiles to extract&#39;</span><span class="p">)</span>
+	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-c&#39;</span><span class="p">,</span> <span class="s1">&#39;--compression&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Compression factor for annotation (default is 10)&#39;</span><span class="p">)</span>
+
+	<span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+	<span class="n">DIRECTORY</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">dir</span>
+	<span class="n">TILE_SIZE</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">tile</span>
+	<span class="n">ANNOTATION_COMPRESSION_FACTOR</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">compression</span>
+
 	<span class="n">cases</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="p">[:</span><span class="o">-</span><span class="mi">5</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">DIRECTORY</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">isfile</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">DIRECTORY</span><span class="p">,</span> <span class="n">f</span><span class="p">))</span> 
 										<span class="ow">and</span> <span class="n">f</span><span class="p">[</span><span class="o">-</span><span class="mi">4</span><span class="p">:]</span> <span class="o">==</span> <span class="s1">&#39;json&#39;</span><span class="p">)]</span>
 
