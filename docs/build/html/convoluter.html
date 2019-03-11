@@ -36,7 +36,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="histcon module" href="histcon.html" />
-    <link rel="prev" title="thyroid" href="modules.html" /> 
+    <link rel="prev" title="Source code" href="modules.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -87,17 +87,15 @@
               <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="modules.html">thyroid</a><ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Source code</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">convoluter module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="histcon.html">histcon module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="histcon_eval.html">histcon_eval module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="histcon_train.html">histcon_train module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="histcon_retrain.html">histcon_retrain module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="packing.html">packing module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="progress_bar.html">progress module</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
 </ul>
 
             
@@ -143,7 +141,7 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
-          <li><a href="modules.html">thyroid</a> &raquo;</li>
+          <li><a href="modules.html">Source code</a> &raquo;</li>
         
       <li>convoluter module</li>
     
@@ -170,48 +168,8 @@
 the result as a heatmap overlay.</p>
 <dl class="class">
 <dt id="convoluter.Convoluter">
-<em class="property">class </em><code class="descclassname">convoluter.</code><code class="descname">Convoluter</code><a class="reference internal" href="_modules/convoluter.html#Convoluter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">convoluter.</code><code class="descname">Convoluter</code><span class="sig-paren">(</span><em>whole_image</em>, <em>model_dir</em>, <em>size</em>, <em>num_classes</em>, <em>batch_size</em>, <em>use_fp16</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
-<dl class="attribute">
-<dt id="convoluter.Convoluter.BATCH_SIZE">
-<code class="descname">BATCH_SIZE</code><em class="property"> = 512</em><a class="headerlink" href="#convoluter.Convoluter.BATCH_SIZE" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="convoluter.Convoluter.MODEL_DIR">
-<code class="descname">MODEL_DIR</code><em class="property"> = '/home/shawarma/thyroid/models/active'</em><a class="headerlink" href="#convoluter.Convoluter.MODEL_DIR" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="convoluter.Convoluter.NUM_CLASSES">
-<code class="descname">NUM_CLASSES</code><em class="property"> = 5</em><a class="headerlink" href="#convoluter.Convoluter.NUM_CLASSES" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="convoluter.Convoluter.SIZE">
-<code class="descname">SIZE</code><em class="property"> = 512</em><a class="headerlink" href="#convoluter.Convoluter.SIZE" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="convoluter.Convoluter.STRIDES">
-<code class="descname">STRIDES</code><em class="property"> = [1, 128, 128, 1]</em><a class="headerlink" href="#convoluter.Convoluter.STRIDES" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="convoluter.Convoluter.USE_FP16">
-<code class="descname">USE_FP16</code><em class="property"> = True</em><a class="headerlink" href="#convoluter.Convoluter.USE_FP16" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="convoluter.Convoluter.WHOLE_IMAGE">
-<code class="descname">WHOLE_IMAGE</code><em class="property"> = '/home/shawarma/thyroid/images/WSI_25/234807-1_25.jpg'</em><a class="headerlink" href="#convoluter.Convoluter.WHOLE_IMAGE" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="convoluter.Convoluter.WINDOW_SIZE">
-<code class="descname">WINDOW_SIZE</code><em class="property"> = 6000</em><a class="headerlink" href="#convoluter.Convoluter.WINDOW_SIZE" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
 <dl class="method">
 <dt id="convoluter.Convoluter.display">
 <code class="descname">display</code><span class="sig-paren">(</span><em>image_file</em>, <em>logits</em>, <em>size</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.display"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.display" title="Permalink to this definition">¶</a></dt>
@@ -221,11 +179,6 @@ the result as a heatmap overlay.</p>
 <dl class="method">
 <dt id="convoluter.Convoluter.scan_image">
 <code class="descname">scan_image</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.scan_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.scan_image" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="convoluter.Convoluter.stride_divisor">
-<code class="descname">stride_divisor</code><em class="property"> = 4</em><a class="headerlink" href="#convoluter.Convoluter.stride_divisor" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -243,7 +196,7 @@ the result as a heatmap overlay.</p>
         <a href="histcon.html" class="btn btn-neutral float-right" title="histcon module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="modules.html" class="btn btn-neutral float-left" title="thyroid" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="modules.html" class="btn btn-neutral float-left" title="Source code" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
