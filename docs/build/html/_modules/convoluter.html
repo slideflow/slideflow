@@ -85,8 +85,7 @@
               <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../modules.html">thyroid</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">Source code</a></li>
 </ul>
 
             
@@ -174,33 +173,27 @@
 <span class="kn">from</span> <span class="nn">tensorflow.contrib.framework</span> <span class="k">import</span> <span class="n">arg_scope</span>
 <span class="kn">from</span> <span class="nn">inception_utils</span> <span class="k">import</span> <span class="n">inception_arg_scope</span>
 <span class="kn">from</span> <span class="nn">PIL</span> <span class="k">import</span> <span class="n">Image</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
 
 <span class="kn">from</span> <span class="nn">matplotlib.widgets</span> <span class="k">import</span> <span class="n">Slider</span>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 <span class="kn">import</span> <span class="nn">matplotlib.cm</span> <span class="k">as</span> <span class="nn">cm</span>
 <span class="kn">import</span> <span class="nn">matplotlib.colors</span> <span class="k">as</span> <span class="nn">mcol</span>
 
-<span class="c1"># TODO: extract_image_patches expands data too unnecessarily, creating large memory pressure.</span>
-<span class="c1">#  Need to find iterator method to only extract as many patches as are needed to generate a batch</span>
-
 <div class="viewcode-block" id="Convoluter"><a class="viewcode-back" href="../convoluter.html#convoluter.Convoluter">[docs]</a><span class="k">class</span> <span class="nc">Convoluter</span><span class="p">:</span>
-	<span class="c1"># Model variables</span>
-	<span class="n">SIZE</span> <span class="o">=</span> <span class="mi">512</span>
-	<span class="n">NUM_CLASSES</span> <span class="o">=</span> <span class="mi">5</span>
-	<span class="n">BATCH_SIZE</span> <span class="o">=</span> <span class="mi">512</span>
-	<span class="n">USE_FP16</span> <span class="o">=</span> <span class="kc">True</span>
-
-	<span class="c1"># Display variables</span>
-	<span class="n">stride_divisor</span> <span class="o">=</span> <span class="mi">4</span>
-	<span class="n">STRIDES</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">SIZE</span><span class="o">/</span><span class="n">stride_divisor</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">SIZE</span><span class="o">/</span><span class="n">stride_divisor</span><span class="p">),</span> <span class="mi">1</span><span class="p">]</span>
-	<span class="n">WINDOW_SIZE</span> <span class="o">=</span> <span class="mi">6000</span>
-
-	<span class="n">WHOLE_IMAGE</span> <span class="o">=</span> <span class="s1">&#39;/home/shawarma/thyroid/images/WSI_25/234807-1_25.jpg&#39;</span>
-	<span class="n">MODEL_DIR</span> <span class="o">=</span> <span class="s1">&#39;/home/shawarma/thyroid/models/active&#39;</span> <span class="c1"># Directory where to write event logs and checkpoints.</span>
-
-	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">whole_image</span><span class="p">,</span> <span class="n">model_dir</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">num_classes</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">use_fp16</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">WHOLE_IMAGE</span> <span class="o">=</span> <span class="n">whole_image</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">MODEL_DIR</span> <span class="o">=</span> <span class="n">model_dir</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">SIZE</span> <span class="o">=</span> <span class="n">size</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">NUM_CLASSES</span> <span class="o">=</span> <span class="n">num_classes</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">BATCH_SIZE</span> <span class="o">=</span> <span class="n">batch_size</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">USE_FP16</span> <span class="o">=</span> <span class="n">use_fp16</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">DTYPE</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">float16</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">USE_FP16</span> <span class="k">else</span> <span class="n">tf</span><span class="o">.</span><span class="n">float32</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">DTYPE_INT</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">int16</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">USE_FP16</span> <span class="k">else</span> <span class="n">tf</span><span class="o">.</span><span class="n">int32</span>
+
+		<span class="c1"># Display variables</span>
+		<span class="n">stride_divisor</span> <span class="o">=</span> <span class="mi">4</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">STRIDES</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">size</span><span class="o">/</span><span class="n">stride_divisor</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">size</span><span class="o">/</span><span class="n">stride_divisor</span><span class="p">),</span> <span class="mi">1</span><span class="p">]</span>
 
 <div class="viewcode-block" id="Convoluter.scan_image"><a class="viewcode-back" href="../convoluter.html#convoluter.Convoluter.scan_image">[docs]</a>	<span class="k">def</span> <span class="nf">scan_image</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 		<span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">,</span> <span class="n">Image</span><span class="o">.</span><span class="n">DecompressionBombWarning</span><span class="p">)</span>
@@ -343,7 +336,17 @@
 <span class="k">if</span> <span class="vm">__name__</span><span class="o">==</span><span class="p">(</span><span class="s1">&#39;__main__&#39;</span><span class="p">):</span>
 	<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;TF_CPP_MIN_LOG_LEVEL&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;3&quot;</span>
 	<span class="n">tf</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">set_verbosity</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">ERROR</span><span class="p">)</span>
-	<span class="n">c</span> <span class="o">=</span> <span class="n">Convoluter</span><span class="p">()</span>
+
+	<span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span> <span class="o">=</span> <span class="s1">&#39;Convolutionally applies a saved Tensorflow model to a larger image, displaying the result as a heatmap overlay.&#39;</span><span class="p">)</span>
+	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-d&#39;</span><span class="p">,</span> <span class="s1">&#39;--dir&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Path to model directory containing stored checkpoint.&#39;</span><span class="p">)</span>
+	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-i&#39;</span><span class="p">,</span> <span class="s1">&#39;--image&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Image on which to apply heatmap.&#39;</span><span class="p">)</span>
+	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-s&#39;</span><span class="p">,</span> <span class="s1">&#39;--size&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Size of image patches to analyze.&#39;</span><span class="p">)</span>
+	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-c&#39;</span><span class="p">,</span> <span class="s1">&#39;--classes&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Number of unique output classes contained in the model.&#39;</span><span class="p">)</span>
+	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-b&#39;</span><span class="p">,</span> <span class="s1">&#39;--batch&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span> <span class="o">=</span> <span class="mi">64</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Batch size for which to run the analysis.&#39;</span><span class="p">)</span>
+	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--fp16&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Use Float16 operators (half-precision) instead of Float32.&#39;</span><span class="p">)</span>
+	<span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+	<span class="n">c</span> <span class="o">=</span> <span class="n">Convoluter</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">image</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">dir</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">classes</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">batch</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">fp16</span><span class="p">)</span>
 	<span class="n">c</span><span class="o">.</span><span class="n">scan_image</span><span class="p">()</span>
 
 </pre></div>

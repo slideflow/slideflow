@@ -3,6 +3,7 @@ import shutil
 from os import listdir, makedirs
 from os.path import isfile, isdir, join, exists
 from random import shuffle
+import argparse
 
 def make_dir(_dir):
 	''' Makes a directory if one does not already exist, in a manner compatible with multithreading. '''
@@ -42,3 +43,21 @@ def merge_validation(train_dir, eval_dir):
 			for file in files:
 				shutil.move(join(eval_dir, cat_dir, case_dir, file), join(train_dir, cat_dir, case_dir, file))
 			print("  Merged {} files for case {}".format(len(files), case_dir))
+
+if __name__==('__main__'):
+	parser = argparse.ArgumentParser(description = 'Tool to build and re-merge a validation dataset from an existing training dataset. Training dataset must be in a folder called "train_data".')
+	parser.add_argument('-d', '--dir', help='Path to root directory containing "train_data".')
+	parser.add_argument('-f', '--fraction', type=float, default = 0.1, help='Fraction of training dataset to use for validation (default = 0.1).')
+	parser.add_argument('--build', action="store_true", help='Build a new validation dataset by extraction a certain percentage of images from the training dataset.')
+	parser.add_argument('--merge', action="store_true", help='Merge an existing validation dataset ("eval_data" directory) into an existing "train_data" directory.')
+	args = parser.parse_args()
+
+	train_dir = join(args.dir, "train_data")
+	eval_dir = join(args.dir, "eval_data")
+
+	if args.build:
+		build_validation(train_dir, eval_dir, fraction = args.fraction)
+	elif args.merge:
+		merge_validation(train_dir, eval_dir)
+	else:
+		print("Error: you must specify either a '--build' or '--merge' flag.")

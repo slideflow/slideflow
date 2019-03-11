@@ -16,15 +16,13 @@ import shapely.geometry as sg
 import matplotlib.pyplot as plt
 import numpy as np
 import progress_bar
+import argparse
 from matplotlib import path
 from PIL import Image
 from os.path import isfile, join
 
 
 Image.MAX_IMAGE_PIXELS = None
-TILE_SIZE = 2048
-ANNOTATION_COMPRESSION_FACTOR = 10
-DIRECTORY = "/media/shawarma/Backup/Other files/Thyroid/Annotations/All/to_convert"
 
 class Packer:
 	"""Module which loads a LabelMe json annotation file and subdivides annotations
@@ -221,6 +219,16 @@ class Packer:
 		#plt.show()
 
 if __name__==('__main__'):
+	parser = argparse.ArgumentParser(description = "Packing algorithm to extract tiles for annotated images.")
+	parser.add_argument('-d', '--dir', help='Path to directories containing matching .jpg images with .json annotations.')
+	parser.add_argument('-t', '--tile', type=int, help='Pixel size of tiles to extract')
+	parser.add_argument('-c', '--compression', type=int, default=10, help='Compression factor for annotation (default is 10)')
+
+	args = parser.parse_args()
+	DIRECTORY = args.dir
+	TILE_SIZE = args.tile
+	ANNOTATION_COMPRESSION_FACTOR = args.compression
+
 	cases = [f[:-5] for f in os.listdir(DIRECTORY) if (isfile(join(DIRECTORY, f)) 
 										and f[-4:] == 'json')]
 

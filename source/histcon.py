@@ -43,8 +43,8 @@ class HistconModel:
 	# Process images of the below size. If this number is altered, the
 	# model architecture will change and will need to be retrained.
 
-	IMAGE_SIZE = 512
-	NUM_CLASSES = 5
+	IMAGE_SIZE = 224
+	NUM_CLASSES = 2
 
 	NUM_EXAMPLES_PER_EPOCH = 1024
 
@@ -309,7 +309,6 @@ class HistconModel:
 		# Build model
 		with arg_scope(inception_arg_scope()):
 			logits, end_points = inception_v4.inception_v4(next_batch_images, num_classes=self.NUM_CLASSES)
-
 			# Retrain model if indicated
 			assign_ops = []
 			if retrain_model:
