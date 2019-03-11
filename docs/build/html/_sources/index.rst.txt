@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to thyroid's documentation!
-===================================
+Welcome to the Histcon documentation!
+=====================================
 
 .. toctree::
    :maxdepth: 3
@@ -12,7 +12,6 @@ Welcome to thyroid's documentation!
 
    intro
    modules
-   examples
 
 Indices and tables
 ==================

@@ -86,8 +86,7 @@
               <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
-<li class="toctree-l1"><a class="reference internal" href="modules.html">thyroid</a></li>
-<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">Source code</a></li>
 </ul>
 
             
@@ -158,6 +157,7 @@
  | <a href="#C"><strong>C</strong></a>
  | <a href="#D"><strong>D</strong></a>
  | <a href="#E"><strong>E</strong></a>
+ | <a href="#G"><strong>G</strong></a>
  | <a href="#H"><strong>H</strong></a>
  | <a href="#I"><strong>I</strong></a>
  | <a href="#L"><strong>L</strong></a>
@@ -177,9 +177,13 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="progress_bar.html#progress_bar.bar">bar() (in module progress_bar)</a>
 </li>
+      <li><a href="histcon.html#histcon.HistconModel.BATCH_SIZE">BATCH_SIZE (histcon.HistconModel attribute)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="convoluter.html#convoluter.Convoluter.BATCH_SIZE">BATCH_SIZE (convoluter.Convoluter attribute)</a>
+      <li><a href="histcon.html#histcon.HistconModel.build_inputs">build_inputs() (histcon.HistconModel method)</a>
+</li>
+      <li><a href="histcon.html#histcon.HistconModel.build_train_op">build_train_op() (histcon.HistconModel method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -220,6 +224,18 @@
   </ul></td>
 </tr></table>
 
+<h2 id="G">G</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="histcon.html#histcon.HistconModel.gen_filenames_op">gen_filenames_op() (histcon.HistconModel method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="histcon.html#histcon.HistconModel.generate_batched_dataset">generate_batched_dataset() (histcon.HistconModel method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
 <h2 id="H">H</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
@@ -231,7 +247,7 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="histcon_retrain.html#module-histcon_retrain">histcon_retrain (module)</a>
 </li>
-      <li><a href="histcon_train.html#module-histcon_train">histcon_train (module)</a>
+      <li><a href="histcon.html#histcon.HistconModel">HistconModel (class in histcon)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -239,11 +255,11 @@
 <h2 id="I">I</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="histcon.html#histcon.inference">inference() (in module histcon)</a>
+      <li><a href="histcon.html#histcon.HistconModel.IMAGE_SIZE">IMAGE_SIZE (histcon.HistconModel attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="histcon.html#histcon.inputs">inputs() (in module histcon)</a>
+      <li><a href="histcon.html#histcon.HistconModel.INITIAL_LEARNING_RATE">INITIAL_LEARNING_RATE (histcon.HistconModel attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -251,7 +267,13 @@
 <h2 id="L">L</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="histcon.html#histcon.loss">loss() (in module histcon)</a>
+      <li><a href="histcon.html#histcon.HistconModel.LEARNING_RATE_DECAY_FACTOR">LEARNING_RATE_DECAY_FACTOR (histcon.HistconModel attribute)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="histcon.html#histcon.HistconModel.LOG_FREQUENCY">LOG_FREQUENCY (histcon.HistconModel attribute)</a>
+</li>
+      <li><a href="histcon.html#histcon.HistconModel.loss">loss() (histcon.HistconModel method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -259,17 +281,19 @@
 <h2 id="M">M</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="histcon_eval.html#histcon_eval.main">main() (in module histcon_eval)</a>
+      <li><a href="histcon.html#histcon.main">main() (in module histcon)</a>
 
       <ul>
-        <li><a href="histcon_retrain.html#histcon_retrain.main">(in module histcon_retrain)</a>
+        <li><a href="histcon_eval.html#histcon_eval.main">(in module histcon_eval)</a>
 </li>
-        <li><a href="histcon_train.html#histcon_train.main">(in module histcon_train)</a>
+        <li><a href="histcon_retrain.html#histcon_retrain.main">(in module histcon_retrain)</a>
 </li>
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="convoluter.html#convoluter.Convoluter.MODEL_DIR">MODEL_DIR (convoluter.Convoluter attribute)</a>
+      <li><a href="histcon.html#histcon.HistconModel.MAX_EPOCH">MAX_EPOCH (histcon.HistconModel attribute)</a>
+</li>
+      <li><a href="histcon.html#histcon.HistconModel.MOVING_AVERAGE_DECAY">MOVING_AVERAGE_DECAY (histcon.HistconModel attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -277,7 +301,13 @@
 <h2 id="N">N</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="convoluter.html#convoluter.Convoluter.NUM_CLASSES">NUM_CLASSES (convoluter.Convoluter attribute)</a>
+      <li><a href="histcon.html#histcon.HistconModel.NUM_CLASSES">NUM_CLASSES (histcon.HistconModel attribute)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="histcon.html#histcon.HistconModel.NUM_EPOCHS_PER_DECAY">NUM_EPOCHS_PER_DECAY (histcon.HistconModel attribute)</a>
+</li>
+      <li><a href="histcon.html#histcon.HistconModel.NUM_EXAMPLES_PER_EPOCH">NUM_EXAMPLES_PER_EPOCH (histcon.HistconModel attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -309,8 +339,12 @@
 <h2 id="R">R</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="histcon_retrain.html#histcon_retrain.retrain">retrain() (in module histcon_retrain)</a>
+      <li><a href="histcon.html#histcon.HistconModel.retrain">retrain() (histcon.HistconModel method)</a>
+
+      <ul>
+        <li><a href="histcon_retrain.html#histcon_retrain.retrain">(in module histcon_retrain)</a>
 </li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
@@ -319,15 +353,11 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="convoluter.html#convoluter.Convoluter.scan_image">scan_image() (convoluter.Convoluter method)</a>
 </li>
-      <li><a href="packing.html#packing.Packer.show_graph">show_graph() (packing.Packer method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="convoluter.html#convoluter.Convoluter.SIZE">SIZE (convoluter.Convoluter attribute)</a>
+      <li><a href="packing.html#packing.Packer.show_graph">show_graph() (packing.Packer method)</a>
 </li>
-      <li><a href="convoluter.html#convoluter.Convoluter.stride_divisor">stride_divisor (convoluter.Convoluter attribute)</a>
-</li>
-      <li><a href="convoluter.html#convoluter.Convoluter.STRIDES">STRIDES (convoluter.Convoluter attribute)</a>
+      <li><a href="histcon.html#histcon.HistconModel.SUMMARY_STEPS">SUMMARY_STEPS (histcon.HistconModel attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -335,23 +365,21 @@
 <h2 id="T">T</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="packing.html#packing.Packer.tile_iterator">tile_iterator() (packing.Packer method)</a>
+      <li><a href="histcon.html#histcon.HistconModel.TEST_FREQUENCY">TEST_FREQUENCY (histcon.HistconModel attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="histcon.html#histcon.train">train() (in module histcon)</a>
-
-      <ul>
-        <li><a href="histcon_train.html#histcon_train.train">(in module histcon_train)</a>
+      <li><a href="packing.html#packing.Packer.tile_iterator">tile_iterator() (packing.Packer method)</a>
 </li>
-      </ul></li>
+      <li><a href="histcon.html#histcon.HistconModel.train">train() (histcon.HistconModel method)</a>
+</li>
   </ul></td>
 </tr></table>
 
 <h2 id="U">U</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="convoluter.html#convoluter.Convoluter.USE_FP16">USE_FP16 (convoluter.Convoluter attribute)</a>
+      <li><a href="histcon.html#histcon.HistconModel.USE_FP16">USE_FP16 (histcon.HistconModel attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -359,11 +387,7 @@
 <h2 id="W">W</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="convoluter.html#convoluter.Convoluter.WHOLE_IMAGE">WHOLE_IMAGE (convoluter.Convoluter attribute)</a>
-</li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="convoluter.html#convoluter.Convoluter.WINDOW_SIZE">WINDOW_SIZE (convoluter.Convoluter attribute)</a>
+      <li><a href="histcon.html#histcon.HistconModel.WHOLE_IMAGE">WHOLE_IMAGE (histcon.HistconModel attribute)</a>
 </li>
   </ul></td>
 </tr></table>

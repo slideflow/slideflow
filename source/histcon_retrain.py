@@ -28,7 +28,8 @@ import sys
 
 RETRAIN_MODEL = '/home/shawarma/thyroid/models/inception_v4_2018_04_27/inception_v4.pb'
 MODEL_VALUES_FILE = '/home/shawarma/thyroid/thyroid/obj/inception_v4_imagenet_pretrained.pkl'
-DTYPE = tf.float16 if histcon.USE_FP16 else tf.float32
+USE_FP16 = True
+DTYPE = tf.float16 if USE_FP16 else tf.float32
 
 def retrain():
 	# Do not import the final layer of the saved network, as we will be working with 

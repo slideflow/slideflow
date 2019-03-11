@@ -22,33 +22,27 @@ import inception_v4
 from tensorflow.contrib.framework import arg_scope
 from inception_utils import inception_arg_scope
 from PIL import Image
+import argparse
 
 from matplotlib.widgets import Slider
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as mcol
 
-# TODO: extract_image_patches expands data too unnecessarily, creating large memory pressure.
-#  Need to find iterator method to only extract as many patches as are needed to generate a batch
-
 class Convoluter:
-	# Model variables
-	SIZE = 512
-	NUM_CLASSES = 5
-	BATCH_SIZE = 512
-	USE_FP16 = True
-
-	# Display variables
-	stride_divisor = 4
-	STRIDES = [1, int(SIZE/stride_divisor), int(SIZE/stride_divisor), 1]
-	WINDOW_SIZE = 6000
-
-	WHOLE_IMAGE = '/home/shawarma/thyroid/images/WSI_25/234807-1_25.jpg'
-	MODEL_DIR = '/home/shawarma/thyroid/models/active' # Directory where to write event logs and checkpoints.
-
-	def __init__(self):
+	def __init__(self, whole_image, model_dir, size, num_classes, batch_size, use_fp16):
+		self.WHOLE_IMAGE = whole_image
+		self.MODEL_DIR = model_dir
+		self.SIZE = size
+		self.NUM_CLASSES = num_classes
+		self.BATCH_SIZE = batch_size
+		self.USE_FP16 = use_fp16
 		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
 		self.DTYPE_INT = tf.int16 if self.USE_FP16 else tf.int32
+
+		# Display variables
+		stride_divisor = 4
+		self.STRIDES = [1, int(size/stride_divisor), int(size/stride_divisor), 1]
 
 	def scan_image(self):
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
@@ -191,6 +185,16 @@ class Convoluter:
 if __name__==('__main__'):
 	os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 	tf.logging.set_verbosity(tf.logging.ERROR)
-	c = Convoluter()
+
+	parser = argparse.ArgumentParser(description = 'Convolutionally applies a saved Tensorflow model to a larger image, displaying the result as a heatmap overlay.')
+	parser.add_argument('-d', '--dir', help='Path to model directory containing stored checkpoint.')
+	parser.add_argument('-i', '--image', help='Image on which to apply heatmap.')
+	parser.add_argument('-s', '--size', type=int, help='Size of image patches to analyze.')
+	parser.add_argument('-c', '--classes', type=int, help='Number of unique output classes contained in the model.')
+	parser.add_argument('-b', '--batch', type=int, default = 64, help='Batch size for which to run the analysis.')
+	parser.add_argument('--fp16', action="store_true", help='Use Float16 operators (half-precision) instead of Float32.')
+	args = parser.parse_args()
+
+	c = Convoluter(args.image, args.dir, args.size, args.classes, args.batch, args.fp16)
 	c.scan_image()
 
