@@ -23,11 +23,14 @@ from tensorflow.contrib.framework import arg_scope
 from inception_utils import inception_arg_scope
 from PIL import Image
 import argparse
+from scipy.misc import imread
 
 from matplotlib.widgets import Slider
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as mcol
+
+Image.MAX_IMAGE_PIXELS = None
 
 class Convoluter:
 	def __init__(self, whole_image, model_dir, size, num_classes, batch_size, use_fp16):
@@ -48,9 +51,12 @@ class Convoluter:
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 		with tf.Graph().as_default() as g:
 
-			image_string = tf.read_file(self.WHOLE_IMAGE)
-			image = tf.cast(tf.image.decode_jpeg(image_string, channels = 3), tf.int32)
+			# Tensorflow image reading, limited by file size
+			#image_string = tf.read_file(self.WHOLE_IMAGE)
+			#image = tf.cast(tf.image.decode_jpeg(image_string, channels = 3), tf.int32)
 
+			# Scipy image reading
+			image = tf.cast(imread(self.WHOLE_IMAGE), tf.int32)
 			window_size = [self.SIZE, self.SIZE]
 			window_stride = [int(self.SIZE/4), int(self.SIZE/4)]
 
@@ -175,7 +181,7 @@ class Convoluter:
 		# Make heatmaps and sliders
 		for i in range(self.NUM_CLASSES):
 			ax_slider = fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor=axis_color)
-			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='bicubic', zorder=10)
+			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='none', zorder=10)
 			slider = Slider(ax_slider, 'Class {}'.format(i), 0, 1, valinit = 0)
 			heatmap_dict.update({"Class{}".format(i): [heatmap, slider]})
 			slider.on_changed(slider_func)
@@ -196,5 +202,8 @@ if __name__==('__main__'):
 	args = parser.parse_args()
 
 	c = Convoluter(args.image, args.dir, args.size, args.classes, args.batch, args.fp16)
+	#try:
 	c.scan_image()
+	#except tf.errors.InvalidArgumentError:
+	#	print('poor image quality')
 
