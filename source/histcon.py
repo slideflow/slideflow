@@ -43,8 +43,8 @@ class HistconModel:
 	# Process images of the below size. If this number is altered, the
 	# model architecture will change and will need to be retrained.
 
-	IMAGE_SIZE = 224
-	NUM_CLASSES = 2
+	IMAGE_SIZE = 512
+	NUM_CLASSES = 5
 
 	NUM_EXAMPLES_PER_EPOCH = 1024
 
@@ -259,7 +259,7 @@ class HistconModel:
 		# Compute gradients.
 		with tf.control_dependencies([loss_averages_op]):
 			#opt = tf.train.GradientDescentOptimizer(lr)
-			opt = tf.train.AdamOptimizer(learning_rate=0.001,
+			opt = tf.train.AdamOptimizer(learning_rate=0.01,
     									 beta1=0.9,
     									 beta2=0.999,
     									 epsilon=1.0)
