@@ -18,19 +18,20 @@ import progress_bar
 
 import tensorflow as tf
 import numpy as np
+import imageio
 import inception_v4
 from tensorflow.contrib.framework import arg_scope
 from inception_utils import inception_arg_scope
 from PIL import Image
 import argparse
-from scipy.misc import imread
+import pickle
 
 from matplotlib.widgets import Slider
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as mcol
 
-Image.MAX_IMAGE_PIXELS = None
+Image.MAX_IMAGE_PIXELS = 100000000000
 
 class Convoluter:
 	def __init__(self, whole_image, model_dir, size, num_classes, batch_size, use_fp16):
@@ -49,52 +50,53 @@ class Convoluter:
 
 	def scan_image(self):
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+
+		# Load whole-slide-image into Numpy array
+		whole_slide_image = imageio.imread(self.WHOLE_IMAGE)
+		shape = whole_slide_image.shape
+
+		print("Loading image of size {} x {}".format(shape[0], shape[1]))
+
+		# Calculate window sizes, strides, and coordinates for windows
+		window_size = [self.SIZE, self.SIZE]
+		window_stride = [int(self.SIZE/4), int(self.SIZE/4)]
+
+		#tf.cast(***, tf.int32)
+
+		if (window_size[0] > shape[0]) or (window_size[1] > shape[1]):
+				raise IndexError("Window size is too large")
+
+		coord = []
+
+		self.Y_SIZE = shape[0] - window_size[0]
+		self.X_SIZE = shape[1] - window_size[1]
+
+		for y in range(0, (shape[0]+1) - window_size[0], window_stride[0]):
+			for x in range(0, (shape[1]+1) - window_size[1], window_stride[1]):
+				coord.append([y, x])
+
+		# -------
+
+		def gen_slice():
+			for c in coord:
+				yield whole_slide_image[c[0]:c[0] + window_size[0], c[1]:c[1] + window_size[1],]
+
 		with tf.Graph().as_default() as g:
+			# Generate dataset from coordinates
+			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (self.DTYPE))
+			tile_dataset = tile_dataset.batch(self.BATCH_SIZE, drop_remainder = False)
+			tile_dataset = tile_dataset.prefetch(2)
+			tile_iterator = tile_dataset.make_one_shot_iterator()
+			next_batch = tile_iterator.get_next()
+			#next_coord = tf.cast(next_coord, tf.int32)
 
-			# Tensorflow image reading, limited by file size
-			#image_string = tf.read_file(self.WHOLE_IMAGE)
-			#image = tf.cast(tf.image.decode_jpeg(image_string, channels = 3), tf.int32)
+			# Generate ops that will convert batch of coordinates to extracted & processed image patches from whole-slide-image
+			#image_patches = tf.map_fn(get_image_slice, next_batch)
+			image_patches = tf.map_fn(lambda patch: tf.cast(tf.image.per_image_standardization(patch), self.DTYPE), next_batch)
 
-			# Scipy image reading
-			image = tf.cast(imread(self.WHOLE_IMAGE), tf.int32)
-			window_size = [self.SIZE, self.SIZE]
-			window_stride = [int(self.SIZE/4), int(self.SIZE/4)]
-
-			with tf.Session() as sess:
-				init = (tf.global_variables_initializer(), tf.local_variables_initializer())
-				sess.run(init)
-
-				shape = sess.run(tf.shape(image))
-
-				print("Loading image of size {} x {}".format(shape[0], shape[1]))
-
-				if (window_size[0] > shape[0]) or (window_size[1] > shape[1]):
-					raise IndexError("Window size is too large")
-
-				coord = []
-
-				self.Y_SIZE = shape[0] - window_size[0]
-				self.X_SIZE = shape[1] - window_size[1]
-
-				for y in range(0, (shape[0]+1) - window_size[0], window_stride[0]):
-					for x in range(0, (shape[1]+1) - window_size[1], window_stride[1]):
-						coord.append([y, x])
-
-				coord_dataset = tf.data.Dataset.from_tensor_slices(coord)
-				coord_dataset = coord_dataset.map(lambda c: tf.cast(c, dtype=tf.int32))
-				coord_dataset = coord_dataset.map(lambda c: image[c[0]:c[0]+window_size[0], c[1]:c[1]+window_size[1],], num_parallel_calls = 8)
-				coord_dataset = coord_dataset.map(lambda patch: tf.cast(tf.image.per_image_standardization(patch), self.DTYPE), num_parallel_calls = 8)
-
-				coord_dataset = coord_dataset.batch(self.BATCH_SIZE, drop_remainder = False)
-				coord_dataset.prefetch(1)
-
-				iterator = coord_dataset.make_one_shot_iterator()
-				batch = iterator.get_next()
-
-				# Pad the batch if necessary to create a batch of minimum size BATCH_SIZE
-				padded_batch = tf.concat([batch, tf.zeros([self.BATCH_SIZE - tf.shape(batch)[0], 512, 512, 3], 
-															dtype=self.DTYPE)], 0)
-
+			# Pad the batch if necessary to create a batch of minimum size BATCH_SIZE
+			padded_batch = tf.concat([image_patches, tf.zeros([self.BATCH_SIZE - tf.shape(image_patches)[0], self.SIZE, self.SIZE, 3], 
+														dtype=self.DTYPE)], 0)
 			padded_batch.set_shape([self.BATCH_SIZE, self.SIZE, self.SIZE, 3])
 
 			with arg_scope(inception_arg_scope()):
@@ -143,6 +145,13 @@ class Convoluter:
 			print("total size of padded dataset: {}".format(logits_arr.shape))
 			logits_arr = logits_arr[0:total_logits_count]
 			logits_out = np.resize(logits_arr, [y_logits_len, x_logits_len, self.NUM_CLASSES])
+
+
+
+			# Save output in Python Pickle format for later display
+			pkl_name = ''.join(self.WHOLE_IMAGE.split('/')[-1].split('.')[:-1]) + '.pkl'
+			with open(pkl_name, 'wb') as handle:
+				pickle.dump(logits_out, handle)
 			
 			self.display(self.WHOLE_IMAGE, logits_out, self.SIZE)
 
@@ -181,12 +190,19 @@ class Convoluter:
 		# Make heatmaps and sliders
 		for i in range(self.NUM_CLASSES):
 			ax_slider = fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor=axis_color)
-			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='none', zorder=10)
+			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
 			slider = Slider(ax_slider, 'Class {}'.format(i), 0, 1, valinit = 0)
 			heatmap_dict.update({"Class{}".format(i): [heatmap, slider]})
 			slider.on_changed(slider_func)
 
 		plt.show()
+
+	def load_pkl_and_scan_image(self, pkl_file):
+		print("Loading pre-calculated logits...")
+		with open(pkl_file, 'rb') as handle:
+			logits = pickle.load(handle)
+
+		self.display(self.WHOLE_IMAGE, logits, self.SIZE)
 
 if __name__==('__main__'):
 	os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -194,6 +210,7 @@ if __name__==('__main__'):
 
 	parser = argparse.ArgumentParser(description = 'Convolutionally applies a saved Tensorflow model to a larger image, displaying the result as a heatmap overlay.')
 	parser.add_argument('-d', '--dir', help='Path to model directory containing stored checkpoint.')
+	parser.add_argument('-l', '--load', help='Python Pickle file containing pre-calculated weights to load')
 	parser.add_argument('-i', '--image', help='Image on which to apply heatmap.')
 	parser.add_argument('-s', '--size', type=int, help='Size of image patches to analyze.')
 	parser.add_argument('-c', '--classes', type=int, help='Number of unique output classes contained in the model.')
@@ -201,9 +218,10 @@ if __name__==('__main__'):
 	parser.add_argument('--fp16', action="store_true", help='Use Float16 operators (half-precision) instead of Float32.')
 	args = parser.parse_args()
 
-	c = Convoluter(args.image, args.dir, args.size, args.classes, args.batch, args.fp16)
-	#try:
-	c.scan_image()
-	#except tf.errors.InvalidArgumentError:
-	#	print('poor image quality')
+	if args.load:
+		c = Convoluter(args.image, None, args.size, args.classes, args.batch, args.fp16)
+		c.load_pkl_and_scan_image(args.load)
+	else:
+		c = Convoluter(args.image, args.dir, args.size, args.classes, args.batch, args.fp16)
+		c.scan_image()
 
