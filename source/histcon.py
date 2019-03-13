@@ -34,6 +34,8 @@ import inception_v4
 from inception_utils import inception_arg_scope
 from six.moves import urllib, xrange
 
+# Ansswer for retraining here: https://github.com/tensorflow/tensorflow/issues/6081
+
 class HistconModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
@@ -288,9 +290,11 @@ class HistconModel:
 
 		return train_op
 
-	def train(self, retrain_model = None, retrain_weights = None):
+	def train(self, retrain_model = None, retrain_weights = None, restore_checkpoint = None):
 		'''Train HISTCON for a number of steps, according to flags set by the argument parser.'''
 		
+		ckpt = tf.train.get_checkpoint_state(restore_checkpoint)
+
 		global_step = tf.train.get_or_create_global_step()
 
 		# -- INPUT ---------------------------------------------------------------------------------
@@ -299,6 +303,7 @@ class HistconModel:
 		with tf.device('/cpu'):
 			next_batch_images, next_batch_labels, handles = self.build_inputs()
 
+		# Replace with object/class structure
 		train_iterator_str = handles['train']
 		test_iterator_str = handles['test']
 		iterator = handles['iterator']
@@ -310,7 +315,8 @@ class HistconModel:
 		# Build model
 		with arg_scope(inception_arg_scope()):
 			logits, end_points = inception_v4.inception_v4(next_batch_images, num_classes=self.NUM_CLASSES)
-			# Retrain model if indicated
+
+			# Load pre-trained weights if provided
 			assign_ops = []
 			if retrain_model:
 				for trainable_var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
@@ -405,6 +411,7 @@ class HistconModel:
 										images_per_sec, sec_per_batch))
 
 		loggerhook = _LoggerHook(train_iterator_str, test_iterator_str, self)
+		saver = tf.train.Saver()
 
 		with tf.train.MonitoredTrainingSession(
 			checkpoint_dir = self.MODEL_DIR,
@@ -417,6 +424,9 @@ class HistconModel:
 			test_writer = tf.summary.FileWriter(self.TEST_DIR, mon_sess.graph)
 			train_writer = SummaryWriterCache.get(self.TRAIN_DIR)
 			train_writer.add_summary(layout_summary)
+
+			if ckpt and ckpt.model_checkpoint_path:
+				saver.restore(mon_sess, ckpt.model_checkpoint_path)
 			
 			while not mon_sess.should_stop():
 				_, merged, step = mon_sess.run([train_op, inception_summaries, global_step], feed_dict={iterator:loggerhook.train_iterator_handle})
@@ -442,8 +452,8 @@ class HistconModel:
 					mon_sess.run(test_initializer, feed_dict={iterator:loggerhook.test_iterator_handle})
 					loggerhook._start_time = time.time()
 
-	def retrain(self, model = '/home/shawarma/thyroid/models/inception_v4_2018_04_27/inception_v4.pb',
-				 weights = '/home/shawarma/thyroid/thyroid/obj/inception_v4_imagenet_pretrained.pkl'):
+	def retrain_from_pkl(self, model = '/home/shawarma/thyroid/models/inception_v4_2018_04_27/inception_v4.pb',
+						 weights = '/home/shawarma/thyroid/thyroid/obj/inception_v4_imagenet_pretrained.pkl'):
 		
 		# Load the stored weights
 		with open(weights, 'rb') as f:
