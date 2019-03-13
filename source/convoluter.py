@@ -104,9 +104,10 @@ class Convoluter:
 		def gen_slice():
 			for c in coord:
 				rotated = rotate_image(whole_slide_image[c[0]:c[0] + window_size[0], c[1]:c[1] + window_size[1],], c[2])
+				coord_label =str (c[0])+'-'+str(c[1])
 				#matrix_mean = np.matrix(rotated[:,:,0]).mean()
 				#imsave('img/c{}.jpg'.format(str(c[0])+'-'+str(c[1])+'-'+str(c[2])), rotated)
-				yield rotated
+				yield rotated, coord_label
 				#yield [matrix_mean, c[0], c[1], c[2], c[0]]
 
 		# Function for testing/troubleshooting
@@ -120,12 +121,12 @@ class Convoluter:
 			tile_dataset = tile_dataset.batch(self.BATCH_SIZE, drop_remainder = False)
 			tile_dataset = tile_dataset.prefetch(2)
 			tile_iterator = tile_dataset.make_one_shot_iterator()
-			next_batch = tile_iterator.get_next()
+			next_batch_images, next_batch_labels = tile_iterator.get_next()
 			#next_coord = tf.cast(next_coord, tf.int32)
 
 			# Generate ops that will convert batch of coordinates to extracted & processed image patches from whole-slide-image
 			#image_patches = tf.map_fn(get_image_slice, next_batch)
-			image_patches = tf.map_fn(lambda patch: tf.cast(tf.image.per_image_standardization(patch), self.DTYPE), next_batch)
+			image_patches = tf.map_fn(lambda patch: tf.cast(tf.image.per_image_standardization(patch), self.DTYPE), next_batch_images)
 
 			# Pad the batch if necessary to create a batch of minimum size BATCH_SIZE
 			padded_batch = tf.concat([image_patches, tf.zeros([self.BATCH_SIZE - tf.shape(image_patches)[0], self.SIZE, self.SIZE, 3], # image_patches instead of next_batch
@@ -153,6 +154,7 @@ class Convoluter:
 					raise Exception('Unable to find checkpoint file.')
 
 				logits_arr = []
+				labels_arr = []
 
 				x_logits_len = int(self.X_SIZE / window_stride[1])+1
 				y_logits_len = int(self.Y_SIZE / window_stride[0])+1
@@ -169,12 +171,13 @@ class Convoluter:
 						progress_bar.bar(count, total_logits_count, text = "Calculated {} images out of {}. "
 																			.format(min(count, total_logits_count),
 																			 total_logits_count))
-						new_logits = sess.run(tf.cast(slogits, tf.float32))
+						new_logits, new_labels = sess.run([tf.cast(slogits, tf.float32), next_batch_labels])
 
 						# Execute this code for debugging purposes if using gen_coord_d
 						#new_logits = sess.run(tf.cast(padded_batch, tf.float32))
 
 						logits_arr = new_logits if logits_arr == [] else np.concatenate([logits_arr, new_logits])
+						labels_arr = new_labels if labels_arr == [] else np.concatenate([labels_arr, new_labels])
 					except tf.errors.OutOfRangeError:
 						print("End of image detected.")
 						break
@@ -184,9 +187,15 @@ class Convoluter:
 			# Crop the output to exclude padding
 			print("total size of padded dataset: {}".format(logits_arr.shape))
 			logits_arr = logits_arr[0:total_logits_count]
+			labels_arr = labels_arr[0:total_logits_count]
 
 			print('First value of unmerged array:')
 			print(logits_arr[0])
+
+			print('Sorting arrays')
+			sorted_indices = labels_arr.argsort()
+			logits_arr = logits_arr[sorted_indices]
+			labels_arr = labels_arr[sorted_indices]
 
 			# Average logits across different flips/rotations
 			if logits_arr.shape[0] % 8 != 0:
