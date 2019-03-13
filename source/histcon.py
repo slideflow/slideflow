@@ -43,8 +43,8 @@ class HistconModel:
 	# Process images of the below size. If this number is altered, the
 	# model architecture will change and will need to be retrained.
 
-	IMAGE_SIZE = 512
-	NUM_CLASSES = 5
+	IMAGE_SIZE = 128
+	NUM_CLASSES = 2
 
 	NUM_EXAMPLES_PER_EPOCH = 1024
 
@@ -56,7 +56,7 @@ class HistconModel:
 	ADAM_LEARNING_RATE = 0.01			# Learning rate for the Adams Optimizer.
 
 	# Variables previous created with parser & FLAGS
-	BATCH_SIZE = 32
+	BATCH_SIZE = 2
 	WHOLE_IMAGE = '' # Filename of whole image (JPG) to evaluate with saved model
 	MAX_EPOCH = 30
 	LOG_FREQUENCY = 20 # How often to log results to console, in steps
@@ -294,7 +294,7 @@ class HistconModel:
 			sess.run(assign_ops)
 
 	def generate_loss_chart(self):
-		summary_lib.custom_scalar_pb(
+		return summary_lib.custom_scalar_pb(
 			layout_pb2.Layout(category=[
 				layout_pb2.Category(
 					title='losses',
@@ -374,13 +374,13 @@ class HistconModel:
 
 			def before_run(self, run_context):
 				feed_dict = run_context.original_args.feed_dict
-				if feed_dict and feed_dict[it_handle] == self.train_iterator_handle:
+				if it_handle in feed_dict and feed_dict[it_handle] == self.train_iterator_handle:
 					self._step += 1
 					return tf.train.SessionRunArgs(loss) # Asks for loss value.
 
 			def after_run(self, run_context, run_values):
 				if ((self._step % self.parent.LOG_FREQUENCY == 0) and
-				   (run_context.original_args.feed_dict) and
+				   (it_handle in run_context.original_args.feed_dict) and
 				   (run_context.original_args.feed_dict[it_handle] == self.train_iterator_handle)):
 					current_time = time.time()
 					duration = current_time - self._start_time
@@ -410,6 +410,7 @@ class HistconModel:
 			train_writer.add_summary(layout_summary)
 
 			if ckpt and ckpt.model_checkpoint_path:
+				print("Restoring checkpoint...")
 				saver.restore(mon_sess, ckpt.model_checkpoint_path)
 			
 			while not mon_sess.should_stop():
@@ -435,8 +436,8 @@ class HistconModel:
 					loggerhook._start_time = time.time()
 
 	def retrain_from_pkl(self, model, weights):
-		if model = None: model = '/home/shawarma/thyroid/models/inception_v4_2018_04_27/inception_v4.pb'
-		if weights = None: weights = '/home/shawarma/thyroid/thyroid/obj/inception_v4_imagenet_pretrained.pkl'
+		if model == None: model = '/home/shawarma/thyroid/models/inception_v4_2018_04_27/inception_v4.pb'
+		if weights == None: weights = '/home/shawarma/thyroid/thyroid/obj/inception_v4_imagenet_pretrained.pkl'
 		with open(weights, 'rb') as f:
 			var_dict = pickle.load(f)
 		self.train(retrain_model = model, retrain_weights = var_dict)
@@ -444,8 +445,9 @@ class HistconModel:
 def main(argv=None):
 	os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 	tf.logging.set_verbosity(tf.logging.ERROR)
-	histcon = HistconModel('/home/shawarma/histcon')
-	histcon.train()
+	histcon = HistconModel('/Users/james/histcon')
+	histcon.train(restore_checkpoint = '/Users/james/thyroid/models/active')
+
 
 if __name__ == "__main__":
 	tf.app.run()
