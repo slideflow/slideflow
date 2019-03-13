@@ -25,6 +25,7 @@ from inception_utils import inception_arg_scope
 from PIL import Image
 import argparse
 import pickle
+from scipy.misc import imsave
 
 from matplotlib.widgets import Slider
 import matplotlib.pyplot as plt
@@ -48,7 +49,7 @@ class Convoluter:
 		stride_divisor = 4
 		self.STRIDES = [1, int(size/stride_divisor), int(size/stride_divisor), 1]
 
-	def scan_image(self):
+	def scan_image(self, display=True):
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 
 		# Load whole-slide-image into Numpy array
@@ -67,23 +68,55 @@ class Convoluter:
 				raise IndexError("Window size is too large")
 
 		coord = []
+		coord_d = []
 
 		self.Y_SIZE = shape[0] - window_size[0]
 		self.X_SIZE = shape[1] - window_size[1]
 
 		for y in range(0, (shape[0]+1) - window_size[0], window_stride[0]):
 			for x in range(0, (shape[1]+1) - window_size[1], window_stride[1]):
-				coord.append([y, x])
+				# f is a flag (number 0 -7) which corresponds to a flip/rotation combination
+				for f in range(8):
+					coord.append([y, x, f])
+					# coord_d is purely for debugging purposes
+					coord_d.append([y/self.Y_SIZE, x/self.X_SIZE, f])
 
-		# -------
+		def rotate_image(np_array, flag):
+			if flag == 0:
+				return np_array
+			elif flag == 1:
+				return np.rot90(np_array)
+			elif flag == 2:
+				return np.rot90(np_array, 2)
+			elif flag == 3:
+				return np.rot90(np_array, 3)
+			elif flag == 4:
+				return np.fliplr(np_array)
+			elif flag == 5:
+				return np.fliplr(np.rot90(np_array))
+			elif flag == 6:
+				return np.fliplr(np.rot90(np_array, 2))
+			elif flag == 7:
+				return np.fliplr(np.rot90(np_array, 3))
+			else:
+				raise IndexError("Invalid flag selection for image flip/rotation, must be integer 0 - 7.")
 
 		def gen_slice():
 			for c in coord:
-				yield whole_slide_image[c[0]:c[0] + window_size[0], c[1]:c[1] + window_size[1],]
+				rotated = rotate_image(whole_slide_image[c[0]:c[0] + window_size[0], c[1]:c[1] + window_size[1],], c[2])
+				#matrix_mean = np.matrix(rotated[:,:,0]).mean()
+				#imsave('img/c{}.jpg'.format(str(c[0])+'-'+str(c[1])+'-'+str(c[2])), rotated)
+				yield rotated
+				#yield [matrix_mean, c[0], c[1], c[2], c[0]]
+
+		# Function for testing/troubleshooting
+		def gen_coord_d():
+			for c in coord_d:
+				yield [c[0], c[1], c[0], c[1], c[0]]
 
 		with tf.Graph().as_default() as g:
 			# Generate dataset from coordinates
-			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (self.DTYPE))
+			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (self.DTYPE)) # replace gen_slice with gen_coord_d for testing purposes
 			tile_dataset = tile_dataset.batch(self.BATCH_SIZE, drop_remainder = False)
 			tile_dataset = tile_dataset.prefetch(2)
 			tile_iterator = tile_dataset.make_one_shot_iterator()
@@ -95,9 +128,12 @@ class Convoluter:
 			image_patches = tf.map_fn(lambda patch: tf.cast(tf.image.per_image_standardization(patch), self.DTYPE), next_batch)
 
 			# Pad the batch if necessary to create a batch of minimum size BATCH_SIZE
-			padded_batch = tf.concat([image_patches, tf.zeros([self.BATCH_SIZE - tf.shape(image_patches)[0], self.SIZE, self.SIZE, 3], 
+			padded_batch = tf.concat([image_patches, tf.zeros([self.BATCH_SIZE - tf.shape(image_patches)[0], self.SIZE, self.SIZE, 3], # image_patches instead of next_batch
 														dtype=self.DTYPE)], 0)
 			padded_batch.set_shape([self.BATCH_SIZE, self.SIZE, self.SIZE, 3])
+
+			'''padded_batch = tf.concat([next_batch, tf.zeros([self.BATCH_SIZE - tf.shape(next_batch)[0], 5], dtype=self.DTYPE)], 0)
+			padded_batch.set_shape([self.BATCH_SIZE, 5])'''
 
 			with arg_scope(inception_arg_scope()):
 				_, end_points = inception_v4.inception_v4(padded_batch, num_classes = self.NUM_CLASSES)
@@ -118,9 +154,9 @@ class Convoluter:
 
 				logits_arr = []
 
-				x_logits_len = int(self.X_SIZE / window_stride[0])+1
-				y_logits_len = int(self.Y_SIZE / window_stride[1])+1
-				total_logits_count = x_logits_len * y_logits_len
+				x_logits_len = int(self.X_SIZE / window_stride[1])+1
+				y_logits_len = int(self.Y_SIZE / window_stride[0])+1
+				total_logits_count = x_logits_len * y_logits_len * 8	# Multiplied by 8, as there are 8 different flip/rotation combinations
 
 				if total_logits_count != len(coord):
 					raise Exception("The expected total number of window tiles does not match the number of generated starting points for window tiles.")
@@ -134,6 +170,10 @@ class Convoluter:
 																			.format(min(count, total_logits_count),
 																			 total_logits_count))
 						new_logits = sess.run(tf.cast(slogits, tf.float32))
+
+						# Execute this code for debugging purposes if using gen_coord_d
+						#new_logits = sess.run(tf.cast(padded_batch, tf.float32))
+
 						logits_arr = new_logits if logits_arr == [] else np.concatenate([logits_arr, new_logits])
 					except tf.errors.OutOfRangeError:
 						print("End of image detected.")
@@ -144,18 +184,36 @@ class Convoluter:
 			# Crop the output to exclude padding
 			print("total size of padded dataset: {}".format(logits_arr.shape))
 			logits_arr = logits_arr[0:total_logits_count]
-			logits_out = np.resize(logits_arr, [y_logits_len, x_logits_len, self.NUM_CLASSES])
 
+			print('First value of unmerged array:')
+			print(logits_arr[0])
 
+			# Average logits across different flips/rotations
+			if logits_arr.shape[0] % 8 != 0:
+				raise IndexError("Output logits not divisible by 8, likely error with padding.")
 
 			# Save output in Python Pickle format for later display
-			pkl_name = ''.join(self.WHOLE_IMAGE.split('/')[-1].split('.')[:-1]) + '.pkl'
+			case_name = ''.join(self.WHOLE_IMAGE.split('/')[-1].split('.')[:-1])
+			pkl_name =  case_name + '.pkl'
+
+			with open('raw_'+pkl_name, 'wb') as handle:
+				pickle.dump(logits_arr.reshape(-1, 8, self.NUM_CLASSES), handle)
+			
+			logits_arr = np.mean(logits_arr.reshape(-1, 8, self.NUM_CLASSES), axis=1)
+
+			print('First value of merged array:')
+			print(logits_arr[0])
+
+			# Organize array into 2D format corresponding to where each logit was calculated
+			logits_out = np.resize(logits_arr, [y_logits_len, x_logits_len, self.NUM_CLASSES])
+
 			with open(pkl_name, 'wb') as handle:
 				pickle.dump(logits_out, handle)
 			
-			self.display(self.WHOLE_IMAGE, logits_out, self.SIZE)
+			if display: 
+				self.display(self.WHOLE_IMAGE, logits_out, self.SIZE, case_name)
 
-	def display(self, image_file, logits, size):
+	def display(self, image_file, logits, size, name):
 		'''Displays logits calculated using scan_image as a heatmap overlay.'''
 		print("Received logits, size=%s, (%s x %s)" % (size, len(logits), len(logits[0])))
 		print("Calculating overlay matrix...")
@@ -165,7 +223,7 @@ class Convoluter:
 		fig = plt.figure()
 		ax = fig.add_subplot(111)
 
-		fig.subplots_adjust(bottom = 0.25)
+		fig.subplots_adjust(bottom = 0.25, top=0.95)
 
 		im = plt.imread(image_file)
 		implot = ax.imshow(im, zorder=0)
@@ -195,6 +253,7 @@ class Convoluter:
 			heatmap_dict.update({"Class{}".format(i): [heatmap, slider]})
 			slider.on_changed(slider_func)
 
+		fig.canvas.set_window_title(name)
 		plt.show()
 
 	def load_pkl_and_scan_image(self, pkl_file):
@@ -202,7 +261,18 @@ class Convoluter:
 		with open(pkl_file, 'rb') as handle:
 			logits = pickle.load(handle)
 
-		self.display(self.WHOLE_IMAGE, logits, self.SIZE)
+		# Remove this 
+		'''self.Y_SIZE = shape[0] - self.SIZE
+		self.X_SIZE = shape[1] - self.SIZE
+		window_stride = [int(self.SIZE/4), int(self.SIZE/4)]
+
+		x_logits_len = int(self.X_SIZE / window_stride[1])+1
+		y_logits_len = int(self.Y_SIZE / window_stride[0])+1'''
+
+		logits = logits[:, 0, :]
+		logits_arr = np.resize(logits, [217, 167, self.NUM_CLASSES])
+
+		self.display(self.WHOLE_IMAGE, logits_arr, self.SIZE, pkl_file.split('/')[-1])
 
 if __name__==('__main__'):
 	os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"

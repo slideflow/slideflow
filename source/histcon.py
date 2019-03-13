@@ -52,7 +52,8 @@ class HistconModel:
 	MOVING_AVERAGE_DECAY = 0.9999 		# Decay to use for the moving average.
 	NUM_EPOCHS_PER_DECAY = 240.0		# Epochs after which learning rate decays.
 	LEARNING_RATE_DECAY_FACTOR = 0.05	# Learning rate decay factor.
-	INITIAL_LEARNING_RATE = 0.001			# Initial learning rate.
+	INITIAL_LEARNING_RATE = 0.001		# Initial learning rate.
+	ADAM_LEARNING_RATE = 0.01			# Learning rate for the Adams Optimizer.
 
 	# Variables previous created with parser & FLAGS
 	BATCH_SIZE = 32
@@ -259,7 +260,7 @@ class HistconModel:
 		# Compute gradients.
 		with tf.control_dependencies([loss_averages_op]):
 			#opt = tf.train.GradientDescentOptimizer(lr)
-			opt = tf.train.AdamOptimizer(learning_rate=0.01,
+			opt = tf.train.AdamOptimizer(learning_rate=self.ADAM_LEARNING_RATE,
     									 beta1=0.9,
     									 beta2=0.999,
     									 epsilon=1.0)
