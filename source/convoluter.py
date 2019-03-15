@@ -32,6 +32,8 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as mcol
 
+from fastim import FastImshow
+
 Image.MAX_IMAGE_PIXELS = 100000000000
 
 class Convoluter:
@@ -265,10 +267,54 @@ class Convoluter:
 		fig.canvas.set_window_title(name)
 		plt.show()
 
+	def fast_display(self, image_file, logits, size, name):
+		'''*** Experimental ***'''
+		print("Received logits, size=%s, (%s x %s)" % (size, len(logits), len(logits[0])))
+		print("Calculating overlay matrix and displaying with dynamic resampling...")
+
+		fig = plt.figure()
+		ax = fig.add_subplot(111)
+		fig.subplots_adjust(bottom = 0.25, top=0.95)
+
+		buf = plt.imread(image_file)
+		implot = FastImshow(buf, ax, extent=None, tgt_res=1024)
+		gca = plt.gca()
+		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
+
+		# Calculations to determine appropriate offset for heatmap
+		im_extent = implot.extent
+		extent = [im_extent[0] + size/2, im_extent[1] - size/2, im_extent[2] - size/2, im_extent[3] + size/2]
+
+		# Define color map
+		jetMap = np.linspace(0.45, 0.95, 255)
+		cmMap = cm.nipy_spectral(jetMap)
+		newMap = mcol.ListedColormap(cmMap)
+
+		heatmap_dict = {}
+
+		def slider_func(val):
+			for h, s in heatmap_dict.values():
+				h.set_alpha(s.val)
+
+		# Make heatmaps and sliders
+		for i in range(self.NUM_CLASSES):
+			ax_slider = fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor='lightgoldenrodyellow')
+			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
+			slider = Slider(ax_slider, 'Class {}'.format(i), 0, 1, valinit = 0)
+			heatmap_dict.update({"Class{}".format(i): [heatmap, slider]})
+			slider.on_changed(slider_func)
+
+		fig.canvas.set_window_title(name)
+		implot.show()
+		plt.show()
+
 	def load_pkl_and_scan_image(self, pkl_file):
 		print("Loading pre-calculated logits...")
 		with open(pkl_file, 'rb') as handle:
 			logits = pickle.load(handle)
+
+		if not self.NUM_CLASSES:
+			self.NUM_CLASSES = logits.shape[2] 
 
 		# Remove this 
 		'''self.Y_SIZE = shape[0] - self.SIZE
@@ -281,7 +327,7 @@ class Convoluter:
 		logits = logits[:, 0, :]
 		logits_arr = np.resize(logits, [217, 167, self.NUM_CLASSES])
 
-		self.display(self.WHOLE_IMAGE, logits_arr, self.SIZE, pkl_file.split('/')[-1])
+		self.fast_display(self.WHOLE_IMAGE, logits_arr, self.SIZE, pkl_file.split('/')[-1])
 
 if __name__==('__main__'):
 	os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
