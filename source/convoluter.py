@@ -284,7 +284,7 @@ class Convoluter:
 
 		# Calculations to determine appropriate offset for heatmap
 		im_extent = implot.extent
-		extent = [im_extent[0] + size/2, im_extent[1] - size/2, im_extent[2] - size/2, im_extent[3] + size/2]
+		extent = [im_extent[0] + size/2, im_extent[1] - size/2, im_extent[2] + size/2, im_extent[3] - size/2]
 
 		# Define color map
 		jetMap = np.linspace(0.45, 0.95, 255)
@@ -325,10 +325,10 @@ class Convoluter:
 		x_logits_len = int(self.X_SIZE / window_stride[1])+1
 		y_logits_len = int(self.Y_SIZE / window_stride[0])+1'''
 
-		logits = logits[:, 0, :]
-		logits_arr = np.resize(logits, [217, 167, self.NUM_CLASSES])
+		'''logits = logits[:, 0, :]
+		logits_arr = np.resize(logits, [217, 167, self.NUM_CLASSES])'''
 
-		self.fast_display(self.WHOLE_IMAGE, logits_arr, self.SIZE, pkl_file.split('/')[-1])
+		self.fast_display(self.WHOLE_IMAGE, logits, self.SIZE, pkl_file.split('/')[-1])
 
 if __name__==('__main__'):
 	os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
