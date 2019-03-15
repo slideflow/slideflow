@@ -336,6 +336,7 @@ if __name__==('__main__'):
 
 	parser = argparse.ArgumentParser(description = 'Convolutionally applies a saved Tensorflow model to a larger image, displaying the result as a heatmap overlay.')
 	parser.add_argument('-d', '--dir', help='Path to model directory containing stored checkpoint.')
+        parser.add_argument('-f', '--folder', help='Folder to search for whole-slide-images to analyze.')
 	parser.add_argument('-l', '--load', help='Python Pickle file containing pre-calculated weights to load')
 	parser.add_argument('-i', '--image', help='Image on which to apply heatmap.')
 	parser.add_argument('-s', '--size', type=int, help='Size of image patches to analyze.')
@@ -347,7 +348,12 @@ if __name__==('__main__'):
 	if args.load:
 		c = Convoluter(args.image, None, args.size, args.classes, args.batch, args.fp16)
 		c.load_pkl_and_scan_image(args.load)
-	else:
+        elif args.folder:
+                c = Convoluter('', args.dir, args.size, args.classes, args.batch, args.fp16)
+                for f in [f for f in os.listdir(args.folder) if (os.path.isfile(os.path.join(args.folder, f)) and (f[-3:] == "jpg")]:
+                    c.WHOLE_IMAGE = os.path.join(args.folder, f)
+                    c.scan_image(False)
+        else:
 		c = Convoluter(args.image, args.dir, args.size, args.classes, args.batch, args.fp16)
 		c.scan_image()
 
