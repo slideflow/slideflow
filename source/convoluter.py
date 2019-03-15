@@ -104,9 +104,10 @@ class Convoluter:
 				raise IndexError("Invalid flag selection for image flip/rotation, must be integer 0 - 7.")
 
 		def gen_slice():
-			for c in coord:
+			for ci in range(len(coord)):
+				c = coord[ci]
 				rotated = rotate_image(whole_slide_image[c[0]:c[0] + window_size[0], c[1]:c[1] + window_size[1],], c[2])
-				coord_label =str (c[0])+'-'+str(c[1])
+				coord_label = ci #str (c[0])+'-'+str(c[1])
 				#matrix_mean = np.matrix(rotated[:,:,0]).mean()
 				#imsave('img/c{}.jpg'.format(str(c[0])+'-'+str(c[1])+'-'+str(c[2])), rotated)
 				yield rotated, coord_label
@@ -119,11 +120,11 @@ class Convoluter:
 
 		with tf.Graph().as_default() as g:
 			# Generate dataset from coordinates
-			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (self.DTYPE)) # replace gen_slice with gen_coord_d for testing purposes
+			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (self.DTYPE, tf.int64)) # replace gen_slice with gen_coord_d for testing purposes
 			tile_dataset = tile_dataset.batch(self.BATCH_SIZE, drop_remainder = False)
 			tile_dataset = tile_dataset.prefetch(2)
 			tile_iterator = tile_dataset.make_one_shot_iterator()
-			next_batch_images, next_batch_labels = tile_iterator.get_next()
+			next_batch_images, next_batch_labels  = tile_iterator.get_next() #next_batch_labels
 			#next_coord = tf.cast(next_coord, tf.int32)
 
 			# Generate ops that will convert batch of coordinates to extracted & processed image patches from whole-slide-image
