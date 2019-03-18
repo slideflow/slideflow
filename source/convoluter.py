@@ -31,13 +31,14 @@ from matplotlib.widgets import Slider
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as mcol
+from matplotlib import pyplot as mp
 
 from fastim import FastImshow
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 
 class Convoluter:
-	def __init__(self, whole_image, model_dir, size, num_classes, batch_size, use_fp16):
+	def __init__(self, whole_image, model_dir, size, num_classes, batch_size, use_fp16, save_folder = ''):
 		self.WHOLE_IMAGE = whole_image
 		self.MODEL_DIR = model_dir
 		self.SIZE = size
@@ -46,12 +47,12 @@ class Convoluter:
 		self.USE_FP16 = use_fp16
 		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
 		self.DTYPE_INT = tf.int16 if self.USE_FP16 else tf.int32
+		self.SAVE_FOLDER = save_folder
 
 		# Display variables
-		stride_divisor = 4
-		self.STRIDES = [1, int(size/stride_divisor), int(size/stride_divisor), 1]
+		self.STRIDE = 4
 
-	def scan_image(self, display=True):
+	def scan_image(self, display=True, prefix=''):
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 
 		# Load whole-slide-image into Numpy array
@@ -62,7 +63,7 @@ class Convoluter:
 
 		# Calculate window sizes, strides, and coordinates for windows
 		window_size = [self.SIZE, self.SIZE]
-		window_stride = [int(self.SIZE/4), int(self.SIZE/4)]
+		window_stride = [int(self.SIZE/self.STRIDE), int(self.SIZE/self.STRIDE)]
 
 		#tf.cast(***, tf.int32)
 
@@ -78,8 +79,10 @@ class Convoluter:
 		for y in range(0, (shape[0]+1) - window_size[0], window_stride[0]):
 			for x in range(0, (shape[1]+1) - window_size[1], window_stride[1]):
 				# f is a flag (number 0 -7) which corresponds to a flip/rotation combination
+				coord.append([y, x])
 				for f in range(8):
-					coord.append([y, x, f])
+					#coord.append([y, x, f])
+					
 					# coord_d is purely for debugging purposes
 					coord_d.append([y/self.Y_SIZE, x/self.X_SIZE, f])
 
@@ -106,7 +109,7 @@ class Convoluter:
 		def gen_slice():
 			for ci in range(len(coord)):
 				c = coord[ci]
-				rotated = rotate_image(whole_slide_image[c[0]:c[0] + window_size[0], c[1]:c[1] + window_size[1],], c[2])
+				rotated = whole_slide_image[c[0]:c[0] + window_size[0], c[1]:c[1] + window_size[1],]   #, c[2])
 				coord_label = ci #str (c[0])+'-'+str(c[1])
 				#matrix_mean = np.matrix(rotated[:,:,0]).mean()
 				#imsave('img/c{}.jpg'.format(str(c[0])+'-'+str(c[1])+'-'+str(c[2])), rotated)
@@ -161,7 +164,7 @@ class Convoluter:
 
 				x_logits_len = int(self.X_SIZE / window_stride[1])+1
 				y_logits_len = int(self.Y_SIZE / window_stride[0])+1
-				total_logits_count = x_logits_len * y_logits_len * 8	# Multiplied by 8, as there are 8 different flip/rotation combinations
+				total_logits_count = x_logits_len * y_logits_len	# Multiplied by 8, as there are 8 different flip/rotation combinations
 
 				if total_logits_count != len(coord):
 					raise Exception("The expected total number of window tiles does not match the number of generated starting points for window tiles.")
@@ -201,29 +204,29 @@ class Convoluter:
 			labels_arr = labels_arr[sorted_indices]
 
 			# Average logits across different flips/rotations
-			if logits_arr.shape[0] % 8 != 0:
-				raise IndexError("Output logits not divisible by 8, likely error with padding.")
+			#if logits_arr.shape[0] % 8 != 0:
+			#	raise IndexError("Output logits not divisible by 8, likely error with padding.")
 
 			# Save output in Python Pickle format for later display
 			case_name = ''.join(self.WHOLE_IMAGE.split('/')[-1].split('.')[:-1])
 			pkl_name =  case_name + '.pkl'
 
-			with open('raw_'+pkl_name, 'wb') as handle:
-				pickle.dump(logits_arr.reshape(-1, 8, self.NUM_CLASSES), handle)
+			#with open('raw_'+pkl_name, 'wb') as handle:
+			#	pickle.dump(logits_arr.reshape(-1, 8, self.NUM_CLASSES), handle)
 			
-			logits_arr = np.mean(logits_arr.reshape(-1, 8, self.NUM_CLASSES), axis=1)
+			#logits_arr = np.mean(logits_arr.reshape(-1, 8, self.NUM_CLASSES), axis=1)
 
-			print('First value of merged array:')
-			print(logits_arr[0])
+			#print('First value of merged array:')
+			#print(logits_arr[0])
 
 			# Organize array into 2D format corresponding to where each logit was calculated
 			logits_out = np.resize(logits_arr, [y_logits_len, x_logits_len, self.NUM_CLASSES])
 
-			with open(pkl_name, 'wb') as handle:
+			with open(os.path.join(self.SAVE_FOLDER, prefix+pkl_name), 'wb') as handle:
 				pickle.dump(logits_out, handle)
 			
 			if display: 
-				self.display(self.WHOLE_IMAGE, logits_out, self.SIZE, case_name)
+				self.fast_display(self.WHOLE_IMAGE, logits_out, self.SIZE, case_name)
 
 	def display(self, image_file, logits, size, name):
 		'''Displays logits calculated using scan_image as a heatmap overlay.'''
@@ -267,6 +270,48 @@ class Convoluter:
 
 		fig.canvas.set_window_title(name)
 		plt.show()
+
+	def save_heatmaps(self, image_file, logits, size, name):
+		'''Displays logits calculated using scan_image as a heatmap overlay.'''
+		print("Received logits, size=%s, (%s x %s)" % (size, len(logits), len(logits[0])))
+		print("Loading image and assembling heatmap for image {}...".format(image_file))
+
+		axis_color = 'lightgoldenrodyellow'
+
+		fig = plt.figure(figsize=(18, 16))
+		ax = fig.add_subplot(111)
+
+		fig.subplots_adjust(bottom = 0.25, top=0.95)
+
+		im = plt.imread(image_file)
+		implot = ax.imshow(im, zorder=0)
+		gca = plt.gca()
+		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
+
+		# Calculations to determine appropriate offset for heatmap
+		im_extent = implot.get_extent()
+		extent = [im_extent[0] + size/2, im_extent[1] - size/2, im_extent[2] - size/2, im_extent[3] + size/2]
+
+		# Define color map
+		jetMap = np.linspace(0.45, 0.95, 255)
+		cmMap = cm.nipy_spectral(jetMap)
+		newMap = mcol.ListedColormap(cmMap)
+
+		heatmap_dict = {}
+
+		# Make heatmaps and sliders
+		for i in range(self.NUM_CLASSES):
+			#ax_slider = fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor=axis_color)
+			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
+			#slider = Slider(ax_slider, 'Class {}'.format(i), 0, 1, valinit = 0)
+			heatmap_dict.update({i: heatmap})
+
+		mp.savefig(os.path.join(self.SAVE_FOLDER, '{}-raw.png'.format(name)), bbox_inches='tight')
+
+		for i in range(self.NUM_CLASSES):
+			heatmap_dict[i].set_alpha(0.6)
+			mp.savefig(os.path.join(self.SAVE_FOLDER, '{}-{}.png'.format(name, i)), bbox_inches='tight')
+			heatmap_dict[i].set_alpha(0.0)
 
 	def fast_display(self, image_file, logits, size, name):
 		'''*** Experimental ***'''
@@ -330,30 +375,51 @@ class Convoluter:
 
 		self.fast_display(self.WHOLE_IMAGE, logits, self.SIZE, pkl_file.split('/')[-1])
 
+	def load_pkl_and_save_heatmaps(self, pkl_file):
+		print("Loading pre-calculated logits...")
+		with open(pkl_file, 'rb') as handle:
+			logits = pickle.load(handle)
+
+		if not self.NUM_CLASSES:
+			self.NUM_CLASSES = logits.shape[2] 
+
+		self.save_heatmaps(self.WHOLE_IMAGE, logits, self.SIZE, pkl_file.split('/')[-1])
+
 if __name__==('__main__'):
 	os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 	tf.logging.set_verbosity(tf.logging.ERROR)
 
 	parser = argparse.ArgumentParser(description = 'Convolutionally applies a saved Tensorflow model to a larger image, displaying the result as a heatmap overlay.')
 	parser.add_argument('-d', '--dir', help='Path to model directory containing stored checkpoint.')
-        parser.add_argument('-f', '--folder', help='Folder to search for whole-slide-images to analyze.')
+	parser.add_argument('-f', '--folder', help='Folder to search for whole-slide-images to analyze.')
 	parser.add_argument('-l', '--load', help='Python Pickle file containing pre-calculated weights to load')
 	parser.add_argument('-i', '--image', help='Image on which to apply heatmap.')
 	parser.add_argument('-s', '--size', type=int, help='Size of image patches to analyze.')
 	parser.add_argument('-c', '--classes', type=int, help='Number of unique output classes contained in the model.')
 	parser.add_argument('-b', '--batch', type=int, default = 64, help='Batch size for which to run the analysis.')
 	parser.add_argument('--fp16', action="store_true", help='Use Float16 operators (half-precision) instead of Float32.')
+	parser.add_argument('--save', action="store_true", help='Save heatmaps to PNG file instead of displaying.')
 	args = parser.parse_args()
 
 	if args.load:
 		c = Convoluter(args.image, None, args.size, args.classes, args.batch, args.fp16)
 		c.load_pkl_and_scan_image(args.load)
-        elif args.folder:
-                c = Convoluter('', args.dir, args.size, args.classes, args.batch, args.fp16)
-                for f in [f for f in os.listdir(args.folder) if (os.path.isfile(os.path.join(args.folder, f)) and (f[-3:] == "jpg")]:
-                    c.WHOLE_IMAGE = os.path.join(args.folder, f)
-                    c.scan_image(False)
-        else:
+	elif args.folder:
+		if args.dir:
+			# Load images from a directory and calculate logits
+			c = Convoluter('', args.dir, args.size, args.classes, args.batch, args.fp16, save_folder = args.folder)
+			for f in [f for f in os.listdir(args.folder) if (os.path.isfile(os.path.join(args.folder, f)) and (f[-3:] == "jpg"))]:
+				c.WHOLE_IMAGE = os.path.join(args.folder, f)
+				c.scan_image(False, 'active_')
+		elif args.save:
+			# Load images from a directory and save heatmaps as image files
+			for f in [f for f in os.listdir(args.folder) if (os.path.isfile(os.path.join(args.folder, f)) and (f[-3:] == "pkl"))]:
+				pkl = os.path.join(args.folder, f)
+				#the [7: component below is a temporary workaround since I exported my pkl files with the prefix 'active_'
+				image = os.path.join(args.folder, f[7:-4]+'.jpg')
+				c = Convoluter(image, None, args.size, args.classes, args.batch, args.fp16, save_folder = args.folder)
+				c.load_pkl_and_save_heatmaps(pkl)
+	else:
 		c = Convoluter(args.image, args.dir, args.size, args.classes, args.batch, args.fp16)
 		c.scan_image()
 
