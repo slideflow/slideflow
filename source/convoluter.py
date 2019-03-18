@@ -274,7 +274,7 @@ class Convoluter:
 	def save_heatmaps(self, image_file, logits, size, name):
 		'''Displays logits calculated using scan_image as a heatmap overlay.'''
 		print("Received logits, size=%s, (%s x %s)" % (size, len(logits), len(logits[0])))
-		print("Loading image and assembling heatmap for image {}...".format(image_file))
+		print("Loading image and assembling heatmaps for image {}...".format(image_file))
 
 		axis_color = 'lightgoldenrodyellow'
 
@@ -312,6 +312,8 @@ class Convoluter:
 			heatmap_dict[i].set_alpha(0.6)
 			mp.savefig(os.path.join(self.SAVE_FOLDER, '{}-{}.png'.format(name, i)), bbox_inches='tight')
 			heatmap_dict[i].set_alpha(0.0)
+
+		mp.close()
 
 	def fast_display(self, image_file, logits, size, name):
 		'''*** Experimental ***'''
