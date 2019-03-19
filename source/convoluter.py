@@ -82,7 +82,6 @@ class Convoluter:
 				coord.append([y, x])
 				for f in range(8):
 					#coord.append([y, x, f])
-					
 					# coord_d is purely for debugging purposes
 					coord_d.append([y/self.Y_SIZE, x/self.X_SIZE, f])
 
@@ -228,59 +227,12 @@ class Convoluter:
 			if display: 
 				self.fast_display(self.WHOLE_IMAGE, logits_out, self.SIZE, case_name)
 
-	def display(self, image_file, logits, size, name):
-		'''Displays logits calculated using scan_image as a heatmap overlay.'''
-		print("Received logits, size=%s, (%s x %s)" % (size, len(logits), len(logits[0])))
-		print("Calculating overlay matrix...")
-
-		axis_color = 'lightgoldenrodyellow'
-
-		fig = plt.figure()
-		ax = fig.add_subplot(111)
-
-		fig.subplots_adjust(bottom = 0.25, top=0.95)
-
-		im = plt.imread(image_file)
-		implot = ax.imshow(im, zorder=0)
-		gca = plt.gca()
-		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
-
-		# Calculations to determine appropriate offset for heatmap
-		im_extent = implot.get_extent()
-		extent = [im_extent[0] + size/2, im_extent[1] - size/2, im_extent[2] - size/2, im_extent[3] + size/2]
-
-		# Define color map
-		jetMap = np.linspace(0.45, 0.95, 255)
-		cmMap = cm.nipy_spectral(jetMap)
-		newMap = mcol.ListedColormap(cmMap)
-
-		heatmap_dict = {}
-
-		def slider_func(val):
-			for h, s in heatmap_dict.values():
-				h.set_alpha(s.val)
-
-		# Make heatmaps and sliders
-		for i in range(self.NUM_CLASSES):
-			ax_slider = fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor=axis_color)
-			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
-			slider = Slider(ax_slider, 'Class {}'.format(i), 0, 1, valinit = 0)
-			heatmap_dict.update({"Class{}".format(i): [heatmap, slider]})
-			slider.on_changed(slider_func)
-
-		fig.canvas.set_window_title(name)
-		plt.show()
-
 	def save_heatmaps(self, image_file, logits, size, name):
 		'''Displays logits calculated using scan_image as a heatmap overlay.'''
-		print("Received logits, size=%s, (%s x %s)" % (size, len(logits), len(logits[0])))
 		print("Loading image and assembling heatmaps for image {}...".format(image_file))
-
-		axis_color = 'lightgoldenrodyellow'
 
 		fig = plt.figure(figsize=(18, 16))
 		ax = fig.add_subplot(111)
-
 		fig.subplots_adjust(bottom = 0.25, top=0.95)
 
 		im = plt.imread(image_file)
@@ -301,7 +253,6 @@ class Convoluter:
 
 		# Make heatmaps and sliders
 		for i in range(self.NUM_CLASSES):
-			#ax_slider = fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor=axis_color)
 			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
 			#slider = Slider(ax_slider, 'Class {}'.format(i), 0, 1, valinit = 0)
 			heatmap_dict.update({i: heatmap})
@@ -363,17 +314,6 @@ class Convoluter:
 
 		if not self.NUM_CLASSES:
 			self.NUM_CLASSES = logits.shape[2] 
-
-		# Remove this 
-		'''self.Y_SIZE = shape[0] - self.SIZE
-		self.X_SIZE = shape[1] - self.SIZE
-		window_stride = [int(self.SIZE/4), int(self.SIZE/4)]
-
-		x_logits_len = int(self.X_SIZE / window_stride[1])+1
-		y_logits_len = int(self.Y_SIZE / window_stride[0])+1'''
-
-		'''logits = logits[:, 0, :]
-		logits_arr = np.resize(logits, [217, 167, self.NUM_CLASSES])'''
 
 		self.fast_display(self.WHOLE_IMAGE, logits, self.SIZE, pkl_file.split('/')[-1])
 
