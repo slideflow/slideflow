@@ -22,6 +22,7 @@ from datetime import datetime
 
 import numpy as np
 import pickle
+import argparse
 
 import tensorflow as tf
 from tensorflow.contrib.framework import arg_scope
@@ -32,6 +33,7 @@ from tensorboard.plugins.custom_scalar import layout_pb2
 import inception_v4
 from inception_utils import inception_arg_scope
 
+# TODO: Fix restore checkpoint (not retraining)
 # Ansswer for retraining here: https://github.com/tensorflow/tensorflow/issues/6081
 
 class HistconModel:
@@ -43,8 +45,8 @@ class HistconModel:
 	# Process images of the below size. If this number is altered, the
 	# model architecture will change and will need to be retrained.
 
-	IMAGE_SIZE = 128
-	NUM_CLASSES = 2
+	IMAGE_SIZE = 512
+	NUM_CLASSES = 6
 
 	NUM_EXAMPLES_PER_EPOCH = 1024
 
@@ -56,7 +58,7 @@ class HistconModel:
 	ADAM_LEARNING_RATE = 0.01			# Learning rate for the Adams Optimizer.
 
 	# Variables previous created with parser & FLAGS
-	BATCH_SIZE = 2
+	BATCH_SIZE =32
 	WHOLE_IMAGE = '' # Filename of whole image (JPG) to evaluate with saved model
 	MAX_EPOCH = 30
 	LOG_FREQUENCY = 20 # How often to log results to console, in steps
@@ -310,8 +312,13 @@ class HistconModel:
 	def train(self, retrain_model = None, retrain_weights = None, restore_checkpoint = None):
 		'''Train HISTCON for a number of steps, according to flags set by the argument parser.'''
 		
-		ckpt = tf.train.get_checkpoint_state(restore_checkpoint)
+		if restore_checkpoint:
+			ckpt = tf.train.get_checkpoint_state(restore_checkpoint)
+
 		global_step = tf.train.get_or_create_global_step()
+
+		variables_to_ignore = ("InceptionV4/Logits/Logits/weights:0", "InceptionV4/Logits/Logits/biases:0")
+		variables_to_restore = []
 
 		# -- INPUT ---------------------------------------------------------------------------------
 
@@ -322,6 +329,11 @@ class HistconModel:
 
 		with arg_scope(inception_arg_scope()):
 			logits, end_points = inception_v4.inception_v4(next_batch_images, num_classes=self.NUM_CLASSES)
+
+			if restore_checkpoint:
+				for trainable_var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+					if (trainable_var.name not in variables_to_ignore) and (trainable_var.name[12:21] != "AuxLogits"):
+						variables_to_restore.append(trainable_var)
 
 		# Load pre-trained weights if provided
 		if retrain_model:
@@ -395,7 +407,9 @@ class HistconModel:
 										images_per_sec, sec_per_batch))
 
 		loggerhook = _LoggerHook(train_it.string_handle(), test_it.string_handle(), self)
-		saver = tf.train.Saver()
+
+		if restore_checkpoint:
+			pretrained_saver = tf.train.Saver(variables_to_restore)
 
 		with tf.train.MonitoredTrainingSession(
 			checkpoint_dir = self.MODEL_DIR,
@@ -409,9 +423,9 @@ class HistconModel:
 			train_writer = SummaryWriterCache.get(self.TRAIN_DIR)
 			train_writer.add_summary(layout_summary)
 
-			if ckpt and ckpt.model_checkpoint_path:
+			if restore_checkpoint and ckpt and ckpt.model_checkpoint_path:
 				print("Restoring checkpoint...")
-				saver.restore(mon_sess, ckpt.model_checkpoint_path)
+				pretrained_saver.restore(mon_sess, ckpt.model_checkpoint_path)
 			
 			while not mon_sess.should_stop():
 				_, merged, step = mon_sess.run([train_op, inception_summaries, global_step], feed_dict={it_handle:loggerhook.train_iterator_handle})
@@ -442,12 +456,13 @@ class HistconModel:
 			var_dict = pickle.load(f)
 		self.train(retrain_model = model, retrain_weights = var_dict)
 
-def main(argv=None):
+if __name__ == "__main__":
 	os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 	tf.logging.set_verbosity(tf.logging.ERROR)
-	histcon = HistconModel('/Users/james/histcon')
-	histcon.train(restore_checkpoint = '/Users/james/thyroid/models/active')
 
+	parser = argparse.ArgumentParser(description = "Train a CNN using an Inception-v4 network")
+	parser.add_argument('-r', '--retrain', help='Path to directory containing model to use as pretraining')
+	args = parser.parse_args()
 
-if __name__ == "__main__":
-	tf.app.run()
+	histcon = HistconModel('/home/shawarma/histcon')
+	histcon.train(restore_checkpoint = args.retrain)
