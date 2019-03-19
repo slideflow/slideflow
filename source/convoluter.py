@@ -344,7 +344,7 @@ if __name__==('__main__'):
 	args = parser.parse_args()
 
 	if args.load:
-		c = Convoluter(args.image, None, args.size, args.classes, args.batch, args.fp16)
+		c = Convoluter(args.image, None, args.size, args.classes, 1, args.fp16)
 		c.load_pkl_and_scan_image(args.load)
 	elif args.folder:
 		if args.dir:
@@ -352,14 +352,14 @@ if __name__==('__main__'):
 			c = Convoluter('', args.dir, args.size, args.classes, args.batch, args.fp16, save_folder = args.folder)
 			for f in [f for f in os.listdir(args.folder) if (os.path.isfile(os.path.join(args.folder, f)) and (f[-3:] == "jpg"))]:
 				c.WHOLE_IMAGE = os.path.join(args.folder, f)
-				c.scan_image(False, 'active_')
+				c.scan_image(False, '')
 		elif args.save:
 			# Load images from a directory and save heatmaps as image files
 			for f in [f for f in os.listdir(args.folder) if (os.path.isfile(os.path.join(args.folder, f)) and (f[-3:] == "pkl"))]:
 				pkl = os.path.join(args.folder, f)
 				#the [7: component below is a temporary workaround since I exported my pkl files with the prefix 'active_'
 				image = os.path.join(args.folder, f[7:-4]+'.jpg')
-				c = Convoluter(image, None, args.size, args.classes, args.batch, args.fp16, save_folder = args.folder)
+				c = Convoluter(image, None, args.size, args.classes, 1, args.fp16, save_folder = args.folder)
 				c.load_pkl_and_save_heatmaps(pkl)
 	else:
 		c = Convoluter(args.image, args.dir, args.size, args.classes, args.batch, args.fp16)
