@@ -25,6 +25,7 @@ from inception_utils import inception_arg_scope
 from PIL import Image
 import argparse
 import pickle
+import csv
 from scipy.misc import imsave
 
 from matplotlib.widgets import Slider
@@ -52,7 +53,7 @@ class Convoluter:
 		# Display variables
 		self.STRIDE = 4
 
-	def scan_image(self, display=True, prefix='', save = False, export_tiles = False):
+	def scan_image(self, display=True, prefix='', save = False, export_tiles = False, final_layer = True):
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 
 		# Load whole-slide-image into Numpy array
@@ -60,6 +61,7 @@ class Convoluter:
 		shape = whole_slide_image.shape
 		case_name = ''.join(self.WHOLE_IMAGE.split('/')[-1].split('.')[:-1])
 		pkl_name =  case_name + '.pkl'
+		if final_layer: display = False
 
 		print(f"Loading image of size {shape[0]} x {shape[1]}")
 
@@ -78,8 +80,6 @@ class Convoluter:
 		for y in range(0, (shape[0]+1) - window_size[0], window_stride[0]):
 			for x in range(0, (shape[1]+1) - window_size[1], window_stride[1]):
 				coord.append([y, x])
-			else:
-				raise IndexError("Invalid flag selection for image flip/rotation, must be integer 0 - 7.")
 
 		def gen_slice():
 			for ci in range(len(coord)):
@@ -99,7 +99,6 @@ class Convoluter:
 			next_batch_images, next_batch_labels  = tile_iterator.get_next() #next_batch_labels
 
 			# Generate ops that will convert batch of coordinates to extracted & processed image patches from whole-slide-image
-			#image_patches = tf.map_fn(get_image_slice, next_batch)
 			image_patches = tf.map_fn(lambda patch: tf.cast(tf.image.per_image_standardization(patch), self.DTYPE), next_batch_images)
 
 			# Pad the batch if necessary to create a batch of minimum size BATCH_SIZE
@@ -110,9 +109,17 @@ class Convoluter:
 			with arg_scope(inception_arg_scope()):
 				_, end_points = inception_v4.inception_v4(padded_batch, num_classes = self.NUM_CLASSES)
 
-			final_layer = end_points['PreLogitsFlatten']
+			prelogits = end_points['PreLogitsFlatten']
 			slogits = end_points['Predictions']
-			saver = tf.train.Saver()
+			num_tensors_final_layer = prelogits.get_shape().as_list()[1]
+			vars_to_restore = []
+
+			for var_to_restore in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+				if ((var_to_restore.name[12:21] != "AuxLogits") and 
+					((var_to_restore.name[:25] != "InceptionV4/Logits/Logits") or not final_layer)):
+					vars_to_restore.append(var_to_restore)
+
+			saver = tf.train.Saver(vars_to_restore)
 
 			with tf.Session() as sess:
 				init = (tf.global_variables_initializer(), tf.local_variables_initializer())
@@ -130,7 +137,7 @@ class Convoluter:
 
 				x_logits_len = int(self.X_SIZE / window_stride[1])+1
 				y_logits_len = int(self.Y_SIZE / window_stride[0])+1
-				total_logits_count = x_logits_len * y_logits_len	# Multiplied by 8, as there are 8 different flip/rotation combinations
+				total_logits_count = x_logits_len * y_logits_len	
 
 				if total_logits_count != len(coord):
 					raise Exception("The expected total number of window tiles does not match the number of generated starting points for window tiles.")
@@ -143,7 +150,9 @@ class Convoluter:
 						progress_bar.bar(count, total_logits_count, text = "Calculated {} images out of {}. "
 																			.format(min(count, total_logits_count),
 																			 total_logits_count))
-						new_logits, new_labels = sess.run([tf.cast(slogits, tf.float32), next_batch_labels])
+						
+						endpoint = prelogits if final_layer else slogits
+						new_logits, new_labels = sess.run([tf.cast(endpoint, tf.float32), next_batch_labels])
 
 						logits_arr = new_logits if logits_arr == [] else np.concatenate([logits_arr, new_logits])
 						labels_arr = new_labels if labels_arr == [] else np.concatenate([labels_arr, new_labels])
@@ -158,25 +167,33 @@ class Convoluter:
 			logits_arr = logits_arr[0:total_logits_count]
 			labels_arr = labels_arr[0:total_logits_count]
 
-			print('First value of unmerged array:')
-			print(logits_arr[0])
-
 			print('Sorting arrays')
 			sorted_indices = labels_arr.argsort()
 			logits_arr = logits_arr[sorted_indices]
 			labels_arr = labels_arr[sorted_indices]
 
 			# Organize array into 2D format corresponding to where each logit was calculated
-			logits_out = np.resize(logits_arr, [y_logits_len, x_logits_len, self.NUM_CLASSES])
-
-			with open(os.path.join(self.SAVE_FOLDER, prefix+pkl_name), 'wb') as handle:
-				pickle.dump(logits_out, handle)
+			if final_layer:
+				print(f"Resizing to {total_logits_count} x {num_tensors_final_layer}")
+				output = np.resize(logits_arr, [total_logits_count, num_tensors_final_layer])
+				self.save_csv(output, labels_arr, case_name)
+			else:
+				output = np.resize(logits_arr, [y_logits_len, x_logits_len, self.NUM_CLASSES])
+				with open(os.path.join(self.SAVE_FOLDER, prefix+pkl_name), 'wb') as handle:
+					pickle.dump(output, handle)
 			
 			if display: 
-				self.fast_display(self.WHOLE_IMAGE, logits_out, self.SIZE, case_name)
+				self.fast_display(self.WHOLE_IMAGE, output, self.SIZE, case_name)
 
-			if save:
-				self.save_heatmaps(self.WHOLE_IMAGE, logits_out, self.SIZE, case_name)
+			if save and not final_layer:
+				self.save_heatmaps(self.WHOLE_IMAGE, output, self.SIZE, case_name)
+
+	def save_csv(self, output, labels, name):
+		with open(os.path.join(self.SAVE_FOLDER, name+'_final_layer_weights.csv'), 'wb') as csv_file:
+			csv_writer = csv.writer(csv_file, delimiter = ',')
+			for l in labels:
+				csv_writer.writerow([l].append(output))
+			csv_writer.close()
 
 	def save_heatmaps(self, image_file, logits, size, name):
 		'''Displays logits calculated using scan_image as a heatmap overlay.'''
@@ -288,7 +305,7 @@ if __name__==('__main__'):
 	parser.add_argument('-l', '--load', help='Python Pickle file containing pre-calculated weights to load')
 	parser.add_argument('-i', '--image', help='Image on which to apply heatmap.')
 	parser.add_argument('-s', '--size', type=int, help='Size of image patches to analyze.')
-	parser.add_argument('-c', '--classes', type=int, help='Number of unique output classes contained in the model.')
+	parser.add_argument('-c', '--classes', type=int, default = 1, help='Number of unique output classes contained in the model.')
 	parser.add_argument('-b', '--batch', type=int, default = 64, help='Batch size for which to run the analysis.')
 	parser.add_argument('--fp16', action="store_true", help='Use Float16 operators (half-precision) instead of Float32.')
 	parser.add_argument('--save', action="store_true", help='Save heatmaps to PNG file instead of displaying.')
@@ -299,9 +316,9 @@ if __name__==('__main__'):
 		c = Convoluter(args.image, None, args.size, args.classes, 1, args.fp16)
 		c.load_pkl_and_scan_image(args.load)
 	elif args.folder:
-		if args.dir:
+		if args.model:
 			# Load images from a directory and calculate logits
-			c = Convoluter('', args.dir, args.size, args.classes, args.batch, args.fp16, save_folder = args.folder)
+			c = Convoluter('', args.model, args.size, args.classes, args.batch, args.fp16, save_folder = args.folder)
 			if args.final: c.STRIDE = 1
 			for f in [f for f in os.listdir(args.folder) if (os.path.isfile(os.path.join(args.folder, f)) and (f[-3:] == "jpg"))]:
 				c.WHOLE_IMAGE = os.path.join(args.folder, f)
@@ -315,6 +332,6 @@ if __name__==('__main__'):
 				c = Convoluter(image, None, args.size, args.classes, 1, args.fp16, save_folder = args.folder)
 				c.load_pkl_and_save_heatmaps(pkl)
 	else:
-		c = Convoluter(args.image, args.dir, args.size, args.classes, args.batch, args.fp16)
+		c = Convoluter(args.image, args.model, args.size, args.classes, args.batch, args.fp16)
 		c.scan_image()
 
