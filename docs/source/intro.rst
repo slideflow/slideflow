@@ -12,31 +12,21 @@ Workflow: Data Preparation
 
 *If the training images are to be obtained from whole-slide images in SVS format, the following applies:*
 
-1) **SVS image chunk extraction**. Using Aperio, extract whole-slide image chunks containing the areas of interest into sizes of maximum 65535 x 65535 pixels.
+1) **Whole-slide image tile extraction**. Using `QuPath <https://qupath.github.io/>`_, annotate whole-slide images with the Polygon tool. You may need to delete old tiles if annotations have already been performed. To do so, click the **"Hierarchy"** tab in the upper-left corner, click the arrow next to one of the annotation Polygons, and select all of the "Tiles" beneath. Then, click the **"Annotations"** tab and press **"Delete"**. Do this for each of the Polygon annotations.
 
-2) **Create image chunk thumbnails**. Use the following command (requires the separate linux package :class:`nconvert`), which will resize all images in the current folder to thumbnails at 10% resolution:
+If no tiles or annotations have been generated, first create new annotations using the Polygon tool to select the relevant areas of interest. Then, select all of your Polygons in the **Hierarchy** tab. Then, in the main menu, click **Analyze -> Region identification -> Tiles & superpixels -> Create tiles**. Change the tile size to whatever size you're trying to extract, in μm. **Uncheck** the "trim to ROI" option, and **check** the "make annotation tiles" option. Then, click run.
 
-.. code-block:: bash
-
-    $ nconvert -out jpeg -o %_T.jpg -resize 10% 10% *.jpg
-	
-3) **Annotate thumbnails**. Using the program :class:`labelme` (avilable `here <https://github.com/wkentaro/labelme>`_), annotate the thumbnails with the area(s) of interest and save the *.json files as the name of the case (ommitting any labels added to the thumbnail in the previous step, e.g. "_T").
-
-4) **Extract tiles**. Use the module ``packing`` to extract image tiles at a given pixel size. For example, to extract tiles from all annotated images in a given directory at a tile size of 2048, the command would be:
-
-.. code-block:: bash
-
-    $ python3 packing.py --dir /path/to/your/directory --tile 2048
+Finally, load the script that will export the tile annotations into saved JPG files by clicking **Automate** -> **Show script editor**. In the box that comes up, click **File** -> **Open** and load the "qupath_tile_export.groovy" script. Change the directory in Line 17 to whatever directory you want your exported tiles to sit in. Then, press CTRL + R and wait for the script to finish.
 
 *If the training data has already been sectioned into tiles, begin the workflow at this point:*	
 
-5) **Resize tiles**. Use the module ``nconvert_util`` (requires the separate linux package :class:`nconvert`) to resize extracted image tiles. If, for example, you needed to extract tiles of size 2048 px for a magnification size 560 µm, but want to train on a tile size of 512 px, you would reduce your extracted 2048x2048 tiles to 25% resolution (512x512) using the following command:
+2) **Resize tiles**. Use the module ``nconvert_util`` (requires the separate linux package :class:`nconvert`) to resize extracted image tiles. If, for example, you needed to extract tiles of size 2048 px for a magnification size 560 µm, but want to train on a tile size of 512 px, you would reduce your extracted 2048x2048 tiles to 25% resolution (512x512) using the command below. Supply the "--augment" flag to also generate flipped/rotated images.
 
 .. code-block:: bash
 
-    $ python3 nconvert_util.py --dir /path/to/tile/directory --size 512
+    $ python3 nconvert_util.py --dir /path/to/tile/directory --size 512 --augment
 
-6) **Organize training directory**. Assemble image tiles into a directory tree as below, with the parent directory named :class:`train_data`, child directories 0 - *n* (where *n* indicates the number of unique categories), and grandchild directories named according to case number.
+3) **Organize training directory**. Assemble image tiles into a directory tree as below, with the parent directory named :class:`train_data`, child directories 0 - *n* (where *n* indicates the number of unique categories), and grandchild directories named according to case number.
 
 .. code-block:: none
 
@@ -60,7 +50,7 @@ Workflow: Data Preparation
 	|   └── 234991-1
 	|    	└── image.jpg
 
-7) **Create validation set**. Use the module ``data_utils`` to separate your data into training and validation sets. To create a validation set using 10% of your data, for example, use the following command:
+4) **Create validation set**. Use the module ``data_utils`` to separate your data into training and validation sets. To create a validation set using 10% of your data, for example, use the following command:
 
 .. code-block:: bash
 
@@ -80,6 +70,12 @@ After the training and validation set are prepared, training is as simple as run
 .. code-block:: bash
 
 	$ python3 histcon.py
+	
+To retrain an existing model, supply a "--retrain" flag with the directory of your pretrained model:
+
+.. code-block:: bash
+
+	$ python3 histcon.py --retrain path/to/pretrained/model
 	
 Hyperparameters, including image size, number of classes, batch size, learning rate, logging frequency, and so on, can be changed by editing the global constants in the :class:`HistconModel` class.
 
@@ -123,3 +119,21 @@ After a model has been trained, accuracy can be assessed by visualizing predicti
 .. code-block:: bash
 
 	$ python3 convoluter.py --dir path/to/model/dir --image path/to/whole/image.jpg --size 512 --classes 5 --batch 128 --fp16
+	
+In order to reduce computational waste, calculated logits are saved in a "pkl" file. To load a pre-calculated pkl file instead of re-calculating heatmap logits, use the following syntax:
+
+.. code-block:: bash
+
+	$ python3 convoluter.py --load path/to/weights.pkl --image path/to/whole/image.jpg --size 512 --classes 5
+	
+To batch calculate weights and save .pkl files, supply a folder of images instead of a single image: 
+
+.. code-block:: bash
+
+	$ python3 convoluter.py --dir path/to/model/dir --folder path/to/whole/images --size 512 --classes 5 --batch 128 --fp16
+	
+Finally, to load a folder of .pkl files and batch save heatmap overlays as JPEG images, use the "--save" flag:
+
+.. code-block:: bash
+
+	$ python3 convoluter.py --folder path/to/whole/images_and_pkls --size 512 --classes 5 --save
