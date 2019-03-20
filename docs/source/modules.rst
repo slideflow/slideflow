@@ -7,6 +7,8 @@ Source code
    convoluter
    histcon
    histcon_eval
-   histcon_retrain
    packing
    progress_bar
+   data_utils
+   fastim
+   nconvert_util
