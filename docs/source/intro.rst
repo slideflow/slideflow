@@ -118,7 +118,7 @@ After a model has been trained, accuracy can be assessed by visualizing predicti
 
 .. code-block:: bash
 
-	$ python3 convoluter.py --dir path/to/model/dir --image path/to/whole/image.jpg --size 512 --classes 5 --batch 128 --fp16
+	$ python3 convoluter.py --model path/to/model/dir --image path/to/whole/image.jpg --size 512 --classes 5 --batch 128 --fp16
 	
 In order to reduce computational waste, calculated logits are saved in a "pkl" file. To load a pre-calculated pkl file instead of re-calculating heatmap logits, use the following syntax:
 
@@ -130,10 +130,16 @@ To batch calculate weights and save .pkl files, supply a folder of images instea
 
 .. code-block:: bash
 
-	$ python3 convoluter.py --dir path/to/model/dir --folder path/to/whole/images --size 512 --classes 5 --batch 128 --fp16
+	$ python3 convoluter.py --model path/to/model/dir --folder path/to/whole/images --size 512 --classes 5 --batch 128 --fp16
 	
-Finally, to load a folder of .pkl files and batch save heatmap overlays as JPEG images, use the "--save" flag:
+To load a folder of .pkl files and batch save heatmap overlays as JPEG images, use the "--save" flag:
 
 .. code-block:: bash
 
 	$ python3 convoluter.py --folder path/to/whole/images_and_pkls --size 512 --classes 5 --save
+	
+Finally, to extract final layer weights for later use (e.g. visualization with dimensionality reduction), add the "--final" flag. The weights will be saved to a csv file:
+
+.. code-block:: bash
+
+	$ python3 convoluter.py --model path/to/model/dir --image path/to/whole/image.jpg --size 512 --batch 32 --fp16 --final
