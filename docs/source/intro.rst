@@ -120,7 +120,7 @@ After a model has been trained, accuracy can be assessed by visualizing predicti
 
 	$ python3 convoluter.py --model path/to/model/dir --image path/to/whole/image.jpg --size 512 --classes 5 --batch 128 --fp16
 	
-In order to reduce computational waste, calculated logits are saved in a "pkl" file. To load a pre-calculated pkl file instead of re-calculating heatmap logits, use the following syntax:
+In order to reduce computational waste, logits are saved in a "pkl" file once calculated. To load a pre-calculated pkl file instead of re-calculating heatmap logits, use the following syntax:
 
 .. code-block:: bash
 
