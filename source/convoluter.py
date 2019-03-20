@@ -176,7 +176,7 @@ class Convoluter:
 			if final_layer:
 				print(f"Resizing to {total_logits_count} x {num_tensors_final_layer}")
 				output = np.resize(logits_arr, [total_logits_count, num_tensors_final_layer])
-				self.save_csv(output, labels_arr, case_name)
+				self.save_csv(output, labels_arr, case_name, "NIFTP")
 			else:
 				output = np.resize(logits_arr, [y_logits_len, x_logits_len, self.NUM_CLASSES])
 				with open(os.path.join(self.SAVE_FOLDER, prefix+pkl_name), 'wb') as handle:
@@ -188,15 +188,15 @@ class Convoluter:
 			if save and not final_layer:
 				self.save_heatmaps(self.WHOLE_IMAGE, output, self.SIZE, case_name)
 
-	def save_csv(self, output, labels, name):
+	def save_csv(self, output, labels, name, category):
 		print("Writing csv...")
 		with open(os.path.join(self.SAVE_FOLDER, name+'_final_layer_weights.csv'), 'w') as csv_file:
 			csv_writer = csv.writer(csv_file, delimiter = ',')
-			csv_writer.writerow(["Tile_num"] + [f"Node{n}" for n in range(len(output[0]))])
+			csv_writer.writerow(["Tile_num", "Category"] + [f"Node{n}" for n in range(len(output[0]))])
 			for l in range(len(labels)):
 				label = labels[l]
 				out = output[l].tolist()
-				csv_writer.writerow([label] + out)
+				csv_writer.writerow([label, category] + out)
 
 	def save_heatmaps(self, image_file, logits, size, name):
 		'''Displays logits calculated using scan_image as a heatmap overlay.'''
