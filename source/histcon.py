@@ -33,9 +33,6 @@ from tensorboard.plugins.custom_scalar import layout_pb2
 import inception_v4
 from inception_utils import inception_arg_scope
 
-# TODO: Fix restore checkpoint (not retraining)
-# Ansswer for retraining here: https://github.com/tensorflow/tensorflow/issues/6081
-
 class HistconModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
@@ -112,9 +109,8 @@ class HistconModel:
 			image: a Tensor of shape [size, size, 3]
 			label: accompanying label
 		'''
-
-		# Optional pre-processing
 		#image = tf.image.random_flip_left_right(image)
+		#image = tf.image.random_flip_up_down(image)
 		#image = tf.image.random_brightness(image, max_delta = 32.0 / 255.0)
 		#image = tf.image.random_saturation(image, lower=0.5, upper = 1.5)
 		#image = tf.clip_by_value(image, 0.0, 1.0)
