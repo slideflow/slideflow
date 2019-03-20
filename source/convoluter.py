@@ -52,7 +52,7 @@ class Convoluter:
 		# Display variables
 		self.STRIDE = 4
 
-	def scan_image(self, display=True, prefix=''):
+	def scan_image(self, display=True, prefix='', save = False):
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 
 		# Load whole-slide-image into Numpy array
@@ -227,6 +227,9 @@ class Convoluter:
 			if display: 
 				self.fast_display(self.WHOLE_IMAGE, logits_out, self.SIZE, case_name)
 
+			if save:
+				self.save_heatmaps(self.WHOLE_IMAGE, logits_out, self.SIZE, case_name)
+
 	def save_heatmaps(self, image_file, logits, size, name):
 		'''Displays logits calculated using scan_image as a heatmap overlay.'''
 		print("Loading image and assembling heatmaps for image {}...".format(image_file))
@@ -352,7 +355,7 @@ if __name__==('__main__'):
 			c = Convoluter('', args.dir, args.size, args.classes, args.batch, args.fp16, save_folder = args.folder)
 			for f in [f for f in os.listdir(args.folder) if (os.path.isfile(os.path.join(args.folder, f)) and (f[-3:] == "jpg"))]:
 				c.WHOLE_IMAGE = os.path.join(args.folder, f)
-				c.scan_image(False, '')
+				c.scan_image(False, '', save = args.save)
 		elif args.save:
 			# Load images from a directory and save heatmaps as image files
 			for f in [f for f in os.listdir(args.folder) if (os.path.isfile(os.path.join(args.folder, f)) and (f[-3:] == "pkl"))]:
