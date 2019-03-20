@@ -189,11 +189,14 @@ class Convoluter:
 				self.save_heatmaps(self.WHOLE_IMAGE, output, self.SIZE, case_name)
 
 	def save_csv(self, output, labels, name):
-		with open(os.path.join(self.SAVE_FOLDER, name+'_final_layer_weights.csv'), 'wb') as csv_file:
+		print("Writing csv...")
+		with open(os.path.join(self.SAVE_FOLDER, name+'_final_layer_weights.csv'), 'w') as csv_file:
 			csv_writer = csv.writer(csv_file, delimiter = ',')
-			for l in labels:
-				csv_writer.writerow([l].append(output))
-			csv_writer.close()
+			csv_writer.writerow(["Tile_num"] + [f"Node{n}" for n in range(len(output[0]))])
+			for l in range(len(labels)):
+				label = labels[l]
+				out = output[l].tolist()
+				csv_writer.writerow([label] + out)
 
 	def save_heatmaps(self, image_file, logits, size, name):
 		'''Displays logits calculated using scan_image as a heatmap overlay.'''
