@@ -52,82 +52,51 @@ class Convoluter:
 		# Display variables
 		self.STRIDE = 4
 
-	def scan_image(self, display=True, prefix='', save = False):
+	def scan_image(self, display=True, prefix='', save = False, export_tiles = False):
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 
 		# Load whole-slide-image into Numpy array
 		whole_slide_image = imageio.imread(self.WHOLE_IMAGE)
 		shape = whole_slide_image.shape
+		case_name = ''.join(self.WHOLE_IMAGE.split('/')[-1].split('.')[:-1])
+		pkl_name =  case_name + '.pkl'
 
-		print("Loading image of size {} x {}".format(shape[0], shape[1]))
+		print(f"Loading image of size {shape[0]} x {shape[1]}")
 
 		# Calculate window sizes, strides, and coordinates for windows
 		window_size = [self.SIZE, self.SIZE]
 		window_stride = [int(self.SIZE/self.STRIDE), int(self.SIZE/self.STRIDE)]
 
-		#tf.cast(***, tf.int32)
-
 		if (window_size[0] > shape[0]) or (window_size[1] > shape[1]):
 				raise IndexError("Window size is too large")
 
 		coord = []
-		coord_d = []
 
 		self.Y_SIZE = shape[0] - window_size[0]
 		self.X_SIZE = shape[1] - window_size[1]
 
 		for y in range(0, (shape[0]+1) - window_size[0], window_stride[0]):
 			for x in range(0, (shape[1]+1) - window_size[1], window_stride[1]):
-				# f is a flag (number 0 -7) which corresponds to a flip/rotation combination
 				coord.append([y, x])
-				for f in range(8):
-					#coord.append([y, x, f])
-					# coord_d is purely for debugging purposes
-					coord_d.append([y/self.Y_SIZE, x/self.X_SIZE, f])
-
-		def rotate_image(np_array, flag):
-			if flag == 0:
-				return np_array
-			elif flag == 1:
-				return np.rot90(np_array)
-			elif flag == 2:
-				return np.rot90(np_array, 2)
-			elif flag == 3:
-				return np.rot90(np_array, 3)
-			elif flag == 4:
-				return np.fliplr(np_array)
-			elif flag == 5:
-				return np.fliplr(np.rot90(np_array))
-			elif flag == 6:
-				return np.fliplr(np.rot90(np_array, 2))
-			elif flag == 7:
-				return np.fliplr(np.rot90(np_array, 3))
 			else:
 				raise IndexError("Invalid flag selection for image flip/rotation, must be integer 0 - 7.")
 
 		def gen_slice():
 			for ci in range(len(coord)):
 				c = coord[ci]
-				rotated = whole_slide_image[c[0]:c[0] + window_size[0], c[1]:c[1] + window_size[1],]   #, c[2])
-				coord_label = ci #str (c[0])+'-'+str(c[1])
-				#matrix_mean = np.matrix(rotated[:,:,0]).mean()
-				#imsave('img/c{}.jpg'.format(str(c[0])+'-'+str(c[1])+'-'+str(c[2])), rotated)
-				yield rotated, coord_label
-				#yield [matrix_mean, c[0], c[1], c[2], c[0]]
-
-		# Function for testing/troubleshooting
-		def gen_coord_d():
-			for c in coord_d:
-				yield [c[0], c[1], c[0], c[1], c[0]]
+				region = whole_slide_image[c[0]:c[0] + window_size[0], c[1]:c[1] + window_size[1],]
+				coord_label = ci
+				if export_tiles:
+					imsave(f'tiles/{case_name}_{ci}.jpg', region)
+				yield region, coord_label
 
 		with tf.Graph().as_default() as g:
 			# Generate dataset from coordinates
-			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (self.DTYPE, tf.int64)) # replace gen_slice with gen_coord_d for testing purposes
+			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (self.DTYPE, tf.int64))
 			tile_dataset = tile_dataset.batch(self.BATCH_SIZE, drop_remainder = False)
 			tile_dataset = tile_dataset.prefetch(2)
 			tile_iterator = tile_dataset.make_one_shot_iterator()
 			next_batch_images, next_batch_labels  = tile_iterator.get_next() #next_batch_labels
-			#next_coord = tf.cast(next_coord, tf.int32)
 
 			# Generate ops that will convert batch of coordinates to extracted & processed image patches from whole-slide-image
 			#image_patches = tf.map_fn(get_image_slice, next_batch)
@@ -138,12 +107,10 @@ class Convoluter:
 														dtype=self.DTYPE)], 0)
 			padded_batch.set_shape([self.BATCH_SIZE, self.SIZE, self.SIZE, 3])
 
-			'''padded_batch = tf.concat([next_batch, tf.zeros([self.BATCH_SIZE - tf.shape(next_batch)[0], 5], dtype=self.DTYPE)], 0)
-			padded_batch.set_shape([self.BATCH_SIZE, 5])'''
-
 			with arg_scope(inception_arg_scope()):
 				_, end_points = inception_v4.inception_v4(padded_batch, num_classes = self.NUM_CLASSES)
 
+			final_layer = end_points['PreLogitsFlatten']
 			slogits = end_points['Predictions']
 			saver = tf.train.Saver()
 
@@ -178,9 +145,6 @@ class Convoluter:
 																			 total_logits_count))
 						new_logits, new_labels = sess.run([tf.cast(slogits, tf.float32), next_batch_labels])
 
-						# Execute this code for debugging purposes if using gen_coord_d
-						#new_logits = sess.run(tf.cast(padded_batch, tf.float32))
-
 						logits_arr = new_logits if logits_arr == [] else np.concatenate([logits_arr, new_logits])
 						labels_arr = new_labels if labels_arr == [] else np.concatenate([labels_arr, new_labels])
 					except tf.errors.OutOfRangeError:
@@ -190,7 +154,7 @@ class Convoluter:
 				progress_bar.end()
 			
 			# Crop the output to exclude padding
-			print("total size of padded dataset: {}".format(logits_arr.shape))
+			print(f"total size of padded dataset: {logits_arr.shape}")
 			logits_arr = logits_arr[0:total_logits_count]
 			labels_arr = labels_arr[0:total_logits_count]
 
@@ -201,22 +165,6 @@ class Convoluter:
 			sorted_indices = labels_arr.argsort()
 			logits_arr = logits_arr[sorted_indices]
 			labels_arr = labels_arr[sorted_indices]
-
-			# Average logits across different flips/rotations
-			#if logits_arr.shape[0] % 8 != 0:
-			#	raise IndexError("Output logits not divisible by 8, likely error with padding.")
-
-			# Save output in Python Pickle format for later display
-			case_name = ''.join(self.WHOLE_IMAGE.split('/')[-1].split('.')[:-1])
-			pkl_name =  case_name + '.pkl'
-
-			#with open('raw_'+pkl_name, 'wb') as handle:
-			#	pickle.dump(logits_arr.reshape(-1, 8, self.NUM_CLASSES), handle)
-			
-			#logits_arr = np.mean(logits_arr.reshape(-1, 8, self.NUM_CLASSES), axis=1)
-
-			#print('First value of merged array:')
-			#print(logits_arr[0])
 
 			# Organize array into 2D format corresponding to where each logit was calculated
 			logits_out = np.resize(logits_arr, [y_logits_len, x_logits_len, self.NUM_CLASSES])
@@ -232,7 +180,7 @@ class Convoluter:
 
 	def save_heatmaps(self, image_file, logits, size, name):
 		'''Displays logits calculated using scan_image as a heatmap overlay.'''
-		print("Loading image and assembling heatmaps for image {}...".format(image_file))
+		print(f"Loading image and assembling heatmaps for image {image_file}...")
 
 		fig = plt.figure(figsize=(18, 16))
 		ax = fig.add_subplot(111)
@@ -260,11 +208,11 @@ class Convoluter:
 			#slider = Slider(ax_slider, 'Class {}'.format(i), 0, 1, valinit = 0)
 			heatmap_dict.update({i: heatmap})
 
-		mp.savefig(os.path.join(self.SAVE_FOLDER, '{}-raw.png'.format(name)), bbox_inches='tight')
+		mp.savefig(os.path.join(self.SAVE_FOLDER, f'{name}-raw.png'), bbox_inches='tight')
 
 		for i in range(self.NUM_CLASSES):
 			heatmap_dict[i].set_alpha(0.6)
-			mp.savefig(os.path.join(self.SAVE_FOLDER, '{}-{}.png'.format(name, i)), bbox_inches='tight')
+			mp.savefig(os.path.join(self.SAVE_FOLDER, f'{name}-{i}.png'), bbox_inches='tight')
 			heatmap_dict[i].set_alpha(0.0)
 
 		mp.close()
@@ -302,8 +250,8 @@ class Convoluter:
 		for i in range(self.NUM_CLASSES):
 			ax_slider = fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor='lightgoldenrodyellow')
 			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
-			slider = Slider(ax_slider, 'Class {}'.format(i), 0, 1, valinit = 0)
-			heatmap_dict.update({"Class{}".format(i): [heatmap, slider]})
+			slider = Slider(ax_slider, f'Class {i}', 0, 1, valinit = 0)
+			heatmap_dict.update({f"Class{i}": [heatmap, slider]})
 			slider.on_changed(slider_func)
 
 		fig.canvas.set_window_title(name)
@@ -335,7 +283,7 @@ if __name__==('__main__'):
 	tf.logging.set_verbosity(tf.logging.ERROR)
 
 	parser = argparse.ArgumentParser(description = 'Convolutionally applies a saved Tensorflow model to a larger image, displaying the result as a heatmap overlay.')
-	parser.add_argument('-d', '--dir', help='Path to model directory containing stored checkpoint.')
+	parser.add_argument('-m', '--model', help='Path to model directory containing stored checkpoint.')
 	parser.add_argument('-f', '--folder', help='Folder to search for whole-slide-images to analyze.')
 	parser.add_argument('-l', '--load', help='Python Pickle file containing pre-calculated weights to load')
 	parser.add_argument('-i', '--image', help='Image on which to apply heatmap.')
@@ -344,6 +292,7 @@ if __name__==('__main__'):
 	parser.add_argument('-b', '--batch', type=int, default = 64, help='Batch size for which to run the analysis.')
 	parser.add_argument('--fp16', action="store_true", help='Use Float16 operators (half-precision) instead of Float32.')
 	parser.add_argument('--save', action="store_true", help='Save heatmaps to PNG file instead of displaying.')
+	parser.add_argument('--final', action="store_true", help='Calculate and export image tiles and final layer weights.')
 	args = parser.parse_args()
 
 	if args.load:
@@ -353,6 +302,7 @@ if __name__==('__main__'):
 		if args.dir:
 			# Load images from a directory and calculate logits
 			c = Convoluter('', args.dir, args.size, args.classes, args.batch, args.fp16, save_folder = args.folder)
+			if args.final: c.STRIDE = 1
 			for f in [f for f in os.listdir(args.folder) if (os.path.isfile(os.path.join(args.folder, f)) and (f[-3:] == "jpg"))]:
 				c.WHOLE_IMAGE = os.path.join(args.folder, f)
 				c.scan_image(False, '', save = args.save)
