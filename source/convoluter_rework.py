@@ -40,11 +40,12 @@ from fastim import FastImshow
 Image.MAX_IMAGE_PIXELS = 100000000000
 
 # TODO: memory management
+# TODO: add logits to CSV file as metadata
 
 class Convoluter:
-
 	def __init__(self, size, num_classes, batch_size, use_fp16, save_folder = ''):
 		self.IMAGES = {}
+		self.CATEGORIES = {}
 		self.MODEL_DIR = None
 		self.PKL_DICT = {}
 		self.SIZE = size
@@ -55,10 +56,12 @@ class Convoluter:
 		self.SAVE_FOLDER = save_folder
 		self.STRIDE = 4
 
-	def load_images(self, whole_image_array, directory):
+	def load_images(self, whole_image_array, directory, category=None):
 		for image in whole_image_array:
 			name = image[:-4]
 			self.IMAGES.update({name: join(directory, image)})
+			if category:
+				self.CATEGORIES.update({name: category})
 
 	def load_pkl(self, pkl_array, directory):
 		for pkl in pkl_array:
@@ -101,7 +104,8 @@ class Convoluter:
 			if save_heatmaps:
 				self.export_heatmaps(image_path, logits, self.SIZE, case_name)
 			if save_final_layer:
-				self.save_csv(final_layer, final_layer_labels, case_name, "NIFTP")
+				category = "None" if case_name not in self.CATEGORIES else self.CATEGORIES[case_name]
+				self.save_csv(final_layer, final_layer_labels, case_name, category)
 			if display_heatmaps:
 				self.fast_display(image_path, logits, self.SIZE, case_name)
 
@@ -396,9 +400,16 @@ if __name__==('__main__'):
 	if isfile(args.image):
 		image_list = [args.image.split('/'[-1])]
 		image_dir = "/".join(args.image.split('/')[:-1])
+		c.load_images(image_list, image_dir)
 	else:
-		image_list = [i for i in os.listdir(args.image) if (isfile(join(args.image, i)) and (i[-3:] == "jpg"))]
-		image_dir = args.image
+		# First, load images in the directory, not assigning any category
+		image_list = [i for i in os.listdir(args.image) if (isfile(join(args.image, i)) and (i[-3:] == "jpg"))]	
+		c.load_images(image_list, args.image)
+		# Next, load images in subdirectories, assigning category by subdirectory name
+		dir_list = [d for d in os.listdir(args.image) if not isfile(join(args.image, d))]
+		for directory in dir_list:
+			image_list = [i for i in os.listdir(join(args.image, directory)) if (isfile(join(args.image, directory, i)) and (i[-3:] == "jpg"))]	
+			c.load_images(image_list, join(args.image, directory), category=directory)
 	if args.pkl and isfile(args.pkl):
 		pkl_list = [args.pkl.split('/'[-1])]
 		pkl_dir = "/".join(args.pkl.split('/')[:-1])
@@ -407,8 +418,8 @@ if __name__==('__main__'):
 		pkl_dir = args.pkl
 	else:
 		pkl_list = []
+		pkl_dir = ''
 
-	c.load_images(image_list, args.image)
-	c.load_pkl(pkl_list, args.pkl)
+	c.load_pkl(pkl_list, pkl_dir)
 	c.set_model(args.model)
 	c.convolute_all_images(args.save, args.display, args.final, args.export)
