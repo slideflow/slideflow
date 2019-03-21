@@ -15,7 +15,7 @@ TRANSPOSE = False
 def visualize():
 	#Expect data to be set up with column 1 = meta identifier, column 2 = training output
 
-	data = genfromtxt(FLAGS.data_dir + '/' + FLAGS.file, delimiter=',') # training data
+	data = genfromtxt(FLAGS.data_dir + '/' + FLAGS.file, delimiter=',')[1:] # training data
 	data_meta = genfromtxt(FLAGS.data_dir + '/' + FLAGS.file, dtype=np.str_, delimiter=',')
 
 	if TRANSPOSE:
@@ -23,14 +23,6 @@ def visualize():
 		data_meta = data_meta.transpose()
 
 	meta = [i[0:FLAGS.meta] for i in data_meta]
-
-	if FLAGS.meta > 1:
-		# Need to add headers to metadata if more than one metadata column
-		headers = []
-		for i in range(FLAGS.meta):
-			headers.append("Meta%s" % i)
-
-		meta = np.insert(meta, 0, headers, axis=0)
 
 	def save_metadata(file):
 		with open(file, 'w') as f:
@@ -76,8 +68,8 @@ def main(_):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--data_dir', type=str, default='/Users/james/tensorflow/tf_rp/input_data', help='Directory for storing input data')
-	parser.add_argument('--log_dir', type=str, default = '/Users/james/tensorflow/logs', help='Summaries log directory')
+	parser.add_argument('--data_dir', type=str, default='/home/shawarma/histcon', help='Directory for storing input data')
+	parser.add_argument('--log_dir', type=str, default = '/home/shawarma/histcon/logs', help='Summaries log directory')
 	parser.add_argument('--file', required=True, help='Training data filename')
 	parser.add_argument('--meta', type=int, default = 1, help = 'Number of metadata columns')
 
