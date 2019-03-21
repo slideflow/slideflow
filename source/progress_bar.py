@@ -17,3 +17,4 @@ def bar(value, endvalue, bar_length=20, newline=True, text=''):
 def end():
 	bar(10, 10)
 	sys.stdout.flush()
+	print('\n')
