@@ -68,8 +68,9 @@ class Convoluter:
 			p_name = pkl[:-4]
 			self.PKL_DICT.update({p_name: join(directory, pkl)})
 
-	def set_model(self, model_dir):
+	def build_model(self, model_dir):
 		self.MODEL_DIR = model_dir
+
 
 	def convolute_all_images(self, save_heatmaps, display_heatmaps, save_final_layer, export_tiles):
 		'''Parent function to guide convolution across a whole-slide image and execute desired functions.
@@ -78,7 +79,7 @@ class Convoluter:
 			save_heatmaps: 				Bool, if true will save heatmap overlays as PNG files
 			display_heatmaps:			Bool, if true will display interactive heatmap for each whole-slide image
 			save_final_layer: 			Bool, if true will calculate and save final layer weights in CSV file
-			export_tiles:				Bool, if true will save convoluted image tiles
+			export_tiles:				Bool, if true will save convoluted image tiles to subdirectory "tiles"
 
 		Returns:
 			None
@@ -156,19 +157,20 @@ class Convoluter:
 
 		with tf.Graph().as_default() as g:
 			# Generate dataset from coordinates
-			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (self.DTYPE, tf.int64, tf.bool))
-			tile_dataset = tile_dataset.batch(self.BATCH_SIZE, drop_remainder = False)
-			tile_dataset = tile_dataset.prefetch(1)
-			tile_iterator = tile_dataset.make_one_shot_iterator()
-			next_batch_images, next_batch_labels, next_batch_unique  = tile_iterator.get_next()
+			with tf.name_scope('dataset_input'):
+				tile_dataset = tf.data.Dataset.from_generator(gen_slice, (self.DTYPE, tf.int64, tf.bool))
+				tile_dataset = tile_dataset.batch(self.BATCH_SIZE, drop_remainder = False)
+				tile_dataset = tile_dataset.prefetch(1)
+				tile_iterator = tile_dataset.make_one_shot_iterator()
+				next_batch_images, next_batch_labels, next_batch_unique  = tile_iterator.get_next()
 
-			# Generate ops that will convert batch of coordinates to extracted & processed image patches from whole-slide-image
-			image_patches = tf.map_fn(lambda patch: tf.cast(tf.image.per_image_standardization(patch), self.DTYPE), next_batch_images)
+				# Generate ops that will convert batch of coordinates to extracted & processed image patches from whole-slide-image
+				image_patches = tf.map_fn(lambda patch: tf.cast(tf.image.per_image_standardization(patch), self.DTYPE), next_batch_images)
 
-			# Pad the batch if necessary to create a batch of minimum size BATCH_SIZE
-			padded_batch = tf.concat([image_patches, tf.zeros([self.BATCH_SIZE - tf.shape(image_patches)[0], self.SIZE, self.SIZE, 3], # image_patches instead of next_batch
-														dtype=self.DTYPE)], 0)
-			padded_batch.set_shape([self.BATCH_SIZE, self.SIZE, self.SIZE, 3])
+				# Pad the batch if necessary to create a batch of minimum size BATCH_SIZE
+				padded_batch = tf.concat([image_patches, tf.zeros([self.BATCH_SIZE - tf.shape(image_patches)[0], self.SIZE, self.SIZE, 3], # image_patches instead of next_batch
+															dtype=self.DTYPE)], 0)
+				padded_batch.set_shape([self.BATCH_SIZE, self.SIZE, self.SIZE, 3])
 
 			with arg_scope(inception_arg_scope()):
 				_, end_points = inception_v4.inception_v4(padded_batch, num_classes = self.NUM_CLASSES)
@@ -421,5 +423,5 @@ if __name__==('__main__'):
 		pkl_dir = ''
 
 	c.load_pkl(pkl_list, pkl_dir)
-	c.set_model(args.model)
+	c.build_model(args.model)
 	c.convolute_all_images(args.save, args.display, args.final, args.export)
