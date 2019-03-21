@@ -39,6 +39,8 @@ from fastim import FastImshow
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 
+# TODO: memory management
+
 class Convoluter:
 
 	def __init__(self, size, num_classes, batch_size, use_fp16, save_folder = ''):
@@ -85,6 +87,7 @@ class Convoluter:
 			print("Calculating only non-overlapping tiles for final layer weight extraction.")
 			self.STRIDE = 1
 		for case_name in self.IMAGES:
+			print(f"Working on case {case_name}")
 			image_path = self.IMAGES[case_name]
 			# Use PKL logits if available
 			if case_name in self.PKL_DICT:
@@ -105,6 +108,10 @@ class Convoluter:
 	def scan_image(self, image_path, case_name, export_tiles=False, final_layer=False, save_pkl=True):
 		'''Returns logits and final layer weights'''
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+		# Reset graph to prevent OOM errors when convoluting across multiple images
+		# TODO: split this code into two functions: one that loads a model, and another that handles
+		#  alternating inputs
+		tf.reset_default_graph()
 
 		# Load whole-slide-image into Numpy array and prepare pkl output
 		whole_slide_image = imageio.imread(image_path)
@@ -219,7 +226,6 @@ class Convoluter:
 						labels_arr = new_labels if labels_arr == [] else np.concatenate([labels_arr, new_labels])
 					except tf.errors.OutOfRangeError:
 						progress_bar.end()
-						print("End of image detected.")
 						break
 					count += self.BATCH_SIZE
 
@@ -254,9 +260,12 @@ class Convoluter:
 
 	def save_csv(self, output, labels, name, category):
 		print("Writing csv...")
-		with open(os.path.join(self.SAVE_FOLDER, name+'_final_layer_weights.csv'), 'w') as csv_file:
+		csv_started = os.path.exists(join(self.SAVE_FOLDER, 'final_layer_weights.csv'))
+		write_mode = 'a' if csv_started else 'w'
+		with open(join(self.SAVE_FOLDER, 'final_layer_weights.csv'), write_mode) as csv_file:
 			csv_writer = csv.writer(csv_file, delimiter = ',')
-			csv_writer.writerow(["Tile_num", "Case", "Category"] + [f"Node{n}" for n in range(len(output[0]))])
+			if not csv_started:
+				csv_writer.writerow(["Tile_num", "Case", "Category"] + [f"Node{n}" for n in range(len(output[0]))])
 			for l in range(len(output)):
 				out = output[l].tolist()
 				csv_writer.writerow([labels[l], name, category] + out)
