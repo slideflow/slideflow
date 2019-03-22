@@ -53,6 +53,7 @@ class HistconModel:
 	LEARNING_RATE_DECAY_FACTOR = 0.05	# Learning rate decay factor.
 	INITIAL_LEARNING_RATE = 0.001		# Initial learning rate.
 	ADAM_LEARNING_RATE = 0.1			# Learning rate for the Adams Optimizer.
+	DROPOUT = 0.8						# Fraction of final layer to keep before logits when training
 
 	# Variables previous created with parser & FLAGS
 	BATCH_SIZE = 32
@@ -323,10 +324,13 @@ class HistconModel:
 			next_batch_images, next_batch_labels, train_it, test_it, it_handle = self.build_inputs()
 
 		# -- MODEL ---------------------------------------------------------------------------------
-
+		training_pl = tf.placeholder(tf.bool)
+		dropout_pl = tf.placeholder(tf.float16)
 		with arg_scope(inception_arg_scope()):
-			logits, end_points = inception_v4.inception_v4(next_batch_images, num_classes=self.NUM_CLASSES)
-
+			logits, end_points = inception_v4.inception_v4(next_batch_images, 
+														   num_classes=self.NUM_CLASSES,
+														   is_training=training_pl,
+														   dropout_keep_prob=dropout_pl)
 			if restore_checkpoint:
 				for trainable_var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
 					if (trainable_var.name not in variables_to_ignore) and (trainable_var.name[12:21] != "AuxLogits"):
@@ -426,8 +430,8 @@ class HistconModel:
 				pretrained_saver.restore(mon_sess, ckpt.model_checkpoint_path)
 			
 			while not mon_sess.should_stop():
-				_, merged, step = mon_sess.run([train_op, inception_summaries, global_step], feed_dict={it_handle:loggerhook.train_iterator_handle})
-
+				_, merged, step = mon_sess.run([train_op, inception_summaries, global_step], feed_dict={it_handle:loggerhook.train_iterator_handle,
+																										training_pl:True, dropout_pl:self.DROPOUT})
 				if (step % self.SUMMARY_STEPS == 0):
 					train_writer.add_summary(merged, step)
 
@@ -435,10 +439,12 @@ class HistconModel:
 					print("Validation testing...")
 
 					# Reset validation testing average
-					mon_sess.run(stream_vars_reset, feed_dict={it_handle:loggerhook.test_iterator_handle})#, feed_dict={iterator:loggerhook.test_iterator_handle})
+					mon_sess.run(stream_vars_reset, feed_dict={it_handle:loggerhook.test_iterator_handle,
+															   training_pl:False, dropout_pl:1.0})
 					while True:
 						try:
-							_, val_acc = mon_sess.run([validation_loss_update, validation_loss], feed_dict={it_handle:loggerhook.test_iterator_handle})
+							_, val_acc = mon_sess.run([validation_loss_update, validation_loss], feed_dict={it_handle:loggerhook.test_iterator_handle,
+																											training_pl:False, dropout_pl:1.0})
 						except tf.errors.OutOfRangeError:
 							break
 					summ = mon_sess.run(valid_summ)
