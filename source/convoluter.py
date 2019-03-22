@@ -174,8 +174,7 @@ class Convoluter:
 				padded_batch.set_shape([self.BATCH_SIZE, self.SIZE, self.SIZE, 3])
 
 			with arg_scope(inception_arg_scope()):
-				_, end_points = inception_v4.inception_v4(padded_batch, num_classes=self.NUM_CLASSES, is_training=True,
-														  dropout_keep_prob=1.0, create_aux_logits=False)
+				_, end_points = inception_v4.inception_v4(padded_batch, num_classes=self.NUM_CLASSES, is_training=False, create_aux_logits=False)
 
 			prelogits = end_points['PreLogitsFlatten']
 			slogits = end_points['Predictions']
