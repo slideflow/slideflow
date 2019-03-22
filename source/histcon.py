@@ -34,6 +34,8 @@ from tensorboard.plugins.custom_scalar import layout_pb2
 import inception_v4
 from inception_utils import inception_arg_scope
 
+# Calculate accuracy with https://stackoverflow.com/questions/50111438/tensorflow-validate-accuracy-with-batch-data
+
 class HistconModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
