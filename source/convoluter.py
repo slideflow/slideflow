@@ -178,8 +178,6 @@ class Convoluter:
 
 			prelogits = end_points['PreLogitsFlatten']
 			slogits = end_points['Predictions']
-			num_tensors_final_layer = prelogits.get_shape().as_list()[1]
-			vars_to_restore = []
 
 			for var_to_restore in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
 				if ((var_to_restore.name[12:21] != "AuxLogits")):# and 

@@ -91,9 +91,11 @@
 <li class="toctree-l2"><a class="reference internal" href="convoluter.html">convoluter module</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">histcon module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="histcon_eval.html">histcon_eval module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="histcon_retrain.html">histcon_retrain module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="packing.html">packing module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="progress_bar.html">progress module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="data_utils.html">data_utils module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="fastim.html">fastim module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="nconvert_util.html">nconvert_util module</a></li>
 </ul>
 </li>
 </ul>
@@ -172,13 +174,18 @@
 <p>Model containing all functions necessary to build input dataset pipelines,
 build a training and validation set model, and monitor and execute training.</p>
 <dl class="attribute">
+<dt id="histcon.HistconModel.ADAM_LEARNING_RATE">
+<code class="descname">ADAM_LEARNING_RATE</code><em class="property"> = 0.01</em><a class="headerlink" href="#histcon.HistconModel.ADAM_LEARNING_RATE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
 <dt id="histcon.HistconModel.BATCH_SIZE">
 <code class="descname">BATCH_SIZE</code><em class="property"> = 32</em><a class="headerlink" href="#histcon.HistconModel.BATCH_SIZE" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
 <dt id="histcon.HistconModel.IMAGE_SIZE">
-<code class="descname">IMAGE_SIZE</code><em class="property"> = 224</em><a class="headerlink" href="#histcon.HistconModel.IMAGE_SIZE" title="Permalink to this definition">¶</a></dt>
+<code class="descname">IMAGE_SIZE</code><em class="property"> = 512</em><a class="headerlink" href="#histcon.HistconModel.IMAGE_SIZE" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -208,7 +215,7 @@ build a training and validation set model, and monitor and execute training.</p>
 
 <dl class="attribute">
 <dt id="histcon.HistconModel.NUM_CLASSES">
-<code class="descname">NUM_CLASSES</code><em class="property"> = 2</em><a class="headerlink" href="#histcon.HistconModel.NUM_CLASSES" title="Permalink to this definition">¶</a></dt>
+<code class="descname">NUM_CLASSES</code><em class="property"> = 6</em><a class="headerlink" href="#histcon.HistconModel.NUM_CLASSES" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -287,13 +294,13 @@ average for all trainable variables.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="histcon.HistconModel.gen_filenames_op">
-<code class="descname">gen_filenames_op</code><span class="sig-paren">(</span><em>dir_string</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/histcon.html#HistconModel.gen_filenames_op"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#histcon.HistconModel.gen_filenames_op" title="Permalink to this definition">¶</a></dt>
+<dt id="histcon.HistconModel.generate_loss_chart">
+<code class="descname">generate_loss_chart</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/histcon.html#HistconModel.generate_loss_chart"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#histcon.HistconModel.generate_loss_chart" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
-<dt id="histcon.HistconModel.generate_batched_dataset">
-<code class="descname">generate_batched_dataset</code><span class="sig-paren">(</span><em>filenames</em>, <em>labels</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/histcon.html#HistconModel.generate_batched_dataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#histcon.HistconModel.generate_batched_dataset" title="Permalink to this definition">¶</a></dt>
+<dt id="histcon.HistconModel.load_vars">
+<code class="descname">load_vars</code><span class="sig-paren">(</span><em>retrain_weights</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/histcon.html#HistconModel.load_vars"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#histcon.HistconModel.load_vars" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
@@ -318,22 +325,16 @@ average for all trainable variables.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="histcon.HistconModel.retrain">
-<code class="descname">retrain</code><span class="sig-paren">(</span><em>model='/home/shawarma/thyroid/models/inception_v4_2018_04_27/inception_v4.pb'</em>, <em>weights='/home/shawarma/thyroid/thyroid/obj/inception_v4_imagenet_pretrained.pkl'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/histcon.html#HistconModel.retrain"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#histcon.HistconModel.retrain" title="Permalink to this definition">¶</a></dt>
+<dt id="histcon.HistconModel.retrain_from_pkl">
+<code class="descname">retrain_from_pkl</code><span class="sig-paren">(</span><em>model</em>, <em>weights</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/histcon.html#HistconModel.retrain_from_pkl"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#histcon.HistconModel.retrain_from_pkl" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="histcon.HistconModel.train">
-<code class="descname">train</code><span class="sig-paren">(</span><em>retrain_model=None</em>, <em>retrain_weights=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/histcon.html#HistconModel.train"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#histcon.HistconModel.train" title="Permalink to this definition">¶</a></dt>
+<code class="descname">train</code><span class="sig-paren">(</span><em>retrain_model=None</em>, <em>retrain_weights=None</em>, <em>restore_checkpoint=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/histcon.html#HistconModel.train"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#histcon.HistconModel.train" title="Permalink to this definition">¶</a></dt>
 <dd><p>Train HISTCON for a number of steps, according to flags set by the argument parser.</p>
 </dd></dl>
 
-</dd></dl>
-
-<dl class="function">
-<dt id="histcon.main">
-<code class="descclassname">histcon.</code><code class="descname">main</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/histcon.html#main"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#histcon.main" title="Permalink to this definition">¶</a></dt>
-<dd><p>Initialize directories and start the main Tensorflow app.</p>
 </dd></dl>
 
 </div>
