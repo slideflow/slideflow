@@ -43,7 +43,7 @@ class HistconModel:
 	# model architecture will change and will need to be retrained.
 
 	IMAGE_SIZE = 512
-	NUM_CLASSES = 6
+	NUM_CLASSES = 5
 
 	NUM_EXAMPLES_PER_EPOCH = 1024
 
@@ -52,10 +52,10 @@ class HistconModel:
 	NUM_EPOCHS_PER_DECAY = 240.0		# Epochs after which learning rate decays.
 	LEARNING_RATE_DECAY_FACTOR = 0.05	# Learning rate decay factor.
 	INITIAL_LEARNING_RATE = 0.001		# Initial learning rate.
-	ADAM_LEARNING_RATE = 0.01			# Learning rate for the Adams Optimizer.
+	ADAM_LEARNING_RATE = 0.1			# Learning rate for the Adams Optimizer.
 
 	# Variables previous created with parser & FLAGS
-	BATCH_SIZE =32
+	BATCH_SIZE = 32
 	WHOLE_IMAGE = '' # Filename of whole image (JPG) to evaluate with saved model
 	MAX_EPOCH = 30
 	LOG_FREQUENCY = 20 # How often to log results to console, in steps
@@ -239,13 +239,13 @@ class HistconModel:
 		num_batches_per_epoch = self.NUM_EXAMPLES_PER_EPOCH / self.BATCH_SIZE
 		decay_steps = int(num_batches_per_epoch * self.NUM_EPOCHS_PER_DECAY)
 
-		# Decay the learning rate exponentially based on the number of steps.
+		'''# Decay the learning rate exponentially based on the number of steps.
 		lr = tf.train.exponential_decay(self.INITIAL_LEARNING_RATE,
 										global_step,
 										decay_steps,
 										self.LEARNING_RATE_DECAY_FACTOR,
 										staircase=True)
-		tf.summary.scalar('learning_rate', lr)
+		tf.summary.scalar('learning_rate', lr)'''
 
 		# Generate moving averages of all losses and associated summaries.
 		loss_averages_op = self._add_loss_summaries(total_loss)
@@ -276,7 +276,9 @@ class HistconModel:
 			self.MOVING_AVERAGE_DECAY, global_step)
 		variables_averages_op = variable_averages.apply(tf.trainable_variables())
 
-		with tf.control_dependencies([apply_gradient_op, variables_averages_op]):
+		update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+
+		with tf.control_dependencies([update_ops, apply_gradient_op, variables_averages_op]): 
 			train_op = tf.no_op(name='train')
 
 		return train_op
