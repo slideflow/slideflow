@@ -277,8 +277,7 @@ class HistconModel:
 		variables_averages_op = variable_averages.apply(tf.trainable_variables())
 
 		update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-
-		with tf.control_dependencies([update_ops, apply_gradient_op, variables_averages_op]): 
+		with tf.control_dependencies(update_ops + [apply_gradient_op, variables_averages_op]): 
 			train_op = tf.no_op(name='train')
 
 		return train_op
@@ -384,12 +383,13 @@ class HistconModel:
 
 			def before_run(self, run_context):
 				feed_dict = run_context.original_args.feed_dict
-				if it_handle in feed_dict and feed_dict[it_handle] == self.train_iterator_handle:
+				if feed_dict and it_handle in feed_dict and feed_dict[it_handle] == self.train_iterator_handle:
 					self._step += 1
 					return tf.train.SessionRunArgs(loss) # Asks for loss value.
 
 			def after_run(self, run_context, run_values):
 				if ((self._step % self.parent.LOG_FREQUENCY == 0) and
+				   (run_context.original_args.feed_dict) and
 				   (it_handle in run_context.original_args.feed_dict) and
 				   (run_context.original_args.feed_dict[it_handle] == self.train_iterator_handle)):
 					current_time = time.time()
