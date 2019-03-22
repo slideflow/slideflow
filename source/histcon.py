@@ -26,7 +26,8 @@ import argparse
 
 import tensorflow as tf
 from tensorflow.contrib.framework import arg_scope
-from tensorflow.python.training.summary_io import SummaryWriterCache
+from tensorflow.summary import FileWriterCache
+#from tensorflow.python.training.summary_io import SummaryWriterCache
 from tensorboard import summary as summary_lib
 from tensorboard.plugins.custom_scalar import layout_pb2
 
@@ -160,9 +161,6 @@ class HistconModel:
 				# Will likely need to be re-initializable iterator to repeat testing
 				test_iterator = test_dataset.make_initializable_iterator()
 
-				train_iterator_handle = train_iterator.string_handle()
-				test_iterator_handle = test_iterator.string_handle()
-
 				handle = tf.placeholder(tf.string, shape=[])
 				iterator = tf.data.Iterator.from_string_handle(handle, 
 															   train_iterator.output_types,
@@ -236,10 +234,9 @@ class HistconModel:
 		'''
 
 		# Variables that affect learning rate.
-		num_batches_per_epoch = self.NUM_EXAMPLES_PER_EPOCH / self.BATCH_SIZE
+		# Decay the learning rate exponentially based on the number of steps.
+		'''num_batches_per_epoch = self.NUM_EXAMPLES_PER_EPOCH / self.BATCH_SIZE
 		decay_steps = int(num_batches_per_epoch * self.NUM_EPOCHS_PER_DECAY)
-
-		'''# Decay the learning rate exponentially based on the number of steps.
 		lr = tf.train.exponential_decay(self.INITIAL_LEARNING_RATE,
 										global_step,
 										decay_steps,
@@ -419,7 +416,7 @@ class HistconModel:
 			save_summaries_secs = None) as mon_sess:
 
 			test_writer = tf.summary.FileWriter(self.TEST_DIR, mon_sess.graph)
-			train_writer = SummaryWriterCache.get(self.TRAIN_DIR)
+			train_writer = FileWriterCache.get(self.TRAIN_DIR) # SummaryWriterCache
 			train_writer.add_summary(layout_summary)
 
 			if restore_checkpoint and ckpt and ckpt.model_checkpoint_path:
