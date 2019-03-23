@@ -153,7 +153,7 @@ class Convoluter:
 				unique_tile = c[2]
 				if export_tiles and unique_tile:
 					imsave(join(self.SAVE_FOLDER, f'tiles/{case_name}_{ci}.jpg'), region)
-				print(region[10,5], '\t', unique_tile)
+				#print(region[10,5], '\t', unique_tile)
 				yield region, coord_label, unique_tile
 
 		with tf.Graph().as_default() as g:
@@ -178,7 +178,7 @@ class Convoluter:
 
 			prelogits = end_points['PreLogitsFlatten']
 			slogits = end_points['Predictions']
-
+			vars_to_restore = []
 			for var_to_restore in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
 				if ((var_to_restore.name[12:21] != "AuxLogits")):# and 
 					#((var_to_restore.name[:25] != "InceptionV4/Logits/Logits") or not final_layer)):
@@ -251,8 +251,8 @@ class Convoluter:
 
 			# Organize array into 2D format corresponding to where each logit was calculated
 			if final_layer:
-				prelogits_out = prelogits_arr#[prelogits_arr[p] for p in range(len(prelogits_arr)) if unique_arr[p]]
-				prelogits_labels = unique_arr#[l for l in range(len(unique_arr)) if unique_arr[l]]
+				prelogits_out = [prelogits_arr[p] for p in range(len(prelogits_arr)) if unique_arr[p]]
+				prelogits_labels = [l for l in range(len(unique_arr)) if unique_arr[l]]
 			else:
 				prelogits_out = None
 				prelogits_labels = None
