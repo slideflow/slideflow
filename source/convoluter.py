@@ -41,6 +41,7 @@ Image.MAX_IMAGE_PIXELS = 100000000000
 
 # TODO: memory management
 # TODO: add logits to CSV file as metadata
+# TODO: convolute across entire SVS file (more computationally efficient)
 
 class Convoluter:
 	def __init__(self, size, num_classes, batch_size, use_fp16, save_folder = ''):
@@ -91,7 +92,8 @@ class Convoluter:
 			print("Calculating only non-overlapping tiles for final layer weight extraction.")
 			#self.STRIDE = 1
 		for case_name in self.IMAGES:
-			print(f"Working on case {case_name}")
+			category = "None" if case_name not in self.CATEGORIES else self.CATEGORIES[case_name]
+			print(f"Working on case {case_name} ({category})")
 			image_path = self.IMAGES[case_name]
 			# Use PKL logits if available
 			if case_name in self.PKL_DICT and not save_final_layer:
@@ -101,19 +103,20 @@ class Convoluter:
 			else:
 				logits, final_layer, final_layer_labels, logits_flat = self.scan_image(image_path, case_name, 
 																		  export_tiles, save_final_layer,
-																		  save_pkl=(save_heatmaps or display_heatmaps))
-			if save_heatmaps:
-				self.export_heatmaps(image_path, logits, self.SIZE, case_name)
+																		  save_pkl=((save_heatmaps or display_heatmaps) and case_name not in self.PKL_DICT))
 			if save_final_layer:
-				category = "None" if case_name not in self.CATEGORIES else self.CATEGORIES[case_name]
 				self.save_csv(final_layer, final_layer_labels, case_name, category)
-			if display_heatmaps:
-				self.fast_display(image_path, logits, self.SIZE, case_name)
+			try:
+				if save_heatmaps:
+					self.export_heatmaps(image_path, logits, self.SIZE, case_name)
+				if display_heatmaps:
+					self.fast_display(image_path, logits, self.SIZE, case_name)
+			except MemoryError:
+				print("Unable to save heatmaps, OOM.")
 
 	def scan_image(self, image_path, case_name, export_tiles=False, final_layer=False, save_pkl=True):
 		'''Returns logits and final layer weights'''
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
-		# TODO: the problem arises when using final layer export only and to save time, the stride is set to 1
 
 		# Reset graph to prevent OOM errors when convoluting across multiple images
 		tf.reset_default_graph()
@@ -161,7 +164,7 @@ class Convoluter:
 			with tf.name_scope('dataset_input'):
 				tile_dataset = tf.data.Dataset.from_generator(gen_slice, (self.DTYPE, tf.int64, tf.bool))
 				tile_dataset = tile_dataset.batch(self.BATCH_SIZE, drop_remainder = False)
-				#tile_dataset = tile_dataset.prefetch(1)
+				tile_dataset = tile_dataset.prefetch(1)
 				tile_iterator = tile_dataset.make_one_shot_iterator()
 				next_batch_images, next_batch_labels, next_batch_unique  = tile_iterator.get_next()
 
