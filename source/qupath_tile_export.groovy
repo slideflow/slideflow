@@ -9,11 +9,17 @@ import java.awt.Color
 import java.awt.image.BufferedImage
 import java.awt.geom.AffineTransform
 import java.awt.image.AffineTransformOp
+import java.awt.image.DataBufferByte
+
+def augmentation = true
+def export = true
+def extract_um = 280
+def tile_px = 512
 
 setImageType('BRIGHTFIELD_H_E');
 setColorDeconvolutionStains('{"Name" : "H&E default", "Stain 1" : "Hematoxylin", "Values 1" : "0.65111 0.70119 0.29049 ", "Stain 2" : "Eosin", "Values 2" : "0.2159 0.8012 0.5581 ", "Background" : " 255 255 255 "}');
 selectAnnotations();
-runPlugin('qupath.lib.algorithms.TilerPlugin', '{"tileSizeMicrons": 280.0,  "trimToROI": false,  "makeAnnotations": true,  "removeParentAnnotation": false}');
+runPlugin('qupath.lib.algorithms.TilerPlugin', String.format('{"tileSizeMicrons": %d,  "trimToROI": false,  "makeAnnotations": true,  "removeParentAnnotation": false}', extract_um));
 
 def imageData = QPEx.getCurrentImageData()
 def hierarchy = imageData.getHierarchy()
@@ -30,9 +36,6 @@ def ann_file = new File(ann_path)
 tile_file.text = ''
 ann_file.text = ''
 
-def augmentation= true
-def downsample = 1.0
-
 for (obj in annotations) {
     if (obj.isAnnotation()) {
         def roi = obj.getROI()
@@ -43,26 +46,49 @@ for (obj in annotations) {
         }
         // If rectangle, assume image tile, export
         if (roi.getClass() == qupath.lib.roi.RectangleROI) {
-            // Write image tile coords to text file
-            tile_file << roi.getPolygonPoints() << System.lineSeparator()
-            def region = RegionRequest.createInstance(server.getPath(), downsample, roi)
-            String tile_name = String.format('%s_(%.2f,%d,%d)',
+            def region = RegionRequest.createInstance(server.getPath(), 1.0, roi)
+            String tile_name = String.format('%s_(%d,%d)',
                 name,
-                region.getDownsample(),
                 region.getX(),
                 region.getY(),
             )
-            def img = server.readBufferedImage(region)
-            int w = img.getWidth()
-            int h = img.getHeight()
+            def old_img = server.readBufferedImage(region)
+            int width_old = old_img.getWidth()
 
-            def fileImage = new File(home_dir, tile_name + ".jpg")
-            print("Writing image tiles for tile " + tile_name)
-            ImageIO.write(img, "JPG", fileImage)
+            // Check if tile is mostly background
+            // If >50% of pixels >240, then discard
+            def gray_list = []
+            for (int i=0; i < width_old; i++) {
+                for (int j=0; j < width_old; j++) {
+                    int gray = old_img.getRGB(i, j)& 0xFF;
+                    gray_list << gray
+                }
+            }
+            int median_px_i = (width_old * width_old) / 2
+            median_px = gray_list.sort()[median_px_i]
+            if (median_px > 220) { 
+                print("Tile has >50% brightness >240, discarding")
+                continue
+            }
+            // Write image tile coords to text file
+            tile_file << roi.getPolygonPoints() << System.lineSeparator()
+            BufferedImage img = new BufferedImage(tile_px, tile_px, old_img.getType())
+            if (export) {
+                // Resize tile
+                AffineTransform resize = new AffineTransform()
+                resize_factor = tile_px / width_old
+                resize.scale(resize_factor, resize_factor)
+                AffineTransformOp resizeOp = new AffineTransformOp(resize, AffineTransformOp.TYPE_BILINEAR)
+                resizeOp.filter(old_img, img)
+                w = img.getWidth()
+                h = img.getHeight()
+    
+                def fileImage = new File(home_dir, tile_name + ".jpg")
+                print("Writing image tiles for tile " + tile_name)
+                ImageIO.write(img, "JPG", fileImage)
+            }
 
-            // TODO: throw away background  if >50% of pixels > 240
-
-            if (augmentation) {
+            if (augmentation && export) {
                 AffineTransform rotateTransform = new AffineTransform()
                 rotateTransform.translate(h/2, w/2)
                 rotateTransform.rotate(Math.PI/2)
