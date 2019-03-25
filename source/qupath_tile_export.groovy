@@ -15,6 +15,7 @@ def augmentation = true
 def export = true
 def extract_um = 280
 def tile_px = 512
+def root_dir = "/Users/james/thyroid/svs/tiles/"
 
 setImageType('BRIGHTFIELD_H_E');
 setColorDeconvolutionStains('{"Name" : "H&E default", "Stain 1" : "Hematoxylin", "Values 1" : "0.65111 0.70119 0.29049 ", "Stain 2" : "Eosin", "Values 2" : "0.2159 0.8012 0.5581 ", "Background" : " 255 255 255 "}');
@@ -27,7 +28,7 @@ def annotations = hierarchy.getFlattenedObjectList(null).findAll {it.isAnnotatio
 def server = imageData.getServer()
 
 def name = server.getShortServerName()
-def home_dir = "/Users/james/thyroid/svs/tiles/" + name
+def home_dir = root_dir + name
 QPEx.mkdirs(home_dir)
 def path = buildFilePath(home_dir, String.format("Tile_coords_%s.txt", name))
 def ann_path = buildFilePath(home_dir, String.format("%s.qptxt", name))
