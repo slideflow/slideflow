@@ -68,7 +68,7 @@ def main(_):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--data_dir', type=str, default='/home/shawarma/histcon', help='Directory for storing input data')
+	parser.add_argument('--data_dir', type=str, default='/home/shawarma/thyroid/images/WSI_50/Test_Set_Heatmaps', help='Directory for storing input data')
 	parser.add_argument('--log_dir', type=str, default = '/home/shawarma/histcon/logs', help='Summaries log directory')
 	parser.add_argument('--file', required=True, help='Training data filename')
 	parser.add_argument('--meta', type=int, default = 1, help = 'Number of metadata columns')
