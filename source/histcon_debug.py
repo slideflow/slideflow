@@ -37,7 +37,7 @@ slim = tf.contrib.slim
 
 # Calculate accuracy with https://stackoverflow.com/questions/50111438/tensorflow-validate-accuracy-with-batch-data
 # TODO: try next, comment out line 254 (results in calculating total_loss before update_ops is called)
-
+# TODO: visualize graph, memory usage, and compute time with https://www.tensorflow.org/guide/graph_viz
 
 class HistconModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
