@@ -44,6 +44,8 @@ from matplotlib import pyplot as mp
 from fastim import FastImshow
 
 Image.MAX_IMAGE_PIXELS = 100000000000
+TILE_UM = 280
+TIME_PX = 512
 ANNOTATION_SCALE = 10 # Scale by which to reduce image when calculating annotation bounding boxes
 
 # TODO: memory management
@@ -62,23 +64,52 @@ class AnnotationObject:
 
 class SVSReader:
 	def __init__(self, path):
-		self.shape = [10,10]
 		annotation_path = path[:-4] + ".qptxt"
 		if not exists(annotation_path):
-			raise FileNotFoundError("Unable to locate associated '.qptxt' annotation file. Generate this file using QuPath and the included Groovy script.")
+			#raise FileNotFoundError("Unable to locate associated '.qptxt' annotation file. Generate this file using QuPath and the included Groovy script.")
+			print("no annotation file found")
 		self.load_annotations(annotation_path)
-	def generator(self, size, stride_div):
-		#
-		# UPDATE THIS
-		#
-		window_stride = size / stride_div
-		region = [1, 1, 1] # RGB image tile
-		coord_label = [5, 5]
-		unique_tile = False
-		yield region, coord_label, unique_tile
-		#
-		#
-		#
+		self.slide = ops.OpenSlide(path)
+		self.shape = self.slide.dimensions
+		print(f"Loaded SVS of size {self.shape[0]} x {self.shape[1]}")
+
+	def build_generator(self, size, stride, export=False):
+		# Calculate window sizes, strides, and coordinates for windows
+		window_size = [size, size]
+		if (window_size[0] > self.shape[0]) or (window_size[1] > self.shape[1]):
+				raise IndexError("Window size is too large")
+
+		coord = []
+		x_size = self.shape[1] - window_size[1]
+		y_size = self.shape[0] - window_size[0]
+
+		for y in range(0, (self.shape[0]+1) - window_size[0], stride):
+			for x in range(0, (self.shape[1]+1) - window_size[1], stride):
+				# Check if this is a unique tile without overlap (e.g. if stride was 1)
+				if (y % size == 0) and (x % size == 0):
+					# If true, this tile is eligible for final layer weight calculation
+					coord.append([y, x, True])
+				else:
+					coord.append([y, x, False])
+
+		def generator():
+			for ci in range(len(coord)):
+				c = coord[ci]
+				# Read the region and discard the alpha pixels
+				region = np.asarray(self.slide.read_region(c, 0, window_size))[:,:,:-1]
+				median_brightness = int(sum(np.median(region, axis=(0, 1))))
+				if median_brightness > 660:
+					# Discard tile; median brightness (average RGB pixel) > 220
+					print(f"Discarding tile with brightness {int(median_brightness/3)}")
+					continue
+				coord_label = ci
+				unique_tile = c[2]
+				if export and unique_tile:
+					imsave(join(self.SAVE_FOLDER, f'tiles/{case_name}_{ci}.jpg'), region)
+				#print(region[10,5], '\t', unique_tile)
+				yield region, coord_label, unique_tile
+		return generator, x_size, y_size
+
 	def load_annotations(self, path):
 		self.annotation_objects = []
 		with open(path, "r") as reader:
@@ -107,7 +138,7 @@ class Convoluter:
 		self.DTYPE = tf.float16 if use_fp16 else tf.float32
 		self.DTYPE_INT = tf.int16 if use_fp16 else tf.int32
 		self.SAVE_FOLDER = save_folder
-		self.STRIDE = 4
+		self.STRIDE_DIV = 4
 
 	def load_svs(self, whole_svs_array, directory, category=None):
 		for svs in whole_svs_array:
@@ -126,8 +157,6 @@ class Convoluter:
 	def build_model(self, model_dir):
 		self.MODEL_DIR = model_dir
 
-	def shape(self, )
-
 	def convolute_all_images(self, save_heatmaps, display_heatmaps, save_final_layer, export_tiles):
 		'''Parent function to guide convolution across a whole-slide image and execute desired functions.
 
@@ -145,7 +174,7 @@ class Convoluter:
 		if not save_heatmaps and not display_heatmaps:
 			# No need to calculate overlapping tiles
 			print("Calculating only non-overlapping tiles for final layer weight extraction.")
-			#self.STRIDE = 1
+			self.STRIDE_DIV = 1
 		for case_name in self.SVS:
 			category = "None" if case_name not in self.CATEGORIES else self.CATEGORIES[case_name]
 			print(f"Working on case {case_name} ({category})")
@@ -175,45 +204,12 @@ class Convoluter:
 
 		# Load whole-slide-image into Numpy array and prepare pkl output
 		whole_svs = SVSReader(svs_path)
-		shape = whole_svs.shape()
 		pkl_name =  case_name + '.pkl'
+		stride_px = int(self.SIZE / self.STRIDE_DIV)
 
-		# pseudo code -----------------------------------------
-		gen_slice = whole_svs.generator(self.SIZE, self.STRIDE)
+		# load SVS generator ----------------------------------
+		gen_slice, x_size, y_size = whole_svs.build_generator(self.SIZE, stride_px, export=export_tiles)
 		# -----------------------------------------------------
-
-		print(f"Loading image of size {shape[0]} x {shape[1]}")
-
-		# Calculate window sizes, strides, and coordinates for windows
-		window_size = [self.SIZE, self.SIZE]
-		window_stride = [int(self.SIZE/self.STRIDE), int(self.SIZE/self.STRIDE)]
-
-		if (window_size[0] > shape[0]) or (window_size[1] > shape[1]):
-				raise IndexError("Window size is too large")
-
-		coord = []
-		self.Y_SIZE = shape[0] - window_size[0]
-		self.X_SIZE = shape[1] - window_size[1]
-
-		for y in range(0, (shape[0]+1) - window_size[0], window_stride[0]):
-			for x in range(0, (shape[1]+1) - window_size[1], window_stride[1]):
-				# Check if this is a unique tile without overlap (e.g. if stride was 1)
-				if (y % self.SIZE == 0) and (x % self.SIZE == 0):
-					# If true, this tile is eligible for final layer weight calculation
-					coord.append([y, x, True])
-				else:
-					coord.append([y, x, False])
-
-		def gen_slice():
-			for ci in range(len(coord)):
-				c = coord[ci]
-				region = whole_slide_image[c[0]:c[0] + window_size[0], c[1]:c[1] + window_size[1],]
-				coord_label = ci
-				unique_tile = c[2]
-				if export_tiles and unique_tile:
-					imsave(join(self.SAVE_FOLDER, f'tiles/{case_name}_{ci}.jpg'), region)
-				#print(region[10,5], '\t', unique_tile)
-				yield region, coord_label, unique_tile
 
 		with tf.Graph().as_default() as g:
 			# Generate dataset from coordinates
@@ -258,12 +254,12 @@ class Convoluter:
 
 				logits_arr = []
 				labels_arr = []
-				x_logits_len = int(self.X_SIZE / window_stride[1])+1
-				y_logits_len = int(self.Y_SIZE / window_stride[0])+1
+				x_logits_len = int(x_size / stride_px) + 1
+				y_logits_len = int(y_size / stride_px) + 1
 				total_logits_count = x_logits_len * y_logits_len	
 
-				if total_logits_count != len(coord):
-					raise Exception("The expected total number of window tiles does not match the number of generated starting points for window tiles.")
+				'''if total_logits_count != len(coord):
+					raise Exception("The expected total number of window tiles does not match the number of generated starting points for window tiles.")'''
 
 				count = 0
 				prelogits_arr = []	# Final layer weights
