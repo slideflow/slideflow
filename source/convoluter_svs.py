@@ -44,6 +44,7 @@ from matplotlib import pyplot as mp
 from fastim import FastImshow
 
 Image.MAX_IMAGE_PIXELS = 100000000000
+ANNOTATION_SCALE = 10 # Scale by which to reduce image when calculating annotation bounding boxes
 
 # TODO: memory management
 # TODO: add logits to CSV file as metadata
@@ -67,28 +68,32 @@ class SVSReader:
 			raise FileNotFoundError("Unable to locate associated '.qptxt' annotation file. Generate this file using QuPath and the included Groovy script.")
 		self.load_annotations(annotation_path)
 	def generator(self, size, stride_div):
+		#
+		# UPDATE THIS
+		#
 		window_stride = size / stride_div
 		region = [1, 1, 1] # RGB image tile
 		coord_label = [5, 5]
 		unique_tile = False
 		yield region, coord_label, unique_tile
+		#
+		#
+		#
 	def load_annotations(self, path):
-		annotation_objects = []
+		self.annotation_objects = []
 		with open(path, "r") as reader:
 			for line in reader:
 				if line[:5] == "Name:":
 					# New object detected
 					object_name = line.strip()[6:]
-					annotation_objects.append(AnnotationObject(object_name))
+					self.annotation_objects.append(AnnotationObject(object_name))
 				elif line.strip().lower() == "end":
-					print("End of object detected")
-					if len(annotation_objects) > 0:
-						annotation_objects[-1].print_coord()
+					pass
+					#print("End of object detected")
 				else:
-					# Extract coordinates and place in array
-					coord = list(map(float, line.strip().split(', ')))
-					annotation_objects[-1].add_coord(coord)
-			print(f"Total objects loaded: {len(annotation_objects)}")
+					coord = list(map(lambda x: int(float(x)/ANNOTATION_SCALE), line.strip().split(', ')))
+					self.annotation_objects[-1].add_coord(coord)
+			print(f"Total objects loaded: {len(self.annotation_objects)}")
 
 class Convoluter:
 	def __init__(self, size, num_classes, batch_size, use_fp16, save_folder = ''):
@@ -120,6 +125,8 @@ class Convoluter:
 
 	def build_model(self, model_dir):
 		self.MODEL_DIR = model_dir
+
+	def shape(self, )
 
 	def convolute_all_images(self, save_heatmaps, display_heatmaps, save_final_layer, export_tiles):
 		'''Parent function to guide convolution across a whole-slide image and execute desired functions.
@@ -168,7 +175,7 @@ class Convoluter:
 
 		# Load whole-slide-image into Numpy array and prepare pkl output
 		whole_svs = SVSReader(svs_path)
-		shape = whole_svs.shape
+		shape = whole_svs.shape()
 		pkl_name =  case_name + '.pkl'
 
 		# pseudo code -----------------------------------------
