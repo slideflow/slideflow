@@ -8,6 +8,8 @@
 the result as a heatmap overlay.
 
 This version will convolute across an SVS image instead of JPG chunks.
+
+Requires: Openslide (https://openslide.org/download/)
 '''
 
 from __future__ import absolute_import
@@ -48,6 +50,15 @@ Image.MAX_IMAGE_PIXELS = 100000000000
 # TODO: convolute across entire SVS file (more computationally efficient)
 # TODO: get annotated bounding shapes from QuPath with a Groovy script: https://github.com/qupath/qupath/issues/122
 
+class AnnotationObject:
+	def __init__(self, name):
+		self.name = name
+		self.coordinates = []
+	def add_coord(self, coord):
+		self.coordinates.append(coord)
+	def print_coord(self):
+		for c in self.coordinates: print(c)
+
 class SVSReader:
 	def __init__(self, path):
 		self.shape = [10,10]
@@ -62,8 +73,22 @@ class SVSReader:
 		unique_tile = False
 		yield region, coord_label, unique_tile
 	def load_annotations(self, path):
+		annotation_objects = []
 		with open(path, "r") as reader:
-			print(reader.readline())
+			for line in reader:
+				if line[:5] == "Name:":
+					# New object detected
+					object_name = line.strip()[6:]
+					annotation_objects.append(AnnotationObject(object_name))
+				elif line.strip().lower() == "end":
+					print("End of object detected")
+					if len(annotation_objects) > 0:
+						annotation_objects[-1].print_coord()
+				else:
+					# Extract coordinates and place in array
+					coord = list(map(float, line.strip().split(', ')))
+					annotation_objects[-1].add_coord(coord)
+			print(f"Total objects loaded: {len(annotation_objects)}")
 
 class Convoluter:
 	def __init__(self, size, num_classes, batch_size, use_fp16, save_folder = ''):
@@ -82,7 +107,9 @@ class Convoluter:
 	def load_svs(self, whole_svs_array, directory, category=None):
 		for svs in whole_svs_array:
 			name = svs[:-4]
-			self.SVS.update({name: join(directory, svs)})
+			print(svs)
+			svs_path = svs if not directory else join(directory, svs)
+			self.SVS.update({name: svs_path})
 			if category:
 				self.CATEGORIES.update({name: category})
 
@@ -93,7 +120,6 @@ class Convoluter:
 
 	def build_model(self, model_dir):
 		self.MODEL_DIR = model_dir
-
 
 	def convolute_all_images(self, save_heatmaps, display_heatmaps, save_final_layer, export_tiles):
 		'''Parent function to guide convolution across a whole-slide image and execute desired functions.
@@ -425,9 +451,9 @@ if __name__==('__main__'):
 	c = Convoluter(args.size, args.classes, args.batch, args.fp16, args.out)
 
 	if isfile(args.svs):
-		image_list = [args.svs.split('/'[-1])]
+		image_list = [args.svs.split('/')[-1]]
 		image_dir = "/".join(args.svs.split('/')[:-1])
-		c.load_images(image_list, image_dir)
+		c.load_svs(image_list, image_dir)
 	else:
 		# First, load images in the directory, not assigning any category
 		image_list = [i for i in os.listdir(args.svs) if (isfile(join(args.svs, i)) and (i[-3:] == "svs"))]	
