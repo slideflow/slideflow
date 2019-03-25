@@ -118,9 +118,6 @@ class Convoluter:
 		'''Returns logits and final layer weights'''
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 
-		# Reset graph to prevent OOM errors when convoluting across multiple images
-		tf.reset_default_graph()
-
 		# Load whole-slide-image into Numpy array and prepare pkl output
 		whole_slide_image = imageio.imread(image_path)
 		shape = whole_slide_image.shape
@@ -264,7 +261,11 @@ class Convoluter:
 				with open(os.path.join(self.SAVE_FOLDER, pkl_name), 'wb') as handle:
 					pickle.dump(logits_out, handle)
 
-			return logits_out, prelogits_out, prelogits_labels, logits_arr
+		# Reset the graph now that we're done using it
+		# to prevent OOM errors when convoluting across multiple images
+		tf.reset_default_graph()
+
+		return logits_out, prelogits_out, prelogits_labels, logits_arr
 
 	def save_csv(self, output, labels, name, category):
 		print("Writing csv...")
