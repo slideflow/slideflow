@@ -32,7 +32,6 @@ from PIL import Image
 import argparse
 import pickle
 import csv
-from scipy.misc import imsave
 import openslide as ops
 import shapely.geometry as sg
 import cv2
@@ -46,8 +45,7 @@ from matplotlib import pyplot as mp
 from fastim import FastImshow
 
 Image.MAX_IMAGE_PIXELS = 100000000000
-
-# TODO: add logits to CSV file as metadata
+SVS_THUMBNAIL_FACTOR = 1
 
 class AnnotationObject:
 	def __init__(self, name):
@@ -105,6 +103,9 @@ class SVSReader:
 
 		# Load annotations as shapely.geometry objects
 		annPolys = [sg.Polygon(annotation.coordinates) for annotation in self.annotations]
+		# Create mask for indicating whether tile was extracted
+		tile_mask = np.asarray([0 for i in range(len(coord))])
+		self.tile_mask = None
 
 		def generator():
 			for ci in range(len(coord)):
@@ -120,20 +121,24 @@ class SVSReader:
 				if median_brightness > 660:
 					# Discard tile; median brightness (average RGB pixel) > 220
 					continue
+				tile_mask[ci] = 1
 				coord_label = ci
 				unique_tile = c[2]
 				if export and unique_tile:
-					imsave(join(tiles_path, f'{case_name}_{ci}.jpg'), region)
+					imageio.imwrite(join(tiles_path, f'{case_name}_{ci}.jpg'), region)
 					if augment:
-						imsave(join(tiles_path, f'{case_name}_{ci}_aug1.jpg'), np.rot90(region))
-						imsave(join(tiles_path, f'{case_name}_{ci}_aug2.jpg'), np.flipud(region))
-						imsave(join(tiles_path, f'{case_name}_{ci}_aug3.jpg'), np.flipud(np.rot90(region)))
-						imsave(join(tiles_path, f'{case_name}_{ci}_aug4.jpg'), np.fliplr(region))
-						imsave(join(tiles_path, f'{case_name}_{ci}_aug5.jpg'), np.fliplr(np.rot90(region)))
-						imsave(join(tiles_path, f'{case_name}_{ci}_aug6.jpg'), np.flipud(np.fliplr(region)))
-						imsave(join(tiles_path, f'{case_name}_{ci}_aug7.jpg'), np.flipud(np.fliplr(np.rot90(region))))
+						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug1.jpg'), np.rot90(region))
+						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug2.jpg'), np.flipud(region))
+						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug3.jpg'), np.flipud(np.rot90(region)))
+						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug4.jpg'), np.fliplr(region))
+						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug5.jpg'), np.fliplr(np.rot90(region)))
+						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug6.jpg'), np.flipud(np.fliplr(region)))
+						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug7.jpg'), np.flipud(np.fliplr(np.rot90(region))))
 				yield region, coord_label, unique_tile
+			
 			if progress: progress_bar.end()
+			print(f"Size of coord: {len(coord)} and total exported: {sum(tile_mask)}")
+			self.tile_mask = tile_mask
 
 		return generator, slide_x_size, slide_y_size, stride
 
@@ -243,7 +248,7 @@ class Convoluter:
 		tf.reset_default_graph()
 
 		# Load whole-slide-image into Numpy array and prepare pkl output
-		whole_svs = SVSReader(svs_path)
+		whole_svs = SVSReader(svs_path, self.SAVE_FOLDER)
 		pkl_name =  case_name + '.pkl'
 
 		# load SVS generator
@@ -346,9 +351,22 @@ class Convoluter:
 			else:
 				prelogits_out = None
 				prelogits_labels = None
-			# Calculate logits for non-overlapping tiles (will be used for metadata for saved final layer weights CSV)
+
+			# Find logits from non-overlapping tiles (will be used for metadata for saved final layer weights CSV)
 			flat_unique_logits = [logits_arr[l] for l in range(len(logits_arr)) if unique_arr[l]]
-			logits_out = np.resize(logits_arr, [y_logits_len, x_logits_len, self.NUM_CLASSES])
+
+			# Next, expand the logits back to a full 2D map spanning the whole SVS file,
+			#  supplying values of "-1" where tiles were skipped
+			expanded_logits = [-1] * len(whole_svs.tile_mask)
+			li = 0
+			for i in len(expanded_logits):
+				if whole_svs.tile_mask[i] == 1:
+					expanded_logits[i] = logits_arr[li]
+					li += 1
+
+			# Resize logits array into a two-dimensional array for heatmap display
+			# Previously, this was using logits_arr instead of expanded_logits
+			logits_out = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.NUM_CLASSES])
 			if save_pkl:
 				with open(os.path.join(self.SAVE_FOLDER, pkl_name), 'wb') as handle:
 					pickle.dump(logits_out, handle)
