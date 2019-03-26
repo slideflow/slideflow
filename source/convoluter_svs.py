@@ -34,6 +34,7 @@ import pickle
 import csv
 from scipy.misc import imsave
 import openslide as ops
+import shapely.geometry as sg
 
 from matplotlib.widgets import Slider
 import matplotlib.pyplot as plt
@@ -59,11 +60,14 @@ class AnnotationObject:
 		self.coordinates = []
 	def add_coord(self, coord):
 		self.coordinates.append(coord)
+	def scaled_area(self, scale):
+		return np.multiply(self.coordinates, 1/scale)
 	def print_coord(self):
 		for c in self.coordinates: print(c)
 
 class SVSReader:
 	def __init__(self, path):
+		self.annotations = []
 		annotation_path = path[:-4] + ".qptxt"
 		if not exists(annotation_path):
 			#raise FileNotFoundError("Unable to locate associated '.qptxt' annotation file. Generate this file using QuPath and the included Groovy script.")
@@ -92,6 +96,9 @@ class SVSReader:
 				else:
 					coord.append([y, x, False])
 
+		# Load annotations as shapely.geometry objects
+		scaled_annotation = self.annotations[0].scaled_area(ANNOTATION_SCALE)
+
 		def generator():
 			for ci in range(len(coord)):
 				c = coord[ci]
@@ -111,20 +118,19 @@ class SVSReader:
 		return generator, x_size, y_size
 
 	def load_annotations(self, path):
-		self.annotation_objects = []
 		with open(path, "r") as reader:
 			for line in reader:
 				if line[:5] == "Name:":
 					# New object detected
 					object_name = line.strip()[6:]
-					self.annotation_objects.append(AnnotationObject(object_name))
+					self.annotations.append(AnnotationObject(object_name))
 				elif line.strip().lower() == "end":
 					pass
 					#print("End of object detected")
 				else:
-					coord = list(map(lambda x: int(float(x)/ANNOTATION_SCALE), line.strip().split(', ')))
-					self.annotation_objects[-1].add_coord(coord)
-			print(f"Total objects loaded: {len(self.annotation_objects)}")
+					coord = list(map(lambda x: int(float(x)), line.strip().split(', ')))
+					self.annotations[-1].add_coord(coord)
+			print(f"Total objects loaded: {len(self.annotations)}")
 
 class Convoluter:
 	def __init__(self, size, num_classes, batch_size, use_fp16, save_folder = ''):
