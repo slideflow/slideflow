@@ -73,6 +73,7 @@ class SVSReader:
 			print(f"Unable to read SVS file from {path} , skipping")
 			self.shape = None
 			return None
+		self.thumb = self.slide.get_thumbnail(1024)
 		self.shape = self.slide.dimensions
 		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
 		print(f"Microns per pixel: {self.MPP}")
