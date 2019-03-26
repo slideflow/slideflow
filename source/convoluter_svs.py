@@ -46,12 +46,8 @@ from matplotlib import pyplot as mp
 from fastim import FastImshow
 
 Image.MAX_IMAGE_PIXELS = 100000000000
-ANNOTATION_SCALE = 10 # Scale by which to reduce image when calculating annotation bounding boxes
 
-# TODO: memory management
 # TODO: add logits to CSV file as metadata
-# TODO: convolute across entire SVS file (more computationally efficient)
-# TODO: get annotated bounding shapes from QuPath with a Groovy script: https://github.com/qupath/qupath/issues/122
 
 class AnnotationObject:
 	def __init__(self, name):
@@ -67,9 +63,10 @@ class AnnotationObject:
 class SVSReader:
 	def __init__(self, path, export_folder=None):
 		self.annotations = []
+		self.export_folder = export_folder
 		annotation_path = path[:-4] + ".csv"
 		if not exists(annotation_path):
-			#raise FileNotFoundError("Unable to locate associated '.csv' annotation file. Generate this file using QuPath and the included Groovy script.")
+			raise FileNotFoundError("Unable to locate associated '.csv' annotation file. Generate this file using QuPath and the included Groovy script.")
 			print("no annotation file found")
 		self.load_annotations(annotation_path)
 		try:
@@ -80,8 +77,7 @@ class SVSReader:
 			return None
 		self.shape = self.slide.dimensions
 		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
-		print(f"MPP: {self.MPP}")
-		self.export_folder = export_folder
+		print(f"Microns per pixel: {self.MPP}")
 		print(f"Loaded SVS of size {self.shape[0]} x {self.shape[1]}")
 
 	def loaded_correctly(self):
@@ -96,9 +92,6 @@ class SVSReader:
 		stride = int(extract_px / stride_div)
 		print(f"Extracting tiles of pixel size {extract_px}px for a size of {size_um}um")
 		window_size = [extract_px, extract_px]
-		if (window_size[0] > self.shape[0]) or (window_size[1] > self.shape[1]):
-				raise IndexError("Window size is too large")
-
 		coord = []
 		x_size = self.shape[1] - window_size[1]
 		y_size = self.shape[0] - window_size[0]
