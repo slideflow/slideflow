@@ -62,7 +62,8 @@ class SVSReader:
 	def __init__(self, path, export_folder=None):
 		self.annotations = []
 		self.export_folder = export_folder
-		annotation_path = path[:-4] + ".csv"
+		name = path[:-4]
+		annotation_path = name + ".csv"
 		if not exists(annotation_path):
 			raise FileNotFoundError("Unable to locate associated '.csv' annotation file. Generate this file using QuPath and the included Groovy script.")
 			print("no annotation file found")
@@ -73,11 +74,13 @@ class SVSReader:
 			print(f"Unable to read SVS file from {path} , skipping")
 			self.shape = None
 			return None
-		self.thumb = self.slide.get_thumbnail(1024)
+		#self.thumb = self.slide.get_thumbnail((4096*2, 4096*2))
+		#self.thumb_file = join('/'.join(path.split('/')[:-1]), f'{name}_thumb.jpg')
+		#imageio.imwrite(self.thumb_file, self.thumb)
 		self.shape = self.slide.dimensions
 		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
-		print(f"Microns per pixel: {self.MPP}")
-		print(f"Loaded SVS of size {self.shape[0]} x {self.shape[1]}")
+		print(f" * Microns per pixel: {self.MPP}")
+		print(f" * Loaded SVS of size {self.shape[0]} x {self.shape[1]}")
 
 	def loaded_correctly(self):
 		return bool(self.shape)
@@ -89,18 +92,18 @@ class SVSReader:
 		# Calculate pixel size of extraction window
 		extract_px = int(size_um / self.MPP)
 		stride = int(extract_px / stride_div)
-		print(f"Extracting tiles of pixel size {extract_px}px for a size of {size_um}um")
+		print(f" * Extracting tiles of pixel size {extract_px}px for a size of {size_um}um")
 		if size_px > extract_px:
 			print(f"WARNING: Tiles will be up-scaled with cubic interpolation ({extract_px}px -> {size_px}px)")
 		coord = []
-		slide_x_size = self.shape[1] - extract_px
-		slide_y_size = self.shape[0] - extract_px
+		slide_x_size = self.shape[0] - extract_px
+		slide_y_size = self.shape[1] - extract_px
 
-		for y in range(0, (self.shape[0]+1) - extract_px, stride):
-			for x in range(0, (self.shape[1]+1) - extract_px, stride):
+		for y in range(0, (self.shape[1]+1) - extract_px, stride):
+			for x in range(0, (self.shape[0]+1) - extract_px, stride):
 				# Check if this is a unique tile without overlap (e.g. if stride was 1)
 				is_unique = ((y % extract_px == 0) and (x % extract_px == 0))
-				coord.append([y, x, is_unique])
+				coord.append([x, y, is_unique])
 
 		# Load annotations as shapely.geometry objects
 		annPolys = [sg.Polygon(annotation.coordinates) for annotation in self.annotations]
@@ -116,6 +119,7 @@ class SVSReader:
 				if not any([annPoly.contains(sg.Point(int(c[0]+extract_px/2), int(c[1]+extract_px/2))) for annPoly in annPolys]):
 					continue
 				# Read the region and discard the alpha pixels
+				
 				region = np.asarray(self.slide.read_region(c, 0, [extract_px, extract_px]))[:,:,:-1]
 				region = cv2.resize(region, dsize=(size_px, size_px), interpolation=cv2.INTER_CUBIC)
 				median_brightness = int(sum(np.median(region, axis=(0, 1))))
@@ -136,9 +140,9 @@ class SVSReader:
 						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug6.jpg'), np.flipud(np.fliplr(region)))
 						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug7.jpg'), np.flipud(np.fliplr(np.rot90(region))))
 				yield region, coord_label, unique_tile
-			
-			if progress: progress_bar.end()
-			print(f"Size of coord: {len(coord)} and total exported: {sum(tile_mask)}")
+			if progress: 
+				progress_bar.end()
+				print(f"Size of coord: {len(coord)} and total exported: {sum(tile_mask)}")
 			self.tile_mask = tile_mask
 
 		return generator, slide_x_size, slide_y_size, stride
@@ -154,7 +158,7 @@ class SVSReader:
 				x_coord = int(float(row[2]))
 				y_coord = int(float(row[3]))
 				self.annotations[-1].add_coord((x_coord, y_coord))
-			print(f"Total annotation objects detected: {len(self.annotations)}")
+			print(f" * Total annotation objects detected: {len(self.annotations)}")
 
 class Convoluter:
 	def __init__(self, size_px, size_um, num_classes, batch_size, use_fp16, save_folder='', augment=False):
@@ -253,7 +257,9 @@ class Convoluter:
 		pkl_name =  case_name + '.pkl'
 
 		# load SVS generator
-		gen_slice, x_size, y_size, stride_px = whole_svs.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, export=export_tiles)
+		gen_slice, x_size, y_size, stride_px = whole_svs.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, 
+																		 export=export_tiles, 
+																		 progress=False)
 
 		with tf.Graph().as_default() as g:
 			# Generate dataset from coordinates
@@ -291,7 +297,7 @@ class Convoluter:
 
 				ckpt = tf.train.get_checkpoint_state(self.MODEL_DIR)
 				if ckpt and ckpt.model_checkpoint_path:
-					print("Restoring saved checkpoint model.")
+					print(" + Restoring saved checkpoint model.")
 					saver.restore(sess, ckpt.model_checkpoint_path)
 				else:
 					raise Exception('Unable to find checkpoint file.')
@@ -303,9 +309,9 @@ class Convoluter:
 				total_logits_count = x_logits_len * y_logits_len	
 
 				count = 0
-				prelogits_arr = []	# Final layer weights
-				logits_arr = []		# Logits (predictions)
-				unique_arr = []		# Boolean array indicating whether tile is unique (non-overlapping)
+				prelogits_arr = [] # Final layer weights 
+				logits_arr = []	# Logits (predictions) 
+				unique_arr = []	# Boolean array indicating whether tile is unique (non-overlapping) 
 
 				while True:
 					try:
@@ -339,11 +345,14 @@ class Convoluter:
 			logits_arr = logits_arr[sorted_indices]
 			labels_arr = labels_arr[sorted_indices]
 			
+			flat_unique_logits = None
 			if final_layer:
 				prelogits_arr = prelogits_arr[0:total_logits_count]
 				prelogits_arr = prelogits_arr[sorted_indices]
 				unique_arr = unique_arr[0:total_logits_count]
 				unique_arr = unique_arr[sorted_indices]
+				# Find logits from non-overlapping tiles (will be used for metadata for saved final layer weights CSV)
+				flat_unique_logits = [logits_arr[l] for l in range(len(logits_arr)) if unique_arr[l]]
 
 			# Organize array into 2D format corresponding to where each logit was calculated
 			if final_layer:
@@ -353,20 +362,19 @@ class Convoluter:
 				prelogits_out = None
 				prelogits_labels = None
 
-			# Find logits from non-overlapping tiles (will be used for metadata for saved final layer weights CSV)
-			flat_unique_logits = [logits_arr[l] for l in range(len(logits_arr)) if unique_arr[l]]
-
 			# Next, expand the logits back to a full 2D map spanning the whole SVS file,
 			#  supplying values of "-1" where tiles were skipped
-			expanded_logits = [-1] * len(whole_svs.tile_mask)
+			expanded_logits = [[0] * self.NUM_CLASSES] * len(whole_svs.tile_mask)
 			li = 0
-			for i in len(expanded_logits):
+			for i in range(len(expanded_logits)):
 				if whole_svs.tile_mask[i] == 1:
 					expanded_logits[i] = logits_arr[li]
 					li += 1
 
 			# Resize logits array into a two-dimensional array for heatmap display
 			# Previously, this was using logits_arr instead of expanded_logits
+			expanded_logits = np.asarray(expanded_logits)
+			print(f" * Expanded_logits size: {expanded_logits.shape}; resizing to y:{y_logits_len} and x:{x_logits_len}")
 			logits_out = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.NUM_CLASSES])
 			if save_pkl:
 				with open(os.path.join(self.SAVE_FOLDER, pkl_name), 'wb') as handle:
@@ -396,14 +404,19 @@ class Convoluter:
 		ax = fig.add_subplot(111)
 		fig.subplots_adjust(bottom = 0.25, top=0.95)
 
-		im = plt.imread(image_file)
+		if image_file[-4:] == ".svs":
+			whole_svs = SVSReader(image_file, self.SAVE_FOLDER)
+			im = whole_svs.thumb #plt.imread(whole_svs.thumb)
+		else:
+			im = plt.imread(image_file)
 		implot = ax.imshow(im, zorder=0)
 		gca = plt.gca()
 		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
 
 		# Calculations to determine appropriate offset for heatmap
 		im_extent = implot.get_extent()
-		extent = [im_extent[0] + size/2, im_extent[1] - size/2, im_extent[2] - size/2, im_extent[3] + size/2]
+		#extent = [im_extent[0] + size/2, im_extent[1] - size/2, im_extent[2] - size/2, im_extent[3] + size/2]
+		extent = im_extent
 
 		# Define color map
 		jetMap = np.linspace(0.45, 0.95, 255)
@@ -436,14 +449,19 @@ class Convoluter:
 		ax = fig.add_subplot(111)
 		fig.subplots_adjust(bottom = 0.25, top=0.95)
 
-		buf = plt.imread(image_file)
+		if image_file[-4:] == ".svs":
+			whole_svs = SVSReader(image_file, self.SAVE_FOLDER)
+			buf = plt.imread(whole_svs.thumb_file) #plt.imread(whole_svs.thumb)
+		else:
+			buf = plt.imread(image_file)
+
 		implot = FastImshow(buf, ax, extent=None, tgt_res=1024)
 		gca = plt.gca()
 		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
 
 		# Calculations to determine appropriate offset for heatmap
 		im_extent = implot.extent
-		extent = [im_extent[0] + size/2, im_extent[1] - size/2, im_extent[2] + size/2, im_extent[3] - size/2]
+		extent = im_extent #[im_extent[0] + size/2, im_extent[1] - size/2, im_extent[2] + size/2, im_extent[3] - size/2]
 
 		# Define color map
 		jetMap = np.linspace(0.45, 0.95, 255)
