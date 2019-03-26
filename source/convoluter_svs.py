@@ -35,6 +35,7 @@ import csv
 from scipy.misc import imsave
 import openslide as ops
 import shapely.geometry as sg
+import cv2
 
 from matplotlib.widgets import Slider
 import matplotlib.pyplot as plt
@@ -45,8 +46,6 @@ from matplotlib import pyplot as mp
 from fastim import FastImshow
 
 Image.MAX_IMAGE_PIXELS = 100000000000
-TILE_UM = 280
-TIME_PX = 512
 ANNOTATION_SCALE = 10 # Scale by which to reduce image when calculating annotation bounding boxes
 
 # TODO: memory management
@@ -66,20 +65,37 @@ class AnnotationObject:
 		for c in self.coordinates: print(c)
 
 class SVSReader:
-	def __init__(self, path):
+	def __init__(self, path, export_folder=None):
 		self.annotations = []
-		annotation_path = path[:-4] + ".qptxt"
+		annotation_path = path[:-4] + ".csv"
 		if not exists(annotation_path):
-			#raise FileNotFoundError("Unable to locate associated '.qptxt' annotation file. Generate this file using QuPath and the included Groovy script.")
+			#raise FileNotFoundError("Unable to locate associated '.csv' annotation file. Generate this file using QuPath and the included Groovy script.")
 			print("no annotation file found")
 		self.load_annotations(annotation_path)
-		self.slide = ops.OpenSlide(path)
+		try:
+			self.slide = ops.OpenSlide(path)
+		except ops.lowlevel.OpenSlideUnsupportedFormatError:
+			print(f"Unable to read SVS file from {path} , skipping")
+			self.shape = None
+			return None
 		self.shape = self.slide.dimensions
+		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
+		print(f"MPP: {self.MPP}")
+		self.export_folder = export_folder
 		print(f"Loaded SVS of size {self.shape[0]} x {self.shape[1]}")
 
-	def build_generator(self, size, stride, export=False):
+	def loaded_correctly(self):
+		if not self.shape: return False
+		else: return True
+
+	def build_generator(self, size_px, size_um, stride_div, case_name, export=False, augment=False):
 		# Calculate window sizes, strides, and coordinates for windows
-		window_size = [size, size]
+		tiles_path = join(self.export_folder, "tiles", case_name)
+		if not os.path.exists(tiles_path): os.makedirs(tiles_path)
+		extract_px = int(size_um / self.MPP)
+		stride = int(extract_px / stride_div)
+		print(f"Extracting tiles of pixel size {extract_px}px for a size of {size_um}um")
+		window_size = [extract_px, extract_px]
 		if (window_size[0] > self.shape[0]) or (window_size[1] > self.shape[1]):
 				raise IndexError("Window size is too large")
 
@@ -90,66 +106,83 @@ class SVSReader:
 		for y in range(0, (self.shape[0]+1) - window_size[0], stride):
 			for x in range(0, (self.shape[1]+1) - window_size[1], stride):
 				# Check if this is a unique tile without overlap (e.g. if stride was 1)
-				if (y % size == 0) and (x % size == 0):
+				if (y % extract_px == 0) and (x % extract_px == 0):
 					# If true, this tile is eligible for final layer weight calculation
 					coord.append([y, x, True])
 				else:
 					coord.append([y, x, False])
 
 		# Load annotations as shapely.geometry objects
-		scaled_annotation = self.annotations[0].scaled_area(ANNOTATION_SCALE)
+		annPolys = []
+		annPolys.append(sg.Polygon(self.annotations[0].coordinates))
 
 		def generator():
 			for ci in range(len(coord)):
+				progress_bar.bar(ci, len(coord))
 				c = coord[ci]
+				# Check if the center of the current window lies within the annotation
+				valid = False
+				for annPoly in annPolys:
+					if annPoly.contains(sg.Point(int(c[0]+extract_px/2), int(c[1]+extract_px/2))):
+						valid = True
+				if not valid: continue
 				# Read the region and discard the alpha pixels
 				region = np.asarray(self.slide.read_region(c, 0, window_size))[:,:,:-1]
+				region = cv2.resize(region, dsize=(size_px, size_px), interpolation=cv2.INTER_CUBIC)
 				median_brightness = int(sum(np.median(region, axis=(0, 1))))
 				if median_brightness > 660:
 					# Discard tile; median brightness (average RGB pixel) > 220
-					print(f"Discarding tile with brightness {int(median_brightness/3)}")
 					continue
 				coord_label = ci
 				unique_tile = c[2]
 				if export and unique_tile:
-					imsave(join(self.SAVE_FOLDER, f'tiles/{case_name}_{ci}.jpg'), region)
-				#print(region[10,5], '\t', unique_tile)
+					imsave(join(tiles_path, f'{case_name}_{ci}.jpg'), region)
+					if augment:
+						imsave(join(tiles_path, f'{case_name}_{ci}_aug1.jpg'), np.rot90(region))
+						imsave(join(tiles_path, f'{case_name}_{ci}_aug2.jpg'), np.flipud(region))
+						imsave(join(tiles_path, f'{case_name}_{ci}_aug3.jpg'), np.flipud(np.rot90(region)))
+						imsave(join(tiles_path, f'{case_name}_{ci}_aug4.jpg'), np.fliplr(region))
+						imsave(join(tiles_path, f'{case_name}_{ci}_aug5.jpg'), np.fliplr(np.rot90(region)))
+						imsave(join(tiles_path, f'{case_name}_{ci}_aug6.jpg'), np.flipud(np.fliplr(region)))
+						imsave(join(tiles_path, f'{case_name}_{ci}_aug7.jpg'), np.flipud(np.fliplr(np.rot90(region))))
 				yield region, coord_label, unique_tile
+			progress_bar.end()
+
 		return generator, x_size, y_size
 
 	def load_annotations(self, path):
-		with open(path, "r") as reader:
-			for line in reader:
-				if line[:5] == "Name:":
+		with open(path, "r") as csvfile:
+			reader = csv.reader(csvfile, delimiter=';')
+			for row in reader:
+				if row[0] == 'X_thumb':
 					# New object detected
-					object_name = line.strip()[6:]
-					self.annotations.append(AnnotationObject(object_name))
-				elif line.strip().lower() == "end":
-					pass
-					#print("End of object detected")
-				else:
-					coord = list(map(lambda x: int(float(x)), line.strip().split(', ')))
-					self.annotations[-1].add_coord(coord)
-			print(f"Total objects loaded: {len(self.annotations)}")
+					self.annotations.append(AnnotationObject(f"Object{len(self.annotations)}"))
+					continue
+				x_coord = int(float(row[2]))
+				y_coord = int(float(row[3]))
+				self.annotations[-1].add_coord((x_coord, y_coord))
+			print(f"Total annotation objects detected: {len(self.annotations)}")
 
 class Convoluter:
-	def __init__(self, size, num_classes, batch_size, use_fp16, save_folder = ''):
+	def __init__(self, size_px, size_um, num_classes, batch_size, use_fp16, save_folder='', augment=False):
 		self.SVS = {}
 		self.CATEGORIES = {}
 		self.MODEL_DIR = None
 		self.PKL_DICT = {}
-		self.SIZE = size
+		self.SIZE_PX = size_px
+		self.SIZE_UM = size_um
 		self.NUM_CLASSES = num_classes
 		self.BATCH_SIZE = batch_size
 		self.DTYPE = tf.float16 if use_fp16 else tf.float32
 		self.DTYPE_INT = tf.int16 if use_fp16 else tf.int32
 		self.SAVE_FOLDER = save_folder
 		self.STRIDE_DIV = 4
+		self.MODEL_DIR = None
+		self.AUGMENT = augment
 
 	def load_svs(self, whole_svs_array, directory, category=None):
 		for svs in whole_svs_array:
 			name = svs[:-4]
-			print(svs)
 			svs_path = svs if not directory else join(directory, svs)
 			self.SVS.update({name: svs_path})
 			if category:
@@ -185,6 +218,10 @@ class Convoluter:
 			category = "None" if case_name not in self.CATEGORIES else self.CATEGORIES[case_name]
 			print(f"Working on case {case_name} ({category})")
 			svs_path = self.SVS[case_name]
+			if export_tiles and not (display_heatmaps or save_final_layer or save_heatmaps):
+				print("Exporting tiles only, no new calculations or heatmaps will be generated.")
+				self.export_tiles(svs_path, case_name)
+				continue
 			# Use PKL logits if available
 			if case_name in self.PKL_DICT and not save_final_layer:
 				with open(self.PKL_DICT[case_name], 'rb') as handle:
@@ -195,11 +232,18 @@ class Convoluter:
 																		  export_tiles, save_final_layer,
 																		  save_pkl=((save_heatmaps or display_heatmaps) and case_name not in self.PKL_DICT))
 			if save_heatmaps:
-				self.export_heatmaps(svs_path, logits, self.SIZE, case_name)
+				self.export_heatmaps(svs_path, logits, self.SIZE_PX, case_name)
 			if save_final_layer:
 				self.save_csv(final_layer, final_layer_labels, case_name, category)
 			if display_heatmaps:
-				self.fast_display(svs_path, logits, self.SIZE, case_name)
+				self.fast_display(svs_path, logits, self.SIZE_PX, case_name)
+
+	def export_tiles(self, svs_path, case_name):
+		whole_svs = SVSReader(svs_path, self.SAVE_FOLDER)
+		if not whole_svs.loaded_correctly(): return
+		gen_slice, x_size, y_size = whole_svs.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, export=True, augment=self.AUGMENT)
+		for tile, coord, unique in gen_slice():
+			pass
 
 	def scan_image(self, svs_path, case_name, export_tiles=False, final_layer=False, save_pkl=True):
 		'''Returns logits and final layer weights'''
@@ -211,10 +255,9 @@ class Convoluter:
 		# Load whole-slide-image into Numpy array and prepare pkl output
 		whole_svs = SVSReader(svs_path)
 		pkl_name =  case_name + '.pkl'
-		stride_px = int(self.SIZE / self.STRIDE_DIV)
 
 		# load SVS generator ----------------------------------
-		gen_slice, x_size, y_size = whole_svs.build_generator(self.SIZE, stride_px, export=export_tiles)
+		gen_slice, x_size, y_size = whole_svs.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, export=export_tiles)
 		# -----------------------------------------------------
 
 		with tf.Graph().as_default() as g:
@@ -230,9 +273,9 @@ class Convoluter:
 				image_patches = tf.map_fn(lambda patch: tf.cast(tf.image.per_image_standardization(patch), self.DTYPE), next_batch_images)
 
 				# Pad the batch if necessary to create a batch of minimum size BATCH_SIZE
-				padded_batch = tf.concat([image_patches, tf.zeros([self.BATCH_SIZE - tf.shape(image_patches)[0], self.SIZE, self.SIZE, 3], # image_patches instead of next_batch
+				padded_batch = tf.concat([image_patches, tf.zeros([self.BATCH_SIZE - tf.shape(image_patches)[0], self.SIZE_PX, self.SIZE_PX, 3], # image_patches instead of next_batch
 															dtype=self.DTYPE)], 0)
-				padded_batch.set_shape([self.BATCH_SIZE, self.SIZE, self.SIZE, 3])
+				padded_batch.set_shape([self.BATCH_SIZE, self.SIZE_PX, self.SIZE_PX, 3])
 
 			with arg_scope(inception_arg_scope()):
 				_, end_points = inception_v4.inception_v4(padded_batch, num_classes=self.NUM_CLASSES, is_training=False, create_aux_logits=False)
@@ -418,18 +461,20 @@ class Convoluter:
 
 def get_args():
 	parser = argparse.ArgumentParser(description = 'Convolutionally applies a saved Tensorflow model to a larger image, displaying the result as a heatmap overlay.')
-	parser.add_argument('-m', '--model', help='Path to model directory containing stored checkpoint.')
-	parser.add_argument('-i', '--svs', help='Path to whole-slide image or folder of images to analyze.')
-	parser.add_argument('-p', '--pkl', help='Python Pickle file, or folder of pkl files, containing pre-calculated weights to load')
+	parser.add_argument('-m', '--model', help='Path to Tensorflow model directory containing stored checkpoint.')
+	parser.add_argument('-i', '--svs', help='Path to whole-slide image (SVS format) or folder of images (SVS) to analyze.')
+	parser.add_argument('-p', '--pkl', help='Python Pickle file, or folder of pkl files, containing pre-calculated weights to load. If both a PKL file and model are supplied, will default to using PKL file.')
 	parser.add_argument('-o', '--out', help='Path to directory in which exported images and data will be saved.')
-	parser.add_argument('-s', '--size', type=int, help='Size of image patches to analyze.')
 	parser.add_argument('-c', '--classes', type=int, default = 1, help='Number of unique output classes contained in the model.')
 	parser.add_argument('-b', '--batch', type=int, default = 64, help='Batch size for which to run the analysis.')
+	parser.add_argument('--px', type=int, default=512, help='Size of image patches to analyze, in pixels.')
+	parser.add_argument('--um', type=float, default=127.6928, help='Size of image patches to analyze, in microns.')
 	parser.add_argument('--fp16', action="store_true", help='Use Float16 operators (half-precision) instead of Float32.')
 	parser.add_argument('--save', action="store_true", help='Save heatmaps to PNG file instead of displaying.')
 	parser.add_argument('--final', action="store_true", help='Calculate and export image tiles and final layer weights.')
 	parser.add_argument('--display', action="store_true", help='Display results with interactive heatmap for each whole-slide image.')
-	parser.add_argument('--export', action="store_true", help='Export calculated images tiles.')
+	parser.add_argument('--export', action="store_true", help='Save extracted image tiles.')
+	parser.add_argument('--augment', action="store_true", help='Augment extracted tiles with flipping/rotating.')
 	return parser.parse_args()
 
 if __name__==('__main__'):
@@ -437,27 +482,7 @@ if __name__==('__main__'):
 	tf.logging.set_verbosity(tf.logging.ERROR)
 	args = get_args()
 
-	'''
-	--- New args -----
-	Flag 			Description 						Use
-	args.model 		Path to model directory				Will calculate new logits if supplied
-	args.svs 		Path to single image or directory	Whole-slide image(s); either loads single image or all within directory; 
-														if subfolders present, calculates labels
-	args.pkl 		Path to single pkl or directory		Loads pkl file(s) if supplied
-														If both model and pkl are supplied, will use pkl files
-	args.out 		Path to export directory			Where to save pkl files, heatmap files, and CSVs, defaults to empty string
-	args.size 		Same
-	args.classes 	Same
-	args.batch 		Same
-	fp16 			Same
-	save 			Same
-	final 			Same 								Will raise error if model not supplied
-	display 		Display interactive heatmap 		Will pause after each image convolution to display calculated heatmap
-	export 			Export calculated tiles 			Will save convoluted tiles if flag provided
-	'''
-
-	# New method
-	c = Convoluter(args.size, args.classes, args.batch, args.fp16, args.out)
+	c = Convoluter(args.px, args.um, args.classes, args.batch, args.fp16, args.out, args.augment)
 
 	if isfile(args.svs):
 		image_list = [args.svs.split('/')[-1]]
