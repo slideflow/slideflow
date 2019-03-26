@@ -81,46 +81,40 @@ class SVSReader:
 		print(f"Loaded SVS of size {self.shape[0]} x {self.shape[1]}")
 
 	def loaded_correctly(self):
-		if not self.shape: return False
-		else: return True
+		return bool(self.shape)
 
-	def build_generator(self, size_px, size_um, stride_div, case_name, export=False, augment=False):
+	def build_generator(self, size_px, size_um, stride_div, case_name, export=False, augment=False, progress=True):
 		# Calculate window sizes, strides, and coordinates for windows
 		tiles_path = join(self.export_folder, "tiles", case_name)
 		if not os.path.exists(tiles_path): os.makedirs(tiles_path)
+		# Calculate pixel size of extraction window
 		extract_px = int(size_um / self.MPP)
 		stride = int(extract_px / stride_div)
 		print(f"Extracting tiles of pixel size {extract_px}px for a size of {size_um}um")
-		window_size = [extract_px, extract_px]
+		if size_px > extract_px:
+			print(f"WARNING: Tiles will be up-scaled with cubic interpolation ({extract_px}px -> {size_px}px)")
 		coord = []
-		x_size = self.shape[1] - window_size[1]
-		y_size = self.shape[0] - window_size[0]
+		slide_x_size = self.shape[1] - extract_px
+		slide_y_size = self.shape[0] - extract_px
 
-		for y in range(0, (self.shape[0]+1) - window_size[0], stride):
-			for x in range(0, (self.shape[1]+1) - window_size[1], stride):
+		for y in range(0, (self.shape[0]+1) - extract_px, stride):
+			for x in range(0, (self.shape[1]+1) - extract_px, stride):
 				# Check if this is a unique tile without overlap (e.g. if stride was 1)
-				if (y % extract_px == 0) and (x % extract_px == 0):
-					# If true, this tile is eligible for final layer weight calculation
-					coord.append([y, x, True])
-				else:
-					coord.append([y, x, False])
+				is_unique = ((y % extract_px == 0) and (x % extract_px == 0))
+				coord.append([y, x, is_unique])
 
 		# Load annotations as shapely.geometry objects
-		annPolys = []
-		annPolys.append(sg.Polygon(self.annotations[0].coordinates))
+		annPolys = [sg.Polygon(annotation.coordinates) for annotation in self.annotations]
 
 		def generator():
 			for ci in range(len(coord)):
-				progress_bar.bar(ci, len(coord))
+				if progress: progress_bar.bar(ci, len(coord))
 				c = coord[ci]
-				# Check if the center of the current window lies within the annotation
-				valid = False
-				for annPoly in annPolys:
-					if annPoly.contains(sg.Point(int(c[0]+extract_px/2), int(c[1]+extract_px/2))):
-						valid = True
-				if not valid: continue
+				# Check if the center of the current window lies within any annotation; if not, skip
+				if not any([annPoly.contains(sg.Point(int(c[0]+extract_px/2), int(c[1]+extract_px/2))) for annPoly in annPolys]):
+					continue
 				# Read the region and discard the alpha pixels
-				region = np.asarray(self.slide.read_region(c, 0, window_size))[:,:,:-1]
+				region = np.asarray(self.slide.read_region(c, 0, [extract_px, extract_px]))[:,:,:-1]
 				region = cv2.resize(region, dsize=(size_px, size_px), interpolation=cv2.INTER_CUBIC)
 				median_brightness = int(sum(np.median(region, axis=(0, 1))))
 				if median_brightness > 660:
@@ -139,9 +133,9 @@ class SVSReader:
 						imsave(join(tiles_path, f'{case_name}_{ci}_aug6.jpg'), np.flipud(np.fliplr(region)))
 						imsave(join(tiles_path, f'{case_name}_{ci}_aug7.jpg'), np.flipud(np.fliplr(np.rot90(region))))
 				yield region, coord_label, unique_tile
-			progress_bar.end()
+			if progress: progress_bar.end()
 
-		return generator, x_size, y_size
+		return generator, slide_x_size, slide_y_size, stride
 
 	def load_annotations(self, path):
 		with open(path, "r") as csvfile:
@@ -183,8 +177,7 @@ class Convoluter:
 
 	def load_pkl(self, pkl_array, directory):
 		for pkl in pkl_array:
-			p_name = pkl[:-4]
-			self.PKL_DICT.update({p_name: join(directory, pkl)})
+			self.PKL_DICT.update({pkl[:-4]: join(directory, pkl)})
 
 	def build_model(self, model_dir):
 		self.MODEL_DIR = model_dir
@@ -208,9 +201,10 @@ class Convoluter:
 			print("Calculating only non-overlapping tiles for final layer weight extraction.")
 			self.STRIDE_DIV = 1
 		for case_name in self.SVS:
+			svs_path = self.SVS[case_name]
 			category = "None" if case_name not in self.CATEGORIES else self.CATEGORIES[case_name]
 			print(f"Working on case {case_name} ({category})")
-			svs_path = self.SVS[case_name]
+
 			if export_tiles and not (display_heatmaps or save_final_layer or save_heatmaps):
 				print("Exporting tiles only, no new calculations or heatmaps will be generated.")
 				self.export_tiles(svs_path, case_name)
@@ -227,14 +221,17 @@ class Convoluter:
 			if save_heatmaps:
 				self.export_heatmaps(svs_path, logits, self.SIZE_PX, case_name)
 			if save_final_layer:
-				self.save_csv(final_layer, final_layer_labels, case_name, category)
+				self.save_csv(final_layer, final_layer_labels, logits_flat, case_name, category)
 			if display_heatmaps:
 				self.fast_display(svs_path, logits, self.SIZE_PX, case_name)
 
 	def export_tiles(self, svs_path, case_name):
 		whole_svs = SVSReader(svs_path, self.SAVE_FOLDER)
 		if not whole_svs.loaded_correctly(): return
-		gen_slice, x_size, y_size = whole_svs.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, export=True, augment=self.AUGMENT)
+		gen_slice, _, _, _ = whole_svs.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, 
+															  export=True, 
+															  augment=self.AUGMENT, 
+															  progress=True)
 		for tile, coord, unique in gen_slice():
 			pass
 
@@ -249,9 +246,8 @@ class Convoluter:
 		whole_svs = SVSReader(svs_path)
 		pkl_name =  case_name + '.pkl'
 
-		# load SVS generator ----------------------------------
-		gen_slice, x_size, y_size = whole_svs.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, export=export_tiles)
-		# -----------------------------------------------------
+		# load SVS generator
+		gen_slice, x_size, y_size, stride_px = whole_svs.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, export=export_tiles)
 
 		with tf.Graph().as_default() as g:
 			# Generate dataset from coordinates
@@ -299,9 +295,6 @@ class Convoluter:
 				x_logits_len = int(x_size / stride_px) + 1
 				y_logits_len = int(y_size / stride_px) + 1
 				total_logits_count = x_logits_len * y_logits_len	
-
-				'''if total_logits_count != len(coord):
-					raise Exception("The expected total number of window tiles does not match the number of generated starting points for window tiles.")'''
 
 				count = 0
 				prelogits_arr = []	# Final layer weights
@@ -353,24 +346,28 @@ class Convoluter:
 			else:
 				prelogits_out = None
 				prelogits_labels = None
+			# Calculate logits for non-overlapping tiles (will be used for metadata for saved final layer weights CSV)
+			flat_unique_logits = [logits_arr[l] for l in range(len(logits_arr)) if unique_arr[l]]
 			logits_out = np.resize(logits_arr, [y_logits_len, x_logits_len, self.NUM_CLASSES])
 			if save_pkl:
 				with open(os.path.join(self.SAVE_FOLDER, pkl_name), 'wb') as handle:
 					pickle.dump(logits_out, handle)
 
-			return logits_out, prelogits_out, prelogits_labels, logits_arr
+			return logits_out, prelogits_out, prelogits_labels, flat_unique_logits
 
-	def save_csv(self, output, labels, name, category):
+	def save_csv(self, output, labels, logits, name, category):
 		print("Writing csv...")
 		csv_started = os.path.exists(join(self.SAVE_FOLDER, 'final_layer_weights.csv'))
 		write_mode = 'a' if csv_started else 'w'
 		with open(join(self.SAVE_FOLDER, 'final_layer_weights.csv'), write_mode) as csv_file:
 			csv_writer = csv.writer(csv_file, delimiter = ',')
 			if not csv_started:
-				csv_writer.writerow(["Tile_num", "Case", "Category"] + [f"Node{n}" for n in range(len(output[0]))])
+				#csv_writer.writerow(["Tile_num", "Case", "Category"] + [f"Node{n}" for n in range(len(output[0]))])
+				csv_writer.writerow(["Tile_num", "Case", "Category"] + [f"Logits{l}" for l in range(len(logits[0]))] + [f"Node{n}" for n in range(len(output[0]))])
 			for l in range(len(output)):
 				out = output[l].tolist()
-				csv_writer.writerow([labels[l], name, category] + out)
+				logit = logits[l].tolist()
+				csv_writer.writerow([labels[l], name, category] + logit + out)
 
 	def export_heatmaps(self, image_file, logits, size, name):
 		'''Displays logits calculated using scan_image as a heatmap overlay.'''
