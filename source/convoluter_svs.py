@@ -36,6 +36,8 @@ import openslide as ops
 import shapely.geometry as sg
 import cv2
 
+from multiprocessing.dummy import Pool as ThreadPool
+
 from matplotlib.widgets import Slider
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -45,7 +47,7 @@ from matplotlib import pyplot as mp
 from fastim import FastImshow
 
 Image.MAX_IMAGE_PIXELS = 100000000000
-SVS_THUMBNAIL_FACTOR = 1
+NUM_THREADS = 6
 
 class AnnotationObject:
 	def __init__(self, name):
@@ -59,19 +61,22 @@ class AnnotationObject:
 		for c in self.coordinates: print(c)
 
 class SVSReader:
-	def __init__(self, path, export_folder=None):
+	def __init__(self, path, export_folder=None, pb=None):
 		self.annotations = []
 		self.export_folder = export_folder
-		name = path[:-4]
-		annotation_path = name + ".csv"
+		self.pb = pb # Progress bar
+		self.p_id = None
+		self.print = print if not pb else pb.print
+		self.name = path[:-4].split('/')[-1]
+		annotation_path = path[:-4] + ".csv"
 		if not exists(annotation_path):
 			raise FileNotFoundError("Unable to locate associated '.csv' annotation file. Generate this file using QuPath and the included Groovy script.")
-			print("no annotation file found")
+			self.print("no annotation file found")
 		self.load_annotations(annotation_path)
 		try:
 			self.slide = ops.OpenSlide(path)
 		except ops.lowlevel.OpenSlideUnsupportedFormatError:
-			print(f"Unable to read SVS file from {path} , skipping")
+			self.print(f"Unable to read SVS file from {path} , skipping")
 			self.shape = None
 			return None
 		#self.thumb = self.slide.get_thumbnail((4096*2, 4096*2))
@@ -79,22 +84,22 @@ class SVSReader:
 		#imageio.imwrite(self.thumb_file, self.thumb)
 		self.shape = self.slide.dimensions
 		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
-		print(f" * Microns per pixel: {self.MPP}")
-		print(f" * Loaded SVS of size {self.shape[0]} x {self.shape[1]}")
+		self.print(f" * [{self.name}] Microns per pixel: {self.MPP}")
+		self.print(f" * [{self.name}] Loaded SVS of size {self.shape[0]} x {self.shape[1]}")
 
 	def loaded_correctly(self):
 		return bool(self.shape)
 
-	def build_generator(self, size_px, size_um, stride_div, case_name, export=False, augment=False, progress=True):
+	def build_generator(self, size_px, size_um, stride_div, case_name, export=False, augment=False):
 		# Calculate window sizes, strides, and coordinates for windows
 		tiles_path = join(self.export_folder, "tiles", case_name)
 		if not os.path.exists(tiles_path): os.makedirs(tiles_path)
 		# Calculate pixel size of extraction window
 		extract_px = int(size_um / self.MPP)
 		stride = int(extract_px / stride_div)
-		print(f" * Extracting tiles of pixel size {extract_px}px for a size of {size_um}um")
+		self.print(f" * [{self.name}] Extracting tiles of pixel size {extract_px}px for a size of {size_um}um")
 		if size_px > extract_px:
-			print(f"WARNING: Tiles will be up-scaled with cubic interpolation ({extract_px}px -> {size_px}px)")
+			self.print(f"WARNING: Tiles will be up-scaled with cubic interpolation ({extract_px}px -> {size_px}px)")
 		coord = []
 		slide_x_size = self.shape[0] - extract_px
 		slide_y_size = self.shape[1] - extract_px
@@ -110,10 +115,12 @@ class SVSReader:
 		# Create mask for indicating whether tile was extracted
 		tile_mask = np.asarray([0 for i in range(len(coord))])
 		self.tile_mask = None
+		self.p_id = None if not self.pb else self.pb.add_bar(0, len(coord), endtext=case_name)
 
 		def generator():
 			for ci in range(len(coord)):
-				if progress: progress_bar.bar(ci, len(coord))
+				if self.pb:
+					self.pb.update(self.p_id, ci)
 				c = coord[ci]
 				# Check if the center of the current window lies within any annotation; if not, skip
 				if not any([annPoly.contains(sg.Point(int(c[0]+extract_px/2), int(c[1]+extract_px/2))) for annPoly in annPolys]):
@@ -140,9 +147,9 @@ class SVSReader:
 						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug6.jpg'), np.flipud(np.fliplr(region)))
 						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug7.jpg'), np.flipud(np.fliplr(np.rot90(region))))
 				yield region, coord_label, unique_tile
-			if progress: 
-				progress_bar.end()
-				print(f"Size of coord: {len(coord)} and total exported: {sum(tile_mask)}")
+			if self.pb: 
+				self.pb.end(self.p_id)
+				self.print(f" * [{self.name}] Size of coord: {len(coord)} and total exported: {sum(tile_mask)}")
 			self.tile_mask = tile_mask
 
 		return generator, slide_x_size, slide_y_size, stride
@@ -158,7 +165,7 @@ class SVSReader:
 				x_coord = int(float(row[2]))
 				y_coord = int(float(row[3]))
 				self.annotations[-1].add_coord((x_coord, y_coord))
-			print(f" * Total annotation objects detected: {len(self.annotations)}")
+			self.print(f" * [{self.name}] Total annotation objects detected: {len(self.annotations)}")
 
 class Convoluter:
 	def __init__(self, size_px, size_um, num_classes, batch_size, use_fp16, save_folder='', augment=False):
@@ -210,38 +217,47 @@ class Convoluter:
 			# No need to calculate overlapping tiles
 			print("Calculating only non-overlapping tiles for final layer weight extraction.")
 			self.STRIDE_DIV = 1
-		for case_name in self.SVS:
-			svs_path = self.SVS[case_name]
-			category = "None" if case_name not in self.CATEGORIES else self.CATEGORIES[case_name]
-			print(f"Working on case {case_name} ({category})")
 
-			if export_tiles and not (display_heatmaps or save_final_layer or save_heatmaps):
-				print("Exporting tiles only, no new calculations or heatmaps will be generated.")
-				self.export_tiles(svs_path, case_name)
-				continue
-			# Use PKL logits if available
-			if case_name in self.PKL_DICT and not save_final_layer:
-				with open(self.PKL_DICT[case_name], 'rb') as handle:
-					logits = pickle.load(handle)
-			# Otherwise recalculate
-			else:
-				logits, final_layer, final_layer_labels, logits_flat = self.scan_image(svs_path, case_name, 
-																		  export_tiles, save_final_layer,
-																		  save_pkl=((save_heatmaps or display_heatmaps) and case_name not in self.PKL_DICT))
-			if save_heatmaps:
-				self.export_heatmaps(svs_path, logits, self.SIZE_PX, case_name)
-			if save_final_layer:
-				self.save_csv(final_layer, final_layer_labels, logits_flat, case_name, category)
-			if display_heatmaps:
-				self.fast_display(svs_path, logits, self.SIZE_PX, case_name)
+		if export_tiles and not (display_heatmaps or save_final_layer or save_heatmaps):
+			print("Exporting tiles only, no new calculations or heatmaps will be generated.")
+			pb = progress_bar.ProgressBar()
 
-	def export_tiles(self, svs_path, case_name):
-		whole_svs = SVSReader(svs_path, self.SAVE_FOLDER)
+			def export_tiles(case_name):
+				svs_path = self.SVS[case_name]
+				category = "None" if case_name not in self.CATEGORIES else self.CATEGORIES[case_name]
+				pb.print(f"Working on case {case_name} ({category})")
+				self.export_tiles(svs_path, case_name, pb)
+
+			pool = ThreadPool(NUM_THREADS)
+			pool.map(export_tiles, self.SVS)
+		else:
+			for case_name in self.SVS:
+				svs_path = self.SVS[case_name]
+				category = "None" if case_name not in self.CATEGORIES else self.CATEGORIES[case_name]
+				print(f"Working on case {case_name} ({category})")
+
+				# Use PKL logits if available
+				if case_name in self.PKL_DICT and not save_final_layer:
+					with open(self.PKL_DICT[case_name], 'rb') as handle:
+						logits = pickle.load(handle)
+				# Otherwise recalculate
+				else:
+					logits, final_layer, final_layer_labels, logits_flat = self.scan_image(svs_path, case_name, 
+																			export_tiles, save_final_layer,
+																			save_pkl=((save_heatmaps or display_heatmaps) and case_name not in self.PKL_DICT))
+				if save_heatmaps:
+					self.export_heatmaps(svs_path, logits, self.SIZE_PX, case_name)
+				if save_final_layer:
+					self.save_csv(final_layer, final_layer_labels, logits_flat, case_name, category)
+				if display_heatmaps:
+					self.fast_display(svs_path, logits, self.SIZE_PX, case_name)
+
+	def export_tiles(self, svs_path, case_name, pb = None):
+		whole_svs = SVSReader(svs_path, self.SAVE_FOLDER, pb=pb)
 		if not whole_svs.loaded_correctly(): return
 		gen_slice, _, _, _ = whole_svs.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, 
 															  export=True, 
-															  augment=self.AUGMENT, 
-															  progress=True)
+															  augment=self.AUGMENT)
 		for tile, coord, unique in gen_slice():
 			pass
 
@@ -258,8 +274,7 @@ class Convoluter:
 
 		# load SVS generator
 		gen_slice, x_size, y_size, stride_px = whole_svs.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, 
-																		 export=export_tiles, 
-																		 progress=False)
+																		 export=export_tiles)
 
 		with tf.Graph().as_default() as g:
 			# Generate dataset from coordinates
