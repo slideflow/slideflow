@@ -19,8 +19,6 @@ import time
 import os
 import sys
 from datetime import datetime
-import glob
-import random
 
 import numpy as np
 import pickle
@@ -77,9 +75,7 @@ class HistconModel:
 		self.TRAIN_DIR = os.path.join(self.MODEL_DIR, 'train') # Directory where to write eval logs and summaries.
 		self.TEST_DIR = os.path.join(self.MODEL_DIR, 'test') # Directory where to write eval logs and summaries.
 		self.TRAIN_FILES = os.path.join(self.DATA_DIR, "train_data/*/*/*.jpg")
-		self.PY_TRAIN_FILES = os.path.join(self.DATA_DIR, "train_data/**/**/*.jpg")
 		self.TEST_FILES = os.path.join(self.DATA_DIR, "eval_data/*/*/*.jpg")
-		self.PY_TEST_FILES = os.path.join(self.DATA_DIR, "eval_data/**/**/*.jpg")
 		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
 
 		if tf.gfile.Exists(self.MODEL_DIR):
@@ -107,29 +103,19 @@ class HistconModel:
 
 		return image, label
 
-	def _gen_batched_dataset(self, location):
-		generator, size = self._gen_filenames_labels_generator(location)
-		dataset = tf.data.Dataset.from_generator(generator, (tf.string, tf.int32))
-		dataset = dataset.shuffle(tf.size(size, out_type=tf.int64))
+	def _gen_filenames_op(self, dir_string):
+		filenames_op = tf.train.match_filenames_once(dir_string)
+		labels_op = tf.map_fn(lambda f: tf.string_to_number(tf.string_split([f], '/').values[tf.constant(-3, dtype=tf.int32)],
+													out_type=tf.int32), filenames_op, dtype=tf.int32)
+		return filenames_op, labels_op
+
+	def _gen_batched_dataset(self, filenames, labels):
+		# Replace the below dataset with one that uses a Python generator for flexibility of labeling
+		dataset = tf.data.Dataset.from_tensor_slices((filenames, labels))
+		dataset = dataset.shuffle(tf.size(filenames, out_type=tf.int64))
 		dataset = dataset.map(self._parse_function, num_parallel_calls = 8)
 		dataset = dataset.batch(self.BATCH_SIZE)
 		return dataset
-
-	def _get_label(self, slide_name):
-		# replace the below with whatever python code you want
-		return random.choice([0, 1])
-
-	def _gen_filenames_labels_generator(self, location):
-		filenames = glob.glob(location)
-		#slide_names = list(map(lambda f: f.split('/')[-2], filenames))
-		categories = list(map(lambda f: int(f.split('/')[-3]), filenames))
-		def generator():
-			for i in range(len(filenames)):
-				yield filenames[i], categories[i] #self._get_label(slide_names[i])
-		return generator, len(filenames)
-
-	def load_csv_metadata(self, csv_file, case_index):
-		pass
 
 	def build_inputs(self):
 		'''Construct input for HISTCON evaluation.
@@ -141,12 +127,17 @@ class HistconModel:
 			next_batch_images: Images. 4D tensor of [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3] size.
 			next_batch_labels: Labels. 1D tensor of [batch_size] size.
 		'''
+	
+		with tf.name_scope('filename_input'):
+			train_filenames_op, train_labels_op = self._gen_filenames_op(self.TRAIN_FILES)
+			test_filenames_op, test_labels_op = self._gen_filenames_op(self.TEST_FILES)
+
 		with tf.name_scope('input'):
-			train_dataset = self._gen_batched_dataset(self.PY_TRAIN_FILES)
+			train_dataset = self._gen_batched_dataset(train_filenames_op, train_labels_op)
 			train_dataset = train_dataset.repeat(self.MAX_EPOCH)
 			train_dataset = train_dataset.prefetch(1)
 
-			test_dataset = self._gen_batched_dataset(self.PY_TEST_FILES)
+			test_dataset = self._gen_batched_dataset(test_filenames_op, test_labels_op)
 			test_dataset = test_dataset.prefetch(1)
 
 			with tf.name_scope('iterator'):
@@ -316,5 +307,4 @@ if __name__ == "__main__":
 	os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 	tf.logging.set_verbosity(tf.logging.ERROR)
 	histcon = HistconModel('/home/shawarma/data/HNSC')
-	histcon.load_csv_metadata('/home/shawarma/data/HNSC/metadata.csv')
 	histcon.train()
