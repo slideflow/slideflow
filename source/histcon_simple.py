@@ -57,8 +57,8 @@ class HistconModel:
 	MOVING_AVERAGE_DECAY = 0.9999 		# Decay to use for the moving average.
 	NUM_EPOCHS_PER_DECAY = 240.0		# Epochs after which learning rate decays.
 	LEARNING_RATE_DECAY_FACTOR = 0.05	# Learning rate decay factor.
-	INITIAL_LEARNING_RATE = 0.001		# Initial learning rate.
-	ADAM_LEARNING_RATE = 0.01			# Learning rate for the Adams Optimizer.
+	INITIAL_LEARNING_RATE = 0.01		# Initial learning rate.
+	ADAM_LEARNING_RATE = 0.001			# Learning rate for the Adams Optimizer.
 
 	# Variables previous created with parser & FLAGS
 	BATCH_SIZE = 16
@@ -66,7 +66,7 @@ class HistconModel:
 	MAX_EPOCH = 30
 	LOG_FREQUENCY = 20 # How often to log results to console, in steps
 	SUMMARY_STEPS = 20 # How often to save summaries for Tensorboard display, in steps
-	TEST_FREQUENCY = 800 # How often to run validation testing, in steps
+	TEST_FREQUENCY = 1200 # How often to run validation testing, in steps
 	USE_FP16 = True
 
 	def __init__(self, data_directory):
@@ -190,8 +190,15 @@ class HistconModel:
 		train_op = slim.learning.create_train_op(total_loss, opt)
 		return train_op
 
-	def train(self):
+	def train(self, retrain_model = None, retrain_weights = None, restore_checkpoint = None):
 		'''Train HISTCON for a number of steps, according to flags set by the argument parser.'''
+
+		if restore_checkpoint:
+			ckpt = tf.train.get_checkpoint_state(restore_checkpoint)
+
+		variables_to_ignore = []#("InceptionV4/Logits/Logits/weights:0", "InceptionV4/Logits/Logits/biases:0")
+		variables_to_restore = []
+
 		global_step = tf.train.get_or_create_global_step()
 		with tf.device('/cpu'):
 			next_batch_images, next_batch_labels, train_it, test_it, it_handle = self.build_inputs()
@@ -201,6 +208,12 @@ class HistconModel:
 			logits, end_points = inception_v4.inception_v4(next_batch_images, 
 														   num_classes=self.NUM_CLASSES,
 														   is_training=training_pl)
+
+			if restore_checkpoint:
+				for trainable_var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+					if (trainable_var.name not in variables_to_ignore) and (trainable_var.name[12:21] != "AuxLogits"):
+						variables_to_restore.append(trainable_var)
+
 		loss = self.loss(logits, next_batch_labels)
 
 		# Create an averaging op to follow validation accuracy
@@ -267,6 +280,10 @@ class HistconModel:
 
 		loggerhook = _LoggerHook(train_it.string_handle(), test_it.string_handle(), self)
 		step = 1
+
+		if restore_checkpoint:
+			pretrained_saver = tf.train.Saver(variables_to_restore)
+
 		with tf.train.MonitoredTrainingSession(
 			checkpoint_dir = self.MODEL_DIR,
 			hooks = [loggerhook], #tf.train.NanTensorHook(loss),
@@ -278,6 +295,10 @@ class HistconModel:
 			test_writer = tf.summary.FileWriter(self.TEST_DIR, mon_sess.graph)
 			train_writer = FileWriterCache.get(self.TRAIN_DIR) # SummaryWriterCache
 			train_writer.add_summary(layout_summary)
+
+			if restore_checkpoint and ckpt and ckpt.model_checkpoint_path:
+				print("Restoring checkpoint...")
+				pretrained_saver.restore(mon_sess, ckpt.model_checkpoint_path)
 
 			while not mon_sess.should_stop():
 				if (step % self.SUMMARY_STEPS == 0):
@@ -303,8 +324,20 @@ class HistconModel:
 					mon_sess.run(test_it.initializer, feed_dict={it_handle:loggerhook.test_iterator_handle})
 					loggerhook._start_time = time.time()
 
+	def retrain_from_pkl(self, model, weights):
+		if model == None: model = '/home/shawarma/thyroid/models/inception_v4_2018_04_27/inception_v4.pb'
+		if weights == None: weights = '/home/shawarma/thyroid/thyroid/obj/inception_v4_imagenet_pretrained.pkl'
+		with open(weights, 'rb') as f:
+			var_dict = pickle.load(f)
+		self.train(retrain_model = model, retrain_weights = None)
+
 if __name__ == "__main__":
 	os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 	tf.logging.set_verbosity(tf.logging.ERROR)
+
+	parser = argparse.ArgumentParser(description = "Train a CNN using an Inception-v4 network")
+	parser.add_argument('-r', '--retrain', help='Path to directory containing model to use as pretraining')
+	args = parser.parse_args()
+
 	histcon = HistconModel('/home/shawarma/data/HNSC')
-	histcon.train()
+	histcon.train(restore_checkpoint = args.retrain)
