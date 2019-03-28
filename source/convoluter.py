@@ -95,7 +95,7 @@ class SlideReader:
 		elif filetype == "jpg":
 			self.slide = JPGSlide(path, mpp=DEFAULT_JPG_MPP)
 		else:
-			self.print(f'Unsupported file type "{filetype}" for case {case_name}.')
+			self.print(f'Unsupported file type "{filetype}" for case {self.name}.')
 			return None
 		# Load annotations if available
 		annotation_path = path[:-4] + ".csv"
@@ -201,7 +201,7 @@ class SlideReader:
 
 class Convoluter:
 	def __init__(self, size_px, size_um, num_classes, batch_size, use_fp16, save_folder='', augment=False):
-        self.SLIDES = {}
+		self.SLIDES = {}
 		self.MODEL_DIR = None
 		self.PKL_DICT = {}
 		self.SIZE_PX = size_px
@@ -215,15 +215,15 @@ class Convoluter:
 		self.MODEL_DIR = None
 		self.AUGMENT = augment
 
-    def load_slides(self, slides_array, directory, category="None"):
-        for slide in slides_array:
-            name = slide[:-4]
-            filetype = slide[-3:]
-            path = slide if not directory else join(directory, slide)
-            self.SLIDES.update({name: { "name": name,
-                                        "path": path,
-                                        "type": filetype,
-                                        "category": category } })
+	def load_slides(self, slides_array, directory, category="None"):
+		for slide in slides_array:
+			name = slide[:-4]
+			filetype = slide[-3:]
+			path = slide if not directory else join(directory, slide)
+			self.SLIDES.update({name: { "name": name,
+										"path": path,
+										"type": filetype,
+										"category": category } })
 
 	def load_pkl(self, pkl_array, directory):
 		for pkl in pkl_array:
@@ -257,9 +257,10 @@ class Convoluter:
 			pool = ThreadPool(NUM_THREADS)
 			pool.map(lambda slide: self.export_tiles(slide, pb), self.SLIDES)
 		else:
-			for case_name in self.SVS:
-				svs_path = self.SVS[case_name]
-				category = "None" if case_name not in self.CATEGORIES else self.CATEGORIES[case_name]
+			for case_name in self.SLIDES:
+				slide = self.SLIDES[case_name]
+				slide_path = slide['path']
+				category = slide['category']
 				print(f"Working on case {case_name} ({category})")
 
 				# Use PKL logits if available
@@ -268,15 +269,15 @@ class Convoluter:
 						logits = pickle.load(handle)
 				# Otherwise recalculate
 				else:
-					logits, final_layer, final_layer_labels, logits_flat = self.scan_image(svs_path, case_name, 
+					logits, final_layer, final_layer_labels, logits_flat = self.scan_image(slide, 
 																			export_tiles, save_final_layer,
 																			save_pkl=((save_heatmaps or display_heatmaps) and case_name not in self.PKL_DICT))
 				if save_heatmaps:
-					self.export_heatmaps(svs_path, logits, self.SIZE_PX, case_name)
+					self.export_heatmaps(slide_path, logits, self.SIZE_PX, case_name)
 				if save_final_layer:
 					self.save_csv(final_layer, final_layer_labels, logits_flat, case_name, category)
 				if display_heatmaps:
-					self.fast_display(svs_path, logits, self.SIZE_PX, case_name)
+					self.fast_display(slide_path, logits, self.SIZE_PX, case_name)
 
 	def export_tiles(self, slide, pb):
 		case_name = slide['name']
@@ -293,15 +294,19 @@ class Convoluter:
 															augment=self.AUGMENT)
 		for tile, coord, unique in gen_slice(): pass
 
-	def scan_image(self, svs_path, case_name, export_tiles=False, final_layer=False, save_pkl=True):
+	def scan_image(self, slide, export_tiles=False, final_layer=False, save_pkl=True):
 		'''Returns logits and final layer weights'''
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 
 		# Reset graph to prevent OOM errors when convoluting across multiple images
 		tf.reset_default_graph()
 
+		case_name = slide['name']
+		path = slide['path']
+		filetype = slide['type']
+
 		# Load whole-slide-image into Numpy array and prepare pkl output
-		whole_slide = SVSReader(svs_path, self.SAVE_FOLDER)
+		whole_slide = SlideReader(path, filetype, self.SAVE_FOLDER)
 		pkl_name =  case_name + '.pkl'
 
 		# load SVS generator
@@ -452,7 +457,7 @@ class Convoluter:
 		fig.subplots_adjust(bottom = 0.25, top=0.95)
 
 		if image_file[-4:] == ".svs":
-			whole_svs = SVSReader(image_file, self.SAVE_FOLDER)
+			whole_svs = SlideReader(image_file, self.SAVE_FOLDER)
 			im = whole_svs.thumb #plt.imread(whole_svs.thumb)
 		else:
 			im = plt.imread(image_file)
@@ -497,7 +502,7 @@ class Convoluter:
 		fig.subplots_adjust(bottom = 0.25, top=0.95)
 
 		if image_file[-4:] == ".svs":
-			whole_svs = SVSReader(image_file, self.SAVE_FOLDER)
+			whole_svs = SlideReader(image_file, self.SAVE_FOLDER)
 			buf = plt.imread(whole_svs.thumb_file) #plt.imread(whole_svs.thumb)
 		else:
 			buf = plt.imread(image_file)
@@ -561,7 +566,7 @@ if __name__==('__main__'):
 	if isfile(args.slide):
 		slide_list = [args.slide.split('/')[-1]]
 		slide_dir = "/".join(args.slide.split('/')[:-1])
-        c.load_slides(slide_list, slide_dir)
+		c.load_slides(slide_list, slide_dir)
 		#c.load_svs(image_list, image_dir)
 	else:
 		# First, load images in the directory, not assigning any category
