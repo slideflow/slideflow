@@ -253,7 +253,7 @@ class Convoluter:
 	def build_model(self, model_dir):
 		self.MODEL_DIR = model_dir
 
-	def convolute_all_images(self, save_heatmaps, display_heatmaps, save_final_layer, export_tiles):
+	def convolute_slides(self, save_heatmaps, display_heatmaps, save_final_layer, export_tiles):
 		'''Parent function to guide convolution across a whole-slide image and execute desired functions.
 
 		Args:
@@ -293,11 +293,13 @@ class Convoluter:
 																			export_tiles, save_final_layer,
 																			save_pkl=((save_heatmaps or display_heatmaps) and case_name not in self.PKL_DICT))
 				if save_heatmaps:
-					self.export_heatmaps(slide, logits, self.SIZE_PX, case_name)
+					#self.export_heatmaps(slide, logits, self.SIZE_PX, case_name)
+					self.gen_heatmaps(slide, logits, self.SIZE_PX, case_name, save=True)
 				if save_final_layer:
 					self.save_csv(final_layer, final_layer_labels, logits_flat, case_name, category)
 				if display_heatmaps:
-					self.fast_display(slide, logits, self.SIZE_PX, case_name)
+					#self.fast_display(slide, logits, self.SIZE_PX, case_name)
+					self.gen_heatmaps(slide, logits, self.SIZE_PX, case_name, save=False)
 
 	def export_tiles(self, slide, pb):
 		case_name = slide['name']
@@ -317,17 +319,13 @@ class Convoluter:
 	def scan_image(self, slide, export_tiles=False, final_layer=False, save_pkl=True):
 		'''Returns logits and final layer weights'''
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
-
-		# Reset graph to prevent OOM errors when convoluting across multiple images
 		tf.reset_default_graph()
-
 		case_name = slide['name']
 		path = slide['path']
 		filetype = slide['type']
 
 		# Load whole-slide-image into Numpy array and prepare pkl output
 		whole_slide = SlideReader(path, filetype, self.SAVE_FOLDER)
-		pkl_name =  case_name + '.pkl'
 
 		# load SVS generator
 		gen_slice, x_size, y_size, stride_px = whole_slide.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, 
@@ -413,10 +411,12 @@ class Convoluter:
 			logits_arr = logits_arr[0:total_logits_count]
 			labels_arr = labels_arr[0:total_logits_count]
 
+			# Sort the output (may be shuffled due to multithreading)
 			sorted_indices = labels_arr.argsort()
 			logits_arr = logits_arr[sorted_indices]
 			labels_arr = labels_arr[sorted_indices]
 			
+			# Perform same functions on final layer weights
 			flat_unique_logits = None
 			if final_layer:
 				prelogits_arr = prelogits_arr[0:total_logits_count]
@@ -426,7 +426,7 @@ class Convoluter:
 				# Find logits from non-overlapping tiles (will be used for metadata for saved final layer weights CSV)
 				flat_unique_logits = [logits_arr[l] for l in range(len(logits_arr)) if unique_arr[l]]
 
-			# Organize array into 2D format corresponding to where each logit was calculated
+			# Filter out final layer weights to only include unique, non-overlapping tiles
 			if final_layer:
 				prelogits_out = [prelogits_arr[p] for p in range(len(prelogits_arr)) if unique_arr[p]]
 				prelogits_labels = [l for l in range(len(unique_arr)) if unique_arr[l]]
@@ -434,22 +434,21 @@ class Convoluter:
 				prelogits_out = None
 				prelogits_labels = None
 
-			# Next, expand the logits back to a full 2D map spanning the whole SVS file,
-			#  supplying values of "-1" where tiles were skipped
+			# Expand logits back to a full 2D map spanning the whole slide,
+			#  supplying values of "-1" where tiles were skipped by the tile generator
 			expanded_logits = [[0] * self.NUM_CLASSES] * len(whole_slide.tile_mask)
 			li = 0
 			for i in range(len(expanded_logits)):
 				if whole_slide.tile_mask[i] == 1:
 					expanded_logits[i] = logits_arr[li]
 					li += 1
-
-			# Resize logits array into a two-dimensional array for heatmap display
-			# Previously, this was using logits_arr instead of expanded_logits
 			expanded_logits = np.asarray(expanded_logits)
 			print(f" * Expanded_logits size: {expanded_logits.shape}; resizing to y:{y_logits_len} and x:{x_logits_len}")
+
+			# Resize logits array into a two-dimensional array for heatmap display
 			logits_out = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.NUM_CLASSES])
 			if save_pkl:
-				with open(os.path.join(self.SAVE_FOLDER, pkl_name), 'wb') as handle:
+				with open(os.path.join(self.SAVE_FOLDER, case_name+'.pkl'), 'wb') as handle:
 					pickle.dump(logits_out, handle)
 
 			return logits_out, prelogits_out, prelogits_labels, flat_unique_logits
@@ -461,13 +460,70 @@ class Convoluter:
 		with open(join(self.SAVE_FOLDER, 'final_layer_weights.csv'), write_mode) as csv_file:
 			csv_writer = csv.writer(csv_file, delimiter = ',')
 			if not csv_started:
-				#csv_writer.writerow(["Tile_num", "Case", "Category"] + [f"Node{n}" for n in range(len(output[0]))])
 				csv_writer.writerow(["Tile_num", "Case", "Category"] + [f"Logits{l}" for l in range(len(logits[0]))] + [f"Node{n}" for n in range(len(output[0]))])
 			for l in range(len(output)):
 				out = output[l].tolist()
 				logit = logits[l].tolist()
 				csv_writer.writerow([labels[l], name, category] + logit + out)
 
+	def gen_heatmaps(self, slide, logits, size, name, save=True):
+		'''Displays and/or saves logits calculated using scan_image as a heatmap overlay.'''
+		print("Received logits, size=%s, (%s x %s)" % (size, len(logits), len(logits[0])))
+		print("Calculating overlay matrix and displaying with dynamic resampling...")
+		image_file = slide['path']
+		filetype = slide['type']
+		fig = plt.figure(figsize=(18, 16))
+		ax = fig.add_subplot(111)
+		fig.subplots_adjust(bottom = 0.25, top=0.95)
+
+		if image_file[-4:] == ".svs":
+			whole_slide = SlideReader(image_file, filetype, self.SAVE_FOLDER)
+			im = whole_slide.thumb #plt.imread(whole_svs.thumb)
+		else:
+			im = plt.imread(image_file)
+
+		implot = ax.imshow(im, zorder=0) if save else FastImshow(im, ax, extent=None, tgt_res=1024)
+		im_extent = implot.get_extent() if save else implot.extent
+		#extent = [im_extent[0] + size/2, im_extent[1] - size/2, im_extent[2] - size/2, im_extent[3] + size/2]
+		extent = im_extent
+
+		gca = plt.gca()
+		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
+
+		# Define color map
+		jetMap = np.linspace(0.45, 0.95, 255)
+		cmMap = cm.nipy_spectral(jetMap)
+		newMap = mcol.ListedColormap(cmMap)
+
+		heatmap_dict = {}
+
+		def slider_func(val):
+			for h, s in heatmap_dict.values():
+				h.set_alpha(s.val)
+
+		# Make heatmaps and sliders
+		for i in range(self.NUM_CLASSES):
+			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
+			if save:
+				heatmap_dict.update({i: heatmap})
+			else:
+				ax_slider = fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor='lightgoldenrodyellow')
+				slider = Slider(ax_slider, f'Class {i}', 0, 1, valinit = 0)
+				heatmap_dict.update({f"Class{i}": [heatmap, slider]})
+				slider.on_changed(slider_func)
+
+		if save:
+			mp.savefig(os.path.join(self.SAVE_FOLDER, f'{name}-raw.png'), bbox_inches='tight')
+			for i in range(self.NUM_CLASSES):
+				heatmap_dict[i].set_alpha(0.6)
+				mp.savefig(os.path.join(self.SAVE_FOLDER, f'{name}-{i}.png'), bbox_inches='tight')
+				heatmap_dict[i].set_alpha(0.0)
+			mp.close()
+		else:
+			fig.canvas.set_window_title(name)
+			implot.show()
+			plt.show()
+'''
 	def export_heatmaps(self, slide, logits, size, name):
 		'''Displays logits calculated using scan_image as a heatmap overlay.'''
 		image_file = slide['path']
@@ -563,6 +619,7 @@ class Convoluter:
 		fig.canvas.set_window_title(name)
 		implot.show()
 		plt.show()
+'''
 
 def get_args():
 	parser = argparse.ArgumentParser(description = 'Convolutionally applies a saved Tensorflow model to a larger image, displaying the result as a heatmap overlay.')
@@ -617,4 +674,4 @@ if __name__==('__main__'):
 
 	c.load_pkl(pkl_list, pkl_dir)
 	c.build_model(args.model)
-	c.convolute_all_images(args.save, args.display, args.final, args.export)
+	c.convolute_slides(args.save, args.display, args.final, args.export)
