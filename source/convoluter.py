@@ -169,7 +169,7 @@ class SlideReader:
 					continue
 
 				# Read the low-mag level for filter checking
-				filter_region = np.asarray(self.slide.read_region(c, self.slide.level_count-1, [filter_px, filter_px]))[:,:,:-1]
+				filter_region = np.asarray(self.slide.read_region(c_f, self.slide.level_count-1, [filter_px, filter_px]))[:,:,:-1]
 				median_brightness = int(sum(np.median(filter_region, axis=(0, 1))))
 				if median_brightness > 660:
 					# Discard tile; median brightness (average RGB pixel) > 220
@@ -214,7 +214,7 @@ class SlideReader:
 
 	def load_json_annotations(self, path):
 		json_data = json.load(path)['shapes']
-		for index, shape in enumerate(json_data):
+		for shape in json_data:
 			area_reduced = np.multiply(shape['points'], JSON_ANNOTATION_SCALE)
 			self.annotations.append(AnnotationObject(f"Object{len(self.annotations)}"))
 			self.annotations[-1].add_shape(area_reduced)
@@ -280,7 +280,6 @@ class Convoluter:
 		else:
 			for case_name in self.SLIDES:
 				slide = self.SLIDES[case_name]
-				slide_path = slide['path']
 				category = slide['category']
 				print(f"Working on case {case_name} ({category})")
 
@@ -605,7 +604,7 @@ if __name__==('__main__'):
 		dir_list = [d for d in os.listdir(args.slide) if not isfile(join(args.slide, d))]
 		for directory in dir_list:
 			slide_list = [i for i in os.listdir(join(args.slide, directory)) if (isfile(join(args.slide, directory, i)) and (i[-3:].lower() in ("svs", "jpg")))]	
-			c.load_slides(image_list, join(args.slide, directory), category=directory)
+			c.load_slides(slide_list, join(args.slide, directory), category=directory)
 	if args.pkl and isfile(args.pkl):
 		pkl_list = [args.pkl.split('/'[-1])]
 		pkl_dir = "/".join(args.pkl.split('/')[:-1])
