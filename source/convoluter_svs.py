@@ -70,19 +70,22 @@ class SVSReader:
 		self.name = path[:-4].split('/')[-1]
 		annotation_path = path[:-4] + ".csv"
 		if not exists(annotation_path):
-			raise FileNotFoundError("Unable to locate associated '.csv' annotation file. Generate this file using QuPath and the included Groovy script.")
-			self.print("no annotation file found")
-		self.load_annotations(annotation_path)
+			#raise FileNotFoundError("Unable to locate associated '.csv' annotation file. Generate this file using QuPath and the included Groovy script.")
+			self.print(f" ! [{self.name}] WARNING: No annotation file found, using whole slide.")
+		else:
+			self.load_annotations(annotation_path)
 		try:
 			self.slide = ops.OpenSlide(path)
 		except ops.lowlevel.OpenSlideUnsupportedFormatError:
 			self.print(f"Unable to read SVS file from {path} , skipping")
 			self.shape = None
 			return None
-		#self.thumb = self.slide.get_thumbnail((4096*2, 4096*2))
-		#self.thumb_file = join('/'.join(path.split('/')[:-1]), f'{name}_thumb.jpg')
-		#imageio.imwrite(self.thumb_file, self.thumb)
 		self.shape = self.slide.dimensions
+		self.filter_dimensions = self.slide.level_dimensions[-1]
+		self.filter_magnification = self.filter_dimensions[0] / self.shape[0]
+		self.thumb = self.slide.get_thumbnail((4096, 4096))
+		self.thumb_file = join('/'.join(path.split('/')[:-1]), f'{self.name}_thumb.jpg')
+		imageio.imwrite(self.thumb_file, self.thumb)
 		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
 		self.print(f" * [{self.name}] Microns per pixel: {self.MPP}")
 		self.print(f" * [{self.name}] Loaded SVS of size {self.shape[0]} x {self.shape[1]}")
@@ -122,17 +125,23 @@ class SVSReader:
 				if self.pb:
 					self.pb.update(self.p_id, ci)
 				c = coord[ci]
+				c_f = np.multiply(c, self.filter_magnification) # Filter coordinates
+				filter_px = int(extract_px * self.filter_magnification)
+
 				# Check if the center of the current window lies within any annotation; if not, skip
-				if not any([annPoly.contains(sg.Point(int(c[0]+extract_px/2), int(c[1]+extract_px/2))) for annPoly in annPolys]):
+				if bool(annPolys) and not any([annPoly.contains(sg.Point(int(c[0]+extract_px/2), int(c[1]+extract_px/2))) for annPoly in annPolys]):
 					continue
-				# Read the region and discard the alpha pixels
-				
-				region = np.asarray(self.slide.read_region(c, 0, [extract_px, extract_px]))[:,:,:-1]
-				region = cv2.resize(region, dsize=(size_px, size_px), interpolation=cv2.INTER_CUBIC)
-				median_brightness = int(sum(np.median(region, axis=(0, 1))))
+
+				# Read the low-mag level for filter checking
+				filter_region = np.asarray(self.slide.read_region(c, self.slide.level_count-1, [filter_px, filter_px]))[:,:,:-1]
+				median_brightness = int(sum(np.median(filter_region, axis=(0, 1))))
 				if median_brightness > 660:
 					# Discard tile; median brightness (average RGB pixel) > 220
 					continue
+
+				# Read the full-res region and discard the alpha pixels
+				region = np.asarray(self.slide.read_region(c, 0, [extract_px, extract_px]))[:,:,:-1]
+				region = cv2.resize(region, dsize=(size_px, size_px), interpolation=cv2.INTER_CUBIC)
 				tile_mask[ci] = 1
 				coord_label = ci
 				unique_tile = c[2]
@@ -379,7 +388,7 @@ class Convoluter:
 
 			# Next, expand the logits back to a full 2D map spanning the whole SVS file,
 			#  supplying values of "-1" where tiles were skipped
-			expanded_logits = [[0] * self.NUM_CLASSES] * len(whole_svs.tile_mask)
+			expanded_logits = [[-1] * self.NUM_CLASSES] * len(whole_svs.tile_mask)
 			li = 0
 			for i in range(len(expanded_logits)):
 				if whole_svs.tile_mask[i] == 1:
@@ -442,8 +451,7 @@ class Convoluter:
 
 		# Make heatmaps and sliders
 		for i in range(self.NUM_CLASSES):
-			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
-			#slider = Slider(ax_slider, 'Class {}'.format(i), 0, 1, valinit = 0)
+			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, vmin = 0.0, vmax = 1.0, interpolation='none', zorder=10) #bicubic
 			heatmap_dict.update({i: heatmap})
 
 		mp.savefig(os.path.join(self.SAVE_FOLDER, f'{name}-raw.png'), bbox_inches='tight')
@@ -492,7 +500,7 @@ class Convoluter:
 		# Make heatmaps and sliders
 		for i in range(self.NUM_CLASSES):
 			ax_slider = fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor='lightgoldenrodyellow')
-			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
+			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0,  vmin = 0.0, vmax = 1.0, interpolation='none', zorder=10) #bicubic
 			slider = Slider(ax_slider, f'Class {i}', 0, 1, valinit = 0)
 			heatmap_dict.update({f"Class{i}": [heatmap, slider]})
 			slider.on_changed(slider_func)
@@ -525,6 +533,8 @@ if __name__==('__main__'):
 	args = get_args()
 
 	c = Convoluter(args.px, args.um, args.classes, args.batch, args.fp16, args.out, args.augment)
+
+	if not args.pkl: args.pkl = args.out
 
 	if isfile(args.svs):
 		image_list = [args.svs.split('/')[-1]]
