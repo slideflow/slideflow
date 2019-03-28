@@ -35,6 +35,7 @@ import csv
 import openslide as ops
 import shapely.geometry as sg
 import cv2
+import json
 
 from multiprocessing.dummy import Pool as ThreadPool
 
@@ -49,8 +50,10 @@ from fastim import FastImshow
 Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 6
 DEFAULT_JPG_MPP = 0.2494
+JSON_ANNOTATION_SCALE = 10
 
 # TODO: offset heatmap by window / 2
+# TODO: test json annotations
 
 class AnnotationObject:
 	def __init__(self, name):
@@ -62,6 +65,9 @@ class AnnotationObject:
 		return np.multiply(self.coordinates, 1/scale)
 	def print_coord(self):
 		for c in self.coordinates: print(c)
+	def add_shape(self, shape):
+		for point in shape:
+			self.add_coord(point)
 
 class JPGSlide:
 	def __init__(self, path, mpp):
@@ -99,12 +105,17 @@ class SlideReader:
 		else:
 			self.print(f'Unsupported file type "{filetype}" for case {self.name}.')
 			return None
+
 		# Load annotations if available
-		annotation_path = path[:-4] + ".csv"
-		if not exists(annotation_path):
-			self.print(f" ! [{self.name}] WARNING: No annotation file found, using whole slide.")
+		annotation_path_csv = path[:-4] + ".csv"
+		annotation_path_json = path[:-4] + ".json"
+		if exists(annotation_path_csv):
+			self.load_csv_annotations(annotation_path_csv)
+		elif exists(annotation_path_json):
+			self.load_json_annotations(annotation_path_json)
 		else:
-			self.load_annotations(annotation_path)
+			self.print(f" ! [{self.name}] WARNING: No annotation file found, using whole slide.")
+
 		self.shape = self.slide.dimensions
 		self.filter_dimensions = self.slide.level_dimensions[-1]
 		self.filter_magnification = self.filter_dimensions[0] / self.shape[0]
@@ -188,7 +199,7 @@ class SlideReader:
 
 		return generator, slide_x_size, slide_y_size, stride
 
-	def load_annotations(self, path):
+	def load_csv_annotations(self, path):
 		with open(path, "r") as csvfile:
 			reader = csv.reader(csvfile, delimiter=';')
 			for row in reader:
@@ -200,6 +211,14 @@ class SlideReader:
 				y_coord = int(float(row[3]))
 				self.annotations[-1].add_coord((x_coord, y_coord))
 			self.print(f" * [{self.name}] Total annotation objects detected: {len(self.annotations)}")
+
+	def load_json_annotations(self, path):
+		json_data = json.load(path)['shapes']
+		for index, shape in enumerate(json_data):
+			area_reduced = np.multiply(shape['points'], JSON_ANNOTATION_SCALE)
+			self.annotations.append(AnnotationObject(f"Object{len(self.annotations)}"))
+			self.annotations[-1].add_shape(area_reduced)
+		self.print(f" * [{self.name}] Total annotation objects detected: {len(self.annotations)}")
 
 class Convoluter:
 	def __init__(self, size_px, size_um, num_classes, batch_size, use_fp16, save_folder='', augment=False):
