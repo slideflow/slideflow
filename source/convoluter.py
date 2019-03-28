@@ -50,6 +50,8 @@ Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 6
 DEFAULT_JPG_MPP = 0.2494
 
+# TODO: offset heatmap by window / 2
+
 class AnnotationObject:
 	def __init__(self, name):
 		self.name = name
@@ -65,7 +67,7 @@ class JPGSlide:
 	def __init__(self, path, mpp):
 		self.loaded_image = imageio.imread(path)
 		self.dimensions = self.loaded_image.shape # Double check that x/y match
-		self.properties[ops.PROPERTY_NAME_MPP_X] = mpp
+		self.properties = {ops.PROPERTY_NAME_MPP_X: mpp}
 		self.level_dimensions = [self.dimensions]
 		self.level_count = 1
 	def get_thumbnail(self, dimensions):
@@ -163,7 +165,7 @@ class SlideReader:
 					continue
 
 				# Read the region and discard the alpha pixels
-				region = np.asarray(self.slide.read_region(c, 0, [extract_px, extract_px]))[:,:,:-1]
+				region = np.asarray(self.slide.read_region(c, 0, [extract_px, extract_px]))[:,:,0:3]
 				region = cv2.resize(region, dsize=(size_px, size_px), interpolation=cv2.INTER_CUBIC)
 				tile_mask[ci] = 1
 				coord_label = ci
@@ -273,11 +275,11 @@ class Convoluter:
 																			export_tiles, save_final_layer,
 																			save_pkl=((save_heatmaps or display_heatmaps) and case_name not in self.PKL_DICT))
 				if save_heatmaps:
-					self.export_heatmaps(slide_path, logits, self.SIZE_PX, case_name)
+					self.export_heatmaps(slide, logits, self.SIZE_PX, case_name)
 				if save_final_layer:
 					self.save_csv(final_layer, final_layer_labels, logits_flat, case_name, category)
 				if display_heatmaps:
-					self.fast_display(slide_path, logits, self.SIZE_PX, case_name)
+					self.fast_display(slide, logits, self.SIZE_PX, case_name)
 
 	def export_tiles(self, slide, pb):
 		case_name = slide['name']
@@ -416,10 +418,10 @@ class Convoluter:
 
 			# Next, expand the logits back to a full 2D map spanning the whole SVS file,
 			#  supplying values of "-1" where tiles were skipped
-			expanded_logits = [[0] * self.NUM_CLASSES] * len(whole_svs.tile_mask)
+			expanded_logits = [[0] * self.NUM_CLASSES] * len(whole_slide.tile_mask)
 			li = 0
 			for i in range(len(expanded_logits)):
-				if whole_svs.tile_mask[i] == 1:
+				if whole_slide.tile_mask[i] == 1:
 					expanded_logits[i] = logits_arr[li]
 					li += 1
 
@@ -448,8 +450,11 @@ class Convoluter:
 				logit = logits[l].tolist()
 				csv_writer.writerow([labels[l], name, category] + logit + out)
 
-	def export_heatmaps(self, image_file, logits, size, name):
+	def export_heatmaps(self, slide, logits, size, name):
 		'''Displays logits calculated using scan_image as a heatmap overlay.'''
+		image_file = slide['path']
+		filetype = slide['type']
+
 		print(f"Loading image and assembling heatmaps for image {image_file}...")
 
 		fig = plt.figure(figsize=(18, 16))
@@ -457,8 +462,8 @@ class Convoluter:
 		fig.subplots_adjust(bottom = 0.25, top=0.95)
 
 		if image_file[-4:] == ".svs":
-			whole_svs = SlideReader(image_file, self.SAVE_FOLDER)
-			im = whole_svs.thumb #plt.imread(whole_svs.thumb)
+			whole_slide = SlideReader(image_file, filetype, self.SAVE_FOLDER)
+			im = whole_slide.thumb #plt.imread(whole_svs.thumb)
 		else:
 			im = plt.imread(image_file)
 		implot = ax.imshow(im, zorder=0)
@@ -492,18 +497,21 @@ class Convoluter:
 
 		mp.close()
 
-	def fast_display(self, image_file, logits, size, name):
+	def fast_display(self, slide, logits, size, name):
 		'''*** Experimental ***'''
 		print("Received logits, size=%s, (%s x %s)" % (size, len(logits), len(logits[0])))
 		print("Calculating overlay matrix and displaying with dynamic resampling...")
+
+		image_file = slide['path']
+		filetype = slide['type']
 
 		fig = plt.figure()
 		ax = fig.add_subplot(111)
 		fig.subplots_adjust(bottom = 0.25, top=0.95)
 
 		if image_file[-4:] == ".svs":
-			whole_svs = SlideReader(image_file, self.SAVE_FOLDER)
-			buf = plt.imread(whole_svs.thumb_file) #plt.imread(whole_svs.thumb)
+			whole_slide = SlideReader(image_file, filetype, self.SAVE_FOLDER)
+			buf = plt.imread(whole_slide.thumb_file) #plt.imread(whole_svs.thumb)
 		else:
 			buf = plt.imread(image_file)
 
@@ -562,6 +570,8 @@ if __name__==('__main__'):
 	args = get_args()
 
 	c = Convoluter(args.px, args.um, args.classes, args.batch, args.fp16, args.out, args.augment)
+
+	if not args.pkl: args.pkl = args.out
 
 	if isfile(args.slide):
 		slide_list = [args.slide.split('/')[-1]]
