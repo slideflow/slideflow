@@ -48,7 +48,7 @@ class HistconModel:
 	# Process images of the below size. If this number is altered, the
 	# model architecture will change and will need to be retrained.
 
-	IMAGE_SIZE = 512
+	IMAGE_SIZE = 256
 	NUM_CLASSES = 2
 
 	NUM_EXAMPLES_PER_EPOCH = 1024
@@ -61,7 +61,7 @@ class HistconModel:
 	ADAM_LEARNING_RATE = 0.001			# Learning rate for the Adams Optimizer.
 
 	# Variables previous created with parser & FLAGS
-	BATCH_SIZE = 16
+	BATCH_SIZE = 128
 	WHOLE_IMAGE = '' # Filename of whole image (JPG) to evaluate with saved model
 	MAX_EPOCH = 30
 	LOG_FREQUENCY = 20 # How often to log results to console, in steps
@@ -336,8 +336,9 @@ if __name__ == "__main__":
 	tf.logging.set_verbosity(tf.logging.ERROR)
 
 	parser = argparse.ArgumentParser(description = "Train a CNN using an Inception-v4 network")
+	parser.add_argument('-d', '--dir', help='Path to root directory containing train_data, eval_data')
 	parser.add_argument('-r', '--retrain', help='Path to directory containing model to use as pretraining')
 	args = parser.parse_args()
 
-	histcon = HistconModel('/home/shawarma/data/HNSC')
+	histcon = HistconModel(args.dir)
 	histcon.train(restore_checkpoint = args.retrain)
