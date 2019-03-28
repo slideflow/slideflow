@@ -48,6 +48,7 @@ from fastim import FastImshow
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 6
+DEFAULT_JPG_MPP = 0.2494
 
 class AnnotationObject:
 	def __init__(self, name):
@@ -61,10 +62,19 @@ class AnnotationObject:
 		for c in self.coordinates: print(c)
 
 class JPGSlide:
-	def __init__(self, path):
-		self.dimensions = None
-		self.properties[ops.PROPERTY_NAME_MPP_X] = None
+	def __init__(self, path, mpp):
+		self.loaded_image = imageio.imread(path)
+		self.dimensions = self.loaded_image.shape # Double check that x/y match
+		self.properties[ops.PROPERTY_NAME_MPP_X] = mpp
 		self.level_dimensions = [self.dimensions]
+		self.level_count = 1
+	def get_thumbnail(self, dimensions):
+		return cv2.resize(self.loaded_image, dsize=dimensions, interpolation=cv2.INTER_CUBIC)
+	def read_region(self, topleft, level, window):
+		# Arg "level" required for code compatibility with SVS reader but is not used
+		# Window = [x, y] pixels
+		return self.loaded_image[topleft[0]:topleft[0] + window[0], 
+								 topleft[1]:topleft[1] + window[1],]
 
 class SlideReader:
 	def __init__(self, path, filetype, export_folder=None, pb=None):
@@ -83,7 +93,7 @@ class SlideReader:
 				self.shape = None
 				return None
 		elif filetype == "jpg":
-			self.slide = JPGSlide(path)
+			self.slide = JPGSlide(path, mpp=DEFAULT_JPG_MPP)
 		else:
 			self.print(f'Unsupported file type "{filetype}" for case {case_name}.')
 			return None
