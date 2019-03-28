@@ -47,8 +47,8 @@ class ProgressBar:
 
 	def end(self, _id):
 		if not _id:
-			for bar in self.BARS:
-				bar.value = bar.endvalue
+			for bar_id in self.BARS:
+				self.BARS[bar_id].value = self.BARS[bar_id].endvalue
 			self.refresh()
 			sys.stdout.write('\n')
 		else:
