@@ -4,13 +4,14 @@
 # Written by James Dolezal <jamesmdolezal@gmail.com>, March 2019
 # ==========================================================================
 
-'''Convolutionally applies a saved Tensorflow model to a larger image, displaying
-the result as a heatmap overlay.
+'''This module includes tools to convolutionally section whole slide images into tiles
+using python Generators. These tiles can be exported as JPGs, with or without data
+augmentation, or used as input for a trained Tensorflow model. Model predictions 
+can then be visualized as a heatmap overlay.
 
-This version will convolute across an SVS image instead of JPG chunks.
+This module is compatible with SVS and JPG images.
 
-Requires: Openslide (https://openslide.org/download/)
-'''
+Requires: Openslide (https://openslide.org/download/).'''
 
 from __future__ import absolute_import
 from __future__ import division
@@ -293,14 +294,14 @@ class Convoluter:
 						logits = pickle.load(handle)
 				# Otherwise recalculate
 				else:
-					logits, final_layer, final_layer_labels, logits_flat = self.scan_image(slide, 
+					logits, final_layer, final_layer_labels, logits_flat = self.calculate_logits(slide, 
 																			export_tiles, save_final_layer,
 																			save_pkl=((save_heatmaps or display_heatmaps) and case_name not in self.PKL_DICT))
 				if save_heatmaps:
 					#self.export_heatmaps(slide, logits, self.SIZE_PX, case_name)
 					self.gen_heatmaps(slide, logits, self.SIZE_PX, case_name, save=True)
 				if save_final_layer:
-					self.save_csv(final_layer, final_layer_labels, logits_flat, case_name, category)
+					self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)
 				if display_heatmaps:
 					#self.fast_display(slide, logits, self.SIZE_PX, case_name)
 					self.gen_heatmaps(slide, logits, self.SIZE_PX, case_name, save=False)
@@ -320,7 +321,7 @@ class Convoluter:
 															augment=self.AUGMENT)
 		for tile, coord, unique in gen_slice(): pass
 
-	def scan_image(self, slide, export_tiles=False, final_layer=False, save_pkl=True):
+	def calculate_logits(self, slide, export_tiles=False, final_layer=False, save_pkl=True):
 		'''Returns logits and final layer weights'''
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 		tf.reset_default_graph()
@@ -457,7 +458,7 @@ class Convoluter:
 
 			return logits_out, prelogits_out, prelogits_labels, flat_unique_logits
 
-	def save_csv(self, output, labels, logits, name, category):
+	def export_weights(self, output, labels, logits, name, category):
 		print("Writing csv...")
 		csv_started = os.path.exists(join(self.SAVE_FOLDER, 'final_layer_weights.csv'))
 		write_mode = 'a' if csv_started else 'w'
@@ -527,103 +528,6 @@ class Convoluter:
 			fig.canvas.set_window_title(name)
 			implot.show()
 			plt.show()
-	"""
-	def export_heatmaps(self, slide, logits, size, name):
-		'''Displays logits calculated using scan_image as a heatmap overlay.'''
-		image_file = slide['path']
-		filetype = slide['type']
-
-		print(f"Loading image and assembling heatmaps for image {image_file}...")
-
-		fig = plt.figure(figsize=(18, 16))
-		ax = fig.add_subplot(111)
-		fig.subplots_adjust(bottom = 0.25, top=0.95)
-
-		if image_file[-4:] == ".svs":
-			whole_slide = SlideReader(image_file, filetype, self.SAVE_FOLDER)
-			im = whole_slide.thumb #plt.imread(whole_svs.thumb)
-		else:
-			im = plt.imread(image_file)
-		implot = ax.imshow(im, zorder=0)
-		gca = plt.gca()
-		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
-
-		# Calculations to determine appropriate offset for heatmap
-		im_extent = implot.get_extent()
-		#extent = [im_extent[0] + size/2, im_extent[1] - size/2, im_extent[2] - size/2, im_extent[3] + size/2]
-		extent = im_extent
-
-		# Define color map
-		jetMap = np.linspace(0.45, 0.95, 255)
-		cmMap = cm.nipy_spectral(jetMap)
-		newMap = mcol.ListedColormap(cmMap)
-
-		heatmap_dict = {}
-
-		# Make heatmaps and sliders
-		for i in range(self.NUM_CLASSES):
-			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
-			#slider = Slider(ax_slider, 'Class {}'.format(i), 0, 1, valinit = 0)
-			heatmap_dict.update({i: heatmap})
-
-		mp.savefig(os.path.join(self.SAVE_FOLDER, f'{name}-raw.png'), bbox_inches='tight')
-
-		for i in range(self.NUM_CLASSES):
-			heatmap_dict[i].set_alpha(0.6)
-			mp.savefig(os.path.join(self.SAVE_FOLDER, f'{name}-{i}.png'), bbox_inches='tight')
-			heatmap_dict[i].set_alpha(0.0)
-
-		mp.close()
-
-	def fast_display(self, slide, logits, size, name):
-		'''*** Experimental ***'''
-		print("Received logits, size=%s, (%s x %s)" % (size, len(logits), len(logits[0])))
-		print("Calculating overlay matrix and displaying with dynamic resampling...")
-
-		image_file = slide['path']
-		filetype = slide['type']
-
-		fig = plt.figure()
-		ax = fig.add_subplot(111)
-		fig.subplots_adjust(bottom = 0.25, top=0.95)
-
-		if image_file[-4:] == ".svs":
-			whole_slide = SlideReader(image_file, filetype, self.SAVE_FOLDER)
-			buf = plt.imread(whole_slide.thumb_file) #plt.imread(whole_svs.thumb)
-		else:
-			buf = plt.imread(image_file)
-
-		implot = FastImshow(buf, ax, extent=None, tgt_res=1024)
-		gca = plt.gca()
-		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
-
-		# Calculations to determine appropriate offset for heatmap
-		im_extent = implot.extent
-		extent = im_extent #[im_extent[0] + size/2, im_extent[1] - size/2, im_extent[2] + size/2, im_extent[3] - size/2]
-
-		# Define color map
-		jetMap = np.linspace(0.45, 0.95, 255)
-		cmMap = cm.nipy_spectral(jetMap)
-		newMap = mcol.ListedColormap(cmMap)
-
-		heatmap_dict = {}
-
-		def slider_func(val):
-			for h, s in heatmap_dict.values():
-				h.set_alpha(s.val)
-
-		# Make heatmaps and sliders
-		for i in range(self.NUM_CLASSES):
-			ax_slider = fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor='lightgoldenrodyellow')
-			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
-			slider = Slider(ax_slider, f'Class {i}', 0, 1, valinit = 0)
-			heatmap_dict.update({f"Class{i}": [heatmap, slider]})
-			slider.on_changed(slider_func)
-
-		fig.canvas.set_window_title(name)
-		implot.show()
-		plt.show()
-"""
 
 def get_args():
 	parser = argparse.ArgumentParser(description = 'Convolutionally applies a saved Tensorflow model to a larger image, displaying the result as a heatmap overlay.')
