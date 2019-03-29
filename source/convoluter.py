@@ -36,6 +36,7 @@ import openslide as ops
 import shapely.geometry as sg
 import cv2
 import json
+from math import sqrt
 
 from multiprocessing.dummy import Pool as ThreadPool
 
@@ -72,7 +73,7 @@ class AnnotationObject:
 class JPGSlide:
 	def __init__(self, path, mpp):
 		self.loaded_image = imageio.imread(path)
-		self.dimensions = self.loaded_image.shape # Double check that x/y match
+		self.dimensions = (self.loaded_image.shape[1], self.loaded_image.shape[0])
 		self.properties = {ops.PROPERTY_NAME_MPP_X: mpp}
 		self.level_dimensions = [self.dimensions]
 		self.level_count = 1
@@ -80,9 +81,9 @@ class JPGSlide:
 		return cv2.resize(self.loaded_image, dsize=dimensions, interpolation=cv2.INTER_CUBIC)
 	def read_region(self, topleft, level, window):
 		# Arg "level" required for code compatibility with SVS reader but is not used
-		# Window = [x, y] pixels
-		return self.loaded_image[topleft[0]:topleft[0] + window[0], 
-								 topleft[1]:topleft[1] + window[1],]
+		# Window = [y, x] pixels (note: this is reverse compared to SVS files in [x,y] format)
+		return self.loaded_image[topleft[1]:topleft[1] + window[1], 
+								 topleft[0]:topleft[0] + window[0],]
 
 class SlideReader:
 	def __init__(self, path, filetype, export_folder=None, pb=None):
@@ -119,12 +120,16 @@ class SlideReader:
 		self.shape = self.slide.dimensions
 		self.filter_dimensions = self.slide.level_dimensions[-1]
 		self.filter_magnification = self.filter_dimensions[0] / self.shape[0]
-		self.thumb = self.slide.get_thumbnail((4096, 4096))
+		goal_thumb_area = 4096*4096
+		y_x_ratio = self.shape[1] / self.shape[0]
+		thumb_x = sqrt(goal_thumb_area / y_x_ratio)
+		thumb_y = thumb_x * y_x_ratio
+		self.thumb = self.slide.get_thumbnail((int(thumb_x), int(thumb_y)))
 		self.thumb_file = join('/'.join(path.split('/')[:-1]), f'{self.name}_thumb.jpg')
 		imageio.imwrite(self.thumb_file, self.thumb)
 		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
 		self.print(f" * [{self.name}] Microns per pixel: {self.MPP}")
-		self.print(f" * [{self.name}] Loaded SVS of size {self.shape[0]} x {self.shape[1]}")
+		self.print(f" * [{self.name}] Loaded {filetype.upper()} of size {self.shape[0]} x {self.shape[1]}")
 
 	def loaded_correctly(self):
 		return bool(self.shape)
@@ -136,7 +141,7 @@ class SlideReader:
 		# Calculate pixel size of extraction window
 		extract_px = int(size_um / self.MPP)
 		stride = int(extract_px / stride_div)
-		self.print(f" * [{self.name}] Extracting tiles of pixel size {extract_px}px for a size of {size_um}um")
+		self.print(f" * [{self.name}] Extracting tiles of size {size_um}um, resizing from {extract_px}px -> {size_px}px ")
 		if size_px > extract_px:
 			self.print(f"WARNING: Tiles will be up-scaled with cubic interpolation ({extract_px}px -> {size_px}px)")
 		coord = []
@@ -161,7 +166,6 @@ class SlideReader:
 				if self.pb:
 					self.pb.update(self.p_id, ci)
 				c = coord[ci]
-				c_f = np.multiply(c, self.filter_magnification) # Filter coordinates
 				filter_px = int(extract_px * self.filter_magnification)
 
 				# Check if the center of the current window lies within any annotation; if not, skip
@@ -169,7 +173,7 @@ class SlideReader:
 					continue
 
 				# Read the low-mag level for filter checking
-				filter_region = np.asarray(self.slide.read_region(c_f, self.slide.level_count-1, [filter_px, filter_px]))[:,:,:-1]
+				filter_region = np.asarray(self.slide.read_region(c, self.slide.level_count-1, [filter_px, filter_px]))[:,:,:-1]
 				median_brightness = int(sum(np.median(filter_region, axis=(0, 1))))
 				if median_brightness > 660:
 					# Discard tile; median brightness (average RGB pixel) > 220
@@ -523,7 +527,7 @@ class Convoluter:
 			fig.canvas.set_window_title(name)
 			implot.show()
 			plt.show()
-'''
+	"""
 	def export_heatmaps(self, slide, logits, size, name):
 		'''Displays logits calculated using scan_image as a heatmap overlay.'''
 		image_file = slide['path']
@@ -619,7 +623,7 @@ class Convoluter:
 		fig.canvas.set_window_title(name)
 		implot.show()
 		plt.show()
-'''
+"""
 
 def get_args():
 	parser = argparse.ArgumentParser(description = 'Convolutionally applies a saved Tensorflow model to a larger image, displaying the result as a heatmap overlay.')
