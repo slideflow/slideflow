@@ -218,7 +218,8 @@ class SlideReader:
 			self.print(f" * [{self.name}] Total annotation objects detected: {len(self.annotations)}")
 
 	def load_json_annotations(self, path):
-		json_data = json.load(path)['shapes']
+		with open(path, "r") as json_file:
+			json_data = json.load(json_file)['shapes']
 		for shape in json_data:
 			area_reduced = np.multiply(shape['points'], JSON_ANNOTATION_SCALE)
 			self.annotations.append(AnnotationObject(f"Object{len(self.annotations)}"))
