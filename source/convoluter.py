@@ -50,12 +50,13 @@ from matplotlib import pyplot as mp
 from fastim import FastImshow
 
 Image.MAX_IMAGE_PIXELS = 100000000000
-NUM_THREADS = 6
+NUM_THREADS = 2
 DEFAULT_JPG_MPP = 0.2494
 JSON_ANNOTATION_SCALE = 10
 
 # TODO: offset heatmap by window / 2
 # TODO: test json annotations
+# TODO: automatic augmentation balancing
 
 class AnnotationObject:
 	def __init__(self, name):
@@ -107,7 +108,6 @@ class SlideReader:
 		else:
 			self.print(f'Unsupported file type "{filetype}" for case {self.name}.')
 			return None
-
 		# Load annotations if available
 		annotation_path_csv = path[:-4] + ".csv"
 		annotation_path_json = path[:-4] + ".json"
@@ -281,7 +281,7 @@ class Convoluter:
 			print("Exporting tiles only, no new calculations or heatmaps will be generated.")
 			pb = progress_bar.ProgressBar()
 			pool = ThreadPool(NUM_THREADS)
-			pool.map(lambda slide: self.export_tiles(slide, pb), self.SLIDES)
+			pool.map(lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
 		else:
 			for case_name in self.SLIDES:
 				slide = self.SLIDES[case_name]
@@ -312,14 +312,15 @@ class Convoluter:
 		path = slide['path']
 		filetype = slide['type']
 
-		pb.print(f"Working on case {case_name} ({category})")
+		pb.print(f"Exporting tiles for case {case_name} ({category})")
 
 		whole_slide = SlideReader(path, filetype, self.SAVE_FOLDER, pb=pb)
 		if not whole_slide.loaded_correctly(): return
 		gen_slice, _, _, _ = whole_slide.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, 
 															export=True, 
 															augment=self.AUGMENT)
-		for tile, coord, unique in gen_slice(): pass
+		for tile, coord, unique in gen_slice(): 
+			print(coord)
 
 	def calculate_logits(self, slide, export_tiles=False, final_layer=False, save_pkl=True):
 		'''Returns logits and final layer weights'''
