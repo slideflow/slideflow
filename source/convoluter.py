@@ -37,6 +37,7 @@ import openslide as ops
 import shapely.geometry as sg
 import cv2
 import json
+import time
 from math import sqrt
 
 from multiprocessing.dummy import Pool as ThreadPool
@@ -50,7 +51,7 @@ from matplotlib import pyplot as mp
 from fastim import FastImshow
 
 Image.MAX_IMAGE_PIXELS = 100000000000
-NUM_THREADS = 2
+NUM_THREADS = 1
 DEFAULT_JPG_MPP = 0.2494
 JSON_ANNOTATION_SCALE = 10
 
@@ -108,13 +109,17 @@ class SlideReader:
 		else:
 			self.print(f'Unsupported file type "{filetype}" for case {self.name}.')
 			return None
-		# Load annotations if available
-		annotation_path_csv = path[:-4] + ".csv"
-		annotation_path_json = path[:-4] + ".json"
-		if exists(annotation_path_csv):
-			self.load_csv_annotations(annotation_path_csv)
-		elif exists(annotation_path_json):
-			self.load_json_annotations(annotation_path_json)
+		
+		thumbs_path = join('/'.join(path.split('/')[:-1]), "thumbs")
+		if not os.path.exists(thumbs_path): os.makedirs(thumbs_path)
+
+		# Load ROIs if available
+		roi_path_csv = path[:-4] + ".csv"
+		roi_path_json = path[:-4] + ".json"
+		if exists(roi_path_csv):
+			self.load_csv_roi(roi_path_csv)
+		elif exists(roi_path_json):
+			self.load_json_roi(roi_path_json)
 		else:
 			self.print(f" ! [{self.name}] WARNING: No annotation file found, using whole slide.")
 
@@ -126,7 +131,7 @@ class SlideReader:
 		thumb_x = sqrt(goal_thumb_area / y_x_ratio)
 		thumb_y = thumb_x * y_x_ratio
 		self.thumb = self.slide.get_thumbnail((int(thumb_x), int(thumb_y)))
-		self.thumb_file = join('/'.join(path.split('/')[:-1]), f'{self.name}_thumb.jpg')
+		self.thumb_file = join(thumbs_path, f'{self.name}_thumb.jpg')
 		imageio.imwrite(self.thumb_file, self.thumb)
 		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
 		self.print(f" * [{self.name}] Microns per pixel: {self.MPP}")
@@ -168,18 +173,15 @@ class SlideReader:
 					self.pb.update(self.p_id, ci)
 				c = coord[ci]
 				filter_px = int(extract_px * self.filter_magnification)
-
 				# Check if the center of the current window lies within any annotation; if not, skip
 				if bool(annPolys) and not any([annPoly.contains(sg.Point(int(c[0]+extract_px/2), int(c[1]+extract_px/2))) for annPoly in annPolys]):
 					continue
-
 				# Read the low-mag level for filter checking
 				filter_region = np.asarray(self.slide.read_region(c, self.slide.level_count-1, [filter_px, filter_px]))[:,:,:-1]
 				median_brightness = int(sum(np.median(filter_region, axis=(0, 1))))
 				if median_brightness > 660:
 					# Discard tile; median brightness (average RGB pixel) > 220
 					continue
-
 				# Read the region and discard the alpha pixels
 				region = np.asarray(self.slide.read_region(c, 0, [extract_px, extract_px]))[:,:,0:3]
 				region = cv2.resize(region, dsize=(size_px, size_px), interpolation=cv2.INTER_CUBIC)
@@ -199,25 +201,28 @@ class SlideReader:
 				yield region, coord_label, unique_tile
 			if self.pb: 
 				self.pb.end(self.p_id)
-				self.print(f" * [{self.name}] Size of coord: {len(coord)} and total exported: {sum(tile_mask)}")
+				self.print(f" * [{self.name}] Total possible tiles: {len(coord)} and total exported: {sum(tile_mask)}")
 			self.tile_mask = tile_mask
 
 		return generator, slide_x_size, slide_y_size, stride
 
-	def load_csv_annotations(self, path):
+	def load_csv_roi(self, path):
 		with open(path, "r") as csvfile:
-			reader = csv.reader(csvfile, delimiter=';')
+			reader = csv.reader(csvfile, delimiter=',')
+			headers = next(reader, None)
+			try:
+				index_x = headers.index("X_base")
+				index_y = headers.index("Y_base")
+			except ValueError:
+				raise IndexError('Unable to find "X_base" and "Y_base" columns in CSV file.')
+			self.annotations.append(AnnotationObject(f"Object{len(self.annotations)}"))
 			for row in reader:
-				if row[0] == 'X_thumb':
-					# New object detected
-					self.annotations.append(AnnotationObject(f"Object{len(self.annotations)}"))
-					continue
-				x_coord = int(float(row[2]))
-				y_coord = int(float(row[3]))
+				x_coord = int(float(row[index_x]))
+				y_coord = int(float(row[index_y]))
 				self.annotations[-1].add_coord((x_coord, y_coord))
 			self.print(f" * [{self.name}] Total annotation objects detected: {len(self.annotations)}")
 
-	def load_json_annotations(self, path):
+	def load_json_roi(self, path):
 		with open(path, "r") as json_file:
 			json_data = json.load(json_file)['shapes']
 		for shape in json_data:
@@ -321,7 +326,7 @@ class Convoluter:
 															export=True, 
 															augment=self.AUGMENT)
 		for tile, coord, unique in gen_slice(): 
-			print(coord)
+			pass
 
 	def calculate_logits(self, slide, export_tiles=False, final_layer=False, save_pkl=True):
 		'''Returns logits and final layer weights'''
@@ -547,6 +552,7 @@ def get_args():
 	parser.add_argument('--display', action="store_true", help='Display results with interactive heatmap for each whole-slide image.')
 	parser.add_argument('--export', action="store_true", help='Save extracted image tiles.')
 	parser.add_argument('--augment', action="store_true", help='Augment extracted tiles with flipping/rotating.')
+	parser.add_argument('--num_threads', type=int, help='Number of threads to use when tessellating.')
 	return parser.parse_args()
 
 if __name__==('__main__'):
@@ -554,15 +560,16 @@ if __name__==('__main__'):
 	tf.logging.set_verbosity(tf.logging.ERROR)
 	args = get_args()
 
-	c = Convoluter(args.px, args.um, args.classes, args.batch, args.fp16, args.out, args.augment)
-
+	if not args.out: args.out = args.slide
 	if not args.pkl: args.pkl = args.out
+	if args.num_threads: NUM_THREADS = args.num_threads
+
+	c = Convoluter(args.px, args.um, args.classes, args.batch, args.fp16, args.out, args.augment)
 
 	if isfile(args.slide):
 		slide_list = [args.slide.split('/')[-1]]
 		slide_dir = "/".join(args.slide.split('/')[:-1])
 		c.load_slides(slide_list, slide_dir)
-		#c.load_svs(image_list, image_dir)
 	else:
 		# First, load images in the directory, not assigning any category
 		slide_list = [i for i in os.listdir(args.slide) if (isfile(join(args.slide, i)) and (i[-3:].lower() in ("svs", "jpg")))]	
@@ -570,6 +577,8 @@ if __name__==('__main__'):
 		# Next, load images in subdirectories, assigning category by subdirectory name
 		dir_list = [d for d in os.listdir(args.slide) if not isfile(join(args.slide, d))]
 		for directory in dir_list:
+			# Ignore images if in the thumbnails directory
+			if directory == "thumbs": continue
 			slide_list = [i for i in os.listdir(join(args.slide, directory)) if (isfile(join(args.slide, directory, i)) and (i[-3:].lower() in ("svs", "jpg")))]	
 			c.load_slides(slide_list, join(args.slide, directory), category=directory)
 	if args.pkl and isfile(args.pkl):
