@@ -51,7 +51,7 @@ from matplotlib import pyplot as mp
 from fastim import FastImshow
 
 Image.MAX_IMAGE_PIXELS = 100000000000
-NUM_THREADS = 1
+NUM_THREADS = 4
 DEFAULT_JPG_MPP = 0.2494
 JSON_ANNOTATION_SCALE = 10
 
