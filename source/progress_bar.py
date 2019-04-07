@@ -36,17 +36,20 @@ class ProgressBar:
 		self.refresh()
 
 	def refresh(self):
+		if len(self.BARS) == 0:
+			sys.stdout.write("\033[K\r")
 		out_text = "\r\033[K"
-		for bar_id in self.BARS:
+		for i, bar_id in enumerate(self.BARS):
+			separator = "   ||   " if i != len(self.BARS)-1 else ""
 			bar = self.BARS[bar_id]
 			arrow = self.arrow(bar.percent())
 			spaces = u'-' * (self.bar_length - len(arrow))
-			out_text += u"\u007c{0}\u007c {1}% ({2})   ||   ".format(arrow + spaces, int(round(bar.percent() * 100)), bar.text)
+			out_text += u"\u007c{0}\u007c {1}% ({2}){3}".format(arrow + spaces, int(round(bar.percent() * 100)), bar.text, separator)
 		sys.stdout.write(out_text)
 		sys.stdout.flush()
 
-	def end(self, _id):
-		if not _id:
+	def end(self, _id = -1):
+		if _id == -1:
 			for bar_id in self.BARS:
 				self.BARS[bar_id].value = self.BARS[bar_id].endvalue
 			self.refresh()
