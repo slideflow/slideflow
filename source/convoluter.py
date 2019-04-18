@@ -424,7 +424,11 @@ class Convoluter:
 			labels_arr = labels_arr[0:total_logits_count]
 
 			# Sort the output (may be shuffled due to multithreading)
-			sorted_indices = labels_arr.argsort()
+			try:
+				sorted_indices = labels_arr.argsort()
+			except AttributeError:
+				# This occurs when the list is empty, likely due to an empty annotation area
+				raise AttributeError("No tile calculations performed for this image, are you sure the annotation area isn't empty?")
 			logits_arr = logits_arr[sorted_indices]
 			labels_arr = labels_arr[sorted_indices]
 			
@@ -441,7 +445,7 @@ class Convoluter:
 			# Filter out final layer weights to only include unique, non-overlapping tiles
 			if final_layer:
 				prelogits_out = [prelogits_arr[p] for p in range(len(prelogits_arr)) if unique_arr[p]]
-				prelogits_labels = [l for l in range(len(unique_arr)) if unique_arr[l]]
+				prelogits_labels = [labels_arr[l] for l in range(len(labels_arr)) if unique_arr[l]]
 			else:
 				prelogits_out = None
 				prelogits_labels = None
@@ -545,7 +549,7 @@ def get_args():
 	parser.add_argument('-c', '--classes', type=int, default = 1, help='Number of unique output classes contained in the model.')
 	parser.add_argument('-b', '--batch', type=int, default = 64, help='Batch size for which to run the analysis.')
 	parser.add_argument('--px', type=int, default=512, help='Size of image patches to analyze, in pixels.')
-	parser.add_argument('--um', type=float, default=127.6928, help='Size of image patches to analyze, in microns.')
+	parser.add_argument('--um', type=float, default=255.3856, help='Size of image patches to analyze, in microns.')
 	parser.add_argument('--fp16', action="store_true", help='Use Float16 operators (half-precision) instead of Float32.')
 	parser.add_argument('--save', action="store_true", help='Save heatmaps to PNG file instead of displaying.')
 	parser.add_argument('--final', action="store_true", help='Calculate and export image tiles and final layer weights.')
@@ -577,8 +581,8 @@ if __name__==('__main__'):
 		# Next, load images in subdirectories, assigning category by subdirectory name
 		dir_list = [d for d in os.listdir(args.slide) if not isfile(join(args.slide, d))]
 		for directory in dir_list:
-			# Ignore images if in the thumbnails directory
-			if directory == "thumbs": continue
+			# Ignore images if in the thumbnails or QuPath project directory
+			if directory in ["thumbs", "QuPath_Project"]: continue
 			slide_list = [i for i in os.listdir(join(args.slide, directory)) if (isfile(join(args.slide, directory, i)) and (i[-3:].lower() in ("svs", "jpg")))]	
 			c.load_slides(slide_list, join(args.slide, directory), category=directory)
 	if args.pkl and isfile(args.pkl):
