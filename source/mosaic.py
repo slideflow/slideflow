@@ -6,27 +6,47 @@ from matplotlib.patches import Rectangle
 import json
 import sys
 import math
+import csv
 
-location = '/Users/james/thyroid/train_data/1/bad'
-bookmark = '/Users/james/Downloads/state_kirc.txt'
+from os.path import join
 
-num_tiles_x = 30
+bookmark = '/home/shawarma/data/Thyroid/tsne/state.txt'
+metadata_path = '/home/shawarma/data/Thyroid/tsne/metadata.tsv'
+tile_root = '/home/shawarma/data/Thyroid/tiles'
 
-fig = plt.figure()
+num_tiles_x = 70
+
+fig = plt.figure(figsize=(200, 200))
 ax = fig.add_subplot(111)
+fig.subplots_adjust(bottom = 0.05, top=0.95)
 ax.set_aspect('equal', 'box')
 
 tsne_points = [] #format x, y, index
+metadata = []
+
+with open(metadata_path, 'r') as metadata_file:
+	reader = csv.reader(metadata_file, delimiter='\t')
+	headers = next(reader, None)
+	for row in reader:
+		metadata.append(row)
 
 with open(bookmark, 'r') as bookmark_file:
 	state = json.load(bookmark_file)
 	projection_points = state[0]['projections']
+	point_index = 0
 	for i, p in enumerate(projection_points):
-		tsne_points.append({'x':p['tsne-0'],
-							'y':p['tsne-1'],
-							'index':i,
-							'neighbors':[],
-							'paired_tile':None})
+		meta = metadata[i]
+		tile_num = meta[0]
+		case = meta[1]
+		category = meta[2]
+		if 'tsne-1' in p:
+			tsne_points.append({'x':p['tsne-0'],
+								'y':p['tsne-1'],
+								'index':point_index,
+								'neighbors':[],
+								'paired_tile':None,
+								'image_path':join(tile_root, case, f"{case}_{tile_num}.jpg")})
+			point_index += 1
 	x_points = [p['x'] for p in tsne_points]
 	y_points = [p['y'] for p in tsne_points]
 	_x_width = max(x_points) - min(x_points)
@@ -61,12 +81,6 @@ for y in tile_coord_y:
 
 num_placed = 0
 
-'''
-FYI:
-neighbors is structed as a list of [index, distance]
-for both tiles and points
-'''
-
 tile_point_distances = []
 
 for tile in tiles:
@@ -97,10 +111,19 @@ for distance_pair in tile_point_distances:
 		point['paired_tile'] = True
 		tile['paired_point'] = True
 		#ax.plot(point['x'], point['y'], 'go')
+
+		#draw image
+		tile_image = plt.imread(point['image_path'])
+		ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-tile_size/2, tile['x']+tile_size/2, tile['y']-tile_size/2, tile['y']+tile_size/2], zorder=99)
+
 		tile['rectangle'].set_color('red')
 		tile['rectangle'].set_fill(True)
+		tile['rectangle'].set_alpha(0)
 		num_placed += 1
 
 print(f"Num placed: {num_placed}")
 plt.autoscale()
-plt.show()
+plt.savefig(join(tile_root, 'Mosaic_map.png'), bbox_inches='tight')
+plt.close()
+
+#plt.show()
