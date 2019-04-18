@@ -8,13 +8,12 @@ import json
 import sys
 import math
 import csv
+import pickle
 
 import openslide as ops
 
 import os
 from os.path import join, isfile, exists
-
-# TODO: May need to manually specify origin for overlaid rectangles
 
 class Mosaic:
 	def __init__(self, args):
@@ -22,13 +21,15 @@ class Mosaic:
 		self.tsne_points = [] # format: (x, y, index)
 		self.tiles = []
 		self.tile_point_distances = []
-		self.rectangles = []
+		self.rectangles = {}
 		self.tile_um = args.um
 		self.SLIDES = {}
 		self.num_tiles_x = 70
 		self.stride_div = 1
+		self.max_distance_factor = 2
 		self.tile_root = args.tile
 		self.export = args.export
+		self.ax_thumbnail = None
 
 		self.initiate_figure()
 		self.load_metadata(args.meta)
@@ -42,8 +43,21 @@ class Mosaic:
 		self.pair_tiles_and_points()
 		self.finish_mosaic(self.export)
 
+	def initiate_figure(self):
+		print("[Core] Initializing figure...")
+		if self.export:
+			self.fig = plt.figure(figsize=(200,200))
+		else:
+			self.fig = plt.figure(figsize=(24,18))
+		self.ax = self.fig.add_subplot(121, aspect='equal')
+		self.fig.tight_layout()
+		plt.subplots_adjust(left=0.02, bottom=0.1, right=0.98, top=1, wspace=0.1, hspace=0)
+		self.ax.set_aspect('equal', 'box')
+		self.ax.set_xticklabels([])
+		self.ax.set_yticklabels([])
+
 	def load_slides(self, slides_array, directory, category="None"):
-		print(f"Loading SVS files from {directory} ...")
+		print(f"[SVS] Loading SVS files from {directory} ...")
 		for slide in slides_array:
 			name = slide[:-4]
 			filetype = slide[-3:]
@@ -81,10 +95,12 @@ class Mosaic:
 										"thumb": thumb,
 										"ratio": thumb_ratio,
 										"MPP": MPP,
+										"tile_extr_px": int(self.tile_um / MPP),
+										"tile_size": int(self.tile_um / MPP) * thumb_ratio,
 										'coords':coords} })
 
 	def draw_slides(self):
-		print("Drawing slides...")
+		print("[SVS] Drawing slides...")
 		self.ax_thumbnail = self.fig.add_subplot(122)
 		self.ax_thumbnail.set_xticklabels([])
 		self.ax_thumbnail.set_yticklabels([])
@@ -97,19 +113,16 @@ class Mosaic:
 	def generate_hover_events(self):
 		def hover(event):
 			# Check if mouse hovering over scatter plot
-			for rect in self.rectangles:
-				rect.remove()
-			self.rectangles = []
 			if self.tsne_plot.contains(event)[0]:
-				self.fig.canvas.restore_region(self.svs_background)
+				need_to_refresh = False
+				reset = False
 				indices = self.tsne_plot.contains(event)[1]["ind"]
 				for index in indices:
 					point = self.tsne_points[index]
 					case = point['case']
 					if case in self.SLIDES:
 						slide = self.SLIDES[case]
-						tile_extracted_px = int(self.tile_um / slide['MPP'])
-						size = slide['ratio']*tile_extracted_px
+						size = slide['tile_size']
 						origin_x, origin_y = slide['coords'][point['tile_num']]
 						origin_x *= slide['ratio']
 						origin_y *= slide['ratio']
@@ -119,34 +132,39 @@ class Mosaic:
 										  		  size, 
 										  		  fill=None, alpha=1, color='green',
 												  zorder=100)
-						self.rectangles.append(tile_outline)
-						self.ax_thumbnail.add_artist(tile_outline) #add_patch
-						self.ax_thumbnail.draw_artist(tile_outline)
-				self.fig.canvas.blit(self.ax_thumbnail.bbox)
+						if point not in list(self.rectangles):
+							need_to_refresh = True
+							if not reset:
+								self.fig.canvas.restore_region(self.svs_background)
+								reset = True
+							self.rectangles.update({index: tile_outline})
+							self.ax_thumbnail.add_artist(tile_outline) #add_patch
+							self.ax_thumbnail.draw_artist(tile_outline)
+					for rect in list(self.rectangles):
+						if rect not in indices:
+							self.rectangles[rect].remove()
+							del self.rectangles[rect]
+							need_to_refresh = True
+							if not reset:
+								self.fig.canvas.restore_region(self.svs_background)
+								reset = True
+				if need_to_refresh: 
+					self.fig.canvas.blit(self.ax_thumbnail.bbox)
+			else:
+				for rect in list(self.rectangles):
+					self.rectangles[rect].remove()
+				self.rectangles = {}
 		def resize(event):
-			for rect in self.rectangles:
-				rect.remove()
+			for rect in list(self.rectangles):
+				self.rectangles[rect].remove()
 			self.fig.canvas.draw()
 			self.svs_background = self.fig.canvas.copy_from_bbox(self.ax_thumbnail.bbox)
 
 		self.fig.canvas.mpl_connect('motion_notify_event', hover)
 		self.fig.canvas.mpl_connect('resize_event', resize)
 
-	def initiate_figure(self):
-		print("Initializing figure...")
-		if self.export:
-			self.fig = plt.figure(figsize=(200,200))
-		else:
-			self.fig = plt.figure(figsize=(24,18))
-		self.ax = self.fig.add_subplot(121, aspect='equal')
-		self.fig.tight_layout()
-		plt.subplots_adjust(left=0.02, bottom=0, right=0.98, top=1, wspace=0.1, hspace=0)
-		self.ax.set_aspect('equal', 'box')
-		self.ax.set_xticklabels([])
-		self.ax.set_yticklabels([])
-
 	def load_metadata(self, path):
-		print("Loading metadata...")
+		print("[Core] Loading metadata...")
 		with open(path, 'r') as metadata_file:
 			reader = csv.reader(metadata_file, delimiter='\t')
 			headers = next(reader, None)
@@ -154,7 +172,7 @@ class Mosaic:
 				self.metadata.append(row)
 
 	def load_bookmark_state(self, path):
-		print("Loading t-SNE bookmark and plotting points...")
+		print("[Core] Loading t-SNE bookmark and plotting points...")
 		with open(path, 'r') as bookmark_file:
 			state = json.load(bookmark_file)
 			projection_points = state[0]['projections']
@@ -192,13 +210,13 @@ class Mosaic:
 		self.tsne_plot = self.ax.scatter(points_x, points_y, s=4000, facecolors='none', edgecolors='green', alpha=0)# markersize = 5
 		self.tile_size = (max_x - min_x) / self.num_tiles_x
 		self.num_tiles_y = int((max_y - min_y) / self.tile_size)
-		self.max_distance = math.sqrt(2*((self.tile_size/2)**2))
+		self.max_distance = math.sqrt(2*((self.tile_size/2)**2)) * self.max_distance_factor
 
 		self.tile_coord_x = [(i*self.tile_size)+min_x for i in range(self.num_tiles_x)]
 		self.tile_coord_y = [(j*self.tile_size)+min_y for j in range(self.num_tiles_y)]
 
 	def place_tile_outlines(self):
-		print("Placing tile outlines...")
+		print("[Mosaic] Placing tile outlines...")
 		tile_index = 0
 		for y in self.tile_coord_y:
 			for x in self.tile_coord_x:
@@ -217,7 +235,12 @@ class Mosaic:
 				tile_index += 1
 
 	def calculate_distances(self):
-		print("Calculating tile-point distances...")
+		print("[Mosaic] Calculating tile-point distances...")
+		if exists(join(os.getcwd(), 'distances.pkl')):
+			print('[Mosaic] ATTN: loading pre-calculated distances. If you encounter errors, delete "distances.pkl" in the working directory.')
+			with open(join(os.getcwd(), 'distances.pkl'), 'rb') as handle:
+				self.tile_point_distances = pickle.load(handle)
+			return
 		for tile in self.tiles:
 			# Calculate distance for each point from center
 			distances = []
@@ -235,9 +258,11 @@ class Mosaic:
 				else:
 					break
 		self.tile_point_distances.sort(key=lambda d: d['distance'])
+		with open(join(os.getcwd(), 'distances.pkl'), 'wb') as handle:
+			pickle.dump(self.tile_point_distances, handle)
 
 	def pair_tiles_and_points(self):
-		print("Optimizing tile/point pairing...")
+		print("[Mosaic] Optimizing tile/point pairing...")
 		num_placed = 0
 		for distance_pair in self.tile_point_distances:
 			# Attempt to place pair, skipping if unable (due to other prior pair)
@@ -253,10 +278,10 @@ class Mosaic:
 																				   tile['x']+self.tile_size/2,
 																				   tile['y']-self.tile_size/2,
 																				   tile['y']+self.tile_size/2], zorder=99)		
-		print(f"Num placed: {num_placed}")
+		print(f"[INFO] Num placed: {num_placed}")
 
 	def finish_mosaic(self, export):
-		print("Displaying/exporting figure...")
+		print("[Core] Displaying/exporting figure...")
 		self.ax.autoscale(enable=True, tight=True)
 		if export:
 			plt.savefig(join(self.tile_root, 'Mosaic_map.png'), bbox_inches='tight')
