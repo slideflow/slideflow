@@ -68,10 +68,10 @@ def main(_):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--data_dir', type=str, default='/home/shawarma/data/Thyroid', help='Directory for storing input data')
-	parser.add_argument('--log_dir', type=str, default = '/home/shawarma/histcon/logs', help='Summaries log directory')
-	parser.add_argument('--file', required=True, help='Training data filename')
-	parser.add_argument('--meta', type=int, default = 1, help = 'Number of metadata columns')
+	parser.add_argument('-d', '--data_dir', type=str, default='/home/shawarma/data/Thyroid', help='Directory for storing input data')
+	parser.add_argument('-l', '--log_dir', type=str, default = '/home/shawarma/histcon/logs', help='Summaries log directory')
+	parser.add_argument('-f', '--file', required=True, help='Training data filename')
+	parser.add_argument('-m', '--meta', type=int, default = 1, help = 'Number of metadata columns')
 
 	FLAGS, unparsed = parser.parse_known_args()
 	tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
