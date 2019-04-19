@@ -1,0 +1,79 @@
+Pipeline & Project Management
+
+TODO:
+=====
+- Merge histcon_simple into histcon
+- Automatically abort training once validation stable x 3 (or whatever)
+- Implement slide metadata reading script
+- In histcon.py, save models in "models" sub_directory with unique model names
+- Only save last model checkpoint instead of last 5
+- Update tf_tsne to merge data_dir and file
+- Need to add t-SNE case filter in step 6 (only for test SVS)
+- Update convoluter.py to read metadata for using only training/eval data (not test data)
+- Update mosaic to seek train_data etc for tiles
+
+IDEAS:
+======
+- Allow for multiple iterations with comma separated values (e..g TILE_UM: 140,280)
+
+Requirements:
+=============
+SVS files + CSV ROIs
+	> Use QuPath script to generate CSV ROI files from qpdata ROIs
+
+CSV Slide Metadata file with categories
+
+Global variables:
+=================
+PROJECT_DIR
+SVS_DIR
+TILE_PX
+TILE_UM
+AUGMENT
+SLIDE_META
+BATCH_SIZE
+NUM_THREADS
+EVAL_FRACTION
+RETRAIN_DIR
+LEARNING_RATE
+MOSAIC_DETAIL
+
+Calculated variables:
+=====================
+TRAIN_DIR
+EVAL_DIR
+NUM_CLASSES
+MODEL_DIR
+HEATMAPS_DIR
+
+Pipeline steps:
+===============
+DESCRIPTION				SCRIPT					COMMAND														COMMENT
+1) Extract tiles		convoluter.py			-s SVS_DIR -o PROJECT_DIR -c NUM_CLASSES --px TILE_PX		Perform for each TILE_UM / TILE_PX combination
+												--um TILE_UM --fp16 --export [--augment]
+												--num_threads NUM_THREADS
+											
+2) Generate eval_dir	data_utils.py			-d PROJECT_DIR -f EVAL_FRACTION --build						^ As above
+
+* Supervised Step *
+3a) Train model			histcon.py				-d MODEL_DIR [-r RETRAIN_DIR]								Perform for each LEARNING_RATE
+3b) Run tensorboard		tensorboard				--logdir=MODEL_DIR/[_model_]/logs/projector
+
+# Supervised Step
+4) Generate heatmaps	convoluter.py			-m MODEL_DIR/[_model_] -s SVS_DIR -o HEATMAPS_DIR			Perform for selected model
+												-c NUM_CLASSES -b 64 --px TILE_PX --um TILE_UM --fp16
+												--save --final
+
+5) Generate ROC			[not implemented]
+
+6) Prepare t-SNE		tsne_csv_generator.py	-f HEATMAPS_DIR/final_layer_weights.csv -m 10000
+						tf_tsne.py				-f HEATMAPS_DIR/balanced.csv -l PROJECT_DIR/logs -m 8
+
+7) Perform t-SNE		tensorboard				--logdir=PROJECT_DIR/logs
+
+* User action required *
+[save state.txt]
+
+* User action required *
+8) Generate Mosaic		mosaic.py				-b [bookmark_file] -m PROJECT_DIR/logs/metadata.tsv
+												-t PROJECT_DIR -d MOSAIC_DETAIL --um TILE_UM --export
