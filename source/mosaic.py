@@ -25,9 +25,9 @@ class Mosaic:
 		self.rectangles = {}
 		self.tile_um = args.um
 		self.SLIDES = {}
-		self.num_tiles_x = 70
+		self.num_tiles_x = args.detail
 		self.stride_div = 1
-		self.max_distance_factor = 2
+		self.max_distance_factor = args.leniency
 		self.tile_root = args.tile
 		self.export = args.export
 		self.ax_thumbnail = None
@@ -289,7 +289,7 @@ class Mosaic:
 		print("[Core] Displaying/exporting figure...")
 		self.ax.autoscale(enable=True, tight=True)
 		if export:
-			save_path = join(self.tile_root, 'Mosaic_map.png')
+			save_path = join(self.tile_root, f'Mosaic-{self.num_tiles_x}.png')
 			plt.savefig(save_path, bbox_inches='tight')
 			print(f"Saved figure to {save_path}")
 			plt.close()
@@ -302,6 +302,9 @@ def get_args():
 	parser.add_argument('-m', '--meta', help='Path to Tensorboard metadata.tsv file.')
 	parser.add_argument('-t', '--tile', help='Path to root directory containing image tiles, separated in directories according to case name.')
 	parser.add_argument('-s', '--slide', help='(Optional) Path to whole slide images (SVS or JPG format)')
+	parser.add_argument('-d', '--detail', type=int, default=70, help='(Optional) Reflects how many tiles should be generated on the mosaic; default is 70.')
+	parser.add_argument('-f', '--figsize', type=int, default=200, help='(Optional) Reflects how large the output figure size should be ; default is 200.')
+	parser.add_argument('-l', '--leniency', type=int, default=1.5, help='(Optional) How lenient the algorithm should be when placing tiles ; default is 1.5.')
 	parser.add_argument('--um', type=float, help='(Necessary if plotting SVS) Size of extracted image tiles in microns.')
 	parser.add_argument('--export', action="store_true", help='Save mosaic to png file.')
 	return parser.parse_args()
