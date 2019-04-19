@@ -9,6 +9,7 @@ import sys
 import math
 import csv
 import pickle
+import cv2
 
 import openslide as ops
 
@@ -36,7 +37,7 @@ class Mosaic:
 		self.load_bookmark_state(args.bookmark)
 
 	def generate(self):
-		self.draw_slides()
+		if len(self.SLIDES): self.draw_slides()
 		self.place_tile_outlines()
 		self.generate_hover_events()
 		self.calculate_distances()
@@ -47,11 +48,12 @@ class Mosaic:
 		print("[Core] Initializing figure...")
 		if self.export:
 			self.fig = plt.figure(figsize=(200,200))
+			self.ax = self.fig.add_subplot(111, aspect='equal')
 		else:
 			self.fig = plt.figure(figsize=(24,18))
-		self.ax = self.fig.add_subplot(121, aspect='equal')
+			self.ax = self.fig.add_subplot(121, aspect='equal')
 		self.fig.tight_layout()
-		plt.subplots_adjust(left=0.02, bottom=0.1, right=0.98, top=1, wspace=0.1, hspace=0)
+		plt.subplots_adjust(left=0.02, bottom=0, right=0.98, top=1, wspace=0.1, hspace=0)
 		self.ax.set_aspect('equal', 'box')
 		self.ax.set_xticklabels([])
 		self.ax.set_yticklabels([])
@@ -206,6 +208,7 @@ class Mosaic:
 			min_x = min(x_points) - buffer
 			max_y = max(y_points) + buffer
 			min_y = min(y_points) - buffer
+		print(f"[Core] Loaded {len(self.tsne_points)} points.")
 
 		self.tsne_plot = self.ax.scatter(points_x, points_y, s=4000, facecolors='none', edgecolors='green', alpha=0)# markersize = 5
 		self.tile_size = (max_x - min_x) / self.num_tiles_x
@@ -262,7 +265,7 @@ class Mosaic:
 			pickle.dump(self.tile_point_distances, handle)
 
 	def pair_tiles_and_points(self):
-		print("[Mosaic] Optimizing tile/point pairing...")
+		print("[Mosaic] Placing image tiles...")
 		num_placed = 0
 		for distance_pair in self.tile_point_distances:
 			# Attempt to place pair, skipping if unable (due to other prior pair)
@@ -274,6 +277,8 @@ class Mosaic:
 				tile['paired_point'] = True
 
 				tile_image = plt.imread(point['image_path'])
+				if not self.export:
+					tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
 				self.ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-self.tile_size/2, 
 																				   tile['x']+self.tile_size/2,
 																				   tile['y']-self.tile_size/2,
@@ -284,7 +289,9 @@ class Mosaic:
 		print("[Core] Displaying/exporting figure...")
 		self.ax.autoscale(enable=True, tight=True)
 		if export:
-			plt.savefig(join(self.tile_root, 'Mosaic_map.png'), bbox_inches='tight')
+			save_path = join(self.tile_root, 'Mosaic_map.png')
+			plt.savefig(save_path, bbox_inches='tight')
+			print(f"Saved figure to {save_path}")
 			plt.close()
 		else:
 			plt.show()
@@ -305,12 +312,12 @@ if __name__ == '__main__':
 
 	if args.slide and not args.um:
 		raise ValueError("Size of extracted tiles (in microns) must be supplied when viewing SVS files; please use the --um flag.")
-	if args.slide and isfile(args.slide):
+	if args.slide and isfile(args.slide) and not args.export:
 		# Load a single SVS
 		slide_list = [args.slide.split('/')[-1]]
 		slide_dir = "/".join(args.slide.split('/')[:-1])
 		mosaic.load_slides(slide_list, slide_dir)
-	elif args.slide:
+	elif args.slide and not args.export:
 		# First, load images in the directory, not assigning any category
 		slide_list = [i for i in os.listdir(args.slide) if (isfile(join(args.slide, i)) and (i[-3:].lower() in ("svs", "jpg")))]	
 		mosaic.load_slides(slide_list, args.slide)
