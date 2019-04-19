@@ -16,6 +16,8 @@ import openslide as ops
 import os
 from os.path import join, isfile, exists
 
+# TODO: Consider converting to pyqtgraph to increase speed
+
 class Mosaic:
 	def __init__(self, args):
 		self.metadata = []
@@ -72,7 +74,7 @@ class Mosaic:
 				return None
 	
 			shape = slide.dimensions
-			goal_thumb_area = 800*800
+			goal_thumb_area = 400*400
 			y_x_ratio = shape[1] / shape[0]
 			thumb_x = math.sqrt(goal_thumb_area / y_x_ratio)
 			thumb_y = thumb_x * y_x_ratio
@@ -139,26 +141,26 @@ class Mosaic:
 							if not reset:
 								self.fig.canvas.restore_region(self.svs_background)
 								reset = True
-							self.rectangles.update({index: tile_outline})
+							'''self.rectangles.update({index: tile_outline})'''
 							self.ax_thumbnail.add_artist(tile_outline) #add_patch
 							self.ax_thumbnail.draw_artist(tile_outline)
-					for rect in list(self.rectangles):
+					'''for rect in list(self.rectangles):
 						if rect not in indices:
 							self.rectangles[rect].remove()
 							del self.rectangles[rect]
 							need_to_refresh = True
 							if not reset:
 								self.fig.canvas.restore_region(self.svs_background)
-								reset = True
+								reset = True'''
 				if need_to_refresh: 
 					self.fig.canvas.blit(self.ax_thumbnail.bbox)
-			else:
+			'''else:
 				for rect in list(self.rectangles):
 					self.rectangles[rect].remove()
-				self.rectangles = {}
+				self.rectangles = {}'''
 		def resize(event):
-			for rect in list(self.rectangles):
-				self.rectangles[rect].remove()
+			'''for rect in list(self.rectangles):
+				self.rectangles[rect].remove()'''
 			self.fig.canvas.draw()
 			self.svs_background = self.fig.canvas.copy_from_bbox(self.ax_thumbnail.bbox)
 
@@ -210,7 +212,7 @@ class Mosaic:
 			min_y = min(y_points) - buffer
 		print(f"[Core] Loaded {len(self.tsne_points)} points.")
 
-		self.tsne_plot = self.ax.scatter(points_x, points_y, s=4000, facecolors='none', edgecolors='green', alpha=0)# markersize = 5
+		self.tsne_plot = self.ax.scatter(points_x, points_y, s=1000, facecolors='none', edgecolors='green', alpha=0)# markersize = 5
 		self.tile_size = (max_x - min_x) / self.num_tiles_x
 		self.num_tiles_y = int((max_y - min_y) / self.tile_size)
 		self.max_distance = math.sqrt(2*((self.tile_size/2)**2)) * self.max_distance_factor
