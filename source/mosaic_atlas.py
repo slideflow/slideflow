@@ -257,6 +257,7 @@ class Mosaic:
 		def resize(event):
 			'''for rect in list(self.rectangles):
 				self.rectangles[rect].remove()'''
+			self.fig.canvas.restore_region(self.svs_background)
 			self.fig.canvas.draw()
 			self.svs_background = self.fig.canvas.copy_from_bbox(self.ax_thumbnail.bbox)
 
@@ -311,7 +312,12 @@ class Mosaic:
 			print(f"Saved figure to {save_path}")
 			plt.close()
 		else:
-			plt.show()
+			while True:
+				try:
+					plt.show()
+				except UnicodeDecodeError:
+					continue
+				break
 
 def get_args():
 	parser = argparse.ArgumentParser(description = 'Creates a t-SNE histology tile mosaic using a saved t-SNE bookmark generated with Tensorboard.')
