@@ -30,10 +30,11 @@ class Mosaic:
 		self.num_tiles_x = args.detail
 		self.stride_div = 1
 		self.max_distance_factor = args.leniency
+		self.svs_background = None
 		self.tile_root = args.tile
 		self.export = args.export
 		self.ax_thumbnail = None
-		self.tile_zoom_factor = 10
+		self.tile_zoom_factor = 15
 		self.SVS = None
 
 		self.initiate_figure()
@@ -42,15 +43,18 @@ class Mosaic:
 
 	def generate(self):
 		self.place_tile_outlines()
-		self.generate_hover_events()
+		if len(self.SLIDES):
+			self.generate_hover_events()
 		self.calculate_distances()
 		self.pair_tiles_and_points()
-		if len(self.SLIDES): self.draw_slides()
+		if len(self.SLIDES): 
+			self.draw_slides()
+		#self.focus_category("NIFTP")
 		self.finish_mosaic(self.export)
 
 	def initiate_figure(self):
 		print("[Core] Initializing figure...")
-		if self.export:
+		if self.export or not len(self.SLIDES):
 			self.fig = plt.figure(figsize=(200,200))
 			self.ax = self.fig.add_subplot(111, aspect='equal')
 		else:
@@ -118,7 +122,8 @@ class Mosaic:
 								  'size': self.tile_size,
 								  'points':[],
 								  'distances':[],
-								  'active': False})
+								  'active': False,
+								  'image': None})
 
 		# Add point indices to grid
 		for point in self.tsne_points:
@@ -229,7 +234,7 @@ class Mosaic:
 						prior_tile = tile
 						empty = False
 
-						self.fig.canvas.restore_region(self.svs_background)
+						if self.svs_background: self.fig.canvas.restore_region(self.svs_background)
 						for index in tile['points']:
 							point = self.tsne_points[index]
 							case = point['case']
@@ -296,12 +301,26 @@ class Mosaic:
 				tile_alpha = fraction_svs
 			if not self.export:
 				tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
-			self.ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-tile['size']/2, 
-																			   tile['x']+tile['size']/2,
-																			   tile['y']-tile['size']/2,
-																			   tile['y']+tile['size']/2], zorder=99, alpha=tile_alpha)
+			image = self.ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-tile['size']/2, 
+																					   tile['x']+tile['size']/2,
+																					   tile['y']-tile['size']/2,
+																			   		   tile['y']+tile['size']/2], zorder=99, alpha=tile_alpha)
+			tile['image'] = image
 			num_placed += 1
 		print(f"[INFO] Num placed: {num_placed}")
+
+	def focus_category(self, category):
+		for tile in self.GRID:
+			if not len(tile['points']): continue
+			num_cat, num_other = 0, 0
+			for point_index in tile['points']:
+				point = self.tsne_points[point_index]
+				if point['category'] == category:
+					num_cat += 1
+				else:
+					num_other += 1
+			alpha = num_cat / (num_other + num_cat)
+			tile['image'].set_alpha(alpha)
 
 	def finish_mosaic(self, export):
 		print("[Core] Displaying/exporting figure...")
