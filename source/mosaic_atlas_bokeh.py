@@ -4,6 +4,7 @@ import json
 import csv
 import math
 
+import os
 from os.path import join
 
 from bokeh.plotting import figure, show, output_file
@@ -19,7 +20,7 @@ class Mosaic:
 		self.rectangle_coords_y = []
 		self.plotly_images = []
 		self.tile_zoom_factor = 15
-		self.category = "PTC-follicular"
+		self.category = "PTC-classic"
 
 		self.tile_root = args.tile
 		self.num_tiles_x = args.detail
@@ -33,7 +34,7 @@ class Mosaic:
 		self.make_plot()
 
 	def make_plot(self):
-		TOOLS="hover,crosshair,pan,wheel_zoom,zoom_in,zoom_out,box_zoom,undo,redo,reset,tap,save,box_select,poly_select,lasso_select,"
+		TOOLS="hover,crosshair,pan,wheel_zoom,zoom_in,zoom_out,box_zoom,undo,redo,reset,tap,save,box_select"
 		p = figure(tools=TOOLS, match_aspect=True, sizing_mode='stretch_both')
 		
 		image_paths, x, y, w, h = [], [], [], [], []
@@ -165,9 +166,16 @@ class Mosaic:
 		num_placed = 0
 		for tile in self.GRID:
 			if not len(tile['distances']): continue
-			closest_point = tile['distances'][0][0]
+			#for i in range(len(tile['distances'])):
+			closest_point = tile['distances'][i][0]
 			point = self.tsne_points[closest_point]
+			if not os.path.exists(join(os.getcwd(), point['image_path'])):
+				print(f'Does not exist: {point["image_path"]}')
+			#		continue
+			#	else:
 			tile['image_path'] = point['image_path']
+			#		break
+
 			tile_alpha, num_case, num_other = 1, 0, 0
 			if self.category and len(tile['points']):
 				for point_index in tile['points']:
