@@ -62,7 +62,7 @@ class Mosaic:
 
 # -----------------------
 		#follicular = ColumnDataSource(data=dict(x=[g['alpha'] for g in self.GRID]))
-		follicular = ColumnDataSource(data=dict(x=self.get_category("PTC-follicular")))
+		follicular = ColumnDataSource(data=dict(x=self.get_category_alpha("PTC-follicular")))
 
 		for g in self.GRID:
 			if g['image_path']:
@@ -100,10 +100,6 @@ class Mosaic:
 
 		button = Button(label="Change!", button_type="success")
 		button.callback = callback
-		#button.on_click(button_handler)
-
-		#output_file("scatter.html", title="Example")
-		#show(column(p, button))
 		curdoc().add_root(column(p, button))
 
 	def load_metadata(self, path):
@@ -230,7 +226,7 @@ class Mosaic:
 			num_placed += 1
 		print(f"[INFO] Num placed: {num_placed}")
 
-	def get_category(self, category):
+	def get_category_alpha(self, category):
 		alpha_list = []
 		for tile in self.GRID:
 			if not len(tile['points']): 
