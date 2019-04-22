@@ -8,6 +8,11 @@ import os
 from os.path import join
 
 from bokeh.plotting import figure, show, output_file
+from bokeh.io import curdoc
+from bokeh.models.widgets import Button
+from bokeh.models.glyphs import Quad
+from bokeh.models import CustomJS, ColumnDataSource
+from bokeh.layouts import column
 
 class Mosaic:
 	def __init__(self, args):
@@ -34,37 +39,72 @@ class Mosaic:
 		self.make_plot()
 
 	def make_plot(self):
-		TOOLS="hover,crosshair,pan,wheel_zoom,zoom_in,zoom_out,box_zoom,undo,redo,reset,tap,save,box_select"
-		p = figure(tools=TOOLS, match_aspect=True, sizing_mode='stretch_both')
+		TOOLS="hover,crosshair,pan,wheel_zoom,zoom_in,zoom_out,box_zoom,undo,redo,reset,save,box_select"
+		p = figure(tools=TOOLS, match_aspect=True, plot_width=1200, plot_height=1200)
 		
 		image_paths, x, y, w, h = [], [], [], [], []
 
-		for g in self.GRID:
+		'''for g in self.GRID:
 			if g['image_path']:
 				image_paths.append(g['image_path'])
 				x.append(g['x'] - g['size']/2)
 				y.append(g['y'] + g['size']/2)
 				w.append(g['size'])
 				h.append(g['size'])
-
+				
 		p.image_url(url=image_paths,
 					x=x,
 					y=y,
 					w=w,
-					h=h)
+					h=h,
+					alpha=0.3)#[g['alpha'] for g in self.GRID])'''
 
-		p.quad(top = [g['y'] + g['size']/2 for g in self.GRID], # self.rectangle_coords_x,
-			   bottom = [g['y'] - g['size']/2 for g in self.GRID], #self.rectangle_coords_y,
-			   left = [g['x'] + g['size']/2 for g in self.GRID],
-			   right = [g['x'] - g['size']/2 for g in self.GRID],
-			   fill_color = 'white',
-			   line_color = 'lightgray',
-			   fill_alpha = [1-g['alpha'] for g in self.GRID],
-			   line_alpha = [1-g['alpha'] for g in self.GRID]
-		)
 
-		output_file("scatter.html", title="Example")
-		show(p)
+# -----------------------
+		#follicular = ColumnDataSource(data=dict(x=[g['alpha'] for g in self.GRID]))
+		follicular = ColumnDataSource(data=dict(x=self.get_category("PTC-follicular")))
+
+		for g in self.GRID:
+			if g['image_path']:
+				p.image_url(url=[g['image_path']],
+						x=g['x'] - g['size']/2,
+						y=g['y'] + g['size']/2,
+						w=g['size'],
+						h=g['size'])
+						#alpha=g['alpha'])
+
+		original_source = ColumnDataSource( dict(
+						top = [g['y'] + g['size']/2 for g in self.GRID], # self.rectangle_coords_x,
+						bottom = [g['y'] - g['size']/2 for g in self.GRID], #self.rectangle_coords_y,
+						left = [g['x'] + g['size']/2 for g in self.GRID],
+						right = [g['x'] - g['size']/2 for g in self.GRID],
+						fill_alpha = [1-g['alpha'] for g in self.GRID],
+						line_alpha = [1-g['alpha'] for g in self.GRID] ))
+
+		glyph = Quad(left="left", right="right", top="top", bottom="bottom", fill_color="white", line_color='lightgray',
+					 fill_alpha="fill_alpha", line_alpha="line_alpha")
+
+		p.add_glyph(original_source, glyph)
+
+		callback = CustomJS(args=dict(p=p, source=original_source, alpha_list=follicular), code="""
+			var alphas = alpha_list.getv('data');
+			var data = source.data;
+			alpha1 = data['fill_alpha']
+			alpha2 = data['line_alpha']
+			for (i = 0; i < alpha1.length; i++) {
+				alpha1[i] = alphas['x'][i]
+				alpha2[i] = alphas['x'][i]
+			}
+			p.change.emit()
+		""")
+
+		button = Button(label="Change!", button_type="success")
+		button.callback = callback
+		#button.on_click(button_handler)
+
+		#output_file("scatter.html", title="Example")
+		#show(column(p, button))
+		curdoc().add_root(column(p, button))
 
 	def load_metadata(self, path):
 		print("[Core] Loading metadata...")
@@ -167,7 +207,7 @@ class Mosaic:
 		for tile in self.GRID:
 			if not len(tile['distances']): continue
 			#for i in range(len(tile['distances'])):
-			closest_point = tile['distances'][i][0]
+			closest_point = tile['distances'][0][0]
 			point = self.tsne_points[closest_point]
 			if not os.path.exists(join(os.getcwd(), point['image_path'])):
 				print(f'Does not exist: {point["image_path"]}')
@@ -190,6 +230,23 @@ class Mosaic:
 			num_placed += 1
 		print(f"[INFO] Num placed: {num_placed}")
 
+	def get_category(self, category):
+		alpha_list = []
+		for tile in self.GRID:
+			if not len(tile['points']): 
+				alpha_list.append(1)
+				continue
+			num_cat, num_other = 0, 0
+			for point_index in tile['points']:
+				point = self.tsne_points[point_index]
+				if point['category'] == category:
+					num_cat += 1
+				else:
+					num_other += 1
+			alpha = num_cat / (num_other + num_cat)
+			alpha_list.append(1-alpha)
+		return alpha_list
+
 def get_args():
 	parser = argparse.ArgumentParser(description = 'Creates a t-SNE histology tile mosaic using a saved t-SNE bookmark generated with Tensorboard.')
 	parser.add_argument('-b', '--bookmark', help='Path to saved Tensorboard *.txt bookmark file.')
@@ -203,6 +260,16 @@ def get_args():
 	parser.add_argument('--export', action="store_true", help='Save mosaic to png file.')
 	return parser.parse_args()
 
-if __name__ == '__main__':
-	args = get_args()
-	mosaic = Mosaic(args)
+#if __name__ == '__main__':
+	#args = get_args()
+	#mosaic = Mosaic(args)
+class Args:
+	bookmark = '/home/shawarma/data/Thyroid/SVS_Test_Set_B/higher_perplexity_set_b.txt'
+	meta = '/home/shawarma/data/Thyroid/SVS_Test_Set_B/metadata.tsv'
+	tile = join(os.path.basename(os.path.dirname(__file__)), 'static', 'img')#'./img'#'/home/shawarma/data/Thyroid/SVS_Test_Set_B/tiles'
+	detail = 50
+	figsize = 100
+	leniency = 2
+	def __init__(self): pass
+args = Args()
+mosaic = Mosaic(args)
