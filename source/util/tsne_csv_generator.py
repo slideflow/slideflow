@@ -1,8 +1,14 @@
 import csv
 import argparse
 import sys
+import umap
 from random import shuffle
+import numpy as np
+import matplotlib.pyplot as plt
 from os.path import join
+import pickle
+
+import progress_bar
 
 '''csv_started = os.path.exists(join(self.SAVE_FOLDER, 'final_layer_weights.csv'))
 write_mode = 'a' if csv_started else 'w'
@@ -22,6 +28,77 @@ def get_args():
 	parser.add_argument('--category', type=int, default=3, help='Column number in which category name is found.')
 	parser.add_argument('--case', type=int, default=2, help='Column number in which case name is found.')
 	return parser.parse_args()
+
+def normalize_layout(layout, min_percentile=1, max_percentile=99, relative_margin=0.1):
+    """Removes outliers and scales layout to between [0,1]."""
+
+    # compute percentiles
+    mins = np.percentile(layout, min_percentile, axis=(0))
+    maxs = np.percentile(layout, max_percentile, axis=(0))
+
+    # add margins
+    mins -= relative_margin * (maxs - mins)
+    maxs += relative_margin * (maxs - mins)
+
+    # `clip` broadcasts, `[None]`s added only for readability
+    clipped = np.clip(layout, mins, maxs)
+
+    # embed within [0,1] along both axes
+    clipped -= clipped.min(axis=0)
+    clipped /= clipped.max(axis=0)
+
+    return clipped
+
+def gen_umap(array):
+	layout = umap.UMAP(n_components=2, verbose=True, n_neighbors=20, min_dist=0.01, metric="cosine").fit_transform(array)
+
+	## You can optionally use TSNE as well
+	# layout = TSNE(n_components=2, verbose=True, metric="cosine", learning_rate=10, perplexity=50).fit_transform(d)
+
+	layout = normalize_layout(layout)
+
+	with open('umap_weights.pkl', 'wb') as handle:
+		pickle.dump(layout, handle)
+
+	plt.figure(figsize=(10, 10))
+	plt.scatter(x=layout[:,0],y=layout[:,1], s=2)
+	plt.show()
+
+def load_weights_umap(path):
+	with open(path, 'rb') as handle:
+		umap_array = pickle.load(handle)
+
+	print(f"Loaded array of size {len(umap_array)}")
+	gen_umap(umap_array)
+
+def start_umap(args):
+	csv_path = args.file
+	started = False
+
+	umap_array = []
+
+	pb = progress_bar.ProgressBar()
+	pb_id = pb.add_bar(0, 114000)
+	with open(csv_path, 'r') as file:
+		reader = csv.reader(file, delimiter=',')
+		headers = next(reader, None)
+		for i, row in enumerate(reader):
+			pb.update(pb_id, i)
+			np_row = np.array([row[8:]]).astype(np.float)
+			umap_array += [[float(x) for x in row[8:]]]
+			'''if not started:
+				umap_array = np_row
+				started = True
+			else:
+				umap_array = np.append(umap_array, np_row, axis=0)'''
+	pb.end()
+
+	with open('np_array_weights.pkl', 'wb') as handle:
+		pickle.dump(umap_array, handle)
+
+	#print(umap_array.shape)
+	gen_umap(umap_array)
+	
 
 def main(args):
 	categories = {}
@@ -57,17 +134,16 @@ def main(args):
 				keep_list = [1] * tiles_to_extract
 				keep_list += [0] * (cases[case]['count'] - tiles_to_extract)
 				shuffle(keep_list)
-				print(f"{case}: {sum(keep_list)}")
 				cases[case]['keep_list'] = keep_list
 
 	with open(csv_path, 'r') as read_file:
 		root_dir = '/'.join(csv_path.split('/')[:-1])
 		csv_out_path =  join(root_dir, 'balanced.csv')
 		print(f"Writing CSV to {csv_out_path}...")
+		reader = csv.reader(read_file, delimiter=',')
+		headers = next(reader, None)
 		with open(csv_out_path, 'w') as write_file:
-			reader = csv.reader(read_file, delimiter=',')
 			writer = csv.writer(write_file, delimiter=',')
-			headers = next(reader, None)
 			writer.writerow(headers)
 			for row in reader:
 				case = row[args.case-1]
@@ -78,4 +154,6 @@ def main(args):
 
 if __name__ == '__main__':
 	args = get_args()
-	main(args)
+	#main(args)
+	start_umap(args)
+	#load_weights_umap('np_array_weights.pkl')

@@ -1,6 +1,7 @@
 import math
 import tensorflow as tf
 import numpy as np
+import pickle
 
 import matplotlib.pyplot as plt
 
@@ -17,6 +18,9 @@ import lucid.optvis.transform as transform
 
 model = models.InceptionV1()
 model.load_graphdef()
+
+# TODO:
+# https://stackoverflow.com/questions/45864363/tensorflow-how-to-convert-meta-data-and-index-model-files-into-one-graph-pb
 
 # model.layers[7] is mixed4c
 layer = "mixed4c"
@@ -262,3 +266,6 @@ xs = layout[:, 0]
 ys = layout[:, 1]
 canvas = render_layout(model, layer, S, xs, ys, raw_activations, n_steps=512, grid_size=(20, 20), n_attempts=1)
 show(canvas)
+
+with open('html_dump', 'wb') as handle:
+	pickle.dump([show(canvas), canvas], handle)

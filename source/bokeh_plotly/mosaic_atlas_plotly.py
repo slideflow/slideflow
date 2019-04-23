@@ -1,31 +1,32 @@
+from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
+import plotly.graph_objs as go
+
 import numpy as np
 import argparse
 import json
 import csv
 import math
 
-import os
 from os.path import join
-
-from bokeh.plotting import figure, show, output_file
-from bokeh.io import curdoc
-from bokeh.models.widgets import Button
-from bokeh.models.glyphs import Quad
-from bokeh.models import CustomJS, ColumnDataSource
-from bokeh.layouts import column
 
 class Mosaic:
 	def __init__(self, args):
+		'''N = 1000
+		random_x = np.random.randn(N)
+		random_y = np.random.randn(N)
+		trace = go.Scatter(x = random_x,
+						   y = random_y,
+						   mode = 'markers')
+		data = [trace]
+		plot(data, filename='basic-scatter')'''
 		self.tsne_points = []
 		self.metadata = []
 		self.GRID = []
-		self.SVS = False
 		self.plotly_shapes = []
 		self.rectangle_coords_x = []
 		self.rectangle_coords_y = []
 		self.plotly_images = []
 		self.tile_zoom_factor = 15
-		self.category = "PTC-classic"
 
 		self.tile_root = args.tile
 		self.num_tiles_x = args.detail
@@ -34,73 +35,59 @@ class Mosaic:
 		self.load_metadata(args.meta)
 		self.load_bookmark_state(args.bookmark)
 		self.place_tile_outlines()
-		self.calculate_distances()
-		self.pair_tiles_and_points()
 		self.make_plot()
 
 	def make_plot(self):
-		TOOLS="hover,crosshair,pan,wheel_zoom,zoom_in,zoom_out,box_zoom,undo,redo,reset,save,box_select"
-		p = figure(tools=TOOLS, match_aspect=True, plot_width=1200, plot_height=1200)
-		
-		image_paths, x, y, w, h = [], [], [], [], []
+		'''for i in range(10):
+			self.plotly_images.append(
+				dict(
+					source= 'img/234800_1220.jpg', #'/Users/james/results/Thyroid/Mosaic/tiles/234800/234800_1220.jpg', #'https://images.plot.ly/language-icons/api-home/python-logo.png', 
+					xref= "x",
+					yref= "y",
+					x= i * 5,
+					y= 0,
+					sizex= 5,
+					sizey= 5,
+					sizing = "contain",
+					opacity = 1.0,
+					xanchor= "center",
+					yanchor= "center",
+					visible = True,
+					layer = "below"
+				)
+			)'''
 
-		'''for g in self.GRID:
-			if g['image_path']:
-				image_paths.append(g['image_path'])
-				x.append(g['x'] - g['size']/2)
-				y.append(g['y'] + g['size']/2)
-				w.append(g['size'])
-				h.append(g['size'])
-				
-		p.image_url(url=image_paths,
-					x=x,
-					y=y,
-					w=w,
-					h=h,
-					alpha=0.3)#[g['alpha'] for g in self.GRID])'''
+		print(self.tile_size)
 
+		trace = go.Scatter(
+			x=self.rectangle_coords_x, 
+			y=self.rectangle_coords_y,
+			mode='markers',
+			marker = dict(
+				sizeref = 0.01,
+				sizemode = 'area',
+				size = [g['size'] for g in self.GRID],#[self.tile_size] * len(self.rectangle_coords_x),
+				symbol = 1
+			)
+		)
 
-# -----------------------
-		#follicular = ColumnDataSource(data=dict(x=[g['alpha'] for g in self.GRID]))
-		follicular = ColumnDataSource(data=dict(x=self.get_category_alpha("PTC-follicular")))
+		layout = go.Layout(
+			xaxis = dict(
+				nticks = 10,
+				#domain = [0, 0.45],
+				title = "shared X axis"
+			),
+			yaxis = dict(
+				scaleanchor = "x",
+				#domain = [0, 0.45],
+				title = "1:1"
+			),
+			#images = self.plotly_images,
+			#shapes = self.plotly_shapes
+		)
 
-		for g in self.GRID:
-			if g['image_path']:
-				p.image_url(url=[g['image_path']],
-						x=g['x'] - g['size']/2,
-						y=g['y'] + g['size']/2,
-						w=g['size'],
-						h=g['size'])
-						#alpha=g['alpha'])
-
-		original_source = ColumnDataSource( dict(
-						top = [g['y'] + g['size']/2 for g in self.GRID], # self.rectangle_coords_x,
-						bottom = [g['y'] - g['size']/2 for g in self.GRID], #self.rectangle_coords_y,
-						left = [g['x'] + g['size']/2 for g in self.GRID],
-						right = [g['x'] - g['size']/2 for g in self.GRID],
-						fill_alpha = [1-g['alpha'] for g in self.GRID],
-						line_alpha = [1-g['alpha'] for g in self.GRID] ))
-
-		glyph = Quad(left="left", right="right", top="top", bottom="bottom", fill_color="white", line_color='lightgray',
-					 fill_alpha="fill_alpha", line_alpha="line_alpha")
-
-		p.add_glyph(original_source, glyph)
-
-		callback = CustomJS(args=dict(p=p, source=original_source, alpha_list=follicular), code="""
-			var alphas = alpha_list.getv('data');
-			var data = source.data;
-			alpha1 = data['fill_alpha']
-			alpha2 = data['line_alpha']
-			for (i = 0; i < alpha1.length; i++) {
-				alpha1[i] = alphas['x'][i]
-				alpha2[i] = alphas['x'][i]
-			}
-			p.change.emit()
-		""")
-
-		button = Button(label="Change!", button_type="success")
-		button.callback = callback
-		curdoc().add_root(column(p, button))
+		fig = go.Figure(data=[trace], layout=layout)
+		plot(fig, config={'scrollZoom': True}, filename='basic-scatter')
 
 	def load_metadata(self, path):
 		print("[Core] Loading metadata...")
@@ -159,8 +146,7 @@ class Mosaic:
 								  'points':[],
 								  'distances':[],
 								  'active': False,
-								  'alpha': 1,
-								  'image_path': None})
+								  'image': None})
 
 		# Add point indices to grid
 		for point in self.tsne_points:
@@ -180,68 +166,34 @@ class Mosaic:
 		for grid_tile in self.GRID:
 			rect_size = min((len(grid_tile['points']) / max_grid_density) * self.tile_zoom_factor, 1) * self.tile_size
 
+			shape = {
+				'type': 'rect',
+				'x0': grid_tile['x'] - rect_size/2,
+				'y0': grid_tile['y'] - rect_size/2,
+				'x1': grid_tile['x'] + rect_size/2,
+				'y1': grid_tile['y'] + rect_size/2,
+				'line': {
+					'color': 'rgba(128, 0, 128, 1)',
+					'width': 2,
+				},
+				'fillcolor': 'rgba(128, 0, 128, 0.7)',
+			}
+
+			self.plotly_shapes.append(shape)
+			self.rectangle_coords_x.append(grid_tile['x'])
+			self.rectangle_coords_y.append(grid_tile['y'])
+
+			'''tile = Rectangle((grid_tile['x'] - rect_size/2, 
+							  grid_tile['y'] - rect_size/2), 
+							  rect_size, 
+							  rect_size, 
+							  fill=True, alpha=1, facecolor='white', edgecolor="#cccccc")
+			self.ax.add_patch(tile)'''
+
 			grid_tile['size'] = rect_size
 			#grid_tile['rectangle'] = tile
 			grid_tile['neighbors'] = []
 			grid_tile['paired_point'] = None
-
-	def calculate_distances(self):
-		print("[Mosaic] Calculating tile-point distances...")
-		for tile in self.GRID:
-			# Calculate distance for each point from center
-			distances = []
-			for point_index in tile['points']:
-				point = self.tsne_points[point_index]
-				distance = math.sqrt((point['x']-tile['x'])**2 + (point['y']-tile['y'])**2)
-				distances.append([point['index'], distance])
-			distances.sort(key=lambda d: d[1])
-			tile['distances'] = distances
-
-	def pair_tiles_and_points(self):
-		print("[Mosaic] Placing image tiles...")
-		num_placed = 0
-		for tile in self.GRID:
-			if not len(tile['distances']): continue
-			#for i in range(len(tile['distances'])):
-			closest_point = tile['distances'][0][0]
-			point = self.tsne_points[closest_point]
-			if not os.path.exists(join(os.getcwd(), point['image_path'])):
-				print(f'Does not exist: {point["image_path"]}')
-			#		continue
-			#	else:
-			tile['image_path'] = point['image_path']
-			#		break
-
-			tile_alpha, num_case, num_other = 1, 0, 0
-			if self.category and len(tile['points']):
-				for point_index in tile['points']:
-					point = self.tsne_points[point_index]
-					if point['category'] == self.category:
-						num_case += 1
-					else:
-						num_other += 1
-				fraction_svs = num_case / (num_other + num_case)
-				tile_alpha = fraction_svs
-				tile['alpha'] = tile_alpha
-			num_placed += 1
-		print(f"[INFO] Num placed: {num_placed}")
-
-	def get_category_alpha(self, category):
-		alpha_list = []
-		for tile in self.GRID:
-			if not len(tile['points']): 
-				alpha_list.append(1)
-				continue
-			num_cat, num_other = 0, 0
-			for point_index in tile['points']:
-				point = self.tsne_points[point_index]
-				if point['category'] == category:
-					num_cat += 1
-				else:
-					num_other += 1
-			alpha = num_cat / (num_other + num_cat)
-			alpha_list.append(1-alpha)
-		return alpha_list
 
 def get_args():
 	parser = argparse.ArgumentParser(description = 'Creates a t-SNE histology tile mosaic using a saved t-SNE bookmark generated with Tensorboard.')
@@ -256,16 +208,6 @@ def get_args():
 	parser.add_argument('--export', action="store_true", help='Save mosaic to png file.')
 	return parser.parse_args()
 
-#if __name__ == '__main__':
-	#args = get_args()
-	#mosaic = Mosaic(args)
-class Args:
-	bookmark = '/home/shawarma/data/Thyroid/SVS_Test_Set_B/higher_perplexity_set_b.txt'
-	meta = '/home/shawarma/data/Thyroid/SVS_Test_Set_B/metadata.tsv'
-	tile = join(os.path.basename(os.path.dirname(__file__)), 'static', 'img')#'./img'#'/home/shawarma/data/Thyroid/SVS_Test_Set_B/tiles'
-	detail = 50
-	figsize = 100
-	leniency = 2
-	def __init__(self): pass
-args = Args()
-mosaic = Mosaic(args)
+if __name__ == '__main__':
+	args = get_args()
+	mosaic = Mosaic(args)
