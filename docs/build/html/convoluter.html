@@ -87,15 +87,14 @@
               <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workflow.html">Workflow</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="modules.html">Source code</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">convoluter module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="histcon.html">histcon module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="histcon_eval.html">histcon_eval module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="packing.html">packing module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="progress_bar.html">progress module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="data_utils.html">data_utils module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="fastim.html">fastim module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="nconvert_util.html">nconvert_util module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mosaic.html">fastim module</a></li>
 </ul>
 </li>
 </ul>
@@ -166,45 +165,163 @@
             
   <div class="section" id="module-convoluter">
 <span id="convoluter-module"></span><h1>convoluter module<a class="headerlink" href="#module-convoluter" title="Permalink to this headline">¶</a></h1>
-<p>Convolutionally applies a saved Tensorflow model to a larger image, displaying
-the result as a heatmap overlay.</p>
+<p>This module includes tools to convolutionally section whole slide images into tiles
+using python Generators. These tessellated tiles can be exported as JPGs, with or without
+data augmentation, or used as input for a trained Tensorflow model. Model predictions
+can then be visualized as a heatmap overlay.</p>
+<p>This module is compatible with SVS and JPG images.</p>
+<p>Requires: Openslide (<a class="reference external" href="https://openslide.org/download/">https://openslide.org/download/</a>).</p>
 <dl class="class">
 <dt id="convoluter.Convoluter">
-<em class="property">class </em><code class="descclassname">convoluter.</code><code class="descname">Convoluter</code><span class="sig-paren">(</span><em>whole_image</em>, <em>model_dir</em>, <em>size</em>, <em>num_classes</em>, <em>batch_size</em>, <em>use_fp16</em>, <em>save_folder=''</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">convoluter.</code><code class="descname">Convoluter</code><span class="sig-paren">(</span><em>size_px</em>, <em>size_um</em>, <em>num_classes</em>, <em>batch_size</em>, <em>use_fp16</em>, <em>save_folder=''</em>, <em>augment=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Class to guide the convolution/tessellation of tiles across a set of slides, within ROIs if provided.
+Performs designated actions on tessellated tiles, which may include:</p>
+<blockquote>
+<div><ul class="simple">
+<li>image export (for generating a tile dataset, with or without augmentation)</li>
+<li>logit predictions from saved Tensorflow model (logits may then be either saved or visualized with heatmaps)</li>
+<li>final layer weight calculation (saved into a CSV file)</li>
+</ul>
+</div></blockquote>
 <dl class="method">
-<dt id="convoluter.Convoluter.fast_display">
-<code class="descname">fast_display</code><span class="sig-paren">(</span><em>image_file</em>, <em>logits</em>, <em>size</em>, <em>name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.fast_display"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.fast_display" title="Permalink to this definition">¶</a></dt>
-<dd><p><strong>* Experimental *</strong></p>
+<dt id="convoluter.Convoluter.build_model">
+<code class="descname">build_model</code><span class="sig-paren">(</span><em>model_dir</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.build_model"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.build_model" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="convoluter.Convoluter.calculate_logits">
+<code class="descname">calculate_logits</code><span class="sig-paren">(</span><em>slide</em>, <em>export_tiles=False</em>, <em>final_layer=False</em>, <em>save_pkl=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.calculate_logits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.calculate_logits" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns logits and final layer weights</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="convoluter.Convoluter.load_pkl_and_save_heatmaps">
-<code class="descname">load_pkl_and_save_heatmaps</code><span class="sig-paren">(</span><em>pkl_file</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.load_pkl_and_save_heatmaps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.load_pkl_and_save_heatmaps" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="convoluter.Convoluter.load_pkl_and_scan_image">
-<code class="descname">load_pkl_and_scan_image</code><span class="sig-paren">(</span><em>pkl_file</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.load_pkl_and_scan_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.load_pkl_and_scan_image" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="convoluter.Convoluter.save_csv">
-<code class="descname">save_csv</code><span class="sig-paren">(</span><em>output</em>, <em>labels</em>, <em>name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.save_csv"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.save_csv" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="convoluter.Convoluter.save_heatmaps">
-<code class="descname">save_heatmaps</code><span class="sig-paren">(</span><em>image_file</em>, <em>logits</em>, <em>size</em>, <em>name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.save_heatmaps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.save_heatmaps" title="Permalink to this definition">¶</a></dt>
-<dd><p>Displays logits calculated using scan_image as a heatmap overlay.</p>
+<dt id="convoluter.Convoluter.convolute_slides">
+<code class="descname">convolute_slides</code><span class="sig-paren">(</span><em>save_heatmaps</em>, <em>display_heatmaps</em>, <em>save_final_layer</em>, <em>export_tiles</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.convolute_slides"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.convolute_slides" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parent function to guide convolution across a whole-slide image and execute desired functions.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>save_heatmaps</strong> – Bool, if true will save heatmap overlays as PNG files</li>
+<li><strong>display_heatmaps</strong> – Bool, if true will display interactive heatmap for each whole-slide image</li>
+<li><strong>save_final_layer</strong> – Bool, if true will calculate and save final layer weights in CSV file</li>
+<li><strong>export_tiles</strong> – Bool, if true will save tessellated image tiles to subdirectory “tiles”</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
-<dt id="convoluter.Convoluter.scan_image">
-<code class="descname">scan_image</code><span class="sig-paren">(</span><em>display=True</em>, <em>prefix=''</em>, <em>save=False</em>, <em>export_tiles=False</em>, <em>final_layer=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.scan_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.scan_image" title="Permalink to this definition">¶</a></dt>
+<dt id="convoluter.Convoluter.export_tiles">
+<code class="descname">export_tiles</code><span class="sig-paren">(</span><em>slide</em>, <em>pb</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.export_tiles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.export_tiles" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="convoluter.Convoluter.export_weights">
+<code class="descname">export_weights</code><span class="sig-paren">(</span><em>output</em>, <em>labels</em>, <em>logits</em>, <em>name</em>, <em>category</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.export_weights"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.export_weights" title="Permalink to this definition">¶</a></dt>
+<dd><p>Exports final layer weights (and logits) for non-overlapping tiles into a CSV file.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="convoluter.Convoluter.gen_heatmaps">
+<code class="descname">gen_heatmaps</code><span class="sig-paren">(</span><em>slide</em>, <em>logits</em>, <em>size</em>, <em>name</em>, <em>save=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.gen_heatmaps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.gen_heatmaps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Displays and/or saves logits as a heatmap overlay.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="convoluter.Convoluter.load_pkl">
+<code class="descname">load_pkl</code><span class="sig-paren">(</span><em>pkl_array</em>, <em>directory</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.load_pkl"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.load_pkl" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="convoluter.Convoluter.load_slides">
+<code class="descname">load_slides</code><span class="sig-paren">(</span><em>slides_array</em>, <em>directory</em>, <em>category='None'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#Convoluter.load_slides"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.Convoluter.load_slides" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
+
+<dl class="class">
+<dt id="convoluter.JPGSlide">
+<em class="property">class </em><code class="descclassname">convoluter.</code><code class="descname">JPGSlide</code><span class="sig-paren">(</span><em>path</em>, <em>mpp</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#JPGSlide"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.JPGSlide" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Object that provides cross-compatibility with certain OpenSlide methods when using JPG slides.</p>
+<dl class="method">
+<dt id="convoluter.JPGSlide.get_thumbnail">
+<code class="descname">get_thumbnail</code><span class="sig-paren">(</span><em>dimensions</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#JPGSlide.get_thumbnail"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.JPGSlide.get_thumbnail" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="convoluter.JPGSlide.read_region">
+<code class="descname">read_region</code><span class="sig-paren">(</span><em>topleft</em>, <em>level</em>, <em>window</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#JPGSlide.read_region"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.JPGSlide.read_region" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="convoluter.ROIObject">
+<em class="property">class </em><code class="descclassname">convoluter.</code><code class="descname">ROIObject</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#ROIObject"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.ROIObject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Object container for ROI annotations.</p>
+<dl class="method">
+<dt id="convoluter.ROIObject.add_coord">
+<code class="descname">add_coord</code><span class="sig-paren">(</span><em>coord</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#ROIObject.add_coord"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.ROIObject.add_coord" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="convoluter.ROIObject.add_shape">
+<code class="descname">add_shape</code><span class="sig-paren">(</span><em>shape</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#ROIObject.add_shape"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.ROIObject.add_shape" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="convoluter.ROIObject.print_coord">
+<code class="descname">print_coord</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#ROIObject.print_coord"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.ROIObject.print_coord" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="convoluter.ROIObject.scaled_area">
+<code class="descname">scaled_area</code><span class="sig-paren">(</span><em>scale</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#ROIObject.scaled_area"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.ROIObject.scaled_area" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="convoluter.SlideReader">
+<em class="property">class </em><code class="descclassname">convoluter.</code><code class="descname">SlideReader</code><span class="sig-paren">(</span><em>path</em>, <em>filetype</em>, <em>export_folder=None</em>, <em>pb=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#SlideReader"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.SlideReader" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Helper object that loads a slide and its ROI annotations and sets up a tile generator.</p>
+<dl class="method">
+<dt id="convoluter.SlideReader.build_generator">
+<code class="descname">build_generator</code><span class="sig-paren">(</span><em>size_px</em>, <em>size_um</em>, <em>stride_div</em>, <em>case_name</em>, <em>export=False</em>, <em>augment=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#SlideReader.build_generator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.SlideReader.build_generator" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="convoluter.SlideReader.load_csv_roi">
+<code class="descname">load_csv_roi</code><span class="sig-paren">(</span><em>path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#SlideReader.load_csv_roi"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.SlideReader.load_csv_roi" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="convoluter.SlideReader.load_json_roi">
+<code class="descname">load_json_roi</code><span class="sig-paren">(</span><em>path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#SlideReader.load_json_roi"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.SlideReader.load_json_roi" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="convoluter.SlideReader.loaded_correctly">
+<code class="descname">loaded_correctly</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#SlideReader.loaded_correctly"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.SlideReader.loaded_correctly" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="convoluter.get_args">
+<code class="descclassname">convoluter.</code><code class="descname">get_args</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/convoluter.html#get_args"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#convoluter.get_args" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 </div>
 

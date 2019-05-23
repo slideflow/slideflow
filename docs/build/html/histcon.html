@@ -35,7 +35,7 @@
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="histcon_eval module" href="histcon_eval.html" />
+    <link rel="next" title="progress module" href="progress_bar.html" />
     <link rel="prev" title="convoluter module" href="convoluter.html" /> 
 </head>
 
@@ -87,15 +87,14 @@
               <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workflow.html">Workflow</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="modules.html">Source code</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="convoluter.html">convoluter module</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">histcon module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="histcon_eval.html">histcon_eval module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="packing.html">packing module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="progress_bar.html">progress module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="data_utils.html">data_utils module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="fastim.html">fastim module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="nconvert_util.html">nconvert_util module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mosaic.html">fastim module</a></li>
 </ul>
 </li>
 </ul>
@@ -175,12 +174,12 @@
 build a training and validation set model, and monitor and execute training.</p>
 <dl class="attribute">
 <dt id="histcon.HistconModel.ADAM_LEARNING_RATE">
-<code class="descname">ADAM_LEARNING_RATE</code><em class="property"> = 0.01</em><a class="headerlink" href="#histcon.HistconModel.ADAM_LEARNING_RATE" title="Permalink to this definition">¶</a></dt>
+<code class="descname">ADAM_LEARNING_RATE</code><em class="property"> = 0.001</em><a class="headerlink" href="#histcon.HistconModel.ADAM_LEARNING_RATE" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
 <dt id="histcon.HistconModel.BATCH_SIZE">
-<code class="descname">BATCH_SIZE</code><em class="property"> = 32</em><a class="headerlink" href="#histcon.HistconModel.BATCH_SIZE" title="Permalink to this definition">¶</a></dt>
+<code class="descname">BATCH_SIZE</code><em class="property"> = 16</em><a class="headerlink" href="#histcon.HistconModel.BATCH_SIZE" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -215,7 +214,7 @@ build a training and validation set model, and monitor and execute training.</p>
 
 <dl class="attribute">
 <dt id="histcon.HistconModel.NUM_CLASSES">
-<code class="descname">NUM_CLASSES</code><em class="property"> = 6</em><a class="headerlink" href="#histcon.HistconModel.NUM_CLASSES" title="Permalink to this definition">¶</a></dt>
+<code class="descname">NUM_CLASSES</code><em class="property"> = 5</em><a class="headerlink" href="#histcon.HistconModel.NUM_CLASSES" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -347,7 +346,7 @@ average for all trainable variables.</p>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="histcon_eval.html" class="btn btn-neutral float-right" title="histcon_eval module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="progress_bar.html" class="btn btn-neutral float-right" title="progress module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="convoluter.html" class="btn btn-neutral float-left" title="convoluter module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
