@@ -5,8 +5,8 @@
 # ==========================================================================
 
 '''This module includes tools to convolutionally section whole slide images into tiles
-using python Generators. These tiles can be exported as JPGs, with or without data
-augmentation, or used as input for a trained Tensorflow model. Model predictions 
+using python Generators. These tessellated tiles can be exported as JPGs, with or without
+data augmentation, or used as input for a trained Tensorflow model. Model predictions 
 can then be visualized as a heatmap overlay.
 
 This module is compatible with SVS and JPG images.
@@ -59,7 +59,8 @@ JSON_ANNOTATION_SCALE = 10
 # TODO: test json annotations
 # TODO: automatic augmentation balancing
 
-class AnnotationObject:
+class ROIObject:
+	'''Object container for ROI annotations.'''
 	def __init__(self, name):
 		self.name = name
 		self.coordinates = []
@@ -74,6 +75,7 @@ class AnnotationObject:
 			self.add_coord(point)
 
 class JPGSlide:
+	'''Object that provides cross-compatibility with certain OpenSlide methods when using JPG slides.'''
 	def __init__(self, path, mpp):
 		self.loaded_image = imageio.imread(path)
 		self.dimensions = (self.loaded_image.shape[1], self.loaded_image.shape[0])
@@ -89,6 +91,7 @@ class JPGSlide:
 								 topleft[0]:topleft[0] + window[0],]
 
 class SlideReader:
+	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
 	def __init__(self, path, filetype, export_folder=None, pb=None):
 		self.print = print if not pb else pb.print
 		self.annotations = []
@@ -215,7 +218,7 @@ class SlideReader:
 				index_y = headers.index("Y_base")
 			except ValueError:
 				raise IndexError('Unable to find "X_base" and "Y_base" columns in CSV file.')
-			self.annotations.append(AnnotationObject(f"Object{len(self.annotations)}"))
+			self.annotations.append(ROIObject(f"Object{len(self.annotations)}"))
 			for row in reader:
 				x_coord = int(float(row[index_x]))
 				y_coord = int(float(row[index_y]))
@@ -227,11 +230,18 @@ class SlideReader:
 			json_data = json.load(json_file)['shapes']
 		for shape in json_data:
 			area_reduced = np.multiply(shape['points'], JSON_ANNOTATION_SCALE)
-			self.annotations.append(AnnotationObject(f"Object{len(self.annotations)}"))
+			self.annotations.append(ROIObject(f"Object{len(self.annotations)}"))
 			self.annotations[-1].add_shape(area_reduced)
 		self.print(f" * [{self.name}] Total annotation objects detected: {len(self.annotations)}")
 
 class Convoluter:
+	'''Class to guide the convolution/tessellation of tiles across a set of slides, within ROIs if provided. 
+	Performs designated actions on tessellated tiles, which may include:
+	
+	 - image export (for generating a tile dataset, with or	without augmentation)
+	 - logit predictions from saved Tensorflow model (logits may then be either saved or visualized with heatmaps)
+	 - final layer weight calculation (saved into a CSV file)
+	'''
 	def __init__(self, size_px, size_um, num_classes, batch_size, use_fp16, save_folder='', augment=False):
 		self.SLIDES = {}
 		self.MODEL_DIR = None
@@ -271,7 +281,7 @@ class Convoluter:
 			save_heatmaps: 				Bool, if true will save heatmap overlays as PNG files
 			display_heatmaps:			Bool, if true will display interactive heatmap for each whole-slide image
 			save_final_layer: 			Bool, if true will calculate and save final layer weights in CSV file
-			export_tiles:				Bool, if true will save convoluted image tiles to subdirectory "tiles"
+			export_tiles:				Bool, if true will save tessellated image tiles to subdirectory "tiles"
 
 		Returns:
 			None
@@ -294,22 +304,20 @@ class Convoluter:
 				category = slide['category']
 				print(f"Working on case {case_name} ({category})")
 
-				# Use PKL logits if available
+				# Use PKL logits if available (stored pre-calculated logits from prior run)
 				if case_name in self.PKL_DICT and not save_final_layer:
 					with open(self.PKL_DICT[case_name], 'rb') as handle:
 						logits = pickle.load(handle)
-				# Otherwise recalculate
+				# Otherwise, recalculate
 				else:
 					logits, final_layer, final_layer_labels, logits_flat = self.calculate_logits(slide, 
 																			export_tiles, save_final_layer,
 																			save_pkl=((save_heatmaps or display_heatmaps) and case_name not in self.PKL_DICT))
 				if save_heatmaps:
-					#self.export_heatmaps(slide, logits, self.SIZE_PX, case_name)
 					self.gen_heatmaps(slide, logits, self.SIZE_PX, case_name, save=True)
 				if save_final_layer:
 					self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)
 				if display_heatmaps:
-					#self.fast_display(slide, logits, self.SIZE_PX, case_name)
 					self.gen_heatmaps(slide, logits, self.SIZE_PX, case_name, save=False)
 
 	def export_tiles(self, slide, pb):
@@ -360,17 +368,18 @@ class Convoluter:
 															dtype=self.DTYPE)], 0)
 				padded_batch.set_shape([self.BATCH_SIZE, self.SIZE_PX, self.SIZE_PX, 3])
 
+			# Generate Tensorflow inception-v4 model
 			with arg_scope(inception_arg_scope()):
 				_, end_points = inception_v4.inception_v4(padded_batch, num_classes=self.NUM_CLASSES, is_training=False, create_aux_logits=False)
 
 			prelogits = end_points['PreLogitsFlatten']
 			slogits = end_points['Predictions']
+			# Find variables to restore when loading trained model
 			vars_to_restore = []
 			for var_to_restore in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
 				if ((var_to_restore.name[12:21] != "AuxLogits")):# and 
 					#((var_to_restore.name[:25] != "InceptionV4/Logits/Logits") or not final_layer)):
 					vars_to_restore.append(var_to_restore)
-
 			saver = tf.train.Saver(vars_to_restore)
 
 			with tf.Session() as sess:
@@ -395,6 +404,7 @@ class Convoluter:
 				logits_arr = []	# Logits (predictions) 
 				unique_arr = []	# Boolean array indicating whether tile is unique (non-overlapping) 
 
+				# Iterate through generator to calculate logits +/- final layer weights for all tiles
 				while True:
 					try:
 						count = min(count, total_logits_count)
@@ -406,7 +416,6 @@ class Convoluter:
 																			  tf.cast(prelogits, tf.float32),
 																			  next_batch_labels,
 																			  next_batch_unique])
-							#print(new_prelogits[:,0].tolist())
 							prelogits_arr = new_prelogits if prelogits_arr == [] else np.concatenate([prelogits_arr, new_prelogits])
 							unique_arr = new_unique if unique_arr == [] else np.concatenate([unique_arr, new_unique])
 						else:
@@ -451,7 +460,7 @@ class Convoluter:
 				prelogits_labels = None
 
 			# Expand logits back to a full 2D map spanning the whole slide,
-			#  supplying values of "-1" where tiles were skipped by the tile generator
+			#  supplying values of "0" where tiles were skipped by the tile generator
 			expanded_logits = [[0] * self.NUM_CLASSES] * len(whole_slide.tile_mask)
 			li = 0
 			for i in range(len(expanded_logits)):
@@ -463,6 +472,8 @@ class Convoluter:
 
 			# Resize logits array into a two-dimensional array for heatmap display
 			logits_out = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.NUM_CLASSES])
+			
+			# Save the logits into a pkl dump, to save computational time if re-running this script
 			if save_pkl:
 				with open(os.path.join(self.SAVE_FOLDER, case_name+'.pkl'), 'wb') as handle:
 					pickle.dump(logits_out, handle)
@@ -470,6 +481,7 @@ class Convoluter:
 			return logits_out, prelogits_out, prelogits_labels, flat_unique_logits
 
 	def export_weights(self, output, labels, logits, name, category):
+		'''Exports final layer weights (and logits) for non-overlapping tiles into a CSV file.'''
 		print("Writing csv...")
 		csv_started = os.path.exists(join(self.SAVE_FOLDER, 'final_layer_weights.csv'))
 		write_mode = 'a' if csv_started else 'w'
@@ -483,7 +495,7 @@ class Convoluter:
 				csv_writer.writerow([labels[l], name, category] + logit + out)
 
 	def gen_heatmaps(self, slide, logits, size, name, save=True):
-		'''Displays and/or saves logits calculated using scan_image as a heatmap overlay.'''
+		'''Displays and/or saves logits as a heatmap overlay.'''
 		print("Received logits, size=%s, (%s x %s)" % (size, len(logits), len(logits[0])))
 		print("Calculating overlay matrix and displaying with dynamic resampling...")
 		image_file = slide['path']
@@ -528,6 +540,7 @@ class Convoluter:
 				heatmap_dict.update({f"Class{i}": [heatmap, slider]})
 				slider.on_changed(slider_func)
 
+		# Save of display heatmap overlays
 		if save:
 			mp.savefig(os.path.join(self.SAVE_FOLDER, f'{name}-raw.png'), bbox_inches='tight')
 			for i in range(self.NUM_CLASSES):
@@ -560,6 +573,7 @@ def get_args():
 	return parser.parse_args()
 
 if __name__==('__main__'):
+	# Disable warnings to maintain clean output
 	os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 	tf.logging.set_verbosity(tf.logging.ERROR)
 	args = get_args()
@@ -570,21 +584,26 @@ if __name__==('__main__'):
 
 	c = Convoluter(args.px, args.um, args.classes, args.batch, args.fp16, args.out, args.augment)
 
+	# Load images/slides
+	# If a single file is provided with the --slide flag, then load only that image
 	if isfile(args.slide):
 		slide_list = [args.slide.split('/')[-1]]
 		slide_dir = "/".join(args.slide.split('/')[:-1])
 		c.load_slides(slide_list, slide_dir)
 	else:
-		# First, load images in the directory, not assigning any category
+		# Otherwise, assume the --slide flag provided a directory and attempt to load images in the directory 
+		# First, load all images in the directory, without assigning any category labels
 		slide_list = [i for i in os.listdir(args.slide) if (isfile(join(args.slide, i)) and (i[-3:].lower() in ("svs", "jpg")))]	
 		c.load_slides(slide_list, args.slide)
-		# Next, load images in subdirectories, assigning category by subdirectory name
+		# Next, load images in subdirectories, assigning category labels by subdirectory name
 		dir_list = [d for d in os.listdir(args.slide) if not isfile(join(args.slide, d))]
 		for directory in dir_list:
 			# Ignore images if in the thumbnails or QuPath project directory
 			if directory in ["thumbs", "QuPath_Project"]: continue
 			slide_list = [i for i in os.listdir(join(args.slide, directory)) if (isfile(join(args.slide, directory, i)) and (i[-3:].lower() in ("svs", "jpg")))]	
 			c.load_slides(slide_list, join(args.slide, directory), category=directory)
+			
+	# Prepare PKL directory, if supplied. PKL files are used to load pre-calculated logits from prior runs.
 	if args.pkl and isfile(args.pkl):
 		pkl_list = [args.pkl.split('/'[-1])]
 		pkl_dir = "/".join(args.pkl.split('/')[:-1])
