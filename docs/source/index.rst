@@ -11,6 +11,7 @@ Welcome to the Histcon documentation!
    :caption: Contents:
 
    intro
+   workflow
    modules
 
 Indices and tables

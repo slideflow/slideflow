@@ -1,7 +1,7 @@
-packing module
-==============
+fastim module
+=============
 
-.. automodule:: packing
+.. automodule:: mosaic
     :members:
     :undoc-members:
     :show-inheritance:
