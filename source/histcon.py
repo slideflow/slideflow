@@ -69,18 +69,27 @@ class HistconModel:
 	TEST_FREQUENCY = 1200 # How often to run validation testing, in steps
 	USE_FP16 = True
 
-	def __init__(self, data_directory):
+	def __init__(self, data_directory, input_directory):
 		self.DATA_DIR = data_directory
+		self.INPUT_DIR = input_directory
 		self.MODEL_DIR = os.path.join(self.DATA_DIR, 'models/active') # Directory where to write event logs and checkpoints.
 		self.TRAIN_DIR = os.path.join(self.MODEL_DIR, 'train') # Directory where to write eval logs and summaries.
 		self.TEST_DIR = os.path.join(self.MODEL_DIR, 'test') # Directory where to write eval logs and summaries.
-		self.TRAIN_FILES = os.path.join(self.DATA_DIR, "train_data/*/*/*.jpg")
-		self.TEST_FILES = os.path.join(self.DATA_DIR, "eval_data/*/*/*.jpg")
+		self.TRAIN_FILES = os.path.join(self.INPUT_DIR, "train_data/*/*/*.jpg")
+		self.TEST_FILES = os.path.join(self.INPUT_DIR, "eval_data/*/*/*.jpg")
 		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
+		self.TRAIN_TFRECORD = os.path.join(self.INPUT_DIR, "train.tfrecords")
+		self.EVAL_TFRECORD = os.path.join(self.INPUT_DIR, "eval.tfrecords")
 
 		if tf.gfile.Exists(self.MODEL_DIR):
 			tf.gfile.DeleteRecursively(self.MODEL_DIR)
 		tf.gfile.MakeDirs(self.MODEL_DIR)
+
+	def _gen_filenames_op(self, dir_string):
+		filenames_op = tf.train.match_filenames_once(dir_string)
+		labels_op = tf.map_fn(lambda f: tf.string_to_number(tf.string_split([f], '/').values[tf.constant(-3, dtype=tf.int32)],
+													out_type=tf.int32), filenames_op, dtype=tf.int32)
+		return filenames_op, labels_op
 
 	def _parse_function(self, filename, label):
 		'''Loads image file data into Tensor.
@@ -103,11 +112,15 @@ class HistconModel:
 
 		return image, label
 
-	def _gen_filenames_op(self, dir_string):
-		filenames_op = tf.train.match_filenames_once(dir_string)
-		labels_op = tf.map_fn(lambda f: tf.string_to_number(tf.string_split([f], '/').values[tf.constant(-3, dtype=tf.int32)],
-													out_type=tf.int32), filenames_op, dtype=tf.int32)
-		return filenames_op, labels_op
+	def _parse_tfrecord_function(self, tfrecord_features):
+		label = tfrecord_features['category']
+		image = tf.image.decode_jpeg(tfrecord_features['image_raw'], channels=3)
+		image = tf.image.per_image_standardization(image)
+		dtype = tf.float16 if self.USE_FP16 else tf.float32
+		image = tf.image.convert_image_dtype(image, dtype)
+		image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
+
+		return image, label
 
 	def _gen_batched_dataset(self, filenames, labels):
 		# Replace the below dataset with one that uses a Python generator for flexibility of labeling
@@ -116,6 +129,25 @@ class HistconModel:
 		dataset = dataset.map(self._parse_function, num_parallel_calls = 8)
 		dataset = dataset.batch(self.BATCH_SIZE)
 		return dataset
+
+	def _gen_batched_dataset_from_tfrecord(self, tfrecord):
+		raw_image_dataset = tf.data.TFRecordDataset(tfrecord)
+		feature_description = {
+			'category': tf.FixedLenFeature([], tf.int64),
+			'case':     tf.FixedLenFeature([], tf.string),
+			'image_raw':tf.FixedLenFeature([], tf.string),
+		}
+
+		def _parse_image_function(example_proto):
+			"""Parses the input tf.Example proto using the above feature dictionary."""
+			return tf.parse_single_example(example_proto, feature_description)
+
+		dataset = raw_image_dataset.map(_parse_image_function)
+		dataset = dataset.shuffle(100000)
+		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
+		dataset = dataset.batch(self.BATCH_SIZE)
+		return dataset
+
 
 	def build_inputs(self):
 		'''Construct input for HISTCON evaluation.
@@ -128,16 +160,17 @@ class HistconModel:
 			next_batch_labels: Labels. 1D tensor of [batch_size] size.
 		'''
 	
-		with tf.name_scope('filename_input'):
+		'''with tf.name_scope('filename_input'):
 			train_filenames_op, train_labels_op = self._gen_filenames_op(self.TRAIN_FILES)
-			test_filenames_op, test_labels_op = self._gen_filenames_op(self.TEST_FILES)
+			test_filenames_op, test_labels_op = self._gen_filenames_op(self.TEST_FILES)'''
 
 		with tf.name_scope('input'):
-			train_dataset = self._gen_batched_dataset(train_filenames_op, train_labels_op)
+			#train_dataset = self._gen_batched_dataset(train_filenames_op, train_labels_op)
+			train_dataset = self._gen_batched_dataset_from_tfrecord(self.TRAIN_TFRECORD)
 			train_dataset = train_dataset.repeat(self.MAX_EPOCH)
 			train_dataset = train_dataset.prefetch(1)
 
-			test_dataset = self._gen_batched_dataset(test_filenames_op, test_labels_op)
+			test_dataset = self._gen_batched_dataset_from_tfrecord(self.EVAL_TFRECORD)
 			test_dataset = test_dataset.prefetch(1)
 
 			with tf.name_scope('iterator'):
@@ -336,9 +369,10 @@ if __name__ == "__main__":
 	tf.logging.set_verbosity(tf.logging.ERROR)
 
 	parser = argparse.ArgumentParser(description = "Train a CNN using an Inception-v4 network")
-	parser.add_argument('-d', '--dir', help='Path to root directory containing train_data, eval_data')
+	parser.add_argument('-d', '--dir', help='Path to root directory for saving model.')
+	parser.add_argument('-i', '--input', help='Path to root directory with training and eval data.')
 	parser.add_argument('-r', '--retrain', help='Path to directory containing model to use as pretraining')
 	args = parser.parse_args()
 
-	histcon = HistconModel(args.dir)
+	histcon = HistconModel(args.dir, args.input)
 	histcon.train(restore_checkpoint = args.retrain)
