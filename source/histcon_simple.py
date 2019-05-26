@@ -48,8 +48,8 @@ class HistconModel:
 	# Process images of the below size. If this number is altered, the
 	# model architecture will change and will need to be retrained.
 
-	IMAGE_SIZE = 256
-	NUM_CLASSES = 2
+	IMAGE_SIZE = 512
+	NUM_CLASSES = 5
 
 	NUM_EXAMPLES_PER_EPOCH = 1024
 
@@ -61,9 +61,9 @@ class HistconModel:
 	ADAM_LEARNING_RATE = 0.001			# Learning rate for the Adams Optimizer.
 
 	# Variables previous created with parser & FLAGS
-	BATCH_SIZE = 128
+	BATCH_SIZE = 16
 	WHOLE_IMAGE = '' # Filename of whole image (JPG) to evaluate with saved model
-	MAX_EPOCH = 30
+	MAX_EPOCH = 300
 	LOG_FREQUENCY = 20 # How often to log results to console, in steps
 	SUMMARY_STEPS = 20 # How often to save summaries for Tensorboard display, in steps
 	TEST_FREQUENCY = 1200 # How often to run validation testing, in steps
