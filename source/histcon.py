@@ -27,7 +27,6 @@ import argparse
 import tensorflow as tf
 from tensorflow.contrib.framework import arg_scope
 from tensorflow.summary import FileWriterCache
-#from tensorflow.python.training.summary_io import SummaryWriterCache
 from tensorboard import summary as summary_lib
 from tensorboard.plugins.custom_scalar import layout_pb2
 
@@ -38,7 +37,7 @@ slim = tf.contrib.slim
 
 # Calculate accuracy with https://stackoverflow.com/questions/50111438/tensorflow-validate-accuracy-with-batch-data
 # TODO: try next, comment out line 254 (results in calculating total_loss before update_ops is called)
-
+# TODO: visualize graph, memory usage, and compute time with https://www.tensorflow.org/guide/graph_viz
 
 class HistconModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
@@ -58,30 +57,39 @@ class HistconModel:
 	MOVING_AVERAGE_DECAY = 0.9999 		# Decay to use for the moving average.
 	NUM_EPOCHS_PER_DECAY = 240.0		# Epochs after which learning rate decays.
 	LEARNING_RATE_DECAY_FACTOR = 0.05	# Learning rate decay factor.
-	INITIAL_LEARNING_RATE = 0.001		# Initial learning rate.
+	INITIAL_LEARNING_RATE = 0.01		# Initial learning rate.
 	ADAM_LEARNING_RATE = 0.001			# Learning rate for the Adams Optimizer.
 
 	# Variables previous created with parser & FLAGS
 	BATCH_SIZE = 16
 	WHOLE_IMAGE = '' # Filename of whole image (JPG) to evaluate with saved model
-	MAX_EPOCH = 30
+	MAX_EPOCH = 300
 	LOG_FREQUENCY = 20 # How often to log results to console, in steps
 	SUMMARY_STEPS = 20 # How often to save summaries for Tensorboard display, in steps
-	TEST_FREQUENCY = 800 # How often to run validation testing, in steps
+	TEST_FREQUENCY = 1200 # How often to run validation testing, in steps
 	USE_FP16 = True
 
-	def __init__(self, data_directory):
+	def __init__(self, data_directory, input_directory):
 		self.DATA_DIR = data_directory
+		self.INPUT_DIR = input_directory
 		self.MODEL_DIR = os.path.join(self.DATA_DIR, 'models/active') # Directory where to write event logs and checkpoints.
 		self.TRAIN_DIR = os.path.join(self.MODEL_DIR, 'train') # Directory where to write eval logs and summaries.
 		self.TEST_DIR = os.path.join(self.MODEL_DIR, 'test') # Directory where to write eval logs and summaries.
-		self.TRAIN_FILES = os.path.join(self.DATA_DIR, "train_data/*/*/*.jpg")
-		self.TEST_FILES = os.path.join(self.DATA_DIR, "eval_data/*/*/*.jpg")
+		self.TRAIN_FILES = os.path.join(self.INPUT_DIR, "train_data/*/*/*.jpg")
+		self.TEST_FILES = os.path.join(self.INPUT_DIR, "eval_data/*/*/*.jpg")
 		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
+		self.TRAIN_TFRECORD = os.path.join(self.INPUT_DIR, "train.tfrecords")
+		self.EVAL_TFRECORD = os.path.join(self.INPUT_DIR, "eval.tfrecords")
 
 		if tf.gfile.Exists(self.MODEL_DIR):
 			tf.gfile.DeleteRecursively(self.MODEL_DIR)
 		tf.gfile.MakeDirs(self.MODEL_DIR)
+
+	def _gen_filenames_op(self, dir_string):
+		filenames_op = tf.train.match_filenames_once(dir_string)
+		labels_op = tf.map_fn(lambda f: tf.string_to_number(tf.string_split([f], '/').values[tf.constant(-3, dtype=tf.int32)],
+													out_type=tf.int32), filenames_op, dtype=tf.int32)
+		return filenames_op, labels_op
 
 	def _parse_function(self, filename, label):
 		'''Loads image file data into Tensor.
@@ -100,43 +108,46 @@ class HistconModel:
 
 		dtype = tf.float16 if self.USE_FP16 else tf.float32
 		image = tf.image.convert_image_dtype(image, dtype)
-		#image = tf.image.resize_images(image, [128,128])
 		image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
 
 		return image, label
 
-	def _train_preprocess(self, image, label):
-		'''Performs image pre-processing, including flipping, and changes to brightness and saturation.
-
-		Args:
-			image: a Tensor of shape [size, size, 3]
-			label: accompanying label
-
-		Returns:
-			image: a Tensor of shape [size, size, 3]
-			label: accompanying label
-		'''
-		#image = tf.image.random_flip_left_right(image)
-		#image = tf.image.random_flip_up_down(image)
-		#image = tf.image.random_brightness(image, max_delta = 32.0 / 255.0)
-		#image = tf.image.random_saturation(image, lower=0.5, upper = 1.5)
-		#image = tf.clip_by_value(image, 0.0, 1.0)
+	def _parse_tfrecord_function(self, tfrecord_features):
+		label = tfrecord_features['category']
+		image = tf.image.decode_jpeg(tfrecord_features['image_raw'], channels=3)
+		image = tf.image.per_image_standardization(image)
+		dtype = tf.float16 if self.USE_FP16 else tf.float32
+		image = tf.image.convert_image_dtype(image, dtype)
+		image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
 
 		return image, label
 
-	def _gen_filenames_op(self, dir_string):
-		filenames_op = tf.train.match_filenames_once(dir_string)
-		labels_op = tf.map_fn(lambda f: tf.string_to_number(tf.string_split([f], '/').values[tf.constant(-3, dtype=tf.int32)],
-													out_type=tf.int32), filenames_op, dtype=tf.int32)
-		return filenames_op, labels_op
-
 	def _gen_batched_dataset(self, filenames, labels):
+		# Replace the below dataset with one that uses a Python generator for flexibility of labeling
 		dataset = tf.data.Dataset.from_tensor_slices((filenames, labels))
 		dataset = dataset.shuffle(tf.size(filenames, out_type=tf.int64))
 		dataset = dataset.map(self._parse_function, num_parallel_calls = 8)
-		dataset = dataset.map(self._train_preprocess, num_parallel_calls = 8)
 		dataset = dataset.batch(self.BATCH_SIZE)
 		return dataset
+
+	def _gen_batched_dataset_from_tfrecord(self, tfrecord):
+		raw_image_dataset = tf.data.TFRecordDataset(tfrecord)
+		feature_description = {
+			'category': tf.FixedLenFeature([], tf.int64),
+			'case':     tf.FixedLenFeature([], tf.string),
+			'image_raw':tf.FixedLenFeature([], tf.string),
+		}
+
+		def _parse_image_function(example_proto):
+			"""Parses the input tf.Example proto using the above feature dictionary."""
+			return tf.parse_single_example(example_proto, feature_description)
+
+		dataset = raw_image_dataset.map(_parse_image_function)
+		dataset = dataset.shuffle(100000)
+		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
+		dataset = dataset.batch(self.BATCH_SIZE)
+		return dataset
+
 
 	def build_inputs(self):
 		'''Construct input for HISTCON evaluation.
@@ -149,16 +160,17 @@ class HistconModel:
 			next_batch_labels: Labels. 1D tensor of [batch_size] size.
 		'''
 	
-		with tf.name_scope('filename_input'):
+		'''with tf.name_scope('filename_input'):
 			train_filenames_op, train_labels_op = self._gen_filenames_op(self.TRAIN_FILES)
-			test_filenames_op, test_labels_op = self._gen_filenames_op(self.TEST_FILES)
+			test_filenames_op, test_labels_op = self._gen_filenames_op(self.TEST_FILES)'''
 
 		with tf.name_scope('input'):
-			train_dataset = self._gen_batched_dataset(train_filenames_op, train_labels_op)
+			#train_dataset = self._gen_batched_dataset(train_filenames_op, train_labels_op)
+			train_dataset = self._gen_batched_dataset_from_tfrecord(self.TRAIN_TFRECORD)
 			train_dataset = train_dataset.repeat(self.MAX_EPOCH)
 			train_dataset = train_dataset.prefetch(1)
 
-			test_dataset = self._gen_batched_dataset(test_filenames_op, test_labels_op)
+			test_dataset = self._gen_batched_dataset_from_tfrecord(self.EVAL_TFRECORD)
 			test_dataset = test_dataset.prefetch(1)
 
 			with tf.name_scope('iterator'):
@@ -179,15 +191,6 @@ class HistconModel:
 		return next_batch_images, next_batch_labels, train_iterator, test_iterator, handle
 
 	def loss(self, logits, labels):
-		'''Add L2Loss to all trainable variables, and a summary for "Loss" and "Loss/avg".
-
-		Args:
-			logits: Logits from inference().
-			labels: Labels from distorted_inputs() or inputs(). 1D tensor of shape [batch_size]
-
-		Returns:
-			Loss Tensor of type float.
-		'''
 		# Calculate average cross entropy loss across the batch.
 		labels = tf.cast(labels, tf.int64)
 		cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -197,103 +200,6 @@ class HistconModel:
 
 		# Total loss is defined as the cross entropy loss plus all of the weight decay terms (L2 loss)
 		return tf.add_n(tf.get_collection('losses'), name='total_loss')
-
-	def _add_loss_summaries(self, total_loss):
-		'''Add summaries for losses in HISTCON model.
-
-		Generates moving average for all losses and associated sumaries for
-		visualizing network performance with Tensorboard.
-
-		Args:
-			total_loss: Total loss from loss().
-
-		Returns:
-			loss_averages_op: op fro generating moving averages of losses.
-		'''
-		# Compute moving average of all individual losses and the total loss.
-		loss_averages = tf.train.ExponentialMovingAverage(0.9, name='avg')
-		losses = tf.get_collection('losses')
-		loss_averages_op = loss_averages.apply(losses + [total_loss])
-
-		# Attach a scalar summary to all individual losses and the total loss; do the
-		# same for the averaged version of the losses.
-		for l in losses + [total_loss]:
-			# Name each loss as '(raw)' and name the moving average version of the loss as
-			# the original loss name.
-			tf.summary.scalar(l.op.name + ' (raw)', l)
-			tf.summary.scalar(l.op.name, loss_averages.average(l))
-
-		return loss_averages_op
-
-	def build_train_op(self, total_loss, global_step):
-		'''Train the HISTCON model.
-
-		Create an optimizer and apply to all trainable variables. Add moving
-		average for all trainable variables.
-
-		Args:
-			total_loss: Total loss from loss().
-			global_step: Integer variable counting the number of training steps processed.
-
-		Returns:
-			train_op: op for training.
-		'''
-
-		# Variables that affect learning rate.
-		# Decay the learning rate exponentially based on the number of steps.
-		'''num_batches_per_epoch = self.NUM_EXAMPLES_PER_EPOCH / self.BATCH_SIZE
-		decay_steps = int(num_batches_per_epoch * self.NUM_EPOCHS_PER_DECAY)
-		lr = tf.train.exponential_decay(self.INITIAL_LEARNING_RATE,
-										global_step,
-										decay_steps,
-										self.LEARNING_RATE_DECAY_FACTOR,
-										staircase=True)
-		tf.summary.scalar('learning_rate', lr)'''
-
-		# Generate moving averages of all losses and associated summaries.
-		loss_averages_op = self._add_loss_summaries(total_loss)
-
-		# Compute gradients.
-		#update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-		with tf.control_dependencies([loss_averages_op]): #update_ops
-			#opt = tf.train.GradientDescentOptimizer(lr)
-			opt = tf.train.AdamOptimizer(learning_rate=self.ADAM_LEARNING_RATE,
-										beta1=0.9,
-										beta2=0.999,
-										epsilon=1.0)
-			grads = opt.compute_gradients(total_loss)
-
-		# Apply gradients.
-		apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
-
-		# Add histograms for trainable variables.
-		for var in tf.trainable_variables():
-			tf.summary.histogram(var.op.name, var)
-
-		# Add histograms for gradients.
-		for grad, var in grads:
-			if grad is not None:
-				tf.summary.histogram(var.op.name + '/gradients', grad)
-
-		# Track moving averages of all trainable variables.
-		variable_averages = tf.train.ExponentialMovingAverage(
-			self.MOVING_AVERAGE_DECAY, global_step)
-		variables_averages_op = variable_averages.apply(tf.trainable_variables())
-
-		with tf.control_dependencies([apply_gradient_op, variables_averages_op]):
-			train_op = tf.no_op(name='train')
-
-		return train_op
-
-	def load_vars(self, retrain_weights):
-		assign_ops = []
-		for trainable_var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
-			var_name = trainable_var.name
-			if var_name in retrain_weights:
-				assign_op = trainable_var.assign(retrain_weights[var_name])
-				assign_ops.append(assign_op)
-		with tf.Session() as sess:
-			sess.run(assign_ops)
 
 	def generate_loss_chart(self):
 		return summary_lib.custom_scalar_pb(
@@ -309,36 +215,37 @@ class HistconModel:
 					])
 			]))
 
+	def build_train_op(self, total_loss, global_step):
+		opt = tf.train.AdamOptimizer(learning_rate=self.ADAM_LEARNING_RATE,
+										beta1=0.9,
+										beta2=0.999,
+										epsilon=1.0)
+		train_op = slim.learning.create_train_op(total_loss, opt)
+		return train_op
+
 	def train(self, retrain_model = None, retrain_weights = None, restore_checkpoint = None):
 		'''Train HISTCON for a number of steps, according to flags set by the argument parser.'''
-		
+
 		if restore_checkpoint:
 			ckpt = tf.train.get_checkpoint_state(restore_checkpoint)
 
-		global_step = tf.train.get_or_create_global_step()
-
-		variables_to_ignore = ("InceptionV4/Logits/Logits/weights:0", "InceptionV4/Logits/Logits/biases:0")
+		variables_to_ignore = []#("InceptionV4/Logits/Logits/weights:0", "InceptionV4/Logits/Logits/biases:0")
 		variables_to_restore = []
 
-		# -- INPUT ---------------------------------------------------------------------------------
-
+		global_step = tf.train.get_or_create_global_step()
 		with tf.device('/cpu'):
 			next_batch_images, next_batch_labels, train_it, test_it, it_handle = self.build_inputs()
 
-		# -- MODEL ---------------------------------------------------------------------------------
 		training_pl = tf.placeholder(tf.bool, name='train_pl')
 		with arg_scope(inception_arg_scope()):
 			logits, end_points = inception_v4.inception_v4(next_batch_images, 
-														   num_classes=self.NUM_CLASSES)#,
-														   #is_training=training_pl)
+														   num_classes=self.NUM_CLASSES,
+														   is_training=training_pl)
+
 			if restore_checkpoint:
 				for trainable_var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
 					if (trainable_var.name not in variables_to_ignore) and (trainable_var.name[12:21] != "AuxLogits"):
 						variables_to_restore.append(trainable_var)
-
-		# Load pre-trained weights if provided
-		if retrain_model:
-			self.load_vars(retrain_weights)
 
 		loss = self.loss(logits, next_batch_labels)
 
@@ -361,9 +268,6 @@ class HistconModel:
 
 		init = (tf.global_variables_initializer(), tf.local_variables_initializer())
 
-		# Visualize CNN activations
-		#tf_cnnvis.deconv_visualization(tf.get_default_graph(), None, input_tensor = images)
-
 		class _LoggerHook(tf.train.SessionRunHook):
 			'''Logs loss and runtime.'''
 			def __init__(self, train_str, test_str, parent):
@@ -374,7 +278,6 @@ class HistconModel:
 				self.test_handle = None
 
 			def after_create_session(self, session, coord):
-				del coord
 				print ('Initializing data input stream...')
 				if self.train_str is not None:
 					self.train_iterator_handle, self.test_iterator_handle = session.run([self.train_str, self.test_str])
@@ -389,7 +292,7 @@ class HistconModel:
 				feed_dict = run_context.original_args.feed_dict
 				if feed_dict and it_handle in feed_dict and feed_dict[it_handle] == self.train_iterator_handle:
 					self._step += 1
-					return tf.train.SessionRunArgs(loss) # Asks for loss value.
+					return tf.train.SessionRunArgs(loss)
 
 			def after_run(self, run_context, run_values):
 				if ((self._step % self.parent.LOG_FREQUENCY == 0) and
@@ -409,6 +312,7 @@ class HistconModel:
 										images_per_sec, sec_per_batch))
 
 		loggerhook = _LoggerHook(train_it.string_handle(), test_it.string_handle(), self)
+		step = 1
 
 		if restore_checkpoint:
 			pretrained_saver = tf.train.Saver(variables_to_restore)
@@ -428,17 +332,17 @@ class HistconModel:
 			if restore_checkpoint and ckpt and ckpt.model_checkpoint_path:
 				print("Restoring checkpoint...")
 				pretrained_saver.restore(mon_sess, ckpt.model_checkpoint_path)
-			
-			while not mon_sess.should_stop():
-				_, merged, step = mon_sess.run([train_op, inception_summaries, global_step], feed_dict={it_handle:loggerhook.train_iterator_handle,
-																										training_pl:True})
-				if (step % self.SUMMARY_STEPS == 0):
-					train_writer.add_summary(merged, step)
 
+			while not mon_sess.should_stop():
+				if (step % self.SUMMARY_STEPS == 0):
+					_, merged, step = mon_sess.run([train_op, inception_summaries, global_step], feed_dict={it_handle:loggerhook.train_iterator_handle,
+																											training_pl:True})
+					train_writer.add_summary(merged, step)
+				else:
+					_, step = mon_sess.run([train_op, global_step], feed_dict={it_handle:loggerhook.train_iterator_handle,
+																										training_pl:True})
 				if (step % self.TEST_FREQUENCY == 0):
 					print("Validation testing...")
-
-					# Reset validation testing average
 					mon_sess.run(stream_vars_reset, feed_dict={it_handle:loggerhook.test_iterator_handle,
 															   training_pl:False})
 					while True:
@@ -458,15 +362,17 @@ class HistconModel:
 		if weights == None: weights = '/home/shawarma/thyroid/thyroid/obj/inception_v4_imagenet_pretrained.pkl'
 		with open(weights, 'rb') as f:
 			var_dict = pickle.load(f)
-		self.train(retrain_model = model, retrain_weights = var_dict)
+		self.train(retrain_model = model, retrain_weights = None)
 
 if __name__ == "__main__":
 	os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 	tf.logging.set_verbosity(tf.logging.ERROR)
 
 	parser = argparse.ArgumentParser(description = "Train a CNN using an Inception-v4 network")
+	parser.add_argument('-d', '--dir', help='Path to root directory for saving model.')
+	parser.add_argument('-i', '--input', help='Path to root directory with training and eval data.')
 	parser.add_argument('-r', '--retrain', help='Path to directory containing model to use as pretraining')
 	args = parser.parse_args()
 
-	histcon = HistconModel('/home/shawarma/histcon')
+	histcon = HistconModel(args.dir, args.input)
 	histcon.train(restore_checkpoint = args.retrain)
