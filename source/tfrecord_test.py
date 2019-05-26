@@ -33,7 +33,7 @@ def image_example(category, case, image_string):
 
 def write_records():
 	image_labels = {}
-	train_dir = '/home/shawarma/histcon/train_data'
+	train_dir = '/home/shawarma/histcon/eval_data'
 	cat_dirs = [_dir for _dir in listdir(train_dir) if isdir(join(train_dir, _dir))]
 	for cat_dir in cat_dirs:
 		case_dirs = [_dir for _dir in listdir(join(train_dir, cat_dir)) if isdir(join(train_dir, cat_dir, _dir))]
@@ -41,19 +41,20 @@ def write_records():
 			files = [file for file in listdir(join(train_dir, cat_dir, case_dir)) 
 						if (isfile(join(train_dir, cat_dir, case_dir, file))) and
 							(file[-3:] == "jpg")]
-			shuffle(files)
 			for tile in files:
 				image_labels.update({join(train_dir, cat_dir, case_dir, tile): [int(cat_dir), bytes(case_dir, 'utf-8')]})
 
-
-	with tf.python_io.TFRecordWriter('images.tfrecords') as writer:
-		for filename, labels in image_labels.items():
+	keys = list(image_labels.keys())
+	shuffle(keys)
+	with tf.python_io.TFRecordWriter('eval.tfrecords') as writer:
+		for filename in keys:
+			labels = image_labels[filename]
 			image_string = open(filename, 'rb').read()
 			tf_example = image_example(labels[0], labels[1], image_string)
 			writer.write(tf_example.SerializeToString())
 
 def read_records():
-	raw_image_dataset = tf.data.TFRecordDataset('images.tfrecords')
+	raw_image_dataset = tf.data.TFRecordDataset('/home/shawarma/histcon/tfrecords/eval.tfrecords')
 	# Create a dictionary describing the features
 	image_feature_description = {
 		'category': tf.FixedLenFeature([], tf.int64),
@@ -67,13 +68,20 @@ def read_records():
 
 	parsed_image_dataset = raw_image_dataset.map(_parse_image_function)
 
-	counts = {}
+	counts = {
+		0: 0,
+		1: 0,
+		2: 0,
+		3: 0,
+		4: 0,
+	}
 	count = 0
 
 	starttime = time.time()
 	for image_features in parsed_image_dataset:
 		image_raw = image_features['image_raw'].numpy()
-		category = image_features['category']
+		category = int(image_features['category'])
+		counts[category] += 1
 		count += 1
 		
 		if count % 5000 == 0:
@@ -81,5 +89,8 @@ def read_records():
 			print(f"{5000/(current_time - starttime)} images/sec (total: {count} images)")
 			starttime = current_time
 
-#write_records()
-read_records()
+	for i in counts:
+		print(f"{i}: {counts[i]}")
+
+write_records()
+#read_records()
