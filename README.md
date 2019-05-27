@@ -1,28 +1,10 @@
-# Histcon README
-Thyroid Project Guide
+# SlideFlow README
 
-A. Files
+SlideFlow is a Python-based machine learning pipeline for building and testing convolutional neural networks (CNNs)
+for use in histology image analysis. It is built using Tensorflow and currently utilizes Google’s Inception-v4 network
+architecture. It includes tools for annotating slides, tessellating image tiles from the slides, organizing training
+and evaluation datasets, building and training an Inception-v4 model, and evaluating model performance with ROCs and
+whole-slide heatmap overlays. It also includes tools for building mosaic maps, a method of visualizing image features
+learned by the trained model.
 
-... automated docs to be added.
-
-B. Useful commands
-
-# Using nConvert to create thumbnails @ 10% (for use with LabelMe):
-nconvert -out jpeg -o %_T.jpg -resize 10% 10% *.jpg
-
-# Resize 1024 -> 512
-nconvert -out jpeg -o resized/%.jpg -resize 50% 50% *.jpg
-
-# List all files of size 512
-find -iname "*.jpg" -exec identify {} \; | grep 512
-
-# Run tensorboard
-python3 ~/.local/lib/python3.6/site-packages/tensorboard/main.py --logdir=~/histcon/model
-
-# Activate tensorflow environment
-source ./venv/bin/activate
-
-# Copy large number of images
-find ~/histcon/packing_results/normal/ -name '*.jpg' -exec cp -t ~/histcon/train_data/0 {} +
-
-
+For complete documentation, please visit jmd172.bitbucket.io
