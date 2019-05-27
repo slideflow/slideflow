@@ -54,6 +54,8 @@ Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 4
 DEFAULT_JPG_MPP = 0.2494
 JSON_ANNOTATION_SCALE = 10
+STRICT_AUGMENTATION = "strict"
+BALANCED_AUGMENTATION = "balanced"
 
 # TODO: offset heatmap by window / 2
 # TODO: test json annotations
@@ -145,7 +147,7 @@ class SlideReader:
 
 	def build_generator(self, size_px, size_um, stride_div, case_name, export=False, augment=False):
 		# Calculate window sizes, strides, and coordinates for windows
-		tiles_path = join(self.export_folder, "tiles", case_name)
+		tiles_path = join(self.export_folder, case_name)
 		if not os.path.exists(tiles_path): os.makedirs(tiles_path)
 		# Calculate pixel size of extraction window
 		extract_px = int(size_um / self.MPP)
@@ -257,13 +259,12 @@ class Convoluter:
 		self.MODEL_DIR = None
 		self.AUGMENT = augment
 
-	def load_slides(self, slides_array, directory, category="None"):
-		for slide in slides_array:
-			name = slide[:-4]
-			filetype = slide[-3:]
-			path = slide if not directory else join(directory, slide)
+	def load_slides(self, slides_array, category="None"):
+		for slide_path in slides_array:
+			name = slide_path.split('/')[-1][:-4]
+			filetype = slide_path.split('/')[-1][-3:]
 			self.SLIDES.update({name: { "name": name,
-										"path": path,
+										"path": slide_path,
 										"type": filetype,
 										"category": category } })
 
@@ -274,7 +275,7 @@ class Convoluter:
 	def build_model(self, model_dir):
 		self.MODEL_DIR = model_dir
 
-	def convolute_slides(self, save_heatmaps, display_heatmaps, save_final_layer, export_tiles):
+	def convolute_slides(self, save_heatmaps=False, display_heatmaps=False, save_final_layer=False, export_tiles=True):
 		'''Parent function to guide convolution across a whole-slide image and execute desired functions.
 
 		Args:
@@ -587,21 +588,19 @@ if __name__==('__main__'):
 	# Load images/slides
 	# If a single file is provided with the --slide flag, then load only that image
 	if isfile(args.slide):
-		slide_list = [args.slide.split('/')[-1]]
-		slide_dir = "/".join(args.slide.split('/')[:-1])
-		c.load_slides(slide_list, slide_dir)
+		c.load_slides(args.slide)
 	else:
 		# Otherwise, assume the --slide flag provided a directory and attempt to load images in the directory 
 		# First, load all images in the directory, without assigning any category labels
-		slide_list = [i for i in os.listdir(args.slide) if (isfile(join(args.slide, i)) and (i[-3:].lower() in ("svs", "jpg")))]	
-		c.load_slides(slide_list, args.slide)
+		slide_list = [join(args.slide, i) for i in os.listdir(args.slide) if (isfile(join(args.slide, i)) and (i[-3:].lower() in ("svs", "jpg")))]	
+		c.load_slides(slide_list)
 		# Next, load images in subdirectories, assigning category labels by subdirectory name
 		dir_list = [d for d in os.listdir(args.slide) if not isfile(join(args.slide, d))]
 		for directory in dir_list:
 			# Ignore images if in the thumbnails or QuPath project directory
 			if directory in ["thumbs", "QuPath_Project"]: continue
-			slide_list = [i for i in os.listdir(join(args.slide, directory)) if (isfile(join(args.slide, directory, i)) and (i[-3:].lower() in ("svs", "jpg")))]	
-			c.load_slides(slide_list, join(args.slide, directory), category=directory)
+			slide_list = [join(args.slide, directory, i) for i in os.listdir(join(args.slide, directory)) if (isfile(join(args.slide, directory, i)) and (i[-3:].lower() in ("svs", "jpg")))]	
+			c.load_slides(slide_list, category=directory)
 			
 	# Prepare PKL directory, if supplied. PKL files are used to load pre-calculated logits from prior runs.
 	if args.pkl and isfile(args.pkl):

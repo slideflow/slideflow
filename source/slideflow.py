@@ -1,11 +1,32 @@
 import argparse
 import os
+import tensorflow as tf
+
+from os.path import join, isfile, exists
+
+import convoluter
+import  data_utils as util
 
 class SlideFlowProject:
 
 	PROJECT_DIR = ""
+	NAME = None
+	ANNOTATIONS_FILE = None
+	SLIDES_DIR = None
+	TILES_DIR = None
+	MODELS_DIR = None
+	TILE_UM = None
+	TILE_PX = None
+	NUM_CLASSES = None
+
+	EVAL_FRACTION = 0.1
+	AUGMENTATION = convoluter.STRICT_AUGMENTATION	
+	NUM_THREADS = 8
+	USE_FP16 = True
 
 	def __init__(self, project_folder):
+		os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+		tf.logging.set_verbosity(tf.logging.ERROR)
 		print('''SlideFlow v1.0\n==============\n''')
 		print('''Loading project...''')
 		if project_folder and not os.path.exists(project_folder):
@@ -22,6 +43,24 @@ class SlideFlowProject:
 			self.load_project(project_json)
 		else:
 			self.create_project(project_json)
+
+	def extract_tiles(self):
+		convoluter.NUM_THREADS = self.NUM_THREADS
+		if not exists(join(self.TILES_DIR, "train_data")):
+			util.make_dir(join(self.TILES_DIR, "train_data"))
+		if not exists(join(self.TILES_DIR, "eval_data")):
+			util.make_dir(join(self.TILES_DIR, "eval_data"))
+
+		c = convoluter.Convoluter(self.TILE_PX, self.TILE_UM, self.NUM_CLASSES, self.BATCH_SIZE, 
+									self.USE_FP16, join(self.TILES_DIR, "train_data"), self.AUGMENTATION)
+
+		slide_list = [join(self.SLIDES_DIR, i) for i in os.listdir(self.SLIDES_DIR) if (isfile(join(self.SLIDES_DIR, i)) and (i[-3:].lower() in ("svs", "jpg")))]	
+		c.load_slides(slide_list)
+		c.convolute_slides(export_tiles=True)
+	
+	def separate_training_and_eval_data(self):
+		util.build_validation(join(self.TILES_DIR, "train_data"), join(self.TILES_DIR, "eval_data"), fraction = self.EVAL_FRACTION)
+		pass
 
 	def create_global_path(self, path_string):
 		if path_string and (len(path_string) > 2) and path_string[:2] == "./":
@@ -93,27 +132,33 @@ class SlideFlowProject:
 			print("Unable to locate project json")
 
 	def create_project(self, project_json):
-		name = input("What is the project name? ")
-		annotations = self.file_input("Where is the project annotations (CSV) file located? [./annotations.csv] ", 
+		self.NAME = input("What is the project name? ")
+		self.ANNOTATIONS_FILE = self.file_input("Where is the project annotations (CSV) file located? [./annotations.csv] ", 
 									default='./annotations.csv', filetype="csv")
-		slides = self.dir_input("Where are the SVS slides stored? [./slides] ",
+		self.SLIDES_DIR = self.dir_input("Where are the SVS slides stored? [./slides] ",
 									default='./slides', create_on_invalid=True)
-		tiles = self.dir_input("Where are the tessellated image tiles stored? [./tiles] ",
+		self.TILES_DIR = self.dir_input("Where are the tessellated image tiles stored? [./tiles] ",
 									default='./tiles', create_on_invalid=True)
-		models = self.dir_input("Where are the saved models stored? [./models] ",
+		self.MODELS_DIR = self.dir_input("Where are the saved models stored? [./models] ",
 									default='./models', create_on_invalid=True)
-		tile_um = self.int_input("What is the tile width in microns? [280] ", default=280)
-		tile_px = self.int_input("What is the tile width in pixels? [512] ", default=512)
+		self.TILE_UM = self.int_input("What is the tile width in microns? [280] ", default=280)
+		self.TILE_PX = self.int_input("What is the tile width in pixels? [512] ", default=512)
+		self.NUM_CLASSES = self.int_input("How many classes are there to be trained? ")
+		self.BATCH_SIZE = self.int_input("What batch size should be used? [64] ", default=64)
+		self.USE_FP16 = self.yes_no_input("Should FP16 be used instead of FP32? (recommended) [Y/n] ", default=True)
 
 		print("\nCreating project with the following parameters:\n")
-		print(f"Project name: {name}")
+		print(f"Project name: {self.NAME}")
 		print(f"Project root: {self.PROJECT_DIR}")
-		print(f"Project annotations file: {annotations}")
-		print(f"Project slides location: {slides}")
-		print(f"Project tiles location: {tiles}")
-		print(f"Project models location: {models}")
-		print(f"Project tile width (um): {tile_um}")
-		print(f"Project tile width (px): {tile_px}")
+		print(f"Project annotations file: {self.ANNOTATIONS_FILE}")
+		print(f"Project slides location: {self.SLIDES_DIR}")
+		print(f"Project tiles location: {self.TILES_DIR}")
+		print(f"Project models location: {self.MODELS_DIR}")
+		print(f"Project tile width (um): {self.TILE_UM}")
+		print(f"Project tile width (px): {self.TILE_PX}")
+		print(f"Number of classes: {self.NUM_CLASSES}")
+		print(f"Batch size: {self.BATCH_SIZE}")
+		print(f"Use FP16: {self.USE_FP16}")
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description = "Helper to guide through the SlideFlow pipeline")
