@@ -1,5 +1,4 @@
 import tensorflow as tf
-tf.enable_eager_execution()
 
 import numpy as numpy
 from os import listdir
@@ -30,22 +29,23 @@ def image_example(category, case, image_string):
 	return tf.train.Example(features=tf.train.Features(feature=feature))
 
 def write_tfrecords(input_directory, output_directory, label):
+	tfrecord_path = join(output_directory, f'{label}.tfrecords')
 	image_labels = {}
-	cat_dirs = [_dir for _dir in listdir(input_directory) if isdir(join(input_directory, _dir))]
-	for cat_dir in cat_dirs:
-		case_dirs = [_dir for _dir in listdir(join(input_directory, cat_dir)) if isdir(join(input_directory, cat_dir, _dir))]
-		for case_dir in case_dirs:
-			files = [file for file in listdir(join(input_directory, cat_dir, case_dir)) 
-						if (isfile(join(input_directory, cat_dir, case_dir, file))) and
-							(file[-3:] == "jpg")]
-			for tile in files:
-				image_labels.update({join(input_directory, cat_dir, case_dir, tile): [int(cat_dir), bytes(case_dir, 'utf-8')]})
+	case_dirs = [_dir for _dir in listdir(input_directory) if isdir(join(input_directory, _dir))]
+	for case_dir in case_dirs:
+		files = [file for file in listdir(join(input_directory, case_dir)) 
+					if (isfile(join(input_directory, case_dir, file))) and
+						(file[-3:] == "jpg")]
+		for tile in files:
+			# Assign arbitrary category number for now (TEMPORARY), for now assigning value of 0
+			image_labels.update({join(input_directory, case_dir, tile): [0, bytes(case_dir, 'utf-8')]})
 
 	keys = list(image_labels.keys())
 	shuffle(keys)
-	with tf.python_io.TFRecordWriter(join(output_directory, f'{label}.tfrecords')) as writer:
+	with tf.python_io.TFRecordWriter(tfrecord_path) as writer:
 		for filename in keys:
 			labels = image_labels[filename]
 			image_string = open(filename, 'rb').read()
 			tf_example = image_example(labels[0], labels[1], image_string)
 			writer.write(tf_example.SerializeToString())
+	print(f" + Wrote {len(keys)} image tiles to {tfrecord_path}")
