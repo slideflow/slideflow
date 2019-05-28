@@ -61,6 +61,9 @@ BALANCED_AUGMENTATION = "balanced"
 # TODO: test json annotations
 # TODO: automatic augmentation balancing
 
+def _shortname(string):
+	return string[:12]
+
 class ROIObject:
 	'''Object container for ROI annotations.'''
 	def __init__(self, name):
@@ -94,13 +97,14 @@ class JPGSlide:
 
 class SlideReader:
 	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
-	def __init__(self, path, filetype, export_folder=None, pb=None):
+	def __init__(self, path, filetype, export_folder=None, roi_dir=None, pb=None):
 		self.print = print if not pb else pb.print
 		self.annotations = []
 		self.export_folder = export_folder
 		self.pb = pb # Progress bar
 		self.p_id = None
 		self.name = path[:-4].split('/')[-1]
+		self.shortname = _shortname(self.name)
 		# Initiate SVS or JPG slide reader
 		if filetype == "svs":
 			try:
@@ -112,21 +116,20 @@ class SlideReader:
 		elif filetype == "jpg":
 			self.slide = JPGSlide(path, mpp=DEFAULT_JPG_MPP)
 		else:
-			self.print(f'Unsupported file type "{filetype}" for case {self.name}.')
+			self.print(f'Unsupported file type "{filetype}" for case {self.shortname}.')
 			return None
 		
 		thumbs_path = join('/'.join(path.split('/')[:-1]), "thumbs")
 		if not os.path.exists(thumbs_path): os.makedirs(thumbs_path)
 
-		# Load ROIs if available
-		roi_path_csv = path[:-4] + ".csv"
-		roi_path_json = path[:-4] + ".json"
-		if exists(roi_path_csv):
-			self.load_csv_roi(roi_path_csv)
-		elif exists(roi_path_json):
-			self.load_json_roi(roi_path_json)
+		# Load ROI from roi_dir if available
+		if roi_dir and exists(join(roi_dir, self.name + ".csv")):
+			self.load_csv_roi(join(roi_dir, self.name + ".csv"))
+		# Else try loading ROI from same folder as SVS
+		elif exists(path[:-4] + ".csv"):
+			self.load_csv_roi(path[:-4] + ".csv")
 		else:
-			self.print(f" ! [{self.name}] WARNING: No annotation file found, using whole slide.")
+			self.print(f" ! [{self.shortname}] WARNING: No annotation file found, using whole slide.")
 
 		self.shape = self.slide.dimensions
 		self.filter_dimensions = self.slide.level_dimensions[-1]
@@ -139,20 +142,21 @@ class SlideReader:
 		self.thumb_file = join(thumbs_path, f'{self.name}_thumb.jpg')
 		imageio.imwrite(self.thumb_file, self.thumb)
 		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
-		self.print(f" * [{self.name}] Microns per pixel: {self.MPP}")
-		self.print(f" * [{self.name}] Loaded {filetype.upper()} of size {self.shape[0]} x {self.shape[1]}")
+		self.print(f" * [{self.shortname}] Microns per pixel: {self.MPP}")
+		self.print(f" * [{self.shortname}] Loaded {filetype.upper()} of size {self.shape[0]} x {self.shape[1]}")
 
 	def loaded_correctly(self):
 		return bool(self.shape)
 
 	def build_generator(self, size_px, size_um, stride_div, case_name, export=False, augment=False):
+		shortname = _shortname(case_name)
 		# Calculate window sizes, strides, and coordinates for windows
 		tiles_path = join(self.export_folder, case_name)
 		if not os.path.exists(tiles_path): os.makedirs(tiles_path)
 		# Calculate pixel size of extraction window
 		extract_px = int(size_um / self.MPP)
 		stride = int(extract_px / stride_div)
-		self.print(f" * [{self.name}] Extracting tiles of size {size_um}um, resizing from {extract_px}px -> {size_px}px ")
+		self.print(f" * [{self.shortname}] Extracting tiles of size {size_um}um, resizing from {extract_px}px -> {size_px}px ")
 		if size_px > extract_px:
 			self.print(f"WARNING: Tiles will be up-scaled with cubic interpolation ({extract_px}px -> {size_px}px)")
 		coord = []
@@ -170,7 +174,7 @@ class SlideReader:
 		# Create mask for indicating whether tile was extracted
 		tile_mask = np.asarray([0 for i in range(len(coord))])
 		self.tile_mask = None
-		self.p_id = None if not self.pb else self.pb.add_bar(0, len(coord), endtext=case_name)
+		self.p_id = None if not self.pb else self.pb.add_bar(0, len(coord), endtext=shortname)
 
 		def generator():
 			for ci in range(len(coord)):
@@ -194,19 +198,19 @@ class SlideReader:
 				coord_label = ci
 				unique_tile = c[2]
 				if export and unique_tile:
-					imageio.imwrite(join(tiles_path, f'{case_name}_{ci}.jpg'), region)
+					imageio.imwrite(join(tiles_path, f'{shortname}_{ci}.jpg'), region)
 					if augment:
-						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug1.jpg'), np.rot90(region))
-						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug2.jpg'), np.flipud(region))
-						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug3.jpg'), np.flipud(np.rot90(region)))
-						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug4.jpg'), np.fliplr(region))
-						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug5.jpg'), np.fliplr(np.rot90(region)))
-						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug6.jpg'), np.flipud(np.fliplr(region)))
-						imageio.imwrite(join(tiles_path, f'{case_name}_{ci}_aug7.jpg'), np.flipud(np.fliplr(np.rot90(region))))
+						imageio.imwrite(join(tiles_path, f'{shortname}_{ci}_aug1.jpg'), np.rot90(region))
+						imageio.imwrite(join(tiles_path, f'{shortname}_{ci}_aug2.jpg'), np.flipud(region))
+						imageio.imwrite(join(tiles_path, f'{shortname}_{ci}_aug3.jpg'), np.flipud(np.rot90(region)))
+						imageio.imwrite(join(tiles_path, f'{shortname}_{ci}_aug4.jpg'), np.fliplr(region))
+						imageio.imwrite(join(tiles_path, f'{shortname}_{ci}_aug5.jpg'), np.fliplr(np.rot90(region)))
+						imageio.imwrite(join(tiles_path, f'{shortname}_{ci}_aug6.jpg'), np.flipud(np.fliplr(region)))
+						imageio.imwrite(join(tiles_path, f'{shortname}_{ci}_aug7.jpg'), np.flipud(np.fliplr(np.rot90(region))))
 				yield region, coord_label, unique_tile
 			if self.pb: 
 				self.pb.end(self.p_id)
-				self.print(f" * [{self.name}] Total possible tiles: {len(coord)} and total exported: {sum(tile_mask)}")
+				self.print(f" * [{self.shortname}] Total possible tiles: {len(coord)} and total exported: {sum(tile_mask)}")
 			self.tile_mask = tile_mask
 
 		return generator, slide_x_size, slide_y_size, stride
@@ -225,7 +229,7 @@ class SlideReader:
 				x_coord = int(float(row[index_x]))
 				y_coord = int(float(row[index_y]))
 				self.annotations[-1].add_coord((x_coord, y_coord))
-			self.print(f" * [{self.name}] Total annotation objects detected: {len(self.annotations)}")
+			self.print(f" * [{self.shortname}] Total annotation objects detected: {len(self.annotations)}")
 
 	def load_json_roi(self, path):
 		with open(path, "r") as json_file:
@@ -234,7 +238,7 @@ class SlideReader:
 			area_reduced = np.multiply(shape['points'], JSON_ANNOTATION_SCALE)
 			self.annotations.append(ROIObject(f"Object{len(self.annotations)}"))
 			self.annotations[-1].add_shape(area_reduced)
-		self.print(f" * [{self.name}] Total annotation objects detected: {len(self.annotations)}")
+		self.print(f" * [{self.shortname}] Total annotation objects detected: {len(self.annotations)}")
 
 class Convoluter:
 	'''Class to guide the convolution/tessellation of tiles across a set of slides, within ROIs if provided. 
@@ -244,9 +248,10 @@ class Convoluter:
 	 - logit predictions from saved Tensorflow model (logits may then be either saved or visualized with heatmaps)
 	 - final layer weight calculation (saved into a CSV file)
 	'''
-	def __init__(self, size_px, size_um, num_classes, batch_size, use_fp16, save_folder='', augment=False):
+	def __init__(self, size_px, size_um, num_classes, batch_size, use_fp16, save_folder='', roi_dir=None, augment=False):
 		self.SLIDES = {}
 		self.MODEL_DIR = None
+		self.ROI_DIR = roi_dir
 		self.PKL_DICT = {}
 		self.SIZE_PX = size_px
 		self.SIZE_UM = size_um
@@ -291,19 +296,20 @@ class Convoluter:
 			os.makedirs(join(self.SAVE_FOLDER, "tiles"))
 		if not save_heatmaps and not display_heatmaps:
 			# No need to calculate overlapping tiles
-			print("Calculating only non-overlapping tiles for final layer weight extraction.")
+			print("INFO: Tessellating only non-overlapping tiles.")
 			self.STRIDE_DIV = 1
 
 		if export_tiles and not (display_heatmaps or save_final_layer or save_heatmaps):
-			print("Exporting tiles only, no new calculations or heatmaps will be generated.")
-			pb = progress_bar.ProgressBar()
+			print("INFO: Exporting tiles only, no new calculations or heatmaps will be generated.")
+			pb = progress_bar.ProgressBar(bar_length=5)
 			pool = ThreadPool(NUM_THREADS)
 			pool.map(lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
 		else:
 			for case_name in self.SLIDES:
 				slide = self.SLIDES[case_name]
+				shortname = _shortname(case_name)
 				category = slide['category']
-				print(f"Working on case {case_name} ({category})")
+				print(f"Working on case {shortname} ({category})")
 
 				# Use PKL logits if available (stored pre-calculated logits from prior run)
 				if case_name in self.PKL_DICT and not save_final_layer:
@@ -326,10 +332,11 @@ class Convoluter:
 		category = slide['category']
 		path = slide['path']
 		filetype = slide['type']
+		shortname = _shortname(case_name)
 
-		pb.print(f"Exporting tiles for case {case_name} ({category})")
+		pb.print(f"Exporting tiles for case {shortname} ({category})")
 
-		whole_slide = SlideReader(path, filetype, self.SAVE_FOLDER, pb=pb)
+		whole_slide = SlideReader(path, filetype, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
 		if not whole_slide.loaded_correctly(): return
 		gen_slice, _, _, _ = whole_slide.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, 
 															export=True, 
@@ -346,7 +353,7 @@ class Convoluter:
 		filetype = slide['type']
 
 		# Load whole-slide-image into Numpy array and prepare pkl output
-		whole_slide = SlideReader(path, filetype, self.SAVE_FOLDER)
+		whole_slide = SlideReader(path, filetype, self.SAVE_FOLDER, self.ROI_DIR)
 
 		# load SVS generator
 		gen_slice, x_size, y_size, stride_px = whole_slide.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, 
@@ -506,7 +513,7 @@ class Convoluter:
 		fig.subplots_adjust(bottom = 0.25, top=0.95)
 
 		if image_file[-4:] == ".svs":
-			whole_slide = SlideReader(image_file, filetype, self.SAVE_FOLDER)
+			whole_slide = SlideReader(image_file, filetype, self.SAVE_FOLDER, self.ROI_DIR)
 			im = whole_slide.thumb #plt.imread(whole_svs.thumb)
 		else:
 			im = plt.imread(image_file)
@@ -583,7 +590,7 @@ if __name__==('__main__'):
 	if not args.pkl: args.pkl = args.out
 	if args.num_threads: NUM_THREADS = args.num_threads
 
-	c = Convoluter(args.px, args.um, args.classes, args.batch, args.fp16, args.out, args.augment)
+	c = Convoluter(args.px, args.um, args.classes, args.batch, args.fp16, args.out, augment=args.augment)
 
 	# Load images/slides
 	# If a single file is provided with the --slide flag, then load only that image

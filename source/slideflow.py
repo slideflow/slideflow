@@ -1,8 +1,11 @@
 import argparse
 import os
+import json
 import tensorflow as tf
 
 from os.path import join, isfile, exists
+from pathlib import Path
+from glob import glob
 
 import convoluter
 import  data_utils as util
@@ -38,7 +41,7 @@ class SlideFlowProject:
 			project_folder = self.dir_input("Where is the project root directory? ", create_on_invalid=True)
 		self.PROJECT_DIR = project_folder
 
-		project_json = os.path.join(project_folder, "project.json")
+		project_json = os.path.join(project_folder, "settings.json")
 		if os.path.exists(project_json):
 			self.load_project(project_json)
 		else:
@@ -52,9 +55,10 @@ class SlideFlowProject:
 			util.make_dir(join(self.TILES_DIR, "eval_data"))
 
 		c = convoluter.Convoluter(self.TILE_PX, self.TILE_UM, self.NUM_CLASSES, self.BATCH_SIZE, 
-									self.USE_FP16, join(self.TILES_DIR, "train_data"), self.AUGMENTATION)
+									self.USE_FP16, join(self.TILES_DIR, "train_data"), self.ROI_DIR, self.AUGMENTATION)
 
-		slide_list = [join(self.SLIDES_DIR, i) for i in os.listdir(self.SLIDES_DIR) if (isfile(join(self.SLIDES_DIR, i)) and (i[-3:].lower() in ("svs", "jpg")))]	
+		slide_list = glob(join(self.SLIDES_DIR, '**/*.svs'))
+		slide_list.extend(glob(join(self.SLIDES_DIR, '**/*.jpg')))
 		c.load_slides(slide_list)
 		c.convolute_slides(export_tiles=True)
 	
@@ -127,9 +131,23 @@ class SlideFlowProject:
 
 	def load_project(self, project_json):
 		if os.path.exists(project_json):
-			print("Loaded project successfully")
+			with open(project_json, 'r') as json_data_file:
+				data = json.load(json_data_file)
+			self.NAME = data['name']
+			self.PROJECT_DIR = data['root']
+			self.ANNOTATIONS_FILE = data['annotations']
+			self.SLIDES_DIR = data['slides']
+			self.ROI_DIR = data['ROI'] 
+			self.TILES_DIR = data['tiles']
+			self.MODELS_DIR = data['models']
+			self.TILE_UM = data['tile_um']
+			self.TILE_PX = data['tile_px']
+			self.NUM_CLASSES = data['num_classes']
+			self.BATCH_SIZE = data['batch_size']
+			self.USE_FP16 = data['use_fp16']
+			print("\nProject configuration loaded.\n")
 		else:
-			print("Unable to locate project json")
+			raise OSError(f'Unable to locate project json at location "{project_json}".')
 
 	def create_project(self, project_json):
 		self.NAME = input("What is the project name? ")
@@ -139,7 +157,7 @@ class SlideFlowProject:
 									default='./slides', create_on_invalid=True)
 		self.ROI_DIR = self.dir_input("Where are the ROI files (CSV) stored? [./slides] ",
 									default='./slides', create_on_invalid=True)									
-		self.TILES_DIR = self.dir_input("Where are the tessellated image tiles stored? [./tiles] ",
+		self.TILES_DIR = self.dir_input("Where will the tessellated image tiles be stored? [./tiles] ",
 									default='./tiles', create_on_invalid=True)
 		self.MODELS_DIR = self.dir_input("Where are the saved models stored? [./models] ",
 									default='./models', create_on_invalid=True)
@@ -149,16 +167,20 @@ class SlideFlowProject:
 		self.BATCH_SIZE = self.int_input("What batch size should be used? [64] ", default=64)
 		self.USE_FP16 = self.yes_no_input("Should FP16 be used instead of FP32? (recommended) [Y/n] ", default=True)
 
-		print("\nCreating project with the following parameters:\n")
-		print(f"Project name: {self.NAME}")
-		print(f"Project root: {self.PROJECT_DIR}")
-		print(f"Project annotations file: {self.ANNOTATIONS_FILE}")
-		print(f"Project slides location: {self.SLIDES_DIR}")
-		print(f"Project ROI location: {self.ROI_DIR}")
-		print(f"Project tiles location: {self.TILES_DIR}")
-		print(f"Project models location: {self.MODELS_DIR}")
-		print(f"Project tile width (um): {self.TILE_UM}")
-		print(f"Project tile width (px): {self.TILE_PX}")
-		print(f"Number of classes: {self.NUM_CLASSES}")
-		print(f"Batch size: {self.BATCH_SIZE}")
-		print(f"Use FP16: {self.USE_FP16}")
+		data = {}
+		data['name'] = self.NAME
+		data['root'] = self.PROJECT_DIR
+		data['annotations'] = self.ANNOTATIONS_FILE
+		data['slides'] = self.SLIDES_DIR
+		data['ROI'] = self.ROI_DIR
+		data['tiles'] = self.TILES_DIR
+		data['models'] = self.MODELS_DIR
+		data['tile_um'] = self.TILE_UM
+		data['tile_px'] = self.TILE_PX
+		data['num_classes'] = self.NUM_CLASSES
+		data['batch_size'] = self.BATCH_SIZE
+		data['use_fp16'] = self.USE_FP16
+
+		with open(join(self.PROJECT_DIR, "settings.json"), "w") as json_data_file:
+			json.dump(data, json_data_file)
+		print("\nProject configuration saved.\n")
