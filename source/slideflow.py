@@ -24,7 +24,7 @@ class SlideFlowProject:
 
 	EVAL_FRACTION = 0.1
 	AUGMENTATION = convoluter.STRICT_AUGMENTATION	
-	NUM_THREADS = 8
+	NUM_THREADS = 6
 	USE_FP16 = True
 
 	def __init__(self, project_folder):
