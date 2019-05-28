@@ -7,4 +7,4 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 
 	SFP = sf.SlideFlowProject(args.project)
-	SFP.extract_tiles()
+	SFP.prepare_tiles()

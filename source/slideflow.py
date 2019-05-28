@@ -1,6 +1,7 @@
 import argparse
 import os
 import json
+import shutil
 import tensorflow as tf
 
 from os.path import join, isfile, exists
@@ -8,7 +9,7 @@ from pathlib import Path
 from glob import glob
 
 import convoluter
-import  data_utils as util
+from  util import datasets, tfrecords
 
 class SlideFlowProject:
 	PROJECT_DIR = ""
@@ -18,12 +19,15 @@ class SlideFlowProject:
 	ROI_DIR = None
 	TILES_DIR = None
 	MODELS_DIR = None
+	USE_TFRECORD = False
+	TFRECORD_DIR = None
+	DELETE_TILES = False
 	TILE_UM = None
 	TILE_PX = None
 	NUM_CLASSES = None
 
 	EVAL_FRACTION = 0.1
-	AUGMENTATION = convoluter.STRICT_AUGMENTATION	
+	AUGMENTATION = convoluter.STRICT_AUGMENTATION
 	NUM_THREADS = 6
 	USE_FP16 = True
 
@@ -41,18 +45,25 @@ class SlideFlowProject:
 			project_folder = self.dir_input("Where is the project root directory? ", create_on_invalid=True)
 		self.PROJECT_DIR = project_folder
 
-		project_json = os.path.join(project_folder, "settings.json")
-		if os.path.exists(project_json):
-			self.load_project(project_json)
+		self.CONFIG = os.path.join(project_folder, "settings.json")
+		if os.path.exists(self.CONFIG):
+			self.load_project()
 		else:
-			self.create_project(project_json)
+			self.create_project()
+
+	def prepare_tiles(self):
+		self.extract_tiles()
+		self.separate_training_and_eval()
+		if self.USE_TFRECORD:
+			self.generate_tfrecord()
 
 	def extract_tiles(self):
+		self.update_task('extract_tiles', 'in process')
 		convoluter.NUM_THREADS = self.NUM_THREADS
 		if not exists(join(self.TILES_DIR, "train_data")):
-			util.make_dir(join(self.TILES_DIR, "train_data"))
+			datasets.make_dir(join(self.TILES_DIR, "train_data"))
 		if not exists(join(self.TILES_DIR, "eval_data")):
-			util.make_dir(join(self.TILES_DIR, "eval_data"))
+			datasets.make_dir(join(self.TILES_DIR, "eval_data"))
 
 		c = convoluter.Convoluter(self.TILE_PX, self.TILE_UM, self.NUM_CLASSES, self.BATCH_SIZE, 
 									self.USE_FP16, join(self.TILES_DIR, "train_data"), self.ROI_DIR, self.AUGMENTATION)
@@ -61,10 +72,24 @@ class SlideFlowProject:
 		slide_list.extend(glob(join(self.SLIDES_DIR, '**/*.jpg')))
 		c.load_slides(slide_list)
 		c.convolute_slides(export_tiles=True)
+		self.update_task('extract_tiles', 'complete')
 	
-	def separate_training_and_eval_data(self):
-		util.build_validation(join(self.TILES_DIR, "train_data"), join(self.TILES_DIR, "eval_data"), fraction = self.EVAL_FRACTION)
-		pass
+	def separate_training_and_eval(self):
+		self.update_task('separate_training_and_eval', 'in process')
+		datasets.build_validation(join(self.TILES_DIR, "train_data"), join(self.TILES_DIR, "eval_data"), fraction = self.EVAL_FRACTION)
+		self.update_task('separate_training_and_eval', 'complete')
+
+	def generate_tfrecord(self):
+		# Note: this will not work as the write_tfrecords function expects a category directory
+		# Will leave as is to manually test performance with category defined in the TFRecrod
+		#  vs. dynamically assigning category via annotation metadata during training
+		self.update_task('generate_tfrecord', 'in process')
+		tfrecords.write_tfrecords(join(self.TILES_DIR, "train_data"), self.TFRECORD_DIR, "train")
+		tfrecords.write_tfrecords(join(self.TILES_DIR, "eval_data"), self.TFRECORD_DIR, "eval")
+		if self.DELETE_TILES:
+			shutil.rmtree(join(self.TILES_DIR, "train_data"))
+			shutil.rmtree(join(self.TILES_DIR, "eval_data"))
+		self.update_task('generate_tfrecord', 'complete')
 
 	def create_global_path(self, path_string):
 		if path_string and (len(path_string) > 2) and path_string[:2] == "./":
@@ -128,11 +153,23 @@ class SlideFlowProject:
 				print("Please supply a valid number.")
 				continue
 			return int_response
+	
+	def parse_config(self, config_file):
+		with open(config_file, 'r') as data_file:
+			return json.load(data_file)
 
-	def load_project(self, project_json):
-		if os.path.exists(project_json):
-			with open(project_json, 'r') as json_data_file:
-				data = json.load(json_data_file)
+	def write_config(self, data, config_file):
+		with open(config_file, "w") as data_file:
+			json.dump(data, data_file)
+		
+	def update_task(self, task, status):
+		data = self.parse_config(self.CONFIG)
+		data['tasks'][task] = status
+		self.write_config(data, self.CONFIG)
+
+	def load_project(self):
+		if os.path.exists(self.CONFIG):
+			data = self.parse_config(self.CONFIG)
 			self.NAME = data['name']
 			self.PROJECT_DIR = data['root']
 			self.ANNOTATIONS_FILE = data['annotations']
@@ -145,20 +182,32 @@ class SlideFlowProject:
 			self.NUM_CLASSES = data['num_classes']
 			self.BATCH_SIZE = data['batch_size']
 			self.USE_FP16 = data['use_fp16']
+			self.USE_TFRECORD = data['use_tfrecord']
+			self.TFRECORD_DIR = data['tfrecord_dir']
+			self.DELETE_TILES = data['delete_tiles']
 			print("\nProject configuration loaded.\n")
 		else:
-			raise OSError(f'Unable to locate project json at location "{project_json}".')
+			raise OSError(f'Unable to locate project json at location "{self.CONFIG}".')
 
-	def create_project(self, project_json):
+	def create_project(self):
+		# General setup and slide configuration
 		self.NAME = input("What is the project name? ")
 		self.ANNOTATIONS_FILE = self.file_input("Where is the project annotations (CSV) file located? [./annotations.csv] ", 
 									default='./annotations.csv', filetype="csv")
 		self.SLIDES_DIR = self.dir_input("Where are the SVS slides stored? [./slides] ",
 									default='./slides', create_on_invalid=True)
 		self.ROI_DIR = self.dir_input("Where are the ROI files (CSV) stored? [./slides] ",
-									default='./slides', create_on_invalid=True)									
-		self.TILES_DIR = self.dir_input("Where will the tessellated image tiles be stored? [./tiles] ",
+									default='./slides', create_on_invalid=True)
+
+		# Slide tessellation
+		self.TILES_DIR = self.dir_input("Where will the tessellated image tiles be stored? (recommend SSD) [./tiles] ",
 									default='./tiles', create_on_invalid=True)
+		self.USE_TFRECORD = self.yes_no_input("Store tiles in TFRecord format? [Y/n] ", default=True)
+		if self.USE_TFRECORD:
+			self.DELETE_TILES = self.yes_no_input("Should raw tile images be deleted after TFRecord storage? [Y/n] ", default=True)
+			self.TFRECORD_DIR = self.dir_input("Where should the TFRecord files be stored? (recommend HDD) [./tfrecord] ",
+									default='./tfrecord', create_on_invalid=True)
+		# Training
 		self.MODELS_DIR = self.dir_input("Where are the saved models stored? [./models] ",
 									default='./models', create_on_invalid=True)
 		self.TILE_UM = self.int_input("What is the tile width in microns? [280] ", default=280)
@@ -180,7 +229,17 @@ class SlideFlowProject:
 		data['num_classes'] = self.NUM_CLASSES
 		data['batch_size'] = self.BATCH_SIZE
 		data['use_fp16'] = self.USE_FP16
-
-		with open(join(self.PROJECT_DIR, "settings.json"), "w") as json_data_file:
-			json.dump(data, json_data_file)
+		data['use_tfrecord'] = self.USE_TFRECORD
+		data['tfrecord_dir'] = self.TFRECORD_DIR
+		data['delete_tiles'] = self.DELETE_TILES
+		data['tasks'] = {
+			'extract_tiles': 'not started',
+			'separate_training_and_eval': 'not started',
+			'generate_tfrecord': 'not started',
+			'training': 'not started',
+			'analytics': 'not started',
+			'heatmaps': 'not started',
+			'mosaic': 'not started'
+		}
+		self.write_config(data, self.CONFIG)
 		print("\nProject configuration saved.\n")
