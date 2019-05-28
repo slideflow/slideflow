@@ -49,6 +49,7 @@ import matplotlib.colors as mcol
 from matplotlib import pyplot as mp
 
 from fastim import FastImshow
+from util import utilities as sfutil
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 4
@@ -110,7 +111,7 @@ class SlideReader:
 			try:
 				self.slide = ops.OpenSlide(path)
 			except ops.lowlevel.OpenSlideUnsupportedFormatError:
-				self.print(f"Unable to read SVS file from {path} , skipping")
+				self.print(f" + {sfutil.warn('[WARN]')}" + f" Unable to read SVS file from {path} , skipping")
 				self.shape = None
 				return None
 		elif filetype == "jpg":
@@ -129,7 +130,7 @@ class SlideReader:
 		elif exists(path[:-4] + ".csv"):
 			self.load_csv_roi(path[:-4] + ".csv")
 		else:
-			self.print(f" ! [{self.shortname}] WARNING: No annotation file found, using whole slide.")
+			self.print(f"   {sfutil.warn('!')} [" + sfutil.green(self.shortname) + f"] {sfutil.warn('WARNING:')} No annotation file found, using whole slide.")
 
 		self.shape = self.slide.dimensions
 		self.filter_dimensions = self.slide.level_dimensions[-1]
@@ -142,8 +143,8 @@ class SlideReader:
 		self.thumb_file = join(thumbs_path, f'{self.name}_thumb.jpg')
 		imageio.imwrite(self.thumb_file, self.thumb)
 		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
-		self.print(f" * [{self.shortname}] Microns per pixel: {self.MPP}")
-		self.print(f" * [{self.shortname}] Loaded {filetype.upper()} of size {self.shape[0]} x {self.shape[1]}")
+		self.print("   * [" + sfutil.green(self.shortname) + f"] Microns per pixel: {self.MPP}")
+		self.print("   * [" + sfutil.green(self.shortname) + f"] Loaded {filetype.upper()} of size {self.shape[0]} x {self.shape[1]}")
 
 	def loaded_correctly(self):
 		return bool(self.shape)
@@ -156,9 +157,9 @@ class SlideReader:
 		# Calculate pixel size of extraction window
 		extract_px = int(size_um / self.MPP)
 		stride = int(extract_px / stride_div)
-		self.print(f" * [{self.shortname}] Extracting tiles of size {size_um}um, resizing from {extract_px}px -> {size_px}px ")
+		self.print("   * [" + sfutil.green(self.shortname) + f"] Extracting tiles of size {size_um}um, resizing from {extract_px}px -> {size_px}px ")
 		if size_px > extract_px:
-			self.print(f"WARNING: Tiles will be up-scaled with cubic interpolation ({extract_px}px -> {size_px}px)")
+			self.print(f" + {sfutil.warn('[WARN]')}: Tiles will be up-scaled with cubic interpolation ({extract_px}px -> {size_px}px)")
 		coord = []
 		slide_x_size = self.shape[0] - extract_px
 		slide_y_size = self.shape[1] - extract_px
@@ -174,7 +175,7 @@ class SlideReader:
 		# Create mask for indicating whether tile was extracted
 		tile_mask = np.asarray([0 for i in range(len(coord))])
 		self.tile_mask = None
-		self.p_id = None if not self.pb else self.pb.add_bar(0, len(coord), endtext=shortname)
+		self.p_id = None if not self.pb else self.pb.add_bar(0, len(coord), endtext=sfutil.green(shortname))
 
 		def generator():
 			for ci in range(len(coord)):
@@ -210,7 +211,7 @@ class SlideReader:
 				yield region, coord_label, unique_tile
 			if self.pb: 
 				self.pb.end(self.p_id)
-				self.print(f" * [{self.shortname}] Total possible tiles: {len(coord)} and total exported: {sum(tile_mask)}")
+				self.print("   * [" + sfutil.green(self.shortname) + f"] Total possible tiles: {len(coord)} and total exported: {sum(tile_mask)}")
 			self.tile_mask = tile_mask
 
 		return generator, slide_x_size, slide_y_size, stride
@@ -229,7 +230,7 @@ class SlideReader:
 				x_coord = int(float(row[index_x]))
 				y_coord = int(float(row[index_y]))
 				self.annotations[-1].add_coord((x_coord, y_coord))
-			self.print(f" * [{self.shortname}] Number of ROIs: {len(self.annotations)}")
+			self.print("   * [" + sfutil.green(self.shortname) + f"] Number of ROIs: {len(self.annotations)}")
 
 	def load_json_roi(self, path):
 		with open(path, "r") as json_file:
@@ -238,7 +239,7 @@ class SlideReader:
 			area_reduced = np.multiply(shape['points'], JSON_ANNOTATION_SCALE)
 			self.annotations.append(ROIObject(f"Object{len(self.annotations)}"))
 			self.annotations[-1].add_shape(area_reduced)
-		self.print(f" * [{self.shortname}] Number of ROIs: {len(self.annotations)}")
+		self.print("   * [" + sfutil.green(self.shortname) + "] Number of ROIs: {len(self.annotations)}")
 
 class Convoluter:
 	'''Class to guide the convolution/tessellation of tiles across a set of slides, within ROIs if provided. 
@@ -292,15 +293,13 @@ class Convoluter:
 		Returns:
 			None
 		'''
-		if export_tiles and not os.path.exists(join(self.SAVE_FOLDER, "tiles")):
-			os.makedirs(join(self.SAVE_FOLDER, "tiles"))
 		if not save_heatmaps and not display_heatmaps:
 			# No need to calculate overlapping tiles
-			print("INFO: Tessellating only non-overlapping tiles.")
+			print(f" + {sfutil.info('[INFO]')} Tessellating only non-overlapping tiles.")
 			self.STRIDE_DIV = 1
 
 		if export_tiles and not (display_heatmaps or save_final_layer or save_heatmaps):
-			print("INFO: Exporting tiles only, no new calculations or heatmaps will be generated.")
+			print(f" + {sfutil.info('[INFO]')} Exporting tiles only, no new calculations or heatmaps will be generated.")
 			pb = progress_bar.ProgressBar(bar_length=5)
 			pool = ThreadPool(NUM_THREADS)
 			pool.map(lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
@@ -309,7 +308,7 @@ class Convoluter:
 				slide = self.SLIDES[case_name]
 				shortname = _shortname(case_name)
 				category = slide['category']
-				print(f"Working on case {shortname} ({category})")
+				print(f" + Working on case {shortname} ({category})")
 
 				# Use PKL logits if available (stored pre-calculated logits from prior run)
 				if case_name in self.PKL_DICT and not save_final_layer:
@@ -334,7 +333,7 @@ class Convoluter:
 		filetype = slide['type']
 		shortname = _shortname(case_name)
 
-		pb.print(f"Exporting tiles for case {shortname} ({category})")
+		pb.print(f" + Exporting tiles for case {sfutil.green(shortname)} ({category})")
 
 		whole_slide = SlideReader(path, filetype, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
 		if not whole_slide.loaded_correctly(): return
@@ -396,7 +395,7 @@ class Convoluter:
 
 				ckpt = tf.train.get_checkpoint_state(self.MODEL_DIR)
 				if ckpt and ckpt.model_checkpoint_path:
-					print(" + Restoring saved checkpoint model.")
+					print("   + Restoring saved checkpoint model.")
 					saver.restore(sess, ckpt.model_checkpoint_path)
 				else:
 					raise Exception('Unable to find checkpoint file.')
@@ -476,7 +475,7 @@ class Convoluter:
 					expanded_logits[i] = logits_arr[li]
 					li += 1
 			expanded_logits = np.asarray(expanded_logits)
-			print(f" * Expanded_logits size: {expanded_logits.shape}; resizing to y:{y_logits_len} and x:{x_logits_len}")
+			print(f"   * Expanded_logits size: {expanded_logits.shape}; resizing to y:{y_logits_len} and x:{x_logits_len}")
 
 			# Resize logits array into a two-dimensional array for heatmap display
 			logits_out = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.NUM_CLASSES])
@@ -490,7 +489,7 @@ class Convoluter:
 
 	def export_weights(self, output, labels, logits, name, category):
 		'''Exports final layer weights (and logits) for non-overlapping tiles into a CSV file.'''
-		print("Writing csv...")
+		print(" + Writing csv...")
 		csv_started = os.path.exists(join(self.SAVE_FOLDER, 'final_layer_weights.csv'))
 		write_mode = 'a' if csv_started else 'w'
 		with open(join(self.SAVE_FOLDER, 'final_layer_weights.csv'), write_mode) as csv_file:
@@ -504,8 +503,8 @@ class Convoluter:
 
 	def gen_heatmaps(self, slide, logits, size, name, save=True):
 		'''Displays and/or saves logits as a heatmap overlay.'''
-		print("Received logits, size=%s, (%s x %s)" % (size, len(logits), len(logits[0])))
-		print("Calculating overlay matrix and displaying with dynamic resampling...")
+		print(" + Received logits, size=%s, (%s x %s)" % (size, len(logits), len(logits[0])))
+		print(" + Calculating overlay matrix and displaying with dynamic resampling...")
 		image_file = slide['path']
 		filetype = slide['type']
 		fig = plt.figure(figsize=(18, 16))
