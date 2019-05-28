@@ -40,7 +40,7 @@ class ProgressBar:
 			sys.stdout.write("\033[K\r")
 		out_text = "\r\033[K"
 		for i, bar_id in enumerate(self.BARS):
-			separator = "   ||   " if i != len(self.BARS)-1 else ""
+			separator = "  " if i != len(self.BARS)-1 else ""
 			bar = self.BARS[bar_id]
 			arrow = self.arrow(bar.percent())
 			spaces = u'-' * (self.bar_length - len(arrow))
