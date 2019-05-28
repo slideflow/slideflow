@@ -8,11 +8,11 @@ import convoluter
 import  data_utils as util
 
 class SlideFlowProject:
-
 	PROJECT_DIR = ""
 	NAME = None
 	ANNOTATIONS_FILE = None
 	SLIDES_DIR = None
+	ROI_DIR = None
 	TILES_DIR = None
 	MODELS_DIR = None
 	TILE_UM = None
@@ -137,6 +137,8 @@ class SlideFlowProject:
 									default='./annotations.csv', filetype="csv")
 		self.SLIDES_DIR = self.dir_input("Where are the SVS slides stored? [./slides] ",
 									default='./slides', create_on_invalid=True)
+		self.ROI_DIR = self.dir_input("Where are the ROI files (CSV) stored? [./slides] ",
+									default='./slides', create_on_invalid=True)									
 		self.TILES_DIR = self.dir_input("Where are the tessellated image tiles stored? [./tiles] ",
 									default='./tiles', create_on_invalid=True)
 		self.MODELS_DIR = self.dir_input("Where are the saved models stored? [./models] ",
@@ -152,6 +154,7 @@ class SlideFlowProject:
 		print(f"Project root: {self.PROJECT_DIR}")
 		print(f"Project annotations file: {self.ANNOTATIONS_FILE}")
 		print(f"Project slides location: {self.SLIDES_DIR}")
+		print(f"Project ROI location: {self.ROI_DIR}")
 		print(f"Project tiles location: {self.TILES_DIR}")
 		print(f"Project models location: {self.MODELS_DIR}")
 		print(f"Project tile width (um): {self.TILE_UM}")
@@ -159,10 +162,3 @@ class SlideFlowProject:
 		print(f"Number of classes: {self.NUM_CLASSES}")
 		print(f"Batch size: {self.BATCH_SIZE}")
 		print(f"Use FP16: {self.USE_FP16}")
-
-if __name__ == '__main__':
-	parser = argparse.ArgumentParser(description = "Helper to guide through the SlideFlow pipeline")
-	parser.add_argument('-p', '--project', help='Path to project directory.')
-	args = parser.parse_args()
-
-	project = SlideFlowProject(args.project)
