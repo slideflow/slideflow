@@ -1,0 +1,51 @@
+import tensorflow as tf
+tf.enable_eager_execution()
+
+import numpy as numpy
+from os import listdir
+from os.path import isfile, isdir, join
+from random import shuffle
+
+import time
+
+def _float_feature(value):
+	"""Returns a bytes_list from a float / double."""
+	return tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
+
+def _bytes_feature(value):
+	"""Returns a bytes_list from a string / byte."""
+	return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+def _int64_feature(value):
+	"""Returns an int64_list from a bool / enum / int / uint."""
+	return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+# Create a dictionary with features that may be relevant.
+def image_example(category, case, image_string):
+	feature = {
+		'category': _int64_feature(category),
+		'case':     _bytes_feature(case),
+		'image_raw':_bytes_feature(image_string),
+	}
+	return tf.train.Example(features=tf.train.Features(feature=feature))
+
+def write_tfrecords(input_directory, output_directory, label):
+	image_labels = {}
+	cat_dirs = [_dir for _dir in listdir(input_directory) if isdir(join(input_directory, _dir))]
+	for cat_dir in cat_dirs:
+		case_dirs = [_dir for _dir in listdir(join(input_directory, cat_dir)) if isdir(join(input_directory, cat_dir, _dir))]
+		for case_dir in case_dirs:
+			files = [file for file in listdir(join(input_directory, cat_dir, case_dir)) 
+						if (isfile(join(input_directory, cat_dir, case_dir, file))) and
+							(file[-3:] == "jpg")]
+			for tile in files:
+				image_labels.update({join(input_directory, cat_dir, case_dir, tile): [int(cat_dir), bytes(case_dir, 'utf-8')]})
+
+	keys = list(image_labels.keys())
+	shuffle(keys)
+	with tf.python_io.TFRecordWriter(join(output_directory, f'{label}.tfrecords')) as writer:
+		for filename in keys:
+			labels = image_labels[filename]
+			image_string = open(filename, 'rb').read()
+			tf_example = image_example(labels[0], labels[1], image_string)
+			writer.write(tf_example.SerializeToString())
