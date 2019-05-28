@@ -229,7 +229,7 @@ class SlideReader:
 				x_coord = int(float(row[index_x]))
 				y_coord = int(float(row[index_y]))
 				self.annotations[-1].add_coord((x_coord, y_coord))
-			self.print(f" * [{self.shortname}] Total annotation objects detected: {len(self.annotations)}")
+			self.print(f" * [{self.shortname}] Number of ROIs: {len(self.annotations)}")
 
 	def load_json_roi(self, path):
 		with open(path, "r") as json_file:
@@ -238,7 +238,7 @@ class SlideReader:
 			area_reduced = np.multiply(shape['points'], JSON_ANNOTATION_SCALE)
 			self.annotations.append(ROIObject(f"Object{len(self.annotations)}"))
 			self.annotations[-1].add_shape(area_reduced)
-		self.print(f" * [{self.shortname}] Total annotation objects detected: {len(self.annotations)}")
+		self.print(f" * [{self.shortname}] Number of ROIs: {len(self.annotations)}")
 
 class Convoluter:
 	'''Class to guide the convolution/tessellation of tiles across a set of slides, within ROIs if provided. 
