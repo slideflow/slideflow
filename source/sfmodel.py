@@ -6,10 +6,10 @@
 # ==========================================================================
 
 # Update 3/2/2019: Beginning tf.data implementation
+# Update 5/29/2019: Supports both loose image tiles and TFRecords, 
+#   annotations supplied by separate annotation file upon initial model call
 
-# In the process of merging histcon & histcon_input
-
-''''Builds the HISTCON network.'''
+''''Builds a CNN model.'''
 
 from __future__ import absolute_import
 from __future__ import division
@@ -29,9 +29,13 @@ from tensorflow.contrib.framework import arg_scope
 from tensorflow.summary import FileWriterCache
 from tensorboard import summary as summary_lib
 from tensorboard.plugins.custom_scalar import layout_pb2
+import tensorflow.contrib.lookup
 
 import inception_v4
 from inception_utils import inception_arg_scope
+from glob import glob
+
+from util import tfrecords, sfutil
 
 slim = tf.contrib.slim
 
@@ -39,11 +43,11 @@ slim = tf.contrib.slim
 # TODO: try next, comment out line 254 (results in calculating total_loss before update_ops is called)
 # TODO: visualize graph, memory usage, and compute time with https://www.tensorflow.org/guide/graph_viz
 
-class HistconModel:
+class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
 
-	# Global constants describing the HISTCON data set.
+	# Global constants describing the model to be built.
 
 	# Process images of the below size. If this number is altered, the
 	# model architecture will change and will need to be retrained.
@@ -69,17 +73,25 @@ class HistconModel:
 	TEST_FREQUENCY = 1200 # How often to run validation testing, in steps
 	USE_FP16 = True
 
-	def __init__(self, data_directory, input_directory):
+	def __init__(self, data_directory, input_directory, annotations_file):
 		self.DATA_DIR = data_directory
 		self.INPUT_DIR = input_directory
 		self.MODEL_DIR = os.path.join(self.DATA_DIR, 'models/active') # Directory where to write event logs and checkpoints.
 		self.TRAIN_DIR = os.path.join(self.MODEL_DIR, 'train') # Directory where to write eval logs and summaries.
 		self.TEST_DIR = os.path.join(self.MODEL_DIR, 'test') # Directory where to write eval logs and summaries.
-		self.TRAIN_FILES = os.path.join(self.INPUT_DIR, "train_data/*/*/*.jpg")
-		self.TEST_FILES = os.path.join(self.INPUT_DIR, "eval_data/*/*/*.jpg")
+		self.TRAIN_FILES = os.path.join(self.INPUT_DIR, "train_data/*/*.jpg")
+		self.TEST_FILES = os.path.join(self.INPUT_DIR, "eval_data/*/*.jpg")
 		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
 		self.TRAIN_TFRECORD = os.path.join(self.INPUT_DIR, "train.tfrecords")
 		self.EVAL_TFRECORD = os.path.join(self.INPUT_DIR, "eval.tfrecords")
+		self.USE_TFRECORD = (os.path.exists(self.TRAIN_TFRECORD) and os.path.exists(self.EVAL_TFRECORD))
+
+		annotations = tfrecords.load_annotations(annotations_file)
+		if not self.verify_annotation_integrity(annotations):
+			sys.exit()
+		self.ANNOTATIONS_TABLE = tf.contrib.lookup.HashTable(
+			tf.contrib.lookup.KeyValueTensorInitializer(list(annotations.keys()), list(annotations.values())), -1
+		)
 
 		if tf.gfile.Exists(self.MODEL_DIR):
 			tf.gfile.DeleteRecursively(self.MODEL_DIR)
@@ -87,21 +99,11 @@ class HistconModel:
 
 	def _gen_filenames_op(self, dir_string):
 		filenames_op = tf.train.match_filenames_once(dir_string)
-		labels_op = tf.map_fn(lambda f: tf.string_to_number(tf.string_split([f], '/').values[tf.constant(-3, dtype=tf.int32)],
-													out_type=tf.int32), filenames_op, dtype=tf.int32)
+		labels_op = tf.map_fn(lambda f: self.ANNOTATIONS_TABLE.lookup(tf.string_split([f], '/').values[tf.constant(-2, dtype=tf.int32)]),
+								filenames_op, dtype=tf.int32)
 		return filenames_op, labels_op
 
 	def _parse_function(self, filename, label):
-		'''Loads image file data into Tensor.
-
-		Args:
-			filename: 	a string containing directory/filename of .jpg file
-			label: 		accompanying image label
-
-		Returns:
-			image: a Tensor of shape [size, size, 3] containing image data
-			label: accompanying label
-		'''
 		image_string = tf.read_file(filename)
 		image = tf.image.decode_jpeg(image_string, channels = 3)
 		image = tf.image.per_image_standardization(image)
@@ -113,7 +115,18 @@ class HistconModel:
 		return image, label
 
 	def _parse_tfrecord_function(self, tfrecord_features):
-		label = tfrecord_features['category']
+		'''Loads image file data from TFRecord and annotation from previously loaded file.
+
+		Args:
+			tfrecord_features: 	a dict of features corresponding to a single image tile
+
+		Returns:
+			image: a Tensor of shape [size, size, 3] containing image data
+			label: accompanying label
+		'''
+		#label = tfrecord_features['category']
+		case = tfrecord_features['case']
+		label = self.ANNOTATIONS_TABLE.lookup(case)
 		image = tf.image.decode_jpeg(tfrecord_features['image_raw'], channels=3)
 		image = tf.image.per_image_standardization(image)
 		dtype = tf.float16 if self.USE_FP16 else tf.float32
@@ -132,11 +145,7 @@ class HistconModel:
 
 	def _gen_batched_dataset_from_tfrecord(self, tfrecord):
 		raw_image_dataset = tf.data.TFRecordDataset(tfrecord)
-		feature_description = {
-			'category': tf.FixedLenFeature([], tf.int64),
-			'case':     tf.FixedLenFeature([], tf.string),
-			'image_raw':tf.FixedLenFeature([], tf.string),
-		}
+		feature_description = tfrecords.FEATURE_DESCRIPTION
 
 		def _parse_image_function(example_proto):
 			"""Parses the input tf.Example proto using the above feature dictionary."""
@@ -148,9 +157,36 @@ class HistconModel:
 		dataset = dataset.batch(self.BATCH_SIZE)
 		return dataset
 
+	def verify_annotation_integrity(self, annotations):
+		'''Iterate through folders if using raw images and verify all have an annotation;
+		if using TFRecord, iterate through all records and verify all entries for valid annotation.'''
+		success = True
+		if self.USE_TFRECORD:
+			case_list = []
+			for tfrecord_file in [self.TRAIN_TFRECORD, self.EVAL_TFRECORD]:
+				tfrecord_iterator = tf.python_io.tf_record_iterator(path=tfrecord_file)
+				for string_record in tfrecord_iterator:
+					example = tf.train.Example()
+					example.ParseFromString(string_record)
+					case = example.features.feature['case'].bytes_list.value[0].decode('utf-8')
+					if case not in annotations:
+						case_list.extend([case])
+						success = False
+			case_list = set(case_list)
+			for case in case_list:
+				print(f" + [{sfutil.fail('ERROR')}] Failed TFRecord integrity check: annotation not found for case {sfutil.green(case)}")
+		else:
+			case_list = [i.split('/')[-1] for i in glob(os.path.join(self.INPUT_DIR, "train_data/*"))]
+			case_list.extend([i.split('/')[-1] for i in glob(os.path.join(self.INPUT_DIR, "eval_data/*"))])
+			case_list = set(case_list)
+			for case in case_list:
+				if case not in annotations:
+					print(f" + [{sfutil.fail('ERROR')}] Failed image tile integrity check: annotation not found for case {sfutil.green(case)}")
+					success = False
+		return success
 
 	def build_inputs(self):
-		'''Construct input for HISTCON evaluation.
+		'''Construct input for the model.
 
 		Args:
 			sess: active tensorflow session
@@ -159,14 +195,16 @@ class HistconModel:
 			next_batch_images: Images. 4D tensor of [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3] size.
 			next_batch_labels: Labels. 1D tensor of [batch_size] size.
 		'''
-	
-		'''with tf.name_scope('filename_input'):
-			train_filenames_op, train_labels_op = self._gen_filenames_op(self.TRAIN_FILES)
-			test_filenames_op, test_labels_op = self._gen_filenames_op(self.TEST_FILES)'''
 
+		if not self.USE_TFRECORD:
+			with tf.name_scope('filename_input'):
+				train_filenames_op, train_labels_op = self._gen_filenames_op(self.TRAIN_FILES)
+				test_filenames_op, test_labels_op = self._gen_filenames_op(self.TEST_FILES)
+			train_dataset = self._gen_batched_dataset(train_filenames_op, train_labels_op)
+		else:
+			with tf.name_scope('input'):
+				train_dataset = self._gen_batched_dataset_from_tfrecord(self.TRAIN_TFRECORD)
 		with tf.name_scope('input'):
-			#train_dataset = self._gen_batched_dataset(train_filenames_op, train_labels_op)
-			train_dataset = self._gen_batched_dataset_from_tfrecord(self.TRAIN_TFRECORD)
 			train_dataset = train_dataset.repeat(self.MAX_EPOCH)
 			train_dataset = train_dataset.prefetch(1)
 
@@ -224,7 +262,7 @@ class HistconModel:
 		return train_op
 
 	def train(self, retrain_model = None, retrain_weights = None, restore_checkpoint = None):
-		'''Train HISTCON for a number of steps, according to flags set by the argument parser.'''
+		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 
 		if restore_checkpoint:
 			ckpt = tf.train.get_checkpoint_state(restore_checkpoint)
@@ -374,5 +412,5 @@ if __name__ == "__main__":
 	parser.add_argument('-r', '--retrain', help='Path to directory containing model to use as pretraining')
 	args = parser.parse_args()
 
-	histcon = HistconModel(args.dir, args.input)
-	histcon.train(restore_checkpoint = args.retrain)
+	SFM = SlideflowModel(args.dir, args.input)
+	SFM.train(restore_checkpoint = args.retrain)

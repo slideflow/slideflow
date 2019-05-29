@@ -49,7 +49,7 @@ import matplotlib.colors as mcol
 from matplotlib import pyplot as mp
 
 from fastim import FastImshow
-from util import utilities as sfutil
+from util import sfutil
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 4
@@ -295,11 +295,11 @@ class Convoluter:
 		'''
 		if not save_heatmaps and not display_heatmaps:
 			# No need to calculate overlapping tiles
-			print(f" + {sfutil.info('[INFO]')} Tessellating only non-overlapping tiles.")
+			print(f" + [{sfutil.info('INFO')}] Tessellating only non-overlapping tiles.")
 			self.STRIDE_DIV = 1
 
 		if export_tiles and not (display_heatmaps or save_final_layer or save_heatmaps):
-			print(f" + {sfutil.info('[INFO]')} Exporting tiles only, no new calculations or heatmaps will be generated.")
+			print(f" + [{sfutil.info('INFO')}] Exporting tiles only, no new calculations or heatmaps will be generated.")
 			pb = progress_bar.ProgressBar(bar_length=5)
 			pool = ThreadPool(NUM_THREADS)
 			pool.map(lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)

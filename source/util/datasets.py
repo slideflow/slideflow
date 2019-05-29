@@ -4,7 +4,7 @@ from os import listdir, makedirs
 from os.path import isfile, isdir, join, exists
 from random import shuffle
 import argparse
-import util.utilities as sfutil
+from util import sfutil
 
 def make_dir(_dir):
 	''' Makes a directory if one does not already exist, in a manner compatible with multithreading. '''
