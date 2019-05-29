@@ -7,5 +7,6 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 
 	SFP = sf.SlideFlowProject(args.project)
+	#SFP.reset_tasks()
 	SFP.prepare_tiles()
 	SFP.start_training('model1')
