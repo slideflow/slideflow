@@ -7,6 +7,8 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 
 	SFP = sf.SlideFlowProject(args.project)
-	#SFP.reset_tasks()
-	SFP.prepare_tiles()
+	# SFP.prepare_tiles()
+	#SFP.extract_tiles(slide_filters = {'dataset': ['train']})
+	#SFP.separate_training_and_eval()
+	#SFP.generate_tfrecord()
 	SFP.start_training('model1')

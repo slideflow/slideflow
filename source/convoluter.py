@@ -57,13 +57,11 @@ DEFAULT_JPG_MPP = 0.2494
 JSON_ANNOTATION_SCALE = 10
 STRICT_AUGMENTATION = "strict"
 BALANCED_AUGMENTATION = "balanced"
+NO_AUGMENTATION = None
 
 # TODO: offset heatmap by window / 2
 # TODO: test json annotations
 # TODO: automatic augmentation balancing
-
-def _shortname(string):
-	return string[:12]
 
 class ROIObject:
 	'''Object container for ROI annotations.'''
@@ -88,13 +86,19 @@ class JPGSlide:
 		self.properties = {ops.PROPERTY_NAME_MPP_X: mpp}
 		self.level_dimensions = [self.dimensions]
 		self.level_count = 1
+		self.level_downsamples = [1.0]
+
 	def get_thumbnail(self, dimensions):
 		return cv2.resize(self.loaded_image, dsize=dimensions, interpolation=cv2.INTER_CUBIC)
+
 	def read_region(self, topleft, level, window):
 		# Arg "level" required for code compatibility with SVS reader but is not used
 		# Window = [y, x] pixels (note: this is reverse compared to SVS files in [x,y] format)
 		return self.loaded_image[topleft[1]:topleft[1] + window[1], 
 								 topleft[0]:topleft[0] + window[0],]
+
+	def get_best_level_for_downsample(self, downsample_desired):
+		return 0
 
 class SlideReader:
 	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
@@ -105,7 +109,7 @@ class SlideReader:
 		self.pb = pb # Progress bar
 		self.p_id = None
 		self.name = path[:-4].split('/')[-1]
-		self.shortname = _shortname(self.name)
+		self.shortname = sfutil._shortname(self.name)
 		# Initiate SVS or JPG slide reader
 		if filetype == "svs":
 			try:
@@ -150,16 +154,22 @@ class SlideReader:
 		return bool(self.shape)
 
 	def build_generator(self, size_px, size_um, stride_div, case_name, export=False, augment=False):
-		shortname = _shortname(case_name)
+		shortname = sfutil._shortname(case_name)
 		# Calculate window sizes, strides, and coordinates for windows
 		tiles_path = join(self.export_folder, case_name)
 		if not os.path.exists(tiles_path): os.makedirs(tiles_path)
 		# Calculate pixel size of extraction window
 		extract_px = int(size_um / self.MPP)
+		downsample_desired = extract_px/size_px
+		downsample_level = self.slide.get_best_level_for_downsample(downsample_desired)
+		downsample_factor = self.slide.level_downsamples[downsample_level]
+
+		extract_px = int(extract_px / downsample_factor)
+
 		stride = int(extract_px / stride_div)
-		self.print("   * [" + sfutil.green(self.shortname) + f"] Extracting tiles of size {size_um}um, resizing from {extract_px}px -> {size_px}px ")
+		self.print(f"   * [{sfutil.green(self.shortname)}] Extracting tiles of size {size_um}um, resizing from {extract_px}px -> {size_px}px ")
 		if size_px > extract_px:
-			self.print(f" + {sfutil.warn('[WARN]')}: Tiles will be up-scaled with cubic interpolation ({extract_px}px -> {size_px}px)")
+			self.print(f"   * [{sfutil.green(self.shortname)}] [{sfutil.fail('!WARN!')}]  Tiles will be up-scaled with cubic interpolation ({extract_px}px -> {size_px}px)")
 		coord = []
 		slide_x_size = self.shape[0] - extract_px
 		slide_y_size = self.shape[1] - extract_px
@@ -171,7 +181,8 @@ class SlideReader:
 				coord.append([x, y, is_unique])
 
 		# Load annotations as shapely.geometry objects
-		annPolys = [sg.Polygon(annotation.coordinates) for annotation in self.annotations]
+		ROI_SCALE = 10
+		annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.annotations]
 		# Create mask for indicating whether tile was extracted
 		tile_mask = np.asarray([0 for i in range(len(coord))])
 		self.tile_mask = None
@@ -184,7 +195,9 @@ class SlideReader:
 				c = coord[ci]
 				filter_px = int(extract_px * self.filter_magnification)
 				# Check if the center of the current window lies within any annotation; if not, skip
-				if bool(annPolys) and not any([annPoly.contains(sg.Point(int(c[0]+extract_px/2), int(c[1]+extract_px/2))) for annPoly in annPolys]):
+				x_coord = int((c[0]+extract_px/2)/ROI_SCALE)
+				y_coord = int((c[1]+extract_px/2)/ROI_SCALE)
+				if bool(annPolys) and not any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in annPolys]):
 					continue
 				# Read the low-mag level for filter checking
 				filter_region = np.asarray(self.slide.read_region(c, self.slide.level_count-1, [filter_px, filter_px]))[:,:,:-1]
@@ -192,44 +205,56 @@ class SlideReader:
 				if median_brightness > 660:
 					# Discard tile; median brightness (average RGB pixel) > 220
 					continue
+				if self.pb:
+					self.pb.update_counter(1)
 				# Read the region and discard the alpha pixels
-				region = np.asarray(self.slide.read_region(c, 0, [extract_px, extract_px]))[:,:,0:3]
-				region = cv2.resize(region, dsize=(size_px, size_px), interpolation=cv2.INTER_CUBIC)
+				region = self.slide.read_region(c, downsample_level, [extract_px, extract_px])
+				region = region.resize((size_px, size_px))
+				region = region.convert('RGB')
 				tile_mask[ci] = 1
 				coord_label = ci
 				unique_tile = c[2]
 				if export and unique_tile:
-					imageio.imwrite(join(tiles_path, f'{shortname}_{ci}.jpg'), region)
+					region.save(join(tiles_path, f'{shortname}_{ci}.jpg'), "JPEG")
 					if augment:
-						imageio.imwrite(join(tiles_path, f'{shortname}_{ci}_aug1.jpg'), np.rot90(region))
-						imageio.imwrite(join(tiles_path, f'{shortname}_{ci}_aug2.jpg'), np.flipud(region))
-						imageio.imwrite(join(tiles_path, f'{shortname}_{ci}_aug3.jpg'), np.flipud(np.rot90(region)))
-						imageio.imwrite(join(tiles_path, f'{shortname}_{ci}_aug4.jpg'), np.fliplr(region))
-						imageio.imwrite(join(tiles_path, f'{shortname}_{ci}_aug5.jpg'), np.fliplr(np.rot90(region)))
-						imageio.imwrite(join(tiles_path, f'{shortname}_{ci}_aug6.jpg'), np.flipud(np.fliplr(region)))
-						imageio.imwrite(join(tiles_path, f'{shortname}_{ci}_aug7.jpg'), np.flipud(np.fliplr(np.rot90(region))))
+						region.transpose(Image.ROTATE_90).save(join(tiles_path, f'{shortname}_{ci}_aug1.jpg'))
+						region.transpose(Image.FLIP_TOP_BOTTOM).save(join(tiles_path, f'{shortname}_{ci}_aug2.jpg'))
+						region.transpose(Image.ROTATE_90).transpose(Image.FLIP_TOP_BOTTOM).save(join(tiles_path, f'{shortname}_{ci}_aug3.jpg'))
+						region.transpose(Image.FLIP_LEFT_RIGHT).save(join(tiles_path, f'{shortname}_{ci}_aug4.jpg'))
+						region.transpose(Image.ROTATE_90).transpose(Image.FLIP_LEFT_RIGHT).save(join(tiles_path, f'{shortname}_{ci}_aug5.jpg'))
+						region.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.FLIP_TOP_BOTTOM).save(join(tiles_path, f'{shortname}_{ci}_aug6.jpg'))
+						region.transpose(Image.ROTATE_90).transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.FLIP_TOP_BOTTOM).save(join(tiles_path, f'{shortname}_{ci}_aug7.jpg'))
 				yield region, coord_label, unique_tile
 			if self.pb: 
 				self.pb.end(self.p_id)
-				self.print("   * [" + sfutil.green(self.shortname) + f"] Total possible tiles: {len(coord)} and total exported: {sum(tile_mask)}")
+				self.print("   * [" + sfutil.green(self.shortname) + f"] {sfutil.info('Finished tile extraction')} ({sum(tile_mask)} tiles of {len(coord)} possible)")
 			self.tile_mask = tile_mask
 
 		return generator, slide_x_size, slide_y_size, stride
 
 	def load_csv_roi(self, path):
+		roi_dict = {}
 		with open(path, "r") as csvfile:
 			reader = csv.reader(csvfile, delimiter=',')
 			headers = next(reader, None)
 			try:
+				index_name = headers.index("ROI_Name")
 				index_x = headers.index("X_base")
 				index_y = headers.index("Y_base")
 			except ValueError:
-				raise IndexError('Unable to find "X_base" and "Y_base" columns in CSV file.')
-			self.annotations.append(ROIObject(f"Object{len(self.annotations)}"))
+				raise IndexError('Unable to find "ROI_Name, "X_base", and "Y_base" columns in CSV file.')
 			for row in reader:
+				roi_name = row[index_name]
 				x_coord = int(float(row[index_x]))
 				y_coord = int(float(row[index_y]))
-				self.annotations[-1].add_coord((x_coord, y_coord))
+				
+				if roi_name not in roi_dict:
+					roi_dict.update({roi_name: ROIObject(roi_name)})
+				roi_dict[roi_name].add_coord((x_coord, y_coord))
+
+			for roi_object in roi_dict.values():
+				self.annotations.append(roi_object)
+
 			self.print("   * [" + sfutil.green(self.shortname) + f"] Number of ROIs: {len(self.annotations)}")
 
 	def load_json_roi(self, path):
@@ -303,10 +328,12 @@ class Convoluter:
 			pb = progress_bar.ProgressBar(bar_length=5)
 			pool = ThreadPool(NUM_THREADS)
 			pool.map(lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
+			'''for slide in self.SLIDES:
+				self.export_tiles(self.SLIDES[slide], pb)'''
 		else:
 			for case_name in self.SLIDES:
 				slide = self.SLIDES[case_name]
-				shortname = _shortname(case_name)
+				shortname = sfutil._shortname(case_name)
 				category = slide['category']
 				print(f" + Working on case {shortname} ({category})")
 
@@ -331,9 +358,9 @@ class Convoluter:
 		category = slide['category']
 		path = slide['path']
 		filetype = slide['type']
-		shortname = _shortname(case_name)
+		shortname = sfutil._shortname(case_name)
 
-		pb.print(f" + Exporting tiles for case {sfutil.green(shortname)} ({category})")
+		pb.print(f" + Exporting tiles for case {sfutil.green(shortname)}")
 
 		whole_slide = SlideReader(path, filetype, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
 		if not whole_slide.loaded_correctly(): return

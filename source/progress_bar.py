@@ -5,10 +5,14 @@ import sys
 import time
 
 class ProgressBar:
-	def __init__(self, bar_length=20):
+	def __init__(self, bar_length=20, counter_text=None):
 		self.BARS = {}
 		self.bar_length = bar_length
 		self.next_id = 0
+		self.counter = 0
+		self.counter_text = "" if not counter_text else " " + counter_text
+		self.tail = ''
+		self.starttime = None
 
 	def add_bar(self, val, endval, endtext=''):
 		bar_id = self.next_id
@@ -36,6 +40,8 @@ class ProgressBar:
 		self.refresh()
 
 	def refresh(self):
+		if not self.starttime:
+			self.starttime = time.time()
 		if len(self.BARS) == 0:
 			sys.stdout.write("\033[K\r")
 		out_text = "\r\033[K"
@@ -45,6 +51,7 @@ class ProgressBar:
 			arrow = self.arrow(bar.percent())
 			spaces = u'-' * (self.bar_length - len(arrow))
 			out_text += u"\u007c{0}\u007c {1}% ({2}){3}".format(arrow + spaces, int(round(bar.percent() * 100)), bar.text, separator)
+		out_text += self.tail
 		sys.stdout.write(out_text)
 		sys.stdout.flush()
 
@@ -61,6 +68,17 @@ class ProgressBar:
 	def print(self, text):
 		sys.stdout.write("\r" + text + "\033[K\n")
 		sys.stdout.flush()
+		self.refresh()
+
+	def regen_tail(self):
+		if not self.starttime:
+			self.starttime = time.time()
+			return
+		self.tail = f" {int(self.counter/(time.time()-self.starttime))}{self.counter_text}/sec"
+
+	def update_counter(self, value):
+		self.counter += value
+		self.regen_tail()
 		self.refresh()
 
 def bar(value, endvalue, bar_length=20, newline=True, text=''):
