@@ -1,6 +1,8 @@
 import tensorflow as tf
 
 import numpy as numpy
+import os
+import shutil
 from os import listdir
 from os.path import isfile, isdir, join
 from random import shuffle
@@ -10,8 +12,8 @@ import sys
 import csv
 
 from util import sfutil
+from glob import glob
 
-ANNOTATIONS = None
 FEATURE_DESCRIPTION =  {'category': tf.FixedLenFeature([], tf.int64),
 						'case':     tf.FixedLenFeature([], tf.string),
 						'image_raw':tf.FixedLenFeature([], tf.string)}
@@ -28,45 +30,6 @@ def _int64_feature(value):
 	"""Returns an int64_list from a bool / enum / int / uint."""
 	return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-def load_annotations(annotations_file):
-	if ANNOTATIONS:
-		return ANNOTATIONS
-	with open(annotations_file) as csv_file:
-		csv_reader = csv.reader(csv_file, delimiter=',')
-		header = next(csv_reader, None)
-		use_encode = False
-		case_dict_int = {}
-		case_dict_str = {}
-		try:
-			cat_index = header.index('category')
-			case_index = header.index('case')
-		except:
-			print(f" + [{sfutil.fail('ERROR')}] Unable to find category and/or case headers in annotation file")
-			sys.exit()
-		for row in csv_reader:
-			cat = row[cat_index]
-			case = row[case_index]
-			case_dict_str.update({case: cat})
-			try:
-				int_cat = int(cat)
-				case_dict_int.update({case: int_cat})
-			except:
-				if not use_encode:
-					print(f" + [{sfutil.warn('WARN')}] Non-integer in category header, will encode with integer values")
-					use_encode = True
-		if use_encode:
-			categories = set(case_dict_str.values())
-			category_str_to_int = {}
-			for i, c in enumerate(categories):
-				category_str_to_int.update({c: i})
-				print(f" + [{sfutil.info('INFO')}] Category '{c}' assigned to value '{i}'")
-			for category_string in case_dict_str.keys():
-				case_dict_str[category_string] = category_str_to_int[case_dict_str[category_string]]
-			return case_dict_str
-		else:
-			return case_dict_int
-
-# Create a dictionary with features that may be relevant.
 def image_example(category, case, image_string):
 	feature = {
 		'category': _int64_feature(category),
@@ -76,9 +39,7 @@ def image_example(category, case, image_string):
 	return tf.train.Example(features=tf.train.Features(feature=feature))
 
 def write_tfrecords(input_directory, output_directory, label, annotations_file):
-	global ANNOTATIONS
-	if not ANNOTATIONS:
-		ANNOTATIONS = load_annotations(annotations_file)
+	annotations_dict = sfutil.get_annotations_dict(annotations_file, key_name="slide", value_name="category")
 	tfrecord_path = join(output_directory, f'{label}.tfrecords')
 	image_labels = {}
 	case_dirs = [_dir for _dir in listdir(input_directory) if isdir(join(input_directory, _dir))]
@@ -89,7 +50,7 @@ def write_tfrecords(input_directory, output_directory, label, annotations_file):
 		for tile in files:
 			# Assign arbitrary category number for now (TEMPORARY), for now assigning value of 0
 			try:
-				category = ANNOTATIONS[case_dir]
+				category = annotations_dict[case_dir]
 			except KeyError:
 				print(f" + [{sfutil.fail('ERROR')}] Case {sfutil.green(case_dir)} not found in annotation file.")
 				sys.exit()

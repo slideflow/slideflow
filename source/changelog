@@ -1,0 +1,15 @@
+6-1-2019
+- Added automatic case name & slide name association
+- Fixed single ROI
+- Added verification checks to tiles and annotation files
+- Added shortname compatibility for TCGA files
+- Added delete tiles function
+- Organized sfutil module
+- Improved performance of tile extraction
+- Fixed sfmodel tfrecord cross-compatibility
+- Connected sfmodel to use variables from slideflow project (batch size, image size, etc)
+- Added on-the-fly augmentation as default
+- Improved slide filtering during tile extraction; allows use of annotation file columns
+
+TODO:
+- manually verify ROI tile extraction (visualize non-augmented tiles and compare to SVS annotation)

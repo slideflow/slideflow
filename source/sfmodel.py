@@ -52,9 +52,6 @@ class SlideflowModel:
 	# Process images of the below size. If this number is altered, the
 	# model architecture will change and will need to be retrained.
 
-	IMAGE_SIZE = 512
-	NUM_CLASSES = 5
-
 	NUM_EXAMPLES_PER_EPOCH = 1024
 
 	# Constants for the training process.
@@ -65,18 +62,20 @@ class SlideflowModel:
 	ADAM_LEARNING_RATE = 0.001			# Learning rate for the Adams Optimizer.
 
 	# Variables previous created with parser & FLAGS
-	BATCH_SIZE = 16
 	WHOLE_IMAGE = '' # Filename of whole image (JPG) to evaluate with saved model
 	MAX_EPOCH = 300
 	LOG_FREQUENCY = 20 # How often to log results to console, in steps
 	SUMMARY_STEPS = 20 # How often to save summaries for Tensorboard display, in steps
 	TEST_FREQUENCY = 1200 # How often to run validation testing, in steps
-	USE_FP16 = True
 
-	def __init__(self, data_directory, input_directory, annotations_file):
+	def __init__(self, data_directory, input_directory, annotations_file, image_size, num_classes, batch_size, use_fp16=True):
+		self.USE_FP16 = use_fp16
+		self.IMAGE_SIZE = image_size
+		self.NUM_CLASSES = num_classes
+		self.BATCH_SIZE = batch_size
 		self.DATA_DIR = data_directory
 		self.INPUT_DIR = input_directory
-		self.MODEL_DIR = os.path.join(self.DATA_DIR, 'models/active') # Directory where to write event logs and checkpoints.
+		self.MODEL_DIR = self.DATA_DIR # Directory where to write event logs and checkpoints.
 		self.TRAIN_DIR = os.path.join(self.MODEL_DIR, 'train') # Directory where to write eval logs and summaries.
 		self.TEST_DIR = os.path.join(self.MODEL_DIR, 'test') # Directory where to write eval logs and summaries.
 		self.TRAIN_FILES = os.path.join(self.INPUT_DIR, "train_data/*/*.jpg")
@@ -86,9 +85,11 @@ class SlideflowModel:
 		self.EVAL_TFRECORD = os.path.join(self.INPUT_DIR, "eval.tfrecords")
 		self.USE_TFRECORD = (os.path.exists(self.TRAIN_TFRECORD) and os.path.exists(self.EVAL_TFRECORD))
 
-		annotations = tfrecords.load_annotations(annotations_file)
-		if not self.verify_annotation_integrity(annotations):
-			sys.exit()
+		annotations = sfutil.get_annotations_dict(annotations_file, key_name="slide", value_name="category")
+		# TODO: use verification done by parent slideflow module; if not done, offer to use again
+		#tfrecord_files = [self.TRAIN_TFRECORD, self.EVAL_TFRECORD] if self.USE_TFRECORD else []
+		#sfutil.verify_tiles(annotations, self.INPUT_DIR, tfrecord_files)
+
 		self.ANNOTATIONS_TABLE = tf.contrib.lookup.HashTable(
 			tf.contrib.lookup.KeyValueTensorInitializer(list(annotations.keys()), list(annotations.values())), -1
 		)
@@ -103,36 +104,33 @@ class SlideflowModel:
 								filenames_op, dtype=tf.int32)
 		return filenames_op, labels_op
 
-	def _parse_function(self, filename, label):
-		image_string = tf.read_file(filename)
+	def _process_image(self, image_string):
 		image = tf.image.decode_jpeg(image_string, channels = 3)
 		image = tf.image.per_image_standardization(image)
 
+		# Apply augmentations
+		# Rotate 0, 90, 180, 270 degrees
+		image = tf.image.rot90(image, tf.random_uniform(shape=[], minval=0, maxval=4, dtype=tf.int32))
+
+		# Random flip and rotation
+		image = tf.image.random_flip_left_right(image)
+		image = tf.image.random_flip_up_down(image)
+
 		dtype = tf.float16 if self.USE_FP16 else tf.float32
 		image = tf.image.convert_image_dtype(image, dtype)
 		image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
+		return image
 
+	def _parse_function(self, filename, label):
+		image_string = tf.read_file(filename)
+		image = self._process_image(image_string)
 		return image, label
 
 	def _parse_tfrecord_function(self, tfrecord_features):
-		'''Loads image file data from TFRecord and annotation from previously loaded file.
-
-		Args:
-			tfrecord_features: 	a dict of features corresponding to a single image tile
-
-		Returns:
-			image: a Tensor of shape [size, size, 3] containing image data
-			label: accompanying label
-		'''
-		#label = tfrecord_features['category']
 		case = tfrecord_features['case']
 		label = self.ANNOTATIONS_TABLE.lookup(case)
-		image = tf.image.decode_jpeg(tfrecord_features['image_raw'], channels=3)
-		image = tf.image.per_image_standardization(image)
-		dtype = tf.float16 if self.USE_FP16 else tf.float32
-		image = tf.image.convert_image_dtype(image, dtype)
-		image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
-
+		image_string = tfrecord_features['image_raw']
+		image = self._process_image(image_string)
 		return image, label
 
 	def _gen_batched_dataset(self, filenames, labels):
@@ -157,34 +155,6 @@ class SlideflowModel:
 		dataset = dataset.batch(self.BATCH_SIZE)
 		return dataset
 
-	def verify_annotation_integrity(self, annotations):
-		'''Iterate through folders if using raw images and verify all have an annotation;
-		if using TFRecord, iterate through all records and verify all entries for valid annotation.'''
-		success = True
-		if self.USE_TFRECORD:
-			case_list = []
-			for tfrecord_file in [self.TRAIN_TFRECORD, self.EVAL_TFRECORD]:
-				tfrecord_iterator = tf.python_io.tf_record_iterator(path=tfrecord_file)
-				for string_record in tfrecord_iterator:
-					example = tf.train.Example()
-					example.ParseFromString(string_record)
-					case = example.features.feature['case'].bytes_list.value[0].decode('utf-8')
-					if case not in annotations:
-						case_list.extend([case])
-						success = False
-			case_list = set(case_list)
-			for case in case_list:
-				print(f" + [{sfutil.fail('ERROR')}] Failed TFRecord integrity check: annotation not found for case {sfutil.green(case)}")
-		else:
-			case_list = [i.split('/')[-1] for i in glob(os.path.join(self.INPUT_DIR, "train_data/*"))]
-			case_list.extend([i.split('/')[-1] for i in glob(os.path.join(self.INPUT_DIR, "eval_data/*"))])
-			case_list = set(case_list)
-			for case in case_list:
-				if case not in annotations:
-					print(f" + [{sfutil.fail('ERROR')}] Failed image tile integrity check: annotation not found for case {sfutil.green(case)}")
-					success = False
-		return success
-
 	def build_inputs(self):
 		'''Construct input for the model.
 
@@ -201,14 +171,14 @@ class SlideflowModel:
 				train_filenames_op, train_labels_op = self._gen_filenames_op(self.TRAIN_FILES)
 				test_filenames_op, test_labels_op = self._gen_filenames_op(self.TEST_FILES)
 			train_dataset = self._gen_batched_dataset(train_filenames_op, train_labels_op)
+			test_dataset = self._gen_batched_dataset(test_filenames_op, test_labels_op)
 		else:
 			with tf.name_scope('input'):
 				train_dataset = self._gen_batched_dataset_from_tfrecord(self.TRAIN_TFRECORD)
+				test_dataset = self._gen_batched_dataset_from_tfrecord(self.EVAL_TFRECORD)
 		with tf.name_scope('input'):
 			train_dataset = train_dataset.repeat(self.MAX_EPOCH)
 			train_dataset = train_dataset.prefetch(1)
-
-			test_dataset = self._gen_batched_dataset_from_tfrecord(self.EVAL_TFRECORD)
 			test_dataset = test_dataset.prefetch(1)
 
 			with tf.name_scope('iterator'):
@@ -379,7 +349,7 @@ class SlideflowModel:
 				else:
 					_, step = mon_sess.run([train_op, global_step], feed_dict={it_handle:loggerhook.train_iterator_handle,
 																										training_pl:True})
-				if (step % self.TEST_FREQUENCY == 0):
+				'''if (step % self.TEST_FREQUENCY == 0):
 					print("Validation testing...")
 					mon_sess.run(stream_vars_reset, feed_dict={it_handle:loggerhook.test_iterator_handle,
 															   training_pl:False})
@@ -393,7 +363,7 @@ class SlideflowModel:
 					test_writer.add_summary(summ, step)
 					print("Validation loss: {}".format(val_acc))
 					mon_sess.run(test_it.initializer, feed_dict={it_handle:loggerhook.test_iterator_handle})
-					loggerhook._start_time = time.time()
+					loggerhook._start_time = time.time()'''
 
 	def retrain_from_pkl(self, model, weights):
 		if model == None: model = '/home/shawarma/thyroid/models/inception_v4_2018_04_27/inception_v4.pb'
@@ -403,14 +373,15 @@ class SlideflowModel:
 		self.train(retrain_model = model, retrain_weights = None)
 
 if __name__ == "__main__":
-	os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-	tf.logging.set_verbosity(tf.logging.ERROR)
+	#os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+	#tf.logging.set_verbosity(tf.logging.ERROR)
 
 	parser = argparse.ArgumentParser(description = "Train a CNN using an Inception-v4 network")
 	parser.add_argument('-d', '--dir', help='Path to root directory for saving model.')
 	parser.add_argument('-i', '--input', help='Path to root directory with training and eval data.')
 	parser.add_argument('-r', '--retrain', help='Path to directory containing model to use as pretraining')
+	parser.add_argument('-a', '--annotation', help='Path to root directory with training and eval data.')
 	args = parser.parse_args()
 
-	SFM = SlideflowModel(args.dir, args.input)
-	SFM.train(restore_checkpoint = args.retrain)
+	#SFM = SlideflowModel(args.dir, args.input, args.annotation, args.size, args.classes, args.batch, args.use_fp16)
+	#SFM.train(restore_checkpoint = args.retrain)
