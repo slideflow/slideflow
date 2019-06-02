@@ -39,6 +39,8 @@ from util import tfrecords, sfutil
 
 slim = tf.contrib.slim
 
+RUN_OPTS = tf.RunOptions(report_tensor_allocations_upon_oom = True)
+
 # Calculate accuracy with https://stackoverflow.com/questions/50111438/tensorflow-validate-accuracy-with-batch-data
 # TODO: try next, comment out line 254 (results in calculating total_loss before update_ops is called)
 # TODO: visualize graph, memory usage, and compute time with https://www.tensorflow.org/guide/graph_viz
@@ -66,7 +68,7 @@ class SlideflowModel:
 	MAX_EPOCH = 300
 	LOG_FREQUENCY = 20 # How often to log results to console, in steps
 	SUMMARY_STEPS = 20 # How often to save summaries for Tensorboard display, in steps
-	TEST_FREQUENCY = 1200 # How often to run validation testing, in steps
+	TEST_FREQUENCY = 600 # How often to run validation testing, in steps
 
 	def __init__(self, data_directory, input_directory, annotations_file, image_size, num_classes, batch_size, use_fp16=True):
 		self.USE_FP16 = use_fp16
@@ -90,9 +92,11 @@ class SlideflowModel:
 		#tfrecord_files = [self.TRAIN_TFRECORD, self.EVAL_TFRECORD] if self.USE_TFRECORD else []
 		#sfutil.verify_tiles(annotations, self.INPUT_DIR, tfrecord_files)
 
-		self.ANNOTATIONS_TABLE = tf.contrib.lookup.HashTable(
-			tf.contrib.lookup.KeyValueTensorInitializer(list(annotations.keys()), list(annotations.values())), -1
-		)
+		with tf.device('/cpu'):
+			with tf.variable_scope("annotations"):
+				self.ANNOTATIONS_TABLE = tf.contrib.lookup.HashTable(
+					tf.contrib.lookup.KeyValueTensorInitializer(list(annotations.keys()), list(annotations.values())), -1
+				)
 
 		if tf.gfile.Exists(self.MODEL_DIR):
 			tf.gfile.DeleteRecursively(self.MODEL_DIR)
@@ -344,26 +348,26 @@ class SlideflowModel:
 			while not mon_sess.should_stop():
 				if (step % self.SUMMARY_STEPS == 0):
 					_, merged, step = mon_sess.run([train_op, inception_summaries, global_step], feed_dict={it_handle:loggerhook.train_iterator_handle,
-																											training_pl:True})
+																											training_pl:True}, options=RUN_OPTS)
 					train_writer.add_summary(merged, step)
 				else:
 					_, step = mon_sess.run([train_op, global_step], feed_dict={it_handle:loggerhook.train_iterator_handle,
-																										training_pl:True})
-				'''if (step % self.TEST_FREQUENCY == 0):
+																										training_pl:True}, options=RUN_OPTS)
+				if (step % self.TEST_FREQUENCY == 0):
 					print("Validation testing...")
 					mon_sess.run(stream_vars_reset, feed_dict={it_handle:loggerhook.test_iterator_handle,
-															   training_pl:False})
+															   training_pl:False}, options=RUN_OPTS)
 					while True:
 						try:
 							_, val_acc = mon_sess.run([validation_loss_update, validation_loss], feed_dict={it_handle:loggerhook.test_iterator_handle,
-																											training_pl:False})
+																											training_pl:False}, options=RUN_OPTS)
 						except tf.errors.OutOfRangeError:
 							break
 					summ = mon_sess.run(valid_summ)
 					test_writer.add_summary(summ, step)
 					print("Validation loss: {}".format(val_acc))
-					mon_sess.run(test_it.initializer, feed_dict={it_handle:loggerhook.test_iterator_handle})
-					loggerhook._start_time = time.time()'''
+					mon_sess.run(test_it.initializer, feed_dict={it_handle:loggerhook.test_iterator_handle}, options=RUN_OPTS)
+					loggerhook._start_time = time.time()
 
 	def retrain_from_pkl(self, model, weights):
 		if model == None: model = '/home/shawarma/thyroid/models/inception_v4_2018_04_27/inception_v4.pb'

@@ -159,8 +159,8 @@ class SlideFlowProject:
 					
 	def separate_training_and_eval(self):
 		if self.get_task('separate_training_and_eval') == 'complete':
-			print('Training and eval dataset separation already complete.')
-			return
+			print('Warning: Training and eval dataset separation already complete.')
+			#return
 		print('Separating training and eval datasets...')
 		self.update_task('separate_training_and_eval', 'in process')
 		datasets.build_validation(join(self.TILES_DIR, "train_data"), join(self.TILES_DIR, "eval_data"), fraction = self.EVAL_FRACTION)
@@ -171,8 +171,10 @@ class SlideFlowProject:
 		# Will leave as is to manually test performance with category defined in the TFRecrod
 		#  vs. dynamically assigning category via annotation metadata during training
 		if self.get_task('generate_tfrecord') == 'complete':
-			print('TFRecords already generated.')
-			return
+			print('Warning: TFRecords already generated.')
+			#return
+		if not exists(self.TFRECORD_DIR):
+			datasets.make_dir(self.TFRECORD_DIR)
 		print('Writing TFRecord files...')
 		self.update_task('generate_tfrecord', 'in process')
 		tfrecords.write_tfrecords(join(self.TILES_DIR, "train_data"), self.TFRECORD_DIR, "train", self.ANNOTATIONS_FILE)
@@ -186,8 +188,9 @@ class SlideFlowProject:
 		self.update_task('training', 'in process')
 		print(f"Training model {model_name}...")
 		model_dir = join(self.MODELS_DIR, model_name)
-		
-		tensorboard_process = subprocess.Popen(['tensorboard', f'--logdir={model_dir}'], stdout=subprocess.PIPE)
+
+		devnull = open(os.devnull, 'w')
+		tensorboard_process = subprocess.Popen(['tensorboard', f'--logdir={model_dir}'], stdout=devnull)
 
 		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
 		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE, self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, self.USE_FP16)

@@ -12,4 +12,7 @@
 - Improved slide filtering during tile extraction; allows use of annotation file columns
 
 TODO:
+- automatic cessation of training upon validation accuracy flattening
+- return validation accuracy trough as result of training
+- create automatic hyperparameter sweeping based on training results
 - manually verify ROI tile extraction (visualize non-augmented tiles and compare to SVS annotation)
