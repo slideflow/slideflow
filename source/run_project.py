@@ -6,6 +6,8 @@ if __name__ == '__main__':
 	parser.add_argument('-p', '--project', help='Path to project directory.')
 	args = parser.parse_args()
 
+	# here's a comment
+
 	SFP = sf.SlideFlowProject(args.project)
 	# SFP.prepare_tiles()
 	#SFP.extract_tiles(slide_filters = {'dataset': ['train']})
