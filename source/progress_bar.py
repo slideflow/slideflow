@@ -1,5 +1,5 @@
 # Progress bar
-# James M Dolezal, 2018
+# James M Dolezal, (c) 2019
 
 import sys
 import time
@@ -96,18 +96,3 @@ def end():
 	bar(10, 10)
 	sys.stdout.flush()
 	print('\n')
-
-if __name__==('__main__'):
-	p = ProgressBar()
-	id1 = p.add_bar(0,100, "James")
-	id2 = p.add_bar(0,500, "Christopher")
-	for i in range(300):
-		time.sleep(0.1)
-		p.update(id1, (i/30)*10)
-		if i == 15:
-			p.print("Hello there!")
-		if i == 30:
-			p.print("How are you?")
-		else:
-			p.update(id2, (i/10)*50)
-	p.end()
