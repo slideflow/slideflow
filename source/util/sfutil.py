@@ -198,7 +198,7 @@ def verify_annotations(annotations_file, slides_dir=None):
 		case_index = header.index(TCGAAnnotations.case)
 		category_index = header.index('category')
 	except:
-		print(f" + [{fail('ERROR')}] Check annotations file for headers 'case' and 'category'.")
+		print(f" + [{fail('ERROR')}] Check annotations file for headers '{TCGAAnnotations.case}' and 'category'.")
 		sys.exit()
 	try:
 		slide_index = header.index(TCGAAnnotations.slide)
