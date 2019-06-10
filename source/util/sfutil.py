@@ -5,8 +5,18 @@ import csv
 import os
 from os.path import join
 from glob import glob
+import shutil
 
 import tensorflow as tf
+
+# Enable color sequences on Windows
+try:
+	import ctypes
+	kernel32 = ctypes.windll.kernel32
+	kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+except:
+	pass
+# ------
 
 PROJECT_DIR = None
 
@@ -18,6 +28,11 @@ FAIL = '\033[91m'
 ENDC = '\033[0m'
 BOLD = '\033[1m'
 UNDERLINE = '\033[4m'
+
+class TCGAAnnotations:
+	case = 'submitter_id'
+	project = 'project_id'
+	slide = 'slide'
 
 def warn(text):
 	return WARNING + text + ENDC
@@ -77,7 +92,7 @@ def dir_input(prompt, default=None, create_on_invalid=False):
 		if not response and default:
 			response = create_global_path(default)
 		if not os.path.exists(response) and create_on_invalid:
-			if yes_no_input(f'Directory "{response}" does not exist. Create directory? [Y/n] ', default=True):
+			if yes_no_input(f'Directory "{response}" does not exist. Create directory? [Y/n] ', default='yes'):
 				os.mkdir(response)
 				return response
 			else:
@@ -180,13 +195,13 @@ def verify_annotations(annotations_file, slides_dir=None):
 		# First, verify case, category, and slide headers exist
 		header = next(csv_reader, None)
 	try:
-		case_index = header.index('case')
+		case_index = header.index(TCGAAnnotations.case)
 		category_index = header.index('category')
 	except:
 		print(f" + [{fail('ERROR')}] Check annotations file for headers 'case' and 'category'.")
 		sys.exit()
 	try:
-		slide_index = header.index('slide')
+		slide_index = header.index(TCGAAnnotations.slide)
 	except:
 		print(f" + [{fail('ERROR')}] Header column 'slide' not found.")
 		if slides_dir and yes_no_input('\nSearch slides directory and automatically associate cases with slides? [Y/n] ', default='yes'):
@@ -223,7 +238,7 @@ def verify_annotations(annotations_file, slides_dir=None):
 				print(header)
 				with open('temp.csv', 'w') as csv_outfile:
 					csv_writer = csv.writer(csv_outfile, delimiter=',')
-					header.extend(['slide'])
+					header.extend([TCGAAnnotations.slide])
 					csv_writer.writerow(header)
 					for row in csv_reader:
 						case = row[case_index]
