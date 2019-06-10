@@ -7,11 +7,13 @@ import tensorflow as tf
 from os.path import join, isfile, exists
 from pathlib import Path
 from glob import glob
+import csv
 
 import subprocess
 import convoluter
 import sfmodel
-from  util import datasets, tfrecords, sfutil
+from util import datasets, tfrecords, sfutil
+from util.sfutil import TCGAAnnotations
 
 # TODO: scan for duplicate SVS files (especially when converting TCGA long-names 
 # 	to short-names, e.g. when multiple diagnostic slides are present)
@@ -94,7 +96,7 @@ class SlideFlowProject:
 			datasets.make_dir(join(self.TILES_DIR, "eval_data"))
 
 		slide_list = sfutil.get_slide_paths(self.SLIDES_DIR)
-		slide_case_dict = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, 'slide', 'case', use_encode=False)
+		slide_case_dict = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, TCGAAnnotations.slide, TCGAAnnotations.case, use_encode=False)
 		# Remove slides not in the annotation file
 		to_remove = []
 		for slide in slide_list:
@@ -143,7 +145,7 @@ class SlideFlowProject:
 			return
 		slides_with_tiles = os.listdir(join(self.TILES_DIR, "train_data"))
 		slides_with_tiles.extend(os.listdir(join(self.TILES_DIR, "eval_data")))
-		case_slide_dict = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, 'case', 'slide', use_encode=False)	
+		case_slide_dict = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, TCGAAnnotations.case, TCGAAnnotations.slide, use_encode=False)	
 		for case in case_list:
 			try:
 				if case in slides_with_tiles:
@@ -197,7 +199,15 @@ class SlideFlowProject:
 		SFM.train(restore_checkpoint = self.PRETRAIN_DIR)
 
 	def create_blank_annotations_file(self, scan_for_cases=False):
-		pass
+		case_header_name = TCGAAnnotations.case
+
+		with open(self.ANNOTATIONS_FILE, 'w') as csv_outfile:
+			csv_writer = csv.writer(csv_outfile, delimiter=',')
+			header = [case_header_name]
+			csv_writer.writerow(header)
+
+		if scan_for_cases:
+			pass
 		
 	def update_task(self, task, status):
 		data = sfutil.parse_config(self.CONFIG)
@@ -255,8 +265,8 @@ class SlideFlowProject:
 				self.ANNOTATIONS_FILE = sfutil.file_input("Where will the annotation file be located? [./annotations.csv] ", 
 									default='./annotations.csv', filetype="csv", verify=False)
 				self.create_blank_annotations_file(scan_for_cases=sfutil.yes_no_input("Scan slide folder for case names? [Y/n] ", default='yes'))
-			sys.exit()
-		self.ANNOTATIONS_FILE = sfutil.file_input("Where is the project annotations (CSV) file located? [./annotations.csv] ", 
+		else:
+			self.ANNOTATIONS_FILE = sfutil.file_input("Where is the project annotations (CSV) file located? [./annotations.csv] ", 
 									default='./annotations.csv', filetype="csv")
 
 		# Slide tessellation
