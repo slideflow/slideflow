@@ -36,6 +36,7 @@ from inception_utils import inception_arg_scope
 from glob import glob
 
 from util import tfrecords, sfutil
+from util.sfutil import TCGAAnnotations
 
 slim = tf.contrib.slim
 
@@ -44,6 +45,7 @@ RUN_OPTS = tf.RunOptions(report_tensor_allocations_upon_oom = True)
 # Calculate accuracy with https://stackoverflow.com/questions/50111438/tensorflow-validate-accuracy-with-batch-data
 # TODO: try next, comment out line 254 (results in calculating total_loss before update_ops is called)
 # TODO: visualize graph, memory usage, and compute time with https://www.tensorflow.org/guide/graph_viz
+# TODO: implement/extend hooks for early training stopping: https://www.math.purdue.edu/~nwinovic/tensorflow_sessions.html
 
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
@@ -252,7 +254,8 @@ class SlideflowModel:
 		with arg_scope(inception_arg_scope()):
 			logits, end_points = inception_v4.inception_v4(next_batch_images, 
 														   num_classes=self.NUM_CLASSES,
-														   is_training=training_pl)
+														   is_training=training_pl,
+														   reuse=tf.AUTO_REUSE)
 
 			if restore_checkpoint:
 				for trainable_var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):

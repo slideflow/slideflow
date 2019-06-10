@@ -1,3 +1,9 @@
+6-9-2019
+- Enabled color escape sequences for Windows Powershell
+- Standardized annotation headers compatible with TCGA
+- Fixed sfutil bugs
+- Added reuse=rf.AUTO_REUSE option to see if model duplication can be avoided (does this reduce model memory footprint)?)
+
 6-1-2019
 - Added automatic case name & slide name association
 - Fixed single ROI
