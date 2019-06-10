@@ -210,9 +210,10 @@ class SlideFlowProject:
 			pass
 		
 	def update_task(self, task, status):
-		data = sfutil.parse_config(self.CONFIG)
-		data['tasks'][task] = status
-		sfutil.write_config(data, self.CONFIG)
+		return
+		#data = sfutil.parse_config(self.CONFIG)
+		#data['tasks'][task] = status
+		#sfutil.write_config(data, self.CONFIG)
 
 	def get_task(self, task):
 		return sfutil.parse_config(self.CONFIG)['tasks'][task]
