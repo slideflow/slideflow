@@ -192,7 +192,7 @@ class SlideFlowProject:
 		model_dir = join(self.MODELS_DIR, model_name)
 
 		devnull = open(os.devnull, 'w')
-		tensorboard_process = subprocess.Popen(['tensorboard', f'--logdir={model_dir}'], stdout=devnull)
+		#tensorboard_process = subprocess.Popen(['tensorboard', f'--logdir={model_dir}'], stdout=devnull)
 
 		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
 		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE, self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, self.USE_FP16)
