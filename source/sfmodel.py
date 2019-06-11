@@ -46,49 +46,65 @@ RUN_OPTS = tf.RunOptions(report_tensor_allocations_upon_oom = True)
 # Calculate accuracy with https://stackoverflow.com/questions/50111438/tensorflow-validate-accuracy-with-batch-data
 # TODO: try next, comment out line 254 (results in calculating total_loss before update_ops is called)
 # TODO: visualize graph, memory usage, and compute time with https://www.tensorflow.org/guide/graph_viz
-# TODO: implement/extend hooks for early training stopping: https://www.math.purdue.edu/~nwinovic/tensorflow_sessions.html
-# - calculation method: look at last 7 validation losses, calculate slope, stop if slope < 0.25 (loss/check)
+# TODO: export logs to file for monitoring remotely
+
+class SFModelConfig:
+	def __init__(self, image_size, num_classes, batch_size, augment=False,
+				learning_rate=0.01, beta1=0.9, beta2=0.999, epsilon=1.0, early_stop=0.015,
+				max_epoch=30, log_frequency=20, summary_steps=20, test_frequency=600, use_fp16=True):
+		''' Declare constants describing the model and training process.
+		Args:
+			image_size						Size of input images in pixels
+			num_classes						Number of classes
+			batch_size						Batch size for training
+			augment							Whether or not to perform data augmentation
+			learning_rate					Learning rate for the Adams Optimizer
+			beta1							Beta1 for AdamOptimizer
+			beta2							Beta2 for AdamOptimizer
+			epsilon							Epsilon for AdamOptimizer
+			early_stop						Rate of validation loss decay that should trigger early stopping
+			max_epoch						Maximum number of times to repeat through training set
+			log_frequency					How often to log results to console, in steps
+			summary_steps					How often to save summaries for Tensorboard display, in steps
+			test_frequency					How often to run validation testing, in steps
+			use_fp16						Whether to use FP16 or not (vs. FP32)
+		'''		
+		self.image_size = image_size
+		self.num_classes = num_classes
+		self.batch_size = batch_size
+		self.augment = augment
+		self.learning_rate = learning_rate
+		self.beta1 = beta1
+		self.beta2 = beta2
+		self.epsilon = epsilon
+		self.early_stop = early_stop
+		self.max_epoch = max_epoch
+		self.log_frequency = log_frequency
+		self.summary_steps = summary_steps
+		self.test_frequency = test_frequency
+		self.use_fp16 = use_fp16
+
+	def get_args(self):
+		return [i for i in dir(self) if not i.starts_with('_')]
+
+	def print_config(self):
+		print(f" + [{sfutil.info('INFO')}] Model configuration:")
+		for arg in self.get_args():
+			value = getattr(self, arg)
+			print(f"   {sfutil.info(arg)} = {value}")
 
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
 
-	# Global constants describing the model to be built.
-
-	# Process images of the below size. If this number is altered, the
-	# model architecture will change and will need to be retrained.
-
-	NUM_EXAMPLES_PER_EPOCH = 1024
-
-	# Constants for the training process.
-	MOVING_AVERAGE_DECAY = 0.9999 		 # Decay to use for the moving average.
-	NUM_EPOCHS_PER_DECAY = 240.0		 # Epochs after which learning rate decays.
-	LEARNING_RATE_DECAY_FACTOR = 0.05	 # Learning rate decay factor.
-	INITIAL_LEARNING_RATE = 0.01		 # Initial learning rate.
-	ADAM_LEARNING_RATE = 0.01			 # Learning rate for the Adams Optimizer.
-	VALIDATION_EARLY_STOP_SLOPE = 0.015  # Rate of validation loss decay that should trigger early stopping	
-
-	# Variables previous created with parser & FLAGS
-	WHOLE_IMAGE = '' # Filename of whole image (JPG) to evaluate with saved model
-	MAX_EPOCH = 300
-	LOG_FREQUENCY = 20 # How often to log results to console, in steps
-	SUMMARY_STEPS = 20 # How often to save summaries for Tensorboard display, in steps
-	TEST_FREQUENCY = 600 # How often to run validation testing, in steps
-
-	def __init__(self, data_directory, input_directory, annotations_file, image_size, num_classes, batch_size, use_fp16=True, augment=False):
-		self.USE_FP16 = use_fp16
-		self.IMAGE_SIZE = image_size
-		self.NUM_CLASSES = num_classes
-		self.BATCH_SIZE = batch_size
+	def __init__(self, data_directory, input_directory, annotations_file):
 		self.DATA_DIR = data_directory
 		self.INPUT_DIR = input_directory
-		self.AUGMENT = augment
 		self.MODEL_DIR = self.DATA_DIR # Directory where to write event logs and checkpoints.
 		self.TRAIN_DIR = os.path.join(self.MODEL_DIR, 'train') # Directory where to write eval logs and summaries.
 		self.TEST_DIR = os.path.join(self.MODEL_DIR, 'test') # Directory where to write eval logs and summaries.
 		self.TRAIN_FILES = os.path.join(self.INPUT_DIR, "train_data/*/*.jpg")
 		self.TEST_FILES = os.path.join(self.INPUT_DIR, "eval_data/*/*.jpg")
-		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
 		self.TRAIN_TFRECORD = os.path.join(self.INPUT_DIR, "train.tfrecords")
 		self.EVAL_TFRECORD = os.path.join(self.INPUT_DIR, "eval.tfrecords")
 		self.USE_TFRECORD = (os.path.exists(self.TRAIN_TFRECORD) and os.path.exists(self.EVAL_TFRECORD))
@@ -107,6 +123,24 @@ class SlideflowModel:
 		if tf.gfile.Exists(self.MODEL_DIR):
 			tf.gfile.DeleteRecursively(self.MODEL_DIR)
 		tf.gfile.MakeDirs(self.MODEL_DIR)
+
+	def config(self, config):
+		self.IMAGE_SIZE = config.image_size
+		self.NUM_CLASSES = config.num_classes
+		self.BATCH_SIZE = config.batch_size
+		self.AUGMENT = config.augment
+		self.LEARNING_RATE = config.learning_rate
+		self.BETA1 = config.beta1
+		self.BETA2 = config.beta2
+		self.EPSILON = config.epsilon
+		self.VALIDATION_EARLY_STOP_SLOPE = config.early_stop
+		self.MAX_EPOCH = config.max_epoch
+		self.LOG_FREQUENCY = config.log_frequency
+		self.SUMMARY_STEPS = config.summary_steps
+		self.TEST_FREQUENCY = config.test_frequency
+		self.USE_FP16 = config.use_fp16
+		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
+		config.print_config()
 
 	def _gen_filenames_op(self, dir_string):
 		filenames_op = tf.train.match_filenames_once(dir_string)
@@ -235,10 +269,10 @@ class SlideflowModel:
 			]))
 
 	def build_train_op(self, total_loss, global_step):
-		opt = tf.train.AdamOptimizer(learning_rate=self.ADAM_LEARNING_RATE,
-										beta1=0.9,
-										beta2=0.999,
-										epsilon=1.0)
+		opt = tf.train.AdamOptimizer(learning_rate=self.LEARNING_RATE,
+										beta1=self.BETA1,
+										beta2=self.BETA2,
+										epsilon=self.EPSILON)
 		train_op = slim.learning.create_train_op(total_loss, opt)
 		return train_op
 
@@ -415,5 +449,7 @@ if __name__ == "__main__":
 	parser.add_argument('-a', '--annotation', help='Path to root directory with training and eval data.')
 	args = parser.parse_args()
 
-	#SFM = SlideflowModel(args.dir, args.input, args.annotation, args.size, args.classes, args.batch, args.use_fp16)
+	#SFM = SlideflowModel(args.dir, args.input, args.annotation)
+	#model_config = SFModelConfig(args.size, args.classes, args.batch, augment=True, use_fp16=args.use_fp16)
+	#SFM.config(model_config)
 	#SFM.train(restore_checkpoint = args.retrain)
