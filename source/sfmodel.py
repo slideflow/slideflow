@@ -46,6 +46,7 @@ RUN_OPTS = tf.RunOptions(report_tensor_allocations_upon_oom = True)
 # TODO: try next, comment out line 254 (results in calculating total_loss before update_ops is called)
 # TODO: visualize graph, memory usage, and compute time with https://www.tensorflow.org/guide/graph_viz
 # TODO: implement/extend hooks for early training stopping: https://www.math.purdue.edu/~nwinovic/tensorflow_sessions.html
+# - calculation method: look at last 7 validation losses, calculate slope, stop if slope < 0.25 (loss/check)
 
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
@@ -63,7 +64,7 @@ class SlideflowModel:
 	NUM_EPOCHS_PER_DECAY = 240.0		# Epochs after which learning rate decays.
 	LEARNING_RATE_DECAY_FACTOR = 0.05	# Learning rate decay factor.
 	INITIAL_LEARNING_RATE = 0.01		# Initial learning rate.
-	ADAM_LEARNING_RATE = 0.001			# Learning rate for the Adams Optimizer.
+	ADAM_LEARNING_RATE = 0.01			# Learning rate for the Adams Optimizer.
 
 	# Variables previous created with parser & FLAGS
 	WHOLE_IMAGE = '' # Filename of whole image (JPG) to evaluate with saved model
@@ -72,13 +73,14 @@ class SlideflowModel:
 	SUMMARY_STEPS = 20 # How often to save summaries for Tensorboard display, in steps
 	TEST_FREQUENCY = 600 # How often to run validation testing, in steps
 
-	def __init__(self, data_directory, input_directory, annotations_file, image_size, num_classes, batch_size, use_fp16=True):
+	def __init__(self, data_directory, input_directory, annotations_file, image_size, num_classes, batch_size, use_fp16=True, augment=False):
 		self.USE_FP16 = use_fp16
 		self.IMAGE_SIZE = image_size
 		self.NUM_CLASSES = num_classes
 		self.BATCH_SIZE = batch_size
 		self.DATA_DIR = data_directory
 		self.INPUT_DIR = input_directory
+		self.AUGMENT = augment
 		self.MODEL_DIR = self.DATA_DIR # Directory where to write event logs and checkpoints.
 		self.TRAIN_DIR = os.path.join(self.MODEL_DIR, 'train') # Directory where to write eval logs and summaries.
 		self.TEST_DIR = os.path.join(self.MODEL_DIR, 'test') # Directory where to write eval logs and summaries.
@@ -114,13 +116,14 @@ class SlideflowModel:
 		image = tf.image.decode_jpeg(image_string, channels = 3)
 		image = tf.image.per_image_standardization(image)
 
-		# Apply augmentations
-		# Rotate 0, 90, 180, 270 degrees
-		image = tf.image.rot90(image, tf.random_uniform(shape=[], minval=0, maxval=4, dtype=tf.int32))
+		if self.AUGMENT:
+			# Apply augmentations
+			# Rotate 0, 90, 180, 270 degrees
+			image = tf.image.rot90(image, tf.random_uniform(shape=[], minval=0, maxval=4, dtype=tf.int32))
 
-		# Random flip and rotation
-		image = tf.image.random_flip_left_right(image)
-		image = tf.image.random_flip_up_down(image)
+			# Random flip and rotation
+			image = tf.image.random_flip_left_right(image)
+			image = tf.image.random_flip_up_down(image)
 
 		dtype = tf.float16 if self.USE_FP16 else tf.float32
 		image = tf.image.convert_image_dtype(image, dtype)
