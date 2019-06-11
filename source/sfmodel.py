@@ -432,6 +432,8 @@ class SlideflowModel:
 					mon_sess.run(test_it.initializer, feed_dict={it_handle:loggerhook.test_iterator_handle}, options=RUN_OPTS)
 					loggerhook._start_time = time.time()
 
+		return validation_losses[-1]
+
 	def retrain_from_pkl(self, model, weights):
 		if model == None: model = '/home/shawarma/thyroid/models/inception_v4_2018_04_27/inception_v4.pb'
 		if weights == None: weights = '/home/shawarma/thyroid/thyroid/obj/inception_v4_imagenet_pretrained.pkl'
