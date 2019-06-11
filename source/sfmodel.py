@@ -66,7 +66,7 @@ class SlideflowModel:
 	LEARNING_RATE_DECAY_FACTOR = 0.05	 # Learning rate decay factor.
 	INITIAL_LEARNING_RATE = 0.01		 # Initial learning rate.
 	ADAM_LEARNING_RATE = 0.01			 # Learning rate for the Adams Optimizer.
-	VALIDATION_EARLY_STOP_SLOPE = -0.025 # Rate of validation loss decay that should trigger early stopping
+	VALIDATION_EARLY_STOP_SLOPE = 0.015  # Rate of validation loss decay that should trigger early stopping	
 
 	# Variables previous created with parser & FLAGS
 	WHOLE_IMAGE = '' # Filename of whole image (JPG) to evaluate with saved model
@@ -305,7 +305,7 @@ class SlideflowModel:
 				print ('complete.')
 					
 			def begin(self):
-				#self._step = -1
+				self._step = -1
 				self._start_time = time.time()
 
 			def before_run(self, run_context):
@@ -390,7 +390,7 @@ class SlideflowModel:
 					ys = np.array(validation_losses)
 					xs = np.array(range(len(validation_losses)))
 
-					if val_acc < first_validation_loss and linregress(xs, ys).slope > self.VALIDATION_EARLY_STOP_SLOPE:
+					if val_acc < first_validation_loss and linregress(xs, ys).slope > (-1 * first_validation_loss * self.VALIDATION_EARLY_STOP_SLOPE):
 						mon_sess.close()
 
 					# Reset the test iterator initializer for the next run

@@ -13,4 +13,4 @@ if __name__ == '__main__':
 	#SFP.extract_tiles(slide_filters = {'dataset': ['train']})
 	#SFP.separate_training_and_eval()
 	#SFP.generate_tfrecord()
-	SFP.start_training('model1')
+	SFP.start_training('model2')
