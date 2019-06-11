@@ -195,7 +195,7 @@ class SlideFlowProject:
 		#tensorboard_process = subprocess.Popen(['tensorboard', f'--logdir={model_dir}'], stdout=devnull)
 
 		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
-		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE, self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, self.USE_FP16)
+		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE, self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, self.USE_FP16, augment=False)
 		SFM.train(restore_checkpoint = self.PRETRAIN_DIR)
 
 	def create_blank_annotations_file(self, scan_for_cases=False):
