@@ -281,55 +281,56 @@ def inception_v4(inputs, num_classes=1001, is_training=True,
   """
   end_points = {}
   with tf.variable_scope(scope, 'InceptionV4', [inputs], reuse=reuse) as scope:
-    with slim.arg_scope([slim.batch_norm, slim.dropout],
-                        is_training=is_training):
-      net, end_points = inception_v4_base(inputs, scope=scope)
+    with slim.arg_scope([slim.batch_norm], is_training=is_training,
+						decay=0.9): #default decay is 0.999
+      with slim.arg_scope([slim.dropout], is_training=is_training):
+        net, end_points = inception_v4_base(inputs, scope=scope)
 
-      with slim.arg_scope([slim.conv2d, slim.max_pool2d, slim.avg_pool2d],
-                          stride=1, padding='SAME'):
-        # Auxiliary Head logits
-        if create_aux_logits and num_classes:
-          with tf.variable_scope('AuxLogits'):
-            # 17 x 17 x 1024
-            aux_logits = end_points['Mixed_6h']
-            aux_logits = slim.avg_pool2d(aux_logits, [5, 5], stride=3,
-                                         padding='VALID',
-                                         scope='AvgPool_1a_5x5')
-            aux_logits = slim.conv2d(aux_logits, 128, [1, 1],
-                                     scope='Conv2d_1b_1x1')
-            aux_logits = slim.conv2d(aux_logits, 768,
-                                     aux_logits.get_shape()[1:3],
-                                     padding='VALID', scope='Conv2d_2a')
-            aux_logits = slim.flatten(aux_logits)
-            aux_logits = slim.fully_connected(aux_logits, num_classes,
-                                              activation_fn=None,
-                                              scope='Aux_logits')
-            end_points['AuxLogits'] = aux_logits
-
-        # Final pooling and prediction
-        # TODO(sguada,arnoegw): Consider adding a parameter global_pool which
-        # can be set to False to disable pooling here (as in resnet_*()).
-        with tf.variable_scope('Logits'):
-          # 8 x 8 x 1536
-          kernel_size = net.get_shape()[1:3]
-          if kernel_size.is_fully_defined():
-            net = slim.avg_pool2d(net, kernel_size, padding='VALID',
-                                  scope='AvgPool_1a')
-          else:
-            net = tf.reduce_mean(net, [1, 2], keep_dims=True,
-                                 name='global_pool')
-          end_points['global_pool'] = net
-          if not num_classes:
-            return net, end_points
-          # 1 x 1 x 1536
-          net = slim.dropout(net, dropout_keep_prob, scope='Dropout_1b')
-          net = slim.flatten(net, scope='PreLogitsFlatten')
-          end_points['PreLogitsFlatten'] = net
-          # 1536
-          logits = slim.fully_connected(net, num_classes, activation_fn=None,
-                                        scope='Logits')
-          end_points['Logits'] = logits
-          end_points['Predictions'] = tf.nn.softmax(logits, name='Predictions')
+        with slim.arg_scope([slim.conv2d, slim.max_pool2d, slim.avg_pool2d],
+                            stride=1, padding='SAME'):
+          # Auxiliary Head logits
+          if create_aux_logits and num_classes:
+            with tf.variable_scope('AuxLogits'):
+              # 17 x 17 x 1024
+              aux_logits = end_points['Mixed_6h']
+              aux_logits = slim.avg_pool2d(aux_logits, [5, 5], stride=3,
+                                           padding='VALID',
+                                           scope='AvgPool_1a_5x5')
+              aux_logits = slim.conv2d(aux_logits, 128, [1, 1],
+                                       scope='Conv2d_1b_1x1')
+              aux_logits = slim.conv2d(aux_logits, 768,
+                                       aux_logits.get_shape()[1:3],
+                                       padding='VALID', scope='Conv2d_2a')
+              aux_logits = slim.flatten(aux_logits)
+              aux_logits = slim.fully_connected(aux_logits, num_classes,
+                                                activation_fn=None,
+                                                scope='Aux_logits')
+              end_points['AuxLogits'] = aux_logits
+  
+          # Final pooling and prediction
+          # TODO(sguada,arnoegw): Consider adding a parameter global_pool which
+          # can be set to False to disable pooling here (as in resnet_*()).
+          with tf.variable_scope('Logits'):
+            # 8 x 8 x 1536
+            kernel_size = net.get_shape()[1:3]
+            if kernel_size.is_fully_defined():
+              net = slim.avg_pool2d(net, kernel_size, padding='VALID',
+                                    scope='AvgPool_1a')
+            else:
+              net = tf.reduce_mean(net, [1, 2], keep_dims=True,
+                                   name='global_pool')
+            end_points['global_pool'] = net
+            if not num_classes:
+              return net, end_points
+            # 1 x 1 x 1536
+            net = slim.dropout(net, dropout_keep_prob, scope='Dropout_1b')
+            net = slim.flatten(net, scope='PreLogitsFlatten')
+            end_points['PreLogitsFlatten'] = net
+            # 1536
+            logits = slim.fully_connected(net, num_classes, activation_fn=None,
+                                          scope='Logits')
+            end_points['Logits'] = logits
+            end_points['Predictions'] = tf.nn.softmax(logits, name='Predictions')
     return logits, end_points
 inception_v4.default_image_size = 299
 
