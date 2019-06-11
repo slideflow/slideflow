@@ -48,6 +48,49 @@ RUN_OPTS = tf.RunOptions(report_tensor_allocations_upon_oom = True)
 # TODO: implement/extend hooks for early training stopping: https://www.math.purdue.edu/~nwinovic/tensorflow_sessions.html
 # - calculation method: look at last 7 validation losses, calculate slope, stop if slope < 0.25 (loss/check)
 
+class _LoggerHook(tf.train.SessionRunHook):
+	'''Logs loss and runtime.'''
+	def __init__(self, train_str, test_str, parent):
+		self.parent = parent
+		self.train_str = train_str
+		self.test_str = test_str
+		self.train_handle = None
+		self.test_handle = None
+
+	def after_create_session(self, session, coord):
+		print ('Initializing data input stream...')
+		if self.train_str is not None:
+			self.train_iterator_handle, self.test_iterator_handle = session.run([self.train_str, self.test_str])
+			session.run([init, train_it.initializer, test_it.initializer])
+		print ('complete.')
+			
+	def begin(self):
+		self._step = -1
+		self._start_time = time.time()
+
+	def before_run(self, run_context):
+		feed_dict = run_context.original_args.feed_dict
+		if feed_dict and it_handle in feed_dict and feed_dict[it_handle] == self.train_iterator_handle:
+			self._step += 1
+			return tf.train.SessionRunArgs(loss)
+
+	def after_run(self, run_context, run_values):
+		if ((self._step % self.parent.LOG_FREQUENCY == 0) and
+			(run_context.original_args.feed_dict) and
+			(it_handle in run_context.original_args.feed_dict) and
+			(run_context.original_args.feed_dict[it_handle] == self.train_iterator_handle)):
+			current_time = time.time()
+			duration = current_time - self._start_time
+			self._start_time = current_time
+
+			loss_value = run_values.results
+			images_per_sec = self.parent.LOG_FREQUENCY * self.parent.BATCH_SIZE / duration
+			sec_per_batch = float(duration / self.parent.LOG_FREQUENCY)
+
+			format_str = ('%s: step %d, loss = %.2f (%.1f images/sec; %.3f sec/batch)')
+			print(format_str % (datetime.now(), self._step, loss_value,
+								images_per_sec, sec_per_batch))
+
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
@@ -285,49 +328,6 @@ class SlideflowModel:
 		layout_summary = self.generate_loss_chart()
 
 		init = (tf.global_variables_initializer(), tf.local_variables_initializer())
-
-		class _LoggerHook(tf.train.SessionRunHook):
-			'''Logs loss and runtime.'''
-			def __init__(self, train_str, test_str, parent):
-				self.parent = parent
-				self.train_str = train_str
-				self.test_str = test_str
-				self.train_handle = None
-				self.test_handle = None
-
-			def after_create_session(self, session, coord):
-				print ('Initializing data input stream...')
-				if self.train_str is not None:
-					self.train_iterator_handle, self.test_iterator_handle = session.run([self.train_str, self.test_str])
-					session.run([init, train_it.initializer, test_it.initializer])
-				print ('complete.')
-					
-			def begin(self):
-				self._step = -1
-				self._start_time = time.time()
-
-			def before_run(self, run_context):
-				feed_dict = run_context.original_args.feed_dict
-				if feed_dict and it_handle in feed_dict and feed_dict[it_handle] == self.train_iterator_handle:
-					self._step += 1
-					return tf.train.SessionRunArgs(loss)
-
-			def after_run(self, run_context, run_values):
-				if ((self._step % self.parent.LOG_FREQUENCY == 0) and
-				   (run_context.original_args.feed_dict) and
-				   (it_handle in run_context.original_args.feed_dict) and
-				   (run_context.original_args.feed_dict[it_handle] == self.train_iterator_handle)):
-					current_time = time.time()
-					duration = current_time - self._start_time
-					self._start_time = current_time
-
-					loss_value = run_values.results
-					images_per_sec = self.parent.LOG_FREQUENCY * self.parent.BATCH_SIZE / duration
-					sec_per_batch = float(duration / self.parent.LOG_FREQUENCY)
-
-					format_str = ('%s: step %d, loss = %.2f (%.1f images/sec; %.3f sec/batch)')
-					print(format_str % (datetime.now(), self._step, loss_value,
-										images_per_sec, sec_per_batch))
 
 		loggerhook = _LoggerHook(train_it.string_handle(), test_it.string_handle(), self)
 		step = 1
