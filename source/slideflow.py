@@ -160,6 +160,7 @@ class SlideFlowProject:
 				print(f"[{sfutil.fail('ERROR')}] Unable to delete tiles for case '{case}'.")
 					
 	def separate_training_and_eval(self):
+		'''Separate training and eval raw image sets. Assumes images are located in "train_data" directory.'''
 		if self.get_task('separate_training_and_eval') == 'complete':
 			print('Warning: Training and eval dataset separation already complete.')
 			#return
@@ -169,6 +170,7 @@ class SlideFlowProject:
 		self.update_task('separate_training_and_eval', 'complete')
 
 	def generate_tfrecord(self):
+		'''Create tfrecord files from a collection of raw images'''
 		# Note: this will not work as the write_tfrecords function expects a category directory
 		# Will leave as is to manually test performance with category defined in the TFRecrod
 		#  vs. dynamically assigning category via annotation metadata during training
@@ -186,17 +188,45 @@ class SlideFlowProject:
 			shutil.rmtree(join(self.TILES_DIR, "eval_data"))
 		self.update_task('generate_tfrecord', 'complete')
 
-	def start_training(self, model_name):
+	def start_training(self, model_name, model_config=None):
+		'''Train a model once using a given configuration (or use default if none supplied)'''
 		self.update_task('training', 'in process')
 		print(f"Training model {model_name}...")
 		model_dir = join(self.MODELS_DIR, model_name)
+		# If no model configuration supplied, use default values
+		if not model_config:
+			model_config = sfmodel.SFModelConfig(self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, use_fp16=self.USE_FP16)
 
-		devnull = open(os.devnull, 'w')
+		#devnull = open(os.devnull, 'w')
 		#tensorboard_process = subprocess.Popen(['tensorboard', f'--logdir={model_dir}'], stdout=devnull)
 
 		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
-		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE, self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, self.USE_FP16, augment=False)
+		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE)
+		SFM.config(model_config)
 		SFM.train(restore_checkpoint = self.PRETRAIN_DIR)
+
+	def batch_train(self, config_file):
+		'''Train a batch of models sequentially given configurations found in an annotations file.'''
+		with open(config_file) as csv_file:
+			reader = csv.reader(config_file)
+			header = next(reader)
+			try:
+				model_name_i = header.index('model_name')
+			except:
+				print(f"[{sfutil.fail('ERROR')}] Unable to find column 'model_name' in the batch training config file.")
+				sys.exit()
+			# Get all column headers except 'model_name'
+			args = header[0:model_name_i] + header[model_name_i+1:]
+			for row in reader:
+				model_name = row[model_name_i]
+				model_config = sfmodel.SFModelConfig(self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, use_fp16=self.USE_FP16)
+				for arg in args:
+					value = row[header.index(arg)]
+					if arg in model_config.get_args():
+						setattr(model_config, arg, value)
+					else:
+						print(f"[{sfutil.fail('ERROR')}] Unknown argument '{arg}' found in training config file.")
+				self.start_training(model_name, model_config)
 
 	def create_blank_annotations_file(self, scan_for_cases=False):
 		case_header_name = TCGAAnnotations.case
