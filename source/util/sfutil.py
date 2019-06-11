@@ -221,7 +221,7 @@ def verify_annotations(annotations_file, slides_dir=None):
 			for slide_filename in slide_list:
 				slide_name = slide_filename.split('/')[-1][:-4]
 				# First, make sure the shortname and long name aren't both in the annotation file
-				if (slide_name in cases) and (_shortname(slide_name) in cases):
+				if (slide_name != _shortname(slide_name)) and (slide_name in cases) and (_shortname(slide_name) in cases):
 					print(f" + [{fail('ERROR')}] Both slide name {slide_name} and shorthand {_shortname(slide_name)} in annotation file; please remove one.")
 					sys.exit()
 				# Check if either the slide name or the shortened version are in the annotation file
