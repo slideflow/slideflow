@@ -205,7 +205,8 @@ class SlideFlowProject:
 		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
 		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE)
 		SFM.config(model_config)
-		SFM.train(restore_checkpoint = self.PRETRAIN_DIR)
+		validation_loss = SFM.train(restore_checkpoint = self.PRETRAIN_DIR)
+		return validation_loss
 
 	def batch_train(self):
 		'''Train a batch of models sequentially given configurations found in an annotations file.'''
@@ -229,7 +230,8 @@ class SlideFlowProject:
 						setattr(model_config, arg, arg_type(value))
 					else:
 						print(f"[{sfutil.fail('ERROR')}] Unknown argument '{arg}' found in training config file.")
-				self.train_model(model_name, model_config)
+				validation_loss = self.train_model(model_name, model_config)
+				print(f"[{sfutil.header('Complete')}] Training complete for model {model_name}, validation loss {sfutil.info(validation_loss)}")
 
 	def create_blank_batch_config(self):
 		'''Creates a CSV file with the batch training structure.'''
