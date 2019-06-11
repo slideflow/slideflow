@@ -51,7 +51,7 @@ RUN_OPTS = tf.RunOptions(report_tensor_allocations_upon_oom = True)
 class SFModelConfig:
 	def __init__(self, image_size, num_classes, batch_size, augment=False,
 				learning_rate=0.01, beta1=0.9, beta2=0.999, epsilon=1.0, early_stop=0.015,
-				max_epoch=30, log_frequency=20, summary_steps=20, test_frequency=600, use_fp16=True):
+				max_epoch=300, log_frequency=20, summary_steps=20, test_frequency=600, use_fp16=True):
 		''' Declare constants describing the model and training process.
 		Args:
 			image_size						Size of input images in pixels
@@ -114,6 +114,9 @@ class SlideflowModel:
 		# TODO: use verification done by parent slideflow module; if not done, offer to use again
 		#tfrecord_files = [self.TRAIN_TFRECORD, self.EVAL_TFRECORD] if self.USE_TFRECORD else []
 		#sfutil.verify_tiles(annotations, self.INPUT_DIR, tfrecord_files)
+
+		# Reset default graph
+		tf.reset_default_graph()
 
 		with tf.device('/cpu'):
 			with tf.variable_scope("annotations"):
