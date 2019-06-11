@@ -85,13 +85,14 @@ class SFModelConfig:
 		self.use_fp16 = use_fp16
 
 	def get_args(self):
-		return [i for i in dir(self) if not i.starts_with('_')]
+		ignored_args = ['image_size', 'num_classes', 'batch_size', 'use_fp16', 'get_args', 'print_config']
+		return [i for i in dir(self) if (not i[0]=='_') and (i not in ignored_args)]
 
 	def print_config(self):
 		print(f" + [{sfutil.info('INFO')}] Model configuration:")
 		for arg in self.get_args():
 			value = getattr(self, arg)
-			print(f"   {sfutil.info(arg)} = {value}")
+			print(f"   {sfutil.header(arg)} = {value}")
 
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
