@@ -211,17 +211,17 @@ class SlideFlowProject:
 		#tensorboard_process = subprocess.Popen(['tensorboard', f'--logdir={model_dir}'], stdout=devnull)
 
 		print(f" + [{sfutil.info('INFO')}] Using {sfutil.green('ImageNet')} pretraining")
-		validation_loss = SFM.train()
+		val_acc = SFM.train()
 		'''if self.PRETRAIN == 'imagenet':
 			validation_loss = SFM.retrain()
 		else:
 			print(f" + [{sfutil.info('INFO')}] Pretraining from model {sfutil.green(self.PRETRAIN)}")
 			validation_loss = SFM.train(restore_checkpoint = self.PRETRAIN)'''
-		return validation_loss
+		return val_acc
 
 	def batch_train(self):
 		'''Train a batch of models sequentially given configurations found in an annotations file.'''
-		model_losses = {}
+		model_acc = {}
 		with open(self.BATCH_TRAIN_CONFIG) as csv_file:
 			reader = csv.reader(csv_file)
 			header = next(reader)
@@ -242,12 +242,12 @@ class SlideFlowProject:
 						setattr(model_config, arg, arg_type(value))
 					else:
 						print(f"[{sfutil.fail('ERROR')}] Unknown argument '{arg}' found in training config file.")
-				validation_loss = self.train_model(model_name, model_config)
-				model_losses.update({model_name: validation_loss})
-				print(f"\n[{sfutil.header('Complete')}] Training complete for model {model_name}, validation loss {sfutil.info(str(validation_loss))}\n")
+				val_acc = self.train_model(model_name, model_config)
+				model_acc.update({model_name: min(val_acc)})
+				print(f"\n[{sfutil.header('Complete')}] Training complete for model {model_name}, minimum validation loss {sfutil.info(min(val_acc))}\n")
 		print(f"\n[{sfutil.header('Complete')}] Batch training complete; validation losses:")
-		for model in model_losses:
-			print(f" - {sfutil.green(model)}: {str(model_losses[model])}")
+		for model in model_acc:
+			print(f" - {sfutil.green(model)}: {str(model_acc[model])}")
 
 
 	def create_blank_batch_config(self):
