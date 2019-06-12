@@ -258,7 +258,8 @@ def inception_v4(inputs, num_classes=1001, is_training=True,
                  dropout_keep_prob=0.8,
                  reuse=None,
                  scope='InceptionV4',
-                 create_aux_logits=True):
+                 create_aux_logits=True,
+				 batch_norm_decay=0.95):
   """Creates the Inception V4 model.
 
   Args:
@@ -282,7 +283,7 @@ def inception_v4(inputs, num_classes=1001, is_training=True,
   end_points = {}
   with tf.variable_scope(scope, 'InceptionV4', [inputs], reuse=reuse) as scope:
     with slim.arg_scope([slim.batch_norm], is_training=is_training,
-						decay=0.95): #default decay is 0.999
+						decay=batch_norm_decay): #default decay is 0.999
       with slim.arg_scope([slim.dropout], is_training=is_training):
         net, end_points = inception_v4_base(inputs, scope=scope)
 
