@@ -238,6 +238,9 @@ class SlideflowModel:
 															  write_graph=False,
 															  update_freq=self.BATCH_SIZE*self.LOG_FREQUENCY)
 
+		# Callback for history (monitoring training/validation accuracy)
+		history = tf.keras.callbacks.History()
+
 		# Get pretrained model
 		base_model = tf.keras.applications.InceptionV3(
 			input_shape=(self.IMAGE_SIZE, self.IMAGE_SIZE, 3),
@@ -303,9 +306,10 @@ class SlideflowModel:
 			initial_epoch=num_epochs,
 			validation_data=test_data.repeat(),
 			validation_steps=val_steps,
-			callbacks=[cp_callback, tensorboard_callback])
+			callbacks=[cp_callback, tensorboard_callback, history])
 
 		model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
+		return history.history['val_acc']
 
 if __name__ == "__main__":
 	#os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
