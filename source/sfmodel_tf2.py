@@ -51,7 +51,7 @@ from util.sfutil import TCGAAnnotations
 class SFModelConfig:
 	def __init__(self, image_size, num_classes, batch_size, augment=False, learning_rate=0.01, 
 				beta1=0.9, beta2=0.999, epsilon=1.0, batch_norm_decay=0.99, early_stop=0.015, 
-				max_epoch=300, log_frequency=20, summary_steps=20, test_frequency=600, use_fp16=True):
+				max_epoch=300, log_frequency=20, test_frequency=600, use_fp16=True):
 		''' Declare constants describing the model and training process.
 		Args:
 			image_size						Size of input images in pixels
@@ -66,7 +66,6 @@ class SFModelConfig:
 			early_stop						Rate of validation loss decay that should trigger early stopping
 			max_epoch						Maximum number of times to repeat through training set
 			log_frequency					How often to log results to console, in steps
-			summary_steps					How often to save summaries for Tensorboard display, in steps
 			test_frequency					How often to run validation testing, in steps
 			use_fp16						Whether to use FP16 or not (vs. FP32)
 		'''		
@@ -82,7 +81,6 @@ class SFModelConfig:
 		self.early_stop = early_stop
 		self.max_epoch = max_epoch
 		self.log_frequency = log_frequency
-		self.summary_steps = summary_steps
 		self.test_frequency = test_frequency
 		self.use_fp16 = use_fp16
 
@@ -143,7 +141,6 @@ class SlideflowModel:
 		self.VALIDATION_EARLY_STOP_SLOPE = config.early_stop
 		self.MAX_EPOCH = config.max_epoch
 		self.LOG_FREQUENCY = config.log_frequency
-		self.SUMMARY_STEPS = config.summary_steps
 		self.TEST_FREQUENCY = config.test_frequency
 		self.USE_FP16 = config.use_fp16
 		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
@@ -236,7 +233,10 @@ class SlideflowModel:
 
 		# Callbacks for summary writing
 		logdir = self.DATA_DIR
-		tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir, histogram_freq=0)
+		tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir, 
+															  histogram_freq=0,
+															  write_graph=False,
+															  update_freq=self.BATCH_SIZE*self.LOG_FREQUENCY)
 
 		# Get pretrained model
 		base_model = tf.keras.applications.InceptionV3(
@@ -258,15 +258,11 @@ class SlideflowModel:
 		])
 
 		# Compile the model
-		learning_rate = 0.1
-		model.compile(optimizer=tf.keras.optimizers.Adam(lr=learning_rate),
+		lr_fast = self.LEARNING_RATE * 10
+		model.compile(optimizer=tf.keras.optimizers.Adam(lr=lr_fast),
 					  loss='sparse_categorical_crossentropy',
 					  metrics=['accuracy']
 		)
-
-		# Create final summary
-		file_writer = tf.summary.create_file_writer(logdir)
-		file_writer.set_as_default()
 
 		# Train final layer of the model
 		num_epochs=0
@@ -289,7 +285,7 @@ class SlideflowModel:
 			layer.trainable=False'''
 
 		# Recompile the model
-		lr_finetune = learning_rate / 10
+		lr_finetune = self.LEARNING_RATE
 		model.compile(loss='sparse_categorical_crossentropy',
 					  optimizer=tf.keras.optimizers.Adam(lr=lr_finetune),
 					  metrics=['accuracy'])
@@ -310,13 +306,6 @@ class SlideflowModel:
 			callbacks=[cp_callback, tensorboard_callback])
 
 		model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
-
-		'''with tf.name_scope('loss'):
-			train_summ = summary_lib.scalar('training', loss)
-			inception_summaries = tf.summary.merge_all()
-			valid_summ = summary_lib.scalar('valid', validation_loss)
-		
-		layout_summary = self.generate_loss_chart()'''
 
 if __name__ == "__main__":
 	#os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
