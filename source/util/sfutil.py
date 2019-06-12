@@ -132,6 +132,12 @@ def parse_config(config_file):
 	with open(config_file, 'r') as data_file:
 		return json.load(data_file)
 
+def _parse_function(example_proto):
+	feature_description = {'category': tf.io.FixedLenFeature([], tf.int64),
+						   'case':     tf.io.FixedLenFeature([], tf.string),
+						   'image_raw':tf.io.FixedLenFeature([], tf.string)}
+	return tf.io.parse_single_example(example_proto, feature_description)
+
 def write_config(data, config_file):
 	with open(config_file, "w") as data_file:
 		json.dump(data, data_file)
@@ -268,10 +274,13 @@ def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 	if tfrecord_files:
 		case_list_errors = []
 		for tfrecord_file in tfrecord_files:
-			tfrecord_iterator = tf.python_io.tf_record_iterator(path=tfrecord_file)
-			for string_record in tfrecord_iterator:
+			#tfrecord_iterator = tf.data.TFRecordDataset(tfrecord_file)
+			raw_dataset = tf.data.TFRecordDataset(tfrecord_file)
+			for i, raw_record in enumerate(raw_dataset):
+				sys.stdout.write(f"\r + Verifying tile...{i}")
+				sys.stdout.flush()
 				example = tf.train.Example()
-				example.ParseFromString(string_record)
+				example.ParseFromString(raw_record.numpy())
 				case = example.features.feature['case'].bytes_list.value[0].decode('utf-8')
 				case_list.extend([case])
 				case_list = list(set(case_list))
@@ -280,21 +289,19 @@ def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 					case_list_errors = list(set(case_list_errors))
 					success = False
 		for case in case_list_errors:
-			print(f" + [{fail('ERROR')}] Failed TFRecord integrity check: annotation not found for case {green(case)}")
-
+			print(f"\n + [{fail('ERROR')}] Failed TFRecord integrity check: annotation not found for case {green(case)}")
 	else:
 		case_list = [i.split('/')[-1] for i in glob(os.path.join(input_dir, "train_data/*"))]
 		case_list.extend([i.split('/')[-1] for i in glob(os.path.join(input_dir, "eval_data/*"))])
 		case_list = list(set(case_list))
 		for case in case_list:
 			if case not in annotations:
-				print(f" + [{fail('ERROR')}] Failed image tile integrity check: annotation not found for case {green(case)}")
+				print(f"\n + [{fail('ERROR')}] Failed image tile integrity check: annotation not found for case {green(case)}")
 				success = False
+	print(f" ...complete.")
 	# Now, check to see if all annotations have a corresponding set of tiles
 	for annotation_case in annotations.keys():
 		if annotation_case not in case_list:
 			print(f"   - [{warn('WARN')}] Case {green(annotation_case)} in annotation file has no image tiles")
 	if not success:
 		sys.exit()
-	else:
-		print(f"   ...complete.")
