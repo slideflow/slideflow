@@ -26,22 +26,13 @@ import pickle
 import argparse
 
 import tensorflow as tf
-'''from tensorflow.contrib.framework import arg_scope
-from tensorflow.summary import FileWriterCache
-import tensorflow.contrib.lookup'''
 from tensorboard.plugins.custom_scalar import layout_pb2
 
-#import inception_v4
-#from inception_utils import inception_arg_scope
 from glob import glob
 from scipy.stats import linregress
 
 from util import tfrecords, sfutil
 from util.sfutil import TCGAAnnotations
-
-#slim = tf.contrib.slim
-
-#RUN_OPTS = tf.RunOptions(report_tensor_allocations_upon_oom = True)
 
 # Calculate accuracy with https://stackoverflow.com/questions/50111438/tensorflow-validate-accuracy-with-batch-data
 # TODO: try next, comment out line 254 (results in calculating total_loss before update_ops is called)
@@ -49,9 +40,9 @@ from util.sfutil import TCGAAnnotations
 # TODO: export logs to file for monitoring remotely
 
 class SFModelConfig:
-	def __init__(self, image_size, num_classes, batch_size, augment=False, learning_rate=0.01, 
-				beta1=0.9, beta2=0.999, epsilon=1.0, batch_norm_decay=0.99, early_stop=0.015, 
-				max_epoch=300, log_frequency=20, test_frequency=600, use_fp16=True):
+	def __init__(self, image_size, num_classes, batch_size, num_tiles=50000, augment=False, 
+				learning_rate=0.01, beta1=0.9, beta2=0.999, epsilon=1.0, batch_norm_decay=0.99, 
+				early_stop=0.015, max_epoch=300, log_frequency=20, test_frequency=600, use_fp16=True):
 		''' Declare constants describing the model and training process.
 		Args:
 			image_size						Size of input images in pixels
@@ -72,6 +63,7 @@ class SFModelConfig:
 		self.image_size = image_size
 		self.num_classes = num_classes
 		self.batch_size = batch_size
+		self.num_tiles = num_tiles
 		self.augment = augment
 		self.learning_rate = learning_rate
 		self.beta1 = beta1
@@ -115,11 +107,7 @@ class SlideflowModel:
 		#tfrecord_files = [self.TRAIN_TFRECORD, self.EVAL_TFRECORD] if self.USE_TFRECORD else []
 		#sfutil.verify_tiles(annotations, self.INPUT_DIR, tfrecord_files)
 
-		# Reset default graph
-		#tf.reset_default_graph()
-
 		with tf.device('/cpu'):
-			#with tf.variable_scope("annotations"):
 			self.ANNOTATIONS_TABLE = tf.lookup.StaticHashTable(
 				tf.lookup.KeyValueTensorInitializer(list(annotations.keys()), list(annotations.values())), -1
 			)
@@ -132,6 +120,7 @@ class SlideflowModel:
 		self.IMAGE_SIZE = config.image_size
 		self.NUM_CLASSES = config.num_classes
 		self.BATCH_SIZE = config.batch_size
+		self.NUM_TILES = config.num_tiles
 		self.AUGMENT = config.augment
 		self.LEARNING_RATE = config.learning_rate
 		self.BETA1 = config.beta1
@@ -220,34 +209,37 @@ class SlideflowModel:
 		
 		return train_dataset, test_dataset
 
-	def train(self):
+	def train(self, pretrain='imagenet'):
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 		
 		train_data, test_data = self.build_inputs()
 
-		# Create callback for checkpoint saving
+		# Create callbacks for checkpoint saving, summaries, and history
 		checkpoint_path = os.path.join(self.MODEL_DIR, "cp.ckpt")
 		cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
 														 save_weights_only=True,
 														 verbose=1)
-
-		# Callbacks for summary writing
 		logdir = self.DATA_DIR
 		tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir, 
 															  histogram_freq=0,
 															  write_graph=False,
 															  update_freq=self.BATCH_SIZE*self.LOG_FREQUENCY)
-
-		# Callback for history (monitoring training/validation accuracy)
 		history = tf.keras.callbacks.History()
 
 		# Get pretrained model
-		base_model = tf.keras.applications.InceptionV3(
-			input_shape=(self.IMAGE_SIZE, self.IMAGE_SIZE, 3),
-			include_top=False,
-			pooling='max',
-			weights='imagenet'
-		)
+		if pretrain and pretrain!='imagenet':
+			# Load pretrained model
+			pretrained_model = tf.keras.models.load_model(pretrain)
+			base_model = pretrained_model.get_layer(index=0)
+		else:
+			# Create model using ImageNet if specified
+			base_model = tf.keras.applications.InceptionV3(
+				input_shape=(self.IMAGE_SIZE, self.IMAGE_SIZE, 3),
+				include_top=False,
+				pooling='max',
+				weights=pretrain
+			)
+
 		# Freeze pretrained weights
 		base_model.trainable = False
 		
@@ -260,7 +252,10 @@ class SlideflowModel:
 			prediction_layer
 		])
 
-		# Compile the model
+		num_epochs=0
+		steps_per_epoch=round(self.NUM_TILES/self.BATCH_SIZE)
+		val_steps=20
+		'''# Compile the model
 		lr_fast = self.LEARNING_RATE * 10
 		model.compile(optimizer=tf.keras.optimizers.Adam(lr=lr_fast),
 					  loss='sparse_categorical_crossentropy',
@@ -268,19 +263,16 @@ class SlideflowModel:
 		)
 
 		# Train final layer of the model
-		num_epochs=1
-		steps_per_epoch=round(500/self.BATCH_SIZE)
-		val_steps=20
-		model.fit(train_data.repeat(),
+		finallayer_model = model.fit(train_data.repeat(),
 				  epochs=num_epochs,
 				  steps_per_epoch=steps_per_epoch,
 				  validation_data=test_data.repeat(),
 				  validation_steps=val_steps,
-				  callbacks=[cp_callback, tensorboard_callback])
+				  callbacks=[cp_callback, tensorboard_callback, history])
 
 		# Now, fine-tune the model
 		# Unfreeze all layers
-		print(f" + [{sfutil.info('INFO')}] Beginning fine-tuning")
+		print(f" + [{sfutil.info('INFO')}] Beginning fine-tuning")'''
 		base_model.trainable = True
 
 		'''# Refreeze layers until the layers we want to fine-tune ???
@@ -294,13 +286,13 @@ class SlideflowModel:
 					  metrics=['accuracy'])
 
 		# Increase training epochs for fine-tuning
-		fine_tune_epochs = 0
+		fine_tune_epochs = self.MAX_EPOCH
 		total_epochs = num_epochs + fine_tune_epochs
 
 		# Fine-tune model
 		# Note: will need to set initial_epoch to begin training after epoch 30
 		# Since we just trained for 30 epochs
-		model.fit(train_data.repeat(),
+		finetune_model = model.fit(train_data.repeat(),
 			steps_per_epoch=steps_per_epoch,
 			epochs=total_epochs,
 			initial_epoch=num_epochs,
@@ -309,7 +301,7 @@ class SlideflowModel:
 			callbacks=[cp_callback, tensorboard_callback, history])
 
 		model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
-		return history.history['val_acc']
+		return fine_tune_epochs.history['val_accuracy']
 
 if __name__ == "__main__":
 	#os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
