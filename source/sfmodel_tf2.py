@@ -301,7 +301,7 @@ class SlideflowModel:
 			callbacks=[cp_callback, tensorboard_callback, history])
 
 		model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
-		return fine_tune_epochs.history['val_accuracy']
+		return finetune_model.history['val_accuracy']
 
 if __name__ == "__main__":
 	#os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
