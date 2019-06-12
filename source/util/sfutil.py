@@ -271,14 +271,15 @@ def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 	print(f" + Verifying tiles and annotations...")
 	success = True
 	case_list = []
+	num_tiles = 0 # Number of training tiles
 	if tfrecord_files:
 		case_list_errors = []
 		for tfrecord_file in tfrecord_files:
-			#tfrecord_iterator = tf.data.TFRecordDataset(tfrecord_file)
 			raw_dataset = tf.data.TFRecordDataset(tfrecord_file)
 			for i, raw_record in enumerate(raw_dataset):
 				sys.stdout.write(f"\r + Verifying tile...{i}")
 				sys.stdout.flush()
+				num_tiles = i
 				example = tf.train.Example()
 				example.ParseFromString(raw_record.numpy())
 				case = example.features.feature['case'].bytes_list.value[0].decode('utf-8')
@@ -291,6 +292,7 @@ def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 		for case in case_list_errors:
 			print(f"\n + [{fail('ERROR')}] Failed TFRecord integrity check: annotation not found for case {green(case)}")
 	else:
+		num_tiles = len(glob(os.path.join(input_dir, "train_data/**/*.jpg")))
 		case_list = [i.split('/')[-1] for i in glob(os.path.join(input_dir, "train_data/*"))]
 		case_list.extend([i.split('/')[-1] for i in glob(os.path.join(input_dir, "eval_data/*"))])
 		case_list = list(set(case_list))
@@ -305,3 +307,5 @@ def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 			print(f"   - [{warn('WARN')}] Case {green(annotation_case)} in annotation file has no image tiles")
 	if not success:
 		sys.exit()
+	else:
+		return num_tiles
