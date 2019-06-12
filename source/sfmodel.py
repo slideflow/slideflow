@@ -49,8 +49,8 @@ RUN_OPTS = tf.RunOptions(report_tensor_allocations_upon_oom = True)
 # TODO: export logs to file for monitoring remotely
 
 class SFModelConfig:
-	def __init__(self, image_size, num_classes, batch_size, augment=False,
-				learning_rate=0.01, beta1=0.9, beta2=0.999, epsilon=1.0, early_stop=0.015,
+	def __init__(self, image_size, num_classes, batch_size, augment=False, learning_rate=0.01, 
+				beta1=0.9, beta2=0.999, epsilon=1.0, batch_norm_decay=0.99, early_stop=0.015, 
 				max_epoch=300, log_frequency=20, summary_steps=20, test_frequency=600, use_fp16=True):
 		''' Declare constants describing the model and training process.
 		Args:
@@ -62,6 +62,7 @@ class SFModelConfig:
 			beta1							Beta1 for AdamOptimizer
 			beta2							Beta2 for AdamOptimizer
 			epsilon							Epsilon for AdamOptimizer
+			batch_norm_decay				Decay rate for batch_norm (0.999 default, use lower numbers if poor validation performance)
 			early_stop						Rate of validation loss decay that should trigger early stopping
 			max_epoch						Maximum number of times to repeat through training set
 			log_frequency					How often to log results to console, in steps
@@ -77,6 +78,7 @@ class SFModelConfig:
 		self.beta1 = beta1
 		self.beta2 = beta2
 		self.epsilon = epsilon
+		self.batch_norm_decay = batch_norm_decay
 		self.early_stop = early_stop
 		self.max_epoch = max_epoch
 		self.log_frequency = log_frequency
@@ -137,6 +139,7 @@ class SlideflowModel:
 		self.BETA1 = config.beta1
 		self.BETA2 = config.beta2
 		self.EPSILON = config.epsilon
+		self.BATCH_NORM_DECAY = config.batch_norm_decay
 		self.VALIDATION_EARLY_STOP_SLOPE = config.early_stop
 		self.MAX_EPOCH = config.max_epoch
 		self.LOG_FREQUENCY = config.log_frequency
@@ -298,7 +301,8 @@ class SlideflowModel:
 			logits, end_points = inception_v4.inception_v4(next_batch_images, 
 														   num_classes=self.NUM_CLASSES,
 														   is_training=training_pl,
-														   reuse=tf.AUTO_REUSE)
+														   reuse=tf.AUTO_REUSE,
+														   batch_norm_decay=self.BATCH_NORM_DECAY)
 
 			if restore_checkpoint:
 				for trainable_var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
@@ -430,6 +434,7 @@ class SlideflowModel:
 
 					if val_acc < first_validation_loss and linregress(xs, ys).slope > (-1 * first_validation_loss * self.VALIDATION_EARLY_STOP_SLOPE):
 						mon_sess.close()
+						break
 
 					# Reset the test iterator initializer for the next run
 					mon_sess.run(test_it.initializer, feed_dict={it_handle:loggerhook.test_iterator_handle}, options=RUN_OPTS)
