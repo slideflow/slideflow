@@ -37,6 +37,7 @@ class SlideFlowProject:
 	TILE_UM = None
 	TILE_PX = None
 	NUM_CLASSES = None
+	NUM_TILES = 0
 
 	EVAL_FRACTION = 0.1
 	AUGMENTATION = convoluter.NO_AUGMENTATION
@@ -205,18 +206,13 @@ class SlideFlowProject:
 		# If no model configuration supplied, use default values
 		if not model_config:
 			model_config = sfmodel.SFModelConfig(self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, use_fp16=self.USE_FP16)
+		if self.NUM_TILES > 0:
+			model_config.num_tiles = self.NUM_TILES
 		SFM.config(model_config)
 
-		#devnull = open(os.devnull, 'w')
-		#tensorboard_process = subprocess.Popen(['tensorboard', f'--logdir={model_dir}'], stdout=devnull)
+		print(f" + [{sfutil.info('INFO')}] Using pre-training from {sfutil.green(self.PRETRAIN)}")
+		val_acc = SFM.train(self.PRETRAIN)
 
-		print(f" + [{sfutil.info('INFO')}] Using {sfutil.green('ImageNet')} pretraining")
-		val_acc = SFM.train()
-		'''if self.PRETRAIN == 'imagenet':
-			validation_loss = SFM.retrain()
-		else:
-			print(f" + [{sfutil.info('INFO')}] Pretraining from model {sfutil.green(self.PRETRAIN)}")
-			validation_loss = SFM.train(restore_checkpoint = self.PRETRAIN)'''
 		return val_acc
 
 	def batch_train(self):
@@ -243,9 +239,9 @@ class SlideFlowProject:
 					else:
 						print(f"[{sfutil.fail('ERROR')}] Unknown argument '{arg}' found in training config file.")
 				val_acc = self.train_model(model_name, model_config)
-				model_acc.update({model_name: min(val_acc)})
-				print(f"\n[{sfutil.header('Complete')}] Training complete for model {model_name}, minimum validation loss {sfutil.info(min(val_acc))}\n")
-		print(f"\n[{sfutil.header('Complete')}] Batch training complete; validation losses:")
+				model_acc.update({model_name: max(val_acc)})
+				print(f"\n[{sfutil.header('Complete')}] Training complete for model {model_name}, max validation accuracy {sfutil.info(str(max(val_acc)))}\n")
+		print(f"\n[{sfutil.header('Complete')}] Batch training complete; validation accuracies:")
 		for model in model_acc:
 			print(f" - {sfutil.green(model)}: {str(model_acc[model])}")
 
@@ -315,7 +311,7 @@ class SlideFlowProject:
 					input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
 					annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name="slide", value_name="category")
 					tfrecord_files = [os.path.join(input_dir, f"{x}.tfrecords") for x in ["train", "eval"]] if self.USE_TFRECORD else []
-					sfutil.verify_tiles(annotations, input_dir, tfrecord_files)
+					self.NUM_TILES = sfutil.verify_tiles(annotations, input_dir, tfrecord_files)
 
 			print("\nProject configuration loaded.\n")
 		else:
