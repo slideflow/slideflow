@@ -14,9 +14,12 @@ import csv
 from util import sfutil
 from glob import glob
 
-FEATURE_DESCRIPTION =  {'category': tf.FixedLenFeature([], tf.int64),
-						'case':     tf.FixedLenFeature([], tf.string),
-						'image_raw':tf.FixedLenFeature([], tf.string)}
+FEATURE_DESCRIPTION =  {'category': tf.io.FixedLenFeature([], tf.int64),
+						'case':     tf.io.FixedLenFeature([], tf.string),
+						'image_raw':tf.io.FixedLenFeature([], tf.string)}
+
+def _parse_function(example_proto):
+	return tf.io.parse_single_example(example_proto, FEATURE_DESCRIPTION)
 
 def _float_feature(value):
 	"""Returns a bytes_list from a float / double."""

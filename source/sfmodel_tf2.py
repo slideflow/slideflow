@@ -236,7 +236,7 @@ class SlideflowModel:
 
 		# Callbacks for summary writing
 		logdir = self.DATA_DIR
-		tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir)
+		tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir, histogram_freq=0)
 
 		# Get pretrained model
 		base_model = tf.keras.applications.InceptionV3(
@@ -247,7 +247,6 @@ class SlideflowModel:
 		)
 		# Freeze pretrained weights
 		base_model.trainable = False
-		model=base_model
 		
 		# Create a trainable classification head / final layer, then link with base
 		fully_connected_layer = tf.keras.layers.Dense(1536, activation='relu')
@@ -270,7 +269,7 @@ class SlideflowModel:
 		file_writer.set_as_default()
 
 		# Train final layer of the model
-		num_epochs=1
+		num_epochs=0
 		steps_per_epoch=round(83000/self.BATCH_SIZE)
 		val_steps=20
 		model.fit(train_data.repeat(),
@@ -282,6 +281,7 @@ class SlideflowModel:
 
 		# Now, fine-tune the model
 		# Unfreeze all layers
+		print(f" + [{sfutil.info('INFO')}] Beginning fine-tuning")
 		base_model.trainable = True
 
 		'''# Refreeze layers until the layers we want to fine-tune ???
@@ -290,7 +290,7 @@ class SlideflowModel:
 
 		# Recompile the model
 		lr_finetune = learning_rate / 10
-		model.compile(loss='binary_crossentropy',
+		model.compile(loss='sparse_categorical_crossentropy',
 					  optimizer=tf.keras.optimizers.Adam(lr=lr_finetune),
 					  metrics=['accuracy'])
 
@@ -306,7 +306,10 @@ class SlideflowModel:
 			epochs=total_epochs,
 			initial_epoch=num_epochs,
 			validation_data=test_data.repeat(),
-			validation_steps=val_steps)
+			validation_steps=val_steps,
+			callbacks=[cp_callback, tensorboard_callback])
+
+		model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
 
 		'''with tf.name_scope('loss'):
 			train_summ = summary_lib.scalar('training', loss)
