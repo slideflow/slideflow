@@ -46,7 +46,7 @@ class SlideFlowProject:
 	def __init__(self, project_folder):
 		os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 		#tf.logging.set_verbosity(tf.logging.ERROR)
-		print('''SlideFlow v1.0\n==============\n''')
+		print('''\nSlideFlow v0.8\n==============\n''')
 		print('''Loading project...''')
 		if project_folder and not os.path.exists(project_folder):
 			if sfutil.yes_no_input(f'Directory "{project_folder}" does not exist. Create directory and set as project root? [Y/n] ', default='yes'):
