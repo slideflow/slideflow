@@ -11,13 +11,15 @@ import csv
 
 import subprocess
 import convoluter
-import sfmodel
+import sfmodel_tf2 as sfmodel
 from util import datasets, tfrecords, sfutil
 from util.sfutil import TCGAAnnotations
 
 # TODO: scan for duplicate SVS files (especially when converting TCGA long-names 
 # 	to short-names, e.g. when multiple diagnostic slides are present)
 # TODO: automatic loading of training configuration even when training one model
+
+SKIP_VERIFICATION = True
 
 class SlideFlowProject:
 	PROJECT_DIR = ""
@@ -28,7 +30,7 @@ class SlideFlowProject:
 	TILES_DIR = None
 	MODELS_DIR = None
 	BATCH_TRAIN_CONFIG = None
-	PRETRAIN_DIR = None
+	PRETRAIN = None
 	USE_TFRECORD = False
 	TFRECORD_DIR = None
 	DELETE_TILES = False
@@ -43,7 +45,7 @@ class SlideFlowProject:
 
 	def __init__(self, project_folder):
 		os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-		tf.logging.set_verbosity(tf.logging.ERROR)
+		#tf.logging.set_verbosity(tf.logging.ERROR)
 		print('''SlideFlow v1.0\n==============\n''')
 		print('''Loading project...''')
 		if project_folder and not os.path.exists(project_folder):
@@ -194,22 +196,32 @@ class SlideFlowProject:
 		'''Train a model once using a given configuration (or use default if none supplied)'''
 		self.update_task('training', 'in process')
 		print(f"Training model {model_name}...")
+
 		model_dir = join(self.MODELS_DIR, model_name)
+		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
+
+		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE)
+
 		# If no model configuration supplied, use default values
 		if not model_config:
 			model_config = sfmodel.SFModelConfig(self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, use_fp16=self.USE_FP16)
+		SFM.config(model_config)
 
 		#devnull = open(os.devnull, 'w')
 		#tensorboard_process = subprocess.Popen(['tensorboard', f'--logdir={model_dir}'], stdout=devnull)
 
-		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
-		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE)
-		SFM.config(model_config)
-		validation_loss = SFM.train(restore_checkpoint = self.PRETRAIN_DIR)
+		print(f" + [{sfutil.info('INFO')}] Using {sfutil.green('ImageNet')} pretraining")
+		validation_loss = SFM.train()
+		'''if self.PRETRAIN == 'imagenet':
+			validation_loss = SFM.retrain()
+		else:
+			print(f" + [{sfutil.info('INFO')}] Pretraining from model {sfutil.green(self.PRETRAIN)}")
+			validation_loss = SFM.train(restore_checkpoint = self.PRETRAIN)'''
 		return validation_loss
 
 	def batch_train(self):
 		'''Train a batch of models sequentially given configurations found in an annotations file.'''
+		model_losses = {}
 		with open(self.BATCH_TRAIN_CONFIG) as csv_file:
 			reader = csv.reader(csv_file)
 			header = next(reader)
@@ -231,7 +243,12 @@ class SlideFlowProject:
 					else:
 						print(f"[{sfutil.fail('ERROR')}] Unknown argument '{arg}' found in training config file.")
 				validation_loss = self.train_model(model_name, model_config)
-				print(f"[{sfutil.header('Complete')}] Training complete for model {model_name}, validation loss {sfutil.info(validation_loss)}")
+				model_losses.update({model_name: validation_loss})
+				print(f"\n[{sfutil.header('Complete')}] Training complete for model {model_name}, validation loss {sfutil.info(str(validation_loss))}\n")
+		print(f"\n[{sfutil.header('Complete')}] Batch training complete; validation losses:")
+		for model in model_losses:
+			print(f" - {sfutil.green(model)}: {str(model_losses[model])}")
+
 
 	def create_blank_batch_config(self):
 		'''Creates a CSV file with the batch training structure.'''
@@ -278,7 +295,7 @@ class SlideFlowProject:
 			self.TILES_DIR = data['tiles']
 			self.MODELS_DIR = data['models']
 			self.BATCH_TRAIN_CONFIG = data['batch_train_config']
-			self.PRETRAIN_DIR = data['pretraining']
+			self.PRETRAIN = data['pretraining']
 			self.TILE_UM = data['tile_um']
 			self.TILE_PX = data['tile_px']
 			self.NUM_CLASSES = data['num_classes']
@@ -287,7 +304,9 @@ class SlideFlowProject:
 			self.USE_TFRECORD = data['use_tfrecord']
 			self.TFRECORD_DIR = data['tfrecord_dir']
 			self.DELETE_TILES = data['delete_tiles']
-			sfutil.verify_annotations(self.ANNOTATIONS_FILE, slides_dir=self.SLIDES_DIR)
+
+			if not SKIP_VERIFICATION:
+				sfutil.verify_annotations(self.ANNOTATIONS_FILE, slides_dir=self.SLIDES_DIR)
 
 			# If tile extraction has already been started, verify all slides in the annotation file
 			#  have corresponding image tiles
@@ -331,8 +350,11 @@ class SlideFlowProject:
 		# Training
 		self.MODELS_DIR = sfutil.dir_input("Where should the saved models be stored? [./models] ",
 									default='./models', create_on_invalid=True)
-		if sfutil.yes_no_input("Will models utilize pre-training? [y/N] ", default='no'):
-			self.PRETRAIN_DIR = sfutil.dir_input("Where is the pretrained model folder located? ", create_on_invalid=False)
+		if sfutil.yes_no_input("Will models utilize pre-training? [Y/n] ", default='yes'):
+			if sfutil.yes_no_input("Use Imagenet pre-training? [Y/n] ", default='yes'):
+				self.PRETRAIN = 'imagenet'
+			else:
+				self.PRETRAIN = sfutil.dir_input("Where is the pretrained model folder located? ", create_on_invalid=False)
 		self.TILE_UM = sfutil.int_input("What is the tile width in microns? [280] ", default=280)
 		self.TILE_PX = sfutil.int_input("What is the tile width in pixels? [512] ", default=512)
 		self.NUM_CLASSES = sfutil.int_input("How many classes are there to be trained? ")
@@ -354,7 +376,7 @@ class SlideFlowProject:
 		data['tiles'] = self.TILES_DIR
 		data['models'] = self.MODELS_DIR
 		data['batch_train_config'] = self.BATCH_TRAIN_CONFIG
-		data['pretraining'] = self.PRETRAIN_DIR
+		data['pretraining'] = self.PRETRAIN
 		data['tile_um'] = self.TILE_UM
 		data['tile_px'] = self.TILE_PX
 		data['num_classes'] = self.NUM_CLASSES
