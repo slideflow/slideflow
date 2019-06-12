@@ -265,8 +265,8 @@ class SlideflowModel:
 		)
 
 		# Train final layer of the model
-		num_epochs=0
-		steps_per_epoch=round(83000/self.BATCH_SIZE)
+		num_epochs=1
+		steps_per_epoch=round(500/self.BATCH_SIZE)
 		val_steps=20
 		model.fit(train_data.repeat(),
 				  epochs=num_epochs,
@@ -291,7 +291,7 @@ class SlideflowModel:
 					  metrics=['accuracy'])
 
 		# Increase training epochs for fine-tuning
-		fine_tune_epochs = 30
+		fine_tune_epochs = 0
 		total_epochs = num_epochs + fine_tune_epochs
 
 		# Fine-tune model
