@@ -26,9 +26,9 @@ import progress_bar
 import tensorflow as tf
 import numpy as np
 import imageio
-import inception_v4
-from tensorflow.contrib.framework import arg_scope
-from inception_utils import inception_arg_scope
+#import inception_v4
+#from tensorflow.contrib.framework import arg_scope
+#from inception_utils import inception_arg_scope
 from PIL import Image
 import argparse
 import pickle

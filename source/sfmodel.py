@@ -94,7 +94,7 @@ class SFModelConfig:
 		print(f" + [{sfutil.info('INFO')}] Model configuration:")
 		for arg in self.get_args():
 			value = getattr(self, arg)
-			print(f"   {sfutil.header(arg)} = {value}")
+			print(f"   - {sfutil.header(arg)} = {value}")
 
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
@@ -283,31 +283,47 @@ class SlideflowModel:
 		train_op = slim.learning.create_train_op(total_loss, opt)
 		return train_op
 
-	def train(self, retrain_model = None, retrain_weights = None, restore_checkpoint = None):
+	def train(self, retrain_model=None, retrain_weights=None, restore_checkpoint=None):
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
-
+		
 		if restore_checkpoint:
 			ckpt = tf.train.get_checkpoint_state(restore_checkpoint)
-
+	
 		variables_to_ignore = []#("InceptionV4/Logits/Logits/weights:0", "InceptionV4/Logits/Logits/biases:0")
 		variables_to_restore = []
-
+		assign_ops = []
 		global_step = tf.train.get_or_create_global_step()
-		with tf.device('/cpu'):
-			next_batch_images, next_batch_labels, train_it, test_it, it_handle = self.build_inputs()
 
+		with tf.device('/cpu'):
+			print(f" + [{sfutil.info('INFO')}] Assembling input pipeline... ", end="", flush=True)
+			next_batch_images, next_batch_labels, train_it, test_it, it_handle = self.build_inputs()
+			print("complete.")
+		
 		training_pl = tf.placeholder(tf.bool, name='train_pl')
 		with arg_scope(inception_arg_scope()):
+			print(f" + [{sfutil.info('INFO')}] Assembling model graph... ", end="", flush=True)
 			logits, end_points = inception_v4.inception_v4(next_batch_images, 
 														   num_classes=self.NUM_CLASSES,
 														   is_training=training_pl,
 														   reuse=tf.AUTO_REUSE,
 														   batch_norm_decay=self.BATCH_NORM_DECAY)
-
+			print('complete.')
 			if restore_checkpoint:
+				print(f" + [{sfutil.info('INFO')}] Restoring checkpoint... ", end="", flush=True)
 				for trainable_var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
 					if (trainable_var.name not in variables_to_ignore) and (trainable_var.name[12:21] != "AuxLogits"):
 						variables_to_restore.append(trainable_var)
+			
+			if retrain_weights:
+				print(f" + [{sfutil.info('INFO')}] Restoring pretrained weights... ", end="", flush=True)
+				for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+					if variable.name in retrain_weights:
+						print(f"Found: {variable.name}")
+						assign_op = variable.assign(retrain_weights[variable.name])
+						assign_ops.append(assign_op)
+					else:
+						print(f"Not found: {variable.name}")
+			print("complete.")
 
 		loss = self.loss(logits, next_batch_labels)
 
@@ -316,18 +332,18 @@ class SlideflowModel:
 			validation_loss, validation_loss_update = tf.metrics.mean(loss)
 			stream_vars = [v for v in tf.local_variables() if v.name.startswith('mean_validation_loss')]
 			stream_vars_reset = [v.initializer for v in stream_vars]
-
+		print(f" + [{sfutil.info('INFO')}] Assembling train op... ", end="", flush=True)
 		train_op = self.build_train_op(loss, global_step)
-		
+		print('complete.')
 		# -- SUMMARIES -----------------------------------------------------------------------------
-
+		
 		with tf.name_scope('loss'):
 			train_summ = summary_lib.scalar('training', loss)
 			inception_summaries = tf.summary.merge_all()
 			valid_summ = summary_lib.scalar('valid', validation_loss)
-
+		
 		layout_summary = self.generate_loss_chart()
-
+		
 		init = (tf.global_variables_initializer(), tf.local_variables_initializer())
 
 		class _LoggerHook(tf.train.SessionRunHook):
@@ -340,11 +356,9 @@ class SlideflowModel:
 				self.test_handle = None
 
 			def after_create_session(self, session, coord):
-				print ('Initializing data input stream...')
 				if self.train_str is not None:
 					self.train_iterator_handle, self.test_iterator_handle = session.run([self.train_str, self.test_str])
 					session.run([init, train_it.initializer, test_it.initializer])
-				print ('complete.')
 					
 			def begin(self):
 				self._step = -1
@@ -372,15 +386,15 @@ class SlideflowModel:
 					format_str = ('%s: step %d, loss = %.2f (%.1f images/sec; %.3f sec/batch)')
 					print(format_str % (datetime.now(), self._step, loss_value,
 										images_per_sec, sec_per_batch))
-
+		
 		loggerhook = _LoggerHook(train_it.string_handle(), test_it.string_handle(), self)
 		validation_losses = []
 		first_validation_loss = None
 		step = 1
-
+		
 		if restore_checkpoint:
 			pretrained_saver = tf.train.Saver(variables_to_restore)
-
+		print(f" + [{sfutil.info('INFO')}] Initializing training session... ")
 		with tf.train.MonitoredTrainingSession(
 			checkpoint_dir = self.MODEL_DIR,
 			hooks = [loggerhook], #tf.train.NanTensorHook(loss),
@@ -389,13 +403,21 @@ class SlideflowModel:
 			save_summaries_steps = None, #self.SUMMARY_STEPS,
 			save_summaries_secs = None) as mon_sess:
 
+			print("complete.")
+
 			test_writer = tf.summary.FileWriter(self.TEST_DIR, mon_sess.graph)
 			train_writer = FileWriterCache.get(self.TRAIN_DIR) # SummaryWriterCache
 			train_writer.add_summary(layout_summary)
+			
 
 			if restore_checkpoint and ckpt and ckpt.model_checkpoint_path:
-				print("Restoring checkpoint...")
+				print(f" + [{sfutil.info('INFO')}] Restoring checkpoint...")
 				pretrained_saver.restore(mon_sess, ckpt.model_checkpoint_path)
+
+			if retrain_weights:
+				print(f" + [{sfutil.info('INFO')}] Loading pre-trained weights into graph... ", end="", flush=True)
+				mon_sess.run(assign_ops)
+				print("complete.")
 
 			while not mon_sess.should_stop():
 				if (step % self.SUMMARY_STEPS == 0):
@@ -406,7 +428,7 @@ class SlideflowModel:
 					_, step = mon_sess.run([train_op, global_step], feed_dict={it_handle:loggerhook.train_iterator_handle,
 																										training_pl:True}, options=RUN_OPTS)
 				if (step % self.TEST_FREQUENCY == 0):
-					print("Validation testing...")
+					print(" + Validation testing...")
 					# Reset the validation loss streaming variables (variables which keep track of the average
 					#   loss across the entire validation dataset)
 					mon_sess.run(stream_vars_reset, feed_dict={it_handle:loggerhook.test_iterator_handle,
@@ -421,20 +443,22 @@ class SlideflowModel:
 					# Write results to summaries and console
 					summ = mon_sess.run(valid_summ)
 					test_writer.add_summary(summ, step)
-					print("Validation loss: {}".format(val_acc))
+					print(" + Validation loss: {}".format(val_acc))
 
 					# Request an early stop if the the validation loss is less than the first run (as there is often
 					#   a rise in validation loss before convergence occurs) and the average validation loss drop
 					#   is less than criteria (e.g. -0.025 loss / run)
-					validation_losses = validation_losses[-6:] + [val_acc]
+					validation_losses = validation_losses[-10:] + [val_acc]
 					if not first_validation_loss:
 						first_validation_loss = val_acc
-					ys = np.array(validation_losses)
-					xs = np.array(range(len(validation_losses)))
-
-					if val_acc < first_validation_loss and linregress(xs, ys).slope > (-1 * first_validation_loss * self.VALIDATION_EARLY_STOP_SLOPE):
-						mon_sess.close()
-						break
+					if val_acc < first_validation_loss and len(validation_losses) == 10:
+						ys = np.array(validation_losses)
+						xs = np.array(range(len(validation_losses)))
+						slope = linregress(xs, ys).slope
+						early_stop_slope = -1 * first_validation_loss * self.VALIDATION_EARLY_STOP_SLOPE
+						if slope > early_stop_slope:
+							print(f" + Early stop detected: slope {slope}, criteria: {early_stop_slope}")
+							break
 
 					# Reset the test iterator initializer for the next run
 					mon_sess.run(test_it.initializer, feed_dict={it_handle:loggerhook.test_iterator_handle}, options=RUN_OPTS)
@@ -442,12 +466,13 @@ class SlideflowModel:
 
 		return validation_losses[-1]
 
-	def retrain_from_pkl(self, model, weights):
+	def retrain(self, model=None, weights=None, restore_checkpoint=None):
 		if model == None: model = '/home/shawarma/thyroid/models/inception_v4_2018_04_27/inception_v4.pb'
 		if weights == None: weights = '/home/shawarma/thyroid/thyroid/obj/inception_v4_imagenet_pretrained.pkl'
 		with open(weights, 'rb') as f:
 			var_dict = pickle.load(f)
-		self.train(retrain_model = model, retrain_weights = None)
+		
+		self.train(retrain_model=None, retrain_weights=var_dict, restore_checkpoint=restore_checkpoint)
 
 if __name__ == "__main__":
 	#os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
