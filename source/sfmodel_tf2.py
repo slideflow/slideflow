@@ -188,7 +188,7 @@ class SlideflowModel:
 			return tf.io.parse_single_example(example_proto, feature_description)
 
 		dataset = raw_image_dataset.map(_parse_image_function)
-		dataset = dataset.shuffle(100000)
+		dataset = dataset.shuffle(10000)
 		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		dataset = dataset.batch(self.BATCH_SIZE)
 		return dataset
@@ -209,7 +209,7 @@ class SlideflowModel:
 		
 		return train_dataset, test_dataset
 
-	def train(self, pretrain='imagenet'):
+	def train(self, pretrain='imagenet', resume_training=None):
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 		
 		train_data, test_data = self.build_inputs()
@@ -226,32 +226,41 @@ class SlideflowModel:
 															  update_freq=self.BATCH_SIZE*self.LOG_FREQUENCY)
 		history = tf.keras.callbacks.History()
 
-		# Get pretrained model
-		if pretrain and pretrain!='imagenet':
-			# Load pretrained model
-			pretrained_model = tf.keras.models.load_model(pretrain)
-			base_model = pretrained_model.get_layer(index=0)
+		if resume_training:
+			model = tf.keras.models.load_model(resume_training)
 		else:
-			# Create model using ImageNet if specified
-			base_model = tf.keras.applications.InceptionV3(
-				input_shape=(self.IMAGE_SIZE, self.IMAGE_SIZE, 3),
-				include_top=False,
-				pooling='max',
-				weights=pretrain
-			)
+			# Get pretrained model
+			if pretrain and pretrain!='imagenet':
+				# Load pretrained model
+				pretrained_model = tf.keras.models.load_model(pretrain)
+				base_model = pretrained_model.get_layer(index=0)
+			else:
+				# Create model using ImageNet if specified
+				base_model = tf.keras.applications.InceptionV3(
+					input_shape=(self.IMAGE_SIZE, self.IMAGE_SIZE, 3),
+					include_top=False,
+					pooling='max',
+					weights=pretrain
+				)
 
-		# Freeze pretrained weights
-		base_model.trainable = False
-		
-		# Create a trainable classification head / final layer, then link with base
-		fully_connected_layer = tf.keras.layers.Dense(1536, activation='relu')
-		prediction_layer = tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')
-		model = tf.keras.Sequential([
-			base_model,
-			fully_connected_layer,
-			prediction_layer
-		])
-
+			# Freeze pretrained weights
+			base_model.trainable = False
+			
+			# Create a trainable classification head / final layer, then link with base
+			fully_connected_layer = tf.keras.layers.Dense(1536, activation='relu')
+			prediction_layer = tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')
+			model = tf.keras.Sequential([
+				base_model,
+				fully_connected_layer,
+				prediction_layer
+			])
+			base_model.trainable = True
+			# Recompile the model
+			lr_finetune = self.LEARNING_RATE
+			model.compile(loss='sparse_categorical_crossentropy',
+						optimizer=tf.keras.optimizers.Adam(lr=lr_finetune),
+						metrics=['accuracy'])
+	
 		num_epochs=0
 		steps_per_epoch=round(self.NUM_TILES/self.BATCH_SIZE)
 		val_steps=20
@@ -273,17 +282,11 @@ class SlideflowModel:
 		# Now, fine-tune the model
 		# Unfreeze all layers
 		print(f" + [{sfutil.info('INFO')}] Beginning fine-tuning")'''
-		base_model.trainable = True
+		
 
 		'''# Refreeze layers until the layers we want to fine-tune ???
 		for layer in base_model.layers[:100]:
 			layer.trainable=False'''
-
-		# Recompile the model
-		lr_finetune = self.LEARNING_RATE
-		model.compile(loss='sparse_categorical_crossentropy',
-					  optimizer=tf.keras.optimizers.Adam(lr=lr_finetune),
-					  metrics=['accuracy'])
 
 		# Increase training epochs for fine-tuning
 		fine_tune_epochs = self.MAX_EPOCH
@@ -302,6 +305,7 @@ class SlideflowModel:
 
 		model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
 		return finetune_model.history['val_accuracy']
+
 
 if __name__ == "__main__":
 	#os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
