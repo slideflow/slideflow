@@ -10,7 +10,7 @@ from glob import glob
 import csv
 
 import subprocess
-import convoluter
+import convoluter_tf2 as convoluter
 import sfmodel_tf2 as sfmodel
 from util import datasets, tfrecords, sfutil
 from util.sfutil import TCGAAnnotations
@@ -211,9 +211,17 @@ class SlideFlowProject:
 		SFM.config(model_config)
 
 		print(f" + [{sfutil.info('INFO')}] Using pre-training from {sfutil.green(self.PRETRAIN)}")
-		val_acc = SFM.train(self.PRETRAIN)
+		val_acc = SFM.train(resume_training=self.PRETRAIN)
 
 		return val_acc
+
+	def generate_heatmaps(self, model_name):
+		slide_list = sfutil.get_slide_paths(self.SLIDES_DIR)
+		c = convoluter.Convoluter(self.TILE_PX, self.TILE_UM, self.NUM_CLASSES, self.BATCH_SIZE*8,
+									self.USE_FP16, self.TILES_DIR)
+		c.load_slides(slide_list)
+		c.build_model(join(self.MODELS_DIR, model_name, 'trained_model.h5'))
+		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
 	def batch_train(self):
 		'''Train a batch of models sequentially given configurations found in an annotations file.'''
@@ -244,7 +252,6 @@ class SlideFlowProject:
 		print(f"\n[{sfutil.header('Complete')}] Batch training complete; validation accuracies:")
 		for model in model_acc:
 			print(f" - {sfutil.green(model)}: {str(model_acc[model])}")
-
 
 	def create_blank_batch_config(self):
 		'''Creates a CSV file with the batch training structure.'''
@@ -306,7 +313,10 @@ class SlideFlowProject:
 
 			# If tile extraction has already been started, verify all slides in the annotation file
 			#  have corresponding image tiles
-			if (self.get_task('extract_tiles') != "not started") and (not self.USE_TFRECORD or self.get_task('generate_tfrecord') == 'complete'):
+			if (not SKIP_VERIFICATION and
+				(self.get_task('extract_tiles') != "not started") and 
+				(not self.USE_TFRECORD or self.get_task('generate_tfrecord') == 'complete')):
+
 				if sfutil.yes_no_input("Perform image tile verification? [Y/n] ", default='yes'):
 					input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
 					annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name="slide", value_name="category")
