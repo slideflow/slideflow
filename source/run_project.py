@@ -14,5 +14,6 @@ if __name__ == '__main__':
 	#SFP.separate_training_and_eval()
 	#SFP.generate_tfrecord()
 	#SFP.create_blank_batch_config()
-	SFP.batch_train()
+	#SFP.batch_train()
 	#SFP.train_model('model2')
+	SFP.generate_heatmaps('model1a')
