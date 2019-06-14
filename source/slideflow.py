@@ -10,7 +10,7 @@ from glob import glob
 import csv
 
 import subprocess
-import convoluter
+import convoluter_tf2_eager as convoluter
 import sfmodel_tf2 as sfmodel
 from util import datasets, tfrecords, sfutil
 from util.sfutil import TCGAAnnotations
@@ -37,6 +37,7 @@ class SlideFlowProject:
 	TILE_UM = None
 	TILE_PX = None
 	NUM_CLASSES = None
+	NUM_TILES = 0
 
 	EVAL_FRACTION = 0.1
 	AUGMENTATION = convoluter.NO_AUGMENTATION
@@ -192,34 +193,42 @@ class SlideFlowProject:
 			shutil.rmtree(join(self.TILES_DIR, "eval_data"))
 		self.update_task('generate_tfrecord', 'complete')
 
-	def train_model(self, model_name, model_config=None):
+	def load_model(self, model_name, model_config=None):
+		model_dir = join(self.MODELS_DIR, model_name)
+		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
+		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE)
+		# If no model configuration supplied, use default values
+		if not model_config:
+			model_config = sfmodel.SFModelConfig(self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, use_fp16=self.USE_FP16)
+		if self.NUM_TILES > 0:
+			model_config.num_tiles = self.NUM_TILES
+		SFM.config(model_config)
+		return SFM
+
+	def evaluate(self, model=None, checkpoint=None, dataset='train'):
+		SFM = self.load_model("evaluation")
+		SFM.evaluate(model, checkpoint, dataset)
+
+	def train_model(self, model_name, model_config=None, resume_training=None, checkpoint=None):
 		'''Train a model once using a given configuration (or use default if none supplied)'''
 		self.update_task('training', 'in process')
 		print(f"Training model {model_name}...")
 
-		model_dir = join(self.MODELS_DIR, model_name)
-		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
+		SFM = self.load_model(model_name, model_config)
+		val_acc = SFM.train(resume_training=resume_training, checkpoint=checkpoint)	
 
-		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE)
-
-		# If no model configuration supplied, use default values
-		if not model_config:
-			model_config = sfmodel.SFModelConfig(self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, use_fp16=self.USE_FP16)
-		SFM.config(model_config)
-
-		#devnull = open(os.devnull, 'w')
-		#tensorboard_process = subprocess.Popen(['tensorboard', f'--logdir={model_dir}'], stdout=devnull)
-
-		print(f" + [{sfutil.info('INFO')}] Using {sfutil.green('ImageNet')} pretraining")
-		val_acc = SFM.train()
-		'''if self.PRETRAIN == 'imagenet':
-			validation_loss = SFM.retrain()
-		else:
-			print(f" + [{sfutil.info('INFO')}] Pretraining from model {sfutil.green(self.PRETRAIN)}")
-			validation_loss = SFM.train(restore_checkpoint = self.PRETRAIN)'''
 		return val_acc
 
-	def batch_train(self):
+	def generate_heatmaps(self, model_name):
+		SFM = self.load_model('evaluate')
+		slide_list = sfutil.get_slide_paths(self.SLIDES_DIR)
+		c = convoluter.Convoluter(self.TILE_PX, self.TILE_UM, self.NUM_CLASSES, self.BATCH_SIZE*4,
+									self.USE_FP16, self.TILES_DIR)
+		c.load_slides(slide_list)
+		c.build_model(join(self.MODELS_DIR, model_name, 'trained_model.h5'), SFM=SFM)
+		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
+
+	def batch_train(self, resume_training=None, checkpoint=None):
 		'''Train a batch of models sequentially given configurations found in an annotations file.'''
 		model_acc = {}
 		with open(self.BATCH_TRAIN_CONFIG) as csv_file:
@@ -242,13 +251,12 @@ class SlideFlowProject:
 						setattr(model_config, arg, arg_type(value))
 					else:
 						print(f"[{sfutil.fail('ERROR')}] Unknown argument '{arg}' found in training config file.")
-				val_acc = self.train_model(model_name, model_config)
-				model_acc.update({model_name: min(val_acc)})
-				print(f"\n[{sfutil.header('Complete')}] Training complete for model {model_name}, minimum validation loss {sfutil.info(min(val_acc))}\n")
-		print(f"\n[{sfutil.header('Complete')}] Batch training complete; validation losses:")
+				val_acc = self.train_model(model_name, model_config, resume_training, checkpoint)
+				model_acc.update({model_name: max(val_acc)})
+				print(f"\n[{sfutil.header('Complete')}] Training complete for model {model_name}, max validation accuracy {sfutil.info(str(max(val_acc)))}\n")
+		print(f"\n[{sfutil.header('Complete')}] Batch training complete; validation accuracies:")
 		for model in model_acc:
 			print(f" - {sfutil.green(model)}: {str(model_acc[model])}")
-
 
 	def create_blank_batch_config(self):
 		'''Creates a CSV file with the batch training structure.'''
@@ -310,12 +318,15 @@ class SlideFlowProject:
 
 			# If tile extraction has already been started, verify all slides in the annotation file
 			#  have corresponding image tiles
-			if (self.get_task('extract_tiles') != "not started") and (not self.USE_TFRECORD or self.get_task('generate_tfrecord') == 'complete'):
+			if (not SKIP_VERIFICATION and
+				(self.get_task('extract_tiles') != "not started") and 
+				(not self.USE_TFRECORD or self.get_task('generate_tfrecord') == 'complete')):
+
 				if sfutil.yes_no_input("Perform image tile verification? [Y/n] ", default='yes'):
 					input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
 					annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name="slide", value_name="category")
 					tfrecord_files = [os.path.join(input_dir, f"{x}.tfrecords") for x in ["train", "eval"]] if self.USE_TFRECORD else []
-					sfutil.verify_tiles(annotations, input_dir, tfrecord_files)
+					self.NUM_TILES = sfutil.verify_tiles(annotations, input_dir, tfrecord_files)
 
 			print("\nProject configuration loaded.\n")
 		else:

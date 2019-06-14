@@ -26,22 +26,14 @@ import pickle
 import argparse
 
 import tensorflow as tf
-'''from tensorflow.contrib.framework import arg_scope
-from tensorflow.summary import FileWriterCache
-import tensorflow.contrib.lookup'''
+from tensorflow.keras import backend as K
 from tensorboard.plugins.custom_scalar import layout_pb2
 
-#import inception_v4
-#from inception_utils import inception_arg_scope
 from glob import glob
 from scipy.stats import linregress
 
 from util import tfrecords, sfutil
 from util.sfutil import TCGAAnnotations
-
-#slim = tf.contrib.slim
-
-#RUN_OPTS = tf.RunOptions(report_tensor_allocations_upon_oom = True)
 
 # Calculate accuracy with https://stackoverflow.com/questions/50111438/tensorflow-validate-accuracy-with-batch-data
 # TODO: try next, comment out line 254 (results in calculating total_loss before update_ops is called)
@@ -49,9 +41,9 @@ from util.sfutil import TCGAAnnotations
 # TODO: export logs to file for monitoring remotely
 
 class SFModelConfig:
-	def __init__(self, image_size, num_classes, batch_size, augment=False, learning_rate=0.01, 
-				beta1=0.9, beta2=0.999, epsilon=1.0, batch_norm_decay=0.99, early_stop=0.015, 
-				max_epoch=300, log_frequency=20, test_frequency=600, use_fp16=True):
+	def __init__(self, image_size, num_classes, batch_size, num_tiles=10000, augment=False, 
+				learning_rate=0.01, beta1=0.9, beta2=0.999, epsilon=1.0, batch_norm_decay=0.99, 
+				early_stop=0.015, max_epoch=300, log_frequency=20, test_frequency=600, use_fp16=True):
 		''' Declare constants describing the model and training process.
 		Args:
 			image_size						Size of input images in pixels
@@ -72,6 +64,7 @@ class SFModelConfig:
 		self.image_size = image_size
 		self.num_classes = num_classes
 		self.batch_size = batch_size
+		self.num_tiles = num_tiles
 		self.augment = augment
 		self.learning_rate = learning_rate
 		self.beta1 = beta1
@@ -115,11 +108,7 @@ class SlideflowModel:
 		#tfrecord_files = [self.TRAIN_TFRECORD, self.EVAL_TFRECORD] if self.USE_TFRECORD else []
 		#sfutil.verify_tiles(annotations, self.INPUT_DIR, tfrecord_files)
 
-		# Reset default graph
-		#tf.reset_default_graph()
-
 		with tf.device('/cpu'):
-			#with tf.variable_scope("annotations"):
 			self.ANNOTATIONS_TABLE = tf.lookup.StaticHashTable(
 				tf.lookup.KeyValueTensorInitializer(list(annotations.keys()), list(annotations.values())), -1
 			)
@@ -132,6 +121,7 @@ class SlideflowModel:
 		self.IMAGE_SIZE = config.image_size
 		self.NUM_CLASSES = config.num_classes
 		self.BATCH_SIZE = config.batch_size
+		self.NUM_TILES = config.num_tiles
 		self.AUGMENT = config.augment
 		self.LEARNING_RATE = config.learning_rate
 		self.BETA1 = config.beta1
@@ -199,7 +189,7 @@ class SlideflowModel:
 			return tf.io.parse_single_example(example_proto, feature_description)
 
 		dataset = raw_image_dataset.map(_parse_image_function)
-		dataset = dataset.shuffle(100000)
+		dataset = dataset.shuffle(10000)
 		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		dataset = dataset.batch(self.BATCH_SIZE)
 		return dataset
@@ -220,96 +210,127 @@ class SlideflowModel:
 		
 		return train_dataset, test_dataset
 
-	def train(self):
+	def build_model(self, pretrain=None):
+		# Assemble base model, using pretraining (imagenet) or the base layers of a supplied model
+		if pretrain and pretrain!='imagenet':
+			# Load pretrained model
+			pretrained_model = tf.keras.models.load_model(pretrain)
+			base_model = pretrained_model.get_layer(index=0)
+		else:
+			# Create model using ImageNet if specified
+			base_model = tf.keras.applications.InceptionV3(
+				input_shape=(self.IMAGE_SIZE, self.IMAGE_SIZE, 3),
+				include_top=False,
+				pooling='avg',
+				weights=pretrain
+			)
+
+		# Combine base model with top layer (classification/prediction layer)
+		#fully_connected_layer = tf.keras.layers.Dense(1000, activation='relu')
+		prediction_layer = tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')
+		model = tf.keras.Sequential([
+			base_model,
+			#fully_connected_layer,
+			prediction_layer
+		])
+		return model
+
+	def retrain_top_layers(self, model, train_data, test_data, callbacks=None, epochs=1):
+		print(f" + [{sfutil.info('INFO')}] Retraining top layer")
+		# Freeze the base layer
+		model.layers[0].trainable = False
+
+		steps_per_epoch = round(self.NUM_TILES/self.BATCH_SIZE)
+		lr_fast = self.LEARNING_RATE * 10
+
+		model.compile(optimizer=tf.keras.optimizers.Adam(lr=lr_fast),
+					  loss='sparse_categorical_crossentropy',
+					  metrics=['accuracy'])
+
+		toplayer_model = model.fit(train_data.repeat(),
+				  epochs=epochs,
+				  steps_per_epoch=steps_per_epoch,
+				  validation_data=test_data.repeat(),
+				  validation_steps=100,
+				  callbacks=callbacks)
+
+		# Unfreeze the base layer
+		model.layers[0].trainable = True
+		model.save(os.path.join(self.DATA_DIR, "toplayer_trained_model.h5"))
+		return toplayer_model.history
+
+	def evaluate(self, model=None, checkpoint=None, dataset='train'):
+		train_data, test_data = self.build_inputs()
+		data_to_eval = train_data if dataset=='train' else test_data
+		if model:
+			loaded_model = tf.keras.models.load_model(model)
+		elif checkpoint:
+			loaded_model = self.build_model()
+			loaded_model.load_weights(checkpoint)
+		loaded_model.compile(loss='sparse_categorical_crossentropy',
+					optimizer=tf.keras.optimizers.Adam(lr=self.LEARNING_RATE),
+					metrics=['accuracy'])
+		results = loaded_model.evaluate(train_data)
+		print(results)
+
+	def train(self, pretrain='imagenet', resume_training=None, checkpoint=None):
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 		
+		tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
 		train_data, test_data = self.build_inputs()
+		steps_per_epoch = round(self.NUM_TILES/self.BATCH_SIZE)
+		val_steps = 200
+		toplayer_epochs = 2
+		finetune_epochs = self.MAX_EPOCH
+		total_epochs = toplayer_epochs + finetune_epochs
 
-		# Create callback for checkpoint saving
+		# Create callbacks for checkpoint saving, summaries, and history
 		checkpoint_path = os.path.join(self.MODEL_DIR, "cp.ckpt")
 		cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
 														 save_weights_only=True,
 														 verbose=1)
-
-		# Callbacks for summary writing
-		logdir = self.DATA_DIR
-		tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir, 
+		
+		tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.DATA_DIR, 
 															  histogram_freq=0,
 															  write_graph=False,
 															  update_freq=self.BATCH_SIZE*self.LOG_FREQUENCY)
-
-		# Callback for history (monitoring training/validation accuracy)
 		history = tf.keras.callbacks.History()
+		callbacks = [cp_callback, tensorboard_callback, history]
 
-		# Get pretrained model
-		base_model = tf.keras.applications.InceptionV3(
-			input_shape=(self.IMAGE_SIZE, self.IMAGE_SIZE, 3),
-			include_top=False,
-			pooling='max',
-			weights='imagenet'
-		)
-		# Freeze pretrained weights
-		base_model.trainable = False
+		# Load the model
+		if resume_training:
+			model = tf.keras.models.load_model(resume_training)
+		else:
+			model = self.build_model(pretrain)
+		if checkpoint:
+			model.load_weights(checkpoint)
+
+		# Retrain top layer only if using transfer learning and not resuming training
+		if pretrain and not (resume_training or checkpoint):
+			self.retrain_top_layers(model, train_data, test_data, callbacks=callbacks, epochs=toplayer_epochs)
 		
-		# Create a trainable classification head / final layer, then link with base
-		fully_connected_layer = tf.keras.layers.Dense(1536, activation='relu')
-		prediction_layer = tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')
-		model = tf.keras.Sequential([
-			base_model,
-			fully_connected_layer,
-			prediction_layer
-		])
-
-		# Compile the model
-		lr_fast = self.LEARNING_RATE * 10
-		model.compile(optimizer=tf.keras.optimizers.Adam(lr=lr_fast),
-					  loss='sparse_categorical_crossentropy',
-					  metrics=['accuracy']
-		)
-
-		# Train final layer of the model
-		num_epochs=1
-		steps_per_epoch=round(500/self.BATCH_SIZE)
-		val_steps=20
-		model.fit(train_data.repeat(),
-				  epochs=num_epochs,
-				  steps_per_epoch=steps_per_epoch,
-				  validation_data=test_data.repeat(),
-				  validation_steps=val_steps,
-				  callbacks=[cp_callback, tensorboard_callback])
-
-		# Now, fine-tune the model
-		# Unfreeze all layers
+		# Fine-tune the model
 		print(f" + [{sfutil.info('INFO')}] Beginning fine-tuning")
-		base_model.trainable = True
 
-		'''# Refreeze layers until the layers we want to fine-tune ???
-		for layer in base_model.layers[:100]:
-			layer.trainable=False'''
+		for layer in model.layers[0].layers:
+			if "batch_normalization" not in layer.name:
+				layer.trainable=False
 
-		# Recompile the model
-		lr_finetune = self.LEARNING_RATE
 		model.compile(loss='sparse_categorical_crossentropy',
-					  optimizer=tf.keras.optimizers.Adam(lr=lr_finetune),
-					  metrics=['accuracy'])
-
-		# Increase training epochs for fine-tuning
-		fine_tune_epochs = 0
-		total_epochs = num_epochs + fine_tune_epochs
+					optimizer=tf.keras.optimizers.Adam(lr=self.LEARNING_RATE),
+					metrics=['accuracy'])
 
 		# Fine-tune model
-		# Note: will need to set initial_epoch to begin training after epoch 30
-		# Since we just trained for 30 epochs
-		model.fit(train_data.repeat(),
+		finetune_model = model.fit(train_data.repeat(),
 			steps_per_epoch=steps_per_epoch,
 			epochs=total_epochs,
-			initial_epoch=num_epochs,
+			initial_epoch=toplayer_epochs,
 			validation_data=test_data.repeat(),
 			validation_steps=val_steps,
-			callbacks=[cp_callback, tensorboard_callback, history])
+			callbacks=callbacks)
 
 		model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
-		return history.history['val_acc']
+		return finetune_model.history['val_accuracy']
 
 if __name__ == "__main__":
 	#os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
