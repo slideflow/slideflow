@@ -29,6 +29,13 @@ ENDC = '\033[0m'
 BOLD = '\033[1m'
 UNDERLINE = '\033[4m'
 
+class UpdatedBatchNormalization(tf.keras.layers.BatchNormalization):
+	def call(self, inputs, training=None):
+		true_phase = int(K.get_session().run(K.learning_phase()))
+		trainable = int(self.trainable)
+		with K.learning_phase_scope(trainable * true_phase):
+			ret = super(BatchNormalization, self).call(inputs, training)
+
 class TCGAAnnotations:
 	case = 'submitter_id'
 	project = 'project_id'
