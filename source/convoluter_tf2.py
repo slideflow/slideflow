@@ -333,8 +333,7 @@ class Convoluter:
 			pb = progress_bar.ProgressBar(bar_length=5)
 			pool = ThreadPool(NUM_THREADS)
 			pool.map(lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
-			'''for slide in self.SLIDES:
-				self.export_tiles(self.SLIDES[slide], pb)'''
+
 		else:
 			for case_name in self.SLIDES:
 				slide = self.SLIDES[case_name]
@@ -418,8 +417,9 @@ class Convoluter:
 
 			pooling_layer = model.layers[0]
 			logits_layer = model.layers[1]
-			prediction_func = tf.keras.backend.function([model.input, pooling_layer.input], [pooling_layer.output, logits_layer.output,
-																		next_batch_labels, next_batch_unique])
+			prediction_func = tf.keras.backend.function([model.input, pooling_layer.input, tf.keras.backend.learning_phase()], 
+														[pooling_layer.output, logits_layer.output,
+															next_batch_labels, next_batch_unique])
 			logits_arr = []
 			labels_arr = []
 			x_logits_len = int(x_size / stride_px) + 1
@@ -438,7 +438,7 @@ class Convoluter:
 					progress_bar.bar(count, total_logits_count, text = "Calculated {} images out of {}. "
 																		.format(min(count, total_logits_count),
 																			total_logits_count))
-					new_prelogits, new_logits, new_labels, new_unique = prediction_func([padded_batch, padded_batch])
+					new_prelogits, new_logits, new_labels, new_unique = prediction_func([padded_batch, padded_batch, 0])
 					prelogits_arr = new_prelogits if prelogits_arr == [] else np.concatenate([prelogits_arr, new_prelogits])
 					unique_arr = new_unique if unique_arr == [] else np.concatenate([unique_arr, new_unique])						
 

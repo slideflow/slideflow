@@ -10,7 +10,7 @@ from glob import glob
 import csv
 
 import subprocess
-import convoluter_tf2 as convoluter
+import convoluter_tf2_eager as convoluter
 import sfmodel_tf2 as sfmodel
 from util import datasets, tfrecords, sfutil
 from util.sfutil import TCGAAnnotations
@@ -226,7 +226,7 @@ class SlideFlowProject:
 									self.USE_FP16, self.TILES_DIR)
 		c.load_slides(slide_list)
 		c.build_model(join(self.MODELS_DIR, model_name, 'trained_model.h5'), SFM=SFM)
-		c.convolute_slides(save_heatmaps=True, save_final_layer=False, export_tiles=False)
+		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
 	def batch_train(self, resume_training=None, checkpoint=None):
 		'''Train a batch of models sequentially given configurations found in an annotations file.'''
