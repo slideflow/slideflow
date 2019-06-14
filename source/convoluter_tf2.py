@@ -291,6 +291,9 @@ class Convoluter:
 		self.MODEL_DIR = None
 		self.AUGMENT = augment
 
+		# BatchNormFix
+		tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
+
 	def load_slides(self, slides_array, category="None"):
 		for slide_path in slides_array:
 			name = slide_path.split('/')[-1][:-4]
@@ -304,8 +307,9 @@ class Convoluter:
 		for pkl in pkl_array:
 			self.PKL_DICT.update({pkl[:-4]: join(directory, pkl)})
 
-	def build_model(self, model_dir):
+	def build_model(self, model_dir, SFM=None):
 		self.MODEL_DIR = model_dir
+		self.SFM = SFM
 
 	def convolute_slides(self, save_heatmaps=False, display_heatmaps=False, save_final_layer=False, export_tiles=True):
 		'''Parent function to guide convolution across a whole-slide image and execute desired functions.
@@ -371,6 +375,11 @@ class Convoluter:
 		for tile, coord, unique in gen_slice(): 
 			pass
 
+	def _parse_function(self, image, label, mask):
+		parsed_image = tf.image.per_image_standardization(image)
+		parsed_image = tf.image.convert_image_dtype(parsed_image, self.DTYPE)
+		return parsed_image, label, mask
+
 	def calculate_logits(self, slide, export_tiles=False, final_layer=False, save_pkl=True):
 		'''Returns logits and final layer weights'''
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
@@ -386,27 +395,31 @@ class Convoluter:
 		gen_slice, x_size, y_size, stride_px = whole_slide.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, 
 																		 export=export_tiles)
 
+		# Generate dataset from coordinates
 		with tf.Graph().as_default() as g:
-			# Generate dataset from coordinates
 			with tf.name_scope('dataset_input'):
-				tile_dataset = tf.data.Dataset.from_generator(gen_slice, (self.DTYPE, tf.int64, tf.bool))
-				tile_dataset = tile_dataset.batch(self.BATCH_SIZE, drop_remainder = False)
+				tile_dataset = tf.data.Dataset.from_generator(gen_slice, (tf.uint8, tf.int64, tf.bool))
+				tile_dataset = tile_dataset.map(self._parse_function, num_parallel_calls=8)
+				tile_dataset = tile_dataset.batch(self.BATCH_SIZE, drop_remainder=False)
 				tile_dataset = tile_dataset.prefetch(1)
 				tile_iterator = tile_dataset.make_one_shot_iterator()
 				next_batch_images, next_batch_labels, next_batch_unique  = tile_iterator.get_next()
-
-				# Generate ops that will convert batch of coordinates to extracted & processed image patches from whole-slide-image
-				image_patches = tf.map_fn(lambda patch: tf.cast(tf.image.per_image_standardization(patch), self.DTYPE), next_batch_images)
-
+				
 				# Pad the batch if necessary to create a batch of minimum size BATCH_SIZE
-				padded_batch = tf.concat([image_patches, tf.zeros([self.BATCH_SIZE - tf.shape(image_patches)[0], self.SIZE_PX, self.SIZE_PX, 3], # image_patches instead of next_batch
+				padded_batch = tf.concat([next_batch_images, tf.zeros([self.BATCH_SIZE - tf.shape(next_batch_images)[0], self.SIZE_PX, self.SIZE_PX, 3], # image_patches instead of next_batch
 															dtype=self.DTYPE)], 0)
 				padded_batch.set_shape([self.BATCH_SIZE, self.SIZE_PX, self.SIZE_PX, 3])
 
 			model = tf.keras.models.load_model(self.MODEL_DIR)
-			prediction_func = tf.keras.backend.function([model.input], [model.layers[1].output, model.layers[2].output,
-																		next_batch_labels, next_batch_unique])
+				
+			'''for layer in model.layers[0].layers:
+				if "batch_normalization" not in layer.name:
+					layer.trainable=True'''
 
+			pooling_layer = model.layers[0]
+			logits_layer = model.layers[1]
+			prediction_func = tf.keras.backend.function([model.input, pooling_layer.input], [pooling_layer.output, logits_layer.output,
+																		next_batch_labels, next_batch_unique])
 			logits_arr = []
 			labels_arr = []
 			x_logits_len = int(x_size / stride_px) + 1
@@ -425,7 +438,7 @@ class Convoluter:
 					progress_bar.bar(count, total_logits_count, text = "Calculated {} images out of {}. "
 																		.format(min(count, total_logits_count),
 																			total_logits_count))
-					new_logits, new_prelogits, new_labels, new_unique = prediction_func([padded_batch])
+					new_prelogits, new_logits, new_labels, new_unique = prediction_func([padded_batch, padded_batch])
 					prelogits_arr = new_prelogits if prelogits_arr == [] else np.concatenate([prelogits_arr, new_prelogits])
 					unique_arr = new_unique if unique_arr == [] else np.concatenate([unique_arr, new_unique])						
 
@@ -475,7 +488,7 @@ class Convoluter:
 				if whole_slide.tile_mask[i] == 1:
 					expanded_logits[i] = logits_arr[li]
 					li += 1
-			expanded_logits = np.asarray(expanded_logits)
+			expanded_logits = np.asarray(expanded_logits, dtype=float)
 			print(f"   * Expanded_logits size: {expanded_logits.shape}; resizing to y:{y_logits_len} and x:{x_logits_len}")
 
 			# Resize logits array into a two-dimensional array for heatmap display

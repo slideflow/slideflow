@@ -193,37 +193,42 @@ class SlideFlowProject:
 			shutil.rmtree(join(self.TILES_DIR, "eval_data"))
 		self.update_task('generate_tfrecord', 'complete')
 
-	def train_model(self, model_name, model_config=None):
-		'''Train a model once using a given configuration (or use default if none supplied)'''
-		self.update_task('training', 'in process')
-		print(f"Training model {model_name}...")
-
+	def load_model(self, model_name, model_config=None):
 		model_dir = join(self.MODELS_DIR, model_name)
 		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
-
 		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE)
-
 		# If no model configuration supplied, use default values
 		if not model_config:
 			model_config = sfmodel.SFModelConfig(self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, use_fp16=self.USE_FP16)
 		if self.NUM_TILES > 0:
 			model_config.num_tiles = self.NUM_TILES
 		SFM.config(model_config)
+		return SFM
 
-		print(f" + [{sfutil.info('INFO')}] Using pre-training from {sfutil.green(self.PRETRAIN)}")
-		val_acc = SFM.train(resume_training=self.PRETRAIN)
+	def evaluate(self, model=None, checkpoint=None, dataset='train'):
+		SFM = self.load_model("evaluation")
+		SFM.evaluate(model, checkpoint, dataset)
+
+	def train_model(self, model_name, model_config=None, resume_training=None, checkpoint=None):
+		'''Train a model once using a given configuration (or use default if none supplied)'''
+		self.update_task('training', 'in process')
+		print(f"Training model {model_name}...")
+
+		SFM = self.load_model(model_name, model_config)
+		val_acc = SFM.train(resume_training=resume_training, checkpoint=checkpoint)	
 
 		return val_acc
 
 	def generate_heatmaps(self, model_name):
+		SFM = self.load_model('evaluate')
 		slide_list = sfutil.get_slide_paths(self.SLIDES_DIR)
-		c = convoluter.Convoluter(self.TILE_PX, self.TILE_UM, self.NUM_CLASSES, self.BATCH_SIZE*8,
+		c = convoluter.Convoluter(self.TILE_PX, self.TILE_UM, self.NUM_CLASSES, self.BATCH_SIZE*4,
 									self.USE_FP16, self.TILES_DIR)
 		c.load_slides(slide_list)
-		c.build_model(join(self.MODELS_DIR, model_name, 'trained_model.h5'))
-		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
+		c.build_model(join(self.MODELS_DIR, model_name, 'trained_model.h5'), SFM=SFM)
+		c.convolute_slides(save_heatmaps=True, save_final_layer=False, export_tiles=False)
 
-	def batch_train(self):
+	def batch_train(self, resume_training=None, checkpoint=None):
 		'''Train a batch of models sequentially given configurations found in an annotations file.'''
 		model_acc = {}
 		with open(self.BATCH_TRAIN_CONFIG) as csv_file:
@@ -246,7 +251,7 @@ class SlideFlowProject:
 						setattr(model_config, arg, arg_type(value))
 					else:
 						print(f"[{sfutil.fail('ERROR')}] Unknown argument '{arg}' found in training config file.")
-				val_acc = self.train_model(model_name, model_config)
+				val_acc = self.train_model(model_name, model_config, resume_training, checkpoint)
 				model_acc.update({model_name: max(val_acc)})
 				print(f"\n[{sfutil.header('Complete')}] Training complete for model {model_name}, max validation accuracy {sfutil.info(str(max(val_acc)))}\n")
 		print(f"\n[{sfutil.header('Complete')}] Batch training complete; validation accuracies:")
