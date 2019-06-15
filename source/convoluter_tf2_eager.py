@@ -191,7 +191,7 @@ class SlideReader:
 		roi_area = sum([poly.area for poly in annPolys])
 		total_area = (self.shape[0]/ROI_SCALE) * (self.shape[1]/ROI_SCALE)
 
-		roi_area_fraction = roi_area / total_area
+		roi_area_fraction = 1 if not total_area else (roi_area / total_area)
 
 		total_logits_count = int(len(coord) * roi_area_fraction)
 		# Create mask for indicating whether tile was extracted
@@ -339,17 +339,8 @@ class Convoluter:
 
 		elif not display_heatmaps:
 
-			# Create a CSV writing queue to prevent conflicts when multithreadings
-			def write_csv_queue(q):
-				while True:
-					final_layer, final_layer_labels, logits_flat, case_name, category = q.get()
-					self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)
-					q.task_done()
-
+			# Create a CSV writing queue to prevent conflicts with multithreadings
 			q = Queue()
-			csv_writer_thread = Thread(target=write_csv_queue, args=(q,))
-			csv_writer_thread.setDaemon(True)
-			csv_writer_thread.start()
 
 			def map_logits_calc(case_name, pb):
 				slide = self.SLIDES[case_name]
@@ -365,10 +356,21 @@ class Convoluter:
 
 			case_names = self.SLIDES.keys()
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
-			pool = ThreadPool(NUM_THREADS)
-			pool.map(lambda case_name: map_logits_calc(case_name, pb), case_names)
-			# Wait for CSV writing to finish before exiting
-			q.join()
+			pool = ThreadPool(4)
+
+			# Create a thread to coordinate multithreading of logits calculation
+			def start_pool_map():
+				pool.map(lambda case_name: map_logits_calc(case_name, pb), case_names)
+
+			pool_map_thread = Thread(target=start_pool_map)
+			pool_map_thread.setDaemon(True)
+			pool_map_thread.start()
+			
+			# Use the main thread to make the heatmaps
+			while pool_map_thread.isAlive():
+				final_layer, final_layer_labels, logits_flat, case_name, category = q.get()
+				self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)
+				q.task_done()
 
 		else:
 			for case_name in self.SLIDES:
