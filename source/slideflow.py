@@ -78,6 +78,40 @@ class SlideFlowProject:
 		if self.USE_TFRECORD:
 			self.generate_tfrecord()
 
+	def get_filtered_slide_list(self, ignore, slide_filters):
+		slide_list = sfutil.get_slide_paths(self.SLIDES_DIR)
+		slide_case_dict = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, TCGAAnnotations.slide, TCGAAnnotations.case, use_encode=False)
+		# Remove slides not in the annotation file
+		to_remove = []
+		for slide in slide_list:
+			slide_name = slide.split('/')[-1][:-4]
+			if slide_name not in slide_case_dict:
+				print(f" + [{sfutil.warn('WARN')}] Slide {sfutil._shortname(slide_name)} not in annotation file, skipping")
+				to_remove.extend([slide])
+		for item in to_remove:
+			slide_list.remove(item)
+		to_remove = []
+
+		if slide_filters:
+			for key in slide_filters.keys():
+				filter_dict = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, 'slide', key, use_encode=False)
+				for slide in slide_list:
+					slide_name = slide.split('/')[-1][:-4]					
+					if filter_dict[slide_name] not in slide_filters[key]:
+						to_remove.extend([slide])
+		
+		if ignore:
+			for slide in slide_list:
+				slide_name = slide.split('/')[-1][:-4]
+				if slide_name in ignore:
+					to_remove.extend([slide])
+
+		to_remove = list(set(to_remove))
+		num_removed = len(to_remove)
+		for item in to_remove:
+			slide_list.remove(item)
+		return slide_list
+		
 	def extract_tiles(self, ignore=None, slide_filters=None):
 		'''filter is a dict whose keys correspond with a header label and whose value is a 
 		list of acceptable values; all other cases will be ignored
@@ -100,39 +134,9 @@ class SlideFlowProject:
 		if not exists(join(self.TILES_DIR, "eval_data")):
 			datasets.make_dir(join(self.TILES_DIR, "eval_data"))
 
-		slide_list = sfutil.get_slide_paths(self.SLIDES_DIR)
-		slide_case_dict = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, TCGAAnnotations.slide, TCGAAnnotations.case, use_encode=False)
-		# Remove slides not in the annotation file
-		to_remove = []
-		for slide in slide_list:
-			slide_name = slide.split('/')[-1][:-4]
-			if slide_name not in slide_case_dict:
-				print(f" + [{sfutil.warn('WARN')}] Slide {sfutil._shortname(slide_name)} not in annotation file, skipping")
-				to_remove.extend([slide])
-		for item in to_remove:
-			slide_list.remove(item)
-		to_remove = []
+		slide_list = self.get_filtered_slide_list(ignore, slide_filters)
 
-		if slide_filters:
-			for key in slide_filters.keys():
-				filter_dict = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, 'slide', key, use_encode=False)
-				for slide in slide_list:
-					slide_name = slide.split('/')[-1][:-4]							
-					if filter_dict[slide_name] not in slide_filters[key]:
-						to_remove.extend([slide])
-		
-		if ignore:
-			for slide in slide_list:
-				slide_name = slide.split('/')[-1][:-4]
-				if slide_name in ignore:
-					to_remove.extend([slide])
-
-		to_remove = list(set(to_remove))
-		num_removed = len(to_remove)
-		for item in to_remove:
-			slide_list.remove(item)
-		message_tail = f", filtered {num_removed}" if num_removed > 0 else ""
-		print(f" + [{sfutil.info('INFO')}] Extracting tiles from {len(slide_list)} slides{message_tail}")
+		print(f" + [{sfutil.info('INFO')}] Extracting tiles from {len(slide_list)} slides")
 
 		c = convoluter.Convoluter(self.TILE_PX, self.TILE_UM, self.NUM_CLASSES, self.BATCH_SIZE, 
 									self.USE_FP16, join(self.TILES_DIR, "train_data"), self.ROI_DIR, self.AUGMENTATION)
@@ -215,13 +219,13 @@ class SlideFlowProject:
 		print(f"Training model {model_name}...")
 
 		SFM = self.load_model(model_name, model_config)
-		val_acc = SFM.train(resume_training=resume_training, checkpoint=checkpoint)	
+		val_acc = SFM.train(pretrain=self.PRETRAIN, resume_training=resume_training, checkpoint=checkpoint)	
 
 		return val_acc
 
-	def generate_heatmaps(self, model_name):
+	def generate_heatmaps(self, model_name, ignore=None, slide_filters=None):
 		SFM = self.load_model('evaluate')
-		slide_list = sfutil.get_slide_paths(self.SLIDES_DIR)
+		slide_list = self.get_filtered_slide_list(ignore, slide_filters)
 		c = convoluter.Convoluter(self.TILE_PX, self.TILE_UM, self.NUM_CLASSES, self.BATCH_SIZE*4,
 									self.USE_FP16, self.TILES_DIR)
 		c.load_slides(slide_list)
