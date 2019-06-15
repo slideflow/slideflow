@@ -212,6 +212,8 @@ class SlideflowModel:
 
 	def build_model(self, pretrain=None):
 		# Assemble base model, using pretraining (imagenet) or the base layers of a supplied model
+		if pretrain:
+			print(f" + [{sfutil.info('INFO')}] Using pretraining from {sfutil.green(pretrain)}")
 		if pretrain and pretrain!='imagenet':
 			# Load pretrained model
 			pretrained_model = tf.keras.models.load_model(pretrain)
@@ -280,7 +282,7 @@ class SlideflowModel:
 		train_data, test_data = self.build_inputs()
 		steps_per_epoch = round(self.NUM_TILES/self.BATCH_SIZE)
 		val_steps = 200
-		toplayer_epochs = 2
+		toplayer_epochs = 0
 		finetune_epochs = self.MAX_EPOCH
 		total_epochs = toplayer_epochs + finetune_epochs
 
@@ -299,10 +301,12 @@ class SlideflowModel:
 
 		# Load the model
 		if resume_training:
+			print(f" + [{sfutil.info('INFO')}] Resuming training from {sfutil.green(resume_training)}")
 			model = tf.keras.models.load_model(resume_training)
 		else:
 			model = self.build_model(pretrain)
 		if checkpoint:
+			print(f" + [{sfutil.info('INFO')}] Loading checkpoint weights from {sfutil.green(checkpoint)}")
 			model.load_weights(checkpoint)
 
 		# Retrain top layer only if using transfer learning and not resuming training
