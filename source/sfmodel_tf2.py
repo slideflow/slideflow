@@ -136,12 +136,6 @@ class SlideflowModel:
 		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
 		config.print_config()
 
-	def _gen_filenames_op(self, dir_string):
-		filenames_op = tf.train.match_filenames_once(dir_string)
-		labels_op = tf.map_fn(lambda f: self.ANNOTATIONS_TABLE.lookup(tf.string_split([f], '/').values[tf.constant(-2, dtype=tf.int32)]),
-								filenames_op, dtype=tf.int32)
-		return filenames_op, labels_op
-
 	def _process_image(self, image_string):
 		image = tf.image.decode_jpeg(image_string, channels = 3)
 		image = tf.image.per_image_standardization(image)
@@ -160,7 +154,9 @@ class SlideflowModel:
 		image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
 		return image
 
-	def _parse_function(self, filename, label):
+	def _parse_function(self, filename):
+		case = filename.split('/')[-2]
+		label = self.ANNOTATIONS_TABLE.lookup(case)
 		image_string = tf.read_file(filename)
 		image = self._process_image(image_string)
 		return image, label
@@ -172,9 +168,9 @@ class SlideflowModel:
 		image = self._process_image(image_string)
 		return image, label
 
-	def _gen_batched_dataset(self, filenames, labels):
+	def _gen_batched_dataset(self, filenames):
 		# Replace the below dataset with one that uses a Python generator for flexibility of labeling
-		dataset = tf.data.Dataset.from_tensor_slices((filenames, labels))
+		dataset = tf.data.Dataset.from_tensor_slices(filenames)
 		dataset = dataset.shuffle(tf.size(filenames, out_type=tf.int64))
 		dataset = dataset.map(self._parse_function, num_parallel_calls = 8)
 		dataset = dataset.batch(self.BATCH_SIZE)
@@ -196,18 +192,13 @@ class SlideflowModel:
 
 	def build_inputs(self):
 		'''Construct input for the model.'''
-
-		if not self.USE_TFRECORD:
-			with tf.name_scope('filename_input'):
-				train_filenames_op, train_labels_op = self._gen_filenames_op(self.TRAIN_FILES)
-				test_filenames_op, test_labels_op = self._gen_filenames_op(self.TEST_FILES)
-			train_dataset = self._gen_batched_dataset(train_filenames_op, train_labels_op)
-			test_dataset = self._gen_batched_dataset(test_filenames_op, test_labels_op)
-		else:
-			with tf.name_scope('input'):
+		with tf.name_scope('input'):
+			if not self.USE_TFRECORD:
+				train_dataset = self._gen_batched_dataset(tf.train.match_filenames_once(self.TRAIN_FILES))
+				test_dataset = self._gen_batched_dataset(tf.train.match_filenames_once(self.TEST_FILES))
+			else:
 				train_dataset = self._gen_batched_dataset_from_tfrecord(self.TRAIN_TFRECORD)
 				test_dataset = self._gen_batched_dataset_from_tfrecord(self.EVAL_TFRECORD)
-		
 		return train_dataset, test_dataset
 
 	def build_model(self, pretrain=None):
