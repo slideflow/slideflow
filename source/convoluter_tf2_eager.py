@@ -40,7 +40,7 @@ import json
 import time
 from math import sqrt
 
-from multiprocessing.dummy import Pool as ThreadPool
+from multiprocessing import Pool
 from queue import Queue
 from threading import Thread
 
@@ -334,7 +334,7 @@ class Convoluter:
 		if export_tiles and not (display_heatmaps or save_final_layer or save_heatmaps):
 			print(f" + [{sfutil.info('INFO')}] Exporting tiles only, no new calculations or heatmaps will be generated.")
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
-			pool = ThreadPool(NUM_THREADS)
+			pool = Pool(NUM_THREADS)
 			pool.map(lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
 
 		elif not display_heatmaps:
