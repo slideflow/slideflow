@@ -194,7 +194,6 @@ class SlideReader:
 		roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
 
 		total_logits_count = int(len(coord) * roi_area_fraction)
-		print(f"TLC: {total_logits_count}, C: {int(len(coord))}, R: {roi_area_fraction}")
 		# Create mask for indicating whether tile was extracted
 		tile_mask = np.asarray([0 for i in range(len(coord))])
 		self.tile_mask = None
@@ -355,17 +354,13 @@ class Convoluter:
 			case_names = self.SLIDES.keys()
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
 			
-			#manager = Manager()
-			#q = manager.Queue()
-			#pool = Pool(4)
+			manager = Manager()
+			q = manager.Queue()
+			pool = Pool(4)
 
 			# Create a thread to coordinate multithreading of logits calculation
-			#map_result = pool.map_async(lambda case_name: map_logits_calc(case_name, pb, q), case_names)
+			map_result = pool.map_async(lambda case_name: map_logits_calc(case_name, pb, q), case_names)
 			
-			for case_name in case_names:
-				map_logits_calc(case_name, pb, None)
-
-
 			print("Map_Async complete, starting queue")
 			while (not map_result.ready()) or (not q.empty()):
 				final_layer, final_layer_labels, logits_flat, case_name, category = q.get()
