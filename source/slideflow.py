@@ -329,6 +329,7 @@ class SlideFlowProject:
 			annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name="slide", value_name="category")
 			tfrecord_files = [os.path.join(input_dir, f"{x}.tfrecords") for x in ["train", "eval"]] if self.USE_TFRECORD else []
 			self.MANIFEST = sfutil.verify_tiles(annotations, input_dir, tfrecord_files)
+			sfutil.write_json(self.MANIFEST, sfutil.global_path("manifest.json"))
 			self.NUM_TILES = self.MANIFEST['total_tiles']
 
 	def create_project(self):
