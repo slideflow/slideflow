@@ -137,7 +137,7 @@ class SlideReader:
 		elif exists(path[:-4] + ".csv"):
 			self.load_csv_roi(path[:-4] + ".csv")
 		else:
-			self.print(f"   {sfutil.warn('!')} [" + sfutil.green(self.shortname) + f"] {sfutil.warn('WARNING:')} No annotation file found, using whole slide.")
+			self.print(f"   {sfutil.warn('!')} [" + sfutil.green(self.shortname) + f"] {sfutil.warn('WARN')} No ROI found in {roi_dir}, using whole slide.")
 
 		self.shape = self.slide.dimensions
 		self.filter_dimensions = self.slide.level_dimensions[-1]
