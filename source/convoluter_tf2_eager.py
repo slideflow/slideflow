@@ -40,7 +40,7 @@ import json
 import time
 from math import sqrt
 
-from multiprocessing.dummy import Pool
+from multiprocessing.dummy import Pool, Manager
 from queue import Queue
 #from threading import Thread
 
@@ -191,9 +191,10 @@ class SlideReader:
 		roi_area = sum([poly.area for poly in annPolys])
 		total_area = (self.shape[0]/ROI_SCALE) * (self.shape[1]/ROI_SCALE)
 
-		roi_area_fraction = 1 if not total_area else (roi_area / total_area)
+		roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
 
 		total_logits_count = int(len(coord) * roi_area_fraction)
+		print(f"TLC: {total_logits_count}, C: {int(len(coord))}, R: {roi_area_fraction}")
 		# Create mask for indicating whether tile was extracted
 		tile_mask = np.asarray([0 for i in range(len(coord))])
 		self.tile_mask = None
@@ -339,10 +340,7 @@ class Convoluter:
 
 		elif not display_heatmaps:
 			# Create a CSV writing queue to prevent conflicts with multithreadings
-			q = Queue()
-			self.queue_open = True
-
-			def map_logits_calc(case_name, pb):
+			def map_logits_calc(case_name, pb, q):
 				slide = self.SLIDES[case_name]
 				shortname = sfutil._shortname(case_name)
 				category = slide['category']
@@ -356,16 +354,20 @@ class Convoluter:
 
 			case_names = self.SLIDES.keys()
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
-			pool = Pool(4)
-
-			def close_queue(r):
-				self.queue_open = False
+			
+			#manager = Manager()
+			#q = manager.Queue()
+			#pool = Pool(4)
 
 			# Create a thread to coordinate multithreading of logits calculation
-			pool.map_async(lambda case_name: map_logits_calc(case_name, pb), case_names, callback=close_queue)
+			#map_result = pool.map_async(lambda case_name: map_logits_calc(case_name, pb, q), case_names)
 			
-			# Use the main thread to make the heatmaps
-			while self.queue_open:
+			for case_name in case_names:
+				map_logits_calc(case_name, pb, None)
+
+
+			print("Map_Async complete, starting queue")
+			while (not map_result.ready()) or (not q.empty()):
 				final_layer, final_layer_labels, logits_flat, case_name, category = q.get()
 				self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)
 				q.task_done()
