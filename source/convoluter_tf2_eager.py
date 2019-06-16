@@ -341,6 +341,7 @@ class Convoluter:
 
 			# Create a CSV writing queue to prevent conflicts with multithreadings
 			q = Queue()
+			self.queue_open = True
 
 			def map_logits_calc(case_name, pb):
 				slide = self.SLIDES[case_name]
@@ -358,16 +359,14 @@ class Convoluter:
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
 			pool = ThreadPool(4)
 
-			# Create a thread to coordinate multithreading of logits calculation
-			def start_pool_map():
-				pool.map(lambda case_name: map_logits_calc(case_name, pb), case_names)
+			def close_queue(r):
+				self.queue_open = False
 
-			pool_map_thread = Thread(target=start_pool_map)
-			pool_map_thread.setDaemon(True)
-			pool_map_thread.start()
+			# Create a thread to coordinate multithreading of logits calculation
+			pool.map_async(lambda case_name: map_logits_calc(case_name, pb), case_names, callback=close_queue)
 			
 			# Use the main thread to make the heatmaps
-			while pool_map_thread.isAlive():
+			while self.queue_open:
 				final_layer, final_layer_labels, logits_flat, case_name, category = q.get()
 				self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)
 				q.task_done()
