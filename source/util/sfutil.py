@@ -69,7 +69,7 @@ def _shortname(string):
 	else:
 		return string
 
-def create_global_path(path_string):
+def global_path(path_string):
 	if not PROJECT_DIR:
 		print(f" + [{fail('ERROR')}] No project loaded.")
 		sys.exit()
@@ -95,9 +95,9 @@ def yes_no_input(prompt, default='no'):
 
 def dir_input(prompt, default=None, create_on_invalid=False):
 	while True:
-		response = create_global_path(input(f"{prompt}"))
+		response = global_path(input(f"{prompt}"))
 		if not response and default:
-			response = create_global_path(default)
+			response = global_path(default)
 		if not os.path.exists(response) and create_on_invalid:
 			if yes_no_input(f'Directory "{response}" does not exist. Create directory? [Y/n] ', default='yes'):
 				os.mkdir(response)
@@ -111,9 +111,9 @@ def dir_input(prompt, default=None, create_on_invalid=False):
 
 def file_input(prompt, default=None, filetype=None, verify=True):
 	while True:
-		response = create_global_path(input(f"{prompt}"))
+		response = global_path(input(f"{prompt}"))
 		if not response and default:
-			response = create_global_path(default)
+			response = global_path(default)
 		if verify and not os.path.exists(response):
 			print(f'Unable to locate file "{response}"')
 			continue
@@ -135,19 +135,19 @@ def int_input(prompt, default=None):
 			continue
 		return int_response
 
-def parse_config(config_file):
-	with open(config_file, 'r') as data_file:
+def load_json(filename):
+	with open(filename, 'r') as data_file:
 		return json.load(data_file)
+
+def write_json(data, filename):
+	with open(filename, "w") as data_file:
+		json.dump(data, data_file)
 
 def _parse_function(example_proto):
 	feature_description = {'category': tf.io.FixedLenFeature([], tf.int64),
 						   'case':     tf.io.FixedLenFeature([], tf.string),
 						   'image_raw':tf.io.FixedLenFeature([], tf.string)}
 	return tf.io.parse_single_example(example_proto, feature_description)
-
-def write_config(data, config_file):
-	with open(config_file, "w") as data_file:
-		json.dump(data, data_file)
 
 def get_slide_paths(slides_dir):
 	num_dir = len(slides_dir.split('/'))
@@ -274,24 +274,33 @@ def verify_annotations(annotations_file, slides_dir=None):
 
 def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 	'''Iterate through folders if using raw images and verify all have an annotation;
-	if using TFRecord, iterate through all records and verify all entries for valid annotation.'''
+	if using TFRecord, iterate through all records and verify all entries for valid annotation.
+	
+	Additionally, generate a manifest to log the number of tiles for each slide.'''
 	print(f" + Verifying tiles and annotations...")
 	success = True
 	case_list = []
-	num_tiles = 0 # Number of training tiles
+	manifest = {'total_tiles': 0,
+				'train_data': {},
+				'eval_data': {}}
 	if tfrecord_files:
 		case_list_errors = []
 		for tfrecord_file in tfrecord_files:
+			manifest.update({tfrecord_file: {}})
 			raw_dataset = tf.data.TFRecordDataset(tfrecord_file)
 			for i, raw_record in enumerate(raw_dataset):
 				sys.stdout.write(f"\r + Verifying tile...{i}")
 				sys.stdout.flush()
-				num_tiles = i
+				manifest['total_tiles'] = i
 				example = tf.train.Example()
 				example.ParseFromString(raw_record.numpy())
 				case = example.features.feature['case'].bytes_list.value[0].decode('utf-8')
 				case_list.extend([case])
 				case_list = list(set(case_list))
+				if case not in manifest[tfrecord_file]:
+					manifest[tfrecord_file][case] = 1
+				else:
+					manifest[tfrecord_file][case] += 1
 				if case not in annotations:
 					case_list_errors.extend([case])
 					case_list_errors = list(set(case_list_errors))
@@ -299,10 +308,14 @@ def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 		for case in case_list_errors:
 			print(f"\n + [{fail('ERROR')}] Failed TFRecord integrity check: annotation not found for case {green(case)}")
 	else:
-		num_tiles = len(glob(os.path.join(input_dir, "train_data/**/*.jpg")))
-		case_list = [i.split('/')[-1] for i in glob(os.path.join(input_dir, "train_data/*"))]
-		case_list.extend([i.split('/')[-1] for i in glob(os.path.join(input_dir, "eval_data/*"))])
-		case_list = list(set(case_list))
+		manifest['total_tiles'] = len(glob(os.path.join(input_dir, "train_data/**/*.jpg")))
+		train_case_list = [i.split('/')[-1] for i in glob(os.path.join(input_dir, "train_data/*"))]
+		eval_case_list = [i.split('/')[-1] for i in glob(os.path.join(input_dir, "eval_data/*"))]
+		for case in train_case_list:
+			manifest['train_data'][case] = len(glob(os.path.join(input_dir, f"train_data/{case}/*.jpg")))
+		for case in eval_case_list:
+			manifest['eval_data'][case] = len(glob(os.path.join(input_dir, f"eval_data/{case}/*.jpg")))
+		case_list = list(set(train_case_list + eval_case_list))
 		for case in case_list:
 			if case not in annotations:
 				print(f"\n + [{fail('ERROR')}] Failed image tile integrity check: annotation not found for case {green(case)}")
@@ -315,4 +328,4 @@ def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 	if not success:
 		sys.exit()
 	else:
-		return num_tiles
+		return manifest
