@@ -40,9 +40,9 @@ import json
 import time
 from math import sqrt
 
-from multiprocessing import Pool
+from multiprocessing.dummy import Pool
 from queue import Queue
-from threading import Thread
+#from threading import Thread
 
 from matplotlib.widgets import Slider
 import matplotlib.pyplot as plt
@@ -338,7 +338,6 @@ class Convoluter:
 			pool.map(lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
 
 		elif not display_heatmaps:
-
 			# Create a CSV writing queue to prevent conflicts with multithreadings
 			q = Queue()
 			self.queue_open = True
@@ -357,7 +356,7 @@ class Convoluter:
 
 			case_names = self.SLIDES.keys()
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
-			pool = ThreadPool(4)
+			pool = Pool(4)
 
 			def close_queue(r):
 				self.queue_open = False
