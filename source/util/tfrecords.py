@@ -61,7 +61,7 @@ def write_tfrecords(input_directory, output_directory, label, annotations_file):
 
 	keys = list(image_labels.keys())
 	shuffle(keys)
-	with tf.python_io.TFRecordWriter(tfrecord_path) as writer:
+	with tf.io.TFRecordWriter(tfrecord_path) as writer:
 		for filename in keys:
 			labels = image_labels[filename]
 			image_string = open(filename, 'rb').read()
