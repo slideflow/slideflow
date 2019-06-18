@@ -10,8 +10,8 @@ from glob import glob
 import csv
 
 import subprocess
-import convoluter_tf2_eager as convoluter
-import sfmodel_tf2 as sfmodel
+import convoluter
+import sfmodel
 from util import datasets, tfrecords, sfutil
 from util.sfutil import TCGAAnnotations
 
