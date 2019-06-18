@@ -38,6 +38,8 @@ class SlideFlowProject:
 	TILE_PX = None
 	NUM_CLASSES = None
 	NUM_TILES = 0
+	MANIFEST = None
+	AUGMENT_DICT = None
 
 	EVAL_FRACTION = 0.1
 	AUGMENTATION = convoluter.NO_AUGMENTATION
@@ -67,10 +69,10 @@ class SlideFlowProject:
 
 	def reset_tasks(self):
 		print("Resetting task progress.")
-		data = sfutil.parse_config(self.CONFIG)
+		data = sfutil.load_json(self.CONFIG)
 		for task in data['tasks'].keys():
 			data['tasks'][task] = 'not started'
-		sfutil.write_config(data, self.CONFIG)
+		sfutil.write_json(data, self.CONFIG)
 
 	def prepare_tiles(self):
 		self.extract_tiles()
@@ -200,7 +202,7 @@ class SlideFlowProject:
 	def load_model(self, model_name, model_config=None):
 		model_dir = join(self.MODELS_DIR, model_name)
 		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
-		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE)
+		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE, manifest=self.MANIFEST)
 		# If no model configuration supplied, use default values
 		if not model_config:
 			model_config = sfmodel.SFModelConfig(self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, use_fp16=self.USE_FP16)
@@ -227,7 +229,7 @@ class SlideFlowProject:
 		SFM = self.load_model('evaluate')
 		slide_list = self.get_filtered_slide_list(ignore, slide_filters)
 		c = convoluter.Convoluter(self.TILE_PX, self.TILE_UM, self.NUM_CLASSES, self.BATCH_SIZE*4,
-									self.USE_FP16, self.TILES_DIR)
+									self.USE_FP16, self.TILES_DIR, self.ROI_DIR)
 		c.load_slides(slide_list)
 		c.build_model(join(self.MODELS_DIR, model_name, 'trained_model.h5'), SFM=SFM)
 		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
@@ -289,16 +291,16 @@ class SlideFlowProject:
 		
 	def update_task(self, task, status):
 		return
-		#data = sfutil.parse_config(self.CONFIG)
+		#data = sfutil.load_json(self.CONFIG)
 		#data['tasks'][task] = status
-		#sfutil.write_config(data, self.CONFIG)
+		#sfutil.write_json(data, self.CONFIG)
 
 	def get_task(self, task):
-		return sfutil.parse_config(self.CONFIG)['tasks'][task]
+		return sfutil.load_json(self.CONFIG)['tasks'][task]
 
 	def load_project(self):
 		if os.path.exists(self.CONFIG):
-			data = sfutil.parse_config(self.CONFIG)
+			data = sfutil.load_json(self.CONFIG)
 			self.NAME = data['name']
 			self.PROJECT_DIR = data['root']
 			self.ANNOTATIONS_FILE = data['annotations']
@@ -315,26 +317,21 @@ class SlideFlowProject:
 			self.USE_FP16 = data['use_fp16']
 			self.USE_TFRECORD = data['use_tfrecord']
 			self.TFRECORD_DIR = data['tfrecord_dir']
-			self.DELETE_TILES = data['delete_tiles']
-
-			if not SKIP_VERIFICATION:
-				sfutil.verify_annotations(self.ANNOTATIONS_FILE, slides_dir=self.SLIDES_DIR)
-
-			# If tile extraction has already been started, verify all slides in the annotation file
-			#  have corresponding image tiles
-			if (not SKIP_VERIFICATION and
-				(self.get_task('extract_tiles') != "not started") and 
-				(not self.USE_TFRECORD or self.get_task('generate_tfrecord') == 'complete')):
-
-				if sfutil.yes_no_input("Perform image tile verification? [Y/n] ", default='yes'):
-					input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
-					annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name="slide", value_name="category")
-					tfrecord_files = [os.path.join(input_dir, f"{x}.tfrecords") for x in ["train", "eval"]] if self.USE_TFRECORD else []
-					self.NUM_TILES = sfutil.verify_tiles(annotations, input_dir, tfrecord_files)
-
+			self.DELETE_TILES = data['delete_tiles']		
 			print("\nProject configuration loaded.\n")
 		else:
 			raise OSError(f'Unable to locate project json at location "{self.CONFIG}".')
+		if not SKIP_VERIFICATION:
+			sfutil.verify_annotations(self.ANNOTATIONS_FILE, slides_dir=self.SLIDES_DIR)
+		if os.path.exists(sfutil.global_path("manifest.json")):
+			self.MANIFEST = sfutil.load_json(sfutil.global_path("manifest.json"))
+		else:
+			input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
+			annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name="slide", value_name="category")
+			tfrecord_files = glob(os.path.join(input_dir, "*/*.tfrecords")) if self.USE_TFRECORD else []
+			self.MANIFEST = sfutil.verify_tiles(annotations, input_dir, tfrecord_files)
+			sfutil.write_json(self.MANIFEST, sfutil.global_path("manifest.json"))
+			self.NUM_TILES = self.MANIFEST['total_tiles']
 
 	def create_project(self):
 		# General setup and slide configuration
@@ -409,5 +406,5 @@ class SlideFlowProject:
 			'heatmaps': 'not started',
 			'mosaic': 'not started'
 		}
-		sfutil.write_config(data, self.CONFIG)
+		sfutil.write_json(data, self.CONFIG)
 		print("\nProject configuration saved.\n")

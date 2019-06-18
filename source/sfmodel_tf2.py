@@ -31,6 +31,7 @@ from tensorboard.plugins.custom_scalar import layout_pb2
 
 from glob import glob
 from scipy.stats import linregress
+from statistics import median
 
 from util import tfrecords, sfutil
 from util.sfutil import TCGAAnnotations
@@ -91,7 +92,7 @@ class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
 
-	def __init__(self, data_directory, input_directory, annotations_file):
+	def __init__(self, data_directory, input_directory, annotations_file, manifest=None):
 		self.DATA_DIR = data_directory
 		self.INPUT_DIR = input_directory
 		self.MODEL_DIR = self.DATA_DIR # Directory where to write event logs and checkpoints.
@@ -102,8 +103,11 @@ class SlideflowModel:
 		self.TRAIN_TFRECORD = os.path.join(self.INPUT_DIR, "train.tfrecords")
 		self.EVAL_TFRECORD = os.path.join(self.INPUT_DIR, "eval.tfrecords")
 		self.USE_TFRECORD = (os.path.exists(self.TRAIN_TFRECORD) and os.path.exists(self.EVAL_TFRECORD))
+		self.ANNOTATIONS_FILE = annotations_file
+		self.MANIFEST = manifest # Used for balanced augmentation
 
 		annotations = sfutil.get_annotations_dict(annotations_file, key_name="slide", value_name="category")
+
 		# TODO: use verification done by parent slideflow module; if not done, offer to use again
 		#tfrecord_files = [self.TRAIN_TFRECORD, self.EVAL_TFRECORD] if self.USE_TFRECORD else []
 		#sfutil.verify_tiles(annotations, self.INPUT_DIR, tfrecord_files)
@@ -136,12 +140,6 @@ class SlideflowModel:
 		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
 		config.print_config()
 
-	def _gen_filenames_op(self, dir_string):
-		filenames_op = tf.train.match_filenames_once(dir_string)
-		labels_op = tf.map_fn(lambda f: self.ANNOTATIONS_TABLE.lookup(tf.string_split([f], '/').values[tf.constant(-2, dtype=tf.int32)]),
-								filenames_op, dtype=tf.int32)
-		return filenames_op, labels_op
-
 	def _process_image(self, image_string):
 		image = tf.image.decode_jpeg(image_string, channels = 3)
 		image = tf.image.per_image_standardization(image)
@@ -160,54 +158,70 @@ class SlideflowModel:
 		image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
 		return image
 
-	def _parse_function(self, filename, label):
+	def _parse_function(self, filename):
+		case = filename.split('/')[-2]
+		label = self.ANNOTATIONS_TABLE.lookup(case)
 		image_string = tf.read_file(filename)
 		image = self._process_image(image_string)
 		return image, label
 
-	def _parse_tfrecord_function(self, tfrecord_features):
-		case = tfrecord_features['case']
-		label = self.ANNOTATIONS_TABLE.lookup(case)
-		image_string = tfrecord_features['image_raw']
-		image = self._process_image(image_string)
-		return image, label
-
-	def _gen_batched_dataset(self, filenames, labels):
+	def _gen_batched_dataset(self, filenames):
 		# Replace the below dataset with one that uses a Python generator for flexibility of labeling
-		dataset = tf.data.Dataset.from_tensor_slices((filenames, labels))
+		dataset = tf.data.Dataset.from_tensor_slices(filenames)
 		dataset = dataset.shuffle(tf.size(filenames, out_type=tf.int64))
 		dataset = dataset.map(self._parse_function, num_parallel_calls = 8)
 		dataset = dataset.batch(self.BATCH_SIZE)
 		return dataset
 
-	def _gen_batched_dataset_from_tfrecord(self, tfrecord):
-		raw_image_dataset = tf.data.TFRecordDataset(tfrecord)
-		feature_description = tfrecords.FEATURE_DESCRIPTION
+	def _parse_tfrecord_function(self, record):
+		features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
+		case = features['case']
+		label = self.ANNOTATIONS_TABLE.lookup(case)
+		image_string = features['image_raw']
+		image = self._process_image(image_string)
+		return image, label
 
-		def _parse_image_function(example_proto):
-			"""Parses the input tf.Example proto using the above feature dictionary."""
-			return tf.io.parse_single_example(example_proto, feature_description)
-
-		dataset = raw_image_dataset.map(_parse_image_function)
-		dataset = dataset.shuffle(10000)
-		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
-		dataset = dataset.batch(self.BATCH_SIZE)
-		return dataset
-
-	def build_inputs(self):
-		'''Construct input for the model.'''
-
-		if not self.USE_TFRECORD:
-			with tf.name_scope('filename_input'):
-				train_filenames_op, train_labels_op = self._gen_filenames_op(self.TRAIN_FILES)
-				test_filenames_op, test_labels_op = self._gen_filenames_op(self.TEST_FILES)
-			train_dataset = self._gen_batched_dataset(train_filenames_op, train_labels_op)
-			test_dataset = self._gen_batched_dataset(test_filenames_op, test_labels_op)
+	def _interleave_tfrecords(self, folder, balanced):
+		annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name=sfutil.TCGAAnnotations.case, 
+																		 value_name="category")
+		datasets = []
+		categories = {}
+		category_keep_prob = {}
+		keep_prob_weights = [] if self.MANIFEST else None
+		tfrecord_files = glob(os.path.join(self.INPUT_DIR, f"{folder}/*.tfrecords"))
+		if self.MANIFEST:
+			for filename in tfrecord_files:
+				datasets += [tf.data.TFRecordDataset(filename).repeat()]
+				case_shortname = filename.split('/')[-1][:-10]
+				category = annotations[case_shortname]
+				if category not in categories.keys():
+					categories.update({category: 1})
+				else:
+					categories[category] += 1
+			for category in categories:
+				category_keep_prob[category] = min(categories.values()) / categories[category]
+			for filename in tfrecord_files:
+				case = filename.split('/')[-1][:-10]
+				category = annotations[case]
+				keep_prob_weights += [category_keep_prob[category]]
 		else:
-			with tf.name_scope('input'):
-				train_dataset = self._gen_batched_dataset_from_tfrecord(self.TRAIN_TFRECORD)
-				test_dataset = self._gen_batched_dataset_from_tfrecord(self.EVAL_TFRECORD)
-		
+			for filename in tfrecord_files:
+				datasets += [tf.data.TFRecordDataset(filename).repeat()]			
+		interleaved_dataset = tf.data.experimental.sample_from_datasets(datasets, weights=keep_prob_weights)
+		#interleaved_dataset = interleaved_dataset.shuffle(1000)
+		interleaved_dataset = interleaved_dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
+		interleaved_dataset = interleaved_dataset.batch(self.BATCH_SIZE)
+		return interleaved_dataset
+
+	def build_inputs(self, balanced=True):
+		'''Construct input for the model.'''
+		with tf.name_scope('input'):
+			if not self.USE_TFRECORD:
+				train_dataset = self._gen_batched_dataset(tf.train.match_filenames_once(self.TRAIN_FILES))
+				test_dataset = self._gen_batched_dataset(tf.train.match_filenames_once(self.TEST_FILES))
+			else:
+				train_dataset = self._interleave_tfrecords('train', balanced=balanced)
+				test_dataset = self._interleave_tfrecords('eval', balanced=balanced)
 		return train_dataset, test_dataset
 
 	def build_model(self, pretrain=None):
@@ -282,7 +296,7 @@ class SlideflowModel:
 		train_data, test_data = self.build_inputs()
 		steps_per_epoch = round(self.NUM_TILES/self.BATCH_SIZE)
 		val_steps = 200
-		toplayer_epochs = 0
+		toplayer_epochs = 5
 		finetune_epochs = self.MAX_EPOCH
 		total_epochs = toplayer_epochs + finetune_epochs
 
