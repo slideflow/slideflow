@@ -26,9 +26,6 @@ import progress_bar
 import tensorflow as tf
 import numpy as np
 import imageio
-#import inception_v4
-#from tensorflow.contrib.framework import arg_scope
-#from inception_utils import inception_arg_scope
 from PIL import Image
 import argparse
 import pickle
@@ -42,7 +39,6 @@ from math import sqrt
 
 from multiprocessing.dummy import Pool, Manager
 from queue import Queue
-#from threading import Thread
 
 from matplotlib.widgets import Slider
 import matplotlib.pyplot as plt
