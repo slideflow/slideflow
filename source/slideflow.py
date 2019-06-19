@@ -19,7 +19,7 @@ from util.sfutil import TCGAAnnotations
 # 	to short-names, e.g. when multiple diagnostic slides are present)
 # TODO: automatic loading of training configuration even when training one model
 
-SKIP_VERIFICATION = True
+SKIP_VERIFICATION = False
 
 class SlideFlowProject:
 	PROJECT_DIR = ""
@@ -188,15 +188,22 @@ class SlideFlowProject:
 		if self.get_task('generate_tfrecord') == 'complete':
 			print('Warning: TFRecords already generated.')
 			#return
+		tfrecord_train_dir = join(self.TFRECORD_DIR, 'train')
+		tfrecord_eval_dir = join(self.TFRECORD_DIR, 'eval')
 		if not exists(self.TFRECORD_DIR):
 			datasets.make_dir(self.TFRECORD_DIR)
+		if not exists(tfrecord_train_dir):
+			os.mkdir(tfrecord_train_dir)
+		if not exists(tfrecord_eval_dir):
+			os.mkdir(tfrecord_eval_dir)
 		print('Writing TFRecord files...')
 		self.update_task('generate_tfrecord', 'in process')
-		tfrecords.write_tfrecords(join(self.TILES_DIR, "train_data"), self.TFRECORD_DIR, "train", self.ANNOTATIONS_FILE)
-		tfrecords.write_tfrecords(join(self.TILES_DIR, "eval_data"), self.TFRECORD_DIR, "eval", self.ANNOTATIONS_FILE)
+		tfrecords.write_tfrecords_multi(join(self.TILES_DIR, 'train_data'), tfrecord_train_dir, self.ANNOTATIONS_FILE)
+		tfrecords.write_tfrecords_multi(join(self.TILES_DIR, 'eval_data'), tfrecord_eval_dir, self.ANNOTATIONS_FILE)
 		if self.DELETE_TILES:
 			shutil.rmtree(join(self.TILES_DIR, "train_data"))
 			shutil.rmtree(join(self.TILES_DIR, "eval_data"))
+		self.generate_manifest()
 		self.update_task('generate_tfrecord', 'complete')
 
 	def load_model(self, model_name, model_config=None):
@@ -283,10 +290,21 @@ class SlideFlowProject:
 
 		with open(self.ANNOTATIONS_FILE, 'w') as csv_outfile:
 			csv_writer = csv.writer(csv_outfile, delimiter=',')
-			header = [case_header_name]
+			header = [case_header_name, 'dataset', 'category']
 			csv_writer.writerow(header)
 
 		if scan_for_cases:
+			sfutil.verify_annotations(self.ANNOTATIONS_FILE, slides_dir=self.SLIDES_DIR)
+
+	def generate_manifest(self):
+		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
+		annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name="slide", value_name="category")
+		tfrecord_files = glob(os.path.join(input_dir, "*/*.tfrecords")) if self.USE_TFRECORD else []
+		self.MANIFEST = sfutil.verify_tiles(annotations, input_dir, tfrecord_files)
+		sfutil.write_json(self.MANIFEST, sfutil.global_path("manifest.json"))
+		try:
+			self.NUM_TILES = self.MANIFEST['total_train_tiles']
+		except:
 			pass
 		
 	def update_task(self, task, status):
@@ -326,12 +344,7 @@ class SlideFlowProject:
 		if os.path.exists(sfutil.global_path("manifest.json")):
 			self.MANIFEST = sfutil.load_json(sfutil.global_path("manifest.json"))
 		else:
-			input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
-			annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name="slide", value_name="category")
-			tfrecord_files = glob(os.path.join(input_dir, "*/*.tfrecords")) if self.USE_TFRECORD else []
-			self.MANIFEST = sfutil.verify_tiles(annotations, input_dir, tfrecord_files)
-			sfutil.write_json(self.MANIFEST, sfutil.global_path("manifest.json"))
-			self.NUM_TILES = self.MANIFEST['total_tiles']
+			self.generate_manifest()
 
 	def create_project(self):
 		# General setup and slide configuration
