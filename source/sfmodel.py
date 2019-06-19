@@ -188,9 +188,9 @@ class SlideflowModel:
 		datasets = []
 		categories = {}
 		category_keep_prob = {}
-		keep_prob_weights = [] if self.MANIFEST else None
+		keep_prob_weights = [] if (self.MANIFEST and balanced) else None
 		tfrecord_files = glob(os.path.join(self.INPUT_DIR, f"{folder}/*.tfrecords"))
-		if self.MANIFEST:
+		if self.MANIFEST and balanced:
 			for filename in tfrecord_files:
 				datasets += [tf.data.TFRecordDataset(filename).repeat()]
 				case_shortname = filename.split('/')[-1][:-10]
