@@ -95,7 +95,7 @@ class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
 
-	def __init__(self, data_directory, input_directory, annotations_file, manifest=None):
+	def __init__(self, data_directory, input_directory, annotations_file, manifest=None, use_tfrecord=True):
 		self.DATA_DIR = data_directory
 		self.INPUT_DIR = input_directory
 		self.MODEL_DIR = self.DATA_DIR # Directory where to write event logs and checkpoints.
@@ -103,9 +103,7 @@ class SlideflowModel:
 		self.TEST_DIR = os.path.join(self.MODEL_DIR, 'test') # Directory where to write eval logs and summaries.
 		self.TRAIN_FILES = os.path.join(self.INPUT_DIR, "train_data/*/*.jpg")
 		self.TEST_FILES = os.path.join(self.INPUT_DIR, "eval_data/*/*.jpg")
-		self.TRAIN_TFRECORD = os.path.join(self.INPUT_DIR, "train.tfrecords")
-		self.EVAL_TFRECORD = os.path.join(self.INPUT_DIR, "eval.tfrecords")
-		self.USE_TFRECORD = (os.path.exists(self.TRAIN_TFRECORD) and os.path.exists(self.EVAL_TFRECORD))
+		self.USE_TFRECORD = use_tfrecord
 		self.ANNOTATIONS_FILE = annotations_file
 		self.MANIFEST = manifest # Used for balanced augmentation
 
@@ -220,8 +218,8 @@ class SlideflowModel:
 		'''Construct input for the model.'''
 		with tf.name_scope('input'):
 			if not self.USE_TFRECORD:
-				train_dataset = self._gen_batched_dataset(tf.train.match_filenames_once(self.TRAIN_FILES))
-				test_dataset = self._gen_batched_dataset(tf.train.match_filenames_once(self.TEST_FILES))
+				train_dataset = self._gen_batched_dataset(tf.io.match_filenames_once(self.TRAIN_FILES))
+				test_dataset = self._gen_batched_dataset(tf.io.match_filenames_once(self.TEST_FILES))
 			else:
 				train_dataset = self._interleave_tfrecords('train', balanced=balanced)
 				test_dataset = self._interleave_tfrecords('eval', balanced=balanced)
