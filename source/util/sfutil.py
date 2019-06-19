@@ -220,6 +220,7 @@ def verify_annotations(annotations_file, slides_dir=None):
 		print(f" + [{fail('ERROR')}] Header column 'slide' not found.")
 		if slides_dir and yes_no_input('\nSearch slides directory and automatically associate cases with slides? [Y/n] ', default='yes'):
 			# First, load all case names from the annotations file
+			slide_index = len(header)
 			cases = []
 			case_slide_dict = {}
 			with open(annotations_file) as csv_file:
@@ -311,7 +312,7 @@ def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 		for case in case_list_errors:
 			print(f"\n + [{fail('ERROR')}] Failed TFRecord integrity check: annotation not found for case {green(case)}")
 	else:
-		manifest['total_tiles'] = len(glob(os.path.join(input_dir, "train_data/**/*.jpg")))
+		manifest['total_train_tiles'] = len(glob(os.path.join(input_dir, "train_data/**/*.jpg")))
 		train_case_list = [i.split('/')[-1] for i in glob(os.path.join(input_dir, "train_data/*"))]
 		eval_case_list = [i.split('/')[-1] for i in glob(os.path.join(input_dir, "eval_data/*"))]
 		for case in train_case_list:
