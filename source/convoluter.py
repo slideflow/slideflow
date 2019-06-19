@@ -357,7 +357,6 @@ class Convoluter:
 			# Create a thread to coordinate multithreading of logits calculation
 			map_result = pool.map_async(lambda case_name: map_logits_calc(case_name, pb, q), case_names)
 			
-			print("Map_Async complete, starting queue")
 			while (not map_result.ready()) or (not q.empty()):
 				final_layer, final_layer_labels, logits_flat, case_name, category = q.get()
 				self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)

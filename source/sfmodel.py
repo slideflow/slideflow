@@ -84,6 +84,9 @@ class SFModelConfig:
 
 	def print_config(self):
 		print(f" + [{sfutil.info('INFO')}] Model configuration:")
+		print(f"   - image_size = {self.batch_size}")
+		print(f"   - num_classes = {self.num_classes}")
+		print(f"   - batch_size = {self.image_size}")
 		for arg in self.get_args():
 			value = getattr(self, arg)
 			print(f"   - {sfutil.header(arg)} = {value}")
@@ -224,7 +227,7 @@ class SlideflowModel:
 				test_dataset = self._interleave_tfrecords('eval', balanced=balanced)
 		return train_dataset, test_dataset
 
-	def build_model(self, pretrain=None):
+	def build_model(self, pretrain=None, checkpoint=None):
 		# Assemble base model, using pretraining (imagenet) or the base layers of a supplied model
 		if pretrain:
 			print(f" + [{sfutil.info('INFO')}] Using pretraining from {sfutil.green(pretrain)}")
@@ -249,7 +252,25 @@ class SlideflowModel:
 			#fully_connected_layer,
 			prediction_layer
 		])
+		if checkpoint:
+			print(f" + [{sfutil.info('INFO')}] Loading checkpoint weights from {sfutil.green(checkpoint)}")
+			model.load_weights(checkpoint)
+
 		return model
+
+	def evaluate(self, model=None, checkpoint=None, dataset='train'):
+		train_data, test_data = self.build_inputs()
+		data_to_eval = train_data if dataset=='train' else test_data
+		if model:
+			loaded_model = tf.keras.models.load_model(model)
+		elif checkpoint:
+			loaded_model = self.build_model()
+			loaded_model.load_weights(checkpoint)
+		loaded_model.compile(loss='sparse_categorical_crossentropy',
+					optimizer=tf.keras.optimizers.Adam(lr=self.LEARNING_RATE),
+					metrics=['accuracy'])
+		results = loaded_model.evaluate(train_data)
+		print(results)
 
 	def retrain_top_layers(self, model, train_data, test_data, callbacks=None, epochs=1):
 		print(f" + [{sfutil.info('INFO')}] Retraining top layer")
@@ -274,20 +295,6 @@ class SlideflowModel:
 		model.layers[0].trainable = True
 		model.save(os.path.join(self.DATA_DIR, "toplayer_trained_model.h5"))
 		return toplayer_model.history
-
-	def evaluate(self, model=None, checkpoint=None, dataset='train'):
-		train_data, test_data = self.build_inputs()
-		data_to_eval = train_data if dataset=='train' else test_data
-		if model:
-			loaded_model = tf.keras.models.load_model(model)
-		elif checkpoint:
-			loaded_model = self.build_model()
-			loaded_model.load_weights(checkpoint)
-		loaded_model.compile(loss='sparse_categorical_crossentropy',
-					optimizer=tf.keras.optimizers.Adam(lr=self.LEARNING_RATE),
-					metrics=['accuracy'])
-		results = loaded_model.evaluate(train_data)
-		print(results)
 
 	def train(self, pretrain='imagenet', resume_training=None, checkpoint=None):
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
@@ -318,10 +325,9 @@ class SlideflowModel:
 			print(f" + [{sfutil.info('INFO')}] Resuming training from {sfutil.green(resume_training)}")
 			model = tf.keras.models.load_model(resume_training)
 		else:
-			model = self.build_model(pretrain)
-		if checkpoint:
-			print(f" + [{sfutil.info('INFO')}] Loading checkpoint weights from {sfutil.green(checkpoint)}")
-			model.load_weights(checkpoint)
+			model = self.build_model(pretrain, checkpoint)
+
+		model.save(os.path.join(self.DATA_DIR, "untrained_model.h5"))
 
 		# Retrain top layer only if using transfer learning and not resuming training
 		if pretrain and not (resume_training or checkpoint):
@@ -330,9 +336,10 @@ class SlideflowModel:
 		# Fine-tune the model
 		print(f" + [{sfutil.info('INFO')}] Beginning fine-tuning")
 
-		for layer in model.layers[0].layers:
+		# Code for fixing a model that did not have batch_norm update
+		'''for layer in model.layers[0].layers:
 			if "batch_normalization" not in layer.name:
-				layer.trainable=False
+				layer.trainable=False'''
 
 		model.compile(loss='sparse_categorical_crossentropy',
 					optimizer=tf.keras.optimizers.Adam(lr=self.LEARNING_RATE),
