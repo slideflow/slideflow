@@ -199,7 +199,22 @@ class SlideFlowProject:
 			shutil.rmtree(join(self.TILES_DIR, "eval_data"))
 		self.update_task('generate_tfrecord', 'complete')
 
-	def load_model(self, model_name, model_config=None):
+	def _update_h5_to_checkpoint(self, checkpoint, h5, out_name):
+		model = tf.keras.models.load_model(h5)
+		model.load_weights(checkpoint)
+		try:
+			model.save(out_name)
+		except KeyError:
+			# Not sure why this happens, something to do with the optimizer?
+			pass
+
+	def checkpoint_to_h5(self, model_name):
+		checkpoint = join(self.MODELS_DIR, model_name, "cp.ckpt")
+		h5 = join(self.MODELS_DIR, model_name, "untrained_model.h5")
+		updated_h5 = join(self.MODELS_DIR, model_name, "trained_model.h5")
+		self._update_h5_to_checkpoint(checkpoint, h5, updated_h5)
+
+	def configure_model(self, model_name, model_config=None):
 		model_dir = join(self.MODELS_DIR, model_name)
 		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
 		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE, manifest=self.MANIFEST)
@@ -212,7 +227,7 @@ class SlideFlowProject:
 		return SFM
 
 	def evaluate(self, model=None, checkpoint=None, dataset='train'):
-		SFM = self.load_model("evaluation")
+		SFM = self.configure_model("evaluation")
 		SFM.evaluate(model, checkpoint, dataset)
 
 	def train_model(self, model_name, model_config=None, resume_training=None, checkpoint=None):
@@ -220,13 +235,13 @@ class SlideFlowProject:
 		self.update_task('training', 'in process')
 		print(f"Training model {model_name}...")
 
-		SFM = self.load_model(model_name, model_config)
+		SFM = self.configure_model(model_name, model_config)
 		val_acc = SFM.train(pretrain=self.PRETRAIN, resume_training=resume_training, checkpoint=checkpoint)	
 
 		return val_acc
 
 	def generate_heatmaps(self, model_name, ignore=None, slide_filters=None):
-		SFM = self.load_model('evaluate')
+		SFM = self.configure_model('evaluate')
 		slide_list = self.get_filtered_slide_list(ignore, slide_filters)
 		c = convoluter.Convoluter(self.TILE_PX, self.TILE_UM, self.NUM_CLASSES, self.BATCH_SIZE*4,
 									self.USE_FP16, self.TILES_DIR, self.ROI_DIR)
