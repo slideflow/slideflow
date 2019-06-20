@@ -98,7 +98,7 @@ class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
 
-	def __init__(self, data_directory, input_directory, annotations_file, manifest=None, use_tfrecord=True):
+	def __init__(self, data_directory, input_directory, annotations_file, manifest=None, use_tfrecord=True, tfrecords_by_case=False):
 		self.DATA_DIR = data_directory
 		self.INPUT_DIR = input_directory
 		self.MODEL_DIR = self.DATA_DIR # Directory where to write event logs and checkpoints.
@@ -108,7 +108,8 @@ class SlideflowModel:
 		self.TEST_FILES = os.path.join(self.INPUT_DIR, "eval_data/*/*.jpg")
 		self.USE_TFRECORD = use_tfrecord
 		self.ANNOTATIONS_FILE = annotations_file
-		self.MANIFEST = manifest # Used for balanced augmentation
+		self.MANIFEST = manifest # Not currently used
+		self.TFRECORDS_BY_CASE = tfrecords_by_case # Whether to expect a tfrecord file for each case/slide
 
 		annotations = sfutil.get_annotations_dict(annotations_file, key_name="slide", value_name="category")
 
@@ -200,13 +201,13 @@ class SlideflowModel:
 		datasets = []
 		categories = {}
 		category_keep_prob = {}
-		keep_prob_weights = [] if (self.MANIFEST and balanced) else None
+		keep_prob_weights = [] if balanced else None
 		tfrecord_files = glob(os.path.join(self.INPUT_DIR, f"{folder}/*.tfrecords"))
 		if tfrecord_files == []:
 			print(f" + [{sfutil.fail('ERROR')}] No TFRecords found in 'train' or 'eval' subdirectory in {sfutil.green(self.INPUT_DIR)}")
 			print(f"           Did you mean to train without class balancing?")
 			sys.exit()
-		if self.MANIFEST and balanced:
+		if balanced:
 			for filename in tfrecord_files:
 				datasets += [tf.data.TFRecordDataset(filename).repeat()]
 				case_shortname = filename.split('/')[-1][:-10]
@@ -237,27 +238,25 @@ class SlideflowModel:
 	def build_inputs(self, balanced=True):
 		'''Construct input for the model.'''
 		with tf.name_scope('input'):
-			train_dataset = self.build_train_inputs()
-			test_dataset = self.build_test_inputs()
+			train_dataset = self.build_dataset_inputs(self.TRAIN_FILES, 'train', 'train.tfrecords', balanced=balanced)
+			test_dataset = self.build_dataset_inputs(self.TEST_FILES, 'eval', 'test.tfrecords', balanced=balanced)
 		return train_dataset, test_dataset
 
-	def build_test_inputs(self, balanced=True):
+	def build_dataset_inputs(self, filename_dir, subfolder, tfrecord_file, balanced):
+		'''Args:
+			filename_dir:	Directory in which to search for image tiles, if applicable
+			subfolder:		Sub-directory in which to search for tfrecords, if applicable
+			tfrecord_file:	Name of tfrecord file containing all records, if applicable
+			balanced:		Whether to use input balancing (only available if TFRECORDS_BY_CASE=True)'''
 		if not self.USE_TFRECORD:
-			test_dataset = self._gen_batched_dataset(tf.io.match_filenames_once(self.TEST_FILES))
-		elif self.BALANCED_INPUT:
-			test_dataset = self._interleave_tfrecords('eval', balanced=balanced)
+			dataset = self._gen_batched_dataset(tf.io.match_filenames_once(filename_dir))
+		elif self.TFRECORDS_BY_CASE:
+			dataset = self._interleave_tfrecords(subfolder, balanced=balanced)
 		else:
-			test_dataset = self._gen_batched_dataset_tfrecords(os.path.join(self.INPUT_DIR, 'test.tfrecords'))
-		return test_dataset
-
-	def build_train_inputs(self, balanced=True):
-		if not self.USE_TFRECORD:
-			train_dataset = self._gen_batched_dataset(tf.io.match_filenames_once(self.TRAIN_FILES))
-		elif self.BALANCED_INPUT:
-			train_dataset = self._interleave_tfrecords('train', balanced=balanced)
-		else:
-			train_dataset = self._gen_batched_dataset_tfrecords(os.path.join(self.INPUT_DIR, 'train.tfrecords'))
-		return train_dataset
+			if balanced:
+				print(f" + [{sfutil.warn('WARN')}] Unable to use balanced inputs unless each case/slide has its own tfrecord file")
+			dataset = self._gen_batched_dataset_tfrecords(os.path.join(self.INPUT_DIR, tfrecord_file))
+		return dataset
 
 	def build_model(self, pretrain=None, checkpoint=None):
 		# Assemble base model, using pretraining (imagenet) or the base layers of a supplied model
