@@ -269,10 +269,14 @@ def verify_annotations(annotations_file, slides_dir=None):
 	with open(annotations_file) as csv_file:
 		csv_reader = csv.reader(csv_file, delimiter=',')
 		header = next(csv_reader, None)
+		skip_warn = False
 		for row in csv_reader:
 			if not row[slide_index] in [s.split('/')[-1][:-4] for s in slide_list]:
-				if yes_no_input(f" + [{warn('WARN')}] Unable to locate slide {row[slide_index]}. Quit? [y/N] ", default='no'):
+				if not skip_warn and yes_no_input(f" + [{warn('WARN')}] Unable to locate slide {row[slide_index]}. Quit? [y/N] ", default='no'):
 					sys.exit()
+				else:
+					print(f" + [{warn('WARN')}] Unable to locate slide {row[slide_index]}")
+					skip_warn = True
 
 def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 	'''Iterate through folders if using raw images and verify all have an annotation;
