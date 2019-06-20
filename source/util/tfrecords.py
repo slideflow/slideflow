@@ -11,7 +11,7 @@ import time
 import sys
 import csv
 
-import sfutil
+from util import sfutil
 from glob import glob
 
 FEATURE_DESCRIPTION =  {'category': tf.io.FixedLenFeature([], tf.int64),
