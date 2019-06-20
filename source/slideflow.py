@@ -240,7 +240,7 @@ class SlideFlowProject:
 	def train_model(self, model_name, model_config=None, resume_training=None, checkpoint=None):
 		'''Train a model once using a given configuration (or use default if none supplied)'''
 		self.update_task('training', 'in process')
-		print(f"Training model {model_name}...")
+		print(f"Training model {sfutil.bold(model_name)}...")
 
 		SFM = self.configure_model(model_name, model_config)
 		val_acc = SFM.train(pretrain=self.PRETRAIN, resume_training=resume_training, checkpoint=checkpoint)	
