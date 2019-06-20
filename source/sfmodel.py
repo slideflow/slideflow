@@ -218,9 +218,13 @@ class SlideflowModel:
 				case = filename.split('/')[-1][:-10]
 				category = annotations[case]
 				keep_prob_weights += [category_keep_prob[category]]
+			print(f" + [{sfutil.info('INFO')}] Balancing input from {sfutil.green(folder)} across categories")
+			for category in category_keep_prob:
+				print(f"    - {sfutil.green(str(category))} = {category_keep_prob[category]:.3f}")
 		else:
 			for filename in tfrecord_files:
 				datasets += [tf.data.TFRecordDataset(filename).repeat()]			
+			print(f" + [{sfutil.info('INFO')}] Using non-balanced input")
 		interleaved_dataset = tf.data.experimental.sample_from_datasets(datasets, weights=keep_prob_weights)
 		#interleaved_dataset = interleaved_dataset.shuffle(1000)
 		interleaved_dataset = interleaved_dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)

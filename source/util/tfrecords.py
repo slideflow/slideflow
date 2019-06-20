@@ -58,12 +58,13 @@ def _parse_tfrecord_function(record):
 	features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
 	return features
 
-def join_tfrecord(input_folder, output_file):
+def join_tfrecord(input_folder, output_file, assign_case=None):
 	'''Randomly samples from tfrecords in the input folder with shuffling,
 	and combines into a single tfrecord file.'''
 	writer = tf.io.TFRecordWriter(output_file)
 	tfrecord_files = glob(join(input_folder, "*.tfrecords"))
 	datasets = []
+	if assign_case: assign_case = assign_case.encode('utf-8')
 	for tfrecord in tfrecord_files:
 		dataset = tf.data.TFRecordDataset(tfrecord)
 		dataset = dataset.shuffle(1000)
@@ -77,7 +78,7 @@ def join_tfrecord(input_folder, output_file):
 			del(datasets[index])
 			continue
 		features = _parse_tfrecord_function(record)
-		case = features['case'].numpy()
+		case = features['case'].numpy() if not assign_case else assign_case
 		category = features['category'].numpy()
 		image_raw = features['image_raw'].numpy()
 		tf_example = image_example(category, case, image_raw)
@@ -105,6 +106,18 @@ def split_tfrecord(tfrecord_file, output_folder):
 
 	for case in writers.keys():
 		writers[case].close()
+
+def assign_case_across_tfrecord(tfrecord_file, case):
+	dataset = tf.data.TFRecordDataset(tfrecord_file)
+	writer = tf.io.TFRecordWriter(tfrecord_file+".1")
+	case = case.encode('utf-8')
+	for record in dataset:
+		features = _parse_tfrecord_function(record)
+		category = features['category'].numpy()
+		image_raw = features['image_raw'].numpy()
+		tf_example = image_example(category, case, image_raw)
+		writer.write(tf_example.SerializeToString())
+	writer.close()
 
 def _print_record(filename):
 	v_dataset = tf.data.TFRecordDataset(filename)
