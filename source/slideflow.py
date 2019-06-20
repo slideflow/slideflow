@@ -32,6 +32,7 @@ class SlideFlowProject:
 	BATCH_TRAIN_CONFIG = None
 	PRETRAIN = None
 	USE_TFRECORD = False
+	TFRECORDS_BY_CASE = False
 	TFRECORD_DIR = None
 	DELETE_TILES = False
 	TILE_UM = None
@@ -224,7 +225,9 @@ class SlideFlowProject:
 	def configure_model(self, model_name, model_config=None):
 		model_dir = join(self.MODELS_DIR, model_name)
 		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
-		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE, manifest=self.MANIFEST)
+		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE, manifest=self.MANIFEST, 
+																				  use_tfrecord=self.USE_TFRECORD,
+																				  tfrecords_by_case=self.TFRECORDS_BY_CASE)
 		# If no model configuration supplied, use default values
 		if not model_config:
 			model_config = sfmodel.SFModelConfig(self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, use_fp16=self.USE_FP16)
@@ -349,6 +352,7 @@ class SlideFlowProject:
 			self.BATCH_SIZE = data['batch_size']
 			self.USE_FP16 = data['use_fp16']
 			self.USE_TFRECORD = data['use_tfrecord']
+			self.TFRECORDS_BY_CASE = data['tfrecords_by_case']
 			self.TFRECORD_DIR = data['tfrecord_dir']
 			self.DELETE_TILES = data['delete_tiles']		
 			print("\nProject configuration loaded.\n")
@@ -387,6 +391,7 @@ class SlideFlowProject:
 			self.DELETE_TILES = sfutil.yes_no_input("Should raw tile images be deleted after TFRecord storage? [Y/n] ", default='yes')
 			self.TFRECORD_DIR = sfutil.dir_input("Where should the TFRecord files be stored? (recommend HDD) [./tfrecord] ",
 									default='./tfrecord', create_on_invalid=True)
+			self.TFRECORDS_BY_CASE = sfutil.yes_no_input("Create a TFRecord file for each slide? (required for input balancing) [Y/n] ", default='yes')
 		# Training
 		self.MODELS_DIR = sfutil.dir_input("Where should the saved models be stored? [./models] ",
 									default='./models', create_on_invalid=True)
@@ -423,6 +428,7 @@ class SlideFlowProject:
 		data['batch_size'] = self.BATCH_SIZE
 		data['use_fp16'] = self.USE_FP16
 		data['use_tfrecord'] = self.USE_TFRECORD
+		data['tfrecords_by_case'] = self.TFRECORDS_BY_CASE
 		data['tfrecord_dir'] = self.TFRECORD_DIR
 		data['delete_tiles'] = self.DELETE_TILES
 		data['tasks'] = {
