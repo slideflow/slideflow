@@ -44,7 +44,8 @@ from util.sfutil import TCGAAnnotations
 class SFModelConfig:
 	def __init__(self, image_size, num_classes, batch_size, num_tiles=10000, augment=True, 
 				learning_rate=0.01, beta1=0.9, beta2=0.999, epsilon=1.0, batch_norm_decay=0.99, 
-				early_stop=0.015, max_epoch=300, log_frequency=20, test_frequency=600, balanced_input=True, use_fp16=True):
+				early_stop=0.015, toplayer_epoch=5, max_epoch=300, log_frequency=20, test_frequency=600, 
+				balanced_input=True, use_fp16=True):
 		''' Declare constants describing the model and training process.
 		Args:
 			image_size						Size of input images in pixels
@@ -73,6 +74,7 @@ class SFModelConfig:
 		self.epsilon = epsilon
 		self.batch_norm_decay = batch_norm_decay
 		self.early_stop = early_stop
+		self.toplayer_epoch = toplayer_epoch
 		self.max_epoch = max_epoch
 		self.log_frequency = log_frequency
 		self.test_frequency = test_frequency
@@ -135,6 +137,7 @@ class SlideflowModel:
 		self.EPSILON = config.epsilon
 		self.BATCH_NORM_DECAY = config.batch_norm_decay
 		self.VALIDATION_EARLY_STOP_SLOPE = config.early_stop
+		self.TOPLAYER_EPOCH = config.toplayer_epoch
 		self.MAX_EPOCH = config.max_epoch
 		self.LOG_FREQUENCY = config.log_frequency
 		self.TEST_FREQUENCY = config.test_frequency
@@ -177,7 +180,7 @@ class SlideflowModel:
 		return dataset
 
 	def _gen_batched_dataset_tfrecords(self, filename):
-		dataset = tf.data.TFRecordDataset(filename).repeat()
+		dataset = tf.data.TFRecordDataset(filename)
 		dataset = dataset.shuffle(1000)
 		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		dataset = dataset.batch(self.BATCH_SIZE)
@@ -234,16 +237,27 @@ class SlideflowModel:
 	def build_inputs(self, balanced=True):
 		'''Construct input for the model.'''
 		with tf.name_scope('input'):
-			if not self.USE_TFRECORD:
-				train_dataset = self._gen_batched_dataset(tf.io.match_filenames_once(self.TRAIN_FILES))
-				test_dataset = self._gen_batched_dataset(tf.io.match_filenames_once(self.TEST_FILES))
-			elif self.BALANCED_INPUT:
-				train_dataset = self._interleave_tfrecords('train', balanced=balanced)
-				test_dataset = self._interleave_tfrecords('eval', balanced=balanced)
-			else:
-				train_dataset = self._gen_batched_dataset_tfrecords(os.path.join(self.INPUT_DIR, 'train.tfrecords'))
-				test_dataset = self._gen_batched_dataset_tfrecords(os.path.join(self.INPUT_DIR, 'test.tfrecords'))
+			train_dataset = self.build_train_inputs()
+			test_dataset = self.build_test_inputs()
 		return train_dataset, test_dataset
+
+	def build_test_inputs(self, balanced=True):
+		if not self.USE_TFRECORD:
+			test_dataset = self._gen_batched_dataset(tf.io.match_filenames_once(self.TEST_FILES))
+		elif self.BALANCED_INPUT:
+			test_dataset = self._interleave_tfrecords('eval', balanced=balanced)
+		else:
+			test_dataset = self._gen_batched_dataset_tfrecords(os.path.join(self.INPUT_DIR, 'test.tfrecords'))
+		return test_dataset
+
+	def build_train_inputs(self, balanced=True):
+		if not self.USE_TFRECORD:
+			train_dataset = self._gen_batched_dataset(tf.io.match_filenames_once(self.TRAIN_FILES))
+		elif self.BALANCED_INPUT:
+			train_dataset = self._interleave_tfrecords('train', balanced=balanced)
+		else:
+			train_dataset = self._gen_batched_dataset_tfrecords(os.path.join(self.INPUT_DIR, 'train.tfrecords'))
+		return train_dataset
 
 	def build_model(self, pretrain=None, checkpoint=None):
 		# Assemble base model, using pretraining (imagenet) or the base layers of a supplied model
@@ -276,9 +290,8 @@ class SlideflowModel:
 
 		return model
 
-	def evaluate(self, model=None, checkpoint=None, dataset='train'):
-		train_data, test_data = self.build_inputs()
-		data_to_eval = train_data if dataset=='train' else test_data
+	def evaluate(self, model=None, checkpoint=None):
+		data_to_eval = self.build_test_inputs(balanced=False)
 		if model:
 			loaded_model = tf.keras.models.load_model(model)
 		elif checkpoint:
@@ -287,7 +300,7 @@ class SlideflowModel:
 		loaded_model.compile(loss='sparse_categorical_crossentropy',
 					optimizer=tf.keras.optimizers.Adam(lr=self.LEARNING_RATE),
 					metrics=['accuracy'])
-		results = loaded_model.evaluate(train_data)
+		results = loaded_model.evaluate(data_to_eval)
 		print(results)
 
 	def retrain_top_layers(self, model, train_data, test_data, callbacks=None, epochs=1):
@@ -321,7 +334,7 @@ class SlideflowModel:
 		train_data, test_data = self.build_inputs()
 		steps_per_epoch = round(self.NUM_TILES/self.BATCH_SIZE)
 		val_steps = 200
-		toplayer_epochs = 5
+		toplayer_epochs = self.TOPLAYER_EPOCH
 		finetune_epochs = self.MAX_EPOCH
 		total_epochs = toplayer_epochs + finetune_epochs
 
@@ -348,7 +361,7 @@ class SlideflowModel:
 		model.save(os.path.join(self.DATA_DIR, "untrained_model.h5"))
 
 		# Retrain top layer only if using transfer learning and not resuming training
-		if pretrain and not (resume_training or checkpoint):
+		if pretrain and not (resume_training or checkpoint) and toplayer_epochs:
 			self.retrain_top_layers(model, train_data, test_data, callbacks=callbacks, epochs=toplayer_epochs)
 		
 		# Fine-tune the model
