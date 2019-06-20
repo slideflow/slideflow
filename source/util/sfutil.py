@@ -188,7 +188,8 @@ def get_annotations_dict(annotations_file, key_name, value_name, use_encode=True
 						print(f" + [{info('INFO')}] Non-integer in '{value_name}' header, encoding with integer values")
 						encode = True
 		if use_encode and encode:
-			values = set(key_dict_str.values())
+			values = list(set(key_dict_str.values()))
+			values.sort()
 			values_str_to_int = {}
 			for i, c in enumerate(values):
 				values_str_to_int.update({c: i})
@@ -219,6 +220,7 @@ def verify_annotations(annotations_file, slides_dir=None):
 		print(f" + [{fail('ERROR')}] Header column 'slide' not found.")
 		if slides_dir and yes_no_input('\nSearch slides directory and automatically associate cases with slides? [Y/n] ', default='yes'):
 			# First, load all case names from the annotations file
+			slide_index = len(header)
 			cases = []
 			case_slide_dict = {}
 			with open(annotations_file) as csv_file:
@@ -280,8 +282,7 @@ def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 	print(f" + Verifying tiles and annotations...")
 	success = True
 	case_list = []
-	manifest = {'total_tiles': 0,
-				'train_data': {},
+	manifest = {'train_data': {},
 				'eval_data': {}}
 	if tfrecord_files:
 		case_list_errors = []
@@ -291,7 +292,6 @@ def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 			for i, raw_record in enumerate(raw_dataset):
 				sys.stdout.write(f"\r + Verifying tile...{i}")
 				sys.stdout.flush()
-				manifest['total_tiles'] = i
 				example = tf.train.Example()
 				example.ParseFromString(raw_record.numpy())
 				case = example.features.feature['case'].bytes_list.value[0].decode('utf-8')
@@ -305,10 +305,14 @@ def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 					case_list_errors.extend([case])
 					case_list_errors = list(set(case_list_errors))
 					success = False
+			total = 0
+			for case in manifest[tfrecord_file].keys():
+				total += manifest[tfrecord_file][case]
+			manifest[tfrecord_file]['total'] = total
 		for case in case_list_errors:
 			print(f"\n + [{fail('ERROR')}] Failed TFRecord integrity check: annotation not found for case {green(case)}")
 	else:
-		manifest['total_tiles'] = len(glob(os.path.join(input_dir, "train_data/**/*.jpg")))
+		manifest['total_train_tiles'] = len(glob(os.path.join(input_dir, "train_data/**/*.jpg")))
 		train_case_list = [i.split('/')[-1] for i in glob(os.path.join(input_dir, "train_data/*"))]
 		eval_case_list = [i.split('/')[-1] for i in glob(os.path.join(input_dir, "eval_data/*"))]
 		for case in train_case_list:

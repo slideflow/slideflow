@@ -10,8 +10,8 @@ from glob import glob
 import csv
 
 import subprocess
-import convoluter_tf2_eager as convoluter
-import sfmodel_tf2 as sfmodel
+import convoluter
+import sfmodel
 from util import datasets, tfrecords, sfutil
 from util.sfutil import TCGAAnnotations
 
@@ -19,7 +19,7 @@ from util.sfutil import TCGAAnnotations
 # 	to short-names, e.g. when multiple diagnostic slides are present)
 # TODO: automatic loading of training configuration even when training one model
 
-SKIP_VERIFICATION = True
+SKIP_VERIFICATION = False
 
 class SlideFlowProject:
 	PROJECT_DIR = ""
@@ -39,6 +39,7 @@ class SlideFlowProject:
 	NUM_CLASSES = None
 	NUM_TILES = 0
 	MANIFEST = None
+	AUGMENT_DICT = None
 
 	EVAL_FRACTION = 0.1
 	AUGMENTATION = convoluter.NO_AUGMENTATION
@@ -187,21 +188,43 @@ class SlideFlowProject:
 		if self.get_task('generate_tfrecord') == 'complete':
 			print('Warning: TFRecords already generated.')
 			#return
+		tfrecord_train_dir = join(self.TFRECORD_DIR, 'train')
+		tfrecord_eval_dir = join(self.TFRECORD_DIR, 'eval')
 		if not exists(self.TFRECORD_DIR):
 			datasets.make_dir(self.TFRECORD_DIR)
+		if not exists(tfrecord_train_dir):
+			os.mkdir(tfrecord_train_dir)
+		if not exists(tfrecord_eval_dir):
+			os.mkdir(tfrecord_eval_dir)
 		print('Writing TFRecord files...')
 		self.update_task('generate_tfrecord', 'in process')
-		tfrecords.write_tfrecords(join(self.TILES_DIR, "train_data"), self.TFRECORD_DIR, "train", self.ANNOTATIONS_FILE)
-		tfrecords.write_tfrecords(join(self.TILES_DIR, "eval_data"), self.TFRECORD_DIR, "eval", self.ANNOTATIONS_FILE)
+		tfrecords.write_tfrecords_multi(join(self.TILES_DIR, 'train_data'), tfrecord_train_dir, self.ANNOTATIONS_FILE)
+		tfrecords.write_tfrecords_multi(join(self.TILES_DIR, 'eval_data'), tfrecord_eval_dir, self.ANNOTATIONS_FILE)
 		if self.DELETE_TILES:
 			shutil.rmtree(join(self.TILES_DIR, "train_data"))
 			shutil.rmtree(join(self.TILES_DIR, "eval_data"))
+		self.generate_manifest()
 		self.update_task('generate_tfrecord', 'complete')
 
-	def load_model(self, model_name, model_config=None):
+	def _update_h5_to_checkpoint(self, checkpoint, h5, out_name):
+		model = tf.keras.models.load_model(h5)
+		model.load_weights(checkpoint)
+		try:
+			model.save(out_name)
+		except KeyError:
+			# Not sure why this happens, something to do with the optimizer?
+			pass
+
+	def checkpoint_to_h5(self, model_name):
+		checkpoint = join(self.MODELS_DIR, model_name, "cp.ckpt")
+		h5 = join(self.MODELS_DIR, model_name, "untrained_model.h5")
+		updated_h5 = join(self.MODELS_DIR, model_name, "trained_model.h5")
+		self._update_h5_to_checkpoint(checkpoint, h5, updated_h5)
+
+	def configure_model(self, model_name, model_config=None):
 		model_dir = join(self.MODELS_DIR, model_name)
 		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
-		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE)
+		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE, manifest=self.MANIFEST)
 		# If no model configuration supplied, use default values
 		if not model_config:
 			model_config = sfmodel.SFModelConfig(self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, use_fp16=self.USE_FP16)
@@ -211,7 +234,7 @@ class SlideFlowProject:
 		return SFM
 
 	def evaluate(self, model=None, checkpoint=None, dataset='train'):
-		SFM = self.load_model("evaluation")
+		SFM = self.configure_model("evaluation")
 		SFM.evaluate(model, checkpoint, dataset)
 
 	def train_model(self, model_name, model_config=None, resume_training=None, checkpoint=None):
@@ -219,13 +242,13 @@ class SlideFlowProject:
 		self.update_task('training', 'in process')
 		print(f"Training model {model_name}...")
 
-		SFM = self.load_model(model_name, model_config)
+		SFM = self.configure_model(model_name, model_config)
 		val_acc = SFM.train(pretrain=self.PRETRAIN, resume_training=resume_training, checkpoint=checkpoint)	
 
 		return val_acc
 
 	def generate_heatmaps(self, model_name, ignore=None, slide_filters=None):
-		SFM = self.load_model('evaluate')
+		SFM = self.configure_model('evaluate')
 		slide_list = self.get_filtered_slide_list(ignore, slide_filters)
 		c = convoluter.Convoluter(self.TILE_PX, self.TILE_UM, self.NUM_CLASSES, self.BATCH_SIZE*4,
 									self.USE_FP16, self.TILES_DIR, self.ROI_DIR)
@@ -282,10 +305,21 @@ class SlideFlowProject:
 
 		with open(self.ANNOTATIONS_FILE, 'w') as csv_outfile:
 			csv_writer = csv.writer(csv_outfile, delimiter=',')
-			header = [case_header_name]
+			header = [case_header_name, 'dataset', 'category']
 			csv_writer.writerow(header)
 
 		if scan_for_cases:
+			sfutil.verify_annotations(self.ANNOTATIONS_FILE, slides_dir=self.SLIDES_DIR)
+
+	def generate_manifest(self):
+		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
+		annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name="slide", value_name="category")
+		tfrecord_files = glob(os.path.join(input_dir, "*/*.tfrecords")) if self.USE_TFRECORD else []
+		self.MANIFEST = sfutil.verify_tiles(annotations, input_dir, tfrecord_files)
+		sfutil.write_json(self.MANIFEST, sfutil.global_path("manifest.json"))
+		try:
+			self.NUM_TILES = self.MANIFEST['total_train_tiles']
+		except:
 			pass
 		
 	def update_task(self, task, status):
@@ -325,12 +359,7 @@ class SlideFlowProject:
 		if os.path.exists(sfutil.global_path("manifest.json")):
 			self.MANIFEST = sfutil.load_json(sfutil.global_path("manifest.json"))
 		else:
-			input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
-			annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name="slide", value_name="category")
-			tfrecord_files = [os.path.join(input_dir, f"{x}.tfrecords") for x in ["train", "eval"]] if self.USE_TFRECORD else []
-			self.MANIFEST = sfutil.verify_tiles(annotations, input_dir, tfrecord_files)
-			sfutil.write_json(self.MANIFEST, sfutil.global_path("manifest.json"))
-			self.NUM_TILES = self.MANIFEST['total_tiles']
+			self.generate_manifest()
 
 	def create_project(self):
 		# General setup and slide configuration
