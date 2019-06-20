@@ -8,6 +8,7 @@ from glob import glob
 import shutil
 
 import tensorflow as tf
+from tf.keras import backend as K
 
 # Enable color sequences on Windows
 try:
@@ -34,7 +35,7 @@ class UpdatedBatchNormalization(tf.keras.layers.BatchNormalization):
 		true_phase = int(K.get_session().run(K.learning_phase()))
 		trainable = int(self.trainable)
 		with K.learning_phase_scope(trainable * true_phase):
-			ret = super(BatchNormalization, self).call(inputs, training)
+			ret = super(tf.keras.layers.BatchNormalization, self).call(inputs, training)
 
 class TCGAAnnotations:
 	case = 'submitter_id'
