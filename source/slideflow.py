@@ -233,9 +233,9 @@ class SlideFlowProject:
 		SFM.config(model_config)
 		return SFM
 
-	def evaluate(self, model=None, checkpoint=None, dataset='train'):
+	def evaluate(self, model=None, checkpoint=None):
 		SFM = self.configure_model("evaluation")
-		SFM.evaluate(model, checkpoint, dataset)
+		SFM.evaluate(model, checkpoint)
 
 	def train_model(self, model_name, model_config=None, resume_training=None, checkpoint=None):
 		'''Train a model once using a given configuration (or use default if none supplied)'''
