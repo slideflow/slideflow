@@ -5,13 +5,13 @@ import os
 import shutil
 from os import listdir
 from os.path import isfile, isdir, join
-from random import shuffle
+from random import shuffle, randint
 
 import time
 import sys
 import csv
 
-from util import sfutil
+import sfutil
 from glob import glob
 
 FEATURE_DESCRIPTION =  {'category': tf.io.FixedLenFeature([], tf.int64),
@@ -40,12 +40,7 @@ def image_example(category, case, image_string):
 		'image_raw':_bytes_feature(image_string),
 	}
 	return tf.train.Example(features=tf.train.Features(feature=feature))
-
-def something(files, case):
-	for tile in files:
-		
-		image_labels.update({join(input_directory, case, tile): [category, bytes(case, 'utf-8')]})
-
+	
 def _get_images_by_dir(directory):
 	files = [f for f in listdir(directory) if (isfile(join(directory, f))) and
 				(f[-3:] == "jpg")]
@@ -59,6 +54,75 @@ def _try_getting_category(annotations_dict, case):
 		sys.exit()
 	return category
 
+def _parse_tfrecord_function(record):
+	features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
+	return features
+
+def join_tfrecord(input_folder, output_file):
+	'''Randomly samples from tfrecords in the input folder with shuffling,
+	and combines into a single tfrecord file.'''
+	writer = tf.io.TFRecordWriter(output_file)
+	tfrecord_files = glob(join(input_folder, "*.tfrecords"))
+	datasets = []
+	for tfrecord in tfrecord_files:
+		dataset = tf.data.TFRecordDataset(tfrecord)
+		dataset = dataset.shuffle(1000)
+		dataset_iter = iter(dataset)
+		datasets += [dataset_iter]
+	while len(datasets):
+		index = randint(0, len(datasets)-1)
+		try:
+			record = next(datasets[index])
+		except StopIteration:
+			del(datasets[index])
+			continue
+		features = _parse_tfrecord_function(record)
+		case = features['case'].numpy()
+		category = features['category'].numpy()
+		image_raw = features['image_raw'].numpy()
+		tf_example = image_example(category, case, image_raw)
+		writer.write(tf_example.SerializeToString())
+
+def split_tfrecord(tfrecord_file, output_folder):
+	'''Splits records from a single tfrecord file into individual tfrecord files by case.'''
+	dataset = tf.data.TFRecordDataset(tfrecord_file)
+	writers = {}
+	for record in dataset:
+		features = _parse_tfrecord_function(record)
+		case = features['case'].numpy()
+		category = features['category'].numpy()
+		image_raw = features['image_raw'].numpy()
+		shortname = sfutil._shortname(case.decode('utf-8'))
+
+		if shortname not in writers.keys():
+			tfrecord_path = join(output_folder, f"{shortname}.tfrecords")
+			writer = tf.io.TFRecordWriter(tfrecord_path)
+			writers.update({shortname: writer})
+		else:
+			writer = writers[shortname]
+		tf_example = image_example(category, case, image_raw)
+		writer.write(tf_example.SerializeToString())
+
+	for case in writers.keys():
+		writers[case].close()
+
+def _print_record(filename):
+	v_dataset = tf.data.TFRecordDataset(filename)
+	for i, record in enumerate(v_dataset):
+		features = _parse_tfrecord_function(record)
+		category = str(features['category'].numpy())
+		case = str(features['case'].numpy())
+		print(f"{sfutil.header(filename)}: Record {i}: Category {sfutil.info(category)} Case: {sfutil.green(case)}")
+
+def print_tfrecord(target):
+	'''Prints the case names for records in the given tfrecord file'''
+	if isfile(target):
+		_print_record(target)
+	else:
+		tfrecord_files = glob(join(target, "*.tfrecords"))
+		for tfr in tfrecord_files:
+			_print_record(tfr)		
+
 def write_tfrecords_merge(input_directory, output_directory, filename, annotations_file):
 	'''Scans a folder for subfolders, assumes subfolders are case names. Assembles all image tiles within 
 	subfolders and labels using the provided annotation_dict, assuming the subfolder is the case name. 
@@ -68,7 +132,7 @@ def write_tfrecords_merge(input_directory, output_directory, filename, annotatio
 	image_labels = {}
 	case_dirs = [_dir for _dir in listdir(input_directory) if isdir(join(input_directory, _dir))]
 	for case_dir in case_dirs:
-		category = _try_getting_category(annotations_dict, case)
+		category = _try_getting_category(annotations_dict, case_dir)
 		files = _get_images_by_dir(join(input_directory, case_dir))
 		for tile in files:
 			image_labels.update({join(input_directory, case_dir, tile): [category, bytes(case_dir, 'utf-8')]})
