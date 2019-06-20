@@ -42,9 +42,9 @@ from util.sfutil import TCGAAnnotations
 # TODO: export logs to file for monitoring remotely
 
 class SFModelConfig:
-	def __init__(self, image_size, num_classes, batch_size, num_tiles=10000, augment=False, 
+	def __init__(self, image_size, num_classes, batch_size, num_tiles=10000, augment=True, 
 				learning_rate=0.01, beta1=0.9, beta2=0.999, epsilon=1.0, batch_norm_decay=0.99, 
-				early_stop=0.015, max_epoch=300, log_frequency=20, test_frequency=600, use_fp16=True):
+				early_stop=0.015, max_epoch=300, log_frequency=20, test_frequency=600, balanced_input=True, use_fp16=True):
 		''' Declare constants describing the model and training process.
 		Args:
 			image_size						Size of input images in pixels
@@ -76,6 +76,7 @@ class SFModelConfig:
 		self.max_epoch = max_epoch
 		self.log_frequency = log_frequency
 		self.test_frequency = test_frequency
+		self.balanced_input = balanced_input
 		self.use_fp16 = use_fp16
 
 	def get_args(self):
@@ -84,9 +85,9 @@ class SFModelConfig:
 
 	def print_config(self):
 		print(f" + [{sfutil.info('INFO')}] Model configuration:")
-		print(f"   - image_size = {self.batch_size}")
-		print(f"   - num_classes = {self.num_classes}")
-		print(f"   - batch_size = {self.image_size}")
+		print(f"   - {sfutil.header('image_size')} = {self.batch_size}")
+		print(f"   - {sfutil.header('num_classes')} = {self.num_classes}")
+		print(f"   - {sfutil.header('batch_size')} = {self.image_size}")
 		for arg in self.get_args():
 			value = getattr(self, arg)
 			print(f"   - {sfutil.header(arg)} = {value}")
@@ -137,6 +138,7 @@ class SlideflowModel:
 		self.MAX_EPOCH = config.max_epoch
 		self.LOG_FREQUENCY = config.log_frequency
 		self.TEST_FREQUENCY = config.test_frequency
+		self.BALANCED_INPUT = config.balanced_input
 		self.USE_FP16 = config.use_fp16
 		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
 		config.print_config()
@@ -174,6 +176,13 @@ class SlideflowModel:
 		dataset = dataset.batch(self.BATCH_SIZE)
 		return dataset
 
+	def _gen_batched_dataset_tfrecords(self, filename):
+		dataset = tf.data.TFRecordDataset(filename).repeat()
+		dataset = dataset.shuffle(1000)
+		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
+		dataset = dataset.batch(self.BATCH_SIZE)
+		return dataset
+
 	def _parse_tfrecord_function(self, record):
 		features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
 		case = features['case']
@@ -190,6 +199,10 @@ class SlideflowModel:
 		category_keep_prob = {}
 		keep_prob_weights = [] if (self.MANIFEST and balanced) else None
 		tfrecord_files = glob(os.path.join(self.INPUT_DIR, f"{folder}/*.tfrecords"))
+		if tfrecord_files == []:
+			print(f" + [{sfutil.fail('ERROR')}] No TFRecords found in 'train' or 'eval' subdirectory in {sfutil.green(self.INPUT_DIR)}")
+			print(f"           Did you mean to train without class balancing?")
+			sys.exit()
 		if self.MANIFEST and balanced:
 			for filename in tfrecord_files:
 				datasets += [tf.data.TFRecordDataset(filename).repeat()]
@@ -220,9 +233,12 @@ class SlideflowModel:
 			if not self.USE_TFRECORD:
 				train_dataset = self._gen_batched_dataset(tf.io.match_filenames_once(self.TRAIN_FILES))
 				test_dataset = self._gen_batched_dataset(tf.io.match_filenames_once(self.TEST_FILES))
-			else:
+			elif self.BALANCED_INPUT:
 				train_dataset = self._interleave_tfrecords('train', balanced=balanced)
 				test_dataset = self._interleave_tfrecords('eval', balanced=balanced)
+			else:
+				train_dataset = self._gen_batched_dataset_tfrecords(os.path.join(self.INPUT_DIR, 'train.tfrecords'))
+				test_dataset = self._gen_batched_dataset_tfrecords(os.path.join(self.INPUT_DIR, 'test.tfrecords'))
 		return train_dataset, test_dataset
 
 	def build_model(self, pretrain=None, checkpoint=None):
