@@ -290,7 +290,7 @@ class SlideflowModel:
 		return model
 
 	def evaluate(self, model=None, checkpoint=None):
-		data_to_eval = self.build_test_inputs(balanced=False)
+		data_to_eval = self.build_dataset_inputs(self.TEST_FILES, 'eval', 'test.tfrecords', balanced=False)
 		if model:
 			loaded_model = tf.keras.models.load_model(model)
 		elif checkpoint:

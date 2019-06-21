@@ -166,8 +166,9 @@ class SlideReader:
 
 		extract_px = int(full_extract_px / downsample_factor)
 		stride = extract_px / stride_div #(should be int)
+		stride_um = size_um / stride_div
 
-		self.print(f"   * [{sfutil.green(self.shortname)}] Extracting tiles of size {size_um}um, resizing from {extract_px}px -> {size_px}px ")
+		self.print(f"   * [{sfutil.green(self.shortname)}] Extracting tiles of size {sfutil.bold(size_um)}um, with stride {sfutil.bold(int(stride_um))}um, resizing from {sfutil.bold(extract_px)}px -> {sfutil.bold(size_px)}px ")
 		if size_px > extract_px:
 			self.print(f"   * [{sfutil.green(self.shortname)}] [{sfutil.fail('!WARN!')}]  Tiles will be up-scaled with cubic interpolation ({extract_px}px -> {size_px}px)")
 		coord = []
@@ -283,7 +284,7 @@ class Convoluter:
 	 - logit predictions from saved Tensorflow model (logits may then be either saved or visualized with heatmaps)
 	 - final layer weight calculation (saved into a CSV file)
 	'''
-	def __init__(self, size_px, size_um, num_classes, batch_size, use_fp16, save_folder='', roi_dir=None, augment=False):
+	def __init__(self, size_px, size_um, num_classes, batch_size, use_fp16, stride_div=2, save_folder='', roi_dir=None, augment=False):
 		self.SLIDES = {}
 		self.MODEL_DIR = None
 		self.ROI_DIR = roi_dir
@@ -294,7 +295,7 @@ class Convoluter:
 		self.DTYPE = tf.float16 if use_fp16 else tf.float32
 		self.DTYPE_INT = tf.int16 if use_fp16 else tf.int32
 		self.SAVE_FOLDER = save_folder
-		self.STRIDE_DIV = 4
+		self.STRIDE_DIV = stride_div
 		self.MODEL_DIR = None
 		self.AUGMENT = augment
 
