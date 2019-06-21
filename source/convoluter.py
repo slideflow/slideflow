@@ -38,6 +38,7 @@ import time
 from math import sqrt
 
 from multiprocessing.dummy import Pool, Manager
+import multiprocessing
 from queue import Queue
 
 from matplotlib.widgets import Slider
@@ -335,7 +336,9 @@ class Convoluter:
 			pool.map(lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
 
 		elif not display_heatmaps:
-			# Create a CSV writing queue to prevent conflicts with multithreadings
+			def error(msg, *args):
+				return multiprocessing.get_logger().error(msg, *args)
+
 			class LogExceptions(object):
 				def __init__(self, callable):
 					self.__callable = callable
@@ -346,18 +349,33 @@ class Convoluter:
 						error(traceback.format_exc())
 						raise
 					return result
-
+			
 			def map_logits_calc(case_name, pb, q):
 				slide = self.SLIDES[case_name]
 				shortname = sfutil._shortname(case_name)
 				category = slide['category']
 				pb.print(f" + Working on case {sfutil.green(shortname)}")
 				logits, final_layer, final_layer_labels, logits_flat = self.calculate_logits(slide, export_tiles, save_final_layer, pb=pb)
-				q.put([slide, logits, final_layer, final_layer_labels, logits_flat, case_name, category])
+				queue_items = [slide, logits, final_layer, final_layer_labels, logits_flat, case_name, category]
+				if q:
+					q.put(queue_items)
+				else: 
+					return queue_items
 
 			case_names = list(self.SLIDES.keys())
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
 
+			# ------ DEBUGGING BLOCK --------
+			for case_name in case_names:
+				slide, logits, final_layer, final_layer_labels, logits_flat, case_name, category = map_logits_calc(case_name, pb, None)
+				if save_heatmaps:
+					self.gen_heatmaps(slide, logits, self.SIZE_PX, case_name, save=True)
+				if save_final_layer:
+					self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)
+			return
+			# ------------------------------
+
+			# Create a CSV writing queue to prevent conflicts with multithreadings
 			manager = Manager()
 			q = manager.Queue()
 			pool = Pool(4)
