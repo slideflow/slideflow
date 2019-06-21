@@ -43,7 +43,7 @@ class ProgressBar:
 		if not self.starttime:
 			self.starttime = time.time()
 		if len(self.BARS) == 0:
-			sys.stdout.write("\033[K\r")
+			sys.stdout.write("\r\033[K")
 		out_text = "\r\033[K"
 		for i, bar_id in enumerate(self.BARS):
 			separator = "  " if i != len(self.BARS)-1 else ""
@@ -66,7 +66,7 @@ class ProgressBar:
 			self.refresh()
 
 	def print(self, text):
-		sys.stdout.write("\r" + text + "\033[K\n")
+		sys.stdout.write("\r\033[K" + text + "\n")
 		sys.stdout.flush()
 		self.refresh()
 
