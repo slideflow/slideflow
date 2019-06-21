@@ -384,10 +384,14 @@ class Convoluter:
 			map_result = pool.map_async(LogExceptions(lambda case_name: map_logits_calc(case_name, pb, q)), case_names)
 			
 			while (not map_result.ready()) or (not q.empty()):
+				pb.print(" + Pulling item from queue")
 				slide, logits, final_layer, final_layer_labels, logits_flat, case_name, category = q.get()
+				pb.print(f" + Pulled results for slide {sfutil.green(slide)}")
 				if save_heatmaps:
+					pb.print(" + Generating heatmaps from queue")
 					self.gen_heatmaps(slide, logits, self.SIZE_PX, case_name, save=True)
 				if save_final_layer:
+					pb.print(" + Exporting final layer weights from queue")
 					self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)
 				q.task_done()
 
@@ -437,6 +441,7 @@ class Convoluter:
 
 	def calculate_logits(self, slide, export_tiles=False, final_layer=False, pb=None):
 		'''Returns logits and final layer weights'''
+		#print(f"Starting logits loop for slide {slide.name}")
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 		case_name = slide['name']
 		path = slide['path']
@@ -470,6 +475,7 @@ class Convoluter:
 		for batch_images, batch_labels, batch_unique in tile_dataset:
 			count = min(count, total_logits_count)
 			prelogits, logits = self.model.predict([batch_images, batch_images])
+			#print(f"Post-prediction for slide {slide.name}")
 			if not pb:
 				progress_bar.bar(count, total_logits_count, text = "Calculated {} images out of {}. "
 																	.format(min(count, total_logits_count),
@@ -521,7 +527,7 @@ class Convoluter:
 
 		# Resize logits array into a two-dimensional array for heatmap display
 		logits_out = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.NUM_CLASSES])
-
+		print(f"Finished logits loop for slide{slide}")
 		return logits_out, prelogits_out, prelogits_labels, flat_unique_logits
 
 	def export_weights(self, output, labels, logits, name, category):
