@@ -8,7 +8,7 @@ from glob import glob
 import shutil
 
 import tensorflow as tf
-from tf.keras import backend as K
+from tensorflow.keras import backend as K
 
 # Enable color sequences on Windows
 try:
