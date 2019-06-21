@@ -336,6 +336,17 @@ class Convoluter:
 
 		elif not display_heatmaps:
 			# Create a CSV writing queue to prevent conflicts with multithreadings
+			class LogExceptions(object):
+				def __init__(self, callable):
+					self.__callable = callable
+				def __call__(self, *args, **kwargs):
+					try:
+						result = self.__callable(*args, **kwargs)
+					except Exception as e:
+						error(traceback.format_exc())
+						raise
+					return result
+
 			def map_logits_calc(case_name, pb, q):
 				slide = self.SLIDES[case_name]
 				shortname = sfutil._shortname(case_name)
@@ -352,7 +363,7 @@ class Convoluter:
 			pool = Pool(4)
 
 			# Create a thread to coordinate multithreading of logits calculation
-			map_result = pool.map_async(lambda case_name: map_logits_calc(case_name, pb, q), case_names)
+			map_result = pool.map_async(LogExceptions(lambda case_name: map_logits_calc(case_name, pb, q)), case_names)
 			
 			while (not map_result.ready()) or (not q.empty()):
 				slide, logits, final_layer, final_layer_labels, logits_flat, case_name, category = q.get()
