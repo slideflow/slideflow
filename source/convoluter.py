@@ -342,11 +342,7 @@ class Convoluter:
 				category = slide['category']
 				pb.print(f" + Working on case {sfutil.green(shortname)}")
 				logits, final_layer, final_layer_labels, logits_flat = self.calculate_logits(slide, export_tiles, save_final_layer, pb=pb)
-				if save_heatmaps:
-					self.gen_heatmaps(slide, logits, self.SIZE_PX, case_name, save=True)
-				if save_final_layer:
-					# Add CSV writing to the queue
-					q.put([final_layer, final_layer_labels, logits_flat, case_name, category])
+				q.put([slide, logits, final_layer, final_layer_labels, logits_flat, case_name, category])
 
 			case_names = self.SLIDES.keys()
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
@@ -359,8 +355,11 @@ class Convoluter:
 			map_result = pool.map_async(lambda case_name: map_logits_calc(case_name, pb, q), case_names)
 			
 			while (not map_result.ready()) or (not q.empty()):
-				final_layer, final_layer_labels, logits_flat, case_name, category = q.get()
-				self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)
+				slide, logits, final_layer, final_layer_labels, logits_flat, case_name, category = q.get()
+				if save_heatmaps:
+					self.gen_heatmaps(slide, logits, self.SIZE_PX, case_name, save=True)
+				if save_final_layer:
+					self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)
 				q.task_done()
 
 		else:
