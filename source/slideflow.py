@@ -254,7 +254,7 @@ class SlideFlowProject:
 		SFM = self.configure_model('evaluate')
 		slide_list = self.get_filtered_slide_list(ignore, slide_filters)
 		c = convoluter.Convoluter(self.TILE_PX, self.TILE_UM, self.NUM_CLASSES, self.BATCH_SIZE*4,
-									self.USE_FP16, self.TILES_DIR, self.ROI_DIR)
+									self.USE_FP16, stride_div=2, save_folder=self.TILES_DIR, roi_dir=self.ROI_DIR)
 		c.load_slides(slide_list)
 		c.build_model(join(self.MODELS_DIR, model_name, 'trained_model.h5'), SFM=SFM)
 		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
