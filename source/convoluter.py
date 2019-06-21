@@ -344,9 +344,9 @@ class Convoluter:
 				logits, final_layer, final_layer_labels, logits_flat = self.calculate_logits(slide, export_tiles, save_final_layer, pb=pb)
 				q.put([slide, logits, final_layer, final_layer_labels, logits_flat, case_name, category])
 
-			case_names = self.SLIDES.keys()
+			case_names = list(self.SLIDES.keys())
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
-			
+
 			manager = Manager()
 			q = manager.Queue()
 			pool = Pool(4)
