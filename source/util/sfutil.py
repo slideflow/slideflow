@@ -43,25 +43,25 @@ class TCGAAnnotations:
 	slide = 'slide'
 
 def warn(text):
-	return WARNING + text + ENDC
+	return WARNING + str(text) + ENDC
 
 def header(text):
-	return HEADER + text + ENDC
+	return HEADER + str(text) + ENDC
 
 def info(text):
-	return BLUE + text + ENDC
+	return BLUE + str(text) + ENDC
 
 def green(text):
-	return GREEN + text + ENDC
+	return GREEN + str(text) + ENDC
 
 def fail(text):
-	return FAIL + text + ENDC
+	return FAIL + str(text) + ENDC
 
 def bold(text):
-	return BOLD + text + ENDC
+	return BOLD + str(text) + ENDC
 
 def underline(text):
-	return UNDERLINE + text + ENDC
+	return UNDERLINE + str(text) + ENDC
 
 def _shortname(string):
 	if len(string) == 60:
