@@ -47,8 +47,17 @@ NO_BALANCE = 3
 # TODO: export logs to file for monitoring remotely
 
 class HyperParameters:
+	OptDict = {
+		'Adam':	tf.keras.optimizers.Adam,
+		'SGD': tf.keras.optimizers.SGD,
+		'RMSprop': tf.keras.optimizers.RMSprop,
+		'Adagrad': tf.keras.optimizers.Adagrad,
+		'Adadelta': tf.keras.optimizers.Adadelta,
+		'Adamax': tf.keras.optimizers.Adamax,
+		'Nadam': tf.keras.optimizers.Nadam
+	}
 	def __init__(self, toplayer_epochs=5, finetune_epochs=50, loss='sparse_categorical_crossentropy',
-				 learning_rate=0.1, hidden_layers=0, optimizer=tf.keras.optimizers.Adam, early_stop=False, 
+				 learning_rate=0.1, hidden_layers=0, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=None, balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
 				 augment=True):
 		''' Additional hyperparameters to consider:
@@ -61,7 +70,7 @@ class HyperParameters:
 		self.finetune_epochs = finetune_epochs
 		self.loss = loss
 		self.learning_rate = learning_rate
-		self.optimizer = optimizer
+		self.optimizer = self.OptDict[optimizer]
 		self.early_stop = early_stop
 		self.hidden_layers = hidden_layers
 		self.early_stop_patience = early_stop_patience
