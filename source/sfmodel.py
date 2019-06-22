@@ -78,12 +78,12 @@ class HyperParameters:
 		self.balanced_validation = balanced_validation
 		self.augment = augment
 
-	def get_args(self):
+	def _get_args(self):
 		return [arg for arg in dir(self) if not arg[0]=='_']
 
 	def __str__(self):
 		output = f" + [{sfutil.info('INFO')}] Hyperparameters:\n"
-		args = self.get_args()
+		args = self._get_args()
 		for arg in args:
 			value = getattr(self, arg)
 			output += f"   - {sfutil.header(arg)} = {value}\n"
