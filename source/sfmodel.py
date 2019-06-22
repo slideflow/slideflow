@@ -164,7 +164,7 @@ class SlideflowModel:
 		self.AUGMENT = augment
 		dataset = tf.data.Dataset.from_tensor_slices(filenames)
 		dataset = dataset.shuffle(tf.size(filenames, out_type=tf.int64))
-		dataset = dataset.map(self._parse_function(x), num_parallel_calls = 8)
+		dataset = dataset.map(self._parse_function, num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
 		return dataset
 
@@ -172,7 +172,7 @@ class SlideflowModel:
 		self.AUGMENT = augment
 		dataset = tf.data.TFRecordDataset(filename)
 		dataset = dataset.shuffle(1000)
-		dataset = dataset.map(self._parse_tfrecord_function(x), num_parallel_calls = 8)
+		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
 		return dataset
 
@@ -236,7 +236,7 @@ class SlideflowModel:
 
 		dataset = tf.data.Dataset.from_generator(tfrecord_generator, tfrecords.FEATURE_TYPES)
 		dataset = dataset.shuffle(1000)
-		dataset = dataset.map(self._parse_tfrecord_function(x), num_parallel_calls = 8)
+		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
 		return dataset
 
@@ -284,7 +284,7 @@ class SlideflowModel:
 			print(f" + [{sfutil.info('INFO')}] Balancing input from {sfutil.green(folder)} across cases")
 		interleaved_dataset = tf.data.experimental.sample_from_datasets(datasets, weights=keep_prob_weights)
 		#interleaved_dataset = interleaved_dataset.shuffle(1000)
-		interleaved_dataset = interleaved_dataset.map(self._parse_tfrecord_function(x), num_parallel_calls = 8)
+		interleaved_dataset = interleaved_dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		interleaved_dataset = interleaved_dataset.batch(batch_size)
 		return interleaved_dataset
 
