@@ -231,8 +231,10 @@ class SlideFlowProject:
 		c.build_model(join(self.PROJECT['models_dir'], model_name, 'trained_model.h5'), SFM=SFM)
 		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
-	def create_blank_batch_config(self, filename):
+	def create_blank_batch_config(self, filename=None):
 		'''Creates a CSV file with the batch training structure.'''
+		if not filename:
+			filename = self.PROJECT['batch_train_config']
 		with open(filename, 'w') as csv_outfile:
 			writer = csv.writer(csv_outfile, delimiter=',')
 			# Create headers and first row
