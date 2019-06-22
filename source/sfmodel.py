@@ -235,7 +235,7 @@ class SlideflowModel:
 				# will return category, case, image_raw
 				yield tfrecords._read_and_return_features(record)
 		
-		def parse_features(case, category, image_raw):
+		def parse_features(category, case, image_raw):
 			label = self.ANNOTATIONS_TABLE.lookup(case)
 			image = self._process_image(image_raw, self.AUGMENT)
 			return image, label
