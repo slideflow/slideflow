@@ -232,11 +232,17 @@ class SlideflowModel:
 							break
 					if balance == BALANCE_BY_CASE:
 						break
-				yield tfrecords._read_and_return_record(record)
+				# will return case, category, image_raw
+				yield tfrecords._read_and_return_features(record)
+		
+		def parse_features(case, category, image_raw):
+			label = self.ANNOTATIONS_TABLE.lookup(case)
+			image = self._process_image(image_raw, self.AUGMENT)
+			return image, label
 
 		dataset = tf.data.Dataset.from_generator(tfrecord_generator, tfrecords.FEATURE_TYPES)
 		dataset = dataset.shuffle(1000)
-		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
+		dataset = dataset.map(parse_features, num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
 		return dataset
 
