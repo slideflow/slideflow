@@ -232,7 +232,7 @@ class SlideflowModel:
 							break
 					if balance == BALANCE_BY_CASE:
 						break
-				# will return case, category, image_raw
+				# will return category, case, image_raw
 				yield tfrecords._read_and_return_features(record)
 		
 		def parse_features(case, category, image_raw):
