@@ -35,7 +35,7 @@ class UpdatedBatchNormalization(tf.keras.layers.BatchNormalization):
 		true_phase = int(K.get_session().run(K.learning_phase()))
 		trainable = int(self.trainable)
 		with K.learning_phase_scope(trainable * true_phase):
-			ret = super(tf.keras.layers.BatchNormalization, self).call(inputs, training)
+			return super(tf.keras.layers.BatchNormalization, self).call(inputs, training)
 
 class TCGAAnnotations:
 	case = 'submitter_id'
