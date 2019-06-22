@@ -144,33 +144,35 @@ class SlideflowModel:
 		image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
 		return image
 
-	def _parse_function(self, filename, augment):
+	def _parse_function(self, filename):
 		case = filename.split('/')[-2]
 		label = self.ANNOTATIONS_TABLE.lookup(case)
 		image_string = tf.read_file(filename)
-		image = self._process_image(image_string, augment)
+		image = self._process_image(image_string, self.AUGMENT)
 		return image, label
 
-	def _parse_tfrecord_function(self, record, augment):
+	def _parse_tfrecord_function(self, record):
 		features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
 		case = features['case']
 		label = self.ANNOTATIONS_TABLE.lookup(case)
 		image_string = features['image_raw']
-		image = self._process_image(image_string, augment)
+		image = self._process_image(image_string, self.AUGMENT)
 		return image, label
 
 	def _gen_batched_dataset(self, filenames, batch_size, augment):
 		# Replace the below dataset with one that uses a Python generator for flexibility of labeling
+		self.AUGMENT = augment
 		dataset = tf.data.Dataset.from_tensor_slices(filenames)
 		dataset = dataset.shuffle(tf.size(filenames, out_type=tf.int64))
-		dataset = dataset.map(lambda x: self._parse_function(x, augment), num_parallel_calls = 8)
+		dataset = dataset.map(self._parse_function(x), num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
 		return dataset
 
 	def _gen_batched_dataset_tfrecords(self, filename, batch_size, augment):
+		self.AUGMENT = augment
 		dataset = tf.data.TFRecordDataset(filename)
 		dataset = dataset.shuffle(1000)
-		dataset = dataset.map(lambda x: self._parse_tfrecord_function(x, augment), num_parallel_calls = 8)
+		dataset = dataset.map(self._parse_tfrecord_function(x), num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
 		return dataset
 
@@ -180,6 +182,7 @@ class SlideflowModel:
 		tfrecord file. Requires self.MANIFEST. Assumes TFRecord files are named by case.
 		
 		Uses a Python generator for interleaving.'''
+		self.AUGMENT = augment
 		annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name=sfutil.TCGAAnnotations.case, 
 																		 value_name="category")
 		datasets = []
@@ -233,7 +236,7 @@ class SlideflowModel:
 
 		dataset = tf.data.Dataset.from_generator(tfrecord_generator, tfrecords.FEATURE_TYPES)
 		dataset = dataset.shuffle(1000)
-		dataset = dataset.map(lambda x: self._parse_tfrecord_function(x, augment), num_parallel_calls = 8)
+		dataset = dataset.map(self._parse_tfrecord_function(x), num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
 		return dataset
 
@@ -243,6 +246,7 @@ class SlideflowModel:
 		or category (requires self.MANIFEST)
 		
 		Uses tf.data.experimental.sample_from_datasets for interleaving.'''
+		self.AUGMENT = augment
 		if balance == NO_BALANCE:
 			return self._interleave_tfrecords_finite(folder, batch_size, NO_BALANCE, augment)
 		annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name=sfutil.TCGAAnnotations.case, 
@@ -280,7 +284,7 @@ class SlideflowModel:
 			print(f" + [{sfutil.info('INFO')}] Balancing input from {sfutil.green(folder)} across cases")
 		interleaved_dataset = tf.data.experimental.sample_from_datasets(datasets, weights=keep_prob_weights)
 		#interleaved_dataset = interleaved_dataset.shuffle(1000)
-		interleaved_dataset = interleaved_dataset.map(lambda x: self._parse_tfrecord_function(x, augment), num_parallel_calls = 8)
+		interleaved_dataset = interleaved_dataset.map(self._parse_tfrecord_function(x), num_parallel_calls = 8)
 		interleaved_dataset = interleaved_dataset.batch(batch_size)
 		return interleaved_dataset
 
