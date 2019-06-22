@@ -99,8 +99,11 @@ class SlideFlowProject:
 
 		print(f" + [{sfutil.info('INFO')}] Extracting tiles from {len(slide_list)} slides")
 
-		c = convoluter.Convoluter(self.PROJECT['tile_px'], self.PROJECT['tile_um'], self.PROJECT['num_classes'], self.PROJECT['batch_size'], 
-									self.PROJECT['use_fp16'], join(self.PROJECT['tiles_dir'], "train_data"), self.PROJECT['roi_dir'], self.AUGMENTATION)
+		c = convoluter.Convoluter(self.PROJECT['tile_px'], self.PROJECT['tile_um'], self.PROJECT['num_classes'], 
+								  self.PROJECT['batch_size'], self.PROJECT['use_fp16'], stride_div=2,
+								  														save_folder=join(self.PROJECT['tiles_dir'], "train_data"), 
+																						roi_dir=self.PROJECT['roi_dir'], 
+																						augment=self.AUGMENTATION)
 		c.load_slides(slide_list)
 		c.convolute_slides(export_tiles=True)
 
@@ -202,7 +205,7 @@ class SlideFlowProject:
 				hp = sfmodel.HyperParameters()
 				for arg in args:
 					value = row[header.index(arg)]
-					if arg in hp.get_args():
+					if arg in hp._get_args():
 						arg_type = type(getattr(hp, arg))
 						setattr(hp, arg, arg_type(value))
 					else:
@@ -228,15 +231,15 @@ class SlideFlowProject:
 		c.build_model(join(self.PROJECT['models_dir'], model_name, 'trained_model.h5'), SFM=SFM)
 		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
-	def create_blank_batch_config(self):
+	def create_blank_batch_config(self, filename):
 		'''Creates a CSV file with the batch training structure.'''
-		with open(self.PROJECT['batch_train_config'], 'w') as csv_outfile:
+		with open(filename, 'w') as csv_outfile:
 			writer = csv.writer(csv_outfile, delimiter=',')
 			# Create headers and first row
 			header = ['model_name']
 			firstrow = ['model1']
 			default_hp = sfmodel.HyperParameters()
-			for arg in default_hp.get_args():
+			for arg in default_hp._get_args():
 				header += [arg]
 				firstrow += [getattr(default_hp, arg)]
 			writer.writerow(header)
@@ -323,7 +326,8 @@ class SlideFlowProject:
 														default='./batch_train.csv', filetype='csv', verify=False)
 			if not exists(project['batch_train_config']):
 				if sfutil.yes_no_input("Batch training file not found, create one? [Y/n] ", default='yes'):
-					self.create_blank_batch_config()
+					self.create_blank_batch_config(project['batch_train_config'])
 
 		sfutil.write_json(project, join(directory, 'settings.json'))
+		self.PROJECT = project
 		print("\nProject configuration saved.\n")
