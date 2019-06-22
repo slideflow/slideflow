@@ -2,6 +2,8 @@ import argparse
 import os
 import sys
 import shutil
+import logging
+logging.getLogger("tensorflow").setLevel(logging.ERROR)
 import tensorflow as tf
 
 from os.path import join, isfile, exists
@@ -22,26 +24,9 @@ from util.sfutil import TCGAAnnotations
 SKIP_VERIFICATION = False
 
 class SlideFlowProject:
-	PROJECT_DIR = ""
-	NAME = None
-	ANNOTATIONS_FILE = None
-	SLIDES_DIR = None
-	ROI_DIR = None
-	TILES_DIR = None
-	MODELS_DIR = None
-	BATCH_TRAIN_CONFIG = None
-	PRETRAIN = None
-	USE_TFRECORD = False
-	TFRECORDS_BY_CASE = False
-	TFRECORD_DIR = None
-	DELETE_TILES = False
-	TILE_UM = None
-	TILE_PX = None
-	NUM_CLASSES = None
 	NUM_TILES = 0
 	MANIFEST = None
 	AUGMENT_DICT = None
-
 	EVAL_FRACTION = 0.1
 	AUGMENTATION = convoluter.NO_AUGMENTATION
 	NUM_THREADS = 4
@@ -49,7 +34,6 @@ class SlideFlowProject:
 
 	def __init__(self, project_folder):
 		os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-		#tf.logging.set_verbosity(tf.logging.ERROR)
 		print('''\nSlideFlow v0.8\n==============\n''')
 		print('''Loading project...''')
 		if project_folder and not os.path.exists(project_folder):
@@ -59,31 +43,16 @@ class SlideFlowProject:
 				project_folder = sfutil.dir_input("Where is the project root directory? ", create_on_invalid=True)
 		if not project_folder:
 			project_folder = sfutil.dir_input("Where is the project root directory? ", create_on_invalid=True)
-		self.PROJECT_DIR = project_folder
 		sfutil.PROJECT_DIR = project_folder
 
-		self.CONFIG = os.path.join(project_folder, "settings.json")
-		if os.path.exists(self.CONFIG):
-			self.load_project()
+		if exists(join(project_folder, "settings.json")):
+			self.load_project(project_folder)
 		else:
-			self.create_project()
-
-	def reset_tasks(self):
-		print("Resetting task progress.")
-		data = sfutil.load_json(self.CONFIG)
-		for task in data['tasks'].keys():
-			data['tasks'][task] = 'not started'
-		sfutil.write_json(data, self.CONFIG)
-
-	def prepare_tiles(self):
-		self.extract_tiles()
-		self.separate_training_and_eval()
-		if self.USE_TFRECORD:
-			self.generate_tfrecord()
+			self.create_project(project_folder)
 
 	def get_filtered_slide_list(self, ignore, slide_filters):
-		slide_list = sfutil.get_slide_paths(self.SLIDES_DIR)
-		slide_case_dict = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, TCGAAnnotations.slide, TCGAAnnotations.case, use_encode=False)
+		slide_list = sfutil.get_slide_paths(self.PROJECT['slides_dir'])
+		slide_case_dict = sfutil.get_annotations_dict(self.PROJECT['annotations'], TCGAAnnotations.slide, TCGAAnnotations.case, use_encode=False)
 		# Remove slides not in the annotation file
 		to_remove = []
 		for slide in slide_list:
@@ -97,12 +66,11 @@ class SlideFlowProject:
 
 		if slide_filters:
 			for key in slide_filters.keys():
-				filter_dict = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, 'slide', key, use_encode=False)
+				filter_dict = sfutil.get_annotations_dict(self.PROJECT['annotations'], 'slide', key, use_encode=False)
 				for slide in slide_list:
 					slide_name = slide.split('/')[-1][:-4]					
 					if filter_dict[slide_name] not in slide_filters[key]:
 						to_remove.extend([slide])
-		
 		if ignore:
 			for slide in slide_list:
 				slide_name = slide.split('/')[-1][:-4]
@@ -110,7 +78,6 @@ class SlideFlowProject:
 					to_remove.extend([slide])
 
 		to_remove = list(set(to_remove))
-		num_removed = len(to_remove)
 		for item in to_remove:
 			slide_list.remove(item)
 		return slide_list
@@ -120,52 +87,42 @@ class SlideFlowProject:
 		list of acceptable values; all other cases will be ignored
 		
 		If a single case is supplied, extract tiles for just that case.'''
-		
-		if not slide_filters and not ignore:
-			if self.get_task('extract_tiles') == 'complete':
-				print('Tile extraction already complete.')
-				return
-			elif self.get_task('extract_tiles') == 'in process':
-				if not sfutil.yes_no_input('Tile extraction already in process; restart? [y/N] ', default='no'):
-					sys.exit()
-			self.update_task('extract_tiles', 'in process')
 
 		print("Extracting image tiles...")
 		convoluter.NUM_THREADS = self.NUM_THREADS
-		if not exists(join(self.TILES_DIR, "train_data")):
-			datasets.make_dir(join(self.TILES_DIR, "train_data"))
-		if not exists(join(self.TILES_DIR, "eval_data")):
-			datasets.make_dir(join(self.TILES_DIR, "eval_data"))
+		if not exists(join(self.PROJECT['tiles_dir'], "train_data")):
+			datasets.make_dir(join(self.PROJECT['tiles_dir'], "train_data"))
+		if not exists(join(self.PROJECT['tiles_dir'], "eval_data")):
+			datasets.make_dir(join(self.PROJECT['tiles_dir'], "eval_data"))
 
 		slide_list = self.get_filtered_slide_list(ignore, slide_filters)
 
 		print(f" + [{sfutil.info('INFO')}] Extracting tiles from {len(slide_list)} slides")
 
-		c = convoluter.Convoluter(self.TILE_PX, self.TILE_UM, self.NUM_CLASSES, self.BATCH_SIZE, 
-									self.USE_FP16, join(self.TILES_DIR, "train_data"), self.ROI_DIR, self.AUGMENTATION)
+		c = convoluter.Convoluter(self.PROJECT['tile_px'], self.PROJECT['tile_um'], self.PROJECT['num_classes'], self.PROJECT['batch_size'], 
+									self.PROJECT['use_fp16'], join(self.PROJECT['tiles_dir'], "train_data"), self.PROJECT['roi_dir'], self.AUGMENTATION)
 		c.load_slides(slide_list)
 		c.convolute_slides(export_tiles=True)
-		self.update_task('extract_tiles', 'complete')
 
 	def delete_tiles(self, case_list):
 		if type(case_list) == str:
 			case_list = [case_list]
 		if not sfutil.yes_no_input(print(f"[{sfutil.warn('WARN')}] Delete tiles from {len(case_list)} cases? [y/N] "), default='no'):
 			return
-		if self.USE_TFRECORD:
+		if self.PROJECT['use_tfrecord']:
 			print(f"[{sfutil.warn('WARN')}] Unable to delete tiles in TFRecord files.")
 			return
-		slides_with_tiles = os.listdir(join(self.TILES_DIR, "train_data"))
-		slides_with_tiles.extend(os.listdir(join(self.TILES_DIR, "eval_data")))
-		case_slide_dict = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, TCGAAnnotations.case, TCGAAnnotations.slide, use_encode=False)	
+		slides_with_tiles = os.listdir(join(self.PROJECT['tiles_dir'], "train_data"))
+		slides_with_tiles.extend(os.listdir(join(self.PROJECT['tiles_dir'], "eval_data")))
+		case_slide_dict = sfutil.get_annotations_dict(self.PROJECT['annotations'], TCGAAnnotations.case, TCGAAnnotations.slide, use_encode=False)	
 		for case in case_list:
 			try:
 				if case in slides_with_tiles:
-					shutil.rmtree(join(self.TILES_DIR, "train_data", case))
-					shutil.rmtree(join(self.TILES_DIR, "eval_data", case))
+					shutil.rmtree(join(self.PROJECT['tiles_dir'], "train_data", case))
+					shutil.rmtree(join(self.PROJECT['tiles_dir'], "eval_data", case))
 				elif (case in case_slide_dict) and (case_slide_dict[case] in slides_with_tiles):
-					shutil.rmtree(join(self.TILES_DIR, "train_data", case_slide_dict[case]))
-					shutil.rmtree(join(self.TILES_DIR, "eval_data", case_slide_dict[case]))
+					shutil.rmtree(join(self.PROJECT['tiles_dir'], "train_data", case_slide_dict[case]))
+					shutil.rmtree(join(self.PROJECT['tiles_dir'], "eval_data", case_slide_dict[case]))
 				else:
 					print(f"[{sfutil.fail('ERROR')}] Unable to delete tiles for case '{case}'.")
 			except:
@@ -173,96 +130,64 @@ class SlideFlowProject:
 					
 	def separate_training_and_eval(self):
 		'''Separate training and eval raw image sets. Assumes images are located in "train_data" directory.'''
-		if self.get_task('separate_training_and_eval') == 'complete':
-			print('Warning: Training and eval dataset separation already complete.')
-			#return
 		print('Separating training and eval datasets...')
-		self.update_task('separate_training_and_eval', 'in process')
-		datasets.build_validation(join(self.TILES_DIR, "train_data"), join(self.TILES_DIR, "eval_data"), fraction = self.EVAL_FRACTION)
-		self.update_task('separate_training_and_eval', 'complete')
+		datasets.build_validation(join(self.PROJECT['tiles_dir'], "train_data"), join(self.PROJECT['tiles_dir'], "eval_data"), fraction = self.EVAL_FRACTION)
 
 	def generate_tfrecord(self):
 		'''Create tfrecord files from a collection of raw images'''
 		# Note: this will not work as the write_tfrecords function expects a category directory
 		# Will leave as is to manually test performance with category defined in the TFRecrod
 		#  vs. dynamically assigning category via annotation metadata during training
-		if self.get_task('generate_tfrecord') == 'complete':
-			print('Warning: TFRecords already generated.')
-			#return
-		tfrecord_train_dir = join(self.TFRECORD_DIR, 'train')
-		tfrecord_eval_dir = join(self.TFRECORD_DIR, 'eval')
-		if not exists(self.TFRECORD_DIR):
-			datasets.make_dir(self.TFRECORD_DIR)
+		tfrecord_train_dir = join(self.PROJECT['tfrecord_dir'], 'train')
+		tfrecord_eval_dir = join(self.PROJECT['tfrecord_dir'], 'eval')
+		if not exists(self.PROJECT['tfrecord_dir']):
+			datasets.make_dir(self.PROJECT['tfrecord_dir'])
 		if not exists(tfrecord_train_dir):
 			os.mkdir(tfrecord_train_dir)
 		if not exists(tfrecord_eval_dir):
 			os.mkdir(tfrecord_eval_dir)
-		print('Writing TFRecord files...')
-		self.update_task('generate_tfrecord', 'in process')
-		tfrecords.write_tfrecords_multi(join(self.TILES_DIR, 'train_data'), tfrecord_train_dir, self.ANNOTATIONS_FILE)
-		tfrecords.write_tfrecords_multi(join(self.TILES_DIR, 'eval_data'), tfrecord_eval_dir, self.ANNOTATIONS_FILE)
-		if self.DELETE_TILES:
-			shutil.rmtree(join(self.TILES_DIR, "train_data"))
-			shutil.rmtree(join(self.TILES_DIR, "eval_data"))
-		self.generate_manifest()
-		self.update_task('generate_tfrecord', 'complete')
 
-	def _update_h5_to_checkpoint(self, checkpoint, h5, out_name):
-		model = tf.keras.models.load_model(h5)
-		model.load_weights(checkpoint)
-		try:
-			model.save(out_name)
-		except KeyError:
-			# Not sure why this happens, something to do with the optimizer?
-			pass
+		print('Writing TFRecord files...')		
+		tfrecords.write_tfrecords_multi(join(self.PROJECT['tiles_dir'], 'train_data'), tfrecord_train_dir, self.PROJECT['annotations'])
+		tfrecords.write_tfrecords_multi(join(self.PROJECT['tiles_dir'], 'eval_data'), tfrecord_eval_dir, self.PROJECT['annotations'])
+		if self.PROJECT['delete_tiles']:
+			shutil.rmtree(join(self.PROJECT['tiles_dir'], "train_data"))
+			shutil.rmtree(join(self.PROJECT['tiles_dir'], "eval_data"))
+		self.generate_manifest()
 
 	def checkpoint_to_h5(self, model_name):
-		checkpoint = join(self.MODELS_DIR, model_name, "cp.ckpt")
-		h5 = join(self.MODELS_DIR, model_name, "untrained_model.h5")
-		updated_h5 = join(self.MODELS_DIR, model_name, "trained_model.h5")
-		self._update_h5_to_checkpoint(checkpoint, h5, updated_h5)
+		tfrecords.checkpoint_to_h5(self.PROJECT['models_dir'], model_name)
 
-	def configure_model(self, model_name, model_config=None):
-		model_dir = join(self.MODELS_DIR, model_name)
-		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
-		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.ANNOTATIONS_FILE, manifest=self.MANIFEST, 
-																				  use_tfrecord=self.USE_TFRECORD,
-																				  tfrecords_by_case=self.TFRECORDS_BY_CASE)
-		# If no model configuration supplied, use default values
-		if not model_config:
-			model_config = sfmodel.SFModelConfig(self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, use_fp16=self.USE_FP16)
-		if self.NUM_TILES > 0:
-			model_config.num_tiles = self.NUM_TILES
-		SFM.config(model_config)
+	def initialize_model(self, model_name):
+		model_dir = join(self.PROJECT['models_dir'], model_name)
+		input_dir = self.PROJECT['tfrecord_dir'] if self.PROJECT['use_tfrecord'] else self.PROJECT['tiles_dir']
+		self.NUM_TILES = 10000 if not self.NUM_TILES else self.NUM_TILES
+
+		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.PROJECT['annotations'], self.PROJECT['tile_px'], self.PROJECT['num_classes'],
+																				manifest=self.MANIFEST, 
+																				use_tfrecord=self.PROJECT['use_tfrecord'],
+																				tfrecords_by_case=self.PROJECT['tfrecords_by_case'],
+																				use_fp16=self.PROJECT['use_fp16'],
+																				num_tiles=self.NUM_TILES)
 		return SFM
 
-	def evaluate(self, model=None, checkpoint=None):
-		SFM = self.configure_model("evaluation")
-		SFM.evaluate(model, checkpoint)
+	def evaluate(self, model, checkpoint=None):
+		SFM = self.initialize_model("evaluation")
+		results = SFM.evaluate(model, checkpoint)
+		print(results)
 
-	def train_model(self, model_name, model_config=None, resume_training=None, checkpoint=None):
+	def train_model(self, model_name, hp, resume_training=None, checkpoint=None):
 		'''Train a model once using a given configuration (or use default if none supplied)'''
-		self.update_task('training', 'in process')
 		print(f"Training model {sfutil.bold(model_name)}...")
-
-		SFM = self.configure_model(model_name, model_config)
-		val_acc = SFM.train(pretrain=self.PRETRAIN, resume_training=resume_training, checkpoint=checkpoint)	
-
+		print(hp)
+		SFM = self.initialize_model(model_name)
+		val_acc = SFM.train_supervised(hp, pretrain=self.PROJECT['pretrain'], resume_training=resume_training, checkpoint=checkpoint)	
 		return val_acc
-
-	def generate_heatmaps(self, model_name, ignore=None, slide_filters=None):
-		SFM = self.configure_model('evaluate')
-		slide_list = self.get_filtered_slide_list(ignore, slide_filters)
-		c = convoluter.Convoluter(self.TILE_PX, self.TILE_UM, self.NUM_CLASSES, self.BATCH_SIZE*4,
-									self.USE_FP16, stride_div=2, save_folder=self.TILES_DIR, roi_dir=self.ROI_DIR)
-		c.load_slides(slide_list)
-		c.build_model(join(self.MODELS_DIR, model_name, 'trained_model.h5'), SFM=SFM)
-		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
 	def batch_train(self, resume_training=None, checkpoint=None):
 		'''Train a batch of models sequentially given configurations found in an annotations file.'''
 		model_acc = {}
-		with open(self.BATCH_TRAIN_CONFIG) as csv_file:
+		with open(self.PROJECT['batch_train_config']) as csv_file:
 			reader = csv.reader(csv_file)
 			header = next(reader)
 			try:
@@ -274,50 +199,64 @@ class SlideFlowProject:
 			args = header[0:model_name_i] + header[model_name_i+1:]
 			for row in reader:
 				model_name = row[model_name_i]
-				model_config = sfmodel.SFModelConfig(self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, use_fp16=self.USE_FP16)
+				hp = sfmodel.HyperParameters()
 				for arg in args:
 					value = row[header.index(arg)]
-					if arg in model_config.get_args():
-						arg_type = type(getattr(model_config, arg))
-						setattr(model_config, arg, arg_type(value))
+					if arg in hp.get_args():
+						arg_type = type(getattr(hp, arg))
+						setattr(hp, arg, arg_type(value))
 					else:
 						print(f"[{sfutil.fail('ERROR')}] Unknown argument '{arg}' found in training config file.")
-				val_acc = self.train_model(model_name, model_config, resume_training, checkpoint)
-				model_acc.update({model_name: max(val_acc)})
-				print(f"\n[{sfutil.header('Complete')}] Training complete for model {model_name}, max validation accuracy {sfutil.info(str(max(val_acc)))}\n")
+				print(f"Training model {sfutil.bold(model_name)}...")
+				print(hp)
+				SFM = self.initialize_model(model_name)
+				train_acc, val_acc = SFM.train_unsupervised(hp, pretrain=self.PROJECT['pretrain'], resume_training=resume_training, checkpoint=checkpoint)
+				model_acc.update({model_name: {'train_acc': max(train_acc),
+											   'val_acc': val_acc }
+				})
+				print(f"\n[{sfutil.header('Complete')}] Training complete for model {model_name}, max validation accuracy {sfutil.info(str(val_acc))}\n")
 		print(f"\n[{sfutil.header('Complete')}] Batch training complete; validation accuracies:")
 		for model in model_acc:
-			print(f" - {sfutil.green(model)}: {str(model_acc[model])}")
+			print(f" - {sfutil.green(model)}: Train_Acc={str(model_acc[model]['train_acc'])}, Val_Acc={model_acc[model]['val_acc']}")
+
+	def generate_heatmaps(self, model_name, ignore=None, slide_filters=None):
+		SFM = self.initialize_model('evaluate')
+		slide_list = self.get_filtered_slide_list(ignore, slide_filters)
+		c = convoluter.Convoluter(self.PROJECT['tile_px'], self.PROJECT['tile_um'], self.PROJECT['num_classes'], self.PROJECT['batch_size']*4,
+									self.PROJECT['use_fp16'], stride_div=2, save_folder=self.PROJECT['tiles_dir'], roi_dir=self.PROJECT['roi_dir'])
+		c.load_slides(slide_list)
+		c.build_model(join(self.PROJECT['models_dir'], model_name, 'trained_model.h5'), SFM=SFM)
+		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
 	def create_blank_batch_config(self):
 		'''Creates a CSV file with the batch training structure.'''
-		with open(self.BATCH_TRAIN_CONFIG, 'w') as csv_outfile:
+		with open(self.PROJECT['batch_train_config'], 'w') as csv_outfile:
 			writer = csv.writer(csv_outfile, delimiter=',')
 			# Create headers and first row
 			header = ['model_name']
 			firstrow = ['model1']
-			default_config = sfmodel.SFModelConfig(self.TILE_PX, self.NUM_CLASSES, self.BATCH_SIZE, use_fp16=self.USE_FP16)
-			for arg in default_config.get_args():
+			default_hp = sfmodel.HyperParameters()
+			for arg in default_hp.get_args():
 				header += [arg]
-				firstrow += [getattr(default_config, arg)]
+				firstrow += [getattr(default_hp, arg)]
 			writer.writerow(header)
 			writer.writerow(firstrow)
 
 	def create_blank_annotations_file(self, scan_for_cases=False):
 		case_header_name = TCGAAnnotations.case
 
-		with open(self.ANNOTATIONS_FILE, 'w') as csv_outfile:
+		with open(self.PROJECT['annotations'], 'w') as csv_outfile:
 			csv_writer = csv.writer(csv_outfile, delimiter=',')
 			header = [case_header_name, 'dataset', 'category']
 			csv_writer.writerow(header)
 
 		if scan_for_cases:
-			sfutil.verify_annotations(self.ANNOTATIONS_FILE, slides_dir=self.SLIDES_DIR)
+			sfutil.verify_annotations(self.PROJECT['annotations'], slides_dir=self.PROJECT['slides_dir'])
 
 	def generate_manifest(self):
-		input_dir = self.TFRECORD_DIR if self.USE_TFRECORD else self.TILES_DIR
-		annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name="slide", value_name="category")
-		tfrecord_files = glob(os.path.join(input_dir, "*/*.tfrecords")) if self.USE_TFRECORD else []
+		input_dir = self.PROJECT['tfrecord_dir'] if self.PROJECT['use_tfrecord'] else self.PROJECT['tiles_dir']
+		annotations = sfutil.get_annotations_dict(self.PROJECT['annotations'], key_name="slide", value_name="category")
+		tfrecord_files = glob(os.path.join(input_dir, "*/*.tfrecords")) if self.PROJECT['use_tfrecord'] else []
 		self.MANIFEST = sfutil.verify_tiles(annotations, input_dir, tfrecord_files)
 		sfutil.write_json(self.MANIFEST, sfutil.global_path("manifest.json"))
 		try:
@@ -325,120 +264,66 @@ class SlideFlowProject:
 		except:
 			pass
 		
-	def update_task(self, task, status):
-		return
-		#data = sfutil.load_json(self.CONFIG)
-		#data['tasks'][task] = status
-		#sfutil.write_json(data, self.CONFIG)
-
-	def get_task(self, task):
-		return sfutil.load_json(self.CONFIG)['tasks'][task]
-
-	def load_project(self):
-		if os.path.exists(self.CONFIG):
-			data = sfutil.load_json(self.CONFIG)
-			self.NAME = data['name']
-			self.PROJECT_DIR = data['root']
-			self.ANNOTATIONS_FILE = data['annotations']
-			self.SLIDES_DIR = data['slides']
-			self.ROI_DIR = data['ROI'] 
-			self.TILES_DIR = data['tiles']
-			self.MODELS_DIR = data['models']
-			self.BATCH_TRAIN_CONFIG = data['batch_train_config']
-			self.PRETRAIN = data['pretraining']
-			self.TILE_UM = data['tile_um']
-			self.TILE_PX = data['tile_px']
-			self.NUM_CLASSES = data['num_classes']
-			self.BATCH_SIZE = data['batch_size']
-			self.USE_FP16 = data['use_fp16']
-			self.USE_TFRECORD = data['use_tfrecord']
-			self.TFRECORDS_BY_CASE = data['tfrecords_by_case']
-			self.TFRECORD_DIR = data['tfrecord_dir']
-			self.DELETE_TILES = data['delete_tiles']		
+	def load_project(self, directory):
+		if exists(join(directory, "settings.json")):
+			self.PROJECT = sfutil.load_json(join(directory, "settings.json"))
 			print("\nProject configuration loaded.\n")
 		else:
-			raise OSError(f'Unable to locate project json at location "{self.CONFIG}".')
+			raise OSError(f'Unable to locate settings.json at location "{directory}".')
 		if not SKIP_VERIFICATION:
-			sfutil.verify_annotations(self.ANNOTATIONS_FILE, slides_dir=self.SLIDES_DIR)
+			sfutil.verify_annotations(self.PROJECT['annotations'], slides_dir=self.PROJECT['slides_dir'])
 		if os.path.exists(sfutil.global_path("manifest.json")):
 			self.MANIFEST = sfutil.load_json(sfutil.global_path("manifest.json"))
 		else:
 			self.generate_manifest()
 
-	def create_project(self):
+	def create_project(self, directory):
 		# General setup and slide configuration
-		self.NAME = input("What is the project name? ")
-		self.SLIDES_DIR = sfutil.dir_input("Where are the SVS slides stored? [./slides] ",
+		project = {}
+		project['name'] = input("What is the project name? ")
+		project['slides_dir'] = sfutil.dir_input("Where are the SVS slides stored? [./slides] ",
 									default='./slides', create_on_invalid=True)
-		self.ROI_DIR = sfutil.dir_input("Where are the ROI files (CSV) stored? [./slides] ",
+		project['roi_dir'] = sfutil.dir_input("Where are the ROI files (CSV) stored? [./slides] ",
 									default='./slides', create_on_invalid=True)
 		
 		# Ask for annotations file location; if one has not been made, offer to create a blank template and then exit
 		if not sfutil.yes_no_input("Has an annotations (CSV) file already been created? [Y/n] ", default='yes'):
 			if sfutil.yes_no_input("Create a blank annotations file? [Y/n] ", default='yes'):
-				self.ANNOTATIONS_FILE = sfutil.file_input("Where will the annotation file be located? [./annotations.csv] ", 
+				project['annotations'] = sfutil.file_input("Where will the annotation file be located? [./annotations.csv] ", 
 									default='./annotations.csv', filetype="csv", verify=False)
 				self.create_blank_annotations_file(scan_for_cases=sfutil.yes_no_input("Scan slide folder for case names? [Y/n] ", default='yes'))
 		else:
-			self.ANNOTATIONS_FILE = sfutil.file_input("Where is the project annotations (CSV) file located? [./annotations.csv] ", 
+			project['annotations'] = sfutil.file_input("Where is the project annotations (CSV) file located? [./annotations.csv] ", 
 									default='./annotations.csv', filetype="csv")
 
 		# Slide tessellation
-		self.TILES_DIR = sfutil.dir_input("Where will the tessellated image tiles be stored? (recommend SSD) [./tiles] ",
+		project['tiles_dir'] = sfutil.dir_input("Where will the tessellated image tiles be stored? (recommend SSD) [./tiles] ",
 									default='./tiles', create_on_invalid=True)
-		self.USE_TFRECORD = sfutil.yes_no_input("Store tiles in TFRecord format? [Y/n] ", default='yes')
-		if self.USE_TFRECORD:
-			self.DELETE_TILES = sfutil.yes_no_input("Should raw tile images be deleted after TFRecord storage? [Y/n] ", default='yes')
-			self.TFRECORD_DIR = sfutil.dir_input("Where should the TFRecord files be stored? (recommend HDD) [./tfrecord] ",
+		project['use_tfrecord'] = sfutil.yes_no_input("Store tiles in TFRecord format? [Y/n] ", default='yes')
+		if project['use_tfrecord']:
+			project['delete_tiles'] = sfutil.yes_no_input("Should raw tile images be deleted after TFRecord storage? [Y/n] ", default='yes')
+			project['tfrecord_dir'] = sfutil.dir_input("Where should the TFRecord files be stored? (recommend HDD) [./tfrecord] ",
 									default='./tfrecord', create_on_invalid=True)
-			self.TFRECORDS_BY_CASE = sfutil.yes_no_input("Create a TFRecord file for each slide? (required for input balancing) [Y/n] ", default='yes')
+			project['tfrecords_by_case'] = sfutil.yes_no_input("Create a TFRecord file for each slide? (required for input balancing) [Y/n] ", default='yes')
 		# Training
-		self.MODELS_DIR = sfutil.dir_input("Where should the saved models be stored? [./models] ",
+		project['models_dir'] = sfutil.dir_input("Where should the saved models be stored? [./models] ",
 									default='./models', create_on_invalid=True)
 		if sfutil.yes_no_input("Will models utilize pre-training? [Y/n] ", default='yes'):
 			if sfutil.yes_no_input("Use Imagenet pre-training? [Y/n] ", default='yes'):
-				self.PRETRAIN = 'imagenet'
+				project['pretrain'] = 'imagenet'
 			else:
-				self.PRETRAIN = sfutil.dir_input("Where is the pretrained model folder located? ", create_on_invalid=False)
-		self.TILE_UM = sfutil.int_input("What is the tile width in microns? [280] ", default=280)
-		self.TILE_PX = sfutil.int_input("What is the tile width in pixels? [512] ", default=512)
-		self.NUM_CLASSES = sfutil.int_input("How many classes are there to be trained? ")
-		self.BATCH_SIZE = sfutil.int_input("What batch size should be used? [64] ", default=64)
-		self.USE_FP16 = sfutil.yes_no_input("Should FP16 be used instead of FP32? (recommended) [Y/n] ", default='yes')
+				project['pretrain'] = sfutil.dir_input("Where is the pretrained model folder located? ", create_on_invalid=False)
+		project['tile_um'] = sfutil.int_input("What is the tile width in microns? [280] ", default=280)
+		project['tile_px'] = sfutil.int_input("What is the tile width in pixels? [512] ", default=512)
+		project['num_classes'] = sfutil.int_input("How many classes are there to be trained? ")
+		project['batch_size'] = sfutil.int_input("What batch size should be used? [64] ", default=64)
+		project['use_fp16'] = sfutil.yes_no_input("Should FP16 be used instead of FP32? (recommended) [Y/n] ", default='yes')
 		if sfutil.yes_no_input("Set up batch training? [Y/n] ", default='yes'):
-			self.BATCH_TRAIN_CONFIG = sfutil.file_input("Location for the batch training CSV config file? [./batch_train.csv] ",
+			project['batch_train_config'] = sfutil.file_input("Location for the batch training CSV config file? [./batch_train.csv] ",
 														default='./batch_train.csv', filetype='csv', verify=False)
-			if not exists(self.BATCH_TRAIN_CONFIG):
+			if not exists(project['batch_train_config']):
 				if sfutil.yes_no_input("Batch training file not found, create one? [Y/n] ", default='yes'):
 					self.create_blank_batch_config()
 
-		data = {}
-		data['name'] = self.NAME
-		data['root'] = self.PROJECT_DIR
-		data['annotations'] = self.ANNOTATIONS_FILE
-		data['slides'] = self.SLIDES_DIR
-		data['ROI'] = self.ROI_DIR
-		data['tiles'] = self.TILES_DIR
-		data['models'] = self.MODELS_DIR
-		data['batch_train_config'] = self.BATCH_TRAIN_CONFIG
-		data['pretraining'] = self.PRETRAIN
-		data['tile_um'] = self.TILE_UM
-		data['tile_px'] = self.TILE_PX
-		data['num_classes'] = self.NUM_CLASSES
-		data['batch_size'] = self.BATCH_SIZE
-		data['use_fp16'] = self.USE_FP16
-		data['use_tfrecord'] = self.USE_TFRECORD
-		data['tfrecords_by_case'] = self.TFRECORDS_BY_CASE
-		data['tfrecord_dir'] = self.TFRECORD_DIR
-		data['delete_tiles'] = self.DELETE_TILES
-		data['tasks'] = {
-			'extract_tiles': 'not started',
-			'separate_training_and_eval': 'not started',
-			'generate_tfrecord': 'not started',
-			'training': 'not started',
-			'analytics': 'not started',
-			'heatmaps': 'not started',
-			'mosaic': 'not started'
-		}
-		sfutil.write_json(data, self.CONFIG)
+		sfutil.write_json(project, join(directory, 'settings.json'))
 		print("\nProject configuration saved.\n")
