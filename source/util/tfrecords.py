@@ -62,13 +62,13 @@ def _parse_tfrecord_function(record):
 
 def _read_and_return_features(record):
 	features = _parse_tfrecord_function(record)
-	case = features['case'].numpy()
 	category = features['category'].numpy()
+	case = features['case'].numpy()
 	image_raw = features['image_raw'].numpy()
-	return case, category, image_raw
+	return category, case, image_raw
 
 def _read_and_return_record(record, assign_case=None, assign_category=None):
-	case, category, image_raw = _read_and_return_features(record)
+	category, case, image_raw = _read_and_return_features(record)
 	if assign_case:
 		case = assign_case
 	if assign_category:
