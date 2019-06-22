@@ -113,7 +113,7 @@ class SlideflowModel:
 		self.USE_FP16 = use_fp16
 		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
 
-		self.NUM_TILES = num_tiles # TODO calculate this automatically
+		self.NUM_TILES = 1000 #num_tiles # TODO calculate this automatically
 		self.NUM_CLASSES = num_classes # TODO calculate this automatically
 
 		annotations = sfutil.get_annotations_dict(annotations_file, key_name="slide", value_name="category")
@@ -234,7 +234,7 @@ class SlideflowModel:
 						break
 				yield tfrecords._read_and_return_record(record)
 
-		dataset = tf.data.Dataset.from_generator(tfrecord_generator, tf.string)#tfrecords.FEATURE_TYPES)
+		dataset = tf.data.Dataset.from_generator(tfrecord_generator, tfrecords.FEATURE_TYPES)
 		dataset = dataset.shuffle(1000)
 		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
@@ -358,6 +358,7 @@ class SlideflowModel:
 		model.layers[0].trainable = False
 
 		steps_per_epoch = round(self.NUM_TILES/hp.batch_size)
+		val_steps = 100 if test_data else None
 		lr_fast = hp.learning_rate * 10
 
 		model.compile(optimizer=tf.keras.optimizers.Adam(lr=lr_fast),
@@ -368,7 +369,7 @@ class SlideflowModel:
 				  epochs=epochs,
 				  steps_per_epoch=steps_per_epoch,
 				  validation_data=test_data,
-				  validation_steps=100,
+				  validation_steps=val_steps,
 				  callbacks=callbacks)
 
 		# Unfreeze the base layer
@@ -406,13 +407,13 @@ class SlideflowModel:
 		finetune_model = model.fit(train_data.repeat(),
 			steps_per_epoch=steps_per_epoch,
 			epochs=total_epochs,
-			verbose=0,
+			verbose=1,
 			initial_epoch=hp.toplayer_epochs,
 			validation_data=None,
 			callbacks=callbacks)
 
 		train_acc = finetune_model.history['accuracy']
-		val_acc = finetune_model.evaluate(test_data, verbose=0)
+		val_acc = model.evaluate(test_data, verbose=0)
 		return train_acc, val_acc
 
 	def train_supervised(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=20):
