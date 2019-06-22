@@ -234,7 +234,7 @@ class SlideflowModel:
 						break
 				yield tfrecords._read_and_return_record(record)
 
-		dataset = tf.data.Dataset.from_generator(tfrecord_generator, tfrecords.FEATURE_TYPES)
+		dataset = tf.data.Dataset.from_generator(tfrecord_generator, tf.string)#tfrecords.FEATURE_TYPES)
 		dataset = dataset.shuffle(1000)
 		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
