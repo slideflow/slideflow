@@ -37,9 +37,9 @@ from numpy.random import choice
 from util import tfrecords, sfutil
 from util.sfutil import TCGAAnnotations
 
-BALANCE_BY_CATEGORY = 1
-BALANCE_BY_CASE = 2
-NO_BALANCE = 3
+BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
+BALANCE_BY_CASE = 'BALANCE_BY_CASE'
+NO_BALANCE = 'NO_BALANCE'
 
 # Calculate accuracy with https://stackoverflow.com/questions/50111438/tensorflow-validate-accuracy-with-batch-data
 # TODO: try next, comment out line 254 (results in calculating total_loss before update_ops is called)
@@ -47,7 +47,7 @@ NO_BALANCE = 3
 # TODO: export logs to file for monitoring remotely
 
 class HyperParameters:
-	OptDict = {
+	_OptDict = {
 		'Adam':	tf.keras.optimizers.Adam,
 		'SGD': tf.keras.optimizers.SGD,
 		'RMSprop': tf.keras.optimizers.RMSprop,
@@ -57,8 +57,8 @@ class HyperParameters:
 		'Nadam': tf.keras.optimizers.Nadam
 	}
 	def __init__(self, toplayer_epochs=5, finetune_epochs=50, loss='sparse_categorical_crossentropy',
-				 learning_rate=0.1, hidden_layers=0, optimizer='Adam', early_stop=False, 
-				 early_stop_patience=None, balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
+				 learning_rate=0.1, batch_size=16, hidden_layers=0, optimizer='Adam', early_stop=False, 
+				 early_stop_patience=0, balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
 				 augment=True):
 		''' Additional hyperparameters to consider:
 		beta1 0.9
@@ -70,7 +70,8 @@ class HyperParameters:
 		self.finetune_epochs = finetune_epochs
 		self.loss = loss
 		self.learning_rate = learning_rate
-		self.optimizer = self.OptDict[optimizer]
+		self.batch_size = batch_size
+		self.optimizer = optimizer
 		self.early_stop = early_stop
 		self.hidden_layers = hidden_layers
 		self.early_stop_patience = early_stop_patience
@@ -78,8 +79,11 @@ class HyperParameters:
 		self.balanced_validation = balanced_validation
 		self.augment = augment
 
+	def get_opt(self):
+		return self._OptDict[self.optimizer](lr=self.learning_rate)
+
 	def _get_args(self):
-		return [arg for arg in dir(self) if not arg[0]=='_']
+		return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt']]
 
 	def __str__(self):
 		output = f" + [{sfutil.info('INFO')}] Hyperparameters:\n"
@@ -202,9 +206,9 @@ class SlideflowModel:
 		for category in categories:
 			categories_prob[category] = min(categories.values()) / categories[category]
 		if balance == NO_BALANCE:
-			prob_weights = [i/sum(num_tiles) for i in datasets]
+			prob_weights = [i/sum(num_tiles) for i in num_tiles]
 		if balance == BALANCE_BY_CATEGORY:
-			prob_weights = [categories_prob[datasets_categories[i]] for i in datasets]
+			prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
 		if balance == BALANCE_BY_CASE:
 			prob_weights = None
 		num_unique_categories = len(set(datasets_categories))
@@ -373,7 +377,7 @@ class SlideflowModel:
 
 		# Calculated parameters
 		total_epochs = hp.toplayer_epochs + hp.finetune_epochs
-		initialized_optimizer = hp.optimizer(lr=hp.learning_rate)
+		initialized_optimizer = hp.get_opt()
 		steps_per_epoch = round(self.NUM_TILES/hp.batch_size)
 		tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
 
@@ -411,7 +415,7 @@ class SlideflowModel:
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 		# Calculated parameters
 		total_epochs = hp.toplayer_epochs + hp.finetune_epochs
-		initialized_optimizer = hp.optimizer(lr=hp.learning_rate)
+		initialized_optimizer = hp.get_opt()
 		steps_per_epoch = round(self.NUM_TILES/hp.batch_size)
 		tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
 
