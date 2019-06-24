@@ -196,8 +196,8 @@ class SlideflowModel:
 			print(f" + [{sfutil.fail('ERROR')}] No TFRecords found in {sfutil.green(search_folder)}")
 			sys.exit()
 		for filename in tfrecord_files:
-			dataset = [tf.data.TFRecordDataset(filename)]
-			datasets += [iter(dataset)]
+			datasets += [tf.data.TFRecordDataset(filename)]
+			#datasets += [iter(dataset)]
 			case_shortname = filename.split('/')[-1][:-10]
 			category = annotations[case_shortname]
 			datasets_categories += [category]
