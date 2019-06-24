@@ -41,11 +41,6 @@ BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_CASE = 'BALANCE_BY_CASE'
 NO_BALANCE = 'NO_BALANCE'
 
-# Calculate accuracy with https://stackoverflow.com/questions/50111438/tensorflow-validate-accuracy-with-batch-data
-# TODO: try next, comment out line 254 (results in calculating total_loss before update_ops is called)
-# TODO: visualize graph, memory usage, and compute time with https://www.tensorflow.org/guide/graph_viz
-# TODO: export logs to file for monitoring remotely
-
 class HyperParameters:
 	_OptDict = {
 		'Adam':	tf.keras.optimizers.Adam,
@@ -56,7 +51,21 @@ class HyperParameters:
 		'Adamax': tf.keras.optimizers.Adamax,
 		'Nadam': tf.keras.optimizers.Nadam
 	}
-	def __init__(self, toplayer_epochs=5, finetune_epochs=50, loss='sparse_categorical_crossentropy',
+	_ModelDict = {
+		'Xception': tf.keras.applications.Xception,
+		'VGG16': tf.keras.applications.VGG16,
+		'VGG19': tf.keras.applications.VGG19,
+		'ResNet': tf.keras.applications.ResNet,
+		'ResNetV2': tf.keras.applications.ResNetV2,
+		'ResNeXt': tf.keras.applications.ResNeXt,
+		'InceptionV3': tf.keras.applications.InceptionV3,
+		'InceptionResNetV2': tf.keras.applications.InceptionResNetV2,
+		'MobileNet': tf.keras.applications.MobileNet,
+		'MobileNetV2': tf.keras.applications.MobileNetV2,
+		'DenseNet': tf.keras.applications.DenseNet,
+		'NASNet': tf.keras.applications.NASNet
+	}
+	def __init__(self, toplayer_epochs=5, finetune_epochs=50, model='InceptionV3', pooling='avg', loss='sparse_categorical_crossentropy',
 				 learning_rate=0.1, batch_size=16, hidden_layers=0, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
 				 augment=True):
@@ -68,6 +77,8 @@ class HyperParameters:
 		'''
 		self.toplayer_epochs = toplayer_epochs
 		self.finetune_epochs = finetune_epochs
+		self.model = model
+		self.pooling = pooling
 		self.loss = loss
 		self.learning_rate = learning_rate
 		self.batch_size = batch_size
@@ -82,8 +93,16 @@ class HyperParameters:
 	def get_opt(self):
 		return self._OptDict[self.optimizer](lr=self.learning_rate)
 
+	def get_model(self, input_shape, weights):
+		return self._ModelDict[self.model](
+			input_shape=input_shape,
+			include_top=False,
+			pooling=self.pooling,
+			weights=weights
+		)
+
 	def _get_args(self):
-		return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt']]
+		return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt', 'get_model']]
 
 	def __str__(self):
 		output = f" + [{sfutil.info('INFO')}] Hyperparameters:\n"
@@ -144,13 +163,6 @@ class SlideflowModel:
 		image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
 		return image
 
-	def _parse_function(self, filename):
-		case = filename.split('/')[-2]
-		label = self.ANNOTATIONS_TABLE.lookup(case)
-		image_string = tf.read_file(filename)
-		image = self._process_image(image_string, self.AUGMENT)
-		return image, label
-
 	def _parse_tfrecord_function(self, record):
 		features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
 		case = features['case']
@@ -159,16 +171,7 @@ class SlideflowModel:
 		image = self._process_image(image_string, self.AUGMENT)
 		return image, label
 
-	def _gen_batched_dataset(self, filenames, batch_size, augment):
-		# Replace the below dataset with one that uses a Python generator for flexibility of labeling
-		self.AUGMENT = augment
-		dataset = tf.data.Dataset.from_tensor_slices(filenames)
-		dataset = dataset.shuffle(tf.size(filenames, out_type=tf.int64))
-		dataset = dataset.map(self._parse_function, num_parallel_calls = 8)
-		dataset = dataset.batch(batch_size)
-		return dataset
-
-	def _gen_batched_dataset_tfrecords(self, filename, batch_size, augment):
+	def _gen_batched_dataset(self, filename, batch_size, augment):
 		self.AUGMENT = augment
 		dataset = tf.data.TFRecordDataset(filename)
 		dataset = dataset.shuffle(1000)
@@ -177,11 +180,19 @@ class SlideflowModel:
 		return dataset
 
 	def _interleave_tfrecords(self, folder, batch_size, balance, augment, finite):
-		'''Generates a finite interleaved dataset from a collection of tfrecord files,
-		sampling from tfrecord files randomly according to the number of tiles in each 
-		tfrecord file. Requires self.MANIFEST. Assumes TFRecord files are named by case.
-		
-		Uses a Python generator for interleaving.'''
+		'''Generates an interleaved dataset from a collection of tfrecord files,
+		sampling from tfrecord files randomly according to balancing if provided.
+		Requires self.MANIFEST. Assumes TFRecord files are named by case.
+
+		Args:
+			folder		Location to search for TFRecord files
+			batch_size	Batch size
+			balance		Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,
+							BALANCE_BY_CASE, and NO_BALANCE. If finite option is used, will drop
+							tiles in order to maintain proportions across the interleaved dataset.
+			augment		Whether to use data augmentation (random flip/rotate)
+			finite		Whether create finite or infinite datasets. WARNING: If finite option is 
+							used with balancing, some tiles will be skipped.'''
 		self.AUGMENT = augment
 		annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name=sfutil.TCGAAnnotations.case, 
 																		 value_name="category")
@@ -255,17 +266,15 @@ class SlideflowModel:
 			balance:		Whether to use input balancing; options are BALANCE_BY_CASE, BALANCE_BY_CATEGORY, NO_BALANCE
 								 (only available if TFRECORDS_BY_CASE=True)'''
 		with tf.name_scope('input'):
-			if not self.USE_TFRECORD:
-				dataset = self._gen_batched_dataset(tf.io.match_filenames_once(filename_dir), batch_size, augment)
-			elif self.TFRECORDS_BY_CASE:
+			if self.TFRECORDS_BY_CASE:
 				dataset = self._interleave_tfrecords(subfolder, batch_size, balance, augment, finite)
 			else:
 				if balance:
 					print(f" + [{sfutil.warn('WARN')}] Unable to use balanced inputs unless each case/slide has its own tfrecord file")
-				dataset = self._gen_batched_dataset_tfrecords(os.path.join(self.INPUT_DIR, tfrecord_file), batch_size, augment)
+				dataset = self._gen_batched_dataset(os.path.join(self.INPUT_DIR, tfrecord_file), batch_size, augment)
 		return dataset
 
-	def build_model(self, pretrain=None, checkpoint=None):
+	def build_model(self, hp, pretrain=None, checkpoint=None):
 		# Assemble base model, using pretraining (imagenet) or the base layers of a supplied model
 		if pretrain:
 			print(f" + [{sfutil.info('INFO')}] Using pretraining from {sfutil.green(pretrain)}")
@@ -275,21 +284,16 @@ class SlideflowModel:
 			base_model = pretrained_model.get_layer(index=0)
 		else:
 			# Create model using ImageNet if specified
-			base_model = tf.keras.applications.InceptionV3(
-				input_shape=(self.IMAGE_SIZE, self.IMAGE_SIZE, 3),
-				include_top=False,
-				pooling='avg',
-				weights=pretrain
-			)
+			base_model = hp.get_model(input_shape=(self.IMAGE_SIZE, self.IMAGE_SIZE, 3),
+									  weights=pretrain)
 
 		# Combine base model with top layer (classification/prediction layer)
-		#fully_connected_layer = tf.keras.layers.Dense(1000, activation='relu')
-		prediction_layer = tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')
-		model = tf.keras.Sequential([
-			base_model,
-			#fully_connected_layer,
-			prediction_layer
-		])
+		layers = [base_model]
+		for i in range(hp.hidden_layers):
+			layers += [tf.keras.layers.Dense(1000, activation='relu')]
+		layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')]
+		model = tf.keras.Sequential(layers)
+		
 		if checkpoint:
 			print(f" + [{sfutil.info('INFO')}] Loading checkpoint weights from {sfutil.green(checkpoint)}")
 			model.load_weights(checkpoint)
@@ -301,7 +305,7 @@ class SlideflowModel:
 		if model:
 			loaded_model = tf.keras.models.load_model(model)
 		elif checkpoint:
-			loaded_model = self.build_model()
+			loaded_model = self.build_model(hp)
 			loaded_model.load_weights(checkpoint)
 		loaded_model.compile(loss='sparse_categorical_crossentropy',
 					optimizer=tf.keras.optimizers.Adam(lr=hp.learning_rate),
@@ -352,7 +356,7 @@ class SlideflowModel:
 			callbacks = [history, early_stop]
 		else:
 			callbacks = [history]
-		model = self.build_model(pretrain)
+		model = self.build_model(hp, pretrain=pretrain)
 
 		if hp.toplayer_epochs:
 			self.retrain_top_layers(model, hp, train_data.repeat(), None, callbacks=[history], epochs=hp.toplayer_epochs)
@@ -372,8 +376,8 @@ class SlideflowModel:
 		print("Training complete")
 		train_acc = finetune_model.history['accuracy']
 		print("Starting validation")
-		val_acc = model.evaluate(test_data, verbose=1)
-		return train_acc, val_acc
+		val_loss, val_acc = model.evaluate(test_data, verbose=1)
+		return train_acc, val_loss, val_acc
 
 	def train_supervised(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=20):
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
@@ -406,7 +410,7 @@ class SlideflowModel:
 			print(f" + [{sfutil.info('INFO')}] Resuming training from {sfutil.green(resume_training)}")
 			model = tf.keras.models.load_model(resume_training)
 		else:
-			model = self.build_model(pretrain, checkpoint)
+			model = self.build_model(hp, pretrain=pretrain, checkpoint=checkpoint)
 
 		model.save(os.path.join(self.DATA_DIR, "untrained_model.h5"))
 
@@ -440,19 +444,3 @@ class SlideflowModel:
 
 		model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
 		return finetune_model.history['val_accuracy']
-
-if __name__ == "__main__":
-	#os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-	#tf.logging.set_verbosity(tf.logging.ERROR)
-
-	parser = argparse.ArgumentParser(description = "Train a CNN using an Inception-v4 network")
-	parser.add_argument('-d', '--dir', help='Path to root directory for saving model.')
-	parser.add_argument('-i', '--input', help='Path to root directory with training and eval data.')
-	parser.add_argument('-r', '--retrain', help='Path to directory containing model to use as pretraining')
-	parser.add_argument('-a', '--annotation', help='Path to root directory with training and eval data.')
-	args = parser.parse_args()
-
-	#SFM = SlideflowModel(args.dir, args.input, args.annotation)
-	#model_config = SFModelConfig(args.size, args.classes, args.batch, augment=True, use_fp16=args.use_fp16)
-	#SFM.config(model_config)
-	#SFM.train(restore_checkpoint = args.retrain)
