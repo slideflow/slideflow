@@ -215,6 +215,14 @@ class SlideflowModel:
 		if balance == BALANCE_BY_CASE:
 			prob_weights = None
 		num_unique_categories = len(set(datasets_categories))
+		# Remove empty cases
+		for i in sorted(range(len(prob_weights)), reverse=True):
+			if num_tiles[i] == 0:
+				del(num_tiles[i])
+				del(datasets[i])
+				del(datasets_categories[i])
+				del(prob_weights[i])
+		
 		'''
 		def tfrecord_generator():
 			while len(datasets):
@@ -237,7 +245,7 @@ class SlideflowModel:
 
 		#dataset = tf.data.Dataset.from_generator(tfrecord_generator, tfrecords.FEATURE_TYPES)
 		dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
-		dataset = dataset.shuffle(1000)
+		#dataset = dataset.shuffle(1000)
 		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
 		return dataset
@@ -414,8 +422,10 @@ class SlideflowModel:
 			validation_data=None,
 			callbacks=callbacks)
 
+		print("Training complete")
 		train_acc = finetune_model.history['accuracy']
-		val_acc = model.evaluate(test_data, verbose=0)
+		print("Starting validation")
+		val_acc = model.evaluate(test_data, verbose=1)
 		return train_acc, val_acc
 
 	def train_supervised(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=20):
