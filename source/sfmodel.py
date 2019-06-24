@@ -184,7 +184,7 @@ class SlideflowModel:
 		dataset = dataset.batch(batch_size)
 		return dataset
 
-	def _interleave_tfrecords(self, folder, batch_size, balance, augment, finite):
+	def _interleave_tfrecords(self, folder, batch_size, balance, finite):
 		'''Generates an interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to balancing if provided.
 		Requires self.MANIFEST. Assumes TFRecord files are named by case.
@@ -198,7 +198,6 @@ class SlideflowModel:
 			augment		Whether to use data augmentation (random flip/rotate)
 			finite		Whether create finite or infinite datasets. WARNING: If finite option is 
 							used with balancing, some tiles will be skipped.'''
-		self.AUGMENT = augment
 		annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name=sfutil.TCGAAnnotations.case, 
 																		 value_name="category")
 		datasets = []
@@ -258,7 +257,6 @@ class SlideflowModel:
 				del(datasets_categories[i])
 				del(prob_weights[i])
 		dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
-		#dataset = dataset.shuffle(1000)
 		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
 		return dataset
@@ -270,9 +268,10 @@ class SlideflowModel:
 			tfrecord_file:	Name of tfrecord file containing all records, if applicable
 			balance:		Whether to use input balancing; options are BALANCE_BY_CASE, BALANCE_BY_CATEGORY, NO_BALANCE
 								 (only available if TFRECORDS_BY_CASE=True)'''
+		self.AUGMENT = augment
 		with tf.name_scope('input'):
 			if self.TFRECORDS_BY_CASE:
-				dataset = self._interleave_tfrecords(subfolder, batch_size, balance, augment, finite)
+				dataset = self._interleave_tfrecords(subfolder, batch_size, balance, finite)
 			else:
 				if balance:
 					print(f" + [{sfutil.warn('WARN')}] Unable to use balanced inputs unless each case/slide has its own tfrecord file")
@@ -318,8 +317,8 @@ class SlideflowModel:
 		results = loaded_model.evaluate(data_to_eval)
 		return results
 
-	def retrain_top_layers(self, model, hp, train_data, test_data, callbacks=None, epochs=1):
-		print(f" + [{sfutil.info('INFO')}] Retraining top layer")
+	def retrain_top_layers(self, model, hp, train_data, test_data, callbacks=None, epochs=1, verbose=1):
+		if verbose: print(f" + [{sfutil.info('INFO')}] Retraining top layer")
 		# Freeze the base layer
 		model.layers[0].trainable = False
 
@@ -333,6 +332,7 @@ class SlideflowModel:
 
 		toplayer_model = model.fit(train_data,
 				  epochs=epochs,
+				  verbose=verbose,
 				  steps_per_epoch=steps_per_epoch,
 				  validation_data=test_data,
 				  validation_steps=val_steps,
@@ -342,62 +342,23 @@ class SlideflowModel:
 		model.layers[0].trainable = True
 		return toplayer_model.history
 
-	def train_unsupervised(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None):
-		'''Trains a model with the given hyperparameters (hp)'''
-		# Todo: for pretraining, support imagenet, full model, and checkpoints
-
-		# Calculated parameters
-		total_epochs = hp.toplayer_epochs + hp.finetune_epochs
-		initialized_optimizer = hp.get_opt()
-		steps_per_epoch = round(self.NUM_TILES/hp.batch_size)
-		tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
-
-		train_data = self.build_dataset_inputs(self.TRAIN_FILES, 'train', 'train.tfrecords', hp.batch_size, hp.balanced_training, hp.augment)
-		test_data = self.build_dataset_inputs(self.TEST_FILES, 'eval', 'test.tfrecords', hp.batch_size, hp.balanced_validation, hp.augment, finite=True)
-		
-		history = tf.keras.callbacks.History()
-		if hp.early_stop:
-			early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=hp.early_stop_patience)
-			callbacks = [history, early_stop]
-		else:
-			callbacks = [history]
-		model = self.build_model(hp, pretrain=pretrain)
-
-		if hp.toplayer_epochs:
-			self.retrain_top_layers(model, hp, train_data.repeat(), None, callbacks=[history], epochs=hp.toplayer_epochs)
-		
-		model.compile(loss=hp.loss,
-					optimizer=initialized_optimizer,
-					metrics=['accuracy'])
-		
-		finetune_model = model.fit(train_data.repeat(),
-			steps_per_epoch=steps_per_epoch,
-			epochs=total_epochs,
-			verbose=1,
-			initial_epoch=hp.toplayer_epochs,
-			validation_data=None,
-			callbacks=callbacks)
-
-		print("Training complete")
-		train_acc = finetune_model.history['accuracy']
-		print("Starting validation")
-		val_loss, val_acc = model.evaluate(test_data, verbose=1)
-		return train_acc, val_loss, val_acc
-
-	def train_supervised(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=20):
+	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, supervised=True, log_frequency=20):
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 		# Calculated parameters
 		total_epochs = hp.toplayer_epochs + hp.finetune_epochs
 		initialized_optimizer = hp.get_opt()
 		steps_per_epoch = round(self.NUM_TILES/hp.batch_size)
 		tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
-
+		verbose = 1 if supervised else 0
 		val_steps = 200
 
 		train_data = self.build_dataset_inputs(self.TRAIN_FILES, 'train', 'train.tfrecords', hp.batch_size, hp.balance, hp.augment)
-		test_data = self.build_dataset_inputs(self.TEST_FILES, 'eval', 'test.tfrecords', hp.batch_size, hp.balance, hp.augment)
+		test_data = self.build_dataset_inputs(self.TEST_FILES, 'eval', 'test.tfrecords', hp.batch_size, hp.balance, hp.augment, finite=supervised)
+		training_test_data = test_data.repeat() if supervised else None
 
-		# Create callbacks for checkpoint saving, summaries, and history
+		# Create callbacks for early stopping, checkpoint saving, summaries, and history
+		history_callback = tf.keras.callbacks.History()
+		early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=hp.early_stop_patience)
 		checkpoint_path = os.path.join(self.MODEL_DIR, "cp.ckpt")
 		cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
 														 save_weights_only=True,
@@ -407,34 +368,28 @@ class SlideflowModel:
 															  histogram_freq=0,
 															  write_graph=False,
 															  update_freq=hp.batch_size*log_frequency)
-		history = tf.keras.callbacks.History()
-		callbacks = [cp_callback, tensorboard_callback, history]
+		callbacks = [history_callback]
+		if hp.early_stop:
+			callbacks += [early_stop_callback]
+		if supervised:
+			callbacks += [cp_callback, tensorboard_callback]
 
 		# Load the model
 		if resume_training:
-			print(f" + [{sfutil.info('INFO')}] Resuming training from {sfutil.green(resume_training)}")
+			if verbose:	print(f" + [{sfutil.info('INFO')}] Resuming training from {sfutil.green(resume_training)}")
 			model = tf.keras.models.load_model(resume_training)
 		else:
 			model = self.build_model(hp, pretrain=pretrain, checkpoint=checkpoint)
 
-		model.save(os.path.join(self.DATA_DIR, "untrained_model.h5"))
-
 		# TODO: simplify to (if toplayer_epochs) only once hyperparameter support implemented
 		# Retrain top layer only if using transfer learning and not resuming training
-		if pretrain and not (resume_training or checkpoint) and hp.toplayer_epochs:
-			self.retrain_top_layers(model, hp, train_data.repeat(), test_data.repeat(), callbacks=callbacks, epochs=hp.toplayer_epochs)
-
-		model.save(os.path.join(self.DATA_DIR, "toplayer_trained_model.h5"))
+		if hp.toplayer_epochs:
+			self.retrain_top_layers(model, hp, train_data.repeat(), training_test_data, callbacks=None, epochs=hp.toplayer_epochs, verbose=verbose)
 
 		# Fine-tune the model
-		print(f" + [{sfutil.info('INFO')}] Beginning fine-tuning")
+		if verbose:	print(f" + [{sfutil.info('INFO')}] Beginning fine-tuning")
 
-		# Code for fixing a model that did not have batch_norm update
-		'''for layer in model.layers[0].layers:
-			if "batch_normalization" not in layer.name:
-				layer.trainable=False'''
-
-		model.compile(loss='sparse_categorical_crossentropy',
+		model.compile(loss=hp.loss,
 					optimizer=initialized_optimizer,
 					metrics=['accuracy'])
 
@@ -442,10 +397,14 @@ class SlideflowModel:
 		finetune_model = model.fit(train_data.repeat(),
 			steps_per_epoch=steps_per_epoch,
 			epochs=total_epochs,
+			verbose=verbose,
 			initial_epoch=hp.toplayer_epochs,
-			validation_data=test_data.repeat(),
+			validation_data=training_test_data,
 			validation_steps=val_steps,
 			callbacks=callbacks)
 
 		model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
-		return finetune_model.history['val_accuracy']
+		train_acc = finetune_model.history['accuracy']
+		if verbose: print(f" + [{sfutil.info('INFO')}] Beginning validation testing")
+		val_loss, val_acc = model.evaluate(test_data, verbose=verbose)
+		return train_acc, val_loss, val_acc
