@@ -14,6 +14,8 @@ import csv
 from util import sfutil
 from glob import glob
 
+FEATURE_TYPES = (tf.int64, tf.string, tf.string)
+
 FEATURE_DESCRIPTION =  {'category': tf.io.FixedLenFeature([], tf.int64),
 						'case':     tf.io.FixedLenFeature([], tf.string),
 						'image_raw':tf.io.FixedLenFeature([], tf.string)}
@@ -58,6 +60,22 @@ def _parse_tfrecord_function(record):
 	features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
 	return features
 
+def _read_and_return_features(record):
+	features = _parse_tfrecord_function(record)
+	category = features['category'].numpy()
+	case = features['case'].numpy()
+	image_raw = features['image_raw'].numpy()
+	return category, case, image_raw
+
+def _read_and_return_record(record, assign_case=None, assign_category=None):
+	category, case, image_raw = _read_and_return_features(record)
+	if assign_case:
+		case = assign_case
+	if assign_category:
+		category = assign_category
+	tf_example = image_example(category, case, image_raw)
+	return tf_example.SerializeToString()
+
 def join_tfrecord(input_folder, output_file, assign_case=None):
 	'''Randomly samples from tfrecords in the input folder with shuffling,
 	and combines into a single tfrecord file.'''
@@ -77,12 +95,7 @@ def join_tfrecord(input_folder, output_file, assign_case=None):
 		except StopIteration:
 			del(datasets[index])
 			continue
-		features = _parse_tfrecord_function(record)
-		case = features['case'].numpy() if not assign_case else assign_case
-		category = features['category'].numpy()
-		image_raw = features['image_raw'].numpy()
-		tf_example = image_example(category, case, image_raw)
-		writer.write(tf_example.SerializeToString())
+		writer.write(_read_and_return_record(record, assign_case))
 
 def split_tfrecord(tfrecord_file, output_folder):
 	'''Splits records from a single tfrecord file into individual tfrecord files by case.'''
@@ -186,3 +199,15 @@ def write_tfrecords_single(input_directory, output_directory, filename, category
 			tf_example = image_example(labels[0], labels[1], image_string)
 			writer.write(tf_example.SerializeToString())
 	print(f" + Wrote {len(keys)} image tiles to {tfrecord_path}")
+
+def checkpoint_to_h5(models_dir, model_name):
+	checkpoint = join(models_dir, model_name, "cp.ckpt")
+	h5 = join(models_dir, model_name, "untrained_model.h5")
+	updated_h5 = join(models_dir, model_name, "checkpoint_model.h5")
+	model = tf.keras.models.load_model(h5)
+	model.load_weights(checkpoint)
+	try:
+		model.save(updated_h5)
+	except KeyError:
+		# Not sure why this happens, something to do with the optimizer?
+		pass
