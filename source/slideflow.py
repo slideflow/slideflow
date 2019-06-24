@@ -213,14 +213,16 @@ class SlideFlowProject:
 				print(f"Training model {sfutil.bold(model_name)}...")
 				print(hp)
 				SFM = self.initialize_model(model_name)
-				train_acc, val_acc = SFM.train_unsupervised(hp, pretrain=self.PROJECT['pretrain'], resume_training=resume_training, checkpoint=checkpoint)
+				train_acc, val_loss, val_acc = SFM.train_unsupervised(hp, pretrain=self.PROJECT['pretrain'], resume_training=resume_training, checkpoint=checkpoint)
 				model_acc.update({model_name: {'train_acc': max(train_acc),
+											   'val_loss': val_loss,
 											   'val_acc': val_acc }
 				})
 				print(f"\n[{sfutil.header('Complete')}] Training complete for model {model_name}, max validation accuracy {sfutil.info(str(val_acc))}\n")
 		print(f"\n[{sfutil.header('Complete')}] Batch training complete; validation accuracies:")
 		for model in model_acc:
-			print(f" - {sfutil.green(model)}: Train_Acc={str(model_acc[model]['train_acc'])}, Val_Acc={model_acc[model]['val_acc']}")
+			print(f" - {sfutil.green(model)}: Train_Acc={str(model_acc[model]['train_acc'])}, " +
+				  f"Val_loss={model_acc[model]['val_loss']}, Val_Acc={model_acc[model]['val_acc']}" )
 
 	def generate_heatmaps(self, model_name, ignore=None, slide_filters=None):
 		SFM = self.initialize_model('evaluate')
