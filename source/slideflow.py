@@ -192,15 +192,27 @@ class SlideFlowProject:
 
 	def batch_train(self, resume_training=None, checkpoint=None):
 		'''Train a batch of models sequentially given configurations found in an annotations file.'''
-		model_acc = {}
+		# First, quickly scan for errors (duplicate model names)
 		with open(self.PROJECT['batch_train_config']) as csv_file:
+			models = []
 			reader = csv.reader(csv_file)
 			header = next(reader)
 			try:
 				model_name_i = header.index('model_name')
 			except:
 				print(f"[{sfutil.fail('ERROR')}] Unable to find column 'model_name' in the batch training config file.")
-				sys.exit()
+				sys.exit() 
+			for row in reader:
+				model_name = row[model_name_i]
+				models += [model_name]
+				if len(models) < len(list(set(models))):
+					print(f"[{sfutil.fail('ERROR')}] Duplicate model names found in {sfutil.green(self.PROJECT['batch_train_config'])}.")
+					sys.exit()
+		model_acc = {}
+		with open(self.PROJECT['batch_train_config']) as csv_file:
+			reader = csv.reader(csv_file)
+			header = next(reader)
+			model_name_i = header.index('model_name')
 			# Get all column headers except 'model_name'
 			args = header[0:model_name_i] + header[model_name_i+1:]
 			for row in reader:
