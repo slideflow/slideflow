@@ -13,6 +13,7 @@ class ProgressBar:
 		self.counter_text = "" if not counter_text else " " + counter_text
 		self.tail = ''
 		self.starttime = None
+		self.text = ''
 
 	def add_bar(self, val, endval, endtext=''):
 		bar_id = self.next_id
@@ -27,7 +28,7 @@ class ProgressBar:
 				return float(self.value) / self.endvalue
 
 		self.BARS.update({bar_id: Bar()})
-		self.refresh()
+		self.hard_refresh()
 		return bar_id
 
 	def arrow(self, percent):
@@ -52,7 +53,9 @@ class ProgressBar:
 			spaces = u'-' * (self.bar_length - len(arrow))
 			out_text += u"\u007c{0}\u007c {1}% ({2}){3}".format(arrow + spaces, int(round(bar.percent() * 100)), bar.text, separator)
 		out_text += self.tail
-		sys.stdout.write(out_text)
+		if out_text != self.text:
+			sys.stdout.write(out_text)
+		self.text = out_text
 		sys.stdout.flush()
 
 	def end(self, _id = -1):
@@ -63,11 +66,15 @@ class ProgressBar:
 			sys.stdout.write('\n')
 		else:
 			del self.BARS[_id]
-			self.refresh()
+			self.hard_refresh()
 
 	def print(self, text):
 		sys.stdout.write("\r\033[K" + text + "\n")
 		sys.stdout.flush()
+		self.hard_refresh()
+
+	def hard_refresh(self):
+		self.text = ''
 		self.refresh()
 
 	def regen_tail(self):
