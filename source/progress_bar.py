@@ -35,7 +35,7 @@ class ProgressBar:
 		return chr(0x2588) * int(round(percent * self.bar_length))
 
 	def update(self, _id, val, text=None):
-		self.BARS[_id].value = val
+		self.BARS[_id].value = min(val, self.BARS[_id].endvalue)
 		if text:
 			self.BARS[_id].text = text
 		self.refresh()
