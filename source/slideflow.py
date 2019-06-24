@@ -184,20 +184,35 @@ class SlideFlowProject:
 		print(f"Training model {sfutil.bold(model_name)}...")
 		print(hp)
 		SFM = self.initialize_model(model_name)
-		val_acc = SFM.train_supervised(hp, pretrain=self.PROJECT['pretrain'], resume_training=resume_training, checkpoint=checkpoint)	
+		train_acc, val_loss, val_acc = SFM.train(hp, pretrain=self.PROJECT['pretrain'], 
+													 resume_training=resume_training, 
+													 checkpoint=checkpoint,
+													 supervised=True)	
 		return val_acc
 
 	def batch_train(self, resume_training=None, checkpoint=None):
 		'''Train a batch of models sequentially given configurations found in an annotations file.'''
-		model_acc = {}
+		# First, quickly scan for errors (duplicate model names)
 		with open(self.PROJECT['batch_train_config']) as csv_file:
+			models = []
 			reader = csv.reader(csv_file)
 			header = next(reader)
 			try:
 				model_name_i = header.index('model_name')
 			except:
 				print(f"[{sfutil.fail('ERROR')}] Unable to find column 'model_name' in the batch training config file.")
-				sys.exit()
+				sys.exit() 
+			for row in reader:
+				model_name = row[model_name_i]
+				models += [model_name]
+				if len(models) < len(list(set(models))):
+					print(f"[{sfutil.fail('ERROR')}] Duplicate model names found in {sfutil.green(self.PROJECT['batch_train_config'])}.")
+					sys.exit()
+		model_acc = {}
+		with open(self.PROJECT['batch_train_config']) as csv_file:
+			reader = csv.reader(csv_file)
+			header = next(reader)
+			model_name_i = header.index('model_name')
 			# Get all column headers except 'model_name'
 			args = header[0:model_name_i] + header[model_name_i+1:]
 			for row in reader:
@@ -213,7 +228,11 @@ class SlideFlowProject:
 				print(f"Training model {sfutil.bold(model_name)}...")
 				print(hp)
 				SFM = self.initialize_model(model_name)
-				train_acc, val_loss, val_acc = SFM.train_unsupervised(hp, pretrain=self.PROJECT['pretrain'], resume_training=resume_training, checkpoint=checkpoint)
+				train_acc, val_loss, val_acc = SFM.train(hp, pretrain=self.PROJECT['pretrain'], 
+															 resume_training=resume_training, 
+															 checkpoint=checkpoint,
+															 supervised=False)
+				
 				model_acc.update({model_name: {'train_acc': max(train_acc),
 											   'val_loss': val_loss,
 											   'val_acc': val_acc }
