@@ -215,7 +215,7 @@ class SlideflowModel:
 		if balance == BALANCE_BY_CASE:
 			prob_weights = None
 		num_unique_categories = len(set(datasets_categories))
-
+		'''
 		def tfrecord_generator():
 			while len(datasets):
 				index = choice(range(len(datasets)), p=prob_weights)
@@ -233,16 +233,12 @@ class SlideflowModel:
 					if balance == BALANCE_BY_CASE:
 						break
 				# will return category, case, image_raw
-				yield tfrecords._read_and_return_features(record)
-		
-		def parse_features(category, case, image_raw):
-			label = self.ANNOTATIONS_TABLE.lookup(case)
-			image = self._process_image(image_raw, self.AUGMENT)
-			return image, label
+				yield tfrecords._read_and_return_features(record)'''
 
-		dataset = tf.data.Dataset.from_generator(tfrecord_generator, tfrecords.FEATURE_TYPES)
+		#dataset = tf.data.Dataset.from_generator(tfrecord_generator, tfrecords.FEATURE_TYPES)
+		dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
 		dataset = dataset.shuffle(1000)
-		dataset = dataset.map(parse_features, num_parallel_calls = 8)
+		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
 		return dataset
 
