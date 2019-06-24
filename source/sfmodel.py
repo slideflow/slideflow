@@ -176,7 +176,7 @@ class SlideflowModel:
 		dataset = dataset.batch(batch_size)
 		return dataset
 
-	def _interleave_tfrecords_finite(self, folder, batch_size, balance, augment):
+	def _interleave_tfrecords(self, folder, batch_size, balance, augment, finite):
 		'''Generates a finite interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to the number of tiles in each 
 		tfrecord file. Requires self.MANIFEST. Assumes TFRecord files are named by case.
@@ -190,31 +190,50 @@ class SlideflowModel:
 		num_tiles = []
 		categories = {}
 		categories_prob = {}
+		categories_tile_fraction = {}
 		search_folder = os.path.join(self.INPUT_DIR, folder)
 		tfrecord_files = glob(os.path.join(search_folder, "*.tfrecords"))
 		if tfrecord_files == []:
 			print(f" + [{sfutil.fail('ERROR')}] No TFRecords found in {sfutil.green(search_folder)}")
 			sys.exit()
 		for filename in tfrecord_files:
-			datasets += [tf.data.TFRecordDataset(filename)]
-			#datasets += [iter(dataset)]
+			dataset_to_add = tf.data.TFRecordDataset(filename) if finite else tf.data.TFRecordDataset(filename).repeat()
+			datasets += [dataset_to_add]
 			case_shortname = filename.split('/')[-1][:-10]
 			category = annotations[case_shortname]
 			datasets_categories += [category]
+			tiles = self.MANIFEST[filename]['total']
 			if category not in categories.keys():
-				categories.update({category: 1})
+				categories.update({category: {'num_cases': 1,
+											  'num_tiles': tiles}})
 			else:
-				categories[category] += 1
-			num_tiles += [self.MANIFEST[filename]['total']]
+				categories[category]['num_cases'] += 1
+				categories[category]['num_tiles'] += tiles
+			num_tiles += [tiles]
 		for category in categories:
-			categories_prob[category] = min(categories.values()) / categories[category]
+			lowest_category_case_count = min([categories[i]['num_cases'] for i in categories])
+			lowest_category_tile_count = min([categories[i]['num_tiles'] for i in categories])
+			categories_prob[category] = lowest_category_case_count / categories[category]['num_cases']
+			categories_tile_fraction[category] = lowest_category_tile_count / categories[category]['num_tiles']
 		if balance == NO_BALANCE:
+			print(f" + [{sfutil.info('INFO')}] Not balancing input from {sfutil.green(folder)}")
 			prob_weights = [i/sum(num_tiles) for i in num_tiles]
-		if balance == BALANCE_BY_CATEGORY:
-			prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
 		if balance == BALANCE_BY_CASE:
+			print(f" + [{sfutil.info('INFO')}] Balancing input from {sfutil.green(folder)} across cases")
 			prob_weights = None
-		num_unique_categories = len(set(datasets_categories))
+			if finite:
+				# Only take as many tiles as the number of tiles in the smallest dataset
+				for i in range(len(datasets)):
+					num_to_take = min(num_tiles)
+					datasets[i] = datasets[i].take(num_to_take)
+		if balance == BALANCE_BY_CATEGORY:
+			print(f" + [{sfutil.info('INFO')}] Balancing input from {sfutil.green(folder)} across categories")
+			prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
+			if finite:
+				# Only take as many tiles as the number of tiles in the smallest category
+				for i in range(len(datasets)):
+					num_to_take = num_tiles[i] * categories_tile_fraction[datasets_categories[i]]
+					datasets[i] = datasets[i].take(num_to_take)
 		# Remove empty cases
 		for i in sorted(range(len(prob_weights)), reverse=True):
 			if num_tiles[i] == 0:
@@ -222,81 +241,11 @@ class SlideflowModel:
 				del(datasets[i])
 				del(datasets_categories[i])
 				del(prob_weights[i])
-		
-		'''
-		def tfrecord_generator():
-			while len(datasets):
-				index = choice(range(len(datasets)), p=prob_weights)
-				try:
-					record = next(datasets[index])
-				except StopIteration:
-					del(datasets[index])
-					del(prob_weights[index])
-					del(datasets_categories[index])
-					if balance == NO_BALANCE:
-						continue
-					if balance == BALANCE_BY_CATEGORY:
-						if len(set(datasets_categories)) < num_unique_categories:
-							break
-					if balance == BALANCE_BY_CASE:
-						break
-				# will return category, case, image_raw
-				yield tfrecords._read_and_return_features(record)'''
-
-		#dataset = tf.data.Dataset.from_generator(tfrecord_generator, tfrecords.FEATURE_TYPES)
 		dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
 		#dataset = dataset.shuffle(1000)
 		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
 		return dataset
-
-	def _interleave_tfrecords(self, folder, batch_size, balance, augment):
-		'''Generates an infinitely repeating dataset that samples from tfrecords in a given folder
-		in a balanced fashion, balancing either by case (equal probability of sample from each tfrecord file)
-		or category (requires self.MANIFEST)
-		
-		Uses tf.data.experimental.sample_from_datasets for interleaving.'''
-		self.AUGMENT = augment
-		if balance == NO_BALANCE:
-			return self._interleave_tfrecords_finite(folder, batch_size, NO_BALANCE, augment)
-		annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name=sfutil.TCGAAnnotations.case, 
-																		 value_name="category")
-		datasets = []
-		categories = {}
-		category_keep_prob = {}
-		keep_prob_weights = [] if balance == BALANCE_BY_CATEGORY else None
-		tfrecord_files = glob(os.path.join(self.INPUT_DIR, f"{folder}/*.tfrecords"))
-		if tfrecord_files == []:
-			print(f" + [{sfutil.fail('ERROR')}] No TFRecords found in 'train' or 'eval' subdirectory in {sfutil.green(self.INPUT_DIR)}")
-			print(f"           Did you mean to train without class balancing?")
-			sys.exit()
-		if balance == BALANCE_BY_CATEGORY:
-			for filename in tfrecord_files:
-				datasets += [tf.data.TFRecordDataset(filename).repeat()]
-				case_shortname = filename.split('/')[-1][:-10]
-				category = annotations[case_shortname]
-				if category not in categories.keys():
-					categories.update({category: 1})
-				else:
-					categories[category] += 1
-			for category in categories:
-				category_keep_prob[category] = min(categories.values()) / categories[category]
-			for filename in tfrecord_files:
-				case = filename.split('/')[-1][:-10]
-				category = annotations[case]
-				keep_prob_weights += [category_keep_prob[category]]
-			print(f" + [{sfutil.info('INFO')}] Balancing input from {sfutil.green(folder)} across categories")
-			for category in category_keep_prob:
-				print(f"    - {sfutil.green(str(category))} = {category_keep_prob[category]:.3f}")
-		elif balance == BALANCE_BY_CASE:
-			for filename in tfrecord_files:
-				datasets += [tf.data.TFRecordDataset(filename).repeat()]			
-			print(f" + [{sfutil.info('INFO')}] Balancing input from {sfutil.green(folder)} across cases")
-		interleaved_dataset = tf.data.experimental.sample_from_datasets(datasets, weights=keep_prob_weights)
-		#interleaved_dataset = interleaved_dataset.shuffle(1000)
-		interleaved_dataset = interleaved_dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
-		interleaved_dataset = interleaved_dataset.batch(batch_size)
-		return interleaved_dataset
 
 	def build_dataset_inputs(self, filename_dir, subfolder, tfrecord_file, batch_size, balance, augment, finite=False):
 		'''Args:
@@ -308,10 +257,8 @@ class SlideflowModel:
 		with tf.name_scope('input'):
 			if not self.USE_TFRECORD:
 				dataset = self._gen_batched_dataset(tf.io.match_filenames_once(filename_dir), batch_size, augment)
-			elif self.TFRECORDS_BY_CASE and not finite:
-				dataset = self._interleave_tfrecords(subfolder, batch_size, balance, augment)
 			elif self.TFRECORDS_BY_CASE:
-				dataset = self._interleave_tfrecords_finite(subfolder, batch_size, balance, augment)
+				dataset = self._interleave_tfrecords(subfolder, batch_size, balance, augment, finite)
 			else:
 				if balance:
 					print(f" + [{sfutil.warn('WARN')}] Unable to use balanced inputs unless each case/slide has its own tfrecord file")
