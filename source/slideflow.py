@@ -25,11 +25,7 @@ from util.sfutil import TCGAAnnotations
 SKIP_VERIFICATION = False
 
 class SlideFlowProject:
-	NUM_TILES = 0
 	MANIFEST = None
-	AUGMENT_DICT = None
-	EVAL_FRACTION = 0.1
-	AUGMENTATION = convoluter.NO_AUGMENTATION
 	NUM_THREADS = 4
 	USE_FP16 = True
 
@@ -101,10 +97,10 @@ class SlideFlowProject:
 			except:
 				print(f"[{sfutil.fail('ERROR')}] Unable to delete tiles for case '{case}'.")
 					
-	def separate_training_and_eval(self):
+	def separate_training_and_eval(self, fraction=0.1):
 		'''Separate training and eval raw image sets. Assumes images are located in "train_data" directory.'''
 		print('Separating training and eval datasets...')
-		datasets.build_validation(join(self.PROJECT['tiles_dir'], "train_data"), join(self.PROJECT['tiles_dir'], "eval_data"), fraction = self.EVAL_FRACTION)
+		datasets.build_validation(join(self.PROJECT['tiles_dir'], "train_data"), join(self.PROJECT['tiles_dir'], "eval_data"), fraction = fraction)
 
 	def generate_tfrecord(self):
 		'''Create tfrecord files from a collection of raw images'''
@@ -233,9 +229,7 @@ class SlideFlowProject:
 			print(f" - {sfutil.green(model)}: Train_Acc={str(model_acc[model]['train_acc'])}, " +
 				f"Val_loss={model_acc[model]['val_loss']}, Val_Acc={model_acc[model]['val_acc']}" )
 
-	def generate_heatmaps(self, model_name, category_header, filter_header=None, filter_values=None):
-		slide_to_category = sfutil.get_annotations_dict(self.PROJECT['annotations'], 'slide', category_header, filter_header=filter_header, 
-																											   filter_values=filter_values)
+	def generate_heatmaps(self, model_name, filter_header=None, filter_values=None):
 		slide_list = sfutil.get_filtered_slide_paths(self.PROJECT['slides_dir'], self.PROJECT['annotations'], filter_header=filter_header,
 																				  							  filter_values=filter_values)
 		heatmaps_folder = os.path.join(self.PROJECT['root'], 'heatmaps')
@@ -379,3 +373,4 @@ class SlideFlowProject:
 		sfutil.write_json(project, join(directory, 'settings.json'))
 		self.PROJECT = project
 		print("\nProject configuration saved.\n")
+		sys.exit()
