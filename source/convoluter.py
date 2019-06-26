@@ -454,7 +454,7 @@ class Convoluter:
 			logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
 			labels_arr = batch_labels if labels_arr == [] else np.concatenate([labels_arr, batch_labels])
 			unique_arr = batch_unique if unique_arr == [] else np.concatenate([unique_arr, batch_unique])
-		progress_bar.end()
+		if pb: pb.end()
 
 		# Sort the output (may be shuffled due to multithreading)
 		try:
