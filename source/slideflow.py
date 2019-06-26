@@ -210,10 +210,15 @@ class SlideFlowProject:
 				print(f"Training model {sfutil.bold(model_name)}...")
 				print(hp)
 				SFM = self.initialize_model(model_name, category_header, filter_header, filter_values)
-				train_acc, val_loss, val_acc = SFM.train(hp, pretrain=self.PROJECT['pretrain'], 
-															resume_training=resume_training, 
-															checkpoint=checkpoint,
-															supervised=supervised)
+				try:
+					train_acc, val_loss, val_acc = SFM.train(hp, pretrain=self.PROJECT['pretrain'], 
+																resume_training=resume_training, 
+																checkpoint=checkpoint,
+																supervised=supervised)
+				except tf.python.frameworks.errors_impl.ResourceExhaustedError:
+					print(f"[{sfutil.fail('FAIL')}] Training failed for {sfutil.bold(model_name)}, GPU memory exceeded.")
+					tf.keras.backend.clear_session()
+					continue
 			
 				model_acc.update({model_name: {'train_acc': max(train_acc),
 											'val_loss': val_loss,
@@ -223,7 +228,7 @@ class SlideFlowProject:
 					writer = csv.writer(results_file)
 					writer.writerow([model_name, max(train_acc), val_loss, val_acc])
 				tf.keras.backend.clear_session()
-				print(f"\n[{sfutil.header('Complete')}] Training complete for model {model_name}, max validation accuracy {sfutil.info(str(val_acc))}\n")
+				print(f"\n[{sfutil.header('Complete')}] Training complete for model {model_name}, validation accuracy {sfutil.info(str(val_acc))}\n")
 		print(f"\n[{sfutil.header('Complete')}] Training complete; validation accuracies:")
 		for model in model_acc:
 			print(f" - {sfutil.green(model)}: Train_Acc={str(model_acc[model]['train_acc'])}, " +
