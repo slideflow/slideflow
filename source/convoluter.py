@@ -186,8 +186,8 @@ class SlideReader:
 	def build_generator(self, export=False, augment=False):
 		# Calculate window sizes, strides, and coordinates for windows
 		coord = []
-		slide_x_size = self.shape[0] - self.extract_px
-		slide_y_size = self.shape[1] - self.extract_px
+		slide_x_size = self.full_shape[0] - self.full_extract_px
+		slide_y_size = self.full_shape[1] - self.full_extract_px
 		if export and not os.path.exists(self.tiles_path): os.makedirs(self.tiles_path)
 
 		# Coordinates must be in level 0 (full) format for the read_region function
@@ -255,7 +255,7 @@ class SlideReader:
 				self.print("   * [" + sfutil.green(self.shortname) + f"] {sfutil.info('Finished tile extraction')} ({sum(tile_mask)} tiles of {len(coord)} possible)")
 			self.tile_mask = tile_mask
 
-		return generator, slide_x_size, slide_y_size, self.stride, roi_area_fraction
+		return generator, slide_x_size, slide_y_size, self.full_stride, roi_area_fraction
 
 	def load_csv_roi(self, path):
 		roi_dict = {}
