@@ -102,14 +102,17 @@ class JPGSlide:
 
 class SlideReader:
 	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
-	def __init__(self, path, filetype, export_folder=None, roi_dir=None, pb=None):
+	def __init__(self, path, name, filetype, size_px, size_um, stride_div, export_folder=None, roi_dir=None, pb=None):
 		self.print = print if not pb else pb.print
-		self.annotations = []
-		self.export_folder = export_folder
+		self.rois = []
 		self.pb = pb # Progress bar
 		self.p_id = None
-		self.name = path[:-4].split('/')[-1]
+		self.name = name
 		self.shortname = sfutil._shortname(self.name)
+		self.export_folder = export_folder
+		self.size_px = size_px
+		self.tiles_path = join(self.export_folder, self.shortname)
+
 		# Initiate SVS or JPG slide reader
 		if filetype == "svs":
 			try:
@@ -121,24 +124,49 @@ class SlideReader:
 		elif filetype == "jpg":
 			self.slide = JPGSlide(path, mpp=DEFAULT_JPG_MPP)
 		else:
-			self.print(f'Unsupported file type "{filetype}" for case {self.shortname}.')
+			self.print(f" + [{sfutil.fail('ERROR')}] Unsupported file type '{filetype}' for case {self.shortname}.")
 			return None
-		
-		thumbs_path = join('/'.join(path.split('/')[:-1]), "thumbs")
-		if not os.path.exists(thumbs_path): os.makedirs(thumbs_path)
 
 		# Load ROI from roi_dir if available
 		if roi_dir and exists(join(roi_dir, self.name + ".csv")):
-			self.load_csv_roi(join(roi_dir, self.name + ".csv"))
+			num_rois = self.load_csv_roi(join(roi_dir, self.name + ".csv"))
 		# Else try loading ROI from same folder as SVS
 		elif exists(path[:-4] + ".csv"):
-			self.load_csv_roi(path[:-4] + ".csv")
+			num_rois = self.load_csv_roi(path[:-4] + ".csv")
 		else:
 			self.print(f"   {sfutil.warn('!')} [" + sfutil.green(self.shortname) + f"] {sfutil.warn('WARN')} No ROI found in {roi_dir}, using whole slide.")
 
-		self.shape = self.slide.dimensions
+		# Collect basic slide information
+		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
+		self.full_shape = self.slide.dimensions
+		self.full_extract_px = int(size_um / self.MPP)
+		self.print(f"   * [{sfutil.green(self.shortname)}] Loaded {filetype.upper()}: {self.MPP} um/px | {num_rois} ROI(s) | Size: {self.full_shape[0]} x {self.full_shape[1]}")
+
+		# Load downsampled level based on desired extraction size
+		downsample_desired = self.full_extract_px / size_px
+		self.downsample_level = self.slide.get_best_level_for_downsample(downsample_desired)
+		self.downsample_factor = self.slide.level_downsamples[self.downsample_level]
+		self.shape = self.slide.level_dimensions[self.downsample_level]
+		self.print(f"   * [{sfutil.green(self.shortname)}] Using level {sfutil.bold(self.downsample_level)} downsample (factor: {sfutil.bold(f'{self.downsample_factor:.1f}')}) for performance, shape {sfutil.bold(self.shape)}")
+
+		# Calculate filter dimensions (low magnification for filtering out white background)
 		self.filter_dimensions = self.slide.level_dimensions[-1]
-		self.filter_magnification = self.filter_dimensions[0] / self.shape[0]
+		self.filter_magnification = self.filter_dimensions[0] / self.full_shape[0]
+		self.filter_px = int(self.full_extract_px * self.filter_magnification)
+		
+		# Calculate pixel size of extraction window using downsampling
+		self.extract_px = int(self.full_extract_px / self.downsample_factor)
+		stride_um = size_um / stride_div
+		self.full_stride = self.full_extract_px / stride_div
+		self.stride = self.extract_px / stride_div #(should be int)
+		
+		self.print(f"   * [{sfutil.green(self.shortname)}] Extracting {sfutil.bold(size_um)}um tiles, stride {sfutil.bold(int(stride_um))}um, resizing {sfutil.bold(self.extract_px)}px -> {sfutil.bold(size_px)}px ")
+		if size_px > self.extract_px:
+			self.print(f"   * [{sfutil.green(self.shortname)}] [{sfutil.fail('!WARN!')}]  Tiles will be up-scaled with cubic interpolation, ({self.extract_px}px -> {size_px}px)")
+
+		# Generating thumbnail for heatmap
+		thumbs_path = join('/'.join(path.split('/')[:-1]), "thumbs")
+		if not os.path.exists(thumbs_path): os.makedirs(thumbs_path)
 		goal_thumb_area = 4096*4096
 		y_x_ratio = self.shape[1] / self.shape[0]
 		thumb_x = sqrt(goal_thumb_area / y_x_ratio)
@@ -146,72 +174,58 @@ class SlideReader:
 		self.thumb = self.slide.get_thumbnail((int(thumb_x), int(thumb_y)))
 		self.thumb_file = join(thumbs_path, f'{self.name}_thumb.jpg')
 		imageio.imwrite(self.thumb_file, self.thumb)
-		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
-		self.print("   * [" + sfutil.green(self.shortname) + f"] Microns per pixel: {self.MPP}")
-		self.print("   * [" + sfutil.green(self.shortname) + f"] Loaded {filetype.upper()} of size {self.shape[0]} x {self.shape[1]}")
 
 	def loaded_correctly(self):
-		return bool(self.shape)
+		try:
+			loaded_correctly = bool(self.shape) 
+		except:
+			self.print(f" + [{sfutil.fail('ERROR')}] Slide failed to load properly for case {sfutil.green(self.shortname)}")
+			sys.exit()
+		return loaded_correctly
 
-	def build_generator(self, size_px, size_um, stride_div, case_name, export=False, augment=False):
-		shortname = sfutil._shortname(case_name)
+	def build_generator(self, export=False, augment=False):
 		# Calculate window sizes, strides, and coordinates for windows
-		tiles_path = join(self.export_folder, case_name)
-		if not os.path.exists(tiles_path): os.makedirs(tiles_path)
-		# Calculate pixel size of extraction window
-		full_extract_px = int(size_um / self.MPP)
-		downsample_desired = full_extract_px/size_px
-		downsample_level = self.slide.get_best_level_for_downsample(downsample_desired)
-		downsample_factor = self.slide.level_downsamples[downsample_level]
-		downsample_shape = self.slide.level_dimensions[downsample_level]
-
-		extract_px = int(full_extract_px / downsample_factor)
-		stride = extract_px / stride_div #(should be int)
-		stride_um = size_um / stride_div
-
-		self.print(f"   * [{sfutil.green(self.shortname)}] Extracting tiles of size {sfutil.bold(size_um)}um, with stride {sfutil.bold(int(stride_um))}um, resizing from {sfutil.bold(extract_px)}px -> {sfutil.bold(size_px)}px ")
-		if size_px > extract_px:
-			self.print(f"   * [{sfutil.green(self.shortname)}] [{sfutil.fail('!WARN!')}]  Tiles will be up-scaled with cubic interpolation ({extract_px}px -> {size_px}px)")
 		coord = []
-		slide_x_size = downsample_shape[0] - extract_px
-		slide_y_size = downsample_shape[1] - extract_px
+		slide_x_size = self.shape[0] - self.extract_px
+		slide_y_size = self.shape[1] - self.extract_px
+		if export and not os.path.exists(self.tiles_path): os.makedirs(self.tiles_path)
 
-		for y in np.arange(0, (downsample_shape[1]+1) - extract_px, stride):
-			for x in np.arange(0, (downsample_shape[0]+1) - extract_px, stride):
+		# Coordinates must be in level 0 (full) format for the read_region function
+		for y in np.arange(0, (self.full_shape[1]+1) - self.full_extract_px, self.full_stride):
+			for x in np.arange(0, (self.full_shape[0]+1) - self.full_extract_px, self.full_stride):
 				y = int(y)
 				x = int(x)
-				is_unique = ((y % extract_px == 0) and (x % extract_px == 0))
+				is_unique = ((y % self.full_extract_px == 0) and (x % self.full_extract_px == 0))
 				coord.append([x, y, is_unique])
 
 		# Load annotations as shapely.geometry objects
 		ROI_SCALE = 10
-		annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.annotations]
+		annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.rois]
 		roi_area = sum([poly.area for poly in annPolys])
-		total_area = (self.shape[0]/ROI_SCALE) * (self.shape[1]/ROI_SCALE)
-
+		total_area = (self.full_shape[0]/ROI_SCALE) * (self.full_shape[1]/ROI_SCALE)
 		roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
 
 		total_logits_count = int(len(coord) * roi_area_fraction)
 		# Create mask for indicating whether tile was extracted
 		tile_mask = np.asarray([0 for i in range(len(coord))])
 		self.tile_mask = None
-		self.p_id = None if not self.pb else self.pb.add_bar(0, total_logits_count, endtext=sfutil.green(shortname))
+		self.p_id = None if not self.pb else self.pb.add_bar(0, total_logits_count, endtext=sfutil.green(self.shortname))
 
 		def generator():
 			tile_counter=0
 			for ci in range(len(coord)):
 				c = coord[ci]
-				filter_px = int(full_extract_px * self.filter_magnification)
 				# Check if the center of the current window lies within any annotation; if not, skip
-				x_coord = int((c[0]+extract_px/2)/ROI_SCALE)
-				y_coord = int((c[1]+extract_px/2)/ROI_SCALE)
+				x_coord = int((c[0]+self.full_extract_px/2)/ROI_SCALE)
+				y_coord = int((c[1]+self.full_extract_px/2)/ROI_SCALE)
 				if bool(annPolys) and not any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in annPolys]):
 					continue
+				#print(f"Not skipping {self.shortname}, {c}")
 				tile_counter += 1
 				if self.pb:
 					self.pb.update(self.p_id, tile_counter)
 				# Read the low-mag level for filter checking
-				filter_region = np.asarray(self.slide.read_region(c, self.slide.level_count-1, [filter_px, filter_px]))[:,:,:-1]
+				filter_region = np.asarray(self.slide.read_region(c, self.slide.level_count-1, [self.filter_px, self.filter_px]))[:,:,:-1]
 				median_brightness = int(sum(np.median(filter_region, axis=(0, 1))))
 				if median_brightness > 660:
 					# Discard tile; median brightness (average RGB pixel) > 220
@@ -219,29 +233,29 @@ class SlideReader:
 				if self.pb:
 					self.pb.update_counter(1)
 				# Read the region and discard the alpha pixels
-				region = self.slide.read_region(c, downsample_level, [extract_px, extract_px])
-				region = region.resize((size_px, size_px))
+				region = self.slide.read_region(c, self.downsample_level, [self.extract_px, self.extract_px])
+				region = region.resize((self.size_px, self.size_px))
 				region = region.convert('RGB')
 				tile_mask[ci] = 1
 				coord_label = ci
 				unique_tile = c[2]
 				if export and unique_tile:
-					region.save(join(tiles_path, f'{shortname}_{ci}.jpg'), "JPEG")
+					region.save(join(self.tiles_path, f'{self.shortname}_{ci}.jpg'), "JPEG")
 					if augment:
-						region.transpose(Image.ROTATE_90).save(join(tiles_path, f'{shortname}_{ci}_aug1.jpg'))
-						region.transpose(Image.FLIP_TOP_BOTTOM).save(join(tiles_path, f'{shortname}_{ci}_aug2.jpg'))
-						region.transpose(Image.ROTATE_90).transpose(Image.FLIP_TOP_BOTTOM).save(join(tiles_path, f'{shortname}_{ci}_aug3.jpg'))
-						region.transpose(Image.FLIP_LEFT_RIGHT).save(join(tiles_path, f'{shortname}_{ci}_aug4.jpg'))
-						region.transpose(Image.ROTATE_90).transpose(Image.FLIP_LEFT_RIGHT).save(join(tiles_path, f'{shortname}_{ci}_aug5.jpg'))
-						region.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.FLIP_TOP_BOTTOM).save(join(tiles_path, f'{shortname}_{ci}_aug6.jpg'))
-						region.transpose(Image.ROTATE_90).transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.FLIP_TOP_BOTTOM).save(join(tiles_path, f'{shortname}_{ci}_aug7.jpg'))
+						region.transpose(Image.ROTATE_90).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug1.jpg'))
+						region.transpose(Image.FLIP_TOP_BOTTOM).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug2.jpg'))
+						region.transpose(Image.ROTATE_90).transpose(Image.FLIP_TOP_BOTTOM).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug3.jpg'))
+						region.transpose(Image.FLIP_LEFT_RIGHT).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug4.jpg'))
+						region.transpose(Image.ROTATE_90).transpose(Image.FLIP_LEFT_RIGHT).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug5.jpg'))
+						region.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.FLIP_TOP_BOTTOM).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug6.jpg'))
+						region.transpose(Image.ROTATE_90).transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.FLIP_TOP_BOTTOM).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug7.jpg'))
 				yield region, coord_label, unique_tile
 			if self.pb: 
 				self.pb.end(self.p_id)
 				self.print("   * [" + sfutil.green(self.shortname) + f"] {sfutil.info('Finished tile extraction')} ({sum(tile_mask)} tiles of {len(coord)} possible)")
 			self.tile_mask = tile_mask
 
-		return generator, slide_x_size, slide_y_size, stride, roi_area_fraction
+		return generator, slide_x_size, slide_y_size, self.stride, roi_area_fraction
 
 	def load_csv_roi(self, path):
 		roi_dict = {}
@@ -264,18 +278,18 @@ class SlideReader:
 				roi_dict[roi_name].add_coord((x_coord, y_coord))
 
 			for roi_object in roi_dict.values():
-				self.annotations.append(roi_object)
+				self.rois.append(roi_object)
 
-			self.print("   * [" + sfutil.green(self.shortname) + f"] Number of ROIs: {len(self.annotations)}")
+			return len(self.rois)
 
 	def load_json_roi(self, path):
 		with open(path, "r") as json_file:
 			json_data = json.load(json_file)['shapes']
 		for shape in json_data:
 			area_reduced = np.multiply(shape['points'], JSON_ANNOTATION_SCALE)
-			self.annotations.append(ROIObject(f"Object{len(self.annotations)}"))
-			self.annotations[-1].add_shape(area_reduced)
-		self.print("   * [" + sfutil.green(self.shortname) + "] Number of ROIs: {len(self.annotations)}")
+			self.rois.append(ROIObject(f"Object{len(self.rois)}"))
+			self.rois[-1].add_shape(area_reduced)
+		return len(self.rois)
 
 class Convoluter:
 	'''Class to guide the convolution/tessellation of tiles across a set of slides, within ROIs if provided. 
@@ -285,13 +299,12 @@ class Convoluter:
 	 - logit predictions from saved Tensorflow model (logits may then be either saved or visualized with heatmaps)
 	 - final layer weight calculation (saved into a CSV file)
 	'''
-	def __init__(self, size_px, size_um, num_classes, batch_size, use_fp16, stride_div=2, save_folder='', roi_dir=None, augment=False):
+	def __init__(self, size_px, size_um, batch_size, use_fp16, stride_div=2, save_folder='', roi_dir=None, augment=False):
 		self.SLIDES = {}
 		self.MODEL_DIR = None
 		self.ROI_DIR = roi_dir
 		self.SIZE_PX = size_px
 		self.SIZE_UM = size_um
-		self.NUM_CLASSES = num_classes
 		self.BATCH_SIZE = batch_size
 		self.DTYPE = tf.float16 if use_fp16 else tf.float32
 		self.DTYPE_INT = tf.int16 if use_fp16 else tf.int32
@@ -311,6 +324,13 @@ class Convoluter:
 										"path": slide_path,
 										"type": filetype,
 										"category": category } })
+
+	def build_model(self, model_dir):
+		self.MODEL_DIR = model_dir
+		_model = tf.keras.models.load_model(self.MODEL_DIR)
+		self.model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
+										   outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
+		self.NUM_CLASSES = _model.layers[-1].output_shape[-1]
 
 	def convolute_slides(self, save_heatmaps=False, display_heatmaps=False, save_final_layer=False, export_tiles=True):
 		'''Parent function to guide convolution across a whole-slide image and execute desired functions.
@@ -336,65 +356,23 @@ class Convoluter:
 			pool.map(lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
 
 		elif not display_heatmaps:
-			def error(msg, *args):
-				return multiprocessing.get_logger().error(msg, *args)
-
-			class LogExceptions(object):
-				def __init__(self, callable):
-					self.__callable = callable
-				def __call__(self, *args, **kwargs):
-					try:
-						result = self.__callable(*args, **kwargs)
-					except Exception as e:
-						error(traceback.format_exc())
-						raise
-					return result
-			
-			def map_logits_calc(case_name, pb, q):
+			def map_logits_calc(case_name, pb):
 				slide = self.SLIDES[case_name]
 				shortname = sfutil._shortname(case_name)
 				category = slide['category']
 				pb.print(f" + Working on case {sfutil.green(shortname)}")
 				logits, final_layer, final_layer_labels, logits_flat = self.calculate_logits(slide, export_tiles, save_final_layer, pb=pb)
-				queue_items = [slide, logits, final_layer, final_layer_labels, logits_flat, case_name, category]
-				if q:
-					q.put(queue_items)
-				else: 
-					return queue_items
+				return slide, logits, final_layer, final_layer_labels, logits_flat, case_name, category
 
 			case_names = list(self.SLIDES.keys())
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
 
-			# ------ DEBUGGING BLOCK --------
 			for case_name in case_names:
-				slide, logits, final_layer, final_layer_labels, logits_flat, case_name, category = map_logits_calc(case_name, pb, None)
+				slide, logits, final_layer, final_layer_labels, logits_flat, case_name, category = map_logits_calc(case_name, pb)
 				if save_heatmaps:
 					self.gen_heatmaps(slide, logits, self.SIZE_PX, case_name, save=True)
 				if save_final_layer:
 					self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)
-			return
-			# ------------------------------
-
-			# Create a CSV writing queue to prevent conflicts with multithreadings
-			manager = Manager()
-			q = manager.Queue()
-			pool = Pool(4)
-
-			# Create a thread to coordinate multithreading of logits calculation
-			map_result = pool.map_async(LogExceptions(lambda case_name: map_logits_calc(case_name, pb, q)), case_names)
-			
-			while (not map_result.ready()) or (not q.empty()):
-				pb.print(" + Pulling item from queue")
-				slide, logits, final_layer, final_layer_labels, logits_flat, case_name, category = q.get()
-				pb.print(f" + Pulled results for slide {sfutil.green(slide)}")
-				if save_heatmaps:
-					pb.print(" + Generating heatmaps from queue")
-					self.gen_heatmaps(slide, logits, self.SIZE_PX, case_name, save=True)
-				if save_final_layer:
-					pb.print(" + Exporting final layer weights from queue")
-					self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)
-				q.task_done()
-
 		else:
 			for case_name in self.SLIDES:
 				slide = self.SLIDES[case_name]
@@ -419,11 +397,9 @@ class Convoluter:
 
 		pb.print(f" + Exporting tiles for case {sfutil.green(shortname)}")
 
-		whole_slide = SlideReader(path, filetype, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
+		whole_slide = SlideReader(path, case_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
 		if not whole_slide.loaded_correctly(): return
-		gen_slice, _, _, _, _ = whole_slide.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, 
-															export=True, 
-															augment=self.AUGMENT)
+		gen_slice, _, _, _, _ = whole_slide.build_generator(export=True, augment=self.AUGMENT)
 		for tile, coord, unique in gen_slice(): 
 			pass
 
@@ -431,13 +407,6 @@ class Convoluter:
 		parsed_image = tf.image.per_image_standardization(image)
 		parsed_image = tf.image.convert_image_dtype(parsed_image, self.DTYPE)
 		return parsed_image, label, mask
-
-	def build_model(self, model_dir, SFM=None):
-		self.MODEL_DIR = model_dir
-		self.SFM = SFM
-		_model = tf.keras.models.load_model(self.MODEL_DIR)
-		self.model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
-										   outputs=[_model.layers[0].layers[-1].output, _model.layers[1].output])
 
 	def calculate_logits(self, slide, export_tiles=False, final_layer=False, pb=None):
 		'''Returns logits and final layer weights'''
@@ -448,11 +417,10 @@ class Convoluter:
 		filetype = slide['type']
 
 		# Load whole-slide-image into Numpy array
-		whole_slide = SlideReader(path, filetype, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
+		whole_slide = SlideReader(path, case_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
 
 		# Create tile coordinate generator
-		gen_slice, x_size, y_size, stride_px, roi_area_fraction = whole_slide.build_generator(self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, case_name, 
-																		 export=export_tiles)
+		gen_slice, x_size, y_size, stride_px, roi_area_fraction = whole_slide.build_generator(export=export_tiles)
 
 		# Generate dataset from coordinates
 		with tf.name_scope('dataset_input'):
@@ -518,7 +486,10 @@ class Convoluter:
 			if whole_slide.tile_mask[i] == 1:
 				expanded_logits[i] = logits_arr[li]
 				li += 1
-		expanded_logits = np.asarray(expanded_logits, dtype=float)
+		try:
+			expanded_logits = np.asarray(expanded_logits, dtype=float)
+		except ValueError:
+			print(f" + [{sfutil.fail('ERROR')}] Mismatch with number of categories in model output and expected number of categories")
 		expanded_logits_message = f"   * Expanded_logits size: {expanded_logits.shape}; resizing to y:{y_logits_len} and x:{x_logits_len}"
 		if not pb:
 			print(expanded_logits_message)
@@ -527,7 +498,6 @@ class Convoluter:
 
 		# Resize logits array into a two-dimensional array for heatmap display
 		logits_out = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.NUM_CLASSES])
-		print(f"Finished logits loop for slide{slide}")
 		return logits_out, prelogits_out, prelogits_labels, flat_unique_logits
 
 	def export_weights(self, output, labels, logits, name, category):
@@ -549,13 +519,14 @@ class Convoluter:
 		#print(" + Received logits, size=%s, (%s x %s)" % (size, len(logits), len(logits[0])))
 		#print(" + Calculating overlay matrix and displaying with dynamic resampling...")
 		image_file = slide['path']
+		case_name = slide['name']
 		filetype = slide['type']
 		fig = plt.figure(figsize=(18, 16))
 		ax = fig.add_subplot(111)
 		fig.subplots_adjust(bottom = 0.25, top=0.95)
 
 		if image_file[-4:] == ".svs":
-			whole_slide = SlideReader(image_file, filetype, self.SAVE_FOLDER, self.ROI_DIR)
+			whole_slide = SlideReader(image_file, case_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR)
 			im = whole_slide.thumb #plt.imread(whole_svs.thumb)
 		else:
 			im = plt.imread(image_file)
