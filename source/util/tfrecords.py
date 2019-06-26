@@ -156,12 +156,12 @@ def write_tfrecords_merge(input_directory, output_directory, filename, annotatio
 	annotations_dict = sfutil.get_annotations_dict(annotations_file, key_name="slide", value_name="category")
 	tfrecord_path = join(output_directory, filename)
 	image_labels = {}
-	case_dirs = [_dir for _dir in listdir(input_directory) if isdir(join(input_directory, _dir))]
-	for case_dir in case_dirs:
-		category = _try_getting_category(annotations_dict, case_dir)
-		files = _get_images_by_dir(join(input_directory, case_dir))
+	slide_dirs = [_dir for _dir in listdir(input_directory) if isdir(join(input_directory, _dir))]
+	for slide_dir in slide_dirs:
+		category = _try_getting_category(annotations_dict, slide_dir)
+		files = _get_images_by_dir(join(input_directory, slide_dir))
 		for tile in files:
-			image_labels.update({join(input_directory, case_dir, tile): [category, bytes(case_dir, 'utf-8')]})
+			image_labels.update({join(input_directory, slide_dir, tile): [category, bytes(slide_dir, 'utf-8')]})
 	keys = list(image_labels.keys())
 	shuffle(keys)
 	with tf.io.TFRecordWriter(tfrecord_path) as writer:
@@ -173,14 +173,14 @@ def write_tfrecords_merge(input_directory, output_directory, filename, annotatio
 	print(f" + Wrote {len(keys)} image tiles to {tfrecord_path}")
 
 def write_tfrecords_multi(input_directory, output_directory, annotations_file):
-	'''Scans a folder for subfolders, assumes subfolders are case names. Assembles all image tiles within 
+	'''Scans a folder for subfolders, assumes subfolders are slide names. Assembles all image tiles within 
 	subfolders and labels using the provided annotation_dict, assuming the subfolder is the case name. 
 	Collects all image tiles and exports into multiple tfrecord files, one for each case.'''
 	annotations_dict = sfutil.get_annotations_dict(annotations_file, key_name="slide", value_name="category")
-	case_dirs = [_dir for _dir in listdir(input_directory) if isdir(join(input_directory, _dir))]
-	for case_dir in case_dirs:
-		category = _try_getting_category(annotations_dict, case_dir)
-		write_tfrecords_single(join(input_directory, case_dir), output_directory, f'{sfutil._shortname(case_dir)}.tfrecords', category, case_dir)
+	slide_dirs = [_dir for _dir in listdir(input_directory) if isdir(join(input_directory, _dir))]
+	for slide_dir in slide_dirs:
+		category = _try_getting_category(annotations_dict, slide_dir)
+		write_tfrecords_single(join(input_directory, slide_dir), output_directory, f'{slide_dir}.tfrecords', category, slide_dir)
 
 def write_tfrecords_single(input_directory, output_directory, filename, category, case):
 	'''Scans a folder for image tiles, annotates using the provided category and case, exports
