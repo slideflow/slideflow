@@ -162,8 +162,17 @@ def get_slide_paths(slides_dir):
 	slide_list.extend(glob(join(slides_dir, '*.jpg')))
 	return slide_list
 
-def get_annotations_dict(annotations_file, key_name, value_name, use_encode=True):
-	# TODO: save new annotations file if encoding needs to be done
+def get_filtered_slide_paths(slides_dir, annotations_file, filter_header, filter_values):
+	slide_list = get_slide_paths(slides_dir)
+	filtered_annotation_dict = get_annotations_dict(annotations_file, TCGAAnnotations.slide, TCGAAnnotations.case, filter_header=filter_header, filter_values=filter_values)
+	filtered_slide_names = list(filtered_annotation_dict.keys())
+	filtered_slide_list = [slide for slide in slide_list if slide.split('/')[-1][:-4] in filtered_slide_names]
+	return filtered_slide_list
+
+def get_annotations_dict(annotations_file, key_name, value_name, filter_header=None, filter_values=None, use_encode=True):
+	if filter_header and not filter_values:
+		print(f"[{fail('ERROR')}] If supplying a filter header, you must also supply filter_values")
+		sys.exit() 
 	with open(annotations_file) as csv_file:
 		csv_reader = csv.reader(csv_file, delimiter=',')
 		header = next(csv_reader, None)
@@ -173,12 +182,23 @@ def get_annotations_dict(annotations_file, key_name, value_name, use_encode=True
 		try:
 			value_index = header.index(value_name)
 			key_index = header.index(key_name)
+			if filter_header: filter_index = header.index(filter_header)
 		except:
-			print(f" + [{fail('ERROR')}] Unable to find '{key_name}' and/or '{value_name}' headers in annotation file")
+			column_names = f'"{key_name}", "{value_name}"'
+			if filter_header: column_names += f', "{filter_header}"'
+			print(f" + [{fail('ERROR')}] Unable to find columns {column_names} in annotation file")
 			sys.exit()
 		for row in csv_reader:
 			value = row[value_index]
 			key = row[key_index]
+			if key in key_dict_str.keys():
+				print(f" + [{fail('ERROR')}] Multiple values of '{key}' found in annotation column '{key_name}'")
+				sys.exit()
+			if filter_header:
+				filter_value = row[filter_index]
+				# Check if this slide should be skipped
+				if (type(filter_values)==str and filter_value!=filter_values) or filter_value not in filter_values:
+					continue
 			key_dict_str.update({key: value})
 			if use_encode:
 				try:

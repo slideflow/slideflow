@@ -70,7 +70,7 @@ class HyperParameters:
 		#'DenseNet': tf.keras.applications.DenseNet,
 		#'NASNet': tf.keras.applications.NASNet
 	}
-	def __init__(self, toplayer_epochs=5, finetune_epochs=50, model='InceptionV3', pooling='avg', loss='sparse_categorical_crossentropy',
+	def __init__(self, toplayer_epochs=0, finetune_epochs=50, model='InceptionV3', pooling='avg', loss='sparse_categorical_crossentropy',
 				 learning_rate=0.1, batch_size=16, hidden_layers=0, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
 				 augment=True):
@@ -120,31 +120,21 @@ class HyperParameters:
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
-	def __init__(self, data_directory, input_directory, annotations_file, image_size, num_classes,
-				 manifest=None, use_tfrecord=True, tfrecords_by_case=False, use_fp16=True, num_tiles=10000):
+	def __init__(self, data_directory, input_directory, image_size, slide_to_category, manifest=None, use_fp16=True):
 		self.DATA_DIR = data_directory
 		self.INPUT_DIR = input_directory
 		self.MODEL_DIR = self.DATA_DIR # Directory where to write event logs and checkpoints.
-		self.TRAIN_DIR = os.path.join(self.MODEL_DIR, 'train') # Directory where to write eval logs and summaries.
-		self.TEST_DIR = os.path.join(self.MODEL_DIR, 'test') # Directory where to write eval logs and summaries.
-		self.TRAIN_FILES = os.path.join(self.INPUT_DIR, "train_data/*/*.jpg")
-		self.TEST_FILES = os.path.join(self.INPUT_DIR, "eval_data/*/*.jpg")
-		self.USE_TFRECORD = use_tfrecord
-		self.ANNOTATIONS_FILE = annotations_file
 		self.MANIFEST = manifest
-		self.TFRECORDS_BY_CASE = tfrecords_by_case # Whether to expect a tfrecord file for each case/slide
 		self.IMAGE_SIZE = image_size
 		self.USE_FP16 = use_fp16
 		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
-
-		self.NUM_TILES = 1000 #num_tiles # TODO calculate this automatically
-		self.NUM_CLASSES = num_classes # TODO calculate this automatically
-
-		annotations = sfutil.get_annotations_dict(annotations_file, key_name="slide", value_name="category")
+		self.SLIDES = list(slide_to_category.keys()) # If None, will default to using all tfrecords in the input directory
+		self.SLIDE_TO_CATEGORY = slide_to_category # Dictionary mapping slide names to category 
+		self.NUM_CLASSES = len(list(set(slide_to_category.values())))
 
 		with tf.device('/cpu'):
 			self.ANNOTATIONS_TABLE = tf.lookup.StaticHashTable(
-				tf.lookup.KeyValueTensorInitializer(list(annotations.keys()), list(annotations.values())), -1
+				tf.lookup.KeyValueTensorInitializer(list(slide_to_category.keys()), list(slide_to_category.values())), -1
 			)
 
 		if not os.path.exists(self.MODEL_DIR):
@@ -176,14 +166,6 @@ class SlideflowModel:
 		image = self._process_image(image_string, self.AUGMENT)
 		return image, label
 
-	def _gen_batched_dataset(self, filename, batch_size, augment):
-		self.AUGMENT = augment
-		dataset = tf.data.TFRecordDataset(filename)
-		dataset = dataset.shuffle(1000)
-		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
-		dataset = dataset.batch(batch_size)
-		return dataset
-
 	def _interleave_tfrecords(self, folder, batch_size, balance, finite):
 		'''Generates an interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to balancing if provided.
@@ -198,11 +180,10 @@ class SlideflowModel:
 			augment		Whether to use data augmentation (random flip/rotate)
 			finite		Whether create finite or infinite datasets. WARNING: If finite option is 
 							used with balancing, some tiles will be skipped.'''
-		annotations = sfutil.get_annotations_dict(self.ANNOTATIONS_FILE, key_name=sfutil.TCGAAnnotations.case, 
-																		 value_name="category")
 		datasets = []
 		datasets_categories = []
 		num_tiles = []
+		global_num_tiles = 0
 		categories = {}
 		categories_prob = {}
 		categories_tile_fraction = {}
@@ -211,11 +192,14 @@ class SlideflowModel:
 		if tfrecord_files == []:
 			print(f" + [{sfutil.fail('ERROR')}] No TFRecords found in {sfutil.green(search_folder)}")
 			sys.exit()
+		# Now remove all tfrecord_files except those in self.SLIDES (if not None)
+		tfrecord_files = tfrecord_files if not self.SLIDES else [tfr for tfr in tfrecord_files 
+																 if tfr.split('/')[-1][:-10] in self.SLIDES]
 		for filename in tfrecord_files:
 			dataset_to_add = tf.data.TFRecordDataset(filename) if finite else tf.data.TFRecordDataset(filename).repeat()
 			datasets += [dataset_to_add]
-			case_shortname = filename.split('/')[-1][:-10]
-			category = annotations[case_shortname]
+			slide_name = filename.split('/')[-1][:-10]
+			category = self.SLIDE_TO_CATEGORY[slide_name]
 			datasets_categories += [category]
 			tiles = self.MANIFEST[filename]['total']
 			if category not in categories.keys():
@@ -241,6 +225,7 @@ class SlideflowModel:
 				for i in range(len(datasets)):
 					num_to_take = min(num_tiles)
 					datasets[i] = datasets[i].take(num_to_take)
+					global_num_tiles += num_to_take
 		if balance == BALANCE_BY_CATEGORY:
 			print(f" + [{sfutil.info('INFO')}] Balancing input from {sfutil.green(folder)} across categories")
 			prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
@@ -249,6 +234,7 @@ class SlideflowModel:
 				for i in range(len(datasets)):
 					num_to_take = num_tiles[i] * categories_tile_fraction[datasets_categories[i]]
 					datasets[i] = datasets[i].take(num_to_take)
+					global_num_tiles += num_to_take
 		# Remove empty cases
 		for i in sorted(range(len(prob_weights)), reverse=True):
 			if num_tiles[i] == 0:
@@ -256,27 +242,27 @@ class SlideflowModel:
 				del(datasets[i])
 				del(datasets_categories[i])
 				del(prob_weights[i])
-		dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
+		# If the global tile count was not manually set as above, then assume it is the sum of all tiles across all slides
+		if global_num_tiles==0:
+			global_num_tiles = sum(num_tiles)
+		try:
+			dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
+		except IndexError:
+			print(f" + [{sfutil.fail('ERROR')}] No TFRecords found in {sfutil.green(search_folder)} after filter criteria")
+			sys.exit()
 		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
-		return dataset
+		return dataset, global_num_tiles
 
-	def build_dataset_inputs(self, filename_dir, subfolder, tfrecord_file, batch_size, balance, augment, finite=False):
+	def build_dataset_inputs(self, subfolder, batch_size, balance, augment, finite=False):
 		'''Args:
-			filename_dir:	Directory in which to search for image tiles, if applicable
 			subfolder:		Sub-directory in which to search for tfrecords, if applicable
-			tfrecord_file:	Name of tfrecord file containing all records, if applicable
 			balance:		Whether to use input balancing; options are BALANCE_BY_CASE, BALANCE_BY_CATEGORY, NO_BALANCE
 								 (only available if TFRECORDS_BY_CASE=True)'''
 		self.AUGMENT = augment
 		with tf.name_scope('input'):
-			if self.TFRECORDS_BY_CASE:
-				dataset = self._interleave_tfrecords(subfolder, batch_size, balance, finite)
-			else:
-				if balance:
-					print(f" + [{sfutil.warn('WARN')}] Unable to use balanced inputs unless each case/slide has its own tfrecord file")
-				dataset = self._gen_batched_dataset(os.path.join(self.INPUT_DIR, tfrecord_file), batch_size, augment)
-		return dataset
+			dataset, num_tiles = self._interleave_tfrecords(subfolder, batch_size, balance, finite)
+		return dataset, num_tiles
 
 	def build_model(self, hp, pretrain=None, checkpoint=None):
 		# Assemble base model, using pretraining (imagenet) or the base layers of a supplied model
@@ -305,7 +291,7 @@ class SlideflowModel:
 		return model
 
 	def evaluate(self, hp, model=None, checkpoint=None):
-		data_to_eval = self.build_dataset_inputs(self.TEST_FILES, 'eval', 'test.tfrecords', hp.batch_size, False, hp.augment, finite=True)
+		data_to_eval, _ = self.build_dataset_inputs('eval', hp.batch_size, False, hp.augment, finite=True)
 		if model:
 			loaded_model = tf.keras.models.load_model(model)
 		elif checkpoint:
@@ -317,24 +303,21 @@ class SlideflowModel:
 		results = loaded_model.evaluate(data_to_eval)
 		return results
 
-	def retrain_top_layers(self, model, hp, train_data, test_data, callbacks=None, epochs=1, verbose=1):
+	def retrain_top_layers(self, model, hp, train_data, validation_data, steps_per_epoch, callbacks=None, epochs=1, verbose=1):
 		if verbose: print(f" + [{sfutil.info('INFO')}] Retraining top layer")
 		# Freeze the base layer
 		model.layers[0].trainable = False
+		val_steps = 100 if validation_data else None
 
-		steps_per_epoch = round(self.NUM_TILES/hp.batch_size)
-		val_steps = 100 if test_data else None
-		lr_fast = hp.learning_rate * 10
-
-		model.compile(optimizer=tf.keras.optimizers.Adam(lr=lr_fast),
-					  loss='sparse_categorical_crossentropy',
+		model.compile(optimizer=tf.keras.optimizers.Adam(lr=hp.learning_rate),
+					  loss=hp.loss,
 					  metrics=['accuracy'])
 
 		toplayer_model = model.fit(train_data,
 				  epochs=epochs,
 				  verbose=verbose,
 				  steps_per_epoch=steps_per_epoch,
-				  validation_data=test_data,
+				  validation_data=validation_data,
 				  validation_steps=val_steps,
 				  callbacks=callbacks)
 
@@ -344,17 +327,19 @@ class SlideflowModel:
 
 	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, supervised=True, log_frequency=20):
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
-		# Calculated parameters
+
+		# Build inputs
+		train_data, num_tiles = self.build_dataset_inputs('train', hp.batch_size, hp.balanced_training, hp.augment)
+		validation_data, _ = self.build_dataset_inputs('eval', hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised)
+		training_val_data = validation_data.repeat() if supervised else None
+
+		# Calculate parameters
 		total_epochs = hp.toplayer_epochs + hp.finetune_epochs
 		initialized_optimizer = hp.get_opt()
-		steps_per_epoch = round(self.NUM_TILES/hp.batch_size)
+		steps_per_epoch = round(num_tiles/hp.batch_size)
 		tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
 		verbose = 1 if supervised else 0
-		val_steps = 200
-
-		train_data = self.build_dataset_inputs(self.TRAIN_FILES, 'train', 'train.tfrecords', hp.batch_size, hp.balance, hp.augment)
-		test_data = self.build_dataset_inputs(self.TEST_FILES, 'eval', 'test.tfrecords', hp.batch_size, hp.balance, hp.augment, finite=supervised)
-		training_test_data = test_data.repeat() if supervised else None
+		val_steps = 200 if supervised else None
 
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
@@ -374,17 +359,17 @@ class SlideflowModel:
 		if supervised:
 			callbacks += [cp_callback, tensorboard_callback]
 
-		# Load the model
+		# Build or load model
 		if resume_training:
 			if verbose:	print(f" + [{sfutil.info('INFO')}] Resuming training from {sfutil.green(resume_training)}")
 			model = tf.keras.models.load_model(resume_training)
 		else:
 			model = self.build_model(hp, pretrain=pretrain, checkpoint=checkpoint)
 
-		# TODO: simplify to (if toplayer_epochs) only once hyperparameter support implemented
 		# Retrain top layer only if using transfer learning and not resuming training
 		if hp.toplayer_epochs:
-			self.retrain_top_layers(model, hp, train_data.repeat(), training_test_data, callbacks=None, epochs=hp.toplayer_epochs, verbose=verbose)
+			self.retrain_top_layers(model, hp, train_data.repeat(), training_val_data, steps_per_epoch, 
+									callbacks=None, epochs=hp.toplayer_epochs, verbose=verbose)
 
 		# Fine-tune the model
 		if verbose:	print(f" + [{sfutil.info('INFO')}] Beginning fine-tuning")
@@ -399,12 +384,12 @@ class SlideflowModel:
 			epochs=total_epochs,
 			verbose=verbose,
 			initial_epoch=hp.toplayer_epochs,
-			validation_data=training_test_data,
+			validation_data=training_val_data,
 			validation_steps=val_steps,
 			callbacks=callbacks)
 
 		model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
 		train_acc = finetune_model.history['accuracy']
 		if verbose: print(f" + [{sfutil.info('INFO')}] Beginning validation testing")
-		val_loss, val_acc = model.evaluate(test_data, verbose=verbose)
+		val_loss, val_acc = model.evaluate(validation_data, verbose=verbose)
 		return train_acc, val_loss, val_acc
