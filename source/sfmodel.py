@@ -279,8 +279,13 @@ class SlideflowModel:
 
 		# Combine base model with top layer (classification/prediction layer)
 		layers = [base_model]
+		# Add hidden layers if specified
 		for i in range(hp.hidden_layers):
 			layers += [tf.keras.layers.Dense(1000, activation='relu')]
+		# If no hidden layers and no pooling is used, flatten the output prior to softmax
+		if not hp.hidden_layers and not hp.pooling:
+			layers += [tf.keras.layers.Flatten()]
+		# Add the softmax prediction layer
 		layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')]
 		model = tf.keras.Sequential(layers)
 		
