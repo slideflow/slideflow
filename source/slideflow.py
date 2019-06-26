@@ -35,7 +35,7 @@ class SlideFlowProject:
 
 	def __init__(self, project_folder):
 		os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-		print('''\nSlideFlow v0.9\n==============\n''')
+		print('''\nSlideFlow v0.9.1\n==============\n''')
 		print('''Loading project...''')
 		if project_folder and not os.path.exists(project_folder):
 			if sfutil.yes_no_input(f'Directory "{project_folder}" does not exist. Create directory and set as project root? [Y/n] ', default='yes'):
@@ -189,11 +189,13 @@ class SlideFlowProject:
 		with open(self.PROJECT['batch_train_config']) as csv_file:
 			reader = csv.reader(csv_file)
 			header = next(reader)
-			with open(os.path.join(self.PROJECT['root'], "results_log.csv"), "w") as results_file:
+			log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
+			already_started = os.path.exists(log_path)
+			with open(log_path, "a") as results_file:
 				writer = csv.writer(results_file)
-				results_header = ['model', 'train_acc', 'val_loss', 'val_acc']
-				writer.writerow(results_header)
-
+				if not already_started:
+					results_header = ['model', 'train_acc', 'val_loss', 'val_acc']
+					writer.writerow(results_header)
 			model_name_i = header.index('model_name')
 			# Get all column headers except 'model_name'
 			args = header[0:model_name_i] + header[model_name_i+1:]
