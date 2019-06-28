@@ -24,7 +24,7 @@ from util.sfutil import TCGAAnnotations, log
 # 	to short-names, e.g. when multiple diagnostic slides are present)
 # TODO: automatic loading of training configuration even when training one model
 
-SKIP_VERIFICATION = True
+SKIP_VERIFICATION = False
 
 class SlideFlowProject:
 	MANIFEST = None
@@ -39,9 +39,9 @@ class SlideFlowProject:
 			if sfutil.yes_no_input(f'Directory "{project_folder}" does not exist. Create directory and set as project root? [Y/n] ', default='yes'):
 				os.mkdir(project_folder)
 			else:
-				project_folder = sfutil.dir_input("Where is the project root directory? ", create_on_invalid=True)
+				project_folder = sfutil.dir_input("Where is the project root directory? ", create_on_invalid=True, absolute=True)
 		if not project_folder:
-			project_folder = sfutil.dir_input("Where is the project root directory? ", create_on_invalid=True)
+			project_folder = sfutil.dir_input("Where is the project root directory? ", create_on_invalid=True, absolute=True)
 		sfutil.PROJECT_DIR = project_folder
 
 		if exists(join(project_folder, "settings.json")):
@@ -353,7 +353,7 @@ class SlideFlowProject:
 
 	def create_project(self, directory):
 		# General setup and slide configuration
-		project = {}
+		project = {'root': sfutil.PROJECT_DIR}
 		project['name'] = input("What is the project name? ")
 		project['slides_dir'] = sfutil.dir_input("Where are the SVS slides stored? [./slides] ",
 									default='./slides', create_on_invalid=True)

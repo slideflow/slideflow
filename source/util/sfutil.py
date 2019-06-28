@@ -143,9 +143,12 @@ def yes_no_input(prompt, default='no'):
 			return False
 		print(f"Invalid response.")
 
-def dir_input(prompt, default=None, create_on_invalid=False):
+def dir_input(prompt, default=None, create_on_invalid=False, absolute=False):
 	while True:
-		response = global_path(input(f"{prompt}"))
+		if not absolute:
+			response = global_path(input(f"{prompt}"))
+		else:
+			response = input(f"{prompt}")
 		if not response and default:
 			response = global_path(default)
 		if not os.path.exists(response) and create_on_invalid:
@@ -300,7 +303,6 @@ def verify_annotations(annotations_file, slides_dir=None):
 				for row in csv_reader:
 					cases.extend([row[case_index]])
 			cases = list(set(cases)) # remove duplicates
-			print(cases)
 			# Next, search through the slides folder for all SVS/JPG files
 			print(f" + Searching {slides_dir}...")
 			
@@ -321,7 +323,6 @@ def verify_annotations(annotations_file, slides_dir=None):
 			with open(annotations_file) as csv_file:
 				csv_reader = csv.reader(csv_file, delimiter=',')
 				header = next(csv_reader, None)
-				print(header)
 				with open('temp.csv', 'w') as csv_outfile:
 					csv_writer = csv.writer(csv_outfile, delimiter=',')
 					header.extend([TCGAAnnotations.slide])

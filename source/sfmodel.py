@@ -251,7 +251,7 @@ class SlideflowModel:
 		try:
 			dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
 		except IndexError:
-			log.error("No TFRecords found in {sfutil.green(search_folder)} after filter criteria", 1)
+			log.error(f"No TFRecords found in {sfutil.green(search_folder)} after filter criteria", 1)
 			sys.exit()
 		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
