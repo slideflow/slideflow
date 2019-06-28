@@ -32,6 +32,25 @@ UNDERLINE = '\033[4m'
 
 LOGGING_PREFIXES = ['', ' + ', '    - ']
 LOGGING_PREFIXES_WARN = ['', ' ! ', '    ! ']
+LOGGING_PREFIXES_EMPTY = ['', '   ', '     ']
+
+class UpdatedBatchNormalization(tf.keras.layers.BatchNormalization):
+	def call(self, inputs, training=None):
+		true_phase = int(K.get_session().run(K.learning_phase()))
+		trainable = int(self.trainable)
+		with K.learning_phase_scope(trainable * true_phase):
+			return super(tf.keras.layers.BatchNormalization, self).call(inputs, training)
+
+def global_path(path_string):
+	if not PROJECT_DIR:
+		print("ERROR: No project loaded.")
+		sys.exit()
+	if path_string and (len(path_string) > 2) and path_string[:2] == "./":
+		return os.path.join(PROJECT_DIR, path_string[2:])
+	elif path_string and (path_string[0] != "/"):
+		return os.path.join(PROJECT_DIR, path_string)
+	else:
+		return path_string		
 
 def warn(text):
 	return WARNING + str(text) + ENDC
@@ -60,50 +79,60 @@ class LOGGING_LEVEL:
 	ERROR = 3
 	COMPLETE = 3
 
-class log:
-	def info(text, l=0, print_func=print):
+class Logger:
+	logfile = None
+	def __init__(self):
+		pass
+	def info(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{info('INFO')}] {text}"
 		if print_func and l <= LOGGING_LEVEL.INFO:
 			print_func(message)
 		return message
-	def warn(text, l=0, print_func=print):
+	def warn(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES_WARN[l]}[{warn('WARN')}] {text}"
 		if print_func and l <= LOGGING_LEVEL.WARN:
 			print_func(message)
+		if self.logfile:
+			out_message = message
+			to_remove = [HEADER, BLUE, GREEN, WARNING, FAIL, ENDC, BOLD, UNDERLINE]
+			for s in to_remove:
+				out_message = out_message.replace(s, "")
+			with open(self.logfile, 'a') as outfile:
+				outfile.write(out_message+"\n")
 		return message
-	def error(text, l=0, print_func=print):
+	def error(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES_WARN[l]}[{fail('ERROR')}] {text}"
 		if print_func and l <= LOGGING_LEVEL.ERROR:
 			print_func(message)
 		return message
-	def complete(text, l=0, print_func=print):
+	def complete(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{header('Complete')}] {text}"
 		if print_func and l <= LOGGING_LEVEL.COMPLETE:
 			print_func(message)
 		return message
-	def label(label, text, l=0, print_func=print):
+	def label(self, label, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{green(label)}] {text}"
 		if print_func and l <= LOGGING_LEVEL.INFO:
 			print_func(message)
 		return message
-	def empty(text, l=0, print_func=print):
+	def empty(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
-		message = f"{LOGGING_PREFIXES[l]} {text}"
+		message = f"{LOGGING_PREFIXES[l]}{text}"
 		if print_func and l <= LOGGING_LEVEL.INFO:
 			print_func(message)
 		return message
+	def header(self, text, l=0, print_func=print):
+		l = min(l, len(LOGGING_PREFIXES)-1)
+		message = f"\n{LOGGING_PREFIXES_EMPTY[l]}{bold(text)}"
+		if print_func:
+			print_func(message)
 
-class UpdatedBatchNormalization(tf.keras.layers.BatchNormalization):
-	def call(self, inputs, training=None):
-		true_phase = int(K.get_session().run(K.learning_phase()))
-		trainable = int(self.trainable)
-		with K.learning_phase_scope(trainable * true_phase):
-			return super(tf.keras.layers.BatchNormalization, self).call(inputs, training)
+log = Logger()
 
 class TCGAAnnotations:
 	case = 'submitter_id'
@@ -116,17 +145,6 @@ def _shortname(string):
 		return string[:12]
 	else:
 		return string
-
-def global_path(path_string):
-	if not PROJECT_DIR:
-		log.error("No project loaded.", 1)
-		sys.exit()
-	if path_string and (len(path_string) > 2) and path_string[:2] == "./":
-		return os.path.join(PROJECT_DIR, path_string[2:])
-	elif path_string and (path_string[0] != "/"):
-		return os.path.join(PROJECT_DIR, path_string)
-	else:
-		return path_string		
 
 def yes_no_input(prompt, default='no'):
 	yes = ['yes','y']
@@ -214,6 +232,9 @@ def get_slide_paths(slides_dir):
 
 def get_filtered_slide_paths(slides_dir, annotations_file, filter_header, filter_values):
 	slide_list = get_slide_paths(slides_dir)
+	if not os.path.exists(annotations_file):
+		log.error(f"Unable to find annotations file at {green(annotations_file)}; unable to filter slides.")
+		return slide_list
 	filtered_annotation_dict = get_annotations_dict(annotations_file, TCGAAnnotations.slide, TCGAAnnotations.case, filter_header=filter_header, filter_values=filter_values)
 	filtered_slide_names = list(filtered_annotation_dict.keys())
 	filtered_slide_list = [slide for slide in slide_list if slide.split('/')[-1][:-4] in filtered_slide_names]
@@ -275,6 +296,9 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 			return key_dict_str
 
 def verify_annotations(annotations_file, slides_dir=None):
+	if not os.path.exists(annotations_file):
+		log.error(f"Annotations file {green(annotations_file)} does not exist, unable to verify")
+		return
 	slide_list = get_slide_paths(slides_dir)
 	with open(annotations_file) as csv_file:
 		csv_reader = csv.reader(csv_file, delimiter=',')
@@ -340,20 +364,25 @@ def verify_annotations(annotations_file, slides_dir=None):
 		csv_reader = csv.reader(csv_file, delimiter=',')
 		header = next(csv_reader, None)
 		skip_warn = False
+		num_warned = 0
+		warn_threshold = 3
 		for row in csv_reader:
 			if not row[slide_index] in [s.split('/')[-1][:-4] for s in slide_list]:
 				if not skip_warn and yes_no_input(f" + [{warn('WARN')}] Unable to locate slide {row[slide_index]}. Quit? [y/N] ", default='no'):
 					sys.exit()
 				else:
-					log.warn(f"Unable to locate slide {row[slide_index]}", 1)
+					print_func = print if num_warned < warn_threshold else None
+					log.warn(f"Unable to locate slide {row[slide_index]}", 1, print_func)
 					skip_warn = True
+					num_warned += 1
+		if num_warned >= warn_threshold:
+			log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)
 
 def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 	'''Iterate through folders if using raw images and verify all have an annotation;
 	if using TFRecord, iterate through all records and verify all entries for valid annotation.
 	
 	Additionally, generate a manifest to log the number of tiles for each slide.'''
-	print(f" + Verifying tiles and annotations...")
 	success = True
 	case_list = []
 	manifest = {'train_data': {},
@@ -397,13 +426,21 @@ def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 		for case in case_list:
 			if case not in annotations:
 				log.error(f"Failed image tile integrity check: annotation not found for case {green(case)}", 1)
-				success = False
-	print(f" ...complete.")
+				success = False	
+	if not success:
+		print("...failed.")
+		sys.exit()
+	sys.stdout.write("\r\033[K")
+	sys.stdout.flush()
 	# Now, check to see if all annotations have a corresponding set of tiles
+	num_warned = 0
+	warn_threshold = 3
 	for annotation_case in annotations.keys():
 		if annotation_case not in case_list:
-			log.warn(f"Case {green(annotation_case)} in annotation file has no image tiles", 2)
-	if not success:
-		sys.exit()
-	else:
-		return manifest
+			print_func = print if num_warned < warn_threshold else None
+			log.warn(f"Case {green(annotation_case)} in annotation file has no image tiles", 2, print_func)
+			num_warned += 1
+	if num_warned >= warn_threshold:
+		log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 2)
+	return manifest
+	

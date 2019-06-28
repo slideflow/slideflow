@@ -36,8 +36,8 @@ class SlideFlowProject:
 
 	def __init__(self, project_folder):
 		os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-		print('''\nSlideFlow v0.9.2\n==============\n''')
-		print('''Loading project...''')
+		log.header('''SlideFlow v0.9.2\n================''')
+		log.header('''Loading project...''')
 		if project_folder and not os.path.exists(project_folder):
 			if sfutil.yes_no_input(f'Directory "{project_folder}" does not exist. Create directory and set as project root? [Y/n] ', default='yes'):
 				os.mkdir(project_folder)
@@ -58,7 +58,7 @@ class SlideFlowProject:
 		
 		If a single case is supplied, extract tiles for just that case.'''
 
-		print("\nExtracting image tiles...")
+		log.header("Extracting image tiles...")
 		convoluter.NUM_THREADS = self.NUM_THREADS
 		if not exists(join(self.PROJECT['tiles_dir'], "train_data")):
 			datasets.make_dir(join(self.PROJECT['tiles_dir'], "train_data"))
@@ -104,7 +104,7 @@ class SlideFlowProject:
 					
 	def separate_training_and_eval(self, fraction=0.1):
 		'''Separate training and eval raw image sets. Assumes images are located in "train_data" directory.'''
-		print('Separating training and eval datasets...')
+		log.header('Separating training and eval datasets...')
 		datasets.build_validation(join(self.PROJECT['tiles_dir'], "train_data"), join(self.PROJECT['tiles_dir'], "eval_data"), fraction = fraction)
 
 	def generate_tfrecord(self):
@@ -121,7 +121,7 @@ class SlideFlowProject:
 		if not exists(tfrecord_eval_dir):
 			os.mkdir(tfrecord_eval_dir)
 
-		print('Writing TFRecord files...')		
+		log.header('Writing TFRecord files...')		
 		tfrecords.write_tfrecords_multi(join(self.PROJECT['tiles_dir'], 'train_data'), tfrecord_train_dir, self.PROJECT['annotations'])
 		tfrecords.write_tfrecords_multi(join(self.PROJECT['tiles_dir'], 'eval_data'), tfrecord_eval_dir, self.PROJECT['annotations'])
 		if self.PROJECT['delete_tiles']:
@@ -186,6 +186,8 @@ class SlideFlowProject:
 						sys.exit()
 					models_to_train += [model_name]
 
+		log.header(f"Training {len(models_to_train)} models...")
+
 		# Next, prepare the multiprocessing manager (needed for Keras memory management)
 		manager = multiprocessing.Manager()
 		results_dict = manager.dict()
@@ -193,7 +195,7 @@ class SlideFlowProject:
 		# Create a worker that can execute one round of training
 		def trainer (results_dict, model_name, hp):
 			if supervised: 
-				print(f"Training model {sfutil.bold(model_name)}...")
+				log.empty(f"Training model {sfutil.bold(model_name)}...", 1)
 				log.info(hp, 1)
 			SFM = self.initialize_model(model_name, category_header, filter_header, filter_values)
 			try:
@@ -259,7 +261,7 @@ class SlideFlowProject:
 				f"Val_loss={results_dict[model]['val_loss']}, Val_Acc={results_dict[model]['val_acc']}" )
 
 	def generate_heatmaps(self, model_name, filter_header=None, filter_values=None, resolution='medium'):
-		log.empty("\nGenerating heatmaps...")
+		log.header("Generating heatmaps...")
 		resolutions = {'low': 1, 'medium': 2, 'high': 4}
 		try:
 			stride_div = resolutions[resolution]
@@ -299,6 +301,7 @@ class SlideFlowProject:
 	def create_hyperparameter_sweep(self, toplayer_epochs, finetune_epochs, model, pooling, loss, learning_rate, batch_size, hidden_layers,
 									optimizer, early_stop, early_stop_patience, balanced_training, balanced_validation, augment, filename=None):
 		'''Prepares a hyperparameter sweep using the batch train config file.'''
+		log.header("Preparing hyperparameter sweep...")
 		# Assemble all possible combinations of provided hyperparameters
 		pdict = locals()
 		del(pdict['self'])
@@ -329,6 +332,7 @@ class SlideFlowProject:
 				for arg in hp._get_args():
 					row += [getattr(hp, arg)]
 				writer.writerow(row)
+		log.complete(f"Wrote {len(sweep)} combinations for sweep to {sfutil.green(filename)}")
 
 	def create_blank_annotations_file(self, scan_for_cases=False):
 		case_header_name = TCGAAnnotations.case
@@ -351,9 +355,13 @@ class SlideFlowProject:
 	def load_project(self, directory):
 		if exists(join(directory, "settings.json")):
 			self.PROJECT = sfutil.load_json(join(directory, "settings.json"))
-			print("\nProject configuration loaded.\n")
+			log.empty("Project configuration loaded.\n")
 		else:
 			raise OSError(f'Unable to locate settings.json at location "{directory}".')
+
+		# Enable logging
+		log.logfile = sfutil.global_path("log.log")
+
 		if not SKIP_VERIFICATION:
 			sfutil.verify_annotations(self.PROJECT['annotations'], slides_dir=self.PROJECT['slides_dir'])
 		if os.path.exists(sfutil.global_path("manifest.json")):
@@ -397,7 +405,7 @@ class SlideFlowProject:
 			else:
 				project['pretrain'] = sfutil.dir_input("Where is the pretrained model folder located? ", create_on_invalid=False)
 		project['tile_um'] = sfutil.int_input("What is the tile width in microns? [280] ", default=280)
-		project['tile_px'] = sfutil.int_input("What is the tile width in pixels? [512] ", default=512)
+		project['tile_px'] = sfutil.int_input("What is the tile width in pixels? [224] ", default=224)
 		project['use_fp16'] = sfutil.yes_no_input("Should FP16 be used instead of FP32? (recommended) [Y/n] ", default='yes')
 		project['batch_train_config'] = sfutil.file_input("Location for the batch training CSV config file? [./batch_train.csv] ",
 													default='./batch_train.csv', filetype='csv', verify=False)
