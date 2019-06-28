@@ -24,10 +24,12 @@ from datetime import datetime
 import numpy as np
 import pickle
 import argparse
+import gc
 
 import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorboard.plugins.custom_scalar import layout_pb2
+from tensorflow.python.framework import ops
 
 from glob import glob
 from scipy.stats import linregress
@@ -35,7 +37,7 @@ from statistics import median
 from numpy.random import choice
 
 from util import tfrecords, sfutil
-from util.sfutil import TCGAAnnotations
+from util.sfutil import TCGAAnnotations, log
 
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_CASE = 'BALANCE_BY_CASE'
@@ -110,11 +112,12 @@ class HyperParameters:
 		return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt', 'get_model']]
 
 	def __str__(self):
-		output = f" + [{sfutil.info('INFO')}] Hyperparameters:\n"
+		output = "Hyperparameters:\n"
+			
 		args = self._get_args()
 		for arg in args:
 			value = getattr(self, arg)
-			output += f"   - {sfutil.header(arg)} = {value}\n"
+			output += log.empty(f"{sfutil.header(arg)} = {value}\n", 2, None)
 		return output
 
 class SlideflowModel:
@@ -190,7 +193,7 @@ class SlideflowModel:
 		search_folder = os.path.join(self.INPUT_DIR, folder)
 		tfrecord_files = glob(os.path.join(search_folder, "*.tfrecords"))
 		if tfrecord_files == []:
-			print(f" + [{sfutil.fail('ERROR')}] No TFRecords found in {sfutil.green(search_folder)}")
+			log.error(f"No TFRecords found in {sfutil.green(search_folder)}", 1)
 			sys.exit()
 		# Now remove all tfrecord_files except those in self.SLIDES (if not None)
 		tfrecord_files = tfrecord_files if not self.SLIDES else [tfr for tfr in tfrecord_files 
@@ -215,10 +218,10 @@ class SlideflowModel:
 			categories_prob[category] = lowest_category_case_count / categories[category]['num_cases']
 			categories_tile_fraction[category] = lowest_category_tile_count / categories[category]['num_tiles']
 		if balance == NO_BALANCE:
-			print(f" + [{sfutil.info('INFO')}] Not balancing input from {sfutil.green(folder)}")
+			log.info(f"Not balancing input from {sfutil.green(folder)}", 1)
 			prob_weights = [i/sum(num_tiles) for i in num_tiles]
 		if balance == BALANCE_BY_CASE:
-			print(f" + [{sfutil.info('INFO')}] Balancing input from {sfutil.green(folder)} across cases")
+			log.info(f"Balancing input from {sfutil.green(folder)} across cases", 1)
 			prob_weights = None
 			if finite:
 				# Only take as many tiles as the number of tiles in the smallest dataset
@@ -227,7 +230,7 @@ class SlideflowModel:
 					datasets[i] = datasets[i].take(num_to_take)
 					global_num_tiles += num_to_take
 		if balance == BALANCE_BY_CATEGORY:
-			print(f" + [{sfutil.info('INFO')}] Balancing input from {sfutil.green(folder)} across categories")
+			log.info(f"Balancing input from {sfutil.green(folder)} across categories", 1)
 			prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
 			if finite:
 				# Only take as many tiles as the number of tiles in the smallest category
@@ -248,7 +251,7 @@ class SlideflowModel:
 		try:
 			dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
 		except IndexError:
-			print(f" + [{sfutil.fail('ERROR')}] No TFRecords found in {sfutil.green(search_folder)} after filter criteria")
+			log.error("No TFRecords found in {sfutil.green(search_folder)} after filter criteria", 1)
 			sys.exit()
 		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
@@ -267,7 +270,7 @@ class SlideflowModel:
 	def build_model(self, hp, pretrain=None, checkpoint=None):
 		# Assemble base model, using pretraining (imagenet) or the base layers of a supplied model
 		if pretrain:
-			print(f" + [{sfutil.info('INFO')}] Using pretraining from {sfutil.green(pretrain)}")
+			log.info(f"Using pretraining from {sfutil.green(pretrain)}", 1)
 		if pretrain and pretrain!='imagenet':
 			# Load pretrained model
 			pretrained_model = tf.keras.models.load_model(pretrain)
@@ -283,7 +286,7 @@ class SlideflowModel:
 			layers += [tf.keras.layers.Flatten()]
 		# Add hidden layers if specified
 		for i in range(hp.hidden_layers):
-			layers += [tf.keras.layers.Dense(1000, activation='relu')]
+			layers += [tf.keras.layers.Dense(500, activation='relu')]
 		# If no hidden layers and no pooling is used, flatten the output prior to softmax
 		
 		# Add the softmax prediction layer
@@ -291,7 +294,7 @@ class SlideflowModel:
 		model = tf.keras.Sequential(layers)
 		
 		if checkpoint:
-			print(f" + [{sfutil.info('INFO')}] Loading checkpoint weights from {sfutil.green(checkpoint)}")
+			log.info(f"Loading checkpoint weights from {sfutil.green(checkpoint)}", 1)
 			model.load_weights(checkpoint)
 
 		return model
@@ -299,18 +302,18 @@ class SlideflowModel:
 	def evaluate(self, hp, model=None, checkpoint=None):
 		data_to_eval, _ = self.build_dataset_inputs('eval', hp.batch_size, False, hp.augment, finite=True)
 		if model:
-			loaded_model = tf.keras.models.load_model(model)
+			self.model = tf.keras.models.load_model(model)
 		elif checkpoint:
-			loaded_model = self.build_model(hp)
-			loaded_model.load_weights(checkpoint)
-		loaded_model.compile(loss='sparse_categorical_crossentropy',
+			self.model = self.build_model(hp)
+			self.model.load_weights(checkpoint)
+		self.model.compile(loss='sparse_categorical_crossentropy',
 					optimizer=tf.keras.optimizers.Adam(lr=hp.learning_rate),
 					metrics=['accuracy'])
-		results = loaded_model.evaluate(data_to_eval)
+		results = self.model.evaluate(data_to_eval)
 		return results
 
 	def retrain_top_layers(self, model, hp, train_data, validation_data, steps_per_epoch, callbacks=None, epochs=1, verbose=1):
-		if verbose: print(f" + [{sfutil.info('INFO')}] Retraining top layer")
+		if verbose: log.info("Retraining top layer", 1)
 		# Freeze the base layer
 		model.layers[0].trainable = False
 		val_steps = 100 if validation_data else None
@@ -339,6 +342,10 @@ class SlideflowModel:
 		validation_data, _ = self.build_dataset_inputs('eval', hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised)
 		training_val_data = validation_data.repeat() if supervised else None
 
+		# Debugging override
+		#num_tiles=500
+		#hp.finetune_epochs=1
+		
 		# Calculate parameters
 		total_epochs = hp.toplayer_epochs + hp.finetune_epochs
 		initialized_optimizer = hp.get_opt()
@@ -367,25 +374,25 @@ class SlideflowModel:
 
 		# Build or load model
 		if resume_training:
-			if verbose:	print(f" + [{sfutil.info('INFO')}] Resuming training from {sfutil.green(resume_training)}")
-			model = tf.keras.models.load_model(resume_training)
+			if verbose:	log.info(f"Resuming training from {sfutil.green(resume_training)}", 1)
+			self.model = tf.keras.models.load_model(resume_training)
 		else:
-			model = self.build_model(hp, pretrain=pretrain, checkpoint=checkpoint)
+			self.model = self.build_model(hp, pretrain=pretrain, checkpoint=checkpoint)
 
 		# Retrain top layer only if using transfer learning and not resuming training
 		if hp.toplayer_epochs:
-			self.retrain_top_layers(model, hp, train_data.repeat(), training_val_data, steps_per_epoch, 
+			self.retrain_top_layers(self.model, hp, train_data.repeat(), training_val_data, steps_per_epoch, 
 									callbacks=None, epochs=hp.toplayer_epochs, verbose=verbose)
 
 		# Fine-tune the model
-		if verbose:	print(f" + [{sfutil.info('INFO')}] Beginning fine-tuning")
+		if verbose:	log.info("Beginning fine-tuning", 1)
 
-		model.compile(loss=hp.loss,
+		self.model.compile(loss=hp.loss,
 					optimizer=initialized_optimizer,
 					metrics=['accuracy'])
 
 		# Fine-tune model
-		finetune_model = model.fit(train_data.repeat(),
+		finetune_model = self.model.fit(train_data.repeat(),
 			steps_per_epoch=steps_per_epoch,
 			epochs=total_epochs,
 			verbose=verbose,
@@ -394,8 +401,8 @@ class SlideflowModel:
 			validation_steps=val_steps,
 			callbacks=callbacks)
 
-		model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
+		self.model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
 		train_acc = finetune_model.history['accuracy']
-		if verbose: print(f" + [{sfutil.info('INFO')}] Beginning validation testing")
-		val_loss, val_acc = model.evaluate(validation_data, verbose=verbose)
+		if verbose: log.info("Beginning validation testing", 1)
+		val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 		return train_acc, val_loss, val_acc
