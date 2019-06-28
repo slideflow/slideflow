@@ -6,6 +6,7 @@ import os
 from os.path import join
 from glob import glob
 import shutil
+import datetime, time
 
 import tensorflow as tf
 from tensorflow.keras import backend as K
@@ -88,49 +89,58 @@ class Logger:
 		message = f"{LOGGING_PREFIXES[l]}[{info('INFO')}] {text}"
 		if print_func and l <= LOGGING_LEVEL.INFO:
 			print_func(message)
+		self.log(message)
 		return message
 	def warn(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES_WARN[l]}[{warn('WARN')}] {text}"
 		if print_func and l <= LOGGING_LEVEL.WARN:
 			print_func(message)
-		if self.logfile:
-			out_message = message
-			to_remove = [HEADER, BLUE, GREEN, WARNING, FAIL, ENDC, BOLD, UNDERLINE]
-			for s in to_remove:
-				out_message = out_message.replace(s, "")
-			with open(self.logfile, 'a') as outfile:
-				outfile.write(out_message+"\n")
+		self.log(message)
 		return message
 	def error(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES_WARN[l]}[{fail('ERROR')}] {text}"
 		if print_func and l <= LOGGING_LEVEL.ERROR:
 			print_func(message)
+		self.log(message)
 		return message
 	def complete(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{header('Complete')}] {text}"
 		if print_func and l <= LOGGING_LEVEL.COMPLETE:
 			print_func(message)
+		self.log(message)
 		return message
 	def label(self, label, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{green(label)}] {text}"
 		if print_func and l <= LOGGING_LEVEL.INFO:
 			print_func(message)
+		self.log(message)
 		return message
 	def empty(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}{text}"
 		if print_func and l <= LOGGING_LEVEL.INFO:
 			print_func(message)
+		self.log(message)
 		return message
 	def header(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"\n{LOGGING_PREFIXES_EMPTY[l]}{bold(text)}"
 		if print_func:
 			print_func(message)
+		self.log(message)
+		return message
+	def log(self, text):
+		st = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+		to_remove = [HEADER, BLUE, GREEN, WARNING, FAIL, ENDC, BOLD, UNDERLINE]
+		if self.logfile:
+			for s in to_remove:
+				text = text.replace(s, "")
+			with open(self.logfile, 'a') as outfile:
+				outfile.write(f"[{st}] {text.strip()}\n")
 
 log = Logger()
 
