@@ -26,6 +26,9 @@ from util.sfutil import TCGAAnnotations, log
 
 SKIP_VERIFICATION = False
 
+def set_logging_level(level):
+	sfutil.LOGGING_LEVEL.INFO = level
+
 class SlideFlowProject:
 	MANIFEST = None
 	NUM_THREADS = 4
@@ -55,7 +58,7 @@ class SlideFlowProject:
 		
 		If a single case is supplied, extract tiles for just that case.'''
 
-		print("Extracting image tiles...")
+		print("\nExtracting image tiles...")
 		convoluter.NUM_THREADS = self.NUM_THREADS
 		if not exists(join(self.PROJECT['tiles_dir'], "train_data")):
 			datasets.make_dir(join(self.PROJECT['tiles_dir'], "train_data"))
@@ -255,7 +258,14 @@ class SlideFlowProject:
 			print(f" - {sfutil.green(model)}: Train_Acc={str(results_dict[model]['train_acc'])}, " +
 				f"Val_loss={results_dict[model]['val_loss']}, Val_Acc={results_dict[model]['val_acc']}" )
 
-	def generate_heatmaps(self, model_name, filter_header=None, filter_values=None):
+	def generate_heatmaps(self, model_name, filter_header=None, filter_values=None, resolution='medium'):
+		log.empty("\nGenerating heatmaps...")
+		resolutions = {'low': 1, 'medium': 2, 'high': 4}
+		try:
+			stride_div = resolutions[resolution]
+		except KeyError:
+			log.error(f"Invalid resolution '{resolution}': must be either 'low', 'medium', or 'high'.")
+			return
 		slide_list = sfutil.get_filtered_slide_paths(self.PROJECT['slides_dir'], self.PROJECT['annotations'], filter_header=filter_header,
 																				  							  filter_values=filter_values)
 		heatmaps_folder = os.path.join(self.PROJECT['root'], 'heatmaps')
@@ -263,7 +273,7 @@ class SlideFlowProject:
 
 		c = convoluter.Convoluter(self.PROJECT['tile_px'], self.PROJECT['tile_um'], batch_size=64,
 																					use_fp16=self.PROJECT['use_fp16'],
-																					stride_div=2,
+																					stride_div=stride_div,
 																					save_folder=heatmaps_folder,
 																					roi_dir=self.PROJECT['roi_dir'])
 		c.load_slides(slide_list)
