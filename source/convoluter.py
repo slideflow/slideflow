@@ -49,6 +49,7 @@ from matplotlib import pyplot as mp
 
 from fastim import FastImshow
 from util import sfutil
+from util.sfutil import log
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 4
@@ -118,13 +119,13 @@ class SlideReader:
 			try:
 				self.slide = ops.OpenSlide(path)
 			except ops.lowlevel.OpenSlideUnsupportedFormatError:
-				self.print(f" + {sfutil.warn('[WARN]')}" + f" Unable to read SVS file from {path} , skipping")
+				log.warn(f" Unable to read SVS file from {path} , skipping", 1, self.print)
 				self.shape = None
 				return None
 		elif filetype == "jpg":
 			self.slide = JPGSlide(path, mpp=DEFAULT_JPG_MPP)
 		else:
-			self.print(f" + [{sfutil.fail('ERROR')}] Unsupported file type '{filetype}' for case {self.shortname}.")
+			log.error(f"Unsupported file type '{filetype}' for case {self.shortname}.", 1, self.print)
 			return None
 
 		# Load ROI from roi_dir if available
@@ -134,20 +135,20 @@ class SlideReader:
 		elif exists(path[:-4] + ".csv"):
 			num_rois = self.load_csv_roi(path[:-4] + ".csv")
 		else:
-			self.print(f"   {sfutil.warn('!')} [" + sfutil.green(self.shortname) + f"] {sfutil.warn('WARN')} No ROI found in {roi_dir}, using whole slide.")
+			log.label(self.shortname, f"[{sfutil.fail('WARN')}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
 
 		# Collect basic slide information
 		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
 		self.full_shape = self.slide.dimensions
 		self.full_extract_px = int(size_um / self.MPP)
-		self.print(f"   * [{sfutil.green(self.shortname)}] Loaded {filetype.upper()}: {self.MPP} um/px | {num_rois} ROI(s) | Size: {self.full_shape[0]} x {self.full_shape[1]}")
+		log.label(self.shortname, f"Loaded {filetype.upper()}: {self.MPP} um/px | {num_rois} ROI(s) | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
 
 		# Load downsampled level based on desired extraction size
 		downsample_desired = self.full_extract_px / size_px
 		self.downsample_level = self.slide.get_best_level_for_downsample(downsample_desired)
 		self.downsample_factor = self.slide.level_downsamples[self.downsample_level]
 		self.shape = self.slide.level_dimensions[self.downsample_level]
-		self.print(f"   * [{sfutil.green(self.shortname)}] Using level {sfutil.bold(self.downsample_level)} downsample (factor: {sfutil.bold(f'{self.downsample_factor:.1f}')}) for performance, shape {sfutil.bold(self.shape)}")
+		log.label(self.shortname, f"Using level {sfutil.bold(self.downsample_level)} downsample (factor: {sfutil.bold(f'{self.downsample_factor:.1f}')}) for performance, shape {sfutil.bold(self.shape)}", 2, self.print)
 
 		# Calculate filter dimensions (low magnification for filtering out white background)
 		self.filter_dimensions = self.slide.level_dimensions[-1]
@@ -160,9 +161,9 @@ class SlideReader:
 		self.full_stride = self.full_extract_px / stride_div
 		self.stride = self.extract_px / stride_div #(should be int)
 		
-		self.print(f"   * [{sfutil.green(self.shortname)}] Extracting {sfutil.bold(size_um)}um tiles, stride {sfutil.bold(int(stride_um))}um, resizing {sfutil.bold(self.extract_px)}px -> {sfutil.bold(size_px)}px ")
+		log.label(self.shortname, f"Extracting {sfutil.bold(size_um)}um tiles, stride {sfutil.bold(int(stride_um))}um, resizing {sfutil.bold(self.extract_px)}px -> {sfutil.bold(size_px)}px", 2, self.print)
 		if size_px > self.extract_px:
-			self.print(f"   * [{sfutil.green(self.shortname)}] [{sfutil.fail('!WARN!')}]  Tiles will be up-scaled with cubic interpolation, ({self.extract_px}px -> {size_px}px)")
+			log.label(self.shortname, f"[{sfutil.fail('!WARN!')}] Tiles will be up-scaled with cubic interpolation, ({self.extract_px}px -> {size_px}px)", 2, self.print)
 
 		# Generating thumbnail for heatmap
 		thumbs_path = join('/'.join(path.split('/')[:-1]), "thumbs")
@@ -179,7 +180,7 @@ class SlideReader:
 		try:
 			loaded_correctly = bool(self.shape) 
 		except:
-			self.print(f" + [{sfutil.fail('ERROR')}] Slide failed to load properly for case {sfutil.green(self.shortname)}")
+			log.error(f"Slide failed to load properly for case {sfutil.green(self.shortname)}", 1, self.print)
 			sys.exit()
 		return loaded_correctly
 
@@ -220,7 +221,6 @@ class SlideReader:
 				y_coord = int((c[1]+self.full_extract_px/2)/ROI_SCALE)
 				if bool(annPolys) and not any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in annPolys]):
 					continue
-				#print(f"Not skipping {self.shortname}, {c}")
 				tile_counter += 1
 				if self.pb:
 					self.pb.update(self.p_id, tile_counter)
@@ -252,7 +252,7 @@ class SlideReader:
 				yield region, coord_label, unique_tile
 			if self.pb: 
 				self.pb.end(self.p_id)
-				self.print("   * [" + sfutil.green(self.shortname) + f"] {sfutil.info('Finished tile extraction')} ({sum(tile_mask)} tiles of {len(coord)} possible)")
+				log.label(self.shortname, f"{sfutil.info('Finished tile extraction')} ({sum(tile_mask)} tiles of {len(coord)} possible)", 2, self.print)
 			self.tile_mask = tile_mask
 
 		return generator, slide_x_size, slide_y_size, self.full_stride, roi_area_fraction
@@ -361,6 +361,7 @@ class Convoluter:
 				shortname = sfutil._shortname(case_name)
 				category = slide['category']
 				pb.print(f" + Working on case {sfutil.green(shortname)}")
+
 				logits, final_layer, final_layer_labels, logits_flat = self.calculate_logits(slide, export_tiles, save_final_layer, pb=pb)
 				return slide, logits, final_layer, final_layer_labels, logits_flat, case_name, category
 
@@ -410,7 +411,6 @@ class Convoluter:
 
 	def calculate_logits(self, slide, export_tiles=False, final_layer=False, pb=None):
 		'''Returns logits and final layer weights'''
-		#print(f"Starting logits loop for slide {slide.name}")
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 		case_name = slide['name']
 		path = slide['path']
@@ -443,7 +443,6 @@ class Convoluter:
 		for batch_images, batch_labels, batch_unique in tile_dataset:
 			count = min(count, total_logits_count)
 			prelogits, logits = self.model.predict([batch_images, batch_images])
-			#print(f"Post-prediction for slide {slide.name}")
 			if not pb:
 				progress_bar.bar(count, total_logits_count, text = "Calculated {} images out of {}. "
 																	.format(min(count, total_logits_count),
@@ -489,7 +488,7 @@ class Convoluter:
 		try:
 			expanded_logits = np.asarray(expanded_logits, dtype=float)
 		except ValueError:
-			print(f" + [{sfutil.fail('ERROR')}] Mismatch with number of categories in model output and expected number of categories")
+			log.error("Mismatch with number of categories in model output and expected number of categories", 1)
 		expanded_logits_message = f"   * Expanded_logits size: {expanded_logits.shape}; resizing to y:{y_logits_len} and x:{x_logits_len}"
 		if not pb:
 			print(expanded_logits_message)

@@ -11,18 +11,20 @@ from pathlib import Path
 from glob import glob
 import csv
 
+import gc
 import subprocess
 import convoluter
 import sfmodel
 import itertools
+import multiprocessing
 from util import datasets, tfrecords, sfutil
-from util.sfutil import TCGAAnnotations
+from util.sfutil import TCGAAnnotations, log
 
 # TODO: scan for duplicate SVS files (especially when converting TCGA long-names 
 # 	to short-names, e.g. when multiple diagnostic slides are present)
 # TODO: automatic loading of training configuration even when training one model
 
-SKIP_VERIFICATION = False
+SKIP_VERIFICATION = True
 
 class SlideFlowProject:
 	MANIFEST = None
@@ -63,7 +65,7 @@ class SlideFlowProject:
 		slide_list = sfutil.get_filtered_slide_paths(self.PROJECT['slides_dir'], self.PROJECT['annotations'], filter_header=filter_header,
 																				  							  filter_values=filter_values)
 
-		print(f" + [{sfutil.info('INFO')}] Extracting tiles from {len(slide_list)} slides")
+		log.info(f"Extracting tiles from {len(slide_list)} slides", 1)
 
 		c = convoluter.Convoluter(self.PROJECT['tile_px'], self.PROJECT['tile_um'], batch_size=None,
 																					use_fp16=self.PROJECT['use_fp16'], 
@@ -76,10 +78,10 @@ class SlideFlowProject:
 	def delete_tiles(self, case_list):
 		if type(case_list) == str:
 			case_list = [case_list]
-		if not sfutil.yes_no_input(print(f"[{sfutil.warn('WARN')}] Delete tiles from {len(case_list)} cases? [y/N] "), default='no'):
+		if not sfutil.yes_no_input(log.warn(f"Delete tiles from {len(case_list)} cases? [y/N] ", 0, None), default='no'):
 			return
 		if self.PROJECT['use_tfrecord']:
-			print(f"[{sfutil.warn('WARN')}] Unable to delete tiles in TFRecord files.")
+			log.warn("Unable to delete tiles in TFRecord files.", 0)
 			return
 		slides_with_tiles = os.listdir(join(self.PROJECT['tiles_dir'], "train_data"))
 		slides_with_tiles.extend(os.listdir(join(self.PROJECT['tiles_dir'], "eval_data")))
@@ -93,9 +95,9 @@ class SlideFlowProject:
 					shutil.rmtree(join(self.PROJECT['tiles_dir'], "train_data", case_slide_dict[case]))
 					shutil.rmtree(join(self.PROJECT['tiles_dir'], "eval_data", case_slide_dict[case]))
 				else:
-					print(f"[{sfutil.fail('ERROR')}] Unable to delete tiles for case '{case}'.")
+					log.error(f"Unable to delete tiles for case '{case}'.", 0)
 			except:
-				print(f"[{sfutil.fail('ERROR')}] Unable to delete tiles for case '{case}'.")
+				log.error(f"Unable to delete tiles for case '{case}'.", 0)
 					
 	def separate_training_and_eval(self, fraction=0.1):
 		'''Separate training and eval raw image sets. Assumes images are located in "train_data" directory.'''
@@ -169,7 +171,7 @@ class SlideFlowProject:
 			try:
 				model_name_i = header.index('model_name')
 			except:
-				print(f"[{sfutil.fail('ERROR')}] Unable to find column 'model_name' in the batch training config file.")
+				log.error("Unable to find column 'model_name' in the batch training config file.", 0)
 				sys.exit() 
 			for row in reader:
 				model_name = row[model_name_i]
@@ -177,9 +179,35 @@ class SlideFlowProject:
 				if (not models) or (type(models)==str and model_name==models) or model_name in models:
 					# Now verify there are no duplicate model names
 					if model_name in models_to_train:
-						print(f"[{sfutil.fail('ERROR')}] Duplicate model names found in {sfutil.green(self.PROJECT['batch_train_config'])}.")
+						log.error(f"Duplicate model names found in {sfutil.green(self.PROJECT['batch_train_config'])}.", 0)
 						sys.exit()
 					models_to_train += [model_name]
+
+		# Next, prepare the multiprocessing manager (needed for Keras memory management)
+		manager = multiprocessing.Manager()
+		results_dict = manager.dict()
+
+		# Create a worker that can execute one round of training
+		def trainer (results_dict, model_name, hp):
+			if supervised: 
+				print(f"Training model {sfutil.bold(model_name)}...")
+				log.info(hp, 1)
+			SFM = self.initialize_model(model_name, category_header, filter_header, filter_values)
+			try:
+				train_acc, val_loss, val_acc = SFM.train(hp, pretrain=self.PROJECT['pretrain'], 
+															resume_training=resume_training, 
+															checkpoint=checkpoint,
+															supervised=supervised)
+
+				results_dict.update({model_name: {'train_acc': max(train_acc),
+													'val_loss': val_loss,
+													'val_acc': val_acc } 			})
+				del(SFM)
+
+			except tf.errors.ResourceExhaustedError:
+				log.error(f"Training failed for {sfutil.bold(model_name)}, GPU memory exceeded.", 0)
+				del(SFM)
+				return
 
 		# Now begin assembling models and hyperparameters from batch_train.csv file
 		with open(self.PROJECT['batch_train_config']) as csv_file:
@@ -205,34 +233,27 @@ class SlideFlowProject:
 						arg_type = type(getattr(hp, arg))
 						setattr(hp, arg, arg_type(value))
 					else:
-						print(f"[{sfutil.fail('ERROR')}] Unknown argument '{arg}' found in training config file.")
+						log.error(f"Unknown argument '{arg}' found in training config file.", 0)
 
-				print(f"Training model {sfutil.bold(model_name)}...")
-				print(hp)
-				SFM = self.initialize_model(model_name, category_header, filter_header, filter_values)
-				try:
-					train_acc, val_loss, val_acc = SFM.train(hp, pretrain=self.PROJECT['pretrain'], 
-																resume_training=resume_training, 
-																checkpoint=checkpoint,
-																supervised=supervised)
-				except tf.python.frameworks.errors_impl.ResourceExhaustedError:
-					print(f"[{sfutil.fail('FAIL')}] Training failed for {sfutil.bold(model_name)}, GPU memory exceeded.")
-					tf.keras.backend.clear_session()
-					continue
-			
-				model_acc.update({model_name: {'train_acc': max(train_acc),
-											'val_loss': val_loss,
-											'val_acc': val_acc }
-				})
-				with open(os.path.join(self.PROJECT['root'], "results_log.csv"), "a") as results_file:
-					writer = csv.writer(results_file)
-					writer.writerow([model_name, max(train_acc), val_loss, val_acc])
-				tf.keras.backend.clear_session()
-				print(f"\n[{sfutil.header('Complete')}] Training complete for model {model_name}, validation accuracy {sfutil.info(str(val_acc))}\n")
-		print(f"\n[{sfutil.header('Complete')}] Training complete; validation accuracies:")
-		for model in model_acc:
-			print(f" - {sfutil.green(model)}: Train_Acc={str(model_acc[model]['train_acc'])}, " +
-				f"Val_loss={model_acc[model]['val_loss']}, Val_Acc={model_acc[model]['val_acc']}" )
+				# Start the model training
+				p = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp))
+				p.start()
+				p.join()
+
+				if model_name in results_dict:
+					# Record the model accuracies
+					with open(os.path.join(self.PROJECT['root'], "results_log.csv"), "a") as results_file:
+						writer = csv.writer(results_file)
+						writer.writerow([model_name, results_dict[model_name]['train_acc'], 
+													 results_dict[model_name]['val_loss'],
+													 results_dict[model_name]['val_acc']])
+					log.complete(f"Training complete for model {model_name}, validation accuracy {sfutil.info(str(results_dict[model_name]['val_acc']))}", 0)
+		
+		# Print final results
+		log.complete("Training complete; validation accuracies:", 0)
+		for model in results_dict:
+			print(f" - {sfutil.green(model)}: Train_Acc={str(results_dict[model]['train_acc'])}, " +
+				f"Val_loss={results_dict[model]['val_loss']}, Val_Acc={results_dict[model]['val_acc']}" )
 
 	def generate_heatmaps(self, model_name, filter_header=None, filter_values=None):
 		slide_list = sfutil.get_filtered_slide_paths(self.PROJECT['slides_dir'], self.PROJECT['annotations'], filter_header=filter_header,
