@@ -54,15 +54,11 @@ from util.sfutil import log
 Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 4
 DEFAULT_JPG_MPP = 0.2494
-JSON_ANNOTATION_SCALE = 10
 
-STRICT_AUGMENTATION = "strict"
-BALANCED_AUGMENTATION = "balanced"
-NO_AUGMENTATION = None
+# BatchNormFix
+tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
 
-# TODO: offset heatmap by window / 2
-# TODO: test json annotations
-# TODO: automatic augmentation balancing
+# TODO: test JPG compatibility
 
 class ROIObject:
 	'''Object container for ROI annotations.'''
@@ -252,7 +248,7 @@ class SlideReader:
 				yield region, coord_label, unique_tile
 			if self.pb: 
 				self.pb.end(self.p_id)
-				log.label(self.shortname, f"{sfutil.info('Finished tile extraction')} ({sum(tile_mask)} tiles of {len(coord)} possible)", 2, self.print)
+				log.complete(f"Finished tile extraction for {sfutil.green(self.shortname)} ({sum(tile_mask)} tiles of {len(coord)} possible)", 1, self.print)
 			self.tile_mask = tile_mask
 
 		return generator, slide_x_size, slide_y_size, self.full_stride, roi_area_fraction
@@ -283,6 +279,7 @@ class SlideReader:
 			return len(self.rois)
 
 	def load_json_roi(self, path):
+		JSON_ANNOTATION_SCALE = 10
 		with open(path, "r") as json_file:
 			json_data = json.load(json_file)['shapes']
 		for shape in json_data:
@@ -310,11 +307,12 @@ class Convoluter:
 		self.DTYPE_INT = tf.int16 if use_fp16 else tf.int32
 		self.SAVE_FOLDER = save_folder
 		self.STRIDE_DIV = stride_div
-		self.MODEL_DIR = None
 		self.AUGMENT = augment
 
-		# BatchNormFix
-		tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
+	def _parse_function(self, image, label, mask):
+		parsed_image = tf.image.per_image_standardization(image)
+		parsed_image = tf.image.convert_image_dtype(parsed_image, self.DTYPE)
+		return parsed_image, label, mask
 
 	def load_slides(self, slides_array, category="None"):
 		for slide_path in slides_array:
@@ -327,9 +325,15 @@ class Convoluter:
 
 	def build_model(self, model_dir):
 		self.MODEL_DIR = model_dir
+
+		# First, load the designated model
 		_model = tf.keras.models.load_model(self.MODEL_DIR)
+
+		# Now, construct a new model that outputs both predictions and final layer weights
 		self.model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
 										   outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
+
+		# Record the number of classes in the model
 		self.NUM_CLASSES = _model.layers[-1].output_shape[-1]
 
 	def convolute_slides(self, save_heatmaps=False, display_heatmaps=False, save_final_layer=False, export_tiles=True):
@@ -344,50 +348,44 @@ class Convoluter:
 		Returns:
 			None
 		'''
+		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+
+		# If we are not making heatmaps, there is no need to work with overlapping tiles
 		if not save_heatmaps and not display_heatmaps:
-			# No need to calculate overlapping tiles
-			print(f" + [{sfutil.info('INFO')}] Tessellating only non-overlapping tiles.")
+			log.info("Tessellating only non-overlapping tiles.", 1)
 			self.STRIDE_DIV = 1
 
+		# Check if we are doing image tile extraction only
 		if export_tiles and not (display_heatmaps or save_final_layer or save_heatmaps):
-			print(f" + [{sfutil.info('INFO')}] Exporting tiles only, no new calculations or heatmaps will be generated.")
+			log.info("Exporting tiles only, no new calculations or heatmaps will be generated.", 1)
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
 			pool = Pool(NUM_THREADS)
 			pool.map(lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
+			return
 
-		elif not display_heatmaps:
-			def map_logits_calc(case_name, pb):
-				slide = self.SLIDES[case_name]
-				shortname = sfutil._shortname(case_name)
-				category = slide['category']
-				pb.print(f" + Working on case {sfutil.green(shortname)}")
+		# Otherwise, we are generating heatmaps and unable to use multithreading or multiprocessing
+		for case_name in self.SLIDES:
+			slide = self.SLIDES[case_name]
+			category = slide['category']
+			shortname = sfutil._shortname(case_name)
 
-				logits, final_layer, final_layer_labels, logits_flat = self.calculate_logits(slide, export_tiles, save_final_layer, pb=pb)
-				return slide, logits, final_layer, final_layer_labels, logits_flat, case_name, category
-
-			case_names = list(self.SLIDES.keys())
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
+			log.empty(f"Working on case {sfutil.green(shortname)}", 1, pb.print)
 
-			for case_name in case_names:
-				slide, logits, final_layer, final_layer_labels, logits_flat, case_name, category = map_logits_calc(case_name, pb)
-				if save_heatmaps:
-					self.gen_heatmaps(slide, logits, self.SIZE_PX, case_name, save=True)
-				if save_final_layer:
-					self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)
-		else:
-			for case_name in self.SLIDES:
-				slide = self.SLIDES[case_name]
-				shortname = sfutil._shortname(case_name)
-				category = slide['category']
-				print(f" + Working on case {shortname} ({category})")
+			# Load the slide
+			whole_slide = SlideReader(slide['path'], slide['name'], slide['type'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
 
-				logits, final_layer, final_layer_labels, logits_flat = self.calculate_logits(slide, export_tiles, save_final_layer)
-				if save_heatmaps:
-					self.gen_heatmaps(slide, logits, self.SIZE_PX, case_name, save=True)
-				if save_final_layer:
-					self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)
-				if display_heatmaps:
-					self.gen_heatmaps(slide, logits, self.SIZE_PX, case_name, save=False)
+			# Calculate the final layer weights and logits/predictions
+			logits, final_layer, final_layer_labels, logits_flat = self.calculate_logits(whole_slide, export_tiles=export_tiles, 
+																									final_layer=save_final_layer, 
+																									pb=pb)
+			# Save the results
+			if save_heatmaps:
+				self.gen_heatmaps(slide, whole_slide.thumb, logits, self.SIZE_PX, case_name, save=True)
+			if save_final_layer:
+				self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)
+			if display_heatmaps:
+				self.gen_heatmaps(slide, whole_slide.thumb, logits, self.SIZE_PX, case_name, save=False)
 
 	def export_tiles(self, slide, pb):
 		case_name = slide['name']
@@ -396,33 +394,26 @@ class Convoluter:
 		filetype = slide['type']
 		shortname = sfutil._shortname(case_name)
 
-		pb.print(f" + Exporting tiles for case {sfutil.green(shortname)}")
+		log.empty(f"Exporting tiles for case {sfutil.green(shortname)}", 1, pb.print)
 
+		# Load the slide
 		whole_slide = SlideReader(path, case_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
 		if not whole_slide.loaded_correctly(): return
+
+		# Create a generator to tessellate image tiles
 		gen_slice, _, _, _, _ = whole_slide.build_generator(export=True, augment=self.AUGMENT)
+
+		# Now iterate through the generator to save the images
 		for tile, coord, unique in gen_slice(): 
 			pass
 
-	def _parse_function(self, image, label, mask):
-		parsed_image = tf.image.per_image_standardization(image)
-		parsed_image = tf.image.convert_image_dtype(parsed_image, self.DTYPE)
-		return parsed_image, label, mask
-
-	def calculate_logits(self, slide, export_tiles=False, final_layer=False, pb=None):
-		'''Returns logits and final layer weights'''
-		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
-		case_name = slide['name']
-		path = slide['path']
-		filetype = slide['type']
-
-		# Load whole-slide-image into Numpy array
-		whole_slide = SlideReader(path, case_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
+	def calculate_logits(self, whole_slide, export_tiles=False, final_layer=False, pb=None):
+		'''Convolutes across a whole slide, returning logits and final layer weights for tessellated image tiles'''
 
 		# Create tile coordinate generator
 		gen_slice, x_size, y_size, stride_px, roi_area_fraction = whole_slide.build_generator(export=export_tiles)
 
-		# Generate dataset from coordinates
+		# Generate dataset from the generator
 		with tf.name_scope('dataset_input'):
 			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (tf.uint8, tf.int64, tf.bool))
 			tile_dataset = tile_dataset.map(self._parse_function, num_parallel_calls=8)
@@ -448,7 +439,6 @@ class Convoluter:
 																	.format(min(count, total_logits_count),
 																		total_logits_count))
 			count += len(batch_images)
-			#new_prelogits, new_logits, new_labels, new_unique
 			prelogits_arr = prelogits if prelogits_arr == [] else np.concatenate([prelogits_arr, prelogits])
 			logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
 			labels_arr = batch_labels if labels_arr == [] else np.concatenate([labels_arr, batch_labels])
@@ -489,11 +479,9 @@ class Convoluter:
 			expanded_logits = np.asarray(expanded_logits, dtype=float)
 		except ValueError:
 			log.error("Mismatch with number of categories in model output and expected number of categories", 1)
-		expanded_logits_message = f"   * Expanded_logits size: {expanded_logits.shape}; resizing to y:{y_logits_len} and x:{x_logits_len}"
-		if not pb:
-			print(expanded_logits_message)
-		else:
-			pb.print(expanded_logits_message)		
+
+		print_func = print if not pb else pb.print
+		#log.info(f"Expanded_logits size: {expanded_logits.shape}; resizing to y:{y_logits_len} and x:{x_logits_len}", 2, print_func)
 
 		# Resize logits array into a two-dimensional array for heatmap display
 		logits_out = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.NUM_CLASSES])
@@ -501,7 +489,7 @@ class Convoluter:
 
 	def export_weights(self, output, labels, logits, name, category):
 		'''Exports final layer weights (and logits) for non-overlapping tiles into a CSV file.'''
-		print(" + Writing csv...")
+		log.empty("Writing csv...", 1)
 		csv_started = os.path.exists(join(self.SAVE_FOLDER, 'final_layer_weights.csv'))
 		write_mode = 'a' if csv_started else 'w'
 		with open(join(self.SAVE_FOLDER, 'final_layer_weights.csv'), write_mode) as csv_file:
@@ -513,26 +501,14 @@ class Convoluter:
 				out = output[l].tolist()
 				csv_writer.writerow([labels[l], name, category] + logit + out)
 
-	def gen_heatmaps(self, slide, logits, size, name, save=True):
+	def gen_heatmaps(self, slide, thumbnail, logits, size, name, save=True):
 		'''Displays and/or saves logits as a heatmap overlay.'''
-		#print(" + Received logits, size=%s, (%s x %s)" % (size, len(logits), len(logits[0])))
-		#print(" + Calculating overlay matrix and displaying with dynamic resampling...")
-		image_file = slide['path']
-		case_name = slide['name']
-		filetype = slide['type']
 		fig = plt.figure(figsize=(18, 16))
 		ax = fig.add_subplot(111)
 		fig.subplots_adjust(bottom = 0.25, top=0.95)
 
-		if image_file[-4:] == ".svs":
-			whole_slide = SlideReader(image_file, case_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR)
-			im = whole_slide.thumb #plt.imread(whole_svs.thumb)
-		else:
-			im = plt.imread(image_file)
-
-		implot = ax.imshow(im, zorder=0) if save else FastImshow(im, ax, extent=None, tgt_res=1024)
+		implot = ax.imshow(thumbnail, zorder=0) if save else FastImshow(thumbnail, ax, extent=None, tgt_res=1024)
 		im_extent = implot.get_extent() if save else implot.extent
-		#extent = [im_extent[0] + size/2, im_extent[1] - size/2, im_extent[2] - size/2, im_extent[3] + size/2]
 		extent = im_extent
 
 		gca = plt.gca()
@@ -568,6 +544,7 @@ class Convoluter:
 				mp.savefig(os.path.join(self.SAVE_FOLDER, f'{name}-{i}.png'), bbox_inches='tight')
 				heatmap_dict[i].set_alpha(0.0)
 			mp.close()
+			log.complete(f"Saved heatmaps for {sfutil.green(slide['name'])}", 1)
 		else:
 			fig.canvas.set_window_title(name)
 			implot.show()
@@ -577,8 +554,8 @@ def get_args():
 	parser = argparse.ArgumentParser(description = 'Convolutionally applies a saved Tensorflow model to a larger image, displaying the result as a heatmap overlay.')
 	parser.add_argument('-m', '--model', help='Path to Tensorflow model directory containing stored checkpoint.')
 	parser.add_argument('-s', '--slide', help='Path to whole-slide image (SVS or JPG format) or folder of images (SVS or JPG) to analyze.')
+	parser.add_argument('-r', '--roi', help='Path to CSV ROI files.')
 	parser.add_argument('-o', '--out', help='Path to directory in which exported images and data will be saved.')
-	parser.add_argument('-c', '--classes', type=int, default = 1, help='Number of unique output classes contained in the model.')
 	parser.add_argument('-b', '--batch', type=int, default = 64, help='Batch size for which to run the analysis.')
 	parser.add_argument('--px', type=int, default=512, help='Size of image patches to analyze, in pixels.')
 	parser.add_argument('--um', type=float, default=255.3856, help='Size of image patches to analyze, in microns.')
@@ -589,6 +566,7 @@ def get_args():
 	parser.add_argument('--export', action="store_true", help='Save extracted image tiles.')
 	parser.add_argument('--augment', action="store_true", help='Augment extracted tiles with flipping/rotating.')
 	parser.add_argument('--num_threads', type=int, help='Number of threads to use when tessellating.')
+	parser.add_argument('--stride', type=int, default=2, help='Integer 1-4. Stride to use when making heatmaps. Lower numbers will generate lower resolution heatmaps.')
 	return parser.parse_args()
 
 if __name__==('__main__'):
@@ -600,7 +578,7 @@ if __name__==('__main__'):
 	if not args.out: args.out = args.slide
 	if args.num_threads: NUM_THREADS = args.num_threads
 
-	c = Convoluter(args.px, args.um, args.classes, args.batch, args.fp16, args.out, augment=args.augment)
+	c = Convoluter(args.px, args.um, args.batch, args.fp16, args.stride, args.out, args.roi, augment=args.augment)
 
 	# Load images/slides
 	# If a single file is provided with the --slide flag, then load only that image

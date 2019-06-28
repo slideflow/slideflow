@@ -59,8 +59,6 @@ class LOGGING_LEVEL:
 	WARN = 3
 	ERROR = 3
 	COMPLETE = 3
-	LABEL = INFO
-	EMPTY = INFO
 
 class log:
 	def info(text, l=0, print_func=print):
@@ -90,13 +88,13 @@ class log:
 	def label(label, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{green(label)}] {text}"
-		if print_func and l <= LOGGING_LEVEL.LABEL:
+		if print_func and l <= LOGGING_LEVEL.INFO:
 			print_func(message)
 		return message
 	def empty(text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]} {text}"
-		if print_func and l <= LOGGING_LEVEL.EMPTY:
+		if print_func and l <= LOGGING_LEVEL.INFO:
 			print_func(message)
 		return message
 
