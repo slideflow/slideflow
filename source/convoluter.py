@@ -132,6 +132,7 @@ class SlideReader:
 			num_rois = self.load_csv_roi(path[:-4] + ".csv")
 		else:
 			log.label(self.shortname, f"[{sfutil.fail('WARN')}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
+			num_rois = 0
 
 		# Collect basic slide information
 		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
