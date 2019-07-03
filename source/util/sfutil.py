@@ -337,7 +337,7 @@ def verify_annotations(annotations_file, slides_dir=None):
 			cases = list(set(cases)) # remove duplicates
 			# Next, search through the slides folder for all SVS/JPG files
 			print(f" + Searching {slides_dir}...")
-			
+			skip_missing = False
 			for slide_filename in slide_list:
 				slide_name = slide_filename.split('/')[-1][:-4]
 				# First, make sure the shortname and long name aren't both in the annotation file
@@ -348,9 +348,11 @@ def verify_annotations(annotations_file, slides_dir=None):
 				if any(x in cases for x in [slide_name, _shortname(slide_name)]):
 					slide = slide_name if slide_name in cases else _shortname(slide_name)
 					case_slide_dict.update({slide: slide_name})
-				else:
+				elif not skip_missing:
 					if not yes_no_input(f" + [{warn('WARN')}] Case '{_shortname(slide_name)}' not found in annotation file, skip this slide? [Y/n] ", default='yes'):
 						sys.exit()
+					else:
+						skip_missing = True
 			# Now, write the assocations
 			with open(annotations_file) as csv_file:
 				csv_reader = csv.reader(csv_file, delimiter=',')
