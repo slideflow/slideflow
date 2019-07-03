@@ -334,16 +334,21 @@ class SlideFlowProject:
 				writer.writerow(row)
 		log.complete(f"Wrote {len(sweep)} combinations for sweep to {sfutil.green(filename)}")
 
-	def create_blank_annotations_file(self, scan_for_cases=False):
+	def create_blank_annotations_file(self, outfile=None, slides_dir=None, scan_for_cases=False):
 		case_header_name = TCGAAnnotations.case
 
-		with open(self.PROJECT['annotations'], 'w') as csv_outfile:
+		if not outfile: 
+			outfile = self.PROJECT['annotations']
+		if not slides_dir:
+			slides_dir = self.PROJECT['slides_dir']
+
+		with open(outfile, 'w') as csv_outfile:
 			csv_writer = csv.writer(csv_outfile, delimiter=',')
 			header = [case_header_name, 'dataset', 'category']
 			csv_writer.writerow(header)
 
 		if scan_for_cases:
-			sfutil.verify_annotations(self.PROJECT['annotations'], slides_dir=self.PROJECT['slides_dir'])
+			sfutil.verify_annotations(outfile, slides_dir=slides_dir)
 
 	def generate_manifest(self):
 		input_dir = self.PROJECT['tfrecord_dir'] #if self.PROJECT['use_tfrecord'] else self.PROJECT['tiles_dir']
@@ -383,7 +388,7 @@ class SlideFlowProject:
 			if sfutil.yes_no_input("Create a blank annotations file? [Y/n] ", default='yes'):
 				project['annotations'] = sfutil.file_input("Where will the annotation file be located? [./annotations.csv] ", 
 									default='./annotations.csv', filetype="csv", verify=False)
-				self.create_blank_annotations_file(scan_for_cases=sfutil.yes_no_input("Scan slide folder for case names? [Y/n] ", default='yes'))
+				self.create_blank_annotations_file(project['annotations'], project['slides_dir'], scan_for_cases=sfutil.yes_no_input("Scan slide folder for case names? [Y/n] ", default='yes'))
 		else:
 			project['annotations'] = sfutil.file_input("Where is the project annotations (CSV) file located? [./annotations.csv] ", 
 									default='./annotations.csv', filetype="csv")
