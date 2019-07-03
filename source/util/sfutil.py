@@ -353,6 +353,7 @@ def verify_annotations(annotations_file, slides_dir=None):
 						sys.exit()
 					else:
 						skip_missing = True
+			
 			# Now, write the assocations
 			with open(annotations_file) as csv_file:
 				csv_reader = csv.reader(csv_file, delimiter=',')
@@ -362,9 +363,12 @@ def verify_annotations(annotations_file, slides_dir=None):
 					header.extend([TCGAAnnotations.slide])
 					csv_writer.writerow(header)
 					for row in csv_reader:
-						case = row[case_index]
-						row.extend([case_slide_dict[case]])
-						csv_writer.writerow(row)
+						try:
+							case = row[case_index]
+							row.extend([case_slide_dict[case]])
+							csv_writer.writerow(row)
+						except KeyError:
+							log.error(f"Unable to locate slide {case} in annotation file")
 			# Finally, overwrite the previous annotation file
 			os.remove(annotations_file)
 			shutil.move('temp.csv', annotations_file)
