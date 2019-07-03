@@ -350,6 +350,9 @@ class SlideFlowProject:
 		if scan_for_cases:
 			sfutil.verify_annotations(outfile, slides_dir=slides_dir)
 
+	def associate_slide_names(self):
+		sfutil.verify_annotations(self.PROJECT['annotations'], self.PROJECT['slides_dir'])
+
 	def generate_manifest(self):
 		input_dir = self.PROJECT['tfrecord_dir'] #if self.PROJECT['use_tfrecord'] else self.PROJECT['tiles_dir']
 		annotations = sfutil.get_annotations_dict(self.PROJECT['annotations'], key_name="slide", value_name="category")
