@@ -108,7 +108,7 @@ class SlideReader:
 		self.shortname = sfutil._shortname(self.name)
 		self.export_folder = export_folder
 		self.size_px = size_px
-		self.tiles_path = join(self.export_folder, self.shortname)
+		self.tiles_path = join(self.export_folder, self.name) # previously self.shortname
 
 		# Initiate SVS or JPG slide reader
 		if filetype == "svs":
