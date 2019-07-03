@@ -257,7 +257,11 @@ class SlideReader:
 		roi_dict = {}
 		with open(path, "r") as csvfile:
 			reader = csv.reader(csvfile, delimiter=',')
-			headers = next(reader, None)
+			try:
+				headers = next(reader, None)
+			except:
+				log.error(f"Unable to read CSV ROI file {sfutil.green(path)}, please check file integrity and ensure it is not empty.", 1)
+				sys.exit()
 			try:
 				index_name = headers.index("ROI_Name")
 				index_x = headers.index("X_base")
