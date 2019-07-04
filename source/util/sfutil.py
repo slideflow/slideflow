@@ -313,7 +313,11 @@ def verify_annotations(annotations_file, slides_dir=None):
 	with open(annotations_file) as csv_file:
 		csv_reader = csv.reader(csv_file, delimiter=',')
 		# First, verify case, category, and slide headers exist
-		header = next(csv_reader, None)
+		try:
+			header = next(csv_reader, None)
+		except OSError:
+			log.error(f"Unable to open annotations file {green(annotations_file)}, is it open in another program?")
+			return
 	try:
 		case_index = header.index(TCGAAnnotations.case)
 		category_index = header.index('category')
