@@ -54,6 +54,7 @@ from util.sfutil import log
 Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 4
 DEFAULT_JPG_MPP = 0.2494
+SKIP_MISSING_ROI = True
 
 # BatchNormFix
 tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
@@ -131,8 +132,13 @@ class SlideReader:
 		elif exists(path[:-4] + ".csv"):
 			num_rois = self.load_csv_roi(path[:-4] + ".csv")
 		else:
-			log.label(self.shortname, f"[{sfutil.fail('WARN')}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
-			num_rois = 0
+			if SKIP_MISSING_ROI:
+				log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.print)
+				self.shape = None
+				return None
+			else:
+				log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
+				num_rois = 0
 
 		# Collect basic slide information
 		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
