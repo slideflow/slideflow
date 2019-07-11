@@ -135,7 +135,7 @@ class SlideflowModel:
 		self.SLIDES = list(slide_to_category.keys()) # If None, will default to using all tfrecords in the input directory
 		self.SLIDE_TO_CATEGORY = slide_to_category # Dictionary mapping slide names to category
 		if validation_strategy=='per-slide':
-			self.VALIDATION_SLIDES = random.sample(self.SLIDES, validation_fraction * len(self.SLIDES))
+			self.VALIDATION_SLIDES = random.sample(self.SLIDES, int(validation_fraction * len(self.SLIDES)))
 		else:
 			self.VALIDATION_SLIDES = None
 		self.NUM_CLASSES = len(list(set(slide_to_category.values())))
@@ -207,10 +207,11 @@ class SlideflowModel:
 		elif dataset=='train':
 			tfrecord_files = tfrecord_files if not self.SLIDES else [tfr for tfr in tfrecord_files 
 																	if (tfr.split('/')[-1][:-10] in self.SLIDES) and (tfr.split('/')[-1][:-10] not in self.VALIDATION_SLIDES)]
+			log.info(f"Using {sfutil.green(str(len(tfrecord_files)))} files for training set", 1)
 		elif dataset=='validation':
 			tfrecord_files = tfrecord_files if not self.SLIDES else [tfr for tfr in tfrecord_files 
 																	if (tfr.split('/')[-1][:-10] in self.SLIDES) and (tfr.split('/')[-1][:-10] in self.VALIDATION_SLIDES)]
-
+			log.info(f"Using {sfutil.green(str(len(tfrecord_files)))} files for validation set", 1)
 		for filename in tfrecord_files:
 			dataset_to_add = tf.data.TFRecordDataset(filename) if finite else tf.data.TFRecordDataset(filename).repeat()
 			datasets += [dataset_to_add]
@@ -355,6 +356,10 @@ class SlideflowModel:
 		validation_data, _ = self.build_dataset_inputs('eval', hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation')
 		training_val_data = validation_data.repeat() if supervised else None
 		
+		#testing overide
+		num_tiles = 100
+		hp.finetune_epochs = 1
+
 		# Calculate parameters
 		total_epochs = hp.toplayer_epochs + hp.finetune_epochs
 		initialized_optimizer = hp.get_opt()

@@ -162,8 +162,8 @@ class SlideFlowProject:
 		validation_fraction == 0.1 if 'validation_fraction' not in self.PROJECT else self.PROJECT['validation_fraction']
 
 		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.PROJECT['tile_px'], slide_to_category,
-																				validation_strategy=validation_strategy,
-																				validation_fraction=validation_fraction,
+																				validation_strategy=self.PROJECT['validation_strategy'],
+																				validation_fraction=self.PROJECT['validation_fraction'],
 																				manifest=self.MANIFEST, 
 																				use_fp16=self.PROJECT['use_fp16'])
 		return SFM
@@ -235,9 +235,8 @@ class SlideFlowProject:
 				del(SFM)
 				return
 
-		k_fold = 0 if validation_strategy == 'per-tile' else self.PROJECT['validation_k_fold']
+		k_fold = 0 if self.PROJECT['validation_strategy'] == 'per-tile' else self.PROJECT['validation_k_fold']
 		
-
 		# Now begin assembling models and hyperparameters from batch_train.csv file
 		with open(self.PROJECT['batch_train_config']) as csv_file:
 			reader = csv.reader(csv_file)
@@ -282,12 +281,17 @@ class SlideFlowProject:
 						val_loss_list += [results_dict[model_name]['val_loss']]
 						val_acc_list += [results_dict[model_name]['val_acc']]
 					if error_encountered: continue
-					results_dict[model_name]['train_acc'] = sum(train_acc_list) / len(train_acc_list)
-					results_dict[model_name]['val_loss'] = sum(val_loss_list) / len(val_loss_list)
-					results_dict[model_name]['val_acc'] = sum(val_acc_list) / len(val_acc_list)
-					log.complete(f"Training complete for model {model_name}, validation accuracy {sfutil.info(str(results_dict[model_name]['val_acc']))} after {k_fold}-fold validation", 0)
+					avg_train_acc = sum(train_acc_list) / len(train_acc_list)
+					avg_val_loss = sum(val_loss_list) / len(val_loss_list)
+					avg_val_acc = sum(val_acc_list) / len(val_acc_list)
+					log.complete(f"Training complete for model {model_name}, validation accuracy {sfutil.info(str(avg_val_acc))} after {k_fold}-fold validation", 0)
 					for k in range(k_fold):
-						log.info(f"Set {k+1} accuracy: {sfutil.info(str(val_acc_list[k]))}", 1)
+						log.complete(f"Set {k+1} accuracy: {sfutil.info(str(val_acc_list[k]))}", 1)
+					with open(os.path.join(self.PROJECT['root'], "results_log.csv"), "a") as results_file:
+						writer = csv.writer(results_file)
+						writer.writerow([model_name, avg_train_acc, 
+													avg_val_loss,
+													avg_val_acc])
 				else:
 					p = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp))
 					p.start()
@@ -297,11 +301,11 @@ class SlideFlowProject:
 						continue
 					# Record the model accuracies
 					log.complete(f"Training complete for model {model_name}, validation accuracy {sfutil.info(str(results_dict[model_name]['val_acc']))}", 0)	
-				with open(os.path.join(self.PROJECT['root'], "results_log.csv"), "a") as results_file:
-					writer = csv.writer(results_file)
-					writer.writerow([model_name, results_dict[model_name]['train_acc'], 
-												results_dict[model_name]['val_loss'],
-												results_dict[model_name]['val_acc']])					
+					with open(os.path.join(self.PROJECT['root'], "results_log.csv"), "a") as results_file:
+						writer = csv.writer(results_file)
+						writer.writerow([model_name, results_dict[model_name]['train_acc'], 
+													results_dict[model_name]['val_loss'],
+													results_dict[model_name]['val_acc']])					
 		
 		# Print final results
 		log.complete("Training complete; validation accuracies:", 0)
