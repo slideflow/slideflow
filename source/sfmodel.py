@@ -352,8 +352,9 @@ class SlideflowModel:
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 
 		# Build inputs
+		validation_subfolder = 'train' if self.VALIDATION_SLIDES else 'eval'
 		train_data, num_tiles = self.build_dataset_inputs('train', hp.batch_size, hp.balanced_training, hp.augment, dataset='train')
-		validation_data, _ = self.build_dataset_inputs('eval', hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation')
+		validation_data, _ = self.build_dataset_inputs(validation_subfolder, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation')
 		training_val_data = validation_data.repeat() if supervised else None
 		
 		#testing overide
