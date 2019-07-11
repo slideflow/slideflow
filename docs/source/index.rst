@@ -1,9 +1,9 @@
-.. thyroid documentation master file, created by
+.. slideflow documentation master file, created by
    sphinx-quickstart on Mon Jan 14 19:42:39 2019.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to the Histcon documentation!
+Welcome to the Slideflow documentation!
 =====================================
 
 .. toctree::
@@ -11,7 +11,8 @@ Welcome to the Histcon documentation!
    :caption: Contents:
 
    intro
-   workflow
+   pipeline
+   project
    modules
 
 Indices and tables
