@@ -254,6 +254,9 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 	if filter_header and not filter_values:
 		log.error("If supplying a filter header, you must also supply filter_values")
 		sys.exit() 
+	if type(filter_header) != list:
+		filter_header = [filter_header]
+		filter_values = [filter_values]
 	with open(annotations_file) as csv_file:
 		csv_reader = csv.reader(csv_file, delimiter=',')
 		header = next(csv_reader, None)
@@ -263,12 +266,16 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 		try:
 			value_index = header.index(value_name)
 			key_index = header.index(key_name)
-			if filter_header: filter_index = header.index(filter_header)
+			#if filter_header: filter_index = header.index(filter_header)
+			if filter_header:
+				filter_indices = [header.index(name) for name in filter_header]
 		except:
 			column_names = f'"{key_name}", "{value_name}"'
-			if filter_header: column_names += f', "{filter_header}"'
+			 
+			if filter_header:
+				header_names = ", ".join(filter_header) 
+				column_names += f', "{header_names}"'
 			log.error(f"Unable to find columns {column_names} in annotation file", 1)
-			
 			sys.exit()
 		for row in csv_reader:
 			value = row[value_index]
@@ -277,9 +284,13 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 				log.error(f"Multiple values of '{key}' found in annotation column '{key_name}'", 1)
 				sys.exit()
 			if filter_header:
-				filter_value = row[filter_index]
-				# Check if this slide should be skipped
-				if (type(filter_values)==str and filter_value!=filter_values) or filter_value not in filter_values:
+				should_skip = False
+				for i, f_header in enumerate(filter_header):
+					observed_value = row[filter_indices[i]]
+					# Check if this slide should be skipped
+					if (type(filter_values[i])==str and observed_value!=filter_values[i]) or observed_value not in filter_values[i]:
+						should_skip = True
+				if should_skip:
 					continue
 			key_dict_str.update({key: value})
 			if use_encode:
@@ -290,13 +301,20 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 					if use_encode and not encode:
 						log.info(f"Non-integer in '{value_name}' header, encoding with integer values", 1)
 						encode = True
+
+		# Raise an error if no tiles were selected based on criteria
+		if not len(key_dict_str):
+			log.error(f"No tiles were selected based on filtering criteria.")
+			sys.exit()
+
 		if use_encode and encode:
 			values = list(set(key_dict_str.values()))
 			values.sort()
 			values_str_to_int = {}
 			for i, c in enumerate(values):
 				values_str_to_int.update({c: i})
-				log.empty(f"{value_name} '{info(c)}' assigned to value '{i}'", 2)
+				number_of_slides = sum(x == c for x in key_dict_str.values())
+				log.empty(f"{value_name} '{info(c)}' assigned to value '{i}' [{number_of_slides} slides]", 2)
 			for value_string in key_dict_str.keys():
 				key_dict_str[value_string] = values_str_to_int[key_dict_str[value_string]]
 			return key_dict_str
