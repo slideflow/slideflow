@@ -50,7 +50,7 @@ class SlideFlowProject:
 		if exists(join(project_folder, "settings.json")):
 			self.load_project(project_folder)
 		else:
-			self.create_project(project_folder)
+			self.create_project()
 		
 	def extract_tiles(self, filter_header=None, filter_values=None):
 		'''filter is a dict whose keys correspond with a header label and whose value is a 
@@ -102,31 +102,47 @@ class SlideFlowProject:
 			except:
 				log.error(f"Unable to delete tiles for case '{case}'.", 0)
 					
-	def separate_training_and_eval(self, fraction=0.1):
-		'''Separate training and eval raw image sets. Assumes images are located in "train_data" directory.'''
-		log.header('Separating training and eval datasets...')
-		datasets.build_validation(join(self.PROJECT['tiles_dir'], "train_data"), join(self.PROJECT['tiles_dir'], "eval_data"), fraction = fraction)
+	def separate_training_and_validation(self, fraction=0.1, strategy="per-tile", k_fold=1):
+		'''Separate training and eval raw image sets. Assumes images are located in "train_data" directory.
+		Args:
+			fraction		Fraction of data to set aside for validation. Default is 10%.
+			strategy		Separation strategy. Default is 'per-tile'. May specify 'per-slide' to set aside whole slides for validation.
+			k_fold			Number of cross-validations to perform during training. Only used when strategy='per-slide'. '''
+		log.header('Separating training and validation datasets...')
+		if strategy=='per-tile':
+			datasets.build_validation(join(self.PROJECT['tiles_dir'], "train_data"), join(self.PROJECT['tiles_dir'], "eval_data"), fraction = fraction)
+		self.PROJECT['validation_strategy'] = strategy
+		self.PROJECT['validation_k_fold'] = k_fold
+		self.PROJECT['validation_fraction'] = fraction
+		self.save_project()
 
 	def generate_tfrecord(self):
 		'''Create tfrecord files from a collection of raw images'''
 		# Note: this will not work as the write_tfrecords function expects a category directory
 		# Will leave as is to manually test performance with category defined in the TFRecrod
 		#  vs. dynamically assigning category via annotation metadata during training
-		tfrecord_train_dir = join(self.PROJECT['tfrecord_dir'], 'train')
-		tfrecord_eval_dir = join(self.PROJECT['tfrecord_dir'], 'eval')
+		validation_strategy == 'per-tile' if 'validation_strategy' not in self.PROJECT else self.PROJECT['validation_strategy']
+
 		if not exists(self.PROJECT['tfrecord_dir']):
 			datasets.make_dir(self.PROJECT['tfrecord_dir'])
+		tfrecord_train_dir = join(self.PROJECT['tfrecord_dir'], 'train')
 		if not exists(tfrecord_train_dir):
 			os.mkdir(tfrecord_train_dir)
-		if not exists(tfrecord_eval_dir):
-			os.mkdir(tfrecord_eval_dir)
+		if validation_strategy == 'per-tile':
+			tfrecord_eval_dir = join(self.PROJECT['tfrecord_dir'], 'eval')
+			if not exists(tfrecord_eval_dir):
+				os.mkdir(tfrecord_eval_dir)
 
-		log.header('Writing TFRecord files...')		
+		log.header('Writing TFRecord files...')
 		tfrecords.write_tfrecords_multi(join(self.PROJECT['tiles_dir'], 'train_data'), tfrecord_train_dir, self.PROJECT['annotations'])
-		tfrecords.write_tfrecords_multi(join(self.PROJECT['tiles_dir'], 'eval_data'), tfrecord_eval_dir, self.PROJECT['annotations'])
+		if validation_strategy == 'per-tile':
+			tfrecords.write_tfrecords_multi(join(self.PROJECT['tiles_dir'], 'eval_data'), tfrecord_eval_dir, self.PROJECT['annotations'])
+		
 		if self.PROJECT['delete_tiles']:
 			shutil.rmtree(join(self.PROJECT['tiles_dir'], "train_data"))
-			shutil.rmtree(join(self.PROJECT['tiles_dir'], "eval_data"))
+			if validation_strategy == 'per-tile':
+				shutil.rmtree(join(self.PROJECT['tiles_dir'], "eval_data"))
+		
 		self.generate_manifest()
 
 	def checkpoint_to_h5(self, model_name):
@@ -141,8 +157,13 @@ class SlideFlowProject:
 
 		model_dir = join(self.PROJECT['models_dir'], model_name)
 		input_dir = self.PROJECT['tfrecord_dir'] #if self.PROJECT['use_tfrecord'] else self.PROJECT['tiles_dir']
+		
+		validation_strategy == 'per-tile' if 'validation_strategy' not in self.PROJECT else self.PROJECT['validation_strategy']
+		validation_fraction == 0.1 if 'validation_fraction' not in self.PROJECT else self.PROJECT['validation_fraction']
 
 		SFM = sfmodel.SlideflowModel(model_dir, input_dir, self.PROJECT['tile_px'], slide_to_category,
+																				validation_strategy=validation_strategy,
+																				validation_fraction=validation_fraction,
 																				manifest=self.MANIFEST, 
 																				use_fp16=self.PROJECT['use_fp16'])
 		return SFM
@@ -214,6 +235,9 @@ class SlideFlowProject:
 				del(SFM)
 				return
 
+		k_fold = 0 if validation_strategy == 'per-tile' else self.PROJECT['validation_k_fold']
+		
+
 		# Now begin assembling models and hyperparameters from batch_train.csv file
 		with open(self.PROJECT['batch_train_config']) as csv_file:
 			reader = csv.reader(csv_file)
@@ -241,18 +265,43 @@ class SlideFlowProject:
 						log.error(f"Unknown argument '{arg}' found in training config file.", 0)
 
 				# Start the model training
-				p = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp))
-				p.start()
-				p.join()
-
-				if model_name in results_dict:
+				if k_fold:
+					train_acc_list = []
+					val_loss_list = []
+					val_acc_list = []
+					error_encountered = False
+					for k in range(k_fold):
+						p = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp))
+						p.start()
+						p.join()
+						if model_name not in results_dict:
+							log.error(f"Training failed for model {model_name} for an unknown reason.")
+							error_encountered = True
+							break
+						train_acc_list += [results_dict[model_name]['train_acc']]
+						val_loss_list += [results_dict[model_name]['val_loss']]
+						val_acc_list += [results_dict[model_name]['val_acc']]
+					if error_encountered: continue
+					results_dict[model_name]['train_acc'] = sum(train_acc_list) / len(train_acc_list)
+					results_dict[model_name]['val_loss'] = sum(val_loss_list) / len(val_loss_list)
+					results_dict[model_name]['val_acc'] = sum(val_acc_list) / len(val_acc_list)
+					log.complete(f"Training complete for model {model_name}, validation accuracy {sfutil.info(str(results_dict[model_name]['val_acc']))} after {k_fold}-fold validation", 0)
+					for k in range(k_fold):
+						log.info(f"Set {k+1} accuracy: {sfutil.info(str(val_acc_list[k]))}", 1)
+				else:
+					p = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp))
+					p.start()
+					p.join()
+					if model_name not in results_dict:
+						log.error(f"Training failed for model {model_name} for an unknown reason")
+						continue
 					# Record the model accuracies
-					with open(os.path.join(self.PROJECT['root'], "results_log.csv"), "a") as results_file:
-						writer = csv.writer(results_file)
-						writer.writerow([model_name, results_dict[model_name]['train_acc'], 
-													 results_dict[model_name]['val_loss'],
-													 results_dict[model_name]['val_acc']])
-					log.complete(f"Training complete for model {model_name}, validation accuracy {sfutil.info(str(results_dict[model_name]['val_acc']))}", 0)
+					log.complete(f"Training complete for model {model_name}, validation accuracy {sfutil.info(str(results_dict[model_name]['val_acc']))}", 0)	
+				with open(os.path.join(self.PROJECT['root'], "results_log.csv"), "a") as results_file:
+					writer = csv.writer(results_file)
+					writer.writerow([model_name, results_dict[model_name]['train_acc'], 
+												results_dict[model_name]['val_loss'],
+												results_dict[model_name]['val_acc']])					
 		
 		# Print final results
 		log.complete("Training complete; validation accuracies:", 0)
@@ -377,7 +426,10 @@ class SlideFlowProject:
 		else:
 			self.generate_manifest()
 
-	def create_project(self, directory):
+	def save_project(self):
+		sfutil.write_json(self.PROJECT, join(self.PROJECT['root'], 'settings.json'))
+
+	def create_project(self):
 		# General setup and slide configuration
 		project = {'root': sfutil.PROJECT_DIR}
 		project['name'] = input("What is the project name? ")
@@ -422,7 +474,7 @@ class SlideFlowProject:
 			print("Batch training file not found, creating blank")
 			self.create_blank_train_config(project['batch_train_config'])
 
-		sfutil.write_json(project, join(directory, 'settings.json'))
+		sfutil.write_json(project, join(sfutil.PROJECT_DIR, 'settings.json'))
 		self.PROJECT = project
 		print("\nProject configuration saved.\n")
 		sys.exit()
