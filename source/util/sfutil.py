@@ -254,7 +254,7 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 	if filter_header and not filter_values:
 		log.error("If supplying a filter header, you must also supply filter_values")
 		sys.exit() 
-	if type(filter_header) != list:
+	if type(filter_header) != list and filter_header:
 		filter_header = [filter_header]
 		filter_values = [filter_values]
 	with open(annotations_file) as csv_file:
