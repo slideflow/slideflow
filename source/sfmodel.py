@@ -242,7 +242,8 @@ class SlideflowModel:
 			categories_prob[category] = lowest_category_case_count / categories[category]['num_cases']
 			categories_tile_fraction[category] = lowest_category_tile_count / categories[category]['num_tiles']
 		if balance == NO_BALANCE:
-			log.info(f"Not balancing input from {sfutil.green(folder)}", 1)
+			balance_msg_tail = "" if folder == "" else f" from {sfutil.green(folder)}"
+			log.info(f"Not balancing input{balance_msg_tail}", 1)
 			prob_weights = [i/sum(num_tiles) for i in num_tiles]
 		if balance == BALANCE_BY_CASE:
 			log.info(f"Balancing input from {sfutil.green(folder)} across cases", 1)
