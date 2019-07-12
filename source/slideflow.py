@@ -174,7 +174,7 @@ class SlideFlowProject:
 		results = SFM.evaluate(subdir='', hp=None, model=model_dir, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
 		print(results)
 
-	def train(self, models=None, dataset_label='training', category_header='category', filter_header=None, filter_values=None, resume_training=None, checkpoint=None, supervised=True):
+	def train(self, models=None, dataset_label='training', category_header='category', filter_header=None, filter_values=None, resume_training=None, checkpoint=None, supervised=True, batch_file=None):
 		'''Train model(s) given configurations found in batch_train.tsv.
 		Args:
 			models			(optional) Either string representing a model name or an array of strings containing model names. 
@@ -190,9 +190,10 @@ class SlideFlowProject:
 		Returns:
 			A dictionary containing model names mapped to train_acc, val_loss, and val_acc'''
 		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], dataset_label)
+		batch_train_file = self.PROJECT['batch_train_config'] if not batch_file else sfutil.global_path(batch_file)
 		# First, quickly scan for errors (duplicate model names) and prepare models to train
 		models_to_train, model_acc = [], {}
-		with open(self.PROJECT['batch_train_config']) as csv_file:
+		with open(batch_train_file) as csv_file:
 			reader = csv.reader(csv_file, delimiter="\t")
 			header = next(reader)
 			try:
@@ -206,7 +207,7 @@ class SlideFlowProject:
 				if (not models) or (type(models)==str and model_name==models) or model_name in models:
 					# Now verify there are no duplicate model names
 					if model_name in models_to_train:
-						log.error(f"Duplicate model names found in {sfutil.green(self.PROJECT['batch_train_config'])}.", 0)
+						log.error(f"Duplicate model names found in {sfutil.green(batch_train_file)}.", 0)
 						sys.exit()
 					models_to_train += [model_name]
 
@@ -245,7 +246,7 @@ class SlideFlowProject:
 		k_fold = 0 if self.PROJECT['validation_strategy'] == 'per-tile' else self.PROJECT['validation_k_fold']
 
 		# Begin assembling models and hyperparameters from batch_train.tsv file
-		with open(self.PROJECT['batch_train_config']) as csv_file:
+		with open(batch_train_file) as csv_file:
 			reader = csv.reader(csv_file, delimiter='\t')
 			header = next(reader)
 			log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
