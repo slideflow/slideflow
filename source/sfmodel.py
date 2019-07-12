@@ -25,6 +25,7 @@ import numpy as np
 import pickle
 import argparse
 import gc
+import csv
 import random
 
 import tensorflow as tf
@@ -36,6 +37,8 @@ from glob import glob
 from scipy.stats import linregress
 from statistics import median
 from numpy.random import choice
+from sklearn import metrics
+from matplotlib import pyplot as plt
 
 from util import tfrecords, sfutil
 from util.sfutil import TCGAAnnotations, log
@@ -125,9 +128,8 @@ class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
 	def __init__(self, data_directory, input_directory, image_size, slide_to_category, validation_strategy='per-tile', validation_fraction=None, manifest=None, use_fp16=True):
-		self.DATA_DIR = data_directory
+		self.DATA_DIR = data_directory # Directory where to write event logs and checkpoints.
 		self.INPUT_DIR = input_directory
-		self.MODEL_DIR = self.DATA_DIR # Directory where to write event logs and checkpoints.
 		self.MANIFEST = manifest
 		self.IMAGE_SIZE = image_size
 		self.USE_FP16 = use_fp16
@@ -145,8 +147,8 @@ class SlideflowModel:
 				tf.lookup.KeyValueTensorInitializer(list(slide_to_category.keys()), list(slide_to_category.values())), -1
 			)
 
-		if not os.path.exists(self.MODEL_DIR):
-			os.makedirs(self.MODEL_DIR)
+		if not os.path.exists(self.DATA_DIR):
+			os.makedirs(self.DATA_DIR)
 
 	def _process_image(self, image_string, augment):
 		image = tf.image.decode_jpeg(image_string, channels = 3)
@@ -313,17 +315,71 @@ class SlideflowModel:
 
 		return model
 
-	def evaluate(self, hp, model=None, checkpoint=None):
-		data_to_eval, _ = self.build_dataset_inputs('eval', hp.batch_size, False, hp.augment, finite=True)
+	def generate_roc(self, y_true, y_pred, name='ROC'):
+		fpr, tpr, threshold = metrics.roc_curve(y_true, y_pred)
+		roc_auc = metrics.auc(fpr, tpr)
+
+		# Plot
+		plt.title('ROC Curve')
+		plt.plot(fpr, tpr, 'b', label = 'AUC = %0.2f' % roc_auc)
+		plt.legend(loc = 'lower right')
+		plt.plot([0, 1], [0, 1],'r--')
+		plt.xlim([0, 1])
+		plt.ylim([0, 1])
+		plt.ylabel('TPR')
+		plt.xlabel('FPR')
+		plt.show()
+		plt.savefig(os.path.join(self.DATA_DIR, f'{name}.png'))
+		plt.close()
+
+	def evaluate(self, subdir="eval", hp=None, model=None, checkpoint=None, batch_size=None):
+		# Load and initialize model
+		if not hp and checkpoint:
+			log.error("If using a checkpoint for evaluation, hyperparameters must be specified.")
+			sys.exit()
+		batch_size = batch_size if not hp else hp.batch_size
+		augment = False if not hp else hp.augment
+		data_to_eval, _ = self.build_dataset_inputs(subdir, batch_size, NO_BALANCE, augment, finite=True)
 		if model:
 			self.model = tf.keras.models.load_model(model)
 		elif checkpoint:
 			self.model = self.build_model(hp)
 			self.model.load_weights(checkpoint)
-		self.model.compile(loss='sparse_categorical_crossentropy',
-					optimizer=tf.keras.optimizers.Adam(lr=hp.learning_rate),
-					metrics=['accuracy'])
+		
+		# Now get predictions and performance metrics
+		log.info("Generating predictions...", 1)
+		y_true, y_pred = [], []
+		for batch in data_to_eval:
+			y_true += [batch[1].numpy()]
+			y_pred += [self.model.predict_on_batch(batch)]
+		y_pred = np.concatenate(y_pred)
+
+		# Convert y_true to one_hot encoding
+		num_cat = len(y_pred[0])
+		def to_onehot(val):
+			onehot = [0] * num_cat
+			onehot[val] = 1
+			return onehot
+		y_true = np.array([to_onehot(i) for i in np.concatenate(y_true)])
+		
+		log.info("Calculating performance metrics...", 1)
 		results = self.model.evaluate(data_to_eval)
+
+		# Generate ROC
+		for i in range(num_cat):
+			self.generate_roc(y_true[:, i], y_pred[:, i], f'ROC{i}')
+
+		# Save results to CSV
+		csv_dir = os.path.join(self.DATA_DIR, "eval_predictions.csv")
+		with open(csv_dir, 'w') as outfile:
+			writer = csv.writer(outfile)
+			header = [f"y_true{i}" for i in range(num_cat)] + [f"y_pred{j}" for j in range(num_cat)]
+			writer.writerow(header)
+			for i in range(len(y_true)):
+				row = np.concatenate([y_true[i], y_pred[i]])
+				writer.writerow(row)
+		log.complete(f"Predictions saved to {sfutil.green(csv_dir)}", 1)
+
 		return results
 
 	def retrain_top_layers(self, model, hp, train_data, validation_data, steps_per_epoch, callbacks=None, epochs=1, verbose=1):
@@ -355,7 +411,7 @@ class SlideflowModel:
 		validation_subfolder = 'train' if self.VALIDATION_SLIDES else 'eval'
 		train_data, num_tiles = self.build_dataset_inputs('train', hp.batch_size, hp.balanced_training, hp.augment, dataset='train')
 		validation_data, _ = self.build_dataset_inputs(validation_subfolder, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation')
-		training_val_data = validation_data.repeat() if supervised else None
+		#training_val_data = validation_data.repeat() if supervised else None
 		
 		#testing overide
 		#num_tiles = 100
@@ -367,12 +423,12 @@ class SlideflowModel:
 		steps_per_epoch = round(num_tiles/hp.batch_size)
 		tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
 		verbose = 1 if supervised else 0
-		val_steps = 200 if supervised else None
+		val_steps = 200# if supervised else None
 
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
 		early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=hp.early_stop_patience)
-		checkpoint_path = os.path.join(self.MODEL_DIR, "cp.ckpt")
+		checkpoint_path = os.path.join(self.DATA_DIR, "cp.ckpt")
 		cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
 														save_weights_only=True,
 														verbose=1)
@@ -406,18 +462,20 @@ class SlideflowModel:
 					optimizer=initialized_optimizer,
 					metrics=['accuracy'])
 
-		# Fine-tune model
 		finetune_model = self.model.fit(train_data.repeat(),
 			steps_per_epoch=steps_per_epoch,
 			epochs=total_epochs,
 			verbose=verbose,
 			initial_epoch=hp.toplayer_epochs,
-			validation_data=training_val_data,
+			validation_data=validation_data.repeat(),
 			validation_steps=val_steps,
 			callbacks=callbacks)
 
 		self.model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
 		train_acc = finetune_model.history['accuracy']
+
+		# Final validation testing, getting both overall accuracy/loss and predictions for ROCs
 		if verbose: log.info("Beginning validation testing", 1)
 		val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
+
 		return train_acc, val_loss, val_acc
