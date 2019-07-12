@@ -426,7 +426,7 @@ class SlideflowModel:
 		validation_data, _ = self.build_dataset_inputs(self.TFRECORD_VALIDATION, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation')
 		
 		#testing overide
-		num_tiles = 100
+		#num_tiles = 100
 		#hp.finetune_epochs = 3
 
 		# Calculate parameters
