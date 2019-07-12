@@ -329,7 +329,6 @@ class SlideflowModel:
 		plt.ylim([0, 1])
 		plt.ylabel('TPR')
 		plt.xlabel('FPR')
-		plt.show()
 		plt.savefig(os.path.join(self.DATA_DIR, f'{name}.png'))
 
 	def evaluate(self, subdir="eval", hp=None, model=None, checkpoint=None, batch_size=None):
