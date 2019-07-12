@@ -320,6 +320,7 @@ class SlideflowModel:
 		roc_auc = metrics.auc(fpr, tpr)
 
 		# Plot
+		plt.clf()
 		plt.title('ROC Curve')
 		plt.plot(fpr, tpr, 'b', label = 'AUC = %0.2f' % roc_auc)
 		plt.legend(loc = 'lower right')
@@ -330,7 +331,6 @@ class SlideflowModel:
 		plt.xlabel('FPR')
 		plt.show()
 		plt.savefig(os.path.join(self.DATA_DIR, f'{name}.png'))
-		plt.close()
 
 	def evaluate(self, subdir="eval", hp=None, model=None, checkpoint=None, batch_size=None):
 		# Load and initialize model
