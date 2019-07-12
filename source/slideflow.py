@@ -36,7 +36,7 @@ class SlideFlowProject:
 
 	def __init__(self, project_folder):
 		os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-		log.header('''SlideFlow v0.9.2\n================''')
+		log.header('''SlideFlow v0.9.3\n================''')
 		log.header('''Loading project...''')
 		if project_folder and not os.path.exists(project_folder):
 			if sfutil.yes_no_input(f'Directory "{project_folder}" does not exist. Create directory and set as project root? [Y/n] ', default='yes'):
@@ -116,7 +116,7 @@ class SlideFlowProject:
 		self.PROJECT['validation_fraction'] = fraction
 		self.save_project()
 
-	def generate_tfrecord(self):
+	def generate_tfrecord(self, subdir=None):
 		'''Create tfrecord files from a collection of raw images'''
 		# Note: this will not work as the write_tfrecords function expects a category directory
 		# Will leave as is to manually test performance with category defined in the TFRecrod
@@ -133,8 +133,10 @@ class SlideFlowProject:
 			if not exists(tfrecord_eval_dir):
 				os.mkdir(tfrecord_eval_dir)
 
+		subdir = tfrecord_train_dir if not subdir else subdir
+
 		log.header('Writing TFRecord files...')
-		tfrecords.write_tfrecords_multi(join(self.PROJECT['tiles_dir'], 'train_data'), tfrecord_train_dir, self.PROJECT['annotations'])
+		tfrecords.write_tfrecords_multi(join(self.PROJECT['tiles_dir'], 'train_data'), subdir, self.PROJECT['annotations'])
 		if validation_strategy == 'per-tile':
 			tfrecords.write_tfrecords_multi(join(self.PROJECT['tiles_dir'], 'eval_data'), tfrecord_eval_dir, self.PROJECT['annotations'])
 		
@@ -169,8 +171,10 @@ class SlideFlowProject:
 		return SFM
 
 	def evaluate(self, model, category_header, filter_header=None, filter_values=None, checkpoint=None):
+		log.header(f"Evaluating model {sfutil.bold(model)}...")
 		SFM = self.initialize_model("evaluation", category_header, filter_header, filter_values)
-		results = SFM.evaluate(model, checkpoint)
+		model_dir = join(self.PROJECT['models_dir'], model, "trained_model.h5") if model[-3:] != ".h5" else model
+		results = SFM.evaluate("train", None, model_dir, checkpoint, 64)
 		print(results)
 
 	def train(self, models=None, category_header='category', filter_header=None, filter_values=None, resume_training=None, checkpoint=None, supervised=True):
@@ -214,10 +218,12 @@ class SlideFlowProject:
 		results_dict = manager.dict()
 
 		# Create a worker that can execute one round of training
-		def trainer (results_dict, model_name, hp):
+		def trainer (results_dict, model_name, hp, k_fold_iter=None):
 			if supervised: 
-				log.empty(f"Training model {sfutil.bold(model_name)}...", 1)
+				k_fold_msg = "" if not k_fold_iter else f" (k-fold iteration #{k_fold_iter}"
+				log.empty(f"Training model {sfutil.bold(model_name)}{k_fold_msg}...", 1)
 				log.info(hp, 1)
+			model_name = model_name if not k_fold_iter else model_name+f"-kfold{k_fold_iter}"
 			SFM = self.initialize_model(model_name, category_header, filter_header, filter_values)
 			try:
 				train_acc, val_loss, val_acc = SFM.train(hp, pretrain=self.PROJECT['pretrain'], 
@@ -270,7 +276,7 @@ class SlideFlowProject:
 					val_acc_list = []
 					error_encountered = False
 					for k in range(k_fold):
-						p = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp))
+						p = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp, k+1))
 						p.start()
 						p.join()
 						if model_name not in results_dict:
