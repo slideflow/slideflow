@@ -174,11 +174,11 @@ class SlideFlowProject:
 		print(results)
 
 	def train(self, models=None, dataset_label='training', category_header='category', filter_header=None, filter_values=None, resume_training=None, checkpoint=None, supervised=True):
-		'''Train model(s) given configurations found in batch_train.csv.
+		'''Train model(s) given configurations found in batch_train.tsv.
 		Args:
 			models			(optional) Either string representing a model name or an array of strings containing model names. 
-								Will train models with these names in the batch_train.csv config file.
-								Defaults to None, which will train all models in the batch_train.csv config file.
+								Will train models with these names in the batch_train.tsv config file.
+								Defaults to None, which will train all models in the batch_train.tsv config file.
 			dataset_label	(optional) Which dataset to pull tfrecord files from (subdirectory in tfrecord_dir); defaults to 'training'
 			category_header	(optional) Which header in the annotation file to use for the output category. Defaults to 'category'
 			filter_header	(optional) Filter slides to inculde in training by this column
@@ -192,7 +192,7 @@ class SlideFlowProject:
 		# First, quickly scan for errors (duplicate model names) and prepare models to train
 		models_to_train, model_acc = [], {}
 		with open(self.PROJECT['batch_train_config']) as csv_file:
-			reader = csv.reader(csv_file)
+			reader = csv.reader(csv_file, delimiter="\t")
 			header = next(reader)
 			try:
 				model_name_i = header.index('model_name')
@@ -218,11 +218,13 @@ class SlideFlowProject:
 		# Create a worker that can execute one round of training
 		def trainer (results_dict, model_name, hp, k_fold_iter=None):
 			if supervised: 
-				k_fold_msg = "" if not k_fold_iter else f" (k-fold iteration #{k_fold_iter}"
+				k_fold_msg = "" if not k_fold_iter else f" (k-fold iteration #{k_fold_iter})"
 				log.empty(f"Training model {sfutil.bold(model_name)}{k_fold_msg}...", 1)
 				log.info(hp, 1)
-			model_name = model_name if not k_fold_iter else model_name+f"-kfold{k_fold_iter}"
-			SFM = self.initialize_model(model_name, tfrecord_dir, category_header, filter_header, filter_values)
+			full_model_name = model_name if not k_fold_iter else model_name+f"-kfold{k_fold_iter}"
+			SFM = self.initialize_model(full_model_name, tfrecord_dir, category_header, filter_header, filter_values)
+			with open(os.path.join(self.PROJECT['models_dir'], full_model_name, 'hyperparameters.log'), 'w') as hp_file:
+				hp_file.write(str(hp))
 			try:
 				train_acc, val_loss, val_acc = SFM.train(hp, pretrain=self.PROJECT['pretrain'], 
 															resume_training=resume_training, 
@@ -240,10 +242,10 @@ class SlideFlowProject:
 				return
 
 		k_fold = 0 if self.PROJECT['validation_strategy'] == 'per-tile' else self.PROJECT['validation_k_fold']
-		
-		# Now begin assembling models and hyperparameters from batch_train.csv file
+
+		# Begin assembling models and hyperparameters from batch_train.tsv file
 		with open(self.PROJECT['batch_train_config']) as csv_file:
-			reader = csv.reader(csv_file)
+			reader = csv.reader(csv_file, delimiter='\t')
 			header = next(reader)
 			log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
 			already_started = os.path.exists(log_path)
@@ -262,8 +264,12 @@ class SlideFlowProject:
 				for arg in args:
 					value = row[header.index(arg)]
 					if arg in hp._get_args():
-						arg_type = type(getattr(hp, arg))
-						setattr(hp, arg, arg_type(value))
+						if arg != 'finetune_epochs':
+							arg_type = type(getattr(hp, arg))
+							setattr(hp, arg, arg_type(value))
+						else:
+							epochs = [int(i) for i in value.split(',')]
+							setattr(hp, arg, epochs)
 					else:
 						log.error(f"Unknown argument '{arg}' found in training config file.", 0)
 
@@ -344,7 +350,7 @@ class SlideFlowProject:
 		if not filename:
 			filename = self.PROJECT['batch_train_config']
 		with open(filename, 'w') as csv_outfile:
-			writer = csv.writer(csv_outfile, delimiter=',')
+			writer = csv.writer(csv_outfile, delimiter='\t')
 			# Create headers and first row
 			header = ['model_name']
 			firstrow = ['model1']
@@ -355,7 +361,7 @@ class SlideFlowProject:
 			writer.writerow(header)
 			writer.writerow(firstrow)
 
-	def create_hyperparameter_sweep(self, toplayer_epochs, finetune_epochs, model, pooling, loss, learning_rate, batch_size, hidden_layers,
+	def create_hyperparameter_sweep(self, finetune_epochs, toplayer_epochs, model, pooling, loss, learning_rate, batch_size, hidden_layers,
 									optimizer, early_stop, early_stop_patience, balanced_training, balanced_validation, augment, filename=None):
 		'''Prepares a hyperparameter sweep using the batch train config file.'''
 		log.header("Preparing hyperparameter sweep...")
@@ -363,6 +369,7 @@ class SlideFlowProject:
 		pdict = locals()
 		del(pdict['self'])
 		del(pdict['filename'])
+		del(pdict['finetune_epochs'])
 		args = list(pdict.keys())
 		args.reverse()
 		for arg in args:
@@ -375,18 +382,19 @@ class SlideFlowProject:
 		if not filename:
 			filename = self.PROJECT['batch_train_config']
 		with open(filename, 'w') as csv_outfile:
-			writer = csv.writer(csv_outfile, delimiter=',')
+			writer = csv.writer(csv_outfile, delimiter='\t')
 			# Create headers
-			header = ['model_name']
+			header = ['model_name', 'finetune_epochs']
 			default_hp = sfmodel.HyperParameters()
-			for arg in default_hp._get_args():
+			for arg in args:
 				header += [arg]
 			writer.writerow(header)
 			# Iterate through sweep
 			for i, params in enumerate(sweep):
-				row = [f'HPSweep{i}']
-				hp = sfmodel.HyperParameters(*params)
-				for arg in hp._get_args():
+				row = [f'HPSweep{i}', ','.join([str(f) for f in finetune_epochs])]
+				full_params = [finetune_epochs] + list(params)
+				hp = sfmodel.HyperParameters(*full_params)
+				for arg in args:
 					row += [getattr(hp, arg)]
 				writer.writerow(row)
 		log.complete(f"Wrote {len(sweep)} combinations for sweep to {sfutil.green(filename)}")
@@ -489,8 +497,8 @@ class SlideFlowProject:
 		project['tile_um'] = sfutil.int_input("What is the tile width in microns? [280] ", default=280)
 		project['tile_px'] = sfutil.int_input("What is the tile width in pixels? [224] ", default=224)
 		project['use_fp16'] = sfutil.yes_no_input("Should FP16 be used instead of FP32? (recommended) [Y/n] ", default='yes')
-		project['batch_train_config'] = sfutil.file_input("Location for the batch training CSV config file? [./batch_train.csv] ",
-													default='./batch_train.csv', filetype='csv', verify=False)
+		project['batch_train_config'] = sfutil.file_input("Location for the batch training TSV config file? [./batch_train.tsv] ",
+													default='./batch_train.tsv', filetype='tsv', verify=False)
 		
 		if not exists(project['batch_train_config']):
 			print("Batch training file not found, creating blank")
