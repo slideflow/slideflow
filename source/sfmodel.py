@@ -76,7 +76,7 @@ class HyperParameters:
 		#'DenseNet': tf.keras.applications.DenseNet,
 		#'NASNet': tf.keras.applications.NASNet
 	}
-	def __init__(self, toplayer_epochs=0, finetune_epochs=50, model='InceptionV3', pooling='avg', loss='sparse_categorical_crossentropy',
+	def __init__(self, finetune_epochs=50, toplayer_epochs=0, model='InceptionV3', pooling='avg', loss='sparse_categorical_crossentropy',
 				 learning_rate=0.1, batch_size=16, hidden_layers=0, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
 				 augment=True):
@@ -339,7 +339,7 @@ class SlideflowModel:
 		plt.xlabel('FPR')
 		plt.savefig(os.path.join(self.DATA_DIR, f'{name}.png'))
 
-	def generate_predictions_and_roc(self, model, dataset):
+	def generate_predictions_and_roc(self, model, dataset, label=None):
 		# Get predictions and performance metrics
 		log.info("Generating predictions...", 1)
 		y_true, y_pred = [], []
@@ -357,11 +357,13 @@ class SlideflowModel:
 		y_true = np.array([to_onehot(i) for i in np.concatenate(y_true)])
 
 		# Generate ROC
+		label_end = "" if not label else f"_{label}"
+		label_start = "" if not label else f"{label}_"
 		for i in range(num_cat):
-			self.generate_roc(y_true[:, i], y_pred[:, i], f'ROC{i}')
+			self.generate_roc(y_true[:, i], y_pred[:, i], f'{label_start}ROC{i}')
 
 		# Save results to CSV
-		csv_dir = os.path.join(self.DATA_DIR, "eval_predictions.csv")
+		csv_dir = os.path.join(self.DATA_DIR, f"eval_predictions{label_end}.csv")
 		with open(csv_dir, 'w') as outfile:
 			writer = csv.writer(outfile)
 			header = [f"y_true{i}" for i in range(num_cat)] + [f"y_pred{j}" for j in range(num_cat)]
@@ -421,19 +423,21 @@ class SlideflowModel:
 		# Build inputs
 		train_data, num_tiles = self.build_dataset_inputs(self.TFRECORD_TRAINING, hp.batch_size, hp.balanced_training, hp.augment, dataset='train')
 		validation_data, _ = self.build_dataset_inputs(self.TFRECORD_VALIDATION, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation')
-		#training_val_data = validation_data.repeat() if supervised else None
 		
 		#testing overide
-		#num_tiles = 100
-		#hp.finetune_epochs = 1
+		num_tiles = 100
+		#hp.finetune_epochs = 3
 
 		# Calculate parameters
-		total_epochs = hp.toplayer_epochs + hp.finetune_epochs
+		if type(hp.finetune_epochs) != list:
+			hp.finetune_epochs = [hp.finetune_epochs]
+		total_epochs = hp.toplayer_epochs + max(hp.finetune_epochs)
 		initialized_optimizer = hp.get_opt()
 		steps_per_epoch = round(num_tiles/hp.batch_size)
 		tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
 		verbose = 1 if supervised else 0
-		val_steps = 200# if supervised else None
+		val_steps = 200
+		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
 
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
@@ -447,11 +451,33 @@ class SlideflowModel:
 															histogram_freq=0,
 															write_graph=False,
 															update_freq=hp.batch_size*log_frequency)
+
+		with open(results_log, "w") as results_file:
+			writer = csv.writer(results_file)
+			writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc'])
+		parent = self
+
+		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
+			def on_epoch_end(self, epoch, logs=None):
+				if epoch+1 in hp.finetune_epochs:
+					epoch_label = f"epoch{epoch+1}"
+					self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5"))
+					parent.generate_predictions_and_roc(self.model, validation_data, label=epoch_label)
+					train_acc = logs['accuracy']
+					if verbose: log.info("Beginning validation testing", 1)
+					val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
+
+					with open(results_log, "a") as results_file:
+						writer = csv.writer(results_file)
+						writer.writerow([epoch_label, train_acc, val_loss, val_acc])
+
 		callbacks = [history_callback]
 		if hp.early_stop:
 			callbacks += [early_stop_callback]
 		if supervised:
 			callbacks += [cp_callback, tensorboard_callback]
+		if len(hp.finetune_epochs) > 1:
+			callbacks += [PredictionAndEvaluationCallback()]
 
 		# Build or load model
 		if resume_training:
