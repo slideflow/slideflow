@@ -416,9 +416,8 @@ def verify_annotations(annotations_file, slides_dir=None):
 		if num_warned >= warn_threshold:
 			log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)
 
-def verify_tiles(annotations, input_dir, tfrecord_files=[]):
-	'''Iterate through folders if using raw images and verify all have an annotation;
-	if using TFRecord, iterate through all records and verify all entries for valid annotation.
+def verify_tiles(annotations, tfrecord_files=[]):
+	'''Iterate through TFRecord files and verify all have a valid annotation.
 	
 	Additionally, generate a manifest to log the number of tiles for each slide.'''
 	success = True
@@ -452,19 +451,6 @@ def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 			manifest[tfrecord_file]['total'] = total
 		for case in case_list_errors:
 			log.error(f"Failed TFRecord integrity check: annotation not found for case {green(case)}", 1)
-	else:
-		manifest['total_train_tiles'] = len(glob(os.path.join(input_dir, "train_data/**/*.jpg")))
-		train_case_list = [i.split('/')[-1] for i in glob(os.path.join(input_dir, "train_data/*"))]
-		eval_case_list = [i.split('/')[-1] for i in glob(os.path.join(input_dir, "eval_data/*"))]
-		for case in train_case_list:
-			manifest['train_data'][case] = len(glob(os.path.join(input_dir, f"train_data/{case}/*.jpg")))
-		for case in eval_case_list:
-			manifest['eval_data'][case] = len(glob(os.path.join(input_dir, f"eval_data/{case}/*.jpg")))
-		case_list = list(set(train_case_list + eval_case_list))
-		for case in case_list:
-			if case not in annotations:
-				log.error(f"Failed image tile integrity check: annotation not found for case {green(case)}", 1)
-				success = False	
 	if not success:
 		print("...failed.")
 		sys.exit()
