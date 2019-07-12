@@ -57,7 +57,7 @@ class SlideFlowProject:
 		else:
 			self.create_project()
 		
-	def extract_tiles(self, filter_header=None, filter_values=None, dataset_label=None):
+	def extract_tiles(self, filter_header=None, filter_values=None, dataset_label=None, skip_validation=False):
 		'''filter is a dict whose keys correspond with a header label and whose value is a 
 		list of acceptable values; all other cases will be ignored
 		
@@ -70,7 +70,7 @@ class SlideFlowProject:
 		log.info(f"Extracting tiles from {len(slide_list)} slides", 1)
 
 		save_folder = join(self.PROJECT['tiles_dir'], dataset_label)
-		if not os.exists(save_folder):
+		if not os.path.exists(save_folder):
 			os.makedirs(save_folder)
 
 		c = convoluter.Convoluter(self.PROJECT['tile_px'], self.PROJECT['tile_um'], batch_size=None,
@@ -81,39 +81,31 @@ class SlideFlowProject:
 		c.load_slides(slide_list)
 		c.convolute_slides(export_tiles=True)
 
-		validation_fraction = 0.1 if 'validation_fraction' not in self.PROJECT else self.PROJECT['validation_fraction']
-		validation_strategy = 'per-tile' if 'validation_strategy' not in self.PROJECT else self.PROJECT['validation_strategy']
-		validation_k_fold = 1 if 'validation_k_fold' not in self.PROJECT else self.PROJECT['validation_k_fold']
-
-		self.separate_training_and_validation(dataset_label, validation_fraction, validation_strategy, validation_k_fold)
+		if not skip_validation:
+			self.separate_training_and_validation(dataset_label)
 		self.generate_tfrecord(dataset_label)
 
-	def separate_training_and_validation(self, dataset_label=None, fraction=0.1, strategy="per-tile", k_fold=1):
-		'''Separate training and eval raw image sets. Assumes images are located in tile directory with subfolders according to slide.
-		Args:
-			fraction		Fraction of data to set aside for validation. Default is 10%.
-			strategy		Separation strategy. Default is 'per-tile'. May specify 'per-slide' to set aside whole slides for validation.
-			k_fold			Number of cross-validations to perform during training. Only used when strategy='per-slide'. '''
+	def separate_training_and_validation(self, dataset_label=None):
+		'''Separate training and eval raw image sets. Assumes images are located in tile directory with subfolders according to slide.'''
 		log.header('Separating training and validation datasets...')
 		dataset_label = NO_LABEL if not dataset_label else dataset_label
 		tiles_dir = join(self.PROJECT['tiles_dir'], dataset_label)
-		if strategy=='per-tile':
+		if self.PROJECT['validation_strategy'] == 'per-tile':
 			train_dir = join(tiles_dir, "train_data")
 			validation_dir = join(tiles_dir, "validation_data")
-			if not os.exists(train_dir): os.makedirs(train_dir)
-			if not os.exists(validation_dir): os.makedirs(validation_dir)
+			if not os.path.exists(train_dir): os.makedirs(train_dir)
+			if not os.path.exists(validation_dir): os.makedirs(validation_dir)
 
 			# Move tiles into the train_data subfolder
-			tile_directories = [_dir for _dir in listdir(tiles_dir) if isdir(join(tiles_dir, _dir))]
+			tile_directories = [_dir for _dir in os.listdir(tiles_dir) if os.path.isdir(join(tiles_dir, _dir)) and _dir not in ["train_data", 'validation_data']]
 			for directory in tile_directories:
-				shutil.move(join(tiles_dir, directory), train_dir)
-
+				try:
+					shutil.move(join(tiles_dir, directory), train_dir)
+				except:
+					log.error("Training and validation dataset separation has already been started, recommend cleaning tiles directory", 1)
+					sys.exit()
 			# Extract a fraction of tiles from train_data into validation_data
-			datasets.build_validation(train_dir, validation_dir, fraction = fraction)
-		self.PROJECT['validation_strategy'] = strategy
-		self.PROJECT['validation_k_fold'] = k_fold
-		self.PROJECT['validation_fraction'] = fraction
-		self.save_project()
+			datasets.build_validation(train_dir, validation_dir, fraction = self.PROJECT['validation_fraction'])
 
 	def generate_tfrecord(self, dataset_label=None):
 		'''Create tfrecord files from a collection of raw images'''
@@ -124,28 +116,28 @@ class SlideFlowProject:
 		dataset_label = NO_LABEL if not dataset_label else dataset_label
 		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], dataset_label)
 		tiles_dir = join(self.PROJECT['tiles_dir'], dataset_label)
-		validation_strategy = 'per-tile' if 'validation_strategy' not in self.PROJECT else self.PROJECT['validation_strategy']
 
 		if not exists(tfrecord_dir):
 			os.makedirs(tfrecord_dir)
 
-		if validation_strategy == 'per-tile':
+		if self.PROJECT['validation_strategy'] == 'per-tile':
 			tfrecord_train_dir = join(tfrecord_dir, 'train')
 			tfrecord_validation_dir = join(tfrecord_dir, 'validation')
 			if not exists(tfrecord_train_dir):
 				os.makedirs(tfrecord_train_dir)
 			if not exists(tfrecord_validation_dir):
 				os.makedirs(tfrecord_validation_dir)
-
 			tfrecords.write_tfrecords_multi(join(tiles_dir, 'train_data'), tfrecord_train_dir, self.PROJECT['annotations'])
 			tfrecords.write_tfrecords_multi(join(tiles_dir, 'validation_data'), tfrecord_validation_dir, self.PROJECT['annotations'])
+			self.update_manifest(tfrecord_train_dir, skip_verification=True)
+			self.update_manifest(tfrecord_validation_dir)
 		else:
 			tfrecords.write_tfrecords_multi(tiles_dir, tfrecord_dir, self.PROJECT['annotations'])
+			self.update_manifest(tfrecord_dir)
 		
 		if self.PROJECT['delete_tiles']:
 			shutil.rmtree(tiles_dir)
-
-		self.update_manifest(tfrecord_dir)
+		
 
 	def delete_tiles(self, subdir=None):
 		delete_folder = self.PROJECT['tiles_dir'] if not subdir else join(self.PROJECT['tiles_dir'], subdir)
@@ -418,23 +410,24 @@ class SlideFlowProject:
 	def associate_slide_names(self):
 		sfutil.verify_annotations(self.PROJECT['annotations'], self.PROJECT['slides_dir'])
 
-	def update_manifest(self, dataset_label):
+	def update_manifest(self, dataset_label, skip_verification=False):
 		manifest_path = sfutil.global_path('manifest.json')
 		if not os.path.exists(manifest_path):
 			self.generate_manifest()
 		else:
 			input_dir = join(self.PROJECT['tfrecord_dir'], dataset_label)
 			annotations = sfutil.get_annotations_dict(self.PROJECT['annotations'], key_name="slide", value_name="category")
-			tfrecord_files = glob(os.path.join(input_dir, "*/*.tfrecords"))
+			tfrecord_files = glob(os.path.join(input_dir, "*.tfrecords"))
 			self.MANIFEST = sfutil.load_json(manifest_path)
-			self.MANIFEST.update(sfutil.verify_tiles(annotations, tfrecord_files))
-			sfutil.write_json(old_manifest, manifest_path)
+			if not skip_verification:
+				self.MANIFEST.update(sfutil.verify_tiles(annotations, tfrecord_files))
+			sfutil.write_json(self.MANIFEST, manifest_path)
 
 	def generate_manifest(self):
 		self.MANIFEST = {}
 		input_dir = self.PROJECT['tfrecord_dir']
 		annotations = sfutil.get_annotations_dict(self.PROJECT['annotations'], key_name="slide", value_name="category")
-		tfrecord_files = glob(os.path.join(input_dir, "*/*/*.tfrecords"))
+		tfrecord_files = glob(os.path.join(input_dir, "**/*.tfrecords"))
 		self.MANIFEST = sfutil.verify_tiles(annotations, tfrecord_files)
 		sfutil.write_json(self.MANIFEST, sfutil.global_path("manifest.json"))
 
@@ -502,6 +495,15 @@ class SlideFlowProject:
 		if not exists(project['batch_train_config']):
 			print("Batch training file not found, creating blank")
 			self.create_blank_train_config(project['batch_train_config'])
+		
+		# Validation strategy
+		project['validation_strategy'] = sfutil.choice_input("Which validation strategy should be used, per-tile or per-slide? [per-slide] ", valid_choices=['per-tile', 'per-slide'], default='per-slide')
+		if project['validation_strategy'] == 'per-slide':
+
+			project['validation_k_fold'] = sfutil.int_input("If using K-fold cross-validation, what is K? (default, 1, is no cross-validation) [1] ", default=1)
+		else:
+			project['validation_k_fold'] = 1
+		project['validation_fraction'] = sfutil.float_input("What fraction of training data should be used for validation testing? [0.2] ", valid_range=[0,1], default=0.2)
 
 		sfutil.write_json(project, join(sfutil.PROJECT_DIR, 'settings.json'))
 		self.PROJECT = project

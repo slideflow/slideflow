@@ -136,10 +136,13 @@ class SlideflowModel:
 		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
 		self.SLIDES = list(slide_to_category.keys()) # If None, will default to using all tfrecords in the input directory
 		self.SLIDE_TO_CATEGORY = slide_to_category # Dictionary mapping slide names to category
+		self.VALIDATION_STRATEGY = validation_strategy
 		if validation_strategy=='per-slide':
 			self.VALIDATION_SLIDES = random.sample(self.SLIDES, int(validation_fraction * len(self.SLIDES)))
 		else:
-			self.VALIDATION_SLIDES = None
+			self.VALIDATION_SLIDES = []
+		self.TFRECORD_VALIDATION = '' if self.VALIDATION_STRATEGY == 'per-slide' else 'validation'
+		self.TFRECORD_TRAINING = '' if self.VALIDATION_STRATEGY == 'per-slide' else 'train'
 		self.NUM_CLASSES = len(list(set(slide_to_category.values())))
 
 		with tf.device('/cpu'):
@@ -202,10 +205,11 @@ class SlideflowModel:
 		if tfrecord_files == []:
 			log.error(f"No TFRecords found in {sfutil.green(search_folder)}", 1)
 			sys.exit()
-		if not dataset:
+		if not dataset or self.VALIDATION_STRATEGY == 'per-tile':
 			# Now remove all tfrecord_files except those in self.SLIDES (if not None)
 			tfrecord_files = tfrecord_files if not self.SLIDES else [tfr for tfr in tfrecord_files 
 																	if tfr.split('/')[-1][:-10] in self.SLIDES]
+			log.info(f"Training across {sfutil.green(str(len(tfrecord_files)))} slides", 1)
 		elif dataset=='train':
 			tfrecord_files = tfrecord_files if not self.SLIDES else [tfr for tfr in tfrecord_files 
 																	if (tfr.split('/')[-1][:-10] in self.SLIDES) and (tfr.split('/')[-1][:-10] not in self.VALIDATION_SLIDES)]
@@ -220,7 +224,11 @@ class SlideflowModel:
 			slide_name = filename.split('/')[-1][:-10]
 			category = self.SLIDE_TO_CATEGORY[slide_name]
 			datasets_categories += [category]
-			tiles = self.MANIFEST[filename]['total']
+			try:
+				tiles = self.MANIFEST[filename]['total']
+			except KeyError:
+				log.error(f"Manifest not finished, unable to find {sfutil.green(filename)}", 1)
+				sys.exit()
 			if category not in categories.keys():
 				categories.update({category: {'num_cases': 1,
 											  'num_tiles': tiles}})
@@ -411,9 +419,8 @@ class SlideflowModel:
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 
 		# Build inputs
-		validation_subfolder = 'train' if self.VALIDATION_SLIDES else 'validation'
-		train_data, num_tiles = self.build_dataset_inputs('train', hp.batch_size, hp.balanced_training, hp.augment, dataset='train')
-		validation_data, _ = self.build_dataset_inputs(validation_subfolder, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation')
+		train_data, num_tiles = self.build_dataset_inputs(self.TFRECORD_TRAINING, hp.batch_size, hp.balanced_training, hp.augment, dataset='train')
+		validation_data, _ = self.build_dataset_inputs(self.TFRECORD_VALIDATION, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation')
 		#training_val_data = validation_data.repeat() if supervised else None
 		
 		#testing overide
