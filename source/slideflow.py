@@ -168,9 +168,10 @@ class SlideFlowProject:
 
 	def evaluate(self, model, dataset_label, category_header, filter_header=None, filter_values=None, checkpoint=None):
 		log.header(f"Evaluating model {sfutil.bold(model)}...")
+		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], dataset_label)
 		SFM = self.initialize_model("evaluation", tfrecord_dir, category_header, filter_header, filter_values)
 		model_dir = join(self.PROJECT['models_dir'], model, "trained_model.h5") if model[-3:] != ".h5" else model
-		results = SFM.evaluate(subdir=dataset_label, hp=None, model=model_dir, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
+		results = SFM.evaluate(subdir='', hp=None, model=model_dir, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
 		print(results)
 
 	def train(self, models=None, dataset_label='training', category_header='category', filter_header=None, filter_values=None, resume_training=None, checkpoint=None, supervised=True):
