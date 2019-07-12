@@ -121,7 +121,7 @@ class SlideFlowProject:
 		# Note: this will not work as the write_tfrecords function expects a category directory
 		# Will leave as is to manually test performance with category defined in the TFRecrod
 		#  vs. dynamically assigning category via annotation metadata during training
-		validation_strategy == 'per-tile' if 'validation_strategy' not in self.PROJECT else self.PROJECT['validation_strategy']
+		validation_strategy = 'per-tile' if 'validation_strategy' not in self.PROJECT else self.PROJECT['validation_strategy']
 
 		if not exists(self.PROJECT['tfrecord_dir']):
 			datasets.make_dir(self.PROJECT['tfrecord_dir'])
@@ -133,10 +133,12 @@ class SlideFlowProject:
 			if not exists(tfrecord_eval_dir):
 				os.mkdir(tfrecord_eval_dir)
 
-		subdir = tfrecord_train_dir if not subdir else subdir
+		primary_output_directory = tfrecord_train_dir if not subdir else join(self.PROJECT['tfrecord_dir'], subdir)
+		if not exists(primary_output_directory):
+			os.mkdir(primary_output_directory)
 
 		log.header('Writing TFRecord files...')
-		tfrecords.write_tfrecords_multi(join(self.PROJECT['tiles_dir'], 'train_data'), subdir, self.PROJECT['annotations'])
+		tfrecords.write_tfrecords_multi(join(self.PROJECT['tiles_dir'], 'train_data'), primary_output_directory, self.PROJECT['annotations'])
 		if validation_strategy == 'per-tile':
 			tfrecords.write_tfrecords_multi(join(self.PROJECT['tiles_dir'], 'eval_data'), tfrecord_eval_dir, self.PROJECT['annotations'])
 		
