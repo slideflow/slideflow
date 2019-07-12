@@ -170,11 +170,11 @@ class SlideFlowProject:
 																				use_fp16=self.PROJECT['use_fp16'])
 		return SFM
 
-	def evaluate(self, model, category_header, filter_header=None, filter_values=None, checkpoint=None):
+	def evaluate(self, model, tfrecord_dir, category_header, filter_header=None, filter_values=None, checkpoint=None):
 		log.header(f"Evaluating model {sfutil.bold(model)}...")
 		SFM = self.initialize_model("evaluation", category_header, filter_header, filter_values)
 		model_dir = join(self.PROJECT['models_dir'], model, "trained_model.h5") if model[-3:] != ".h5" else model
-		results = SFM.evaluate("train", None, model_dir, checkpoint, 64)
+		results = SFM.evaluate(tfrecord_dir, None, model_dir, checkpoint, 64)
 		print(results)
 
 	def train(self, models=None, category_header='category', filter_header=None, filter_values=None, resume_training=None, checkpoint=None, supervised=True):
