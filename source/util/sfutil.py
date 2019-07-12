@@ -214,6 +214,30 @@ def int_input(prompt, default=None):
 			continue
 		return int_response
 
+def float_input(prompt, default=None, valid_range=None):
+	while True:
+		response = input(f"{prompt}")
+		if not response and default:
+			return default
+		try:
+			float_response = float(response)
+		except ValueError:
+			print("Please supply a valid number.")
+			continue
+		if valid_range and not (float_response >= valid_range[0] and float_response <= valid_range[1]):
+			print(f"Please supply a valid numer in the range {valid_range[0]} to {valid_range[1]}")
+		return float_response
+
+def choice_input(prompt, valid_choices, default=None):
+	while True:
+		response = input(f"{prompt}")
+		if not response and default:
+			return default
+		if response not in valid_choices:
+			print("Invalid option.")
+			continue
+		return response
+
 def load_json(filename):
 	with open(filename, 'r') as data_file:
 		return json.load(data_file)
