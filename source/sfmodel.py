@@ -364,7 +364,7 @@ class SlideflowModel:
 		log.complete(f"Predictions saved to {sfutil.green(csv_dir)}", 1)
 
 
-	def evaluate(self, subdir="eval", hp=None, model=None, checkpoint=None, batch_size=None):
+	def evaluate(self, subdir="validation", hp=None, model=None, checkpoint=None, batch_size=None):
 		# Load and initialize model
 		if not hp and checkpoint:
 			log.error("If using a checkpoint for evaluation, hyperparameters must be specified.")
@@ -411,7 +411,7 @@ class SlideflowModel:
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 
 		# Build inputs
-		validation_subfolder = 'train' if self.VALIDATION_SLIDES else 'eval'
+		validation_subfolder = 'train' if self.VALIDATION_SLIDES else 'validation'
 		train_data, num_tiles = self.build_dataset_inputs('train', hp.batch_size, hp.balanced_training, hp.augment, dataset='train')
 		validation_data, _ = self.build_dataset_inputs(validation_subfolder, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation')
 		#training_val_data = validation_data.repeat() if supervised else None
