@@ -361,9 +361,6 @@ class SlideflowModel:
 			onehot[val] = 1
 			return onehot
 		y_true = np.array([to_onehot(i) for i in np.concatenate(y_true)])
-		
-		log.info("Calculating performance metrics...", 1)
-		results = self.model.evaluate(data_to_eval)
 
 		# Generate ROC
 		for i in range(num_cat):
@@ -379,6 +376,9 @@ class SlideflowModel:
 				row = np.concatenate([y_true[i], y_pred[i]])
 				writer.writerow(row)
 		log.complete(f"Predictions saved to {sfutil.green(csv_dir)}", 1)
+
+		log.info("Calculating performance metrics...", 1)
+		results = self.model.evaluate(data_to_eval)
 
 		return results
 
