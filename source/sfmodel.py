@@ -358,8 +358,8 @@ class SlideflowModel:
 		training_val_data = validation_data.repeat() if supervised else None
 		
 		#testing overide
-		num_tiles = 100
-		hp.finetune_epochs = 1
+		#num_tiles = 100
+		#hp.finetune_epochs = 1
 
 		# Calculate parameters
 		total_epochs = hp.toplayer_epochs + hp.finetune_epochs
