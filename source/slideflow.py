@@ -26,12 +26,14 @@ from util.sfutil import TCGAAnnotations, log
 
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
+EVAL_BATCH_SIZE = 64
+NO_LABEL = 'no_label'
 
 def set_logging_level(level):
 	sfutil.LOGGING_LEVEL.INFO = level
 
 def select_gpu(number):
-	os.environ["CUDA_VISIBLE_DEVICES"=str(number)]
+	os.environ["CUDA_VISIBLE_DEVICES"]=str(number)
 
 class SlideFlowProject:
 	MANIFEST = None
@@ -55,107 +57,105 @@ class SlideFlowProject:
 		else:
 			self.create_project()
 		
-	def extract_tiles(self, filter_header=None, filter_values=None):
+	def extract_tiles(self, filter_header=None, filter_values=None, dataset_label=None):
 		'''filter is a dict whose keys correspond with a header label and whose value is a 
 		list of acceptable values; all other cases will be ignored
 		
 		If a single case is supplied, extract tiles for just that case.'''
-
 		log.header("Extracting image tiles...")
+		dataset_label = NO_LABEL if not dataset_label else dataset_label
 		convoluter.NUM_THREADS = NUM_THREADS
-		if not exists(join(self.PROJECT['tiles_dir'], "train_data")):
-			datasets.make_dir(join(self.PROJECT['tiles_dir'], "train_data"))
-		if not exists(join(self.PROJECT['tiles_dir'], "eval_data")):
-			datasets.make_dir(join(self.PROJECT['tiles_dir'], "eval_data"))
-
 		slide_list = sfutil.get_filtered_slide_paths(self.PROJECT['slides_dir'], self.PROJECT['annotations'], filter_header=filter_header,
 																				  							  filter_values=filter_values)
-
 		log.info(f"Extracting tiles from {len(slide_list)} slides", 1)
+
+		save_folder = join(self.PROJECT['tiles_dir'], dataset_label)
+		if not os.exists(save_folder):
+			os.makedirs(save_folder)
 
 		c = convoluter.Convoluter(self.PROJECT['tile_px'], self.PROJECT['tile_um'], batch_size=None,
 																					use_fp16=self.PROJECT['use_fp16'], 
 																					stride_div=2,
-																					save_folder=join(self.PROJECT['tiles_dir'], "train_data"), 
+																					save_folder=save_folder, 
 																					roi_dir=self.PROJECT['roi_dir'])
 		c.load_slides(slide_list)
 		c.convolute_slides(export_tiles=True)
 
-	def delete_tiles(self, case_list):
-		if type(case_list) == str:
-			case_list = [case_list]
-		if not sfutil.yes_no_input(log.warn(f"Delete tiles from {len(case_list)} cases? [y/N] ", 0, None), default='no'):
-			return
-		if self.PROJECT['use_tfrecord']:
-			log.warn("Unable to delete tiles in TFRecord files.", 0)
-			return
-		slides_with_tiles = os.listdir(join(self.PROJECT['tiles_dir'], "train_data"))
-		slides_with_tiles.extend(os.listdir(join(self.PROJECT['tiles_dir'], "eval_data")))
-		case_slide_dict = sfutil.get_annotations_dict(self.PROJECT['annotations'], TCGAAnnotations.case, TCGAAnnotations.slide, use_encode=False)	
-		for case in case_list:
-			try:
-				if case in slides_with_tiles:
-					shutil.rmtree(join(self.PROJECT['tiles_dir'], "train_data", case))
-					shutil.rmtree(join(self.PROJECT['tiles_dir'], "eval_data", case))
-				elif (case in case_slide_dict) and (case_slide_dict[case] in slides_with_tiles):
-					shutil.rmtree(join(self.PROJECT['tiles_dir'], "train_data", case_slide_dict[case]))
-					shutil.rmtree(join(self.PROJECT['tiles_dir'], "eval_data", case_slide_dict[case]))
-				else:
-					log.error(f"Unable to delete tiles for case '{case}'.", 0)
-			except:
-				log.error(f"Unable to delete tiles for case '{case}'.", 0)
-					
-	def separate_training_and_validation(self, fraction=0.1, strategy="per-tile", k_fold=1):
-		'''Separate training and eval raw image sets. Assumes images are located in "train_data" directory.
+		validation_fraction = 0.1 if 'validation_fraction' not in self.PROJECT else self.PROJECT['validation_fraction']
+		validation_strategy = 'per-tile' if 'validation_strategy' not in self.PROJECT else self.PROJECT['validation_strategy']
+		validation_k_fold = 1 if 'validation_k_fold' not in self.PROJECT else self.PROJECT['validation_k_fold']
+
+		self.separate_training_and_validation(dataset_label, validation_fraction, validation_strategy, validation_k_fold)
+		self.generate_tfrecord(dataset_label)
+
+	def separate_training_and_validation(self, dataset_label=None, fraction=0.1, strategy="per-tile", k_fold=1):
+		'''Separate training and eval raw image sets. Assumes images are located in tile directory with subfolders according to slide.
 		Args:
 			fraction		Fraction of data to set aside for validation. Default is 10%.
 			strategy		Separation strategy. Default is 'per-tile'. May specify 'per-slide' to set aside whole slides for validation.
 			k_fold			Number of cross-validations to perform during training. Only used when strategy='per-slide'. '''
 		log.header('Separating training and validation datasets...')
+		dataset_label = NO_LABEL if not dataset_label else dataset_label
+		tiles_dir = join(self.PROJECT['tiles_dir'], dataset_label)
 		if strategy=='per-tile':
-			datasets.build_validation(join(self.PROJECT['tiles_dir'], "train_data"), join(self.PROJECT['tiles_dir'], "eval_data"), fraction = fraction)
+			train_dir = join(tiles_dir, "train_data")
+			validation_dir = join(tiles_dir, "validation_data")
+			if not os.exists(train_dir): os.makedirs(train_dir)
+			if not os.exists(validation_dir): os.makedirs(validation_dir)
+
+			# Move tiles into the train_data subfolder
+			tile_directories = [_dir for _dir in listdir(tiles_dir) if isdir(join(tiles_dir, _dir))]
+			for directory in tile_directories:
+				shutil.move(join(tiles_dir, directory), train_dir)
+
+			# Extract a fraction of tiles from train_data into validation_data
+			datasets.build_validation(train_dir, validation_dir, fraction = fraction)
 		self.PROJECT['validation_strategy'] = strategy
 		self.PROJECT['validation_k_fold'] = k_fold
 		self.PROJECT['validation_fraction'] = fraction
 		self.save_project()
 
-	def generate_tfrecord(self, subdir=None):
+	def generate_tfrecord(self, dataset_label=None):
 		'''Create tfrecord files from a collection of raw images'''
 		# Note: this will not work as the write_tfrecords function expects a category directory
 		# Will leave as is to manually test performance with category defined in the TFRecrod
 		#  vs. dynamically assigning category via annotation metadata during training
+		log.header('Writing TFRecord files...')
+		dataset_label = NO_LABEL if not dataset_label else dataset_label
+		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], dataset_label)
+		tiles_dir = join(self.PROJECT['tiles_dir'], dataset_label)
 		validation_strategy = 'per-tile' if 'validation_strategy' not in self.PROJECT else self.PROJECT['validation_strategy']
 
-		if not exists(self.PROJECT['tfrecord_dir']):
-			datasets.make_dir(self.PROJECT['tfrecord_dir'])
-		tfrecord_train_dir = join(self.PROJECT['tfrecord_dir'], 'train')
-		if not exists(tfrecord_train_dir):
-			os.mkdir(tfrecord_train_dir)
-		if validation_strategy == 'per-tile':
-			tfrecord_eval_dir = join(self.PROJECT['tfrecord_dir'], 'eval')
-			if not exists(tfrecord_eval_dir):
-				os.mkdir(tfrecord_eval_dir)
+		if not exists(tfrecord_dir):
+			os.makedirs(tfrecord_dir)
 
-		primary_output_directory = tfrecord_train_dir if not subdir else join(self.PROJECT['tfrecord_dir'], subdir)
-		if not exists(primary_output_directory):
-			os.mkdir(primary_output_directory)
-
-		log.header('Writing TFRecord files...')
-		tfrecords.write_tfrecords_multi(join(self.PROJECT['tiles_dir'], 'train_data'), primary_output_directory, self.PROJECT['annotations'])
 		if validation_strategy == 'per-tile':
-			tfrecords.write_tfrecords_multi(join(self.PROJECT['tiles_dir'], 'eval_data'), tfrecord_eval_dir, self.PROJECT['annotations'])
+			tfrecord_train_dir = join(tfrecord_dir, 'train')
+			tfrecord_validation_dir = join(tfrecord_dir, 'validation')
+			if not exists(tfrecord_train_dir):
+				os.makedirs(tfrecord_train_dir)
+			if not exists(tfrecord_validation_dir):
+				os.makedirs(tfrecord_validation_dir)
+
+			tfrecords.write_tfrecords_multi(join(tiles_dir, 'train_data'), tfrecord_train_dir, self.PROJECT['annotations'])
+			tfrecords.write_tfrecords_multi(join(tiles_dir, 'validation_data'), tfrecord_validation_dir, self.PROJECT['annotations'])
+		else:
+			tfrecords.write_tfrecords_multi(tiles_dir, tfrecord_dir, self.PROJECT['annotations'])
 		
 		if self.PROJECT['delete_tiles']:
-			shutil.rmtree(join(self.PROJECT['tiles_dir'], "train_data"))
-			if validation_strategy == 'per-tile':
-				shutil.rmtree(join(self.PROJECT['tiles_dir'], "eval_data"))
-		
-		self.generate_manifest()
+			shutil.rmtree(tiles_dir)
+
+		self.update_manifest(tfrecord_dir)
+
+	def delete_tiles(self, subdir=None):
+		delete_folder = self.PROJECT['tiles_dir'] if not subdir else join(self.PROJECT['tiles_dir'], subdir)
+		shutil.rmtree(delete_folder)
+		log.info(f"Deleted tiles in folder {sfutil.green(delete_folder)}", 1)
 
 	def checkpoint_to_h5(self, model_name):
 		tfrecords.checkpoint_to_h5(self.PROJECT['models_dir'], model_name)
 
-	def initialize_model(self, model_name, category_header, filter_header=None, filter_values=None):
+	def initialize_model(self, model_name, input_dir, category_header, filter_header=None, filter_values=None):
 		# Assemble list of slides for training and annotations dictionary
 		slide_to_category = sfutil.get_annotations_dict(self.PROJECT['annotations'], 'slide', category_header, 
 																							filter_header=filter_header, 
@@ -163,7 +163,6 @@ class SlideFlowProject:
 																							use_encode=True)
 
 		model_dir = join(self.PROJECT['models_dir'], model_name)
-		input_dir = self.PROJECT['tfrecord_dir'] #if self.PROJECT['use_tfrecord'] else self.PROJECT['tiles_dir']
 		
 		validation_strategy == 'per-tile' if 'validation_strategy' not in self.PROJECT else self.PROJECT['validation_strategy']
 		validation_fraction == 0.1 if 'validation_fraction' not in self.PROJECT else self.PROJECT['validation_fraction']
@@ -175,19 +174,20 @@ class SlideFlowProject:
 																				use_fp16=self.PROJECT['use_fp16'])
 		return SFM
 
-	def evaluate(self, model, tfrecord_dir, category_header, filter_header=None, filter_values=None, checkpoint=None):
+	def evaluate(self, model, dataset_label, category_header, filter_header=None, filter_values=None, checkpoint=None):
 		log.header(f"Evaluating model {sfutil.bold(model)}...")
-		SFM = self.initialize_model("evaluation", category_header, filter_header, filter_values)
+		SFM = self.initialize_model("evaluation", tfrecord_dir, category_header, filter_header, filter_values)
 		model_dir = join(self.PROJECT['models_dir'], model, "trained_model.h5") if model[-3:] != ".h5" else model
-		results = SFM.evaluate(tfrecord_dir, None, model_dir, checkpoint, 64)
+		results = SFM.evaluate(subdir=dataset_label, hp=None, model=model_dir, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
 		print(results)
 
-	def train(self, models=None, category_header='category', filter_header=None, filter_values=None, resume_training=None, checkpoint=None, supervised=True):
+	def train(self, models=None, dataset_label='training', category_header='category', filter_header=None, filter_values=None, resume_training=None, checkpoint=None, supervised=True):
 		'''Train model(s) given configurations found in batch_train.csv.
 		Args:
 			models			(optional) Either string representing a model name or an array of strings containing model names. 
 								Will train models with these names in the batch_train.csv config file.
 								Defaults to None, which will train all models in the batch_train.csv config file.
+			dataset_label	(optional) Which dataset to pull tfrecord files from (subdirectory in tfrecord_dir); defaults to 'training'
 			category_header	(optional) Which header in the annotation file to use for the output category. Defaults to 'category'
 			filter_header	(optional) Filter slides to inculde in training by this column
 			filter_values	(optional) String or array of strings. Only train on slides with these values in the filter_header column.
@@ -196,6 +196,7 @@ class SlideFlowProject:
 			supervised		(optional) Whether to use verbose output and save training progress to Tensorboard
 		Returns:
 			A dictionary containing model names mapped to train_acc, val_loss, and val_acc'''
+		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], dataset_label)
 		# First, quickly scan for errors (duplicate model names) and prepare models to train
 		models_to_train, model_acc = [], {}
 		with open(self.PROJECT['batch_train_config']) as csv_file:
@@ -229,7 +230,7 @@ class SlideFlowProject:
 				log.empty(f"Training model {sfutil.bold(model_name)}{k_fold_msg}...", 1)
 				log.info(hp, 1)
 			model_name = model_name if not k_fold_iter else model_name+f"-kfold{k_fold_iter}"
-			SFM = self.initialize_model(model_name, category_header, filter_header, filter_values)
+			SFM = self.initialize_model(model_name, tfrecord_dir, category_header, filter_header, filter_values)
 			try:
 				train_acc, val_loss, val_acc = SFM.train(hp, pretrain=self.PROJECT['pretrain'], 
 															resume_training=resume_training, 
@@ -417,11 +418,24 @@ class SlideFlowProject:
 	def associate_slide_names(self):
 		sfutil.verify_annotations(self.PROJECT['annotations'], self.PROJECT['slides_dir'])
 
+	def update_manifest(self, dataset_label):
+		manifest_path = sfutil.global_path('manifest.json')
+		if not os.path.exists(manifest_path):
+			self.generate_manifest()
+		else:
+			input_dir = join(self.PROJECT['tfrecord_dir'], dataset_label)
+			annotations = sfutil.get_annotations_dict(self.PROJECT['annotations'], key_name="slide", value_name="category")
+			tfrecord_files = glob(os.path.join(input_dir, "*/*.tfrecords"))
+			self.MANIFEST = sfutil.load_json(manifest_path)
+			self.MANIFEST.update(sfutil.verify_tiles(annotations, tfrecord_files))
+			sfutil.write_json(old_manifest, manifest_path)
+
 	def generate_manifest(self):
-		input_dir = self.PROJECT['tfrecord_dir'] #if self.PROJECT['use_tfrecord'] else self.PROJECT['tiles_dir']
+		self.MANIFEST = {}
+		input_dir = self.PROJECT['tfrecord_dir']
 		annotations = sfutil.get_annotations_dict(self.PROJECT['annotations'], key_name="slide", value_name="category")
-		tfrecord_files = glob(os.path.join(input_dir, "*/*.tfrecords")) #if self.PROJECT['use_tfrecord'] else []
-		self.MANIFEST = sfutil.verify_tiles(annotations, input_dir, tfrecord_files)
+		tfrecord_files = glob(os.path.join(input_dir, "*/*/*.tfrecords"))
+		self.MANIFEST = sfutil.verify_tiles(annotations, tfrecord_files)
 		sfutil.write_json(self.MANIFEST, sfutil.global_path("manifest.json"))
 
 	def load_project(self, directory):
