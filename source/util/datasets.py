@@ -29,8 +29,8 @@ def build_validation(train_dir, eval_dir, fraction = 0.1):
 		total_moved += num_to_move
 		for file in files[0:num_to_move]:
 			shutil.move(join(train_dir, case_dir, file), join(eval_dir, case_dir, file))
-		log.empty(f"Set aside {num_to_move} tiles for case {sfutil.green(case_dir)} for eval dataset", 1)
-	log.complete(f"Set aside {sfutil.bold(total_moved)} tiles for eval dataset", 1)
+		log.empty(f"Set aside {num_to_move} tiles for case {sfutil.green(case_dir)} for validation dataset", 1)
+	log.complete(f"Set aside {sfutil.bold(total_moved)} tiles for validation dataset", 1)
 
 def merge_validation(train_dir, eval_dir):
 	cat_dirs = [_dir for _dir in listdir(eval_dir) if isdir(join(eval_dir, _dir))]
