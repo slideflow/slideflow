@@ -332,26 +332,13 @@ class SlideflowModel:
 		plt.show()
 		plt.savefig(os.path.join(self.DATA_DIR, f'{name}.png'))
 
-	def evaluate(self, subdir="eval", hp=None, model=None, checkpoint=None, batch_size=None):
-		# Load and initialize model
-		if not hp and checkpoint:
-			log.error("If using a checkpoint for evaluation, hyperparameters must be specified.")
-			sys.exit()
-		batch_size = batch_size if not hp else hp.batch_size
-		augment = False if not hp else hp.augment
-		data_to_eval, _ = self.build_dataset_inputs(subdir, batch_size, NO_BALANCE, augment, finite=True)
-		if model:
-			self.model = tf.keras.models.load_model(model)
-		elif checkpoint:
-			self.model = self.build_model(hp)
-			self.model.load_weights(checkpoint)
-		
-		# Now get predictions and performance metrics
+	def generate_predictions_and_roc(self, model, dataset):
+		# Get predictions and performance metrics
 		log.info("Generating predictions...", 1)
 		y_true, y_pred = [], []
-		for batch in data_to_eval:
+		for batch in dataset:
 			y_true += [batch[1].numpy()]
-			y_pred += [self.model.predict_on_batch(batch)]
+			y_pred += [model.predict_on_batch(batch)]
 		y_pred = np.concatenate(y_pred)
 
 		# Convert y_true to one_hot encoding
@@ -376,6 +363,23 @@ class SlideflowModel:
 				row = np.concatenate([y_true[i], y_pred[i]])
 				writer.writerow(row)
 		log.complete(f"Predictions saved to {sfutil.green(csv_dir)}", 1)
+
+
+	def evaluate(self, subdir="eval", hp=None, model=None, checkpoint=None, batch_size=None):
+		# Load and initialize model
+		if not hp and checkpoint:
+			log.error("If using a checkpoint for evaluation, hyperparameters must be specified.")
+			sys.exit()
+		batch_size = batch_size if not hp else hp.batch_size
+		augment = False if not hp else hp.augment
+		data_to_eval, _ = self.build_dataset_inputs(subdir, batch_size, NO_BALANCE, augment, finite=True)
+		if model:
+			self.model = tf.keras.models.load_model(model)
+		elif checkpoint:
+			self.model = self.build_model(hp)
+			self.model.load_weights(checkpoint)
+
+		self.generate_predictions_and_roc(self.model, data_to_eval)
 
 		log.info("Calculating performance metrics...", 1)
 		results = self.model.evaluate(data_to_eval)
@@ -473,6 +477,9 @@ class SlideflowModel:
 
 		self.model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
 		train_acc = finetune_model.history['accuracy']
+
+		# Generate predictions and ROC
+		self.generate_predictions_and_roc(self.model, validation_data)
 
 		# Final validation testing, getting both overall accuracy/loss and predictions for ROCs
 		if verbose: log.info("Beginning validation testing", 1)
