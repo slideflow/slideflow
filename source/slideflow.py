@@ -25,13 +25,16 @@ from util.sfutil import TCGAAnnotations, log
 # TODO: automatic loading of training configuration even when training one model
 
 SKIP_VERIFICATION = False
+NUM_THREADS = 4
 
 def set_logging_level(level):
 	sfutil.LOGGING_LEVEL.INFO = level
 
+def select_gpu(number):
+	os.environ["CUDA_VISIBLE_DEVICES"=str(number)]
+
 class SlideFlowProject:
 	MANIFEST = None
-	NUM_THREADS = 4
 	USE_FP16 = True
 
 	def __init__(self, project_folder):
@@ -59,7 +62,7 @@ class SlideFlowProject:
 		If a single case is supplied, extract tiles for just that case.'''
 
 		log.header("Extracting image tiles...")
-		convoluter.NUM_THREADS = self.NUM_THREADS
+		convoluter.NUM_THREADS = NUM_THREADS
 		if not exists(join(self.PROJECT['tiles_dir'], "train_data")):
 			datasets.make_dir(join(self.PROJECT['tiles_dir'], "train_data"))
 		if not exists(join(self.PROJECT['tiles_dir'], "eval_data")):
