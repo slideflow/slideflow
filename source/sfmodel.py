@@ -179,7 +179,15 @@ class SlideflowModel:
 		image = self._process_image(image_string, self.AUGMENT)
 		return image, label
 
-	def _interleave_tfrecords(self, folder, batch_size, balance, finite, dataset=None):
+	def _parse_tfrecord_with_casenames_function(self, record):
+		features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
+		case = features['case']
+		label = self.ANNOTATIONS_TABLE.lookup(case)
+		image_string = features['image_raw']
+		image = self._process_image(image_string, self.AUGMENT)
+		return image, label, case
+
+	def _interleave_tfrecords(self, folder, batch_size, balance, finite, dataset=None, include_casenames=False):
 		'''Generates an interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to balancing if provided.
 		Requires self.MANIFEST. Assumes TFRecord files are named by case.
@@ -209,7 +217,7 @@ class SlideflowModel:
 			# Now remove all tfrecord_files except those in self.SLIDES (if not None)
 			tfrecord_files = tfrecord_files if not self.SLIDES else [tfr for tfr in tfrecord_files 
 																	if tfr.split('/')[-1][:-10] in self.SLIDES]
-			log.info(f"Training across {sfutil.green(str(len(tfrecord_files)))} slides", 1)
+			log.info(f"Accessing TFRecords from {sfutil.green(str(len(tfrecord_files)))} slides", 1)
 		elif dataset=='train':
 			tfrecord_files = tfrecord_files if not self.SLIDES else [tfr for tfr in tfrecord_files 
 																	if (tfr.split('/')[-1][:-10] in self.SLIDES) and (tfr.split('/')[-1][:-10] not in self.VALIDATION_SLIDES)]
@@ -278,19 +286,25 @@ class SlideflowModel:
 		except IndexError:
 			log.error(f"No TFRecords found in {sfutil.green(search_folder)} after filter criteria", 1)
 			sys.exit()
+		if include_casenames:
+			dataset_with_casenames = dataset.map(self._parse_tfrecord_with_casenames_function, num_parallel_calls = 8)
+			dataset_with_casenames = dataset_with_casenames.batch(batch_size)
+		else:
+			dataset_with_casenames = None
 		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
-		return dataset, global_num_tiles
+		
+		return dataset, dataset_with_casenames, global_num_tiles
 
-	def build_dataset_inputs(self, subfolder, batch_size, balance, augment, finite=False, dataset=None):
+	def build_dataset_inputs(self, subfolder, batch_size, balance, augment, finite=False, dataset=None, include_casenames=False):
 		'''Args:
 			subfolder:		Sub-directory in which to search for tfrecords, if applicable
 			balance:		Whether to use input balancing; options are BALANCE_BY_CASE, BALANCE_BY_CATEGORY, NO_BALANCE
 								 (only available if TFRECORDS_BY_CASE=True)'''
 		self.AUGMENT = augment
 		with tf.name_scope('input'):
-			dataset, num_tiles = self._interleave_tfrecords(subfolder, batch_size, balance, finite, dataset)
-		return dataset, num_tiles
+			dataset, dataset_with_casenames, num_tiles = self._interleave_tfrecords(subfolder, batch_size, balance, finite, dataset, include_casenames)
+		return dataset, dataset_with_casenames, num_tiles
 
 	def build_model(self, hp, pretrain=None, checkpoint=None):
 		# Assemble base model, using pretraining (imagenet) or the base layers of a supplied model
@@ -340,13 +354,15 @@ class SlideflowModel:
 		plt.xlabel('FPR')
 		plt.savefig(os.path.join(self.DATA_DIR, f'{name}.png'))
 
-	def generate_predictions_and_roc(self, model, dataset, label=None):
+	def generate_predictions_and_roc(self, model, dataset_with_casenames, label=None):
+		'''Dataset must include three items: raw image data, labels, and case names.'''
 		# Get predictions and performance metrics
 		log.info("Generating predictions...", 1)
-		y_true, y_pred = [], []
-		for batch in dataset:
+		y_true, y_pred, cases = [], [], []
+		for batch in dataset_with_casenames:
+			cases += [case_bytes.decode('utf-8') for case_bytes in batch[2].numpy()]
 			y_true += [batch[1].numpy()]
-			y_pred += [model.predict_on_batch(batch)]
+			y_pred += [model.predict_on_batch(batch[0])]
 		y_pred = np.concatenate(y_pred)
 
 		# Convert y_true to one_hot encoding
@@ -357,23 +373,65 @@ class SlideflowModel:
 			return onehot
 		y_true = np.array([to_onehot(i) for i in np.concatenate(y_true)])
 
-		# Generate ROC
+		# Scan datasets for case-level one_hot encoding
+		case_onehot = {}
+		for i in range(len(cases)):
+			casename = cases[i]
+			if casename not in case_onehot:
+				case_onehot.update({casename: y_true[i]})
+			# Now check for data integrity problems (case assigned to multiple different outcomes)
+			elif not np.array_equal(case_onehot[casename], y_true[i]):
+				log.error("Data integrity failure when generating ROCs", 1)
+				sys.exit()
+
+		# Generate tile-level ROC
 		label_end = "" if not label else f"_{label}"
 		label_start = "" if not label else f"{label}_"
 		for i in range(num_cat):
-			self.generate_roc(y_true[:, i], y_pred[:, i], f'{label_start}ROC{i}')
+			self.generate_roc(y_true[:, i], y_pred[:, i], f'{label_start}tile_ROC{i}')
+
+		# Generate slide-level ROC
+		onehot_predictions = []
+		for x in range(len(y_pred)):
+			predictions = y_pred[x]
+			onehot_predictions += [[1 if pred == max(predictions) else 0 for pred in predictions]]
+
+		unique_cases = list(set(cases))
+		percent_calls_by_case = []
+		for case in unique_cases:
+			percentages = []
+			for cat_index in range(num_cat):
+				percentages += [sum([ onehot_predictions[i][cat_index] for i in range(len(cases)) if cases[i] == case ]) / len([i for i in range(len(cases)) if cases[i] == case])]
+			percent_calls_by_case += [percentages]
+		percent_calls_by_case = np.array(percent_calls_by_case)
+
+		for i in range(num_cat):
+			case_y_pred = percent_calls_by_case[:, i]
+			case_y_true = [case_onehot[case][i] for case in unique_cases]
+			self.generate_roc(case_y_true, case_y_pred, f'{label_start}slide_ROC{i}')
 
 		# Save results to CSV
-		csv_dir = os.path.join(self.DATA_DIR, f"predictions{label_end}.csv")
-		with open(csv_dir, 'w') as outfile:
+		# First, save tile-level predictions
+		tile_csv_dir = os.path.join(self.DATA_DIR, f"tile_predictions{label_end}.csv")
+		with open(tile_csv_dir, 'w') as outfile:
 			writer = csv.writer(outfile)
-			header = [f"y_true{i}" for i in range(num_cat)] + [f"y_pred{j}" for j in range(num_cat)]
+			header = ['case'] + [f"y_true{i}" for i in range(num_cat)] + [f"y_pred{j}" for j in range(num_cat)]
 			writer.writerow(header)
 			for i in range(len(y_true)):
-				row = np.concatenate([y_true[i], y_pred[i]])
+				row = np.concatenate([[cases[i]], y_true[i], y_pred[i]])
 				writer.writerow(row)
-		log.complete(f"Predictions saved to {sfutil.green(csv_dir)}", 1)
-
+		# Now, save slide-level predictions
+		slide_csv_dir = os.path.join(self.DATA_DIR, f"slide_predictions{label_end}.csv")
+		with open(slide_csv_dir, 'w') as outfile:
+			writer = csv.writer(outfile)
+			header = ['case'] + [f"y_true{i}" for i in range(num_cat)] + [f"percent_tiles_positive{j}" for j in range(num_cat)]
+			writer.writerow(header)
+			for i, case in enumerate(unique_cases):
+				case_y_true_onehot = case_onehot[case]
+				case_y_pred_onehot = []
+				row = np.concatenate([ [case], case_y_true_onehot, percent_calls_by_case[i] ])
+				writer.writerow(row)
+		log.complete(f"Predictions saved to {sfutil.green(tile_csv_dir)} and {sfutil.green(slide_csv_dir)}", 1)
 
 	def evaluate(self, subdir="validation", hp=None, model=None, checkpoint=None, batch_size=None):
 		# Load and initialize model
@@ -382,17 +440,17 @@ class SlideflowModel:
 			sys.exit()
 		batch_size = batch_size if not hp else hp.batch_size
 		augment = False if not hp else hp.augment
-		data_to_eval, _ = self.build_dataset_inputs(subdir, batch_size, NO_BALANCE, augment, finite=True)
+		dataset, dataset_with_casenames, num_tiles = self.build_dataset_inputs(subdir, batch_size, NO_BALANCE, augment, finite=True, include_casenames=True)
 		if model:
 			self.model = tf.keras.models.load_model(model)
 		elif checkpoint:
 			self.model = self.build_model(hp)
 			self.model.load_weights(checkpoint)
 
-		self.generate_predictions_and_roc(self.model, data_to_eval, label="eval")
+		self.generate_predictions_and_roc(self.model, dataset_with_casenames, label="eval")
 
 		log.info("Calculating performance metrics...", 1)
-		results = self.model.evaluate(data_to_eval)
+		results = self.model.evaluate(dataset)
 
 		return results
 
@@ -422,11 +480,11 @@ class SlideflowModel:
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 
 		# Build inputs
-		train_data, num_tiles = self.build_dataset_inputs(self.TFRECORD_TRAINING, hp.batch_size, hp.balanced_training, hp.augment, dataset='train')
-		validation_data, _ = self.build_dataset_inputs(self.TFRECORD_VALIDATION, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation')
+		train_data, _, num_tiles = self.build_dataset_inputs(self.TFRECORD_TRAINING, hp.batch_size, hp.balanced_training, hp.augment, dataset='train', include_casenames=False)
+		validation_data, validation_data_with_casenames, _ = self.build_dataset_inputs(self.TFRECORD_VALIDATION, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation', include_casenames=True)
 		
 		#testing overide
-		#num_tiles = 100
+		num_tiles = 100
 		#hp.finetune_epochs = 3
 
 		# Calculate parameters
@@ -463,7 +521,7 @@ class SlideflowModel:
 				if epoch+1 in hp.finetune_epochs:
 					epoch_label = f"val_epoch{epoch+1}"
 					self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5"))
-					parent.generate_predictions_and_roc(self.model, validation_data, label=epoch_label)
+					parent.generate_predictions_and_roc(self.model, validation_data_with_casenames, label=epoch_label)
 					train_acc = logs['accuracy']
 					if verbose: log.info("Beginning validation testing", 1)
 					val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
@@ -513,10 +571,10 @@ class SlideflowModel:
 
 		# This section is no longer needed due to the PredictionAndEvaluationCallback
 		# Generate predictions and ROC
-		#self.generate_predictions_and_roc(self.model, validation_data, "eval")
+		#self.generate_predictions_and_roc(self.model, validation_data_with_casenames, "eval")
 
 		# Final validation testing, getting both overall accuracy/loss and predictions for ROCs
-		#if verbose: log.info("Beginning validation testing", 1)
-		#val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
+		if verbose: log.info("Beginning final validation testing", 1)
+		val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
 		return train_acc, val_loss, val_acc
