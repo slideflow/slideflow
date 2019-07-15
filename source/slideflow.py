@@ -226,7 +226,12 @@ class SlideFlowProject:
 			full_model_name = model_name if not k_fold_iter else model_name+f"-kfold{k_fold_iter}"
 			SFM = self.initialize_model(full_model_name, tfrecord_dir, category_header, filter_header, filter_values)
 			with open(os.path.join(self.PROJECT['models_dir'], full_model_name, 'hyperparameters.log'), 'w') as hp_file:
-				hp_file.write(str(hp))
+				hp_text = f"Tile pixel size: {self.PROJECT['tile_px']}\n"
+				hp_text += f"Tile micron size: {self.PROJECT['tile_um']}\n"
+				hp_text += str(hp)
+				for s in sfutil.FORMATTING_OPTIONS:
+					hp_text = hp_text.replace(s, "")
+				hp_file.write(hp_text)
 			try:
 				train_acc, val_loss, val_acc = SFM.train(hp, pretrain=self.PROJECT['pretrain'], 
 															resume_training=resume_training, 

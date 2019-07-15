@@ -364,7 +364,7 @@ class SlideflowModel:
 			self.generate_roc(y_true[:, i], y_pred[:, i], f'{label_start}ROC{i}')
 
 		# Save results to CSV
-		csv_dir = os.path.join(self.DATA_DIR, f"eval_predictions{label_end}.csv")
+		csv_dir = os.path.join(self.DATA_DIR, f"predictions{label_end}.csv")
 		with open(csv_dir, 'w') as outfile:
 			writer = csv.writer(outfile)
 			header = [f"y_true{i}" for i in range(num_cat)] + [f"y_pred{j}" for j in range(num_cat)]
@@ -389,7 +389,7 @@ class SlideflowModel:
 			self.model = self.build_model(hp)
 			self.model.load_weights(checkpoint)
 
-		self.generate_predictions_and_roc(self.model, data_to_eval)
+		self.generate_predictions_and_roc(self.model, data_to_eval, label="eval")
 
 		log.info("Calculating performance metrics...", 1)
 		results = self.model.evaluate(data_to_eval)
@@ -461,7 +461,7 @@ class SlideflowModel:
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
 			def on_epoch_end(self, epoch, logs=None):
 				if epoch+1 in hp.finetune_epochs:
-					epoch_label = f"epoch{epoch+1}"
+					epoch_label = f"val_epoch{epoch+1}"
 					self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5"))
 					parent.generate_predictions_and_roc(self.model, validation_data, label=epoch_label)
 					train_acc = logs['accuracy']
@@ -511,11 +511,12 @@ class SlideflowModel:
 		self.model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
 		train_acc = finetune_model.history['accuracy']
 
+		# This section is no longer needed due to the PredictionAndEvaluationCallback
 		# Generate predictions and ROC
-		self.generate_predictions_and_roc(self.model, validation_data)
+		#self.generate_predictions_and_roc(self.model, validation_data, "eval")
 
 		# Final validation testing, getting both overall accuracy/loss and predictions for ROCs
-		if verbose: log.info("Beginning validation testing", 1)
-		val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
+		#if verbose: log.info("Beginning validation testing", 1)
+		#val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
 		return train_acc, val_loss, val_acc
