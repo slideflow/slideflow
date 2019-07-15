@@ -31,6 +31,7 @@ ENDC = '\033[0m'
 BOLD = '\033[1m'
 UNDERLINE = '\033[4m'
 
+FORMATTING_OPTIONS = [HEADER, BLUE, GREEN, WARNING, FAIL, ENDC, BOLD, UNDERLINE]
 LOGGING_PREFIXES = ['', ' + ', '    - ']
 LOGGING_PREFIXES_WARN = ['', ' ! ', '    ! ']
 LOGGING_PREFIXES_EMPTY = ['', '   ', '     ']
@@ -135,9 +136,8 @@ class Logger:
 		return message
 	def log(self, text):
 		st = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-		to_remove = [HEADER, BLUE, GREEN, WARNING, FAIL, ENDC, BOLD, UNDERLINE]
 		if self.logfile:
-			for s in to_remove:
+			for s in FORMATTING_OPTIONS:
 				text = text.replace(s, "")
 			with open(self.logfile, 'a') as outfile:
 				outfile.write(f"[{st}] {text.strip()}\n")
