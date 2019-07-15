@@ -270,11 +270,16 @@ class SlideReader:
 				log.error(f"Unable to read CSV ROI file {sfutil.green(path)}, please check file integrity and ensure it is not empty.", 1)
 				sys.exit()
 			try:
-				index_name = headers.index("ROI_Name")
+				index_name = headers.index("ROI_name")
 				index_x = headers.index("X_base")
 				index_y = headers.index("Y_base")
-			except ValueError:
-				raise IndexError('Unable to find "ROI_Name, "X_base", and "Y_base" columns in CSV file.')
+			except:
+				try:
+					index_name = headers.index("ROI_Name")
+					index_x = headers.index("X_base")
+					index_y = headers.index("Y_base")
+				except:
+					raise IndexError('Unable to find "ROI_name", "X_base", and "Y_base" columns in CSV file.')
 			for row in reader:
 				roi_name = row[index_name]
 				x_coord = int(float(row[index_x]))
