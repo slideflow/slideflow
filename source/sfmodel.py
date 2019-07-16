@@ -152,6 +152,21 @@ class SlideflowModel:
 
 		if not os.path.exists(self.DATA_DIR):
 			os.makedirs(self.DATA_DIR)
+		
+		# Record which slides are used for training and validation, and to which categories they belong
+		with open(os.path.join(self.DATA_DIR, 'slide_manifest.log'), 'w') as slide_manifest:
+			writer = csv.writer(slide_manifest)
+			header = ['slide', 'dataset', 'category']
+			writer.writerow(header)
+			for slide in self.SLIDES:
+				if validation_strategy == 'per-tile':
+					dataset = 'training/validation'
+				elif slide in self.VALIDATION_SLIDES:
+					dataset = 'validation'
+				else:
+					dataset = 'training'
+				category = slide_to_category[slide]
+				writer.writerow([slide, dataset, category])
 
 	def _process_image(self, image_string, augment):
 		image = tf.image.decode_jpeg(image_string, channels = 3)
