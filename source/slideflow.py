@@ -476,7 +476,7 @@ class SlideFlowProject:
 									default='./slides', create_on_invalid=True)
 		
 		# Ask for annotations file location; if one has not been made, offer to create a blank template and then exit
-		if not sfutil.yes_no_input("Has an annotations (CSV) file already been created? [Y/n] ", default='yes'):
+		if not sfutil.yes_no_input("Has an annotations (CSV) file already been created? [y/N] ", default='no'):
 			if sfutil.yes_no_input("Create a blank annotations file? [Y/n] ", default='yes'):
 				project['annotations'] = sfutil.file_input("Where will the annotation file be located? [./annotations.csv] ", 
 									default='./annotations.csv', filetype="csv", verify=False)
@@ -522,5 +522,12 @@ class SlideFlowProject:
 
 		sfutil.write_json(project, join(sfutil.PROJECT_DIR, 'settings.json'))
 		self.PROJECT = project
+
+		# Write a sample actions.py file
+		with open('sample_actions.py', 'r') as sample_file:
+			sample_actions = sample_file.read()
+			with open(os.path.join(sfutil.PROJECT_DIR, 'actions.py'), 'w') as actions_file:
+				actions_file.write(sample_actions)
+
 		print("\nProject configuration saved.\n")
 		sys.exit()
