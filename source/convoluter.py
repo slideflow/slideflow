@@ -375,8 +375,12 @@ class Convoluter:
 		if export_tiles and not (display_heatmaps or save_final_layer or save_heatmaps):
 			log.info("Exporting tiles only, no new calculations or heatmaps will be generated.", 1)
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
-			pool = Pool(NUM_THREADS)
-			pool.map(lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
+			if NUM_THREADS > 1:
+				pool = Pool(NUM_THREADS)
+				pool.map(lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
+			else:
+				for slide in self.SLIDES:
+					self.export_tiles(self.SLIDES[slide], pb)
 			return
 
 		# Otherwise, we are generating heatmaps and unable to use multithreading or multiprocessing
