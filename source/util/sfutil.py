@@ -139,8 +139,9 @@ class Logger:
 		if self.logfile:
 			for s in FORMATTING_OPTIONS:
 				text = text.replace(s, "")
-			with open(self.logfile, 'a') as outfile:
-				outfile.write(f"[{st}] {text.strip()}\n")
+			outfile = open(self.logfile, 'a')
+			outfile.write(f"[{st}] {text.strip()}\n")
+			outfile.close()
 
 log = Logger()
 
