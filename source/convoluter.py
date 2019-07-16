@@ -101,6 +101,7 @@ class JPGSlide:
 class SlideReader:
 	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
 	def __init__(self, path, name, filetype, size_px, size_um, stride_div, export_folder=None, roi_dir=None, pb=None):
+		self.load_error = False
 		self.print = print if not pb else pb.print
 		self.rois = []
 		self.pb = pb # Progress bar
@@ -118,12 +119,14 @@ class SlideReader:
 			except ops.lowlevel.OpenSlideUnsupportedFormatError:
 				log.warn(f" Unable to read SVS file from {path} , skipping", 1, self.print)
 				self.shape = None
-				return None
+				self.load_error = True
+				return
 		elif filetype == "jpg":
 			self.slide = JPGSlide(path, mpp=DEFAULT_JPG_MPP)
 		else:
 			log.error(f"Unsupported file type '{filetype}' for case {self.shortname}.", 1, self.print)
-			return None
+			self.load_error = True
+			return
 
 		# Load ROI from roi_dir if available
 		if roi_dir and exists(join(roi_dir, self.name + ".csv")):
@@ -135,7 +138,8 @@ class SlideReader:
 			if SKIP_MISSING_ROI:
 				log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.print)
 				self.shape = None
-				return None
+				self.load_error = True
+				return
 			else:
 				log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
 				num_rois = 0
@@ -180,6 +184,8 @@ class SlideReader:
 		imageio.imwrite(self.thumb_file, self.thumb)
 
 	def loaded_correctly(self):
+		if self.load_error:
+			return False
 		try:
 			loaded_correctly = bool(self.shape) 
 		except:
@@ -192,7 +198,6 @@ class SlideReader:
 		coord = []
 		slide_x_size = self.full_shape[0] - self.full_extract_px
 		slide_y_size = self.full_shape[1] - self.full_extract_px
-		if export and not os.path.exists(self.tiles_path): os.makedirs(self.tiles_path)
 
 		# Coordinates must be in level 0 (full) format for the read_region function
 		for y in np.arange(0, (self.full_shape[1]+1) - self.full_extract_px, self.full_stride):
@@ -210,6 +215,9 @@ class SlideReader:
 		roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
 
 		total_logits_count = int(len(coord) * roi_area_fraction)
+		if total_logits_count == 0:
+			log.warn(f"No tiles were able to be extracted at the given micron size for case {sfutil.green(self.shortname)}", 1)
+			return None, None, None, None, None
 		# Create mask for indicating whether tile was extracted
 		tile_mask = np.asarray([0 for i in range(len(coord))])
 		self.tile_mask = None
@@ -217,6 +225,7 @@ class SlideReader:
 
 		def generator():
 			tile_counter=0
+			if export and not os.path.exists(self.tiles_path): os.makedirs(self.tiles_path)
 			for ci in range(len(coord)):
 				c = coord[ci]
 				# Check if the center of the current window lies within any annotation; if not, skip
@@ -375,9 +384,14 @@ class Convoluter:
 		if export_tiles and not (display_heatmaps or save_final_layer or save_heatmaps):
 			log.info("Exporting tiles only, no new calculations or heatmaps will be generated.", 1)
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
+			def worker(slide):
+				#result = self.export_tiles(self.SLIDES[slide], pb)
+				#print('result', slide, result)
+				result = self.export_tiles(self.SLIDES[slide], pb)
+				#print(result)
 			if NUM_THREADS > 1:
 				pool = Pool(NUM_THREADS)
-				pool.map(lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
+				pool.map(worker, self.SLIDES)#lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
 			else:
 				for slide in self.SLIDES:
 					self.export_tiles(self.SLIDES[slide], pb)
@@ -412,16 +426,24 @@ class Convoluter:
 		category = slide['category']
 		path = slide['path']
 		filetype = slide['type']
+		
 		shortname = sfutil._shortname(case_name)
+		
 
-		log.empty(f"Exporting tiles for case {sfutil.green(shortname)}", 1, pb.print)
-
-		# Load the slide
+		#log.empty(f"Exporting tiles for case {sfutil.green(shortname)}", 1, pb.print)
+		log.empty(f"Exporting tiles for case {shortname}", 1, pb.print)
+		
+		# Load the slide	
 		whole_slide = SlideReader(path, case_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
-		if not whole_slide.loaded_correctly(): return
-
+		if not whole_slide.loaded_correctly():
+			return False
+		
 		# Create a generator to tessellate image tiles
 		gen_slice, _, _, _, _ = whole_slide.build_generator(export=True, augment=self.AUGMENT)
+
+		if not gen_slice:
+			log.error(f"No tiles extracted from case {sfutil.green(shortname)}", 1)
+			return False
 
 		# Now iterate through the generator to save the images
 		for tile, coord, unique in gen_slice(): 
