@@ -141,8 +141,8 @@ class SlideflowModel:
 			self.VALIDATION_SLIDES = random.sample(self.SLIDES, int(validation_fraction * len(self.SLIDES)))
 		else:
 			self.VALIDATION_SLIDES = []
-		self.TFRECORD_VALIDATION = '' if self.VALIDATION_STRATEGY == 'per-slide' else 'validation'
-		self.TFRECORD_TRAINING = '' if self.VALIDATION_STRATEGY == 'per-slide' else 'train'
+		self.TFRECORD_VALIDATION = 'validation' if self.VALIDATION_STRATEGY == 'per-tile' else ''
+		self.TFRECORD_TRAINING = 'train' if self.VALIDATION_STRATEGY == 'per-tile' else ''
 		self.NUM_CLASSES = len(list(set(slide_to_category.values())))
 
 		with tf.device('/cpu'):
@@ -496,7 +496,8 @@ class SlideflowModel:
 
 		# Build inputs
 		train_data, _, num_tiles = self.build_dataset_inputs(self.TFRECORD_TRAINING, hp.batch_size, hp.balanced_training, hp.augment, dataset='train', include_casenames=False)
-		validation_data, validation_data_with_casenames, _ = self.build_dataset_inputs(self.TFRECORD_VALIDATION, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation', include_casenames=True)
+		if self.VALIDATION_STRATEGY != 'none':
+			validation_data, validation_data_with_casenames, _ = self.build_dataset_inputs(self.TFRECORD_VALIDATION, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation', include_casenames=True)
 		
 		#testing overide
 		#num_tiles = 100
@@ -534,16 +535,17 @@ class SlideflowModel:
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
 			def on_epoch_end(self, epoch, logs=None):
 				if epoch+1 in hp.finetune_epochs:
-					epoch_label = f"val_epoch{epoch+1}"
 					self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5"))
-					parent.generate_predictions_and_roc(self.model, validation_data_with_casenames, label=epoch_label)
-					train_acc = logs['accuracy']
-					if verbose: log.info("Beginning validation testing", 1)
-					val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
+					if parent.VALIDATION_STRATEGY != 'none':
+						epoch_label = f"val_epoch{epoch+1}"
+						parent.generate_predictions_and_roc(self.model, validation_data_with_casenames, label=epoch_label)
+						train_acc = logs['accuracy']
+						if verbose: log.info("Beginning validation testing", 1)
+						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
-					with open(results_log, "a") as results_file:
-						writer = csv.writer(results_file)
-						writer.writerow([epoch_label, train_acc, val_loss, val_acc])
+						with open(results_log, "a") as results_file:
+							writer = csv.writer(results_file)
+							writer.writerow([epoch_label, train_acc, val_loss, val_acc])
 
 		callbacks = [history_callback, PredictionAndEvaluationCallback()]
 		if hp.early_stop:
@@ -570,12 +572,14 @@ class SlideflowModel:
 					optimizer=initialized_optimizer,
 					metrics=['accuracy'])
 
+		validation_data_for_training = validation_data.repeat() if self.VALIDATION_STRATEGY != 'none' else None
+
 		finetune_model = self.model.fit(train_data.repeat(),
 			steps_per_epoch=steps_per_epoch,
 			epochs=total_epochs,
 			verbose=verbose,
 			initial_epoch=hp.toplayer_epochs,
-			validation_data=validation_data.repeat(),
+			validation_data=validation_data_for_training,
 			validation_steps=val_steps,
 			callbacks=callbacks)
 
@@ -587,7 +591,10 @@ class SlideflowModel:
 		#self.generate_predictions_and_roc(self.model, validation_data_with_casenames, "eval")
 
 		# Final validation testing, getting both overall accuracy/loss and predictions for ROCs
-		if verbose: log.info("Beginning final validation testing", 1)
-		val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
+		if self.VALIDATION_STRATEGY != 'none':
+			if verbose: log.info("Beginning final validation testing", 1)
+			val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
+		else:
+			val_loss, val_acc = 0,0
 
 		return train_acc, val_loss, val_acc
