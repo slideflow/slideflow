@@ -530,13 +530,11 @@ class SlideflowModel:
 						writer = csv.writer(results_file)
 						writer.writerow([epoch_label, train_acc, val_loss, val_acc])
 
-		callbacks = [history_callback]
+		callbacks = [history_callback, PredictionAndEvaluationCallback()]
 		if hp.early_stop:
 			callbacks += [early_stop_callback]
 		if supervised:
 			callbacks += [cp_callback, tensorboard_callback]
-		if len(hp.finetune_epochs) > 1:
-			callbacks += [PredictionAndEvaluationCallback()]
 
 		# Build or load model
 		if resume_training:
