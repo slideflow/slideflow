@@ -4,8 +4,8 @@ from os import listdir, makedirs
 from os.path import isfile, isdir, join, exists
 from random import shuffle
 import argparse
-from util import sfutil
-from util.sfutil import log
+import slideflow.util as sfutil
+from slideflow.util import log
 
 def make_dir(_dir):
 	''' Makes a directory if one does not already exist, in a manner compatible with multithreading. '''
