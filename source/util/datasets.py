@@ -5,6 +5,7 @@ from os.path import isfile, isdir, join, exists
 from random import shuffle
 import argparse
 from util import sfutil
+from util.sfutil import log
 
 def make_dir(_dir):
 	''' Makes a directory if one does not already exist, in a manner compatible with multithreading. '''
@@ -15,6 +16,7 @@ def make_dir(_dir):
 			pass
 
 def build_validation(train_dir, eval_dir, fraction = 0.1):
+	total_moved = 0
 	make_dir(eval_dir)
 	case_dirs = [_dir for _dir in listdir(train_dir) if isdir(join(train_dir, _dir))]
 	for case_dir in case_dirs:
@@ -24,14 +26,16 @@ def build_validation(train_dir, eval_dir, fraction = 0.1):
 						(file[-3:] == "jpg")]
 		shuffle(files)
 		num_to_move = int(len(files)*fraction)
+		total_moved += num_to_move
 		for file in files[0:num_to_move]:
 			shutil.move(join(train_dir, case_dir, file), join(eval_dir, case_dir, file))
-		print(f" + Set aside {num_to_move} tiles for case {sfutil.green(case_dir)} for eval dataset")
+		log.empty(f"Set aside {num_to_move} tiles for case {sfutil.green(case_dir)} for validation dataset", 1)
+	log.complete(f"Set aside {sfutil.bold(total_moved)} tiles for validation dataset", 1)
 
 def merge_validation(train_dir, eval_dir):
 	cat_dirs = [_dir for _dir in listdir(eval_dir) if isdir(join(eval_dir, _dir))]
 	for cat_dir in cat_dirs:
-		print("Category {}:".format(cat_dir))
+		print(f"Category {cat_dir}:")
 		case_dirs = [_dir for _dir in listdir(join(eval_dir, cat_dir)) if isdir(join(eval_dir, cat_dir, _dir))]
 		for case_dir in case_dirs:
 			files = [file for file in listdir(join(eval_dir, cat_dir, case_dir)) 
@@ -39,7 +43,7 @@ def merge_validation(train_dir, eval_dir):
 						   (file[-3:] == "jpg")]
 			for file in files:
 				shutil.move(join(eval_dir, cat_dir, case_dir, file), join(train_dir, cat_dir, case_dir, file))
-			print("  Merged {} files for case {}".format(len(files), case_dir))
+			print(f"  Merged {len(files)} files for case {case_dir}")
 
 if __name__==('__main__'):
 	parser = argparse.ArgumentParser(description = 'Tool to build and re-merge a validation dataset from an existing training dataset. Training dataset must be in a folder called "train_data".')
