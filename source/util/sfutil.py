@@ -6,6 +6,7 @@ import os
 from os.path import join
 from glob import glob
 import shutil
+import datetime, time
 
 import tensorflow as tf
 from tensorflow.keras import backend as K
@@ -30,6 +31,11 @@ ENDC = '\033[0m'
 BOLD = '\033[1m'
 UNDERLINE = '\033[4m'
 
+FORMATTING_OPTIONS = [HEADER, BLUE, GREEN, WARNING, FAIL, ENDC, BOLD, UNDERLINE]
+LOGGING_PREFIXES = ['', ' + ', '    - ']
+LOGGING_PREFIXES_WARN = ['', ' ! ', '    ! ']
+LOGGING_PREFIXES_EMPTY = ['', '   ', '     ']
+
 class UpdatedBatchNormalization(tf.keras.layers.BatchNormalization):
 	def call(self, inputs, training=None):
 		true_phase = int(K.get_session().run(K.learning_phase()))
@@ -37,10 +43,16 @@ class UpdatedBatchNormalization(tf.keras.layers.BatchNormalization):
 		with K.learning_phase_scope(trainable * true_phase):
 			return super(tf.keras.layers.BatchNormalization, self).call(inputs, training)
 
-class TCGAAnnotations:
-	case = 'submitter_id'
-	project = 'project_id'
-	slide = 'slide'
+def global_path(path_string):
+	if not PROJECT_DIR:
+		print("ERROR: No project loaded.")
+		sys.exit()
+	if path_string and (len(path_string) > 2) and path_string[:2] == "./":
+		return os.path.join(PROJECT_DIR, path_string[2:])
+	elif path_string and (path_string[0] != "/"):
+		return os.path.join(PROJECT_DIR, path_string)
+	else:
+		return path_string		
 
 def warn(text):
 	return WARNING + str(text) + ENDC
@@ -63,23 +75,87 @@ def bold(text):
 def underline(text):
 	return UNDERLINE + str(text) + ENDC
 
+class LOGGING_LEVEL:
+	INFO = 0
+	WARN = 3
+	ERROR = 3
+	COMPLETE = 3
+
+class Logger:
+	logfile = None
+	def __init__(self):
+		pass
+	def info(self, text, l=0, print_func=print):
+		l = min(l, len(LOGGING_PREFIXES)-1)
+		message = f"{LOGGING_PREFIXES[l]}[{info('INFO')}] {text}"
+		if print_func and l <= LOGGING_LEVEL.INFO:
+			print_func(message)
+		self.log(message)
+		return message
+	def warn(self, text, l=0, print_func=print):
+		l = min(l, len(LOGGING_PREFIXES)-1)
+		message = f"{LOGGING_PREFIXES_WARN[l]}[{warn('WARN')}] {text}"
+		if print_func and l <= LOGGING_LEVEL.WARN:
+			print_func(message)
+		self.log(message)
+		return message
+	def error(self, text, l=0, print_func=print):
+		l = min(l, len(LOGGING_PREFIXES)-1)
+		message = f"{LOGGING_PREFIXES_WARN[l]}[{fail('ERROR')}] {text}"
+		if print_func and l <= LOGGING_LEVEL.ERROR:
+			print_func(message)
+		self.log(message)
+		return message
+	def complete(self, text, l=0, print_func=print):
+		l = min(l, len(LOGGING_PREFIXES)-1)
+		message = f"{LOGGING_PREFIXES[l]}[{header('Complete')}] {text}"
+		if print_func and l <= LOGGING_LEVEL.COMPLETE:
+			print_func(message)
+		self.log(message)
+		return message
+	def label(self, label, text, l=0, print_func=print):
+		l = min(l, len(LOGGING_PREFIXES)-1)
+		message = f"{LOGGING_PREFIXES[l]}[{green(label)}] {text}"
+		if print_func and l <= LOGGING_LEVEL.INFO:
+			print_func(message)
+		self.log(message)
+		return message
+	def empty(self, text, l=0, print_func=print):
+		l = min(l, len(LOGGING_PREFIXES)-1)
+		message = f"{LOGGING_PREFIXES[l]}{text}"
+		if print_func and l <= LOGGING_LEVEL.INFO:
+			print_func(message)
+		self.log(message)
+		return message
+	def header(self, text, l=0, print_func=print):
+		l = min(l, len(LOGGING_PREFIXES)-1)
+		message = f"\n{LOGGING_PREFIXES_EMPTY[l]}{bold(text)}"
+		if print_func:
+			print_func(message)
+		self.log(message)
+		return message
+	def log(self, text):
+		st = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+		if self.logfile:
+			for s in FORMATTING_OPTIONS:
+				text = text.replace(s, "")
+			outfile = open(self.logfile, 'a')
+			outfile.write(f"[{st}] {text.strip()}\n")
+			outfile.close()
+
+log = Logger()
+
+class TCGAAnnotations:
+	case = 'submitter_id'
+	project = 'project_id'
+	slide = 'slide'
+
 def _shortname(string):
 	if len(string) == 60:
 		# May be TCGA SVS file with long name; convert to case name by returning first 12 characters
 		return string[:12]
 	else:
 		return string
-
-def global_path(path_string):
-	if not PROJECT_DIR:
-		print(f" + [{fail('ERROR')}] No project loaded.")
-		sys.exit()
-	if path_string and (len(path_string) > 2) and path_string[:2] == "./":
-		return os.path.join(PROJECT_DIR, path_string[2:])
-	elif path_string and (path_string[0] != "/"):
-		return os.path.join(PROJECT_DIR, path_string)
-	else:
-		return path_string		
 
 def yes_no_input(prompt, default='no'):
 	yes = ['yes','y']
@@ -94,9 +170,12 @@ def yes_no_input(prompt, default='no'):
 			return False
 		print(f"Invalid response.")
 
-def dir_input(prompt, default=None, create_on_invalid=False):
+def dir_input(prompt, default=None, create_on_invalid=False, absolute=False):
 	while True:
-		response = global_path(input(f"{prompt}"))
+		if not absolute:
+			response = global_path(input(f"{prompt}"))
+		else:
+			response = input(f"{prompt}")
 		if not response and default:
 			response = global_path(default)
 		if not os.path.exists(response) and create_on_invalid:
@@ -136,6 +215,30 @@ def int_input(prompt, default=None):
 			continue
 		return int_response
 
+def float_input(prompt, default=None, valid_range=None):
+	while True:
+		response = input(f"{prompt}")
+		if not response and default:
+			return default
+		try:
+			float_response = float(response)
+		except ValueError:
+			print("Please supply a valid number.")
+			continue
+		if valid_range and not (float_response >= valid_range[0] and float_response <= valid_range[1]):
+			print(f"Please supply a valid numer in the range {valid_range[0]} to {valid_range[1]}")
+		return float_response
+
+def choice_input(prompt, valid_choices, default=None):
+	while True:
+		response = input(f"{prompt}")
+		if not response and default:
+			return default
+		if response not in valid_choices:
+			print("Invalid option.")
+			continue
+		return response
+
 def load_json(filename):
 	with open(filename, 'r') as data_file:
 		return json.load(data_file)
@@ -164,6 +267,9 @@ def get_slide_paths(slides_dir):
 
 def get_filtered_slide_paths(slides_dir, annotations_file, filter_header, filter_values):
 	slide_list = get_slide_paths(slides_dir)
+	if not os.path.exists(annotations_file):
+		log.error(f"Unable to find annotations file at {green(annotations_file)}; unable to filter slides.")
+		return slide_list
 	filtered_annotation_dict = get_annotations_dict(annotations_file, TCGAAnnotations.slide, TCGAAnnotations.case, filter_header=filter_header, filter_values=filter_values)
 	filtered_slide_names = list(filtered_annotation_dict.keys())
 	filtered_slide_list = [slide for slide in slide_list if slide.split('/')[-1][:-4] in filtered_slide_names]
@@ -171,8 +277,11 @@ def get_filtered_slide_paths(slides_dir, annotations_file, filter_header, filter
 
 def get_annotations_dict(annotations_file, key_name, value_name, filter_header=None, filter_values=None, use_encode=True):
 	if filter_header and not filter_values:
-		print(f"[{fail('ERROR')}] If supplying a filter header, you must also supply filter_values")
+		log.error("If supplying a filter header, you must also supply filter_values")
 		sys.exit() 
+	if type(filter_header) != list and filter_header:
+		filter_header = [filter_header]
+		filter_values = [filter_values]
 	with open(annotations_file) as csv_file:
 		csv_reader = csv.reader(csv_file, delimiter=',')
 		header = next(csv_reader, None)
@@ -182,22 +291,31 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 		try:
 			value_index = header.index(value_name)
 			key_index = header.index(key_name)
-			if filter_header: filter_index = header.index(filter_header)
+			#if filter_header: filter_index = header.index(filter_header)
+			if filter_header:
+				filter_indices = [header.index(name) for name in filter_header]
 		except:
 			column_names = f'"{key_name}", "{value_name}"'
-			if filter_header: column_names += f', "{filter_header}"'
-			print(f" + [{fail('ERROR')}] Unable to find columns {column_names} in annotation file")
+			 
+			if filter_header:
+				header_names = ", ".join(filter_header) 
+				column_names += f', "{header_names}"'
+			log.error(f"Unable to find columns {column_names} in annotation file", 1)
 			sys.exit()
 		for row in csv_reader:
 			value = row[value_index]
 			key = row[key_index]
 			if key in key_dict_str.keys():
-				print(f" + [{fail('ERROR')}] Multiple values of '{key}' found in annotation column '{key_name}'")
+				log.error(f"Multiple values of '{key}' found in annotation column '{key_name}'", 1)
 				sys.exit()
 			if filter_header:
-				filter_value = row[filter_index]
-				# Check if this slide should be skipped
-				if (type(filter_values)==str and filter_value!=filter_values) or filter_value not in filter_values:
+				should_skip = False
+				for i, f_header in enumerate(filter_header):
+					observed_value = row[filter_indices[i]]
+					# Check if this slide should be skipped
+					if (type(filter_values[i])==str and observed_value!=filter_values[i]) or observed_value not in filter_values[i]:
+						should_skip = True
+				if should_skip:
 					continue
 			key_dict_str.update({key: value})
 			if use_encode:
@@ -206,15 +324,22 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 					key_dict_int.update({key: int_value})
 				except:
 					if use_encode and not encode:
-						print(f" + [{info('INFO')}] Non-integer in '{value_name}' header, encoding with integer values")
+						log.info(f"Non-integer in '{value_name}' header, encoding with integer values", 1)
 						encode = True
+
+		# Raise an error if no tiles were selected based on criteria
+		if not len(key_dict_str):
+			log.error(f"No tiles were selected based on filtering criteria.")
+			sys.exit()
+
 		if use_encode and encode:
 			values = list(set(key_dict_str.values()))
 			values.sort()
 			values_str_to_int = {}
 			for i, c in enumerate(values):
 				values_str_to_int.update({c: i})
-				print(f"   - {value_name} '{info(c)}' assigned to value '{i}'")
+				number_of_slides = sum(x == c for x in key_dict_str.values())
+				log.empty(f"{value_name} '{info(c)}' assigned to value '{i}' [{number_of_slides} slides]", 2)
 			for value_string in key_dict_str.keys():
 				key_dict_str[value_string] = values_str_to_int[key_dict_str[value_string]]
 			return key_dict_str
@@ -224,21 +349,28 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 			return key_dict_str
 
 def verify_annotations(annotations_file, slides_dir=None):
+	if not os.path.exists(annotations_file):
+		log.error(f"Annotations file {green(annotations_file)} does not exist, unable to verify")
+		return
 	slide_list = get_slide_paths(slides_dir)
 	with open(annotations_file) as csv_file:
 		csv_reader = csv.reader(csv_file, delimiter=',')
 		# First, verify case, category, and slide headers exist
-		header = next(csv_reader, None)
+		try:
+			header = next(csv_reader, None)
+		except OSError:
+			log.error(f"Unable to open annotations file {green(annotations_file)}, is it open in another program?")
+			return
 	try:
 		case_index = header.index(TCGAAnnotations.case)
 		category_index = header.index('category')
 	except:
-		print(f" + [{fail('ERROR')}] Check annotations file for headers '{TCGAAnnotations.case}' and 'category'.")
+		log.error(f"Check annotations file for headers '{TCGAAnnotations.case}' and 'category'.", 1)
 		sys.exit()
 	try:
 		slide_index = header.index(TCGAAnnotations.slide)
 	except:
-		print(f" + [{fail('ERROR')}] Header column 'slide' not found.")
+		log.error(f"Header column 'slide' not found.", 1)
 		if slides_dir and yes_no_input('\nSearch slides directory and automatically associate cases with slides? [Y/n] ', default='yes'):
 			# First, load all case names from the annotations file
 			slide_index = len(header)
@@ -250,36 +382,40 @@ def verify_annotations(annotations_file, slides_dir=None):
 				for row in csv_reader:
 					cases.extend([row[case_index]])
 			cases = list(set(cases)) # remove duplicates
-			print(cases)
 			# Next, search through the slides folder for all SVS/JPG files
 			print(f" + Searching {slides_dir}...")
-			
+			skip_missing = False
 			for slide_filename in slide_list:
 				slide_name = slide_filename.split('/')[-1][:-4]
 				# First, make sure the shortname and long name aren't both in the annotation file
 				if (slide_name != _shortname(slide_name)) and (slide_name in cases) and (_shortname(slide_name) in cases):
-					print(f" + [{fail('ERROR')}] Both slide name {slide_name} and shorthand {_shortname(slide_name)} in annotation file; please remove one.")
+					log.error(f"Both slide name {slide_name} and shorthand {_shortname(slide_name)} in annotation file; please remove one.", 1)
 					sys.exit()
 				# Check if either the slide name or the shortened version are in the annotation file
 				if any(x in cases for x in [slide_name, _shortname(slide_name)]):
 					slide = slide_name if slide_name in cases else _shortname(slide_name)
 					case_slide_dict.update({slide: slide_name})
-				else:
+				elif not skip_missing:
 					if not yes_no_input(f" + [{warn('WARN')}] Case '{_shortname(slide_name)}' not found in annotation file, skip this slide? [Y/n] ", default='yes'):
 						sys.exit()
+					else:
+						skip_missing = True
+			
 			# Now, write the assocations
 			with open(annotations_file) as csv_file:
 				csv_reader = csv.reader(csv_file, delimiter=',')
 				header = next(csv_reader, None)
-				print(header)
 				with open('temp.csv', 'w') as csv_outfile:
 					csv_writer = csv.writer(csv_outfile, delimiter=',')
 					header.extend([TCGAAnnotations.slide])
 					csv_writer.writerow(header)
 					for row in csv_reader:
-						case = row[case_index]
-						row.extend([case_slide_dict[case]])
-						csv_writer.writerow(row)
+						try:
+							case = row[case_index]
+							row.extend([case_slide_dict[case]])
+							csv_writer.writerow(row)
+						except KeyError:
+							log.error(f"Unable to locate slide {case} in annotation file")
 			# Finally, overwrite the previous annotation file
 			os.remove(annotations_file)
 			shutil.move('temp.csv', annotations_file)
@@ -291,20 +427,24 @@ def verify_annotations(annotations_file, slides_dir=None):
 		csv_reader = csv.reader(csv_file, delimiter=',')
 		header = next(csv_reader, None)
 		skip_warn = False
+		num_warned = 0
+		warn_threshold = 3
 		for row in csv_reader:
 			if not row[slide_index] in [s.split('/')[-1][:-4] for s in slide_list]:
 				if not skip_warn and yes_no_input(f" + [{warn('WARN')}] Unable to locate slide {row[slide_index]}. Quit? [y/N] ", default='no'):
 					sys.exit()
 				else:
-					print(f" + [{warn('WARN')}] Unable to locate slide {row[slide_index]}")
+					print_func = print if num_warned < warn_threshold else None
+					log.warn(f"Unable to locate slide {row[slide_index]}", 1, print_func)
 					skip_warn = True
+					num_warned += 1
+		if num_warned >= warn_threshold:
+			log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)
 
-def verify_tiles(annotations, input_dir, tfrecord_files=[]):
-	'''Iterate through folders if using raw images and verify all have an annotation;
-	if using TFRecord, iterate through all records and verify all entries for valid annotation.
+def verify_tiles(annotations, tfrecord_files=[]):
+	'''Iterate through TFRecord files and verify all have a valid annotation.
 	
 	Additionally, generate a manifest to log the number of tiles for each slide.'''
-	print(f" + Verifying tiles and annotations...")
 	success = True
 	case_list = []
 	manifest = {'train_data': {},
@@ -335,26 +475,21 @@ def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 				total += manifest[tfrecord_file][case]
 			manifest[tfrecord_file]['total'] = total
 		for case in case_list_errors:
-			print(f"\n + [{fail('ERROR')}] Failed TFRecord integrity check: annotation not found for case {green(case)}")
-	else:
-		manifest['total_train_tiles'] = len(glob(os.path.join(input_dir, "train_data/**/*.jpg")))
-		train_case_list = [i.split('/')[-1] for i in glob(os.path.join(input_dir, "train_data/*"))]
-		eval_case_list = [i.split('/')[-1] for i in glob(os.path.join(input_dir, "eval_data/*"))]
-		for case in train_case_list:
-			manifest['train_data'][case] = len(glob(os.path.join(input_dir, f"train_data/{case}/*.jpg")))
-		for case in eval_case_list:
-			manifest['eval_data'][case] = len(glob(os.path.join(input_dir, f"eval_data/{case}/*.jpg")))
-		case_list = list(set(train_case_list + eval_case_list))
-		for case in case_list:
-			if case not in annotations:
-				print(f"\n + [{fail('ERROR')}] Failed image tile integrity check: annotation not found for case {green(case)}")
-				success = False
-	print(f" ...complete.")
+			log.error(f"Failed TFRecord integrity check: annotation not found for case {green(case)}", 1)
+	if not success:
+		print("...failed.")
+		sys.exit()
+	sys.stdout.write("\r\033[K")
+	sys.stdout.flush()
 	# Now, check to see if all annotations have a corresponding set of tiles
+	num_warned = 0
+	warn_threshold = 3
 	for annotation_case in annotations.keys():
 		if annotation_case not in case_list:
-			print(f"   - [{warn('WARN')}] Case {green(annotation_case)} in annotation file has no image tiles")
-	if not success:
-		sys.exit()
-	else:
-		return manifest
+			print_func = print if num_warned < warn_threshold else None
+			log.warn(f"Case {green(annotation_case)} in annotation file has no image tiles", 2, print_func)
+			num_warned += 1
+	if num_warned >= warn_threshold:
+		log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 2)
+	return manifest
+	
