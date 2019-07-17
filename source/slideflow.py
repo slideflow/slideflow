@@ -42,7 +42,7 @@ class SlideFlowProject:
 
 	def __init__(self, project_folder):
 		os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-		log.header('''SlideFlow v0.9.3\n================''')
+		log.header('''SlideFlow v0.9.4\n================''')
 		log.header('''Loading project...''')
 		if project_folder and not os.path.exists(project_folder):
 			if sfutil.yes_no_input(f'Directory "{project_folder}" does not exist. Create directory and set as project root? [Y/n] ', default='yes'):
