@@ -12,6 +12,7 @@ import sys
 import csv
 
 from util import sfutil
+from util.sfutil import log
 from glob import glob
 
 FEATURE_TYPES = (tf.int64, tf.string, tf.string)
@@ -170,7 +171,8 @@ def write_tfrecords_merge(input_directory, output_directory, filename, annotatio
 			image_string = open(filename, 'rb').read()
 			tf_example = image_example(labels[0], labels[1], image_string)
 			writer.write(tf_example.SerializeToString())
-	print(f" + Wrote {len(keys)} image tiles to {tfrecord_path}")
+	log.empty(f"Wrote {len(keys)} image tiles to {sfutil.green(tfrecord_path)}", 1)
+	return len(keys)
 
 def write_tfrecords_multi(input_directory, output_directory, annotations_file):
 	'''Scans a folder for subfolders, assumes subfolders are slide names. Assembles all image tiles within 
@@ -178,9 +180,11 @@ def write_tfrecords_multi(input_directory, output_directory, annotations_file):
 	Collects all image tiles and exports into multiple tfrecord files, one for each case.'''
 	annotations_dict = sfutil.get_annotations_dict(annotations_file, key_name="slide", value_name="category")
 	slide_dirs = [_dir for _dir in listdir(input_directory) if isdir(join(input_directory, _dir))]
+	total_tiles = 0
 	for slide_dir in slide_dirs:
 		category = _try_getting_category(annotations_dict, slide_dir)
-		write_tfrecords_single(join(input_directory, slide_dir), output_directory, f'{slide_dir}.tfrecords', category, slide_dir)
+		total_tiles += write_tfrecords_single(join(input_directory, slide_dir), output_directory, f'{slide_dir}.tfrecords', category, slide_dir)
+	log.complete(f"Wrote {sfutil.bold(total_tiles)} image tiles across {sfutil.bold(len(slide_dirs))} tfrecords in {sfutil.green(output_directory)}", 1)
 
 def write_tfrecords_single(input_directory, output_directory, filename, category, case):
 	'''Scans a folder for image tiles, annotates using the provided category and case, exports
@@ -198,7 +202,8 @@ def write_tfrecords_single(input_directory, output_directory, filename, category
 			image_string = open(filename, 'rb').read()
 			tf_example = image_example(labels[0], labels[1], image_string)
 			writer.write(tf_example.SerializeToString())
-	print(f" + Wrote {len(keys)} image tiles to {tfrecord_path}")
+	log.empty(f"Wrote {len(keys)} image tiles to {sfutil.green(tfrecord_path)}", 1)
+	return len(keys)
 
 def checkpoint_to_h5(models_dir, model_name):
 	checkpoint = join(models_dir, model_name, "cp.ckpt")
