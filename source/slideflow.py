@@ -34,6 +34,7 @@ def set_logging_level(level):
 
 def select_gpu(number):
 	os.environ["CUDA_VISIBLE_DEVICES"]=str(number)
+	print(f"Using GPU #{number}")
 
 class SlideFlowProject:
 	MANIFEST = None
