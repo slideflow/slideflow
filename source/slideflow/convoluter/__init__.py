@@ -48,8 +48,8 @@ import matplotlib.colors as mcol
 from matplotlib import pyplot as mp
 
 from fastim import FastImshow
-from util import sfutil
-from util.sfutil import log
+import slideflow.util as sfutil
+from slideflow.util import log
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 4
