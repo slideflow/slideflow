@@ -11,8 +11,8 @@ import time
 import sys
 import csv
 
-from util import sfutil
-from util.sfutil import log
+import slideflow.util as sfutil
+from slideflow.util import log
 from glob import glob
 
 FEATURE_TYPES = (tf.int64, tf.string, tf.string)

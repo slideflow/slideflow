@@ -40,8 +40,8 @@ from numpy.random import choice
 from sklearn import metrics
 from matplotlib import pyplot as plt
 
-from util import tfrecords, sfutil
-from util.sfutil import TCGAAnnotations, log
+import slideflow.util as sfutil
+from slideflow.util import tfrecords, TCGAAnnotations, log
 
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_CASE = 'BALANCE_BY_CASE'

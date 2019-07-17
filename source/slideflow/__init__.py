@@ -13,12 +13,11 @@ import csv
 
 import gc
 import subprocess
-import convoluter
-import sfmodel
+import slideflow.trainer.model as sfmodel
 import itertools
 import multiprocessing
-from util import datasets, tfrecords, sfutil
-from util.sfutil import TCGAAnnotations, log
+import slideflow.util as sfutil
+from slideflow.util import datasets, tfrecords, TCGAAnnotations, log
 
 # TODO: scan for duplicate SVS files (especially when converting TCGA long-names 
 # 	to short-names, e.g. when multiple diagnostic slides are present)
@@ -63,6 +62,8 @@ class SlideFlowProject:
 		list of acceptable values; all other cases will be ignored
 		
 		If a single case is supplied, extract tiles for just that case.'''
+		import convoluter
+
 		log.header("Extracting image tiles...")
 		dataset_label = NO_LABEL if not dataset_label else dataset_label
 		convoluter.NUM_THREADS = NUM_THREADS
@@ -332,6 +333,8 @@ class SlideFlowProject:
 				f"Val_loss={results_dict[model]['val_loss']}, Val_Acc={results_dict[model]['val_acc']}" )
 
 	def generate_heatmaps(self, model_name, filter_header=None, filter_values=None, resolution='medium'):
+		import convoluter
+		
 		log.header("Generating heatmaps...")
 		resolutions = {'low': 1, 'medium': 2, 'high': 4}
 		try:
