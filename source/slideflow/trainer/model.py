@@ -330,7 +330,10 @@ class SlideflowModel:
 		# If no hidden layers and no pooling is used, flatten the output prior to softmax
 		
 		# Add the softmax prediction layer
-		layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')]
+		if hp.loss == "mean_absolute_error":
+			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='linear')]
+		else:
+			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')]
 		model = tf.keras.Sequential(layers)
 		
 		if checkpoint:
@@ -499,6 +502,7 @@ class SlideflowModel:
 		verbose = 1 if supervised else 0
 		val_steps = 200
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
+		metrics = ['accuracy'] if hp.loss != 'mean_absolute_error' else ['mean_absolute_error']
 
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
@@ -525,7 +529,10 @@ class SlideflowModel:
 					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
 						epoch_label = f"val_epoch{epoch+1}"
 						parent.generate_predictions_and_roc(self.model, validation_data_with_casenames, label=epoch_label)
-						train_acc = logs['accuracy']
+						if hp.loss != 'mean_absolute_error':
+							train_acc = logs['accuracy']
+						else:
+							train_acc = logs['mean_absolute_error']
 						if verbose: log.info("Beginning validation testing", 1)
 						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
@@ -556,7 +563,7 @@ class SlideflowModel:
 
 		self.model.compile(loss=hp.loss,
 					optimizer=initialized_optimizer,
-					metrics=['accuracy'])
+					metrics=metrics)
 
 		validation_data_for_training = validation_data.repeat() if (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS)) else None
 
@@ -570,7 +577,10 @@ class SlideflowModel:
 			callbacks=callbacks)
 
 		self.model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
-		train_acc = finetune_model.history['accuracy']
+		if hp.loss != 'mean_absolute_error':
+			train_acc = finetune_model.history['accuracy']
+		else:
+			train_acc = finetune_model.history['mean_absolute_error']
 
 		# This section is no longer needed due to the PredictionAndEvaluationCallback
 		# Generate predictions and ROC
