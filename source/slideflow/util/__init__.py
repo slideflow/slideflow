@@ -275,7 +275,7 @@ def get_filtered_slide_paths(slides_dir, annotations_file, filter_header, filter
 	filtered_slide_list = [slide for slide in slide_list if slide.split('/')[-1][:-4] in filtered_slide_names]
 	return filtered_slide_list
 
-def get_annotations_dict(annotations_file, key_name, value_name, filter_header=None, filter_values=None, use_encode=True):
+def get_annotations_dict(annotations_file, key_name, value_name, filter_header=None, filter_values=None, use_encode=True, use_float=False):
 	if filter_header and not filter_values:
 		log.error("If supplying a filter header, you must also supply filter_values")
 		sys.exit() 
@@ -345,6 +345,14 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 			return key_dict_str
 		elif use_encode:
 			return key_dict_int
+		elif use_float:
+			try:
+				for key in key_dict_str:
+					key_dict_str[key] = float(key_dict_str[key])
+				return key_dict_str
+			except:
+				log.error("Unable to convert data into float; please check data integrity and chosen annotation column")
+				sys.exit()
 		else:
 			return key_dict_str
 
