@@ -150,16 +150,16 @@ def print_tfrecord(target):
 		for tfr in tfrecord_files:
 			_print_record(tfr)		
 
-def write_tfrecords_merge(input_directory, output_directory, filename, annotations_file):
+def write_tfrecords_merge(input_directory, output_directory, filename, annotations_file=None):
 	'''Scans a folder for subfolders, assumes subfolders are case names. Assembles all image tiles within 
 	subfolders and labels using the provided annotation_dict, assuming the subfolder is the case name. 
 	Collects all image tiles and exports into a single tfrecord file.'''
-	annotations_dict = sfutil.get_annotations_dict(annotations_file, key_name="slide", value_name="category")
+	#annotations_dict = sfutil.get_annotations_dict(annotations_file, key_name="slide", value_name="category")
 	tfrecord_path = join(output_directory, filename)
 	image_labels = {}
 	slide_dirs = [_dir for _dir in listdir(input_directory) if isdir(join(input_directory, _dir))]
 	for slide_dir in slide_dirs:
-		category = _try_getting_category(annotations_dict, slide_dir)
+		category = 0 # _try_getting_category(annotations_dict, slide_dir)
 		files = _get_images_by_dir(join(input_directory, slide_dir))
 		for tile in files:
 			image_labels.update({join(input_directory, slide_dir, tile): [category, bytes(slide_dir, 'utf-8')]})
@@ -174,15 +174,15 @@ def write_tfrecords_merge(input_directory, output_directory, filename, annotatio
 	log.empty(f"Wrote {len(keys)} image tiles to {sfutil.green(tfrecord_path)}", 1)
 	return len(keys)
 
-def write_tfrecords_multi(input_directory, output_directory, annotations_file):
+def write_tfrecords_multi(input_directory, output_directory, annotations_file=None):
 	'''Scans a folder for subfolders, assumes subfolders are slide names. Assembles all image tiles within 
 	subfolders and labels using the provided annotation_dict, assuming the subfolder is the case name. 
 	Collects all image tiles and exports into multiple tfrecord files, one for each case.'''
-	annotations_dict = sfutil.get_annotations_dict(annotations_file, key_name="slide", value_name="category")
+	#annotations_dict = sfutil.get_annotations_dict(annotations_file, key_name="slide", value_name="category")
 	slide_dirs = [_dir for _dir in listdir(input_directory) if isdir(join(input_directory, _dir))]
 	total_tiles = 0
 	for slide_dir in slide_dirs:
-		category = _try_getting_category(annotations_dict, slide_dir)
+		category = 0 # _try_getting_category(annotations_dict, slide_dir)
 		total_tiles += write_tfrecords_single(join(input_directory, slide_dir), output_directory, f'{slide_dir}.tfrecords', category, slide_dir)
 	log.complete(f"Wrote {sfutil.bold(total_tiles)} image tiles across {sfutil.bold(len(slide_dirs))} tfrecords in {sfutil.green(output_directory)}", 1)
 
