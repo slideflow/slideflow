@@ -127,7 +127,7 @@ class HyperParameters:
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
-	def __init__(self, data_directory, image_size, slide_to_category, train_tfrecords, validation_tfrecords, manifest=None, use_fp16=True):
+	def __init__(self, data_directory, image_size, slide_to_category, train_tfrecords, validation_tfrecords, manifest=None, use_fp16=True, model_type='categorical'):
 		self.DATA_DIR = data_directory # Directory where to write event logs and checkpoints.
 		self.MANIFEST = manifest
 		self.IMAGE_SIZE = image_size
@@ -137,7 +137,10 @@ class SlideflowModel:
 		self.SLIDES = list(slide_to_category.keys())
 		self.TRAIN_TFRECORDS = train_tfrecords
 		self.VALIDATION_TFRECORDS = validation_tfrecords
-		self.NUM_CLASSES = len(list(set(slide_to_category.values())))
+		if model_type == 'categorical':
+			self.NUM_CLASSES = len(list(set(slide_to_category.values())))
+		elif model_type == 'linear':
+			self.NUM_CLASSES = 1
 
 		with tf.device('/cpu'):
 			self.ANNOTATIONS_TABLE = tf.lookup.StaticHashTable(
@@ -528,9 +531,9 @@ class SlideflowModel:
 					self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5"))
 					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
 						epoch_label = f"val_epoch{epoch+1}"
-						parent.generate_predictions_and_roc(self.model, validation_data_with_casenames, label=epoch_label)
 						if hp.loss != 'mean_absolute_error':
 							train_acc = logs['accuracy']
+							parent.generate_predictions_and_roc(self.model, validation_data_with_casenames, label=epoch_label)
 						else:
 							train_acc = logs['mean_absolute_error']
 						if verbose: log.info("Beginning validation testing", 1)
