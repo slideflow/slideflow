@@ -288,22 +288,24 @@ class SlideFlowProject:
 		log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {len(validation_tfrecords)} for validation", 1)
 		return training_tfrecords, validation_tfrecords
 
-	def initialize_model(self, model_name, train_tfrecords, validation_tfrecords, category_header, filter_header=None, filter_values=None, skip_validation=False):
+	def initialize_model(self, model_name, train_tfrecords, validation_tfrecords, category_header, filter_header=None, filter_values=None, skip_validation=False, model_type='categorical'):
 		'''Prepare model. Assumes that tfrecord_folders are ***'''
 		# Assemble list of slides for training and annotations dictionary
 		slide_to_category = sfutil.get_annotations_dict(self.PROJECT['annotations'], 'slide', category_header, 
 																							filter_header=filter_header, 
 																							filter_values=filter_values,
-																							use_encode=True)
+																							use_encode=(model_type=='categorical'),
+																							use_float=(model_type=='linear'))
 
 		model_dir = join(self.PROJECT['models_dir'], model_name)
 
 		SFM = sfmodel.SlideflowModel(model_dir, self.PROJECT['tile_px'], slide_to_category, train_tfrecords, validation_tfrecords,
 																				manifest=self.MANIFEST, 
-																				use_fp16=self.PROJECT['use_fp16'])
+																				use_fp16=self.PROJECT['use_fp16'],
+																				model_type=model_type)
 		return SFM
 
-	def evaluate(self, model, subfolder, category_header, filter_header=None, filter_values=None, checkpoint=None):
+	def evaluate(self, model, subfolder, category_header, filter_header=None, filter_values=None, checkpoint=None, model_type='categorical'):
 		log.header(f"Evaluating model {sfutil.bold(model)}...")
 		model_name = model.split('/')[-1]
 		tfrecord_path = join(self.PROJECT['tfrecord_dir'], subfolder)
@@ -323,13 +325,13 @@ class SlideFlowProject:
 		log.info(f"Evaluating {sfutil.bold(len(tfrecords))} tfrecords", 1)
 
 		# Perform evaluation
-		SFM = self.initialize_model(f"eval-{model_name}", None, None, category_header, filter_header, filter_values, skip_validation=True)
+		SFM = self.initialize_model(f"eval-{model_name}", None, None, category_header, filter_header, filter_values, skip_validation=True, model_type=model_type)
 		model_dir = join(self.PROJECT['models_dir'], model, "trained_model.h5") if model[-3:] != ".h5" else model
 		results = SFM.evaluate(tfrecords=tfrecords, hp=None, model=model_dir, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
 		print(results)
 		return results
 
-	def train(self, models=None, subfolder=NO_LABEL, category_header='category', filter_header=None, filter_values=None, resume_training=None, checkpoint=None, supervised=True, batch_file=None):
+	def train(self, models=None, subfolder=NO_LABEL, category_header='category', filter_header=None, filter_values=None, resume_training=None, checkpoint=None, supervised=True, batch_file=None, model_type='categorical'):
 		'''Train model(s) given configurations found in batch_train.tsv.
 		Args:
 			models			(optional) Either string representing a model name or an array of strings containing model names. 
@@ -351,7 +353,7 @@ class SlideFlowProject:
 		slide_to_category = sfutil.get_annotations_dict(self.PROJECT['annotations'], 'slide', category_header, 
 																							filter_header=filter_header, 
 																							filter_values=filter_values,
-																							use_encode=True)
+																							use_encode=(model_type=='categorical'))
 		slide_list = slide_to_category.keys()
 
 		# Quickly scan for errors (duplicate model names) and prepare models to train
@@ -388,7 +390,7 @@ class SlideFlowProject:
 				log.info(hp, 1)
 			full_model_name = model_name if not k_fold_iter else model_name+f"-kfold{k_fold_iter}"
 			training_tfrecords, validation_tfrecords = self.get_training_and_validation_tfrecords(subfolder, slide_list, k_fold_iter=k_fold_iter)
-			SFM = self.initialize_model(full_model_name, training_tfrecords, validation_tfrecords, category_header, filter_header, filter_values)
+			SFM = self.initialize_model(full_model_name, training_tfrecords, validation_tfrecords, category_header, filter_header, filter_values, model_type=model_type)
 			with open(os.path.join(self.PROJECT['models_dir'], full_model_name, 'hyperparameters.log'), 'w') as hp_file:
 				hp_text = f"Tile pixel size: {self.PROJECT['tile_px']}\n"
 				hp_text += f"Tile micron size: {self.PROJECT['tile_um']}\n"
