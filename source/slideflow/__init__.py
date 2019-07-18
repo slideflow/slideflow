@@ -678,13 +678,16 @@ class SlideFlowProject:
 			self.create_blank_train_config(project['batch_train_config'])
 		
 		# Validation strategy
-		project['validation_strategy'] = sfutil.choice_input("Which validation strategy should be used, per-tile or per-slide? [per-slide] ", valid_choices=['per-tile', 'per-slide'], default='per-slide')
-		if project['validation_strategy'] == 'per-slide':
-
-			project['validation_k_fold'] = sfutil.int_input("If using K-fold cross-validation, what is K? (default, 1, is no cross-validation) [1] ", default=1)
-		else:
-			project['validation_k_fold'] = 1
 		project['validation_fraction'] = sfutil.float_input("What fraction of training data should be used for validation testing? [0.2] ", valid_range=[0,1], default=0.2)
+		project['validation_target'] = sfutil.choice_input("How should validation data be selected, per-tile or per-slide? [per-slide] ", valid_choices=['per-tile', 'per-slide'], default='per-slide')
+		if project['validation_target'] == 'per-slide':
+			project['validation_strategy'] = sfutil.choice_input("Which validation strategy should be used, k-fold, bootstrap, or fixed? ", valid_choices=['k-fold', 'bootstrap', 'fixed', 'none'])
+		else:
+			project['validation_strategy'] = sfutil.choice_input("Which validation strategy should be used, k-fold or fixed? ", valid_choices=['k-fold', 'fixed', 'none'])
+		if project['validation_strategy'] == 'k-fold':
+			project['validation_k_fold'] = sfutil.int_input("What is K? [3] ", default=3)
+		elif project['validation_strategy'] == 'bootstrap':
+			project['validation_k_fold'] = sfutil.int_input("How many iterations should be performed when bootstrapping? [3] ", default=3)
 
 		sfutil.write_json(project, join(sfutil.PROJECT_DIR, 'settings.json'))
 		self.PROJECT = project
