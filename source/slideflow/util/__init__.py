@@ -3,7 +3,7 @@ import json
 import csv
 
 import os
-from os.path import join
+from os.path import join, isdir
 from glob import glob
 import shutil
 import datetime, time
@@ -493,3 +493,11 @@ def verify_tiles(annotations, tfrecord_files=[]):
 		log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 2)
 	return manifest
 	
+def contains_nested_subdirs(directory):
+	subdirs = [_dir for _dir in os.listdir(directory) if isdir(join(directory, _dir))]
+	for subdir in subdirs:
+		contents = os.listdir(join(directory, subdir))
+		for c in contents:
+			if isdir(join(directory, subdir, c)):
+				return True
+	return False
