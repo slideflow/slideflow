@@ -3,7 +3,7 @@ import json
 import csv
 
 import os
-from os.path import join
+from os.path import join, isdir
 from glob import glob
 import shutil
 import datetime, time
@@ -275,7 +275,7 @@ def get_filtered_slide_paths(slides_dir, annotations_file, filter_header, filter
 	filtered_slide_list = [slide for slide in slide_list if slide.split('/')[-1][:-4] in filtered_slide_names]
 	return filtered_slide_list
 
-def get_annotations_dict(annotations_file, key_name, value_name, filter_header=None, filter_values=None, use_encode=True):
+def get_annotations_dict(annotations_file, key_name, value_name, filter_header=None, filter_values=None, use_encode=True, use_float=False):
 	if filter_header and not filter_values:
 		log.error("If supplying a filter header, you must also supply filter_values")
 		sys.exit() 
@@ -310,7 +310,7 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 				sys.exit()
 			if filter_header:
 				should_skip = False
-				for i, f_header in enumerate(filter_header):
+				for i in range(len(filter_header)):
 					observed_value = row[filter_indices[i]]
 					# Check if this slide should be skipped
 					if (type(filter_values[i])==str and observed_value!=filter_values[i]) or observed_value not in filter_values[i]:
@@ -345,6 +345,14 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 			return key_dict_str
 		elif use_encode:
 			return key_dict_int
+		elif use_float:
+			try:
+				for key in key_dict_str:
+					key_dict_str[key] = float(key_dict_str[key])
+				return key_dict_str
+			except:
+				log.error("Unable to convert data into float; please check data integrity and chosen annotation column")
+				sys.exit()
 		else:
 			return key_dict_str
 
@@ -363,9 +371,8 @@ def verify_annotations(annotations_file, slides_dir=None):
 			return
 	try:
 		case_index = header.index(TCGAAnnotations.case)
-		category_index = header.index('category')
 	except:
-		log.error(f"Check annotations file for headers '{TCGAAnnotations.case}' and 'category'.", 1)
+		log.error(f"Check annotations file for header '{TCGAAnnotations.case}'.", 1)
 		sys.exit()
 	try:
 		slide_index = header.index(TCGAAnnotations.slide)
@@ -493,3 +500,11 @@ def verify_tiles(annotations, tfrecord_files=[]):
 		log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 2)
 	return manifest
 	
+def contains_nested_subdirs(directory):
+	subdirs = [_dir for _dir in os.listdir(directory) if isdir(join(directory, _dir))]
+	for subdir in subdirs:
+		contents = os.listdir(join(directory, subdir))
+		for c in contents:
+			if isdir(join(directory, subdir, c)):
+				return True
+	return False
