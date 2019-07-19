@@ -127,23 +127,20 @@ class HyperParameters:
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
-	def __init__(self, data_directory, input_directory, image_size, slide_to_category, validation_strategy='per-tile', validation_fraction=None, manifest=None, use_fp16=True):
+	def __init__(self, data_directory, image_size, slide_to_category, train_tfrecords, validation_tfrecords, manifest=None, use_fp16=True, model_type='categorical'):
 		self.DATA_DIR = data_directory # Directory where to write event logs and checkpoints.
-		self.INPUT_DIR = input_directory
 		self.MANIFEST = manifest
 		self.IMAGE_SIZE = image_size
 		self.USE_FP16 = use_fp16
 		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
-		self.SLIDES = list(slide_to_category.keys()) # If None, will default to using all tfrecords in the input directory
 		self.SLIDE_TO_CATEGORY = slide_to_category # Dictionary mapping slide names to category
-		self.VALIDATION_STRATEGY = validation_strategy
-		if validation_strategy=='per-slide':
-			self.VALIDATION_SLIDES = random.sample(self.SLIDES, int(validation_fraction * len(self.SLIDES)))
-		else:
-			self.VALIDATION_SLIDES = []
-		self.TFRECORD_VALIDATION = 'validation' if self.VALIDATION_STRATEGY == 'per-tile' else ''
-		self.TFRECORD_TRAINING = 'train' if self.VALIDATION_STRATEGY == 'per-tile' else ''
-		self.NUM_CLASSES = len(list(set(slide_to_category.values())))
+		self.SLIDES = list(slide_to_category.keys())
+		self.TRAIN_TFRECORDS = train_tfrecords
+		self.VALIDATION_TFRECORDS = validation_tfrecords
+		if model_type == 'categorical':
+			self.NUM_CLASSES = len(list(set(slide_to_category.values())))
+		elif model_type == 'linear':
+			self.NUM_CLASSES = 1
 
 		with tf.device('/cpu'):
 			self.ANNOTATIONS_TABLE = tf.lookup.StaticHashTable(
@@ -154,19 +151,23 @@ class SlideflowModel:
 			os.makedirs(self.DATA_DIR)
 		
 		# Record which slides are used for training and validation, and to which categories they belong
-		with open(os.path.join(self.DATA_DIR, 'slide_manifest.log'), 'w') as slide_manifest:
-			writer = csv.writer(slide_manifest)
-			header = ['slide', 'dataset', 'category']
-			writer.writerow(header)
-			for slide in self.SLIDES:
-				if validation_strategy == 'per-tile':
-					dataset = 'training/validation'
-				elif slide in self.VALIDATION_SLIDES:
-					dataset = 'validation'
-				else:
-					dataset = 'training'
-				category = slide_to_category[slide]
-				writer.writerow([slide, dataset, category])
+		if train_tfrecords or validation_tfrecords:
+			with open(os.path.join(self.DATA_DIR, 'slide_manifest.log'), 'w') as slide_manifest:
+				writer = csv.writer(slide_manifest)
+				header = ['slide', 'dataset', 'category']
+				writer.writerow(header)
+				if train_tfrecords:
+					for tfrecord in train_tfrecords:
+						slide = tfrecord.split('/')[-1][:-10]
+						if slide in self.SLIDES:
+							category = slide_to_category[slide]
+							writer.writerow([slide, 'training', category])
+				if validation_tfrecords:
+					for tfrecord in validation_tfrecords:
+						slide = tfrecord.split('/')[-1][:-10]
+						if slide in self.SLIDES:
+							category = slide_to_category[slide]
+							writer.writerow([slide, 'validation', category])
 
 	def _process_image(self, image_string, augment):
 		image = tf.image.decode_jpeg(image_string, channels = 3)
@@ -202,13 +203,13 @@ class SlideflowModel:
 		image = self._process_image(image_string, self.AUGMENT)
 		return image, label, case
 
-	def _interleave_tfrecords(self, folder, batch_size, balance, finite, dataset=None, include_casenames=False):
+	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, dataset=None, include_casenames=False):
 		'''Generates an interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to balancing if provided.
 		Requires self.MANIFEST. Assumes TFRecord files are named by case.
 
 		Args:
-			folder		Location to search for TFRecord files
+			tfrecords	Array of paths to TFRecord files
 			batch_size	Batch size
 			balance		Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,
 							BALANCE_BY_CASE, and NO_BALANCE. If finite option is used, will drop
@@ -223,29 +224,18 @@ class SlideflowModel:
 		categories = {}
 		categories_prob = {}
 		categories_tile_fraction = {}
-		search_folder = os.path.join(self.INPUT_DIR, folder)
-		tfrecord_files = glob(os.path.join(search_folder, "*.tfrecords"))
-		if tfrecord_files == []:
-			log.error(f"No TFRecords found in {sfutil.green(search_folder)}", 1)
+		
+		if tfrecords == []:
+			log.error(f"No TFRecords found.", 1)
 			sys.exit()
-		if not dataset or self.VALIDATION_STRATEGY == 'per-tile':
-			# Now remove all tfrecord_files except those in self.SLIDES (if not None)
-			tfrecord_files = tfrecord_files if not self.SLIDES else [tfr for tfr in tfrecord_files 
-																	if tfr.split('/')[-1][:-10] in self.SLIDES]
-			log.info(f"Accessing TFRecords from {sfutil.green(str(len(tfrecord_files)))} slides", 1)
-		elif dataset=='train':
-			tfrecord_files = tfrecord_files if not self.SLIDES else [tfr for tfr in tfrecord_files 
-																	if (tfr.split('/')[-1][:-10] in self.SLIDES) and (tfr.split('/')[-1][:-10] not in self.VALIDATION_SLIDES)]
-			log.info(f"Using {sfutil.green(str(len(tfrecord_files)))} files for training set", 1)
-		elif dataset=='validation':
-			tfrecord_files = tfrecord_files if not self.SLIDES else [tfr for tfr in tfrecord_files 
-																	if (tfr.split('/')[-1][:-10] in self.SLIDES) and (tfr.split('/')[-1][:-10] in self.VALIDATION_SLIDES)]
-			log.info(f"Using {sfutil.green(str(len(tfrecord_files)))} files for validation set", 1)
-		for filename in tfrecord_files:
+		
+		for filename in tfrecords:
+			slide_name = filename.split('/')[-1][:-10]
+			if slide_name not in self.SLIDES:
+				continue
+			category = self.SLIDE_TO_CATEGORY[slide_name]
 			dataset_to_add = tf.data.TFRecordDataset(filename) if finite else tf.data.TFRecordDataset(filename).repeat()
 			datasets += [dataset_to_add]
-			slide_name = filename.split('/')[-1][:-10]
-			category = self.SLIDE_TO_CATEGORY[slide_name]
 			datasets_categories += [category]
 			try:
 				tiles = self.MANIFEST[filename]['total']
@@ -265,11 +255,10 @@ class SlideflowModel:
 			categories_prob[category] = lowest_category_case_count / categories[category]['num_cases']
 			categories_tile_fraction[category] = lowest_category_tile_count / categories[category]['num_tiles']
 		if balance == NO_BALANCE:
-			balance_msg_tail = "" if folder == "" else f" from {sfutil.green(folder)}"
-			log.info(f"Not balancing input{balance_msg_tail}", 1)
+			log.info(f"Not balancing input", 1)
 			prob_weights = [i/sum(num_tiles) for i in num_tiles]
 		if balance == BALANCE_BY_CASE:
-			log.info(f"Balancing input from {sfutil.green(folder)} across cases", 1)
+			log.info(f"Balancing input across cases", 1)
 			prob_weights = None
 			if finite:
 				# Only take as many tiles as the number of tiles in the smallest dataset
@@ -278,7 +267,7 @@ class SlideflowModel:
 					datasets[i] = datasets[i].take(num_to_take)
 					global_num_tiles += num_to_take
 		if balance == BALANCE_BY_CATEGORY:
-			log.info(f"Balancing input from {sfutil.green(folder)} across categories", 1)
+			log.info(f"Balancing input across categories", 1)
 			prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
 			if finite:
 				# Only take as many tiles as the number of tiles in the smallest category
@@ -299,7 +288,7 @@ class SlideflowModel:
 		try:
 			dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
 		except IndexError:
-			log.error(f"No TFRecords found in {sfutil.green(search_folder)} after filter criteria", 1)
+			log.error(f"No TFRecords found after filter criteria", 1)
 			sys.exit()
 		if include_casenames:
 			dataset_with_casenames = dataset.map(self._parse_tfrecord_with_casenames_function, num_parallel_calls = 8)
@@ -311,14 +300,14 @@ class SlideflowModel:
 		
 		return dataset, dataset_with_casenames, global_num_tiles
 
-	def build_dataset_inputs(self, subfolder, batch_size, balance, augment, finite=False, dataset=None, include_casenames=False):
+	def build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, dataset=None, include_casenames=False):
 		'''Args:
-			subfolder:		Sub-directory in which to search for tfrecords, if applicable
+			folders:		Array of directories in which to search for cases (subfolders) containing tfrecords
 			balance:		Whether to use input balancing; options are BALANCE_BY_CASE, BALANCE_BY_CATEGORY, NO_BALANCE
 								 (only available if TFRECORDS_BY_CASE=True)'''
 		self.AUGMENT = augment
 		with tf.name_scope('input'):
-			dataset, dataset_with_casenames, num_tiles = self._interleave_tfrecords(subfolder, batch_size, balance, finite, dataset, include_casenames)
+			dataset, dataset_with_casenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, dataset, include_casenames)
 		return dataset, dataset_with_casenames, num_tiles
 
 	def build_model(self, hp, pretrain=None, checkpoint=None):
@@ -344,7 +333,10 @@ class SlideflowModel:
 		# If no hidden layers and no pooling is used, flatten the output prior to softmax
 		
 		# Add the softmax prediction layer
-		layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')]
+		if hp.loss == "mean_absolute_error":
+			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='linear')]
+		else:
+			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')]
 		model = tf.keras.Sequential(layers)
 		
 		if checkpoint:
@@ -443,19 +435,18 @@ class SlideflowModel:
 			writer.writerow(header)
 			for i, case in enumerate(unique_cases):
 				case_y_true_onehot = case_onehot[case]
-				case_y_pred_onehot = []
 				row = np.concatenate([ [case], case_y_true_onehot, percent_calls_by_case[i] ])
 				writer.writerow(row)
 		log.complete(f"Predictions saved to {sfutil.green(tile_csv_dir)} and {sfutil.green(slide_csv_dir)}", 1)
 
-	def evaluate(self, subdir="validation", hp=None, model=None, checkpoint=None, batch_size=None):
+	def evaluate(self, tfrecords, hp=None, model=None, checkpoint=None, batch_size=None):
 		# Load and initialize model
 		if not hp and checkpoint:
 			log.error("If using a checkpoint for evaluation, hyperparameters must be specified.")
 			sys.exit()
 		batch_size = batch_size if not hp else hp.batch_size
 		augment = False if not hp else hp.augment
-		dataset, dataset_with_casenames, num_tiles = self.build_dataset_inputs(subdir, batch_size, NO_BALANCE, augment, finite=True, include_casenames=True)
+		dataset, dataset_with_casenames, num_tiles = self.build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment, finite=True, include_casenames=True)
 		if model:
 			self.model = tf.keras.models.load_model(model)
 		elif checkpoint:
@@ -495,10 +486,12 @@ class SlideflowModel:
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 
 		# Build inputs
-		train_data, _, num_tiles = self.build_dataset_inputs(self.TFRECORD_TRAINING, hp.batch_size, hp.balanced_training, hp.augment, dataset='train', include_casenames=False)
-		if self.VALIDATION_STRATEGY != 'none':
-			validation_data, validation_data_with_casenames, _ = self.build_dataset_inputs(self.TFRECORD_VALIDATION, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation', include_casenames=True)
-		
+		train_data, _, num_tiles = self.build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, dataset='train', include_casenames=False)
+		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
+			validation_data, validation_data_with_casenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation', include_casenames=True)
+			validation_data_for_training = validation_data.repeat()
+		else:
+			validation_data_for_training = None
 		#testing overide
 		#num_tiles = 100
 		#hp.finetune_epochs = 3
@@ -513,6 +506,7 @@ class SlideflowModel:
 		verbose = 1 if supervised else 0
 		val_steps = 200
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
+		metrics = ['accuracy'] if hp.loss != 'mean_absolute_error' else ['mean_absolute_error']
 
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
@@ -536,10 +530,13 @@ class SlideflowModel:
 			def on_epoch_end(self, epoch, logs=None):
 				if epoch+1 in hp.finetune_epochs:
 					self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5"))
-					if parent.VALIDATION_STRATEGY != 'none':
+					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
 						epoch_label = f"val_epoch{epoch+1}"
-						parent.generate_predictions_and_roc(self.model, validation_data_with_casenames, label=epoch_label)
-						train_acc = logs['accuracy']
+						if hp.loss != 'mean_absolute_error':
+							train_acc = logs['accuracy']
+							parent.generate_predictions_and_roc(self.model, validation_data_with_casenames, label=epoch_label)
+						else:
+							train_acc = logs['mean_absolute_error']
 						if verbose: log.info("Beginning validation testing", 1)
 						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
@@ -562,7 +559,7 @@ class SlideflowModel:
 
 		# Retrain top layer only if using transfer learning and not resuming training
 		if hp.toplayer_epochs:
-			self.retrain_top_layers(self.model, hp, train_data.repeat(), training_val_data, steps_per_epoch, 
+			self.retrain_top_layers(self.model, hp, train_data.repeat(), validation_data_for_training, steps_per_epoch, 
 									callbacks=None, epochs=hp.toplayer_epochs, verbose=verbose)
 
 		# Fine-tune the model
@@ -570,9 +567,9 @@ class SlideflowModel:
 
 		self.model.compile(loss=hp.loss,
 					optimizer=initialized_optimizer,
-					metrics=['accuracy'])
+					metrics=metrics)
 
-		validation_data_for_training = validation_data.repeat() if self.VALIDATION_STRATEGY != 'none' else None
+		
 
 		finetune_model = self.model.fit(train_data.repeat(),
 			steps_per_epoch=steps_per_epoch,
@@ -584,14 +581,17 @@ class SlideflowModel:
 			callbacks=callbacks)
 
 		self.model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
-		train_acc = finetune_model.history['accuracy']
+		if hp.loss != 'mean_absolute_error':
+			train_acc = finetune_model.history['accuracy']
+		else:
+			train_acc = finetune_model.history['mean_absolute_error']
 
 		# This section is no longer needed due to the PredictionAndEvaluationCallback
 		# Generate predictions and ROC
 		#self.generate_predictions_and_roc(self.model, validation_data_with_casenames, "eval")
 
 		# Final validation testing, getting both overall accuracy/loss and predictions for ROCs
-		if self.VALIDATION_STRATEGY != 'none':
+		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
 			if verbose: log.info("Beginning final validation testing", 1)
 			val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 		else:
