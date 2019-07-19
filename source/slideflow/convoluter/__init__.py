@@ -520,9 +520,6 @@ class Convoluter:
 		except ValueError:
 			log.error("Mismatch with number of categories in model output and expected number of categories", 1)
 
-		print_func = print if not pb else pb.print
-		#log.info(f"Expanded_logits size: {expanded_logits.shape}; resizing to y:{y_logits_len} and x:{x_logits_len}", 2, print_func)
-
 		# Resize logits array into a two-dimensional array for heatmap display
 		logits_out = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.NUM_CLASSES])
 		return logits_out, prelogits_out, prelogits_labels, flat_unique_logits

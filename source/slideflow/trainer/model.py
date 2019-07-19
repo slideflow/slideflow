@@ -435,7 +435,6 @@ class SlideflowModel:
 			writer.writerow(header)
 			for i, case in enumerate(unique_cases):
 				case_y_true_onehot = case_onehot[case]
-				case_y_pred_onehot = []
 				row = np.concatenate([ [case], case_y_true_onehot, percent_calls_by_case[i] ])
 				writer.writerow(row)
 		log.complete(f"Predictions saved to {sfutil.green(tile_csv_dir)} and {sfutil.green(slide_csv_dir)}", 1)
@@ -490,7 +489,9 @@ class SlideflowModel:
 		train_data, _, num_tiles = self.build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, dataset='train', include_casenames=False)
 		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
 			validation_data, validation_data_with_casenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation', include_casenames=True)
-		
+			validation_data_for_training = validation_data.repeat()
+		else:
+			validation_data_for_training = None
 		#testing overide
 		#num_tiles = 100
 		#hp.finetune_epochs = 3
@@ -558,7 +559,7 @@ class SlideflowModel:
 
 		# Retrain top layer only if using transfer learning and not resuming training
 		if hp.toplayer_epochs:
-			self.retrain_top_layers(self.model, hp, train_data.repeat(), training_val_data, steps_per_epoch, 
+			self.retrain_top_layers(self.model, hp, train_data.repeat(), validation_data_for_training, steps_per_epoch, 
 									callbacks=None, epochs=hp.toplayer_epochs, verbose=verbose)
 
 		# Fine-tune the model
@@ -568,7 +569,7 @@ class SlideflowModel:
 					optimizer=initialized_optimizer,
 					metrics=metrics)
 
-		validation_data_for_training = validation_data.repeat() if (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS)) else None
+		
 
 		finetune_model = self.model.fit(train_data.repeat(),
 			steps_per_epoch=steps_per_epoch,
