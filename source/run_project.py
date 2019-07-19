@@ -21,7 +21,7 @@ sys.path.insert(0, args.project)
 try:
 	import actions
 except:
-	print(f"No actions.py file found in {args.project}")
+	print(f"Error loading actions.py in {args.project}; either does not exist or contains an error")
 	sys.exit()
 
 actions.main(SFP)
