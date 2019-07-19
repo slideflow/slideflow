@@ -59,11 +59,7 @@ class SlideFlowProject:
 			self.create_project()
 		
 	def extract_tiles(self, filter_header=None, filter_values=None, subfolder=None, skip_validation=False):
-		'''filter is a dict whose keys correspond with a header label and whose value is a 
-		list of acceptable values; all other cases will be ignored
-		
-		If a single case is supplied, extract tiles for just that case.'''
-		import slideflow.convoluter
+		import slideflow.convoluter as convoluter
 
 		log.header("Extracting image tiles...")
 		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
@@ -108,16 +104,10 @@ class SlideFlowProject:
 
 	def generate_tfrecord(self, subfolder=None):
 		'''Create tfrecord files from a collection of raw images'''
-		# Note: this will not work as the write_tfrecords function expects a category directory
-		# Will leave as is to manually test performance with category defined in the TFRecrod
-		#  vs. dynamically assigning category via annotation metadata during training
 		log.header('Writing TFRecord files...')
 		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
 		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
 		tiles_dir = join(self.PROJECT['tiles_dir'], subfolder)
-
-		if not exists(tfrecord_dir):
-			os.makedirs(tfrecord_dir)
 
 		# Check to see if subdirectories in the target folders are case directories (contain images)
 		#  or are further subdirectories (e.g. validation and training)
@@ -126,8 +116,6 @@ class SlideFlowProject:
 			subdirs = [_dir for _dir in os.listdir(tiles_dir) if isdir(join(tiles_dir, _dir))]
 			for subdir in subdirs:
 				tfrecord_subdir = join(tfrecord_dir, subdir)
-				if not exists(tfrecord_subdir):
-					os.makedirs(tfrecord_subdir)
 				tfrecords.write_tfrecords_multi(join(tiles_dir, subdir), tfrecord_subdir)
 				self.update_manifest(tfrecord_subdir)
 		else:
@@ -210,7 +198,6 @@ class SlideFlowProject:
 			elif val_strategy == 'fixed':
 				num_val = int(val_fraction * len(tfrecords))
 				# Start by checking for a valid plan
-				create_new_plan = True
 				if not exists(validation_log):
 					log.info(f"No validation log found; will log validation plan at {sfutil.green(validation_log)}")
 				else:
@@ -238,8 +225,6 @@ class SlideFlowProject:
 				validation_plan['fixed'] = [tfr.split('/')[-1] for tfr in validation_tfrecords]
 				sfutil.write_json(validation_plan, validation_log)
 			elif val_strategy == 'k-fold':
-				num_per_k = int(len(tfrecords) / k_fold)
-				
 				if not exists(validation_log):
 					log.info(f"No validation log found; will log validation plan at {sfutil.green(validation_log)}")
 				else:
@@ -269,6 +254,7 @@ class SlideFlowProject:
 								return training_tfrecords, validation_tfrecords
 				# Create a new k-fold validation plan and log plan results
 				validation_plan['k-fold'] = []
+
 				def split(a, n):
 					k, m = divmod(len(a), n)
 					return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
@@ -289,7 +275,6 @@ class SlideFlowProject:
 		return training_tfrecords, validation_tfrecords
 
 	def initialize_model(self, model_name, train_tfrecords, validation_tfrecords, category_header, filter_header=None, filter_values=None, skip_validation=False, model_type='categorical'):
-		'''Prepare model. Assumes that tfrecord_folders are ***'''
 		# Assemble list of slides for training and annotations dictionary
 		slide_to_category = sfutil.get_annotations_dict(self.PROJECT['annotations'], 'slide', category_header, 
 																							filter_header=filter_header, 
@@ -357,7 +342,7 @@ class SlideFlowProject:
 		slide_list = slide_to_category.keys()
 
 		# Quickly scan for errors (duplicate model names) and prepare models to train
-		models_to_train, model_acc = [], {}
+		models_to_train = []
 		with open(batch_train_file) as csv_file:
 			reader = csv.reader(csv_file, delimiter="\t")
 			header = next(reader)
@@ -497,7 +482,7 @@ class SlideFlowProject:
 				f"Val_loss={results_dict[model]['val_loss']}, Val_Acc={results_dict[model]['val_acc']}" )
 
 	def generate_heatmaps(self, model_name, filter_header=None, filter_values=None, resolution='medium'):
-		import slideflow.convoluter
+		import slideflow.convoluter as convoluter
 		
 		log.header("Generating heatmaps...")
 		resolutions = {'low': 1, 'medium': 2, 'high': 4}
@@ -560,7 +545,6 @@ class SlideFlowProject:
 			writer = csv.writer(csv_outfile, delimiter='\t')
 			# Create headers
 			header = ['model_name', 'finetune_epochs']
-			default_hp = sfmodel.HyperParameters()
 			for arg in args:
 				header += [arg]
 			writer.writerow(header)
