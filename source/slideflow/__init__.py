@@ -161,7 +161,9 @@ class SlideFlowProject:
 				training_tfrecords += glob(join(tfrecord_dir, 'training', "*.tfrecords"))
 				validation_tfrecords += glob(join(tfrecord_dir, 'validation', "*.tfrecords"))
 			elif val_strategy == 'k-fold':
-				log.warn("No k-fold iteration specified; assuming iteration #1", 1)
+				if not k_fold_iter:
+					log.warn("No k-fold iteration specified; assuming iteration #1", 1)
+					k_fold_iter = 1
 				if k_fold_iter > k_fold:
 					log.error(f"K-fold iteration supplied ({k_fold_iter}) exceeds the project K-fold setting ({k_fold})", 1)
 					sys.exit()
