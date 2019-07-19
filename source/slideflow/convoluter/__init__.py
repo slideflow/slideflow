@@ -21,7 +21,7 @@ import os, sys
 import warnings
 from os.path import join, isfile, exists
 
-import progress_bar
+import slideflow.util.progress_bar as progress_bar
 
 import tensorflow as tf
 import numpy as np
@@ -47,7 +47,7 @@ import matplotlib.cm as cm
 import matplotlib.colors as mcol
 from matplotlib import pyplot as mp
 
-from fastim import FastImshow
+from slideflow.util.fastim import FastImshow
 import slideflow.util as sfutil
 from slideflow.util import log
 
