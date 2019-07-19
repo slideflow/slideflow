@@ -690,6 +690,8 @@ class SlideFlowProject:
 			project['validation_k_fold'] = sfutil.int_input("What is K? [3] ", default=3)
 		elif project['validation_strategy'] == 'bootstrap':
 			project['validation_k_fold'] = sfutil.int_input("How many iterations should be performed when bootstrapping? [3] ", default=3)
+		else:
+			project['validation_k_fold'] = 0
 
 		sfutil.write_json(project, join(sfutil.PROJECT_DIR, 'settings.json'))
 		self.PROJECT = project
