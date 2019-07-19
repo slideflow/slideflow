@@ -310,7 +310,7 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 				sys.exit()
 			if filter_header:
 				should_skip = False
-				for i, f_header in enumerate(filter_header):
+				for i in range(len(filter_header)):
 					observed_value = row[filter_indices[i]]
 					# Check if this slide should be skipped
 					if (type(filter_values[i])==str and observed_value!=filter_values[i]) or observed_value not in filter_values[i]:
@@ -371,9 +371,8 @@ def verify_annotations(annotations_file, slides_dir=None):
 			return
 	try:
 		case_index = header.index(TCGAAnnotations.case)
-		category_index = header.index('category')
 	except:
-		log.error(f"Check annotations file for headers '{TCGAAnnotations.case}' and 'category'.", 1)
+		log.error(f"Check annotations file for header '{TCGAAnnotations.case}'.", 1)
 		sys.exit()
 	try:
 		slide_index = header.index(TCGAAnnotations.slide)

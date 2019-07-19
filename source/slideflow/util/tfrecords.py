@@ -4,7 +4,7 @@ import numpy as numpy
 import os
 import shutil
 from os import listdir
-from os.path import isfile, isdir, join
+from os.path import isfile, isdir, join, exists
 from random import shuffle, randint
 
 import time
@@ -156,6 +156,8 @@ def write_tfrecords_merge(input_directory, output_directory, filename, annotatio
 	Collects all image tiles and exports into a single tfrecord file.'''
 	#annotations_dict = sfutil.get_annotations_dict(annotations_file, key_name="slide", value_name="category")
 	tfrecord_path = join(output_directory, filename)
+	if not exists(output_directory):
+		os.makedirs(output_directory)
 	image_labels = {}
 	slide_dirs = [_dir for _dir in listdir(input_directory) if isdir(join(input_directory, _dir))]
 	for slide_dir in slide_dirs:
@@ -189,6 +191,8 @@ def write_tfrecords_multi(input_directory, output_directory, annotations_file=No
 def write_tfrecords_single(input_directory, output_directory, filename, category, case):
 	'''Scans a folder for image tiles, annotates using the provided category and case, exports
 	into a single tfrecord file.'''
+	if not exists(output_directory):
+		os.makedirs(output_directory)
 	tfrecord_path = join(output_directory, filename)
 	image_labels = {}
 	files = _get_images_by_dir(input_directory)
