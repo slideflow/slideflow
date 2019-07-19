@@ -346,13 +346,13 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 		elif use_encode:
 			return key_dict_int
 		elif use_float:
-			try:
-				for key in key_dict_str:
+			for key in key_dict_str:
+				try:
 					key_dict_str[key] = float(key_dict_str[key])
-				return key_dict_str
-			except:
-				log.error("Unable to convert data into float; please check data integrity and chosen annotation column")
-				sys.exit()
+				except:
+					log.error(f'Unable to convert data ("{key_dict_str[key]}") into float; please check data integrity and chosen annotation column')
+					sys.exit()
+			return key_dict_str
 		else:
 			return key_dict_str
 

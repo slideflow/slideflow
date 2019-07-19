@@ -150,7 +150,7 @@ class SlideFlowProject:
 
 		# If validation is done per-tile, use pre-separated TFRecord files (validation separation done at time of TFRecord creation)
 		if val_target == 'per-tile':
-			log.info(f"Loading pre-separated TFRecords in {sfutil.green(subfolder)}")
+			log.info(f"Loading pre-separated TFRecords in {sfutil.green(subfolder)}", 1)
 			if val_strategy == 'bootstrap':
 				log.warn("Validation bootstrapping is not supported when the validation target is per-tile; using tfrecords in 'training' and 'validation' subdirectories", 1)
 			if val_strategy in ('bootstrap', 'fixed'):
@@ -192,29 +192,29 @@ class SlideFlowProject:
 				sys.exit()
 			if val_strategy == 'bootstrap':
 				num_val = int(val_fraction * len(tfrecords))
-				log.info(f"Using boostrap validation: selecting {sfutil.bold(num_val)} slides at random to use for validation testing")
+				log.info(f"Using boostrap validation: selecting {sfutil.bold(num_val)} slides at random to use for validation testing", 1)
 				validation_tfrecords = tfrecords[0:num_val]
 				training_tfrecords = tfrecords[num_val:]
 			elif val_strategy == 'fixed':
 				num_val = int(val_fraction * len(tfrecords))
 				# Start by checking for a valid plan
 				if not exists(validation_log):
-					log.info(f"No validation log found; will log validation plan at {sfutil.green(validation_log)}")
+					log.info(f"No validation log found; will log validation plan at {sfutil.green(validation_log)}", 1)
 				else:
 					validation_plan = sfutil.load_json(validation_log)
 					if 'fixed' not in validation_plan:
-						log.info(f"No fixed validation plan found in {sfutil.green(validation_log)}; will create new plan")
+						log.info(f"No fixed validation plan found in {sfutil.green(validation_log)}; will create new plan", 1)
 					elif len(validation_plan['fixed']) != num_val:
-						log.warn(f"Fixed validation plan detected at {sfutil.green(validation_log)}, but does not match provided slide set; will create new validation plan")
+						log.warn(f"Fixed validation plan detected at {sfutil.green(validation_log)}, but does not match provided slide set; will create new validation plan", 1)
 					else:
 						valid_plan = True
 						for tf in validation_plan['fixed']:
 							if tf[:-10] not in slide_list:
-								log.warn(f"Fixed validation plan detected at {sfutil.green(validation_log)}, but contains tfrecords not in slide set; will create new validation plan")
+								log.warn(f"Fixed validation plan detected at {sfutil.green(validation_log)}, but contains tfrecords not in slide set; will create new validation plan", 1)
 								valid_plan = False
 						if valid_plan:
 							# Use existing valid plan
-							log.info(f"Using fixed validation plan detected at {sfutil.green(validation_log)}")
+							log.info(f"Using fixed validation plan detected at {sfutil.green(validation_log)}", 1)
 							training_tfrecords = [tfr for tfr in tfrecords if tfr.split('/')[-1] not in validation_plan['fixed']] 
 							validation_tfrecords = [tfr for tfr in tfrecords if tfr.split('/')[-1] in validation_plan['fixed']] 
 							log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation", 1)
@@ -226,31 +226,31 @@ class SlideFlowProject:
 				sfutil.write_json(validation_plan, validation_log)
 			elif val_strategy == 'k-fold':
 				if not exists(validation_log):
-					log.info(f"No validation log found; will log validation plan at {sfutil.green(validation_log)}")
+					log.info(f"No validation log found; will log validation plan at {sfutil.green(validation_log)}", 1)
 				else:
 					validation_plan = sfutil.load_json(validation_log)
 					if 'k-fold' not in validation_plan:
-						log.info(f"No k-fold validation plan found in {sfutil.green(validation_log)}; will create new plan")
+						log.info(f"No k-fold validation plan found in {sfutil.green(validation_log)}; will create new plan", 1)
 					elif len(validation_plan['k-fold']) != k_fold:
-						log.warn(f"K-fold validation plan detected at {sfutil.green(validation_log)}, but logged k ({len(validation_plan['k-fold'])}) does not match project setting ({k_fold}); will create new validation plan")
+						log.warn(f"K-fold validation plan detected at {sfutil.green(validation_log)}, but logged k ({len(validation_plan['k-fold'])}) does not match project setting ({k_fold}); will create new validation plan", 1)
 					else:
 						logged_cases = []
 						for fold in range(len(validation_plan['k-fold'])):
 							logged_cases += validation_plan['k-fold'][fold]
 						if len(logged_cases) != len(tfrecords):
-							log.warn(f"K-fold validation plan detected at {sfutil.green(validation_log)}, but number of cases do not match; will create new plan")
+							log.warn(f"K-fold validation plan detected at {sfutil.green(validation_log)}, but number of cases do not match; will create new plan", 1)
 						else:
 							valid_plan = True
 							for tf in logged_cases:
 								if tf[:-10] not in slide_list:
-									log.warn(f"K-fold validation plan detected at {sfutil.green(validation_log)}, but contains tfrecords not in slide set; will create new validation plan")
+									log.warn(f"K-fold validation plan detected at {sfutil.green(validation_log)}, but contains tfrecords not in slide set; will create new validation plan", 1)
 									valid_plan = False
 							if valid_plan:
-								log.info(f"Using k-fold validation plan detected at {sfutil.green(validation_log)}")
+								log.info(f"Using k-fold validation plan detected at {sfutil.green(validation_log)}", 1)
 								training_tfrecords = [tfr for tfr in tfrecords if (tfr.split('/')[-1] not in validation_plan['k-fold'][k_fold_index]) and 
 																				  (tfr.split('/')[-1] in logged_cases)]
 								validation_tfrecords = [tfr for tfr in tfrecords if tfr.split('/')[-1] in validation_plan['k-fold'][k_fold_index]] 
-								log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {len(validation_tfrecords)} for validation", 1)
+								log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation", 1)
 								return training_tfrecords, validation_tfrecords
 				# Create a new k-fold validation plan and log plan results
 				validation_plan['k-fold'] = []
@@ -271,7 +271,7 @@ class SlideFlowProject:
 			elif val_strategy == 'none':
 				training_tfrecords += tfrecords
 
-		log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {len(validation_tfrecords)} for validation", 1)
+		log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation", 1)
 		return training_tfrecords, validation_tfrecords
 
 	def initialize_model(self, model_name, train_tfrecords, validation_tfrecords, category_header, filter_header=None, filter_values=None, skip_validation=False, model_type='categorical'):
