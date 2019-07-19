@@ -292,8 +292,9 @@ class SlideFlowProject:
 																				model_type=model_type)
 		return SFM
 
-	def evaluate(self, model, subfolder, category_header, filter_header=None, filter_values=None, checkpoint=None, model_type='categorical'):
+	def evaluate(self, model, category_header, filter_header=None, filter_values=None, subfolder=None, checkpoint=None, model_type='categorical'):
 		log.header(f"Evaluating model {sfutil.bold(model)}...")
+		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
 		model_name = model.split('/')[-1]
 		tfrecord_path = join(self.PROJECT['tfrecord_dir'], subfolder)
 		tfrecords = []
