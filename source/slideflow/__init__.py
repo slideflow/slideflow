@@ -62,7 +62,7 @@ class SlideFlowProject:
 		list of acceptable values; all other cases will be ignored
 		
 		If a single case is supplied, extract tiles for just that case.'''
-		import convoluter
+		import slideflow.convoluter
 
 		log.header("Extracting image tiles...")
 		dataset_label = NO_LABEL if not dataset_label else dataset_label
@@ -333,7 +333,7 @@ class SlideFlowProject:
 				f"Val_loss={results_dict[model]['val_loss']}, Val_Acc={results_dict[model]['val_acc']}" )
 
 	def generate_heatmaps(self, model_name, filter_header=None, filter_values=None, resolution='medium'):
-		import convoluter
+		import slideflow.convoluter
 		
 		log.header("Generating heatmaps...")
 		resolutions = {'low': 1, 'medium': 2, 'high': 4}
