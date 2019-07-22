@@ -24,6 +24,8 @@ from slideflow.util import datasets, tfrecords, TCGAAnnotations, log
 # 	to short-names, e.g. when multiple diagnostic slides are present)
 # TODO: automatic loading of training configuration even when training one model
 
+__version__ = "0.9.6"
+
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
 EVAL_BATCH_SIZE = 64
@@ -42,8 +44,8 @@ class SlideFlowProject:
 
 	def __init__(self, project_folder):
 		os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-		log.header('''SlideFlow v0.9.5\n================''')
-		log.header('''Loading project...''')
+		log.header(f"Slideflow v{__version__}\n================")
+		log.header("Loading project...")
 		if project_folder and not os.path.exists(project_folder):
 			if sfutil.yes_no_input(f'Directory "{project_folder}" does not exist. Create directory and set as project root? [Y/n] ', default='yes'):
 				os.mkdir(project_folder)
@@ -133,7 +135,8 @@ class SlideFlowProject:
 	def checkpoint_to_h5(self, model_name):
 		tfrecords.checkpoint_to_h5(self.PROJECT['models_dir'], model_name)
 
-	def get_training_and_validation_tfrecords(self, subfolder, slide_list, k_fold_iter=None):
+	def get_training_and_validation_tfrecords(self, subfolder, slide_list, validation_target=None, validation_strategy=None, 
+												validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
 		'''From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
 		Returns two arrays: an array of full paths to training tfrecords, and an array of paths to validation tfrecords.''' 
 		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
@@ -143,10 +146,10 @@ class SlideFlowProject:
 		validation_tfrecords = []
 		validation_plan = {}
 
-		val_target = self.PROJECT['validation_target']
-		val_strategy = self.PROJECT['validation_strategy']
-		val_fraction = self.PROJECT['validation_fraction']
-		k_fold = self.PROJECT['validation_k_fold']
+		val_target = validation_target if validation_target else self.PROJECT['validation_target']
+		val_strategy = validation_strategy if validation_strategy else self.PROJECT['validation_strategy']
+		val_fraction = validation_fraction if validation_fraction else self.PROJECT['validation_fraction']
+		k_fold = validation_k_fold if validation_k_fold else self.PROJECT['validation_k_fold']
 
 		# If validation is done per-tile, use pre-separated TFRecord files (validation separation done at time of TFRecord creation)
 		if val_target == 'per-tile':
@@ -290,7 +293,7 @@ class SlideFlowProject:
 																				model_type=model_type)
 		return SFM
 
-	def evaluate(self, model, subfolder, category_header, filter_header=None, filter_values=None, checkpoint=None, model_type='categorical'):
+	def evaluate(self, model, subfolder, category_header, model_type='categorical', filter_header=None, filter_values=None, checkpoint=None):
 		log.header(f"Evaluating model {sfutil.bold(model)}...")
 		model_name = model.split('/')[-1]
 		tfrecord_path = join(self.PROJECT['tfrecord_dir'], subfolder)
@@ -312,11 +315,13 @@ class SlideFlowProject:
 		# Perform evaluation
 		SFM = self.initialize_model(f"eval-{model_name}", None, None, category_header, filter_header, filter_values, skip_validation=True, model_type=model_type)
 		model_dir = join(self.PROJECT['models_dir'], model, "trained_model.h5") if model[-3:] != ".h5" else model
-		results = SFM.evaluate(tfrecords=tfrecords, hp=None, model=model_dir, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
+		results = SFM.evaluate(tfrecords=tfrecords, hp=None, model=model_dir, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
 		print(results)
 		return results
 
-	def train(self, models=None, subfolder=NO_LABEL, category_header='category', filter_header=None, filter_values=None, resume_training=None, checkpoint=None, supervised=True, batch_file=None, model_type='categorical'):
+	def train(self, models=None, subfolder=NO_LABEL, category_header='category', filter_header=None, filter_values=None, resume_training=None, 
+				checkpoint=None, pretrain='imagenet', supervised=True, batch_file=None, model_type='categorical',
+				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
 		'''Train model(s) given configurations found in batch_train.tsv.
 		Args:
 			models			(optional) Either string representing a model name or an array of strings containing model names. 
@@ -332,8 +337,13 @@ class SlideFlowProject:
 		Returns:
 			A dictionary containing model names mapped to train_acc, val_loss, and val_acc'''
 
-		# Get list of slides for training
+		# Get list of slides for training and establish validation plan
 		batch_train_file = self.PROJECT['batch_train_config'] if not batch_file else sfutil.global_path(batch_file)
+		validation_target = self.PROJECT['validation_target'] if not validation_target else validation_target
+		validation_strategy = self.PROJECT['validation_strategy'] if not validation_strategy else validation_strategy
+		validation_fraction = self.PROJECT['validation_fraction'] if not validation_fraction else validation_fraction
+		validation_k_fold = self.PROJECT['validation_k_fold'] if not validation_k_fold else validation_k_fold
+		k_fold_iter = [k_fold_iter] if type(k_fold_iter) != list else k_fold_iter
 
 		slide_to_category = sfutil.get_annotations_dict(self.PROJECT['annotations'], 'slide', category_header, 
 																							filter_header=filter_header, 
@@ -368,13 +378,19 @@ class SlideFlowProject:
 		results_dict = manager.dict()
 
 		# Create a worker that can execute one round of training
-		def trainer(results_dict, model_name, hp, k_fold_iter=None):
+		def trainer(results_dict, model_name, hp, k_fold_i=None):
 			if supervised:
-				k_fold_msg = "" if not k_fold_iter else f" ({self.PROJECT['validation_strategy']} iteration #{k_fold_iter})"
+				k_fold_msg = "" if not k_fold_i else f" ({validation_strategy} iteration #{k_fold_i})"
 				log.empty(f"Training model {sfutil.bold(model_name)}{k_fold_msg}...", 1)
 				log.info(hp, 1)
-			full_model_name = model_name if not k_fold_iter else model_name+f"-kfold{k_fold_iter}"
-			training_tfrecords, validation_tfrecords = self.get_training_and_validation_tfrecords(subfolder, slide_list, k_fold_iter=k_fold_iter)
+			full_model_name = model_name if not k_fold_i else model_name+f"-kfold{k_fold_i}"
+
+			training_tfrecords, validation_tfrecords = self.get_training_and_validation_tfrecords(subfolder, slide_list, validation_target=validation_target,
+																														 validation_strategy=validation_strategy,
+																														 validation_fraction=validation_fraction,
+																														 validation_k_fold=validation_k_fold,
+																														 k_fold_iter=k_fold_i)
+
 			SFM = self.initialize_model(full_model_name, training_tfrecords, validation_tfrecords, category_header, filter_header, filter_values, model_type=model_type)
 			with open(os.path.join(self.PROJECT['models_dir'], full_model_name, 'hyperparameters.log'), 'w') as hp_file:
 				hp_text = f"Tile pixel size: {self.PROJECT['tile_px']}\n"
@@ -384,7 +400,7 @@ class SlideFlowProject:
 					hp_text = hp_text.replace(s, "")
 				hp_file.write(hp_text)
 			try:
-				train_acc, val_loss, val_acc = SFM.train(hp, pretrain=self.PROJECT['pretrain'], 
+				train_acc, val_loss, val_acc = SFM.train(hp, pretrain=pretrain, 
 															resume_training=resume_training, 
 															checkpoint=checkpoint,
 															supervised=supervised)
@@ -399,7 +415,7 @@ class SlideFlowProject:
 				del(SFM)
 				return
 
-		k_fold = self.PROJECT['validation_k_fold'] if self.PROJECT['validation_strategy'] in ('k-fold', 'bootstrap') else 0
+		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
 
 		# Begin assembling models and hyperparameters from batch_train.tsv file
 		with open(batch_train_file) as csv_file:
@@ -438,6 +454,8 @@ class SlideFlowProject:
 					val_acc_list = []
 					error_encountered = False
 					for k in range(k_fold):
+						if k not in k_fold_iter:
+							continue
 						p = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp, k+1))
 						p.start()
 						p.join()
@@ -648,11 +666,6 @@ class SlideFlowProject:
 		# Training
 		project['models_dir'] = sfutil.dir_input("Where should the saved models be stored? [./models] ",
 									default='./models', create_on_invalid=True)
-		if sfutil.yes_no_input("Will models utilize pre-training? [Y/n] ", default='yes'):
-			if sfutil.yes_no_input("Use Imagenet pre-training? [Y/n] ", default='yes'):
-				project['pretrain'] = 'imagenet'
-			else:
-				project['pretrain'] = sfutil.dir_input("Where is the pretrained model folder located? ", create_on_invalid=False)
 		project['tile_um'] = sfutil.int_input("What is the tile width in microns? [280] ", default=280)
 		project['tile_px'] = sfutil.int_input("What is the tile width in pixels? [224] ", default=224)
 		project['use_fp16'] = sfutil.yes_no_input("Should FP16 be used instead of FP32? (recommended) [Y/n] ", default='yes')

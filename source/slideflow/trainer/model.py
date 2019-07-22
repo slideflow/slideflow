@@ -76,6 +76,7 @@ class HyperParameters:
 		#'DenseNet': tf.keras.applications.DenseNet,
 		#'NASNet': tf.keras.applications.NASNet
 	}
+	_LinearLoss = ['mean_squared_error', 'mean_absolute_error', 'mean_absolute_percentage_error', 'mean_squared_logarithmic_error', 'squared_hinge', 'hinge', 'logcosh']
 	def __init__(self, finetune_epochs=50, toplayer_epochs=0, model='InceptionV3', pooling='avg', loss='sparse_categorical_crossentropy',
 				 learning_rate=0.1, batch_size=16, hidden_layers=0, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
@@ -112,8 +113,12 @@ class HyperParameters:
 			weights=weights
 		)
 
+	def model_type(self):
+		model_type = 'linear' if self.loss in self._LinearLoss else 'categorical'
+		return model_type
+
 	def _get_args(self):
-		return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt', 'get_model']]
+		return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt', 'get_model', 'model_type']]
 
 	def __str__(self):
 		output = "Hyperparameters:\n"
@@ -333,7 +338,7 @@ class SlideflowModel:
 		# If no hidden layers and no pooling is used, flatten the output prior to softmax
 		
 		# Add the softmax prediction layer
-		if hp.loss == "mean_absolute_error":
+		if hp.model_type() == "linear":
 			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='linear')]
 		else:
 			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')]
@@ -361,64 +366,84 @@ class SlideflowModel:
 		plt.xlabel('FPR')
 		plt.savefig(os.path.join(self.DATA_DIR, f'{name}.png'))
 
-	def generate_predictions_and_roc(self, model, dataset_with_casenames, label=None):
+	def generate_predictions_and_roc(self, model, dataset_with_casenames, model_type, label=None):
 		'''Dataset must include three items: raw image data, labels, and case names.'''
 		# Get predictions and performance metrics
 		log.info("Generating predictions...", 1)
+		label_end = "" if not label else f"_{label}"
+		label_start = "" if not label else f"{label}_"
 		y_true, y_pred, cases = [], [], []
-		for batch in dataset_with_casenames:
+		for i, batch in enumerate(dataset_with_casenames):
+			sys.stdout.write(f"\r   - Working on batch {i}...")
+			sys.stdout.flush()
 			cases += [case_bytes.decode('utf-8') for case_bytes in batch[2].numpy()]
 			y_true += [batch[1].numpy()]
 			y_pred += [model.predict_on_batch(batch[0])]
+		sys.stdout.write("\r\033[K")
+		sys.stdout.flush()
 		y_pred = np.concatenate(y_pred)
+		y_true = np.concatenate(y_true)
 
-		# Convert y_true to one_hot encoding
-		num_cat = len(y_pred[0])
-		def to_onehot(val):
-			onehot = [0] * num_cat
-			onehot[val] = 1
-			return onehot
-		y_true = np.array([to_onehot(i) for i in np.concatenate(y_true)])
+		if model_type == 'linear':
+			y_true = np.array([[i] for i in y_true])
+			num_cat = len(y_pred[0])
+				
+		if model_type == 'categorical':
+			# Convert y_true to one_hot encoding
+			num_cat = len(y_pred[0])
+			def to_onehot(val):
+				onehot = [0] * num_cat
+				onehot[val] = 1
+				return onehot
+			y_true = np.array([to_onehot(i) for i in y_true])
 
-		# Scan datasets for case-level one_hot encoding
-		case_onehot = {}
-		for i in range(len(cases)):
-			casename = cases[i]
-			if casename not in case_onehot:
-				case_onehot.update({casename: y_true[i]})
-			# Now check for data integrity problems (case assigned to multiple different outcomes)
-			elif not np.array_equal(case_onehot[casename], y_true[i]):
-				log.error("Data integrity failure when generating ROCs", 1)
-				sys.exit()
+			# Scan datasets for case-level one_hot encoding
+			case_onehot = {}
+			for i in range(len(cases)):
+				casename = cases[i]
+				if casename not in case_onehot:
+					case_onehot.update({casename: y_true[i]})
+				# Now check for data integrity problems (case assigned to multiple different outcomes)
+				elif not np.array_equal(case_onehot[casename], y_true[i]):
+					log.error("Data integrity failure when generating ROCs", 1)
+					sys.exit()
 
-		# Generate tile-level ROC
-		label_end = "" if not label else f"_{label}"
-		label_start = "" if not label else f"{label}_"
-		for i in range(num_cat):
-			self.generate_roc(y_true[:, i], y_pred[:, i], f'{label_start}tile_ROC{i}')
+			# Generate tile-level ROC
+			for i in range(num_cat):
+				self.generate_roc(y_true[:, i], y_pred[:, i], f'{label_start}tile_ROC{i}')
 
-		# Generate slide-level ROC
-		onehot_predictions = []
-		for x in range(len(y_pred)):
-			predictions = y_pred[x]
-			onehot_predictions += [[1 if pred == max(predictions) else 0 for pred in predictions]]
+			# Generate slide-level ROC
+			onehot_predictions = []
+			for x in range(len(y_pred)):
+				predictions = y_pred[x]
+				onehot_predictions += [[1 if pred == max(predictions) else 0 for pred in predictions]]
 
-		unique_cases = list(set(cases))
-		percent_calls_by_case = []
-		for case in unique_cases:
-			percentages = []
-			for cat_index in range(num_cat):
-				percentages += [sum([ onehot_predictions[i][cat_index] for i in range(len(cases)) if cases[i] == case ]) / len([i for i in range(len(cases)) if cases[i] == case])]
-			percent_calls_by_case += [percentages]
-		percent_calls_by_case = np.array(percent_calls_by_case)
+			unique_cases = list(set(cases))
+			percent_calls_by_case = []
+			for case in unique_cases:
+				percentages = []
+				for cat_index in range(num_cat):
+					percentages += [sum([ onehot_predictions[i][cat_index] for i in range(len(cases)) if cases[i] == case ]) / len([i for i in range(len(cases)) if cases[i] == case])]
+				percent_calls_by_case += [percentages]
+			percent_calls_by_case = np.array(percent_calls_by_case)
 
-		for i in range(num_cat):
-			case_y_pred = percent_calls_by_case[:, i]
-			case_y_true = [case_onehot[case][i] for case in unique_cases]
-			self.generate_roc(case_y_true, case_y_pred, f'{label_start}slide_ROC{i}')
+			for i in range(num_cat):
+				case_y_pred = percent_calls_by_case[:, i]
+				case_y_true = [case_onehot[case][i] for case in unique_cases]
+				self.generate_roc(case_y_true, case_y_pred, f'{label_start}slide_ROC{i}')
 
-		# Save results to CSV
-		# First, save tile-level predictions
+			# Save slide-level predictions
+			slide_csv_dir = os.path.join(self.DATA_DIR, f"slide_predictions{label_end}.csv")
+			with open(slide_csv_dir, 'w') as outfile:
+				writer = csv.writer(outfile)
+				header = ['case'] + [f"y_true{i}" for i in range(num_cat)] + [f"percent_tiles_positive{j}" for j in range(num_cat)]
+				writer.writerow(header)
+				for i, case in enumerate(unique_cases):
+					case_y_true_onehot = case_onehot[case]
+					row = np.concatenate([ [case], case_y_true_onehot, percent_calls_by_case[i] ])
+					writer.writerow(row)
+		
+		# Save tile-level predictions
 		tile_csv_dir = os.path.join(self.DATA_DIR, f"tile_predictions{label_end}.csv")
 		with open(tile_csv_dir, 'w') as outfile:
 			writer = csv.writer(outfile)
@@ -427,19 +452,10 @@ class SlideflowModel:
 			for i in range(len(y_true)):
 				row = np.concatenate([[cases[i]], y_true[i], y_pred[i]])
 				writer.writerow(row)
-		# Now, save slide-level predictions
-		slide_csv_dir = os.path.join(self.DATA_DIR, f"slide_predictions{label_end}.csv")
-		with open(slide_csv_dir, 'w') as outfile:
-			writer = csv.writer(outfile)
-			header = ['case'] + [f"y_true{i}" for i in range(num_cat)] + [f"percent_tiles_positive{j}" for j in range(num_cat)]
-			writer.writerow(header)
-			for i, case in enumerate(unique_cases):
-				case_y_true_onehot = case_onehot[case]
-				row = np.concatenate([ [case], case_y_true_onehot, percent_calls_by_case[i] ])
-				writer.writerow(row)
-		log.complete(f"Predictions saved to {sfutil.green(tile_csv_dir)} and {sfutil.green(slide_csv_dir)}", 1)
 
-	def evaluate(self, tfrecords, hp=None, model=None, checkpoint=None, batch_size=None):
+		log.complete(f"Predictions saved to {sfutil.green(self.DATA_DIR)}", 1)
+
+	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None):
 		# Load and initialize model
 		if not hp and checkpoint:
 			log.error("If using a checkpoint for evaluation, hyperparameters must be specified.")
@@ -453,7 +469,7 @@ class SlideflowModel:
 			self.model = self.build_model(hp)
 			self.model.load_weights(checkpoint)
 
-		self.generate_predictions_and_roc(self.model, dataset_with_casenames, label="eval")
+		self.generate_predictions_and_roc(self.model, dataset_with_casenames, model_type, label="eval")
 
 		log.info("Calculating performance metrics...", 1)
 		results = self.model.evaluate(dataset)
@@ -506,7 +522,7 @@ class SlideflowModel:
 		verbose = 1 if supervised else 0
 		val_steps = 200
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
-		metrics = ['accuracy'] if hp.loss != 'mean_absolute_error' else ['mean_absolute_error']
+		metrics = ['accuracy'] if hp.model_type() != 'linear' else [hp.loss]
 
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
@@ -532,11 +548,11 @@ class SlideflowModel:
 					self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5"))
 					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
 						epoch_label = f"val_epoch{epoch+1}"
-						if hp.loss != 'mean_absolute_error':
+						if hp.model_type() != 'linear':
 							train_acc = logs['accuracy']
-							parent.generate_predictions_and_roc(self.model, validation_data_with_casenames, label=epoch_label)
 						else:
-							train_acc = logs['mean_absolute_error']
+							train_acc = logs[hp.loss]
+						parent.generate_predictions_and_roc(self.model, validation_data_with_casenames, hp.model_type(), label=epoch_label)
 						if verbose: log.info("Beginning validation testing", 1)
 						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
@@ -569,8 +585,6 @@ class SlideflowModel:
 					optimizer=initialized_optimizer,
 					metrics=metrics)
 
-		
-
 		finetune_model = self.model.fit(train_data.repeat(),
 			steps_per_epoch=steps_per_epoch,
 			epochs=total_epochs,
@@ -581,14 +595,10 @@ class SlideflowModel:
 			callbacks=callbacks)
 
 		self.model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
-		if hp.loss != 'mean_absolute_error':
+		if hp.model_type() != 'linear':
 			train_acc = finetune_model.history['accuracy']
 		else:
-			train_acc = finetune_model.history['mean_absolute_error']
-
-		# This section is no longer needed due to the PredictionAndEvaluationCallback
-		# Generate predictions and ROC
-		#self.generate_predictions_and_roc(self.model, validation_data_with_casenames, "eval")
+			train_acc = finetune_model.history[hp.loss]
 
 		# Final validation testing, getting both overall accuracy/loss and predictions for ROCs
 		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
