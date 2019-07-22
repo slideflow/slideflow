@@ -164,7 +164,9 @@ class SlideFlowProject:
 				training_tfrecords += glob(join(tfrecord_dir, 'training', "*.tfrecords"))
 				validation_tfrecords += glob(join(tfrecord_dir, 'validation', "*.tfrecords"))
 			elif val_strategy == 'k-fold':
-				log.warn("No k-fold iteration specified; assuming iteration #1", 1)
+				if not k_fold_iter:
+					log.warn("No k-fold iteration specified; assuming iteration #1", 1)
+					k_fold_iter = 1
 				if k_fold_iter > k_fold:
 					log.error(f"K-fold iteration supplied ({k_fold_iter}) exceeds the project K-fold setting ({k_fold})", 1)
 					sys.exit()
@@ -293,8 +295,9 @@ class SlideFlowProject:
 																				model_type=model_type)
 		return SFM
 
-	def evaluate(self, model, subfolder, category_header, model_type='categorical', filter_header=None, filter_values=None, checkpoint=None):
+	def evaluate(self, model, category_header, model_type='categorical', filter_header=None, filter_values=None, subfolder=None, checkpoint=None):
 		log.header(f"Evaluating model {sfutil.bold(model)}...")
+		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
 		model_name = model.split('/')[-1]
 		tfrecord_path = join(self.PROJECT['tfrecord_dir'], subfolder)
 		tfrecords = []
