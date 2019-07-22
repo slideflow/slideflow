@@ -346,7 +346,7 @@ class SlideFlowProject:
 		validation_strategy = self.PROJECT['validation_strategy'] if not validation_strategy else validation_strategy
 		validation_fraction = self.PROJECT['validation_fraction'] if not validation_fraction else validation_fraction
 		validation_k_fold = self.PROJECT['validation_k_fold'] if not validation_k_fold else validation_k_fold
-		k_fold_iter = [k_fold_iter] if type(k_fold_iter) != list else k_fold_iter
+		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and type(k_fold_iter) != list) else k_fold_iter
 
 		slide_to_category = sfutil.get_annotations_dict(self.PROJECT['annotations'], 'slide', category_header, 
 																							filter_header=filter_header, 
@@ -457,7 +457,7 @@ class SlideFlowProject:
 					val_acc_list = []
 					error_encountered = False
 					for k in range(k_fold):
-						if k not in k_fold_iter:
+						if k_fold_iter and k not in k_fold_iter:
 							continue
 						p = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp, k+1))
 						p.start()
