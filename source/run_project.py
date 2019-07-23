@@ -3,7 +3,7 @@ import slideflow as sf
 import argparse
 
 sf.set_logging_level(3)
-sf.select_gpu(0)
+sf.autoselect_gpu(1)
 sf.NUM_THREADS = 4
 sf.SKIP_VERIFICATION = True
 
