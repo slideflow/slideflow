@@ -20,7 +20,7 @@ import itertools
 import multiprocessing
 import slideflow.util as sfutil
 from slideflow.util import datasets, tfrecords, TCGAAnnotations, log
-from slideflow.mosaic import Mosaic
+#from slideflow.mosaic import Mosaic
 
 __version__ = "0.9.7"
 
