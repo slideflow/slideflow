@@ -20,6 +20,7 @@ import itertools
 import multiprocessing
 import slideflow.util as sfutil
 from slideflow.util import datasets, tfrecords, TCGAAnnotations, log
+from slideflow.mosaic import Mosaic
 
 __version__ = "0.9.7"
 
@@ -43,6 +44,10 @@ def autoselect_gpu(number_available):
 			GPU_LOCK = n
 			return
 	log.error(f"No free GPUs detected; try deleting 'gpu[#].lock' files in the slideflow directory if GPUs are not in use.")
+
+def select_gpu(number):
+	print(f"Requesting GPU #{n}")
+	os.environ["CUDA_VISIBLE_DEVICES"]=str(n)
 
 def exit_script():
 	print("Exiting...")
@@ -553,6 +558,16 @@ class SlideFlowProject:
 		c.load_slides(slide_list)
 		c.build_model(join(self.PROJECT['models_dir'], model_name, 'trained_model.h5'))
 		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
+
+	def generate_mosaic(self, weights=None, model=None, filter_header=None, filter_values=None, subfolder=None, resolution="medium"):
+		'''Generates a mosaic map with dimensionality reduction on final layer weights. May use pre-generated final layer weights if available 
+		(e.g. with generate_heatmaps()) by specifying "weights" option; otherwise uses TFRecord datasets and the specified model.'''
+		log.header("Generating mosaic map...")
+		if weights:
+			log.info(f"Using weights from {sfutil.green(weights)}", 1)
+			args = None
+			mosaic = Mosaic(args)
+			mosaic.generate()
 
 	def create_blank_train_config(self, filename=None):
 		'''Creates a CSV file with the batch training structure.'''
