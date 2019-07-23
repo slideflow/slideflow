@@ -13,6 +13,7 @@ from random import shuffle
 import csv
 
 import gc
+import atexit
 import subprocess
 import slideflow.trainer.model as sfmodel
 import itertools
@@ -20,23 +21,36 @@ import multiprocessing
 import slideflow.util as sfutil
 from slideflow.util import datasets, tfrecords, TCGAAnnotations, log
 
-# TODO: scan for duplicate SVS files (especially when converting TCGA long-names 
-# 	to short-names, e.g. when multiple diagnostic slides are present)
-# TODO: automatic loading of training configuration even when training one model
-
-__version__ = "0.9.6"
+__version__ = "0.9.7"
 
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
 EVAL_BATCH_SIZE = 64
+GPU_LOCK = None
 NO_LABEL = 'no_label'
 
 def set_logging_level(level):
 	sfutil.LOGGING_LEVEL.INFO = level
 
-def select_gpu(number):
-	os.environ["CUDA_VISIBLE_DEVICES"]=str(number)
-	print(f"Requesting GPU #{number}")
+def autoselect_gpu(number_available):
+	'''Automatically claims a free GPU and creates a lock file to prevent 
+	other instances of slideflow from using the same GPU.'''
+	for n in range(number_available):
+		if not exists(f"gpu{n}.lock"):
+			print(f"Requesting GPU #{n}")
+			os.environ["CUDA_VISIBLE_DEVICES"]=str(n)
+			open(f"gpu{n}.lock", 'a').close()
+			GPU_LOCK = n
+			return
+	log.error(f"No free GPUs detected; try deleting 'gpu[#].lock' files in the slideflow directory if GPUs are not in use.")
+
+def exit_script():
+	print("Exiting...")
+	if GPU_LOCK and exists(f"gpu{number}.lock"):
+		print(f"Freeing GPU {number}...")
+		os.remove(f"gpu{number}.lock")
+	
+atexit.register(exit_script)
 
 class SlideFlowProject:
 	MANIFEST = None
@@ -138,7 +152,11 @@ class SlideFlowProject:
 	def get_training_and_validation_tfrecords(self, subfolder, slide_list, validation_target=None, validation_strategy=None, 
 												validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
 		'''From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
+		If a validation plan has already been prepared (e.g. K-fold iterations were already determined), will use the previously generated plan.
+		Otherwise, creates a new plan and logs the result in the TFRecord directory so future models may use the same plan for consistency.
+
 		Returns two arrays: an array of full paths to training tfrecords, and an array of paths to validation tfrecords.''' 
+
 		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
 		subdirs = [sd for sd in os.listdir(tfrecord_dir) if isdir(join(tfrecord_dir, sd))]
 		if k_fold_iter: k_fold_index = int(k_fold_iter)-1
@@ -280,7 +298,7 @@ class SlideFlowProject:
 		return training_tfrecords, validation_tfrecords
 
 	def initialize_model(self, model_name, train_tfrecords, validation_tfrecords, category_header, filter_header=None, filter_values=None, skip_validation=False, model_type='categorical'):
-		# Assemble list of slides for training and annotations dictionary
+		# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
 		slide_to_category = sfutil.get_annotations_dict(self.PROJECT['annotations'], 'slide', category_header, 
 																							filter_header=filter_header, 
 																							filter_values=filter_values,
@@ -289,6 +307,7 @@ class SlideFlowProject:
 
 		model_dir = join(self.PROJECT['models_dir'], model_name)
 
+		# Build a model using the slide list as input and the annotations dictionary as output labels
 		SFM = sfmodel.SlideflowModel(model_dir, self.PROJECT['tile_px'], slide_to_category, train_tfrecords, validation_tfrecords,
 																				manifest=self.MANIFEST, 
 																				use_fp16=self.PROJECT['use_fp16'],
@@ -302,7 +321,8 @@ class SlideFlowProject:
 		tfrecord_path = join(self.PROJECT['tfrecord_dir'], subfolder)
 		tfrecords = []
 
-		# Check if given subfolder contains split data
+		# Check if given subfolder contains split data (tiles split into multiple TFRecords, likely for validation testing)
+		# If true, can merge inputs and evaluate all data.
 		subdirs = [sd for sd in os.listdir(tfrecord_path) if isdir(join(tfrecord_path, sd))]
 		if len(subdirs):
 			if sfutil.yes_no_input(f"Warning: TFRecord directory {sfutil.green(subfolder)} contains data split into sub-directories ({', '.join([sfutil.green(s) for s in subdirs])}); merge for evaluation? [y/N] ", default='no'):
@@ -315,7 +335,7 @@ class SlideFlowProject:
 			tfrecords += glob(os.path.join(folder, "*.tfrecords"))
 		log.info(f"Evaluating {sfutil.bold(len(tfrecords))} tfrecords", 1)
 
-		# Perform evaluation
+		# Set up model for evaluation
 		SFM = self.initialize_model(f"eval-{model_name}", None, None, category_header, filter_header, filter_values, skip_validation=True, model_type=model_type)
 		model_dir = join(self.PROJECT['models_dir'], model, "trained_model.h5") if model[-3:] != ".h5" else model
 		results = SFM.evaluate(tfrecords=tfrecords, hp=None, model=model_dir, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
@@ -327,16 +347,24 @@ class SlideFlowProject:
 				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
 		'''Train model(s) given configurations found in batch_train.tsv.
 		Args:
-			models			(optional) Either string representing a model name or an array of strings containing model names. 
-								Will train models with these names in the batch_train.tsv config file.
-								Defaults to None, which will train all models in the batch_train.tsv config file.
-			subfolder		(optional) Which dataset to pull tfrecord files from (subdirectory in tfrecord_dir); defaults to 'no_label'
-			category_header	(optional) Which header in the annotation file to use for the output category. Defaults to 'category'
-			filter_header	(optional) Filter slides to inculde in training by this column
-			filter_values	(optional) String or array of strings. Only train on slides with these values in the filter_header column.
-			resume_training	(optional) Path to .h5 model to continue training
-			checkpoint		(optional) Path to cp.ckpt from which to load weights
-			supervised		(optional) Whether to use verbose output and save training progress to Tensorboard
+			models				(optional) Either string representing a model name or an array of strings containing model names. 
+									Will train models with these names in the batch_train.tsv config file.
+									Defaults to None, which will train all models in the batch_train.tsv config file.
+			subfolder			(optional) Which dataset to pull tfrecord files from (subdirectory in tfrecord_dir); defaults to 'no_label'
+			category_header		(optional) Which header in the annotation file to use for the output category. Defaults to 'category'
+			filter_header		(optional) Filter slides to inculde in training by this column
+			filter_values		(optional) String or array of strings. Only train on slides with these values in the filter_header column.
+			resume_training		(optional) Path to .h5 model to continue training
+			checkpoint			(optional) Path to cp.ckpt from which to load weights
+			supervised			(optional) Whether to use verbose output and save training progress to Tensorboard
+			batch_file			(optional) Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.
+			model_type			(optional) Type of output variable, either categorical (default) or linear.
+			validation_target 	(optional) Whether to select validation data on a 'per-slide' or 'per-tile' basis. If not specified, will use project default.
+			validation_strategy	(optional) Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.
+			validation_fraction	(optional) Fraction of data to use for validation testing. If not specified, will use project default.
+			validation_k_fold 	(optional) K, if using k-fold validation. If not specified, will use project default.
+			k_fold_iter			(optional) Which iteration to train if using k-fold validation. Defaults to training all iterations.
+
 		Returns:
 			A dictionary containing model names mapped to train_acc, val_loss, and val_acc'''
 
@@ -681,11 +709,11 @@ class SlideFlowProject:
 		
 		# Validation strategy
 		project['validation_fraction'] = sfutil.float_input("What fraction of training data should be used for validation testing? [0.2] ", valid_range=[0,1], default=0.2)
-		project['validation_target'] = sfutil.choice_input("How should validation data be selected, per-tile or per-slide? [per-slide] ", valid_choices=['per-tile', 'per-slide'], default='per-slide')
+		project['validation_target'] = sfutil.choice_input("How should validation data be selected by default, per-tile or per-slide? [per-slide] ", valid_choices=['per-tile', 'per-slide'], default='per-slide')
 		if project['validation_target'] == 'per-slide':
-			project['validation_strategy'] = sfutil.choice_input("Which validation strategy should be used, k-fold, bootstrap, or fixed? ", valid_choices=['k-fold', 'bootstrap', 'fixed', 'none'])
+			project['validation_strategy'] = sfutil.choice_input("Which validation strategy should be used by default, k-fold, bootstrap, or fixed? ", valid_choices=['k-fold', 'bootstrap', 'fixed', 'none'])
 		else:
-			project['validation_strategy'] = sfutil.choice_input("Which validation strategy should be used, k-fold or fixed? ", valid_choices=['k-fold', 'fixed', 'none'])
+			project['validation_strategy'] = sfutil.choice_input("Which validation strategy should be used by default, k-fold or fixed? ", valid_choices=['k-fold', 'fixed', 'none'])
 		if project['validation_strategy'] == 'k-fold':
 			project['validation_k_fold'] = sfutil.int_input("What is K? [3] ", default=3)
 		elif project['validation_strategy'] == 'bootstrap':
