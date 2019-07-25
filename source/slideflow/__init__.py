@@ -20,7 +20,7 @@ import itertools
 import multiprocessing
 import slideflow.util as sfutil
 from slideflow.util import datasets, tfrecords, TCGAAnnotations, log
-#from slideflow.mosaic import Mosaic
+from slideflow.mosaic import Mosaic
 
 __version__ = "0.9.7"
 
@@ -559,15 +559,15 @@ class SlideFlowProject:
 		c.build_model(join(self.PROJECT['models_dir'], model_name, 'trained_model.h5'))
 		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
-	def generate_mosaic(self, weights=None, model=None, filter_header=None, filter_values=None, subfolder=None, resolution="medium"):
+	def generate_mosaic(self, model=None, filter_header=None, filter_values=None, subfolder=None, resolution="medium"):
 		'''Generates a mosaic map with dimensionality reduction on final layer weights. May use pre-generated final layer weights if available 
 		(e.g. with generate_heatmaps()) by specifying "weights" option; otherwise uses TFRecord datasets and the specified model.'''
+		
 		log.header("Generating mosaic map...")
-		if weights:
-			log.info(f"Using weights from {sfutil.green(weights)}", 1)
-			args = None
-			mosaic = Mosaic(args)
-			mosaic.generate()
+		slide_list = sfutil.get_filtered_slide_paths(self.PROJECT['slides_dir'], self.PROJECT['annotations'], filter_header=filter_header,
+																				  							  filter_values=filter_values)
+		mosaic = Mosaic()
+		mosaic.generate_from_tfrecords(slide_list, model=model, image_size=self.PROJECT['tile_px'])
 
 	def create_blank_train_config(self, filename=None):
 		'''Creates a CSV file with the batch training structure.'''
