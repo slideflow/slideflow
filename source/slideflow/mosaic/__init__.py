@@ -55,6 +55,7 @@ class Mosaic:
 	ax_thumbnail = None
 	svs_background = None
 	metadata, tsne_points, tiles = [], [], []
+	tfrecord_paths = []
 	tile_point_distances = []
 	rectangles = {}
 	final_layer_weights = {}
@@ -161,6 +162,8 @@ class Mosaic:
 			dataset = tf.data.TFRecordDataset(tfrecord)
 			dataset = dataset.map(_parse_function, num_parallel_calls=8)
 			dataset = dataset.batch(self.BATCH_SIZE, drop_remainder=False)
+			self.tfrecord_paths += [tfrecord]
+			tfrecord_index = self.tfrecord_paths.index(tfrecord)
 
 			fl_weights_arr = []
 			logits_arr = []
@@ -178,7 +181,7 @@ class Mosaic:
 			sys.stdout.write("\r\033[K")
 			sys.stdout.flush()
 
-			tfrecord_label = np.array([tfrecord] * len(cases_arr))
+			tfrecord_label = np.array([tfrecord_index] * len(cases_arr))
 			# Join the weights, logits, and case labels into a 2D stack
 			tfrecord_results = np.stack(fl_weights_arr, logits_arr, cases_arr, tfrecord_label, indices_arr)
 			results = tfrecord_results if results == [] else np.concatenate([results, tfrecord_results])
