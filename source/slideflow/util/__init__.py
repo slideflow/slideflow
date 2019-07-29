@@ -270,10 +270,17 @@ def get_filtered_slide_paths(slides_dir, annotations_file, filter_header, filter
 	if not os.path.exists(annotations_file):
 		log.error(f"Unable to find annotations file at {green(annotations_file)}; unable to filter slides.")
 		return slide_list
-	filtered_annotation_dict = get_annotations_dict(annotations_file, TCGAAnnotations.slide, TCGAAnnotations.case, filter_header=filter_header, filter_values=filter_values)
+	filtered_annotation_dict = get_annotations_dict(annotations_file, TCGAAnnotations.slide, TCGAAnnotations.case, filter_header=filter_header, filter_values=filter_values, use_encode=False)
 	filtered_slide_names = list(filtered_annotation_dict.keys())
 	filtered_slide_list = [slide for slide in slide_list if slide.split('/')[-1][:-4] in filtered_slide_names]
 	return filtered_slide_list
+
+def get_filtered_tfrecords_paths(tfrecords_dir, annotations_file, filter_header, filter_values):
+	tfrecord_list = glob(join(tfrecords_dir, "*.tfrecords"))
+	filtered_annotation_dict = get_annotations_dict(annotations_file, TCGAAnnotations.slide, TCGAAnnotations.case, filter_header=filter_header, filter_values=filter_values, use_encode=False)
+	filtered_slide_names = list(filtered_annotation_dict.keys())
+	filtered_tfrecord_list = [tfrecord for tfrecord in tfrecord_list if tfrecord.split('/')[-1][:-10] in filtered_slide_names]
+	return filtered_tfrecord_list
 
 def get_annotations_dict(annotations_file, key_name, value_name, filter_header=None, filter_values=None, use_encode=True, use_float=False):
 	if filter_header and not filter_values:
