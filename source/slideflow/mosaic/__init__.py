@@ -54,7 +54,7 @@ class Mosaic:
 	stride_div = 1
 	ax_thumbnail = None
 	svs_background = None
-	metadata, tsne_points, tiles = [], [], []
+	metadata, points, tiles = [], [], []
 	tfrecord_paths = []
 	tile_point_distances = []
 	rectangles = {}
@@ -62,7 +62,7 @@ class Mosaic:
 	logits = {}
 
 	def __init__(self, leniency=1.5, expanded=True, focus=None, tile_zoom=15, num_tiles_x=50, resolution='high', 
-					export=False, tile_um=None, use_fp16=True):
+					export=True, tile_um=None, use_fp16=True, save_dir=None):
 		# Global variables
 		self.max_distance_factor = leniency
 		self.mapping_method = 'expanded' if expanded else 'strict'
@@ -70,6 +70,8 @@ class Mosaic:
 		self.tile_zoom_factor = tile_zoom
 		self.export = export
 		self.DTYPE = tf.float16 if use_fp16 else tf.float32
+		self.num_tiles_x = num_tiles_x
+		self.save_dir = save_dir
 
 		# Variables used only when loading from slides
 		self.tile_um = tile_um
@@ -150,88 +152,94 @@ class Mosaic:
 			features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
 			case = features['case']
 			image_string = features['image_raw']
-			image = tf.image.decode_jpeg(image_string, channels=3)
-			image = tf.image.per_image_standardization(image)
-			image = tf.image.convert_image_dtype(image, self.DTYPE)
-			image.set_shape([image_size, image_size, 3])
-			return image, case
+			raw_image = tf.image.decode_jpeg(image_string, channels=3)
+			processed_image = tf.image.per_image_standardization(raw_image)
+			processed_image = tf.image.convert_image_dtype(processed_image, self.DTYPE)
+			processed_image.set_shape([image_size, image_size, 3])
+			return processed_image, raw_image, case
 
 		# Calculate final layer weights for each tfrecord
 		for tfrecord in tfrecord_array:
-			log.info(f"Calculating weights from {tfrecord}", 2)
+			log.info(f"Calculating weights from {sfutil.green(tfrecord)}", 2)
 			dataset = tf.data.TFRecordDataset(tfrecord)
+
 			dataset = dataset.map(_parse_function, num_parallel_calls=8)
 			dataset = dataset.batch(self.BATCH_SIZE, drop_remainder=False)
 			self.tfrecord_paths += [tfrecord]
 			tfrecord_index = self.tfrecord_paths.index(tfrecord)
 
-			fl_weights_arr = []
-			logits_arr = []
-			cases_arr = []
-			indices_arr = []
-			for i, batch_images, batch_cases in enumerate(dataset):
+			fl_weights_arr, logits_arr, cases_arr, indices_arr, images_arr = [], [], [], [], []
+			fl_weights_all, logits_all, cases_all, indices_all, images_all, tfrecord_all = [], [], [], [], [], []
+			for i, data in enumerate(dataset):
+				batch_processed_images, batch_raw_images, batch_cases = data
+				batch_raw_images_np = batch_raw_images.numpy()
 				sys.stdout.write(f"\r - Working on batch {i}")
 				sys.stdout.flush()
-				indices = list(range(0+i*self.BATCH_SIZE, self.BATCH_SIZE+i*self.BATCH_SIZE))
-				fl_weights, logits = loaded_model.predict([batch_images, batch_images])
+				indices = list(range(len(indices_arr), len(indices_arr) + len(batch_processed_images)))
+				fl_weights, logits = loaded_model.predict([batch_processed_images, batch_processed_images])
 				fl_weights_arr = fl_weights if fl_weights_arr == [] else np.concatenate([fl_weights_arr, fl_weights])
 				logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
 				cases_arr = batch_cases if cases_arr == [] else np.concatenate([cases_arr, batch_cases])
+				images_arr = batch_raw_images_np if images_arr == [] else np.concatenate([images_arr, batch_raw_images_np])
 				indices_arr = indices if indices_arr == [] else np.concatenate([indices_arr, indices])
 			sys.stdout.write("\r\033[K")
 			sys.stdout.flush()
 
-			tfrecord_label = np.array([tfrecord_index] * len(cases_arr))
-			# Join the weights, logits, and case labels into a 2D stack
-			tfrecord_results = np.stack(fl_weights_arr, logits_arr, cases_arr, tfrecord_label, indices_arr)
-			results = tfrecord_results if results == [] else np.concatenate([results, tfrecord_results])
+			tfrecord_arr = np.array([tfrecord_index] * len(cases_arr))
+
+			fl_weights_all = fl_weights_arr if fl_weights_all == [] else np.concatenate([fl_weights_all, fl_weights_arr])
+			logits_all = logits_arr if logits_all == [] else np.concatenate([logits_all, logits_arr])
+			cases_all = cases_arr if cases_all == [] else np.concatenate([cases_all, cases_arr])
+			images_all = images_arr if images_all == [] else np.concatenate([images_all, images_arr])
+			indices_all = indices_arr if indices_all == [] else np.concatenate([indices_all, indices_arr])
+			tfrecord_all = tfrecord_arr if tfrecord_all == [] else np.concatenate([tfrecord_all, tfrecord_arr])
+
+			# For debugging
+			break
 
 		# Returns a 2D array, with each element containing FL weights, logits, case name, tfrecord name, and tfrecord indices
-		return results           
+		return fl_weights_all, logits_all, cases_all, images_all, indices_all, tfrecord_all           
 
 	def generate_from_tfrecords(self, tfrecord_array, model, image_size):
-		self.final_layer_weights = self.generate_final_layer_from_tfrecords(tfrecord_array, model, image_size)
-		print("Printing final layer weights...")
-		print(self.final_layer_weights)
-		sys.exit()
-
-		dl_coord = gen_umap(self.final_layer_weights[:,0])
-		self.load_coordinates(dl_coord)
+		fl_weights, logits, cases, images, indices, tfrecords = self.generate_final_layer_from_tfrecords(tfrecord_array, model, image_size)
+		
+		dl_coord = gen_umap(fl_weights)
+		self.load_coordinates(dl_coord, [cases, tfrecords, indices, images])
 		self.place_tile_outlines()
-		if len(self.SLIDES):
-			self.generate_hover_events()
+		#if len(self.SLIDES):
+		#	self.generate_hover_events()
 		self.calculate_distances()
 		self.pair_tiles_and_points()
-		if len(self.SLIDES):
-			self.draw_slides()
-		if self.focus:
-			self.focus_category(self.focus)
+		#if len(self.SLIDES):
+		#	self.draw_slides()
+		#if self.focus:
+		#	self.focus_category(self.focus)
+		self.finish_mosaic()
 
-	def load_coordinates(self, coord):
-		log.info("Loading dimensionality reduction coordinates and plotting points...", 1)
+	def load_coordinates(self, coord, meta):
+		log.empty("Loading dimensionality reduction coordinates and plotting points...", 1)
 		points_x = []
 		points_y = []
 		point_index = 0
+		cases, tfrecords, indices, images = meta
 		for i, p in enumerate(coord):
-			meta = self.final_layer_weights[i]
-			tile_num = int(meta[0])
-			case = meta[2]
-			tfrecord = meta[3]
-			tfrecord_index = meta[4]
-			category = 'none'#meta[2]
+			case = cases[i]
+			tfrecord = self.tfrecord_paths[tfrecords[i]]
+			tfrecord_index = indices[i]
+			category = 'none'
 			points_x.append(p[0])
 			points_y.append(p[1])
 			self.points.append({'x':p[0],
 								'y':p[1],
 								'index':point_index,
-								'tile_num':tile_num,
 								'neighbors':[],
 								'category':category,
 								'case':case,
 								'tfrecord':tfrecord,
 								'tfrecord_index':tfrecord_index,
 								'paired_tile':None,
-								'image_path':join(self.tile_root, case, f"{case}_{tile_num}.jpg")})
+								'image_path':None,
+								'image_data':images[i]})
 			point_index += 1
 		x_points = [p['x'] for p in self.points]
 		y_points = [p['y'] for p in self.points]
@@ -267,15 +275,18 @@ class Mosaic:
 									'image': None})
 
 		# Add point indices to grid
+		points_added = 0
 		for point in self.points:
 			x_index = int((point['x'] - min_x) / self.tile_size)
 			y_index = int((point['y'] - min_y) / self.tile_size)
 			for g in self.GRID:
 				if g['x_index'] == x_index and g['y_index'] == y_index:
 					g['points'].append(point['index'])
+					points_added += 1
+		log.info(f"{points_added} points added to grid", 2)
 
 	def place_tile_outlines(self):
-		log.info("Placing tile outlines...", 1)
+		log.empty("Placing tile outlines...", 1)
 		# Find max GRID density
 		max_grid_density = 1
 		for g in self.GRID:
@@ -295,7 +306,7 @@ class Mosaic:
 			grid_tile['neighbors'] = []
 			grid_tile['paired_point'] = None
 
-	def generate_hover_events(self):
+	'''def generate_hover_events(self):
 		def hover(event):
 			# Check if mouse hovering over scatter plot
 			prior_tile = None
@@ -336,17 +347,17 @@ class Mosaic:
 				empty = True
 				
 		def resize(event):
-			'''for rect in list(self.rectangles):
-				self.rectangles[rect].remove()'''
+			#for rect in list(self.rectangles):
+			#	self.rectangles[rect].remove()
 			self.fig.canvas.restore_region(self.svs_background)
 			self.fig.canvas.draw()
 			self.svs_background = self.fig.canvas.copy_from_bbox(self.ax_thumbnail.bbox)
 
 		self.fig.canvas.mpl_connect('motion_notify_event', hover)
-		self.fig.canvas.mpl_connect('resize_event', resize)
+		self.fig.canvas.mpl_connect('resize_event', resize)'''
 
 	def calculate_distances(self):
-		log.info("Calculating tile-point distances...")
+		log.empty("Calculating tile-point distances...", 1)
 		pb = progress_bar.ProgressBar()
 		pb_id = pb.add_bar(0, len(self.GRID))
 		for i, tile in enumerate(self.GRID):
@@ -383,14 +394,15 @@ class Mosaic:
 			self.tile_point_distances.sort(key=lambda d: d['distance'])
 
 	def pair_tiles_and_points(self):
-		log.info("Placing image tiles...", 1)
+		log.empty("Placing image tiles...", 1)
 		num_placed = 0
 		if self.mapping_method == 'strict':
 			for tile in self.GRID:
 				if not len(tile['distances']): continue
 				closest_point = tile['distances'][0][0]
 				point = self.points[closest_point]
-				tile_image = plt.imread(point['image_path'])
+				#tile_image = plt.imread(point['image_path'])
+				tile_image = point['image_data']
 				tile_alpha, num_case, num_other = 1, 0, 0
 				if self.SVS and len(tile['points']):
 					for point_index in tile['points']:
@@ -402,6 +414,7 @@ class Mosaic:
 					fraction_svs = num_case / (num_other + num_case)
 					tile_alpha = fraction_svs
 				if not self.export:
+					print(tile_image)
 					tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
 				image = self.ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-tile['size']/2, 
 																						tile['x']+tile['size']/2,
@@ -409,7 +422,6 @@ class Mosaic:
 																						tile['y']+tile['size']/2], zorder=99, alpha=tile_alpha)
 				tile['image'] = image
 				num_placed += 1
-			print(f"[INFO] Num placed: {num_placed}")
 		elif self.mapping_method == 'expanded':
 			for distance_pair in self.tile_point_distances:
 				# Attempt to place pair, skipping if unable (due to other prior pair)
@@ -419,7 +431,8 @@ class Mosaic:
 					point['paired_tile'] = True
 					tile['paired_point'] = True
 
-					tile_image = plt.imread(point['image_path'])
+					#tile_image = plt.imread(point['image_path'])
+					tile_image = point['image_data']
 					if not self.export:
 						tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
 					image = self.ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-self.tile_size/2, 
@@ -428,7 +441,7 @@ class Mosaic:
 																					tile['y']+self.tile_size/2], zorder=99)		
 					tile['image'] = image
 					num_placed += 1
-			print(f"[INFO] Num placed: {num_placed}")
+		log.info(f"Num placed: {num_placed}", 2)
 
 	def draw_slides(self):
 		log.info("Drawing slides...", 1)
@@ -440,7 +453,7 @@ class Mosaic:
 		self.fig.canvas.draw()
 		self.svs_background = self.fig.canvas.copy_from_bbox(self.ax_thumbnail.bbox)
 		self.SLIDES[name]['plot'] = self.ax_thumbnail
-		self.highlight_slide_on_mosaic(name)
+		#self.highlight_slide_on_mosaic(name)
 
 	def focus_category(self, category):
 		for tile in self.GRID:
@@ -455,13 +468,13 @@ class Mosaic:
 			alpha = num_cat / (num_other + num_cat)
 			tile['image'].set_alpha(alpha)
 
-	def finish_mosaic(self, export):
-		log.info("Displaying/exporting figure...", 1)
+	def finish_mosaic(self):
+		log.empty("Displaying/exporting figure...", 1)
 		self.ax.autoscale(enable=True, tight=None)
-		if export:
-			save_path = join(self.tile_root, f'Mosaic-{self.num_tiles_x}.png')
+		if self.export:
+			save_path = join(self.save_dir, f'Mosaic-{self.num_tiles_x}.png')
 			plt.savefig(save_path, bbox_inches='tight')
-			log.complete(f"Saved figure to {save_path}", 1)
+			log.complete(f"Saved figure to {sfutil.green(save_path)}", 1)
 			plt.close()
 		else:
 			while True:
