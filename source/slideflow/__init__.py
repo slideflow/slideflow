@@ -50,7 +50,7 @@ def select_gpu(number):
 	os.environ["CUDA_VISIBLE_DEVICES"]=str(n)
 
 def exit_script():
-	print("Exiting...")
+	print("Cleaning up...")
 	if GPU_LOCK and exists(f"gpu{number}.lock"):
 		print(f"Freeing GPU {number}...")
 		os.remove(f"gpu{number}.lock")
@@ -564,9 +564,11 @@ class SlideFlowProject:
 		(e.g. with generate_heatmaps()) by specifying "weights" option; otherwise uses TFRecord datasets and the specified model.'''
 		
 		log.header("Generating mosaic map...")
-		slide_list = sfutil.get_filtered_slide_paths(self.PROJECT['slides_dir'], self.PROJECT['annotations'], filter_header=filter_header,
-																				  							  filter_values=filter_values)
-		mosaic = Mosaic()
+		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
+		slide_list = sfutil.get_filtered_tfrecords_paths(join(self.PROJECT['tfrecord_dir'], subfolder), self.PROJECT['annotations'], 
+																										filter_header=filter_header,
+																				  						filter_values=filter_values)
+		mosaic = Mosaic(save_dir=self.PROJECT['root'])
 		mosaic.generate_from_tfrecords(slide_list, model=model, image_size=self.PROJECT['tile_px'])
 
 	def create_blank_train_config(self, filename=None):
