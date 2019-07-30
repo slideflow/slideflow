@@ -366,8 +366,13 @@ class SlideflowModel:
 		plt.xlabel('FPR')
 		plt.savefig(os.path.join(self.DATA_DIR, f'{name}.png'))
 
+		return roc_auc
+
 	def generate_predictions_and_roc(self, model, dataset_with_casenames, model_type, label=None):
 		'''Dataset must include three items: raw image data, labels, and case names.'''
+
+		# TODO: return array of aucs for each outcome variable instead of just last
+		
 		# Get predictions and performance metrics
 		log.info("Generating predictions...", 1)
 		label_end = "" if not label else f"_{label}"
@@ -383,6 +388,9 @@ class SlideflowModel:
 		sys.stdout.flush()
 		y_pred = np.concatenate(y_pred)
 		y_true = np.concatenate(y_true)
+
+		tile_auc = None
+		slide_auc = None
 
 		if model_type == 'linear':
 			y_true = np.array([[i] for i in y_true])
@@ -410,7 +418,8 @@ class SlideflowModel:
 
 			# Generate tile-level ROC
 			for i in range(num_cat):
-				self.generate_roc(y_true[:, i], y_pred[:, i], f'{label_start}tile_ROC{i}')
+				tile_auc = self.generate_roc(y_true[:, i], y_pred[:, i], f'{label_start}tile_ROC{i}')
+				log.info(f"Tile-level AUC (cat #{i}): {tile_auc}", 1)
 
 			# Generate slide-level ROC
 			onehot_predictions = []
@@ -430,7 +439,8 @@ class SlideflowModel:
 			for i in range(num_cat):
 				case_y_pred = percent_calls_by_case[:, i]
 				case_y_true = [case_onehot[case][i] for case in unique_cases]
-				self.generate_roc(case_y_true, case_y_pred, f'{label_start}slide_ROC{i}')
+				slide_auc = self.generate_roc(case_y_true, case_y_pred, f'{label_start}slide_ROC{i}')
+				log.info(f"Slide-level AUC (cat #{i}): {slide_auc}", 1)
 
 			# Save slide-level predictions
 			slide_csv_dir = os.path.join(self.DATA_DIR, f"slide_predictions{label_end}.csv")
@@ -454,6 +464,7 @@ class SlideflowModel:
 				writer.writerow(row)
 
 		log.complete(f"Predictions saved to {sfutil.green(self.DATA_DIR)}", 1)
+		return tile_auc, slide_auc
 
 	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None):
 		# Load and initialize model
@@ -469,7 +480,10 @@ class SlideflowModel:
 			self.model = self.build_model(hp)
 			self.model.load_weights(checkpoint)
 
-		self.generate_predictions_and_roc(self.model, dataset_with_casenames, model_type, label="eval")
+		tile_auc, slide_auc = self.generate_predictions_and_roc(self.model, dataset_with_casenames, model_type, label="eval")
+
+		log.info(f"Tile AUC: {tile_auc}", 1)
+		log.info(f"Slide AUC: {slide_auc}", 1)
 
 		log.info("Calculating performance metrics...", 1)
 		results = self.model.evaluate(dataset)
@@ -508,9 +522,13 @@ class SlideflowModel:
 			validation_data_for_training = validation_data.repeat()
 		else:
 			validation_data_for_training = None
+
 		#testing overide
 		#num_tiles = 100
 		#hp.finetune_epochs = 3
+
+		# Prepare results
+		results = {}
 
 		# Calculate parameters
 		if type(hp.finetune_epochs) != list:
@@ -539,12 +557,13 @@ class SlideflowModel:
 
 		with open(results_log, "w") as results_file:
 			writer = csv.writer(results_file)
-			writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc'])
+			writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc', 'tile_auc', 'slide_auc'])
 		parent = self
 
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
 			def on_epoch_end(self, epoch, logs=None):
 				if epoch+1 in hp.finetune_epochs:
+					print('')
 					self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5"))
 					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
 						epoch_label = f"val_epoch{epoch+1}"
@@ -552,13 +571,20 @@ class SlideflowModel:
 							train_acc = logs['accuracy']
 						else:
 							train_acc = logs[hp.loss]
-						parent.generate_predictions_and_roc(self.model, validation_data_with_casenames, hp.model_type(), label=epoch_label)
+						tile_auc, slide_auc = parent.generate_predictions_and_roc(self.model, validation_data_with_casenames, hp.model_type(), label=epoch_label)
 						if verbose: log.info("Beginning validation testing", 1)
 						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
+						results[f'epoch{epoch+1}'] = {}
+						results[f'epoch{epoch+1}']['train_acc'] = train_acc
+						results[f'epoch{epoch+1}']['val_loss'] = val_loss
+						results[f'epoch{epoch+1}']['val_acc'] = val_acc
+						results[f'epoch{epoch+1}']['tile_auc'] = tile_auc
+						results[f'epoch{epoch+1}']['slide_auc'] = slide_auc
+
 						with open(results_log, "a") as results_file:
 							writer = csv.writer(results_file)
-							writer.writerow([epoch_label, train_acc, val_loss, val_acc])
+							writer.writerow([epoch_label, train_acc, val_loss, val_acc, tile_auc, slide_auc])
 
 		callbacks = [history_callback, PredictionAndEvaluationCallback()]
 		if hp.early_stop:
@@ -607,4 +633,10 @@ class SlideflowModel:
 		else:
 			val_loss, val_acc = 0,0
 
-		return train_acc, val_loss, val_acc
+		results['final'] = {}
+		results['final']['train_acc'] = train_acc
+		results['final']['val_loss'] = val_loss
+		results['final']['val_acc'] = val_acc
+
+		return results
+		
