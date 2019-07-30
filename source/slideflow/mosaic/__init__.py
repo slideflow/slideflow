@@ -40,7 +40,11 @@ def normalize_layout(layout, min_percentile=1, max_percentile=99, relative_margi
 	return clipped
 
 def gen_umap(array):
-	layout = umap.UMAP(n_components=2, verbose=True, n_neighbors=20, min_dist=0.01, metric="cosine").fit_transform(array)
+	try:
+		layout = umap.UMAP(n_components=2, verbose=True, n_neighbors=20, min_dist=0.01, metric="cosine").fit_transform(array)
+	except ValueError:
+		log.error("Error performing UMAP. Please make sure you are supplying a non-empty TFRecord array and that the TFRecords are not empty.")
+		sys.exit()
 	return normalize_layout(layout)
 	
 #def gen_tsne_array(array):
