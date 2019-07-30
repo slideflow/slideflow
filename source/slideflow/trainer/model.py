@@ -370,6 +370,9 @@ class SlideflowModel:
 
 	def generate_predictions_and_roc(self, model, dataset_with_casenames, model_type, label=None):
 		'''Dataset must include three items: raw image data, labels, and case names.'''
+
+		# TODO: return array of aucs for each outcome variable instead of just last
+		
 		# Get predictions and performance metrics
 		log.info("Generating predictions...", 1)
 		label_end = "" if not label else f"_{label}"
@@ -572,11 +575,12 @@ class SlideflowModel:
 						if verbose: log.info("Beginning validation testing", 1)
 						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
-						results[f'epoch{epoch+1}_train_acc'] = train_acc
-						results[f'epoch{epoch+1}_val_loss'] = val_loss
-						results[f'epoch{epoch+1}_val_acc'] = val_acc
-						results[f'epoch{epoch+1}_tile_auc'] = tile_auc
-						results[f'epoch{epoch+1}_slide_auc'] = slide_auc
+						results[f'epoch{epoch+1}'] = {}
+						results[f'epoch{epoch+1}']['train_acc'] = train_acc
+						results[f'epoch{epoch+1}']['val_loss'] = val_loss
+						results[f'epoch{epoch+1}']['val_acc'] = val_acc
+						results[f'epoch{epoch+1}']['tile_auc'] = tile_auc
+						results[f'epoch{epoch+1}']['slide_auc'] = slide_auc
 
 						with open(results_log, "a") as results_file:
 							writer = csv.writer(results_file)
@@ -629,11 +633,10 @@ class SlideflowModel:
 		else:
 			val_loss, val_acc = 0,0
 
-		results['train_acc'] = max(train_acc)
-		results['val_loss'] = val_loss
-		results['val_acc'] = val_acc
-
-		#return train_acc, val_loss, val_acc
+		results['final'] = {}
+		results['final']['train_acc'] = train_acc
+		results['final']['val_loss'] = val_loss
+		results['final']['val_acc'] = val_acc
 
 		return results
 		

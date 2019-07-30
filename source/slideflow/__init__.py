@@ -352,6 +352,45 @@ class SlideFlowProject:
 		print(results)
 		return results
 
+	def _get_hp(self, row, header):
+		args = header[0:model_name_i] + header[model_name_i+1:]
+		model_name_i = header.index('model_name')
+		model_name = row[model_name_i]
+		hp = sfmodel.HyperParameters()
+		for arg in args:
+			value = row[header.index(arg)]
+			if arg in hp._get_args():
+				if arg != 'finetune_epochs':
+					arg_type = type(getattr(hp, arg))
+					setattr(hp, arg, arg_type(value))
+				else:
+					epochs = [int(i) for i in value.split(',')]
+					setattr(hp, arg, epochs)
+			else:
+				log.error(f"Unknown argument '{arg}' found in training config file.", 0)
+		return hp, model_name
+
+	def _get_valid_models(self, batch_train_file, models):
+		models_to_train = []
+		with open(batch_train_file) as csv_file:
+			reader = csv.reader(csv_file, delimiter="\t")
+			header = next(reader)
+			try:
+				model_name_i = header.index('model_name')
+			except:
+				log.error("Unable to find column 'model_name' in the batch training config file.", 0)
+				sys.exit() 
+			for row in reader:
+				model_name = row[model_name_i]
+				# First check if this row is a valid model
+				if (not models) or (type(models)==str and model_name==models) or model_name in models:
+					# Now verify there are no duplicate model names
+					if model_name in models_to_train:
+						log.error(f"Duplicate model names found in {sfutil.green(batch_train_file)}.", 0)
+						sys.exit()
+					models_to_train += [model_name]
+		return models_to_train
+
 	def train(self, models=None, subfolder=NO_LABEL, category_header='category', filter_header=None, filter_values=None, resume_training=None, 
 				checkpoint=None, pretrain='imagenet', supervised=True, batch_file=None, model_type='categorical',
 				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
@@ -385,6 +424,9 @@ class SlideFlowProject:
 		validation_fraction = self.PROJECT['validation_fraction'] if not validation_fraction else validation_fraction
 		validation_k_fold = self.PROJECT['validation_k_fold'] if not validation_k_fold else validation_k_fold
 		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and type(k_fold_iter) != list) else k_fold_iter
+		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
+		valid_k = [] if not k_fold else [kf for kf in range(k_fold) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
+		results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
 
 		slide_to_category = sfutil.get_annotations_dict(self.PROJECT['annotations'], 'slide', category_header, 
 																							filter_header=filter_header, 
@@ -393,24 +435,8 @@ class SlideFlowProject:
 		slide_list = slide_to_category.keys()
 
 		# Quickly scan for errors (duplicate model names) and prepare models to train
-		models_to_train = []
-		with open(batch_train_file) as csv_file:
-			reader = csv.reader(csv_file, delimiter="\t")
-			header = next(reader)
-			try:
-				model_name_i = header.index('model_name')
-			except:
-				log.error("Unable to find column 'model_name' in the batch training config file.", 0)
-				sys.exit() 
-			for row in reader:
-				model_name = row[model_name_i]
-				# First check if this row is a valid model
-				if (not models) or (type(models)==str and model_name==models) or model_name in models:
-					# Now verify there are no duplicate model names
-					if model_name in models_to_train:
-						log.error(f"Duplicate model names found in {sfutil.green(batch_train_file)}.", 0)
-						sys.exit()
-					models_to_train += [model_name]
+
+		models_to_train = self._get_valid_models(batch_train_file, models)
 
 		log.header(f"Training {len(models_to_train)} models...")
 
@@ -426,13 +452,16 @@ class SlideFlowProject:
 				log.info(hp, 1)
 			full_model_name = model_name if not k_fold_i else model_name+f"-kfold{k_fold_i}"
 
+			# Get TFRecords for training and validation
 			training_tfrecords, validation_tfrecords = self.get_training_and_validation_tfrecords(subfolder, slide_list, validation_target=validation_target,
 																														 validation_strategy=validation_strategy,
 																														 validation_fraction=validation_fraction,
 																														 validation_k_fold=validation_k_fold,
 																														 k_fold_iter=k_fold_i)
-
+			# Initialize model
 			SFM = self.initialize_model(full_model_name, training_tfrecords, validation_tfrecords, category_header, filter_header, filter_values, model_type=model_type)
+
+			# Log hyperparameters
 			with open(os.path.join(self.PROJECT['models_dir'], full_model_name, 'hyperparameters.log'), 'w') as hp_file:
 				hp_text = f"Tile pixel size: {self.PROJECT['tile_px']}\n"
 				hp_text += f"Tile micron size: {self.PROJECT['tile_um']}\n"
@@ -440,111 +469,69 @@ class SlideFlowProject:
 				for s in sfutil.FORMATTING_OPTIONS:
 					hp_text = hp_text.replace(s, "")
 				hp_file.write(hp_text)
+
+			# Execute training
 			try:
 				results = SFM.train(hp, pretrain=pretrain, 
 															resume_training=resume_training, 
 															checkpoint=checkpoint,
 															supervised=supervised)
-
-				results_dict.update({model_name: results })
+				results_dict.update({full_model_name: results})
 				del(SFM)
-
 			except tf.errors.ResourceExhaustedError:
 				log.error(f"Training failed for {sfutil.bold(model_name)}, GPU memory exceeded.", 0)
 				del(SFM)
 				return
-
-		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
-
+	
 		# Begin assembling models and hyperparameters from batch_train.tsv file
 		with open(batch_train_file) as csv_file:
 			reader = csv.reader(csv_file, delimiter='\t')
 			header = next(reader)
 			log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
-			#already_started = os.path.exists(log_path)
-			#with open(log_path, "a") as results_file:
-			#	writer = csv.writer(results_file)
-			#	if not already_started:
-			#		results_header = ['model', 'train_acc', 'val_loss', 'val_acc']
-			#		writer.writerow(results_header)
-			model_name_i = header.index('model_name')
-			# Get all column headers except 'model_name'
-			args = header[0:model_name_i] + header[model_name_i+1:]
+			
 			for row in reader:
-				model_name = row[model_name_i]
+				# Read hyperparameters
+				hp, model_name = self._get_hp(row, header)
 				if model_name not in models_to_train: continue
-				hp = sfmodel.HyperParameters()
-				for arg in args:
-					value = row[header.index(arg)]
-					if arg in hp._get_args():
-						if arg != 'finetune_epochs':
-							arg_type = type(getattr(hp, arg))
-							setattr(hp, arg, arg_type(value))
-						else:
-							epochs = [int(i) for i in value.split(',')]
-							setattr(hp, arg, epochs)
-					else:
-						log.error(f"Unknown argument '{arg}' found in training config file.", 0)
+				model_iterations = [model_name] if not k_fold else [f"{model_name}-kfold{k+1}" for k in valid_k]
 
-				# Start the model training
+				# Perform training
 				if k_fold:
-					average_results_dict = {}
-
-					error_encountered = False
-					for k in range(k_fold):
-						if k_fold_iter and k not in k_fold_iter:
-							continue
-						p = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp, k+1))
-						p.start()
-						p.join()
-						if model_name not in results_dict:
-							log.error(f"Training failed for model {model_name} for an unknown reason.")
-							error_encountered = True
-							break
-
-						for results_key in results_dict[model_name]:
-							average_results_dict[results_key] += results_dict[model_name][results_key]
-
-					if error_encountered: continue
-
-					avg_results_dict = {}
-
-					for results_key in results_dict[model_name]:
-						avg_results = sum(results_dict[model_name][results_key]) / len(results_dict[model_name][results_key])
-						avg_results_dict[results_key] = avg_results
-
-					log.complete(f"Training complete for model {model_name}, validation accuracy {sfutil.info(str(avg_results_dict['val_acc']))} after {k_fold}-fold validation", 0)
-					for k in range(k_fold):
-						log.complete(f"Set {k+1} accuracy: {sfutil.info(str(results_dict[model_name]['val_acc'][k]))}", 1)
-					with open(os.path.join(self.PROJECT['root'], "results_log.csv"), "a") as results_file:
-						writer = csv.writer(results_file)
-						writer.writerow(['model_name'] + results_dict[model_name].keys())
-						row = [model_name]
-						for results_key in results_dict[model_name]:
-							row += [avg_results_dict[results_key]]
-						writer.writerow(row)
+					for k in valid_k:
+						multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp, k+1)).start().join()
 				else:
-					p = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp))
-					p.start()
-					p.join()
-					if model_name not in results_dict:
+					multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp)).start().join()
+
+				# Check for valid results
+				model_failed = False
+				for mi in model_iterations:
+					if mi not in results_dict:
 						log.error(f"Training failed for model {model_name} for an unknown reason")
-						continue
-					# Record the model accuracies
-					log.complete(f"Training complete for model {model_name}, validation accuracy {sfutil.info(str(results_dict[model_name]['val_acc']))}", 0)	
-					with open(os.path.join(self.PROJECT['root'], "results_log.csv"), "a") as results_file:
-						writer = csv.writer(results_file)
-						writer.writerow(['model_name'] + list(results_dict[model_name].keys()))
-						row = [model_name]
-						for results_key in results_dict[model_name]:
-							row += [results_dict[model_name][results_key]]	
-						writer.writerow(row)		
+						model_failed = True
+				if model_failed: continue
+
+				# Record model results to CSV
+				with open(results_log_path, "a") as results_file:
+					writer = csv.writer(results_file)
+					# Write header labels
+					writer.writerow(['model_name'] + list(results_dict[model_iterations[0]]['final'].keys()))
+					# Save results from all models (e.g. K-fold iterations)
+					for mi in model_iterations:
+						# Save results from all recorded epochs
+						for epoch in results_dict[mi]:
+							row = [f'{mi}-{epoch}']
+							# Include all saved metrics
+							for results_key in results_dict[mi][epoch]:
+								row += [results_dict[mi][epoch][results_key]]	
+							writer.writerow(row)		
+				log.complete(f"Training complete for model {model_name}, results saved to {sfutil.green(results_log_path)}")
 		
-		# Print final results
+		# Print summary of all models
 		log.complete("Training complete; validation accuracies:", 0)
 		for model in results_dict:
-			print(f" - {sfutil.green(model)}: Train_Acc={str(results_dict[model]['train_acc'])}, " +
-				f"Val_loss={results_dict[model]['val_loss']}, Val_Acc={results_dict[model]['val_acc']}" )
+			final_metrics = results_dict[model]['final']
+			print(f" - {sfutil.green(model)}: Train_Acc={str(final_metrics['train_acc'])}, " +
+				f"Val_loss={final_metrics['val_loss']}, Val_Acc={final_metrics['val_acc']}" )
 
 	def generate_heatmaps(self, model_name, filter_header=None, filter_values=None, resolution='medium'):
 		import slideflow.convoluter as convoluter
