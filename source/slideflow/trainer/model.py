@@ -416,6 +416,7 @@ class SlideflowModel:
 			# Generate tile-level ROC
 			for i in range(num_cat):
 				tile_auc = self.generate_roc(y_true[:, i], y_pred[:, i], f'{label_start}tile_ROC{i}')
+				log.info(f"Tile-level AUC (cat #{i}): {tile_auc}", 1)
 
 			# Generate slide-level ROC
 			onehot_predictions = []
@@ -436,6 +437,7 @@ class SlideflowModel:
 				case_y_pred = percent_calls_by_case[:, i]
 				case_y_true = [case_onehot[case][i] for case in unique_cases]
 				slide_auc = self.generate_roc(case_y_true, case_y_pred, f'{label_start}slide_ROC{i}')
+				log.info(f"Slide-level AUC (cat #{i}): {slide_auc}", 1)
 
 			# Save slide-level predictions
 			slide_csv_dir = os.path.join(self.DATA_DIR, f"slide_predictions{label_end}.csv")
@@ -475,7 +477,7 @@ class SlideflowModel:
 			self.model = self.build_model(hp)
 			self.model.load_weights(checkpoint)
 
-		tile_auc, slide_auce = self.generate_predictions_and_roc(self.model, dataset_with_casenames, model_type, label="eval")
+		tile_auc, slide_auc = self.generate_predictions_and_roc(self.model, dataset_with_casenames, model_type, label="eval")
 
 		log.info(f"Tile AUC: {tile_auc}", 1)
 		log.info(f"Slide AUC: {slide_auc}", 1)
@@ -552,7 +554,7 @@ class SlideflowModel:
 
 		with open(results_log, "w") as results_file:
 			writer = csv.writer(results_file)
-			writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc'])
+			writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc', 'tile_auc', 'slide_auc'])
 		parent = self
 
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
@@ -565,11 +567,11 @@ class SlideflowModel:
 							train_acc = logs['accuracy']
 						else:
 							train_acc = logs[hp.loss]
-						tile_auc, slide_auce = parent.generate_predictions_and_roc(self.model, validation_data_with_casenames, hp.model_type(), label=epoch_label)
+						tile_auc, slide_auc = parent.generate_predictions_and_roc(self.model, validation_data_with_casenames, hp.model_type(), label=epoch_label)
 						if verbose: log.info("Beginning validation testing", 1)
 						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
-						results[f'epoch{epoch+1}_train_acc'] = max(train_acc)
+						results[f'epoch{epoch+1}_train_acc'] = train_acc
 						results[f'epoch{epoch+1}_val_loss'] = val_loss
 						results[f'epoch{epoch+1}_val_acc'] = val_acc
 						results[f'epoch{epoch+1}_tile_auc'] = tile_auc
@@ -577,7 +579,7 @@ class SlideflowModel:
 
 						with open(results_log, "a") as results_file:
 							writer = csv.writer(results_file)
-							writer.writerow([epoch_label, max(train_acc), val_loss, val_acc])
+							writer.writerow([epoch_label, train_acc, val_loss, val_acc, tile_auc, slide_auc])
 
 		callbacks = [history_callback, PredictionAndEvaluationCallback()]
 		if hp.early_stop:
