@@ -461,12 +461,12 @@ class SlideFlowProject:
 			reader = csv.reader(csv_file, delimiter='\t')
 			header = next(reader)
 			log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
-			already_started = os.path.exists(log_path)
-			with open(log_path, "a") as results_file:
-				writer = csv.writer(results_file)
-				if not already_started:
-					results_header = ['model', 'train_acc', 'val_loss', 'val_acc']
-					writer.writerow(results_header)
+			#already_started = os.path.exists(log_path)
+			#with open(log_path, "a") as results_file:
+			#	writer = csv.writer(results_file)
+			#	if not already_started:
+			#		results_header = ['model', 'train_acc', 'val_loss', 'val_acc']
+			#		writer.writerow(results_header)
 			model_name_i = header.index('model_name')
 			# Get all column headers except 'model_name'
 			args = header[0:model_name_i] + header[model_name_i+1:]
@@ -488,9 +488,8 @@ class SlideFlowProject:
 
 				# Start the model training
 				if k_fold:
-					train_acc_list = []
-					val_loss_list = []
-					val_acc_list = []
+					average_results_dict = {}
+
 					error_encountered = False
 					for k in range(k_fold):
 						if k_fold_iter and k not in k_fold_iter:
@@ -502,21 +501,28 @@ class SlideFlowProject:
 							log.error(f"Training failed for model {model_name} for an unknown reason.")
 							error_encountered = True
 							break
-						train_acc_list += [results_dict[model_name]['train_acc']]
-						val_loss_list += [results_dict[model_name]['val_loss']]
-						val_acc_list += [results_dict[model_name]['val_acc']]
+
+						for results_key in results_dict[model_name]:
+							average_results_dict[results_key] += results_dict[model_name][results_key]
+
 					if error_encountered: continue
-					avg_train_acc = sum(train_acc_list) / len(train_acc_list)
-					avg_val_loss = sum(val_loss_list) / len(val_loss_list)
-					avg_val_acc = sum(val_acc_list) / len(val_acc_list)
-					log.complete(f"Training complete for model {model_name}, validation accuracy {sfutil.info(str(avg_val_acc))} after {k_fold}-fold validation", 0)
+
+					avg_results_dict = {}
+
+					for results_key in results_dict[model_name]:
+						avg_results = sum(results_dict[model_name][results_key]) / len(results_dict[model_name][results_key])
+						avg_results_dict[results_key] = avg_results
+
+					log.complete(f"Training complete for model {model_name}, validation accuracy {sfutil.info(str(avg_results_dict['val_acc']))} after {k_fold}-fold validation", 0)
 					for k in range(k_fold):
-						log.complete(f"Set {k+1} accuracy: {sfutil.info(str(val_acc_list[k]))}", 1)
+						log.complete(f"Set {k+1} accuracy: {sfutil.info(str(results_dict[model_name]['val_acc'][k]))}", 1)
 					with open(os.path.join(self.PROJECT['root'], "results_log.csv"), "a") as results_file:
 						writer = csv.writer(results_file)
-						writer.writerow([model_name, avg_train_acc, 
-													avg_val_loss,
-													avg_val_acc])
+						writer.writerow(['model_name'] + results_dict[model_name].keys())
+						row = [model_name]
+						for results_key in results_dict[model_name]:
+							row += [avg_results_dict[results_key]]
+						writer.writerow(row)
 				else:
 					p = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp))
 					p.start()
@@ -528,9 +534,11 @@ class SlideFlowProject:
 					log.complete(f"Training complete for model {model_name}, validation accuracy {sfutil.info(str(results_dict[model_name]['val_acc']))}", 0)	
 					with open(os.path.join(self.PROJECT['root'], "results_log.csv"), "a") as results_file:
 						writer = csv.writer(results_file)
-						writer.writerow([model_name, results_dict[model_name]['train_acc'], 
-													results_dict[model_name]['val_loss'],
-													results_dict[model_name]['val_acc']])					
+						writer.writerow(['model_name'] + list(results_dict[model_name].keys()))
+						row = [model_name]
+						for results_key in results_dict[model_name]:
+							row += [results_dict[model_name][results_key]]	
+						writer.writerow(row)		
 		
 		# Print final results
 		log.complete("Training complete; validation accuracies:", 0)
