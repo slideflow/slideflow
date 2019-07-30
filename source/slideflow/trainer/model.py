@@ -560,6 +560,7 @@ class SlideflowModel:
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
 			def on_epoch_end(self, epoch, logs=None):
 				if epoch+1 in hp.finetune_epochs:
+					print('')
 					self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5"))
 					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
 						epoch_label = f"val_epoch{epoch+1}"
