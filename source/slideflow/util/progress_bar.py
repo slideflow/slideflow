@@ -62,7 +62,8 @@ class ProgressBar:
 
 	def end(self, _id = -1):
 		if _id == -1:
-			for bar_id in self.BARS:
+			bars_keys = list(self.BARS.keys())
+			for bar_id in bars_keys:
 				del(self.BARS[bar_id])
 				#self.BARS[bar_id].value = self.BARS[bar_id].endvalue
 			self.hard_refresh()
