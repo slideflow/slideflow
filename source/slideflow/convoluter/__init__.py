@@ -406,6 +406,8 @@ class Convoluter:
 
 			# Load the slide
 			whole_slide = SlideReader(slide['path'], slide['name'], slide['type'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
+			if not whole_slide.loaded_correctly():
+				continue
 
 			# Calculate the final layer weights and logits/predictions
 			logits, final_layer, final_layer_labels, logits_flat = self.calculate_logits(whole_slide, export_tiles=export_tiles, 
