@@ -22,38 +22,43 @@ import slideflow.util as sfutil
 from slideflow.util import datasets, tfrecords, TCGAAnnotations, log
 from slideflow.mosaic import Mosaic
 
-__version__ = "0.9.7"
+__version__ = "0.9.8"
 
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
 EVAL_BATCH_SIZE = 64
 GPU_LOCK = None
 NO_LABEL = 'no_label'
+SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 def set_logging_level(level):
 	sfutil.LOGGING_LEVEL.INFO = level
 
 def autoselect_gpu(number_available):
+	global GPU_LOCK
 	'''Automatically claims a free GPU and creates a lock file to prevent 
 	other instances of slideflow from using the same GPU.'''
 	for n in range(number_available):
-		if not exists(f"gpu{n}.lock"):
+		if not exists(join(SOURCE_DIR, f"gpu{n}.lock")):
 			print(f"Requesting GPU #{n}")
 			os.environ["CUDA_VISIBLE_DEVICES"]=str(n)
-			open(f"gpu{n}.lock", 'a').close()
+			open(join(SOURCE_DIR, f"gpu{n}.lock"), 'a').close()
 			GPU_LOCK = n
 			return
 	log.error(f"No free GPUs detected; try deleting 'gpu[#].lock' files in the slideflow directory if GPUs are not in use.")
 
 def select_gpu(number):
-	print(f"Requesting GPU #{n}")
-	os.environ["CUDA_VISIBLE_DEVICES"]=str(n)
+	global GPU_LOCK
+	print(f"Requesting GPU #{number}")
+	GPU_LOCK = number
+	os.environ["CUDA_VISIBLE_DEVICES"]=str(number)
 
 def exit_script():
+	global GPU_LOCK
 	print("Cleaning up...")
-	if GPU_LOCK and exists(f"gpu{number}.lock"):
-		print(f"Freeing GPU {number}...")
-		os.remove(f"gpu{number}.lock")
+	if GPU_LOCK != None and exists(join(SOURCE_DIR, f"gpu{GPU_LOCK}.lock")):
+		print(f"Freeing GPU {GPU_LOCK}...")
+		os.remove(join(SOURCE_DIR, f"gpu{GPU_LOCK}.lock"))
 	
 atexit.register(exit_script)
 
@@ -436,14 +441,12 @@ class SlideFlowProject:
 					hp_text = hp_text.replace(s, "")
 				hp_file.write(hp_text)
 			try:
-				train_acc, val_loss, val_acc = SFM.train(hp, pretrain=pretrain, 
+				results = SFM.train(hp, pretrain=pretrain, 
 															resume_training=resume_training, 
 															checkpoint=checkpoint,
 															supervised=supervised)
 
-				results_dict.update({model_name: {'train_acc': max(train_acc),
-													'val_loss': val_loss,
-													'val_acc': val_acc } 			})
+				results_dict.update({model_name: results })
 				del(SFM)
 
 			except tf.errors.ResourceExhaustedError:

@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from matplotlib.patches import Rectangle
 from os.path import join, isfile, exists
+from random import shuffle
 
 import tensorflow as tf
 
@@ -94,7 +95,7 @@ class Mosaic:
 		self.ax.set_yticklabels([])
 
 	def load_slides(self, slides_array, category="None"):
-		print(f"[SVS] Loading SVS slides ...")
+		log.info(f"Loading SVS slides ...", 1)
 		for slide in slides_array:
 			name = slide[:-4]
 			filetype = slide[-3:]
@@ -103,7 +104,7 @@ class Mosaic:
 			try:
 				slide = ops.OpenSlide(path)
 			except ops.lowlevel.OpenSlideUnsupportedFormatError:
-				print(f"Unable to read file from {path} , skipping")
+				log.warn(f"Unable to read file from {path} , skipping", 1)
 				return None
 	
 			shape = slide.dimensions
@@ -145,8 +146,10 @@ class Mosaic:
 		loaded_model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
 											 outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
 		num_classes = _model.layers[-1].output_shape[-1]
+		
 
 		results = []
+		fl_weights_all, logits_all, cases_all, indices_all, images_all, tfrecord_all = [], [], [], [], [], []
 
 		def _parse_function(record):
 			features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
@@ -169,7 +172,6 @@ class Mosaic:
 			tfrecord_index = self.tfrecord_paths.index(tfrecord)
 
 			fl_weights_arr, logits_arr, cases_arr, indices_arr, images_arr = [], [], [], [], []
-			fl_weights_all, logits_all, cases_all, indices_all, images_all, tfrecord_all = [], [], [], [], [], []
 			for i, data in enumerate(dataset):
 				batch_processed_images, batch_raw_images, batch_cases = data
 				batch_raw_images_np = batch_raw_images.numpy()
@@ -192,10 +194,7 @@ class Mosaic:
 			cases_all = cases_arr if cases_all == [] else np.concatenate([cases_all, cases_arr])
 			images_all = images_arr if images_all == [] else np.concatenate([images_all, images_arr])
 			indices_all = indices_arr if indices_all == [] else np.concatenate([indices_all, indices_arr])
-			tfrecord_all = tfrecord_arr if tfrecord_all == [] else np.concatenate([tfrecord_all, tfrecord_arr])
-
-			# For debugging
-			break
+			tfrecord_all = tfrecord_arr if tfrecord_all == [] else np.concatenate([tfrecord_all, tfrecord_arr])\
 
 		# Returns a 2D array, with each element containing FL weights, logits, case name, tfrecord name, and tfrecord indices
 		return fl_weights_all, logits_all, cases_all, images_all, indices_all, tfrecord_all           
@@ -283,6 +282,8 @@ class Mosaic:
 				if g['x_index'] == x_index and g['y_index'] == y_index:
 					g['points'].append(point['index'])
 					points_added += 1
+		for g in self.GRID:
+			shuffle(g['points'])
 		log.info(f"{points_added} points added to grid", 2)
 
 	def place_tile_outlines(self):
@@ -414,7 +415,6 @@ class Mosaic:
 					fraction_svs = num_case / (num_other + num_case)
 					tile_alpha = fraction_svs
 				if not self.export:
-					print(tile_image)
 					tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
 				image = self.ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-tile['size']/2, 
 																						tile['x']+tile['size']/2,
