@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>mosaic &mdash; thyroid 1.0 documentation</title>
+  <title>mosaic &mdash; slideflow 1.0 documentation</title>
   
 
   
@@ -17,38 +17,36 @@
   
 
   
-  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../_static/jquery.js"></script>
-        <script type="text/javascript" src="../_static/underscore.js"></script>
-        <script type="text/javascript" src="../_static/doctools.js"></script>
-        <script type="text/javascript" src="../_static/language_data.js"></script>
-    
-    <script type="text/javascript" src="../_static/js/theme.js"></script>
 
+  
+  
     
 
   
+
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" /> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
 </head>
 
 <body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
+
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search" >
+        <div class="wy-side-nav-search">
           
 
           
-            <a href="../index.html" class="icon icon-home"> thyroid
+            <a href="../index.html" class="icon icon-home"> slideflow
           
 
           
@@ -85,7 +83,8 @@
               <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../workflow.html">Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../modules.html">Source code</a></li>
 </ul>
 
@@ -101,7 +100,7 @@
       <nav class="wy-nav-top" aria-label="top navigation">
         
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="../index.html">thyroid</a>
+          <a href="../index.html">slideflow</a>
         
       </nav>
 
@@ -206,10 +205,8 @@
 		<span class="bp">self</span><span class="o">.</span><span class="n">pair_tiles_and_points</span><span class="p">()</span>
 		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">SLIDES</span><span class="p">):</span> 
 			<span class="bp">self</span><span class="o">.</span><span class="n">draw_slides</span><span class="p">()</span>
-		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">focus</span> <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">focus</span><span class="p">):</span>
-			<span class="bp">self</span><span class="o">.</span><span class="n">focus_list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">focus</span><span class="p">)</span>
-		<span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">focus</span><span class="p">:</span>
-			<span class="bp">self</span><span class="o">.</span><span class="n">focus_attr</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">focus</span><span class="p">],</span> <span class="s1">&#39;category&#39;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">focus</span><span class="p">:</span> 
+			<span class="bp">self</span><span class="o">.</span><span class="n">focus_category</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">focus</span><span class="p">)</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">finish_mosaic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">export</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Mosaic.initiate_figure"><a class="viewcode-back" href="../mosaic.html#mosaic.Mosaic.initiate_figure">[docs]</a>	<span class="k">def</span> <span class="nf">initiate_figure</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -580,26 +577,18 @@
 					<span class="n">num_placed</span> <span class="o">+=</span> <span class="mi">1</span>
 			<span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;[INFO] Num placed: </span><span class="si">{num_placed}</span><span class="s2">&quot;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Mosaic.focus_attr"><a class="viewcode-back" href="../mosaic.html#mosaic.Mosaic.focus_attr">[docs]</a>	<span class="k">def</span> <span class="nf">focus_attr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">focus</span><span class="p">,</span> <span class="n">attr</span><span class="o">=</span><span class="s1">&#39;category&#39;</span><span class="p">):</span>
+<div class="viewcode-block" id="Mosaic.focus_category"><a class="viewcode-back" href="../mosaic.html#mosaic.Mosaic.focus_category">[docs]</a>	<span class="k">def</span> <span class="nf">focus_category</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">category</span><span class="p">):</span>
 		<span class="k">for</span> <span class="n">tile</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">GRID</span><span class="p">:</span>
 			<span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">tile</span><span class="p">[</span><span class="s1">&#39;points&#39;</span><span class="p">]):</span> <span class="k">continue</span>
 			<span class="n">num_cat</span><span class="p">,</span> <span class="n">num_other</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span>
 			<span class="k">for</span> <span class="n">point_index</span> <span class="ow">in</span> <span class="n">tile</span><span class="p">[</span><span class="s1">&#39;points&#39;</span><span class="p">]:</span>
 				<span class="n">point</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tsne_points</span><span class="p">[</span><span class="n">point_index</span><span class="p">]</span>
-				<span class="k">if</span> <span class="n">point</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span> <span class="ow">in</span> <span class="n">focus</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">point</span><span class="p">[</span><span class="s1">&#39;category&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">category</span><span class="p">:</span>
 					<span class="n">num_cat</span> <span class="o">+=</span> <span class="mi">1</span>
 				<span class="k">else</span><span class="p">:</span>
 					<span class="n">num_other</span> <span class="o">+=</span> <span class="mi">1</span>
 			<span class="n">alpha</span> <span class="o">=</span> <span class="n">num_cat</span> <span class="o">/</span> <span class="p">(</span><span class="n">num_other</span> <span class="o">+</span> <span class="n">num_cat</span><span class="p">)</span>
 			<span class="n">tile</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set_alpha</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span></div>
-
-<div class="viewcode-block" id="Mosaic.focus_list"><a class="viewcode-back" href="../mosaic.html#mosaic.Mosaic.focus_list">[docs]</a>	<span class="k">def</span> <span class="nf">focus_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
-		<span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;[Mosaic] Highlighting cases from file </span><span class="si">{path}</span><span class="s2">&quot;</span><span class="p">)</span>
-		<span class="n">focus_cases</span> <span class="o">=</span> <span class="p">[]</span>
-		<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">listfile</span><span class="p">:</span>
-			<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">listfile</span><span class="p">:</span>
-				<span class="n">focus_cases</span> <span class="o">+=</span> <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
-		<span class="bp">self</span><span class="o">.</span><span class="n">focus_attr</span><span class="p">(</span><span class="n">focus_cases</span><span class="p">,</span> <span class="s1">&#39;case&#39;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Mosaic.finish_mosaic"><a class="viewcode-back" href="../mosaic.html#mosaic.Mosaic.finish_mosaic">[docs]</a>	<span class="k">def</span> <span class="nf">finish_mosaic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">export</span><span class="p">):</span>
 		<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[Core] Displaying/exporting figure...&quot;</span><span class="p">)</span>
@@ -628,7 +617,7 @@
 	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-f&#39;</span><span class="p">,</span> <span class="s1">&#39;--figsize&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;(Optional) Reflects how large the output figure size should be ; default is 200.&#39;</span><span class="p">)</span>
 	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-l&#39;</span><span class="p">,</span> <span class="s1">&#39;--leniency&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;(Optional) How lenient the algorithm should be when placing tiles ; default is 1.5.&#39;</span><span class="p">)</span>
 	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-z&#39;</span><span class="p">,</span> <span class="s1">&#39;--tile_zoom&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;(Optional) How lenient the algorithm should be when placing tiles ; default is 1.5.&#39;</span><span class="p">)</span>
-	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--focus&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;(Optional) Focus on slides from a specific category. Either a name of a category or path to .txt file with case names.&#39;</span><span class="p">)</span>
+	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--focus&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;(Optional) Focus on slides from a specific category&#39;</span><span class="p">)</span>
 	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--um&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;(Necessary if plotting SVS) Size of extracted image tiles in microns.&#39;</span><span class="p">)</span>
 	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--expanded&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Generates mosaics with expanded placement of tiles instead of strict.&#39;</span><span class="p">)</span>
 	<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--export&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Save mosaic to png file.&#39;</span><span class="p">)</span>
@@ -687,16 +676,26 @@
   
 
 
+  
+
+    
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    
+
+  
+
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

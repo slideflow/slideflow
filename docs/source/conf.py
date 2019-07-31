@@ -51,7 +51,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'thyroid'
+project = 'slideflow'
 copyright = '2019, James M Dolezal'
 author = 'James M Dolezal'
 
