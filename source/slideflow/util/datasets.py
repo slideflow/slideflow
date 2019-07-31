@@ -4,8 +4,8 @@ from os import listdir, makedirs
 from os.path import isfile, isdir, join, exists
 from random import shuffle
 import argparse
-from util import sfutil
-from util.sfutil import log
+import slideflow.util as sfutil
+from slideflow.util import log
 
 def make_dir(_dir):
 	''' Makes a directory if one does not already exist, in a manner compatible with multithreading. '''
@@ -15,6 +15,79 @@ def make_dir(_dir):
 		except FileExistsError:
 			pass
 
+def split_tiles(folder, fraction, names):
+	'''Split a directory of *.jpg files into subdirectories.
+	Args:
+		folder 		folder to search for tiles
+		fraction	array containing fraction of tiles to include in each subdirectory;
+						remaining tiles will be split among subdirectories with fraction of -1
+		names		names of subfolder to split tiles. Must be same length as fraction'''
+
+	# Initial error checking
+	if len(fraction) != len(names):
+		log.error(f'When splitting tiles, length of "fraction" ({len(fraction)}) should equal length of "names" ({len(names)})')
+		sys.exit()
+	if sum([i for i in fraction if i != -1]) > 1:
+		log.error(f'Unable to split tiles; Sum of fraction is greater than 1')
+		sys.exit()
+
+	# Setup directories
+	cases = [_dir for _dir in listdir(folder) if isdir(join(folder, _dir))]
+	num_moved = [0] * len(names)
+
+	for case in cases:
+		case_directory = join(folder, case)
+		case_files = [f for f in listdir(case_directory) 
+						if (isfile(join(case_directory, f))) and
+						(f[-3:] == 'jpg')]
+
+		shuffle(case_files)
+		num_files = len(case_files)
+		num_to_move = [0] * len(fraction)
+
+		# First, calculate number to move for the explicitly specified fractions
+		for fr in range(len(fraction)):
+			if fraction[fr] != -1:
+				num_leftover = num_files - sum(num_to_move)
+				num_to_move[fr] = min(int(fraction[fr] * num_files), num_leftover)
+
+		# Now, split up leftover into the other categories
+		num_fr_dynamic = len([i for i in fraction if i == -1])
+		if num_fr_dynamic != 0:
+			num_per_dynamic = int((num_files - sum(num_to_move)) / num_fr_dynamic)
+			for fr in range(len(fraction)):
+				if fraction[fr] == -1:
+					num_leftover = num_files - sum(num_to_move)
+					num_to_move[fr] = min(num_per_dynamic, num_leftover)
+
+		# Error checking
+		if sum(num_to_move) > num_files:
+			log.error(f"Error with separating tiles; tried to move {sum(num_to_move)} tiles into {len(fraction)} subfolders, only {num_files} tiles available", 1)
+			sys.exit()
+		if sum(num_to_move) < num_files:
+			log.warn(f"Not all tiles separated into subfolders; {num_files - sum(num_to_move)} leftover tiles will be discarded.", 1)
+
+		# Split tiles by subfolder
+		for n, name in enumerate(names):
+			case_subfolder_directory = join(folder, name, case)
+			make_dir(case_subfolder_directory)
+
+			num = num_to_move[n]
+			files_to_move = case_files[0:num]
+			case_files = case_files[num:]
+
+			for f in files_to_move:
+				shutil.move(join(case_directory, f), join(case_subfolder_directory, f))
+			num_moved[n] += num
+			log.empty(f"Moved {num} tiles for case {sfutil.green(case)} into subfolder {name}", 1)
+
+		# Remove the empty directory
+		shutil.rmtree(case_directory)
+
+	# Print results
+	for n, name in enumerate(names):
+		log.complete(f"Moved {num_moved[n]} tiles into subfolder {name}", 1)
+			
 def build_validation(train_dir, eval_dir, fraction = 0.1):
 	total_moved = 0
 	make_dir(eval_dir)
