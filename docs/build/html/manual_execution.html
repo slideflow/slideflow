@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Workflow &mdash; thyroid 1.0 documentation</title>
+  <title>&lt;no title&gt; &mdash; slideflow 1.0 documentation</title>
   
 
   
@@ -17,40 +17,36 @@
   
 
   
-  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
-    
-    <script type="text/javascript" src="_static/js/theme.js"></script>
 
+  
+  
     
 
   
+
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Source code" href="modules.html" />
-    <link rel="prev" title="Introduction" href="intro.html" /> 
+    <link rel="search" title="Search" href="search.html" /> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
 </head>
 
 <body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
+
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search" >
+        <div class="wy-side-nav-search">
           
 
           
-            <a href="index.html" class="icon icon-home"> thyroid
+            <a href="index.html" class="icon icon-home"> slideflow
           
 
           
@@ -85,17 +81,10 @@
             
             
               <p class="caption"><span class="caption-text">Contents:</span></p>
-<ul class="current">
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Workflow</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#step-1-create-rois">Step 1: Create ROIs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#step-2-data-preparation">Step 2: Data Preparation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#step-3-model-training">Step 3: Model Training</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#step-4-analytics">Step 4: Analytics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#step-5-visualizing-results-with-heatmaps">Step 5: Visualizing Results with Heatmaps</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#step-6-mosaic-maps">Step 6: Mosaic maps</a></li>
-</ul>
-</li>
+<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">Source code</a></li>
 </ul>
 
@@ -111,7 +100,7 @@
       <nav class="wy-nav-top" aria-label="top navigation">
         
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="index.html">thyroid</a>
+          <a href="index.html">slideflow</a>
         
       </nav>
 
@@ -142,13 +131,13 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
-      <li>Workflow</li>
+      <li>&lt;no title&gt;</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="_sources/workflow.rst.txt" rel="nofollow"> View page source</a>
+            <a href="_sources/manual_execution.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -161,56 +150,13 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="workflow">
-<h1>Workflow<a class="headerlink" href="#workflow" title="Permalink to this headline">¶</a></h1>
-<img alt="_images/pipeline.png" src="_images/pipeline.png" />
-<p>Workflow is separated into two phases and 6 steps.</p>
-<p>The first phase - <strong>Model Creation</strong> - involves three steps: 1) labeling slides with regions of interest (ROIs), 2) tessellating and preparing image tiles from the slides, and 3) training a neural network model.</p>
-<p>The second phase - <strong>Model Assessment</strong> - also involves three steps: 1) analytics describing model performance, including basic measures like percent accuracy as well as ROCs and dendrograms, 2) creating heatmap overlays for whole-slide images to visualize predictions, and 3) generating mosaic maps to visualize learned image features.</p>
-<p>All six steps are described in detail below</p>
-<div class="section" id="step-1-create-rois">
-<h2>Step 1: Create ROIs<a class="headerlink" href="#step-1-create-rois" title="Permalink to this headline">¶</a></h2>
-<ol class="arabic simple">
-<li><strong>Label ROIs</strong>. Using <a class="reference external" href="https://qupath.github.io/">QuPath</a>, annotate whole-slide images with the Polygon tool. Then, load the Groovy script that will export the tile annotations into CSV format by clicking <strong>Automate</strong> -&gt; <strong>Show script editor</strong>. In the box that comes up, click <strong>File</strong> -&gt; <strong>Open</strong> and load the <code class="docutils literal notranslate"><span class="pre">qupath_roi.groovy</span></code> script. Then, press CTRL + R and wait for the script to finish.</li>
-</ol>
-<p><em>You may choose to speed-up workflow by loading multiple SVS files into a QuPath project, and then running the script on the entire project using “Run for project.”</em></p>
-</div>
-<div class="section" id="step-2-data-preparation">
-<h2>Step 2: Data Preparation<a class="headerlink" href="#step-2-data-preparation" title="Permalink to this headline">¶</a></h2>
-<ol class="arabic simple" start="2">
-<li><strong>Extract tiles</strong>. Use the script <code class="docutils literal notranslate"><span class="pre">convoluter.py</span></code> to tessellate image tiles from the ROIs. CSV files generated in the previous step should be included in the same directory as your SVS files. The syntax is as follows:</li>
-</ol>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 convoluter.py -s SVS_DIR -o PROJECT_DIR -c NUM_CLASSES --px TILE_PX
+  <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 convoluter.py -s SVS_DIR -o PROJECT_DIR -c NUM_CLASSES --px TILE_PX
                         --um TILE_UM --fp16 --export <span class="o">[</span>--augment<span class="o">]</span>
                         --num_threads <span class="m">8</span>
 </pre></div>
 </div>
 <p>…where <code class="xref py py-class docutils literal notranslate"><span class="pre">SVS_DIR</span></code> is the directory to your SVS slides (and CSV ROI files), <code class="xref py py-class docutils literal notranslate"><span class="pre">PROJECT_DIR</span></code> is the place to save the extracted tiles, and <code class="xref py py-class docutils literal notranslate"><span class="pre">NUM_CLASSES</span></code> is the number of output classes. <code class="xref py py-class docutils literal notranslate"><span class="pre">TILE_PX</span></code> equals the width of extract tiles in pixels, and <code class="xref py py-class docutils literal notranslate"><span class="pre">TILE_UM</span></code> is the width of your extracted tiles in microns. Use the <code class="xref py py-class docutils literal notranslate"><span class="pre">--augment</span></code> flag to augment your dataset with flipped/rotated images.</p>
 <ol class="arabic simple" start="3">
-<li><strong>Organize training directory</strong>. Assemble image tiles into a directory tree as below, with the parent directory named <code class="xref py py-class docutils literal notranslate"><span class="pre">train_data</span></code>, child directories 0 - <em>n</em> (where <em>n</em> indicates the number of unique categories), and grandchild directories named according to case number.</li>
-</ol>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>./train_data
-├── 0
-|   └── 234874-1
-|       ├── image.jpg
-|       └── image.jpg
-|   └── 234877-2
-|       ├── image.jpg
-|       └── image.jpg
-├── 1
-|   └── 234817-1
-|       ├── image.jpg
-|       └── image.jpg
-|   └── 234892-1
-|       └── image.jpg
-├── 2
-|   └── 234912-1
-|       └── image.jpg
-|   └── 234991-1
-|       └── image.jpg
-</pre></div>
-</div>
-<ol class="arabic simple" start="4">
 <li><strong>Create validation set</strong>. Use the module <code class="docutils literal notranslate"><span class="pre">data_utils</span></code> to separate your data into training and validation sets. To create a validation set using 10% of your data, for example, use the following command:</li>
 </ol>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 data_utils.py --dir path/to/parent/directory --build
@@ -220,9 +166,6 @@
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 data_utils.py --dir path/to/parent/directory --merge
 </pre></div>
 </div>
-</div>
-<div class="section" id="step-3-model-training">
-<h2>Step 3: Model Training<a class="headerlink" href="#step-3-model-training" title="Permalink to this headline">¶</a></h2>
 <p>After the training and validation set are prepared, training is as simple as running the main package:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 histcon.py
 </pre></div>
@@ -253,20 +196,8 @@
 <span class="n">USE_FP16</span> <span class="o">=</span> <span class="bp">True</span>
 </pre></div>
 </div>
-<p>During training, progress can be monitored using Tensorflow’s bundled <code class="docutils literal notranslate"><span class="pre">Tensorboard</span></code> package:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir<span class="o">=</span>/path/to/histcon/models/active
-</pre></div>
-</div>
-<p>… and then opening <a class="reference external" href="http://localhost:6006">http://localhost:6006</a> in your web browser.</p>
 <p>The “Custom Scalars” page displays both the training and validation loss (cross-entropy). Stop training by exiting the <code class="docutils literal notranslate"><span class="pre">histcon</span></code> program once loss has stabilized (“convergence”) and before the validation loss starts becoming worse (“divergence”). Time to convergence varies based on the data and hyperparameters, but generally occurs within 2-30 epochs. One epoch equals one pass through the training data, and is equal to the <code class="xref py py-class docutils literal notranslate"><span class="pre">batch</span> <span class="pre">size</span></code> * <code class="xref py py-class docutils literal notranslate"><span class="pre">number</span> <span class="pre">of</span> <span class="pre">steps</span></code>.</p>
-</div>
-<div class="section" id="step-4-analytics">
-<h2>Step 4: Analytics<a class="headerlink" href="#step-4-analytics" title="Permalink to this headline">¶</a></h2>
-<p>Including model performance statistics, ROC, and dendrogram creation. Currently being implemented, documentation will be updated once complete.</p>
-</div>
-<div class="section" id="step-5-visualizing-results-with-heatmaps">
-<h2>Step 5: Visualizing Results with Heatmaps<a class="headerlink" href="#step-5-visualizing-results-with-heatmaps" title="Permalink to this headline">¶</a></h2>
-<p>After a model has been trained, accuracy can be assessed by visualizing predictions for a whole slide image.  The module <code class="docutils literal notranslate"><span class="pre">convoluter</span></code> loads a trained model, applies it convolutionally across a whole-slide image, and visualizes the results with a heatmap overlay.</p>
+<p>The module <code class="docutils literal notranslate"><span class="pre">convoluter</span></code> loads a trained model, applies it convolutionally across a whole-slide image, and visualizes the results with a heatmap overlay.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 convoluter.py --model path/to/model/dir --slide path/to/whole/case.svs
                         --size <span class="m">512</span> --classes <span class="m">5</span> --batch <span class="m">64</span> --px <span class="m">512</span> --um <span class="m">255</span> --fp16
 </pre></div>
@@ -286,27 +217,12 @@
                         --size <span class="m">512</span> --classes <span class="m">5</span> --batch <span class="m">64</span> --px <span class="m">512</span> --um <span class="m">255</span> --fp16 --final
 </pre></div>
 </div>
-</div>
-<div class="section" id="step-6-mosaic-maps">
-<h2>Step 6: Mosaic maps<a class="headerlink" href="#step-6-mosaic-maps" title="Permalink to this headline">¶</a></h2>
-<p>Visualize learned image features with UMAP/t-SNE plots and mosaic maps. Code completed (<code class="docutils literal notranslate"><span class="pre">mosaic.py</span></code>), documentation pending.</p>
-</div>
-</div>
 
 
            </div>
            
           </div>
           <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="modules.html" class="btn btn-neutral float-right" title="Source code" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="intro.html" class="btn btn-neutral float-left" title="Introduction" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
-    </div>
   
 
   <hr/>
@@ -330,16 +246,26 @@
   
 
 
+  
+
+    
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+
+  
+
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>
