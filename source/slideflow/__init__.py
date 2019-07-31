@@ -740,7 +740,7 @@ class SlideFlowProject:
 		self.PROJECT = project
 
 		# Write a sample actions.py file
-		with open('sample_actions.py', 'r') as sample_file:
+		with open(join(SOURCE_DIR, 'sample_actions.py'), 'r') as sample_file:
 			sample_actions = sample_file.read()
 			with open(os.path.join(sfutil.PROJECT_DIR, 'actions.py'), 'w') as actions_file:
 				actions_file.write(sample_actions)
