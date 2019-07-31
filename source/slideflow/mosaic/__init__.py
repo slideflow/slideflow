@@ -62,12 +62,11 @@ class Mosaic:
 	final_layer_weights = {}
 	logits = {}
 
-	def __init__(self, leniency=1.5, expanded=True, focus=None, tile_zoom=15, num_tiles_x=50, resolution='high', 
+	def __init__(self, leniency=1.5, expanded=True, tile_zoom=15, num_tiles_x=50, resolution='high', 
 					export=True, tile_um=None, use_fp16=True, save_dir=None):
 		# Global variables
 		self.max_distance_factor = leniency
 		self.mapping_method = 'expanded' if expanded else 'strict'
-		self.focus = focus
 		self.tile_zoom_factor = tile_zoom
 		self.export = export
 		self.DTYPE = tf.float16 if use_fp16 else tf.float32
@@ -199,7 +198,7 @@ class Mosaic:
 		# Returns a 2D array, with each element containing FL weights, logits, case name, tfrecord name, and tfrecord indices
 		return fl_weights_all, logits_all, cases_all, images_all, indices_all, tfrecord_all           
 
-	def generate_from_tfrecords(self, tfrecord_array, model, image_size):
+	def generate_from_tfrecords(self, tfrecord_array, model, image_size, focus=None):
 		fl_weights, logits, cases, images, indices, tfrecords = self.generate_final_layer_from_tfrecords(tfrecord_array, model, image_size)
 		
 		dl_coord = gen_umap(fl_weights)
@@ -211,8 +210,8 @@ class Mosaic:
 		self.pair_tiles_and_points()
 		#if len(self.SLIDES):
 		#	self.draw_slides()
-		#if self.focus:
-		#	self.focus_category(self.focus)
+		if focus:
+			self.focus_tfrecords(focus)
 		self.finish_mosaic()
 
 	def load_coordinates(self, coord, meta):
@@ -455,13 +454,13 @@ class Mosaic:
 		self.SLIDES[name]['plot'] = self.ax_thumbnail
 		#self.highlight_slide_on_mosaic(name)
 
-	def focus_category(self, category):
+	def focus_tfrecords(self, tfrecord_list):
 		for tile in self.GRID:
 			if not len(tile['points']): continue
 			num_cat, num_other = 0, 0
 			for point_index in tile['points']:
 				point = self.points[point_index]
-				if point['category'] == category:
+				if point['tfrecord'] in tfrecord_list:
 					num_cat += 1
 				else:
 					num_other += 1
