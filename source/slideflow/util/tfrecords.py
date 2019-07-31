@@ -77,6 +77,14 @@ def _read_and_return_record(record, assign_case=None, assign_category=None):
 	tf_example = image_example(category, case, image_raw)
 	return tf_example.SerializeToString()
 
+def tfrecord_name_to_case(directory):
+	'''Opens all tfrecord files within a folder, and for each record, replaces 'case' with name of the tfrecord.'''
+	tfrecord_list = os.listdir(directory)
+	for tfr in tfrecord_list:
+		tfr_path = os.path.join(directory, tfr)
+		tfr_name = tfr[:-10]
+		assign_case_across_tfrecord(tfr_path, tfr_name)
+
 def join_tfrecord(input_folder, output_file, assign_case=None):
 	'''Randomly samples from tfrecords in the input folder with shuffling,
 	and combines into a single tfrecord file.'''

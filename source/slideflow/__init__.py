@@ -22,7 +22,7 @@ import slideflow.util as sfutil
 from slideflow.util import datasets, tfrecords, TCGAAnnotations, log
 from slideflow.mosaic import Mosaic
 
-__version__ = "0.9.8"
+__version__ = "0.9.9"
 
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
@@ -158,6 +158,12 @@ class SlideFlowProject:
 
 	def checkpoint_to_h5(self, model_name):
 		tfrecords.checkpoint_to_h5(self.PROJECT['models_dir'], model_name)
+
+	def update_tfrecord_casenames(self, subfolder=None):
+		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
+		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
+		log.header(f"Updating TFRecords in {sfutil.green(tfrecord_dir)}...")
+		tfrecords.tfrecord_name_to_case(tfrecord_dir)
 
 	def get_training_and_validation_tfrecords(self, subfolder, slide_list, validation_target=None, validation_strategy=None, 
 												validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
@@ -353,8 +359,8 @@ class SlideFlowProject:
 		return results
 
 	def _get_hp(self, row, header):
-		args = header[0:model_name_i] + header[model_name_i+1:]
 		model_name_i = header.index('model_name')
+		args = header[0:model_name_i] + header[model_name_i+1:]
 		model_name = row[model_name_i]
 		hp = sfmodel.HyperParameters()
 		for arg in args:
@@ -392,18 +398,52 @@ class SlideFlowProject:
 		return models_to_train
 
 	def _update_results_log(self, results_log_path, model_name, results_dict):
-		with open(results_log_path, "a") as results_file:
+		# First, read current results log into a dictionary
+		results_log = {}
+		if exists(results_log_path):
+			with open(results_log_path, "r") as results_file:
+				reader = csv.reader(results_file)
+				headers = next(reader)
+				model_name_i = headers.index('model_name')
+				result_keys = [k for k in headers if k != 'model_name']
+				for row in reader:
+					name = row[model_name_i]
+					results_log[name] = {}
+					for result_key in result_keys:
+						result = row[headers.index(result_key)]
+						results_log[name][result_key] = result
+			# Move the current log file into a temporary file
+			shutil.move(results_log_path, f"{results_log_path}.temp")
+
+		# Next, update the results log with the new results data
+		for epoch in results_dict:
+			results_log.update({f'{model_name}-{epoch}': results_dict[epoch]})
+
+		# Finally, create a new log file incorporating the new data
+		with open(results_log_path, "w") as results_file:
 			writer = csv.writer(results_file)
+			result_keys = []
+			# Search through results to find all results keys
+			for model in results_log:
+				result_keys += list(results_log[model].keys())
+			# Remove duplicate result keys
+			result_keys = list(set(result_keys))
 			# Write header labels
-			# headers = ['model_name'] + list(results_dict[model_iterations[0]]['final'].keys())
-			# writer.writerow(headers)
-			# Save results from all recorded epochs
-			for epoch in results_dict:
-				row = [f'{model_name}-{epoch}']
+			writer.writerow(['model_name'] + result_keys)
+			# Iterate through model results and record
+			for model in results_log:
+				row = [model]
 				# Include all saved metrics
-				for results_key in results_dict[epoch]:
-					row += [results_dict[epoch][results_key]]	
+				for result_key in result_keys:
+					if result_key in results_log[model]:
+						row += [results_log[model][result_key]]
+					else:
+						row += [""]
 				writer.writerow(row)
+
+		# Delete the old results log file
+		if exists(f"{results_log_path}.temp"):
+			os.remove(f"{results_log_path}.temp")
 
 	def train(self, models=None, subfolder=NO_LABEL, category_header='category', filter_header=None, filter_values=None, resume_training=None, 
 				checkpoint=None, pretrain='imagenet', supervised=True, batch_file=None, model_type='categorical',
@@ -440,13 +480,7 @@ class SlideFlowProject:
 		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and type(k_fold_iter) != list) else k_fold_iter
 		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
 		valid_k = [] if not k_fold else [kf for kf in range(k_fold) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
-		
-		# Establish results log path
 		results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
-		rl = 1
-		while exists(results_log_path):
-			results_log_path = os.path.join(self.PROJECT['root'], f"results_log{rl}.csv")
-			rl += 1
 
 		slide_to_category = sfutil.get_annotations_dict(self.PROJECT['annotations'], 'slide', category_header, 
 																							filter_header=filter_header, 
@@ -458,7 +492,7 @@ class SlideFlowProject:
 		models_to_train = self._get_valid_models(batch_train_file, models)
 		log.header(f"Training {len(models_to_train)} models...")
 
-		# Next, prepare the multiprocessing manager (needed for Keras memory management)
+		# Next, prepare the multiprocessing manager (needed to free VRAM after training)
 		manager = multiprocessing.Manager()
 		results_dict = manager.dict()
 
@@ -491,17 +525,17 @@ class SlideFlowProject:
 			# Execute training
 			try:
 				results = SFM.train(hp, pretrain=pretrain, 
-															resume_training=resume_training, 
-															checkpoint=checkpoint,
-															supervised=supervised)
+										resume_training=resume_training, 
+										checkpoint=checkpoint,
+										supervised=supervised)
 				results_dict.update({full_model_name: results})
 				del(SFM)
 			except tf.errors.ResourceExhaustedError:
 				log.error(f"Training failed for {sfutil.bold(model_name)}, GPU memory exceeded.", 0)
 				del(SFM)
 				return
-	
-		# Begin assembling models and hyperparameters from batch_train.tsv file
+
+		# Assembling list of models and hyperparameters from batch_train.tsv file
 		batch_train_rows = []
 		with open(batch_train_file) as csv_file:
 			reader = csv.reader(csv_file, delimiter='\t')
@@ -518,9 +552,13 @@ class SlideFlowProject:
 			# Perform training
 			if k_fold:
 				for k in valid_k:
-					multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp, k+1)).start().join()
+					process = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp, k+1))
+					process.start()
+					process.join()
 			else:
-				multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp)).start().join()
+				process = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp))
+				process.start()
+				process.join()
 
 			# Record results
 			for mi in model_iterations:
@@ -576,7 +614,7 @@ class SlideFlowProject:
 																										filter_values=focus_values)
 		else:
 			focus_list = None
-		mosaic = Mosaic(save_dir=self.PROJECT['root'])
+		mosaic = Mosaic(save_dir=self.PROJECT['root'], resolution=resolution)
 		mosaic.generate_from_tfrecords(slide_list, model=model, image_size=self.PROJECT['tile_px'], focus=focus_list)
 
 	def create_blank_train_config(self, filename=None):
