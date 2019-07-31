@@ -307,7 +307,7 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 			if filter_header:
 				header_names = ", ".join(filter_header) 
 				column_names += f', "{header_names}"'
-			log.error(f"Unable to find columns {column_names} in annotation file", 1)
+			log.error(f"Unable to find columns {column_names} in annotation file; confirm file format is correct and headers exist", 1)
 			sys.exit()
 		for row in csv_reader:
 			value = row[value_index]
@@ -492,7 +492,6 @@ def verify_tiles(annotations, tfrecord_files=[]):
 			log.error(f"Failed TFRecord integrity check: annotation not found for case {green(case)}", 1)
 	if not success:
 		print("...failed.")
-		sys.exit()
 	sys.stdout.write("\r\033[K")
 	sys.stdout.flush()
 	# Now, check to see if all annotations have a corresponding set of tiles
