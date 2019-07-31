@@ -21,8 +21,6 @@ import os, sys
 import warnings
 from os.path import join, isfile, exists
 
-import progress_bar
-
 import tensorflow as tf
 import numpy as np
 import imageio
@@ -47,9 +45,9 @@ import matplotlib.cm as cm
 import matplotlib.colors as mcol
 from matplotlib import pyplot as mp
 
-from fastim import FastImshow
-from util import sfutil
-from util.sfutil import log
+import slideflow.util as sfutil
+from slideflow.util import log, progress_bar
+from slideflow.util.fastim import FastImshow
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 4
@@ -408,6 +406,8 @@ class Convoluter:
 
 			# Load the slide
 			whole_slide = SlideReader(slide['path'], slide['name'], slide['type'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
+			if not whole_slide.loaded_correctly():
+				continue
 
 			# Calculate the final layer weights and logits/predictions
 			logits, final_layer, final_layer_labels, logits_flat = self.calculate_logits(whole_slide, export_tiles=export_tiles, 
@@ -521,9 +521,6 @@ class Convoluter:
 			expanded_logits = np.asarray(expanded_logits, dtype=float)
 		except ValueError:
 			log.error("Mismatch with number of categories in model output and expected number of categories", 1)
-
-		print_func = print if not pb else pb.print
-		#log.info(f"Expanded_logits size: {expanded_logits.shape}; resizing to y:{y_logits_len} and x:{x_logits_len}", 2, print_func)
 
 		# Resize logits array into a two-dimensional array for heatmap display
 		logits_out = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.NUM_CLASSES])
