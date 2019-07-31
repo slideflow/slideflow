@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>convoluter module &mdash; slideflow 1.0 documentation</title>
+  <title>Setting up a Project &mdash; slideflow 1.0 documentation</title>
   
 
   
@@ -28,8 +28,8 @@
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="histcon module" href="histcon.html" />
-    <link rel="prev" title="Source code" href="modules.html" /> 
+    <link rel="next" title="Source code" href="modules.html" />
+    <link rel="prev" title="Pipeline Overview" href="pipeline.html" /> 
 
   
   <script src="_static/js/modernizr.min.js"></script>
@@ -86,16 +86,11 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="project.html">Setting up a Project</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Source code</a><ul class="current">
-<li class="toctree-l2 current"><a class="current reference internal" href="#">convoluter module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="histcon.html">histcon module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="progress_bar.html">progress module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="data_utils.html">data_utils module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="fastim.html">fastim module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="mosaic.html">fastim module</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Setting up a Project</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#project-configuration">Project Configuration</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">Source code</a></li>
 </ul>
 
             
@@ -141,15 +136,13 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
-          <li><a href="modules.html">Source code</a> &raquo;</li>
-        
-      <li>convoluter module</li>
+      <li>Setting up a Project</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="_sources/convoluter.rst.txt" rel="nofollow"> View page source</a>
+            <a href="_sources/project.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -162,8 +155,24 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="convoluter-module">
-<h1>convoluter module<a class="headerlink" href="#convoluter-module" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="setting-up-a-project">
+<h1>Setting up a Project<a class="headerlink" href="#setting-up-a-project" title="Permalink to this headline">¶</a></h1>
+<p>The easiest way to get the <code class="docutils literal notranslate"><span class="pre">slideflow</span></code> pipeline up and running is to use the bundled project management class, <code class="docutils literal notranslate"><span class="pre">SlideFlowProject</span></code>. In this section, we will examine how to set up a new project and then use the project to execute each of the pipeline steps.</p>
+<p>Before we start, make sure you have each of the following:</p>
+<ol class="arabic simple">
+<li>A collection of slides, preferably in SVS format though JPG images are also supported.</li>
+<li>A collection of ROIs in CSV format, generated using QuPath.</li>
+<li>A plan for which slides will be used for training and which will be used for final testing.</li>
+</ol>
+<p>The script we will use to manage our project is <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code>. An empty version of this script that will setup a project but not perform any pipeline actions is included below:</p>
+<p>To use the script to execute pipeline actions, simply run the script:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 run_project.py
+</pre></div>
+</div>
+<div class="section" id="project-configuration">
+<h2>Project Configuration<a class="headerlink" href="#project-configuration" title="Permalink to this headline">¶</a></h2>
+<p>Upon first executing the script, you will be asked a series of questions regarding your project. Default answers are given in brackets (if the question is a yes/no question, the default answer is the letter which is capitalized); if you press enter without typing anything, the default will be chosen. You can always change your answers later by editing <code class="docutils literal notranslate"><span class="pre">settings.json</span></code> in your project folder. Below is an overview of what you’ll be asked for.</p>
+</div>
 </div>
 
 
@@ -174,10 +183,10 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="histcon.html" class="btn btn-neutral float-right" title="histcon module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="modules.html" class="btn btn-neutral float-right" title="Source code" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="modules.html" class="btn btn-neutral" title="Source code" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="pipeline.html" class="btn btn-neutral" title="Pipeline Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
