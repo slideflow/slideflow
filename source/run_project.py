@@ -3,7 +3,7 @@ import slideflow as sf
 import argparse
 
 sf.set_logging_level(3)
-sf.select_gpu(0)
+sf.autoselect_gpu(1)
 sf.NUM_THREADS = 4
 sf.SKIP_VERIFICATION = True
 
@@ -21,7 +21,7 @@ sys.path.insert(0, args.project)
 try:
 	import actions
 except:
-	print(f"No actions.py file found in {args.project}")
+	print(f"Error loading actions.py in {args.project}; either does not exist or contains an error")
 	sys.exit()
 
 actions.main(SFP)

@@ -3,7 +3,7 @@ import json
 import csv
 
 import os
-from os.path import join
+from os.path import join, isdir
 from glob import glob
 import shutil
 import datetime, time
@@ -270,12 +270,19 @@ def get_filtered_slide_paths(slides_dir, annotations_file, filter_header, filter
 	if not os.path.exists(annotations_file):
 		log.error(f"Unable to find annotations file at {green(annotations_file)}; unable to filter slides.")
 		return slide_list
-	filtered_annotation_dict = get_annotations_dict(annotations_file, TCGAAnnotations.slide, TCGAAnnotations.case, filter_header=filter_header, filter_values=filter_values)
+	filtered_annotation_dict = get_annotations_dict(annotations_file, TCGAAnnotations.slide, TCGAAnnotations.case, filter_header=filter_header, filter_values=filter_values, use_encode=False)
 	filtered_slide_names = list(filtered_annotation_dict.keys())
 	filtered_slide_list = [slide for slide in slide_list if slide.split('/')[-1][:-4] in filtered_slide_names]
 	return filtered_slide_list
 
-def get_annotations_dict(annotations_file, key_name, value_name, filter_header=None, filter_values=None, use_encode=True):
+def get_filtered_tfrecords_paths(tfrecords_dir, annotations_file, filter_header, filter_values):
+	tfrecord_list = glob(join(tfrecords_dir, "*.tfrecords"))
+	filtered_annotation_dict = get_annotations_dict(annotations_file, TCGAAnnotations.slide, TCGAAnnotations.case, filter_header=filter_header, filter_values=filter_values, use_encode=False)
+	filtered_slide_names = list(filtered_annotation_dict.keys())
+	filtered_tfrecord_list = [tfrecord for tfrecord in tfrecord_list if tfrecord.split('/')[-1][:-10] in filtered_slide_names]
+	return filtered_tfrecord_list
+
+def get_annotations_dict(annotations_file, key_name, value_name, filter_header=None, filter_values=None, use_encode=True, use_float=False):
 	if filter_header and not filter_values:
 		log.error("If supplying a filter header, you must also supply filter_values")
 		sys.exit() 
@@ -300,7 +307,7 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 			if filter_header:
 				header_names = ", ".join(filter_header) 
 				column_names += f', "{header_names}"'
-			log.error(f"Unable to find columns {column_names} in annotation file", 1)
+			log.error(f"Unable to find columns {column_names} in annotation file; confirm file format is correct and headers exist", 1)
 			sys.exit()
 		for row in csv_reader:
 			value = row[value_index]
@@ -310,7 +317,7 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 				sys.exit()
 			if filter_header:
 				should_skip = False
-				for i, f_header in enumerate(filter_header):
+				for i in range(len(filter_header)):
 					observed_value = row[filter_indices[i]]
 					# Check if this slide should be skipped
 					if (type(filter_values[i])==str and observed_value!=filter_values[i]) or observed_value not in filter_values[i]:
@@ -345,6 +352,14 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 			return key_dict_str
 		elif use_encode:
 			return key_dict_int
+		elif use_float:
+			for key in key_dict_str:
+				try:
+					key_dict_str[key] = float(key_dict_str[key])
+				except:
+					log.error(f'Unable to convert data ("{key_dict_str[key]}") into float; please check data integrity and chosen annotation column')
+					sys.exit()
+			return key_dict_str
 		else:
 			return key_dict_str
 
@@ -363,9 +378,8 @@ def verify_annotations(annotations_file, slides_dir=None):
 			return
 	try:
 		case_index = header.index(TCGAAnnotations.case)
-		category_index = header.index('category')
 	except:
-		log.error(f"Check annotations file for headers '{TCGAAnnotations.case}' and 'category'.", 1)
+		log.error(f"Check annotations file for header '{TCGAAnnotations.case}'.", 1)
 		sys.exit()
 	try:
 		slide_index = header.index(TCGAAnnotations.slide)
@@ -478,7 +492,6 @@ def verify_tiles(annotations, tfrecord_files=[]):
 			log.error(f"Failed TFRecord integrity check: annotation not found for case {green(case)}", 1)
 	if not success:
 		print("...failed.")
-		sys.exit()
 	sys.stdout.write("\r\033[K")
 	sys.stdout.flush()
 	# Now, check to see if all annotations have a corresponding set of tiles
@@ -493,3 +506,11 @@ def verify_tiles(annotations, tfrecord_files=[]):
 		log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 2)
 	return manifest
 	
+def contains_nested_subdirs(directory):
+	subdirs = [_dir for _dir in os.listdir(directory) if isdir(join(directory, _dir))]
+	for subdir in subdirs:
+		contents = os.listdir(join(directory, subdir))
+		for c in contents:
+			if isdir(join(directory, subdir, c)):
+				return True
+	return False
