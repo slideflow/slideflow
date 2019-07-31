@@ -31,6 +31,7 @@ ENDC = '\033[0m'
 BOLD = '\033[1m'
 UNDERLINE = '\033[4m'
 
+FORMATTING_OPTIONS = [HEADER, BLUE, GREEN, WARNING, FAIL, ENDC, BOLD, UNDERLINE]
 LOGGING_PREFIXES = ['', ' + ', '    - ']
 LOGGING_PREFIXES_WARN = ['', ' ! ', '    ! ']
 LOGGING_PREFIXES_EMPTY = ['', '   ', '     ']
@@ -135,12 +136,12 @@ class Logger:
 		return message
 	def log(self, text):
 		st = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-		to_remove = [HEADER, BLUE, GREEN, WARNING, FAIL, ENDC, BOLD, UNDERLINE]
 		if self.logfile:
-			for s in to_remove:
+			for s in FORMATTING_OPTIONS:
 				text = text.replace(s, "")
-			with open(self.logfile, 'a') as outfile:
-				outfile.write(f"[{st}] {text.strip()}\n")
+			outfile = open(self.logfile, 'a')
+			outfile.write(f"[{st}] {text.strip()}\n")
+			outfile.close()
 
 log = Logger()
 
@@ -214,6 +215,30 @@ def int_input(prompt, default=None):
 			continue
 		return int_response
 
+def float_input(prompt, default=None, valid_range=None):
+	while True:
+		response = input(f"{prompt}")
+		if not response and default:
+			return default
+		try:
+			float_response = float(response)
+		except ValueError:
+			print("Please supply a valid number.")
+			continue
+		if valid_range and not (float_response >= valid_range[0] and float_response <= valid_range[1]):
+			print(f"Please supply a valid numer in the range {valid_range[0]} to {valid_range[1]}")
+		return float_response
+
+def choice_input(prompt, valid_choices, default=None):
+	while True:
+		response = input(f"{prompt}")
+		if not response and default:
+			return default
+		if response not in valid_choices:
+			print("Invalid option.")
+			continue
+		return response
+
 def load_json(filename):
 	with open(filename, 'r') as data_file:
 		return json.load(data_file)
@@ -254,6 +279,9 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 	if filter_header and not filter_values:
 		log.error("If supplying a filter header, you must also supply filter_values")
 		sys.exit() 
+	if type(filter_header) != list and filter_header:
+		filter_header = [filter_header]
+		filter_values = [filter_values]
 	with open(annotations_file) as csv_file:
 		csv_reader = csv.reader(csv_file, delimiter=',')
 		header = next(csv_reader, None)
@@ -263,12 +291,16 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 		try:
 			value_index = header.index(value_name)
 			key_index = header.index(key_name)
-			if filter_header: filter_index = header.index(filter_header)
+			#if filter_header: filter_index = header.index(filter_header)
+			if filter_header:
+				filter_indices = [header.index(name) for name in filter_header]
 		except:
 			column_names = f'"{key_name}", "{value_name}"'
-			if filter_header: column_names += f', "{filter_header}"'
+			 
+			if filter_header:
+				header_names = ", ".join(filter_header) 
+				column_names += f', "{header_names}"'
 			log.error(f"Unable to find columns {column_names} in annotation file", 1)
-			
 			sys.exit()
 		for row in csv_reader:
 			value = row[value_index]
@@ -277,9 +309,13 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 				log.error(f"Multiple values of '{key}' found in annotation column '{key_name}'", 1)
 				sys.exit()
 			if filter_header:
-				filter_value = row[filter_index]
-				# Check if this slide should be skipped
-				if (type(filter_values)==str and filter_value!=filter_values) or filter_value not in filter_values:
+				should_skip = False
+				for i, f_header in enumerate(filter_header):
+					observed_value = row[filter_indices[i]]
+					# Check if this slide should be skipped
+					if (type(filter_values[i])==str and observed_value!=filter_values[i]) or observed_value not in filter_values[i]:
+						should_skip = True
+				if should_skip:
 					continue
 			key_dict_str.update({key: value})
 			if use_encode:
@@ -290,13 +326,20 @@ def get_annotations_dict(annotations_file, key_name, value_name, filter_header=N
 					if use_encode and not encode:
 						log.info(f"Non-integer in '{value_name}' header, encoding with integer values", 1)
 						encode = True
+
+		# Raise an error if no tiles were selected based on criteria
+		if not len(key_dict_str):
+			log.error(f"No tiles were selected based on filtering criteria.")
+			sys.exit()
+
 		if use_encode and encode:
 			values = list(set(key_dict_str.values()))
 			values.sort()
 			values_str_to_int = {}
 			for i, c in enumerate(values):
 				values_str_to_int.update({c: i})
-				log.empty(f"{value_name} '{info(c)}' assigned to value '{i}'", 2)
+				number_of_slides = sum(x == c for x in key_dict_str.values())
+				log.empty(f"{value_name} '{info(c)}' assigned to value '{i}' [{number_of_slides} slides]", 2)
 			for value_string in key_dict_str.keys():
 				key_dict_str[value_string] = values_str_to_int[key_dict_str[value_string]]
 			return key_dict_str
@@ -398,9 +441,8 @@ def verify_annotations(annotations_file, slides_dir=None):
 		if num_warned >= warn_threshold:
 			log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)
 
-def verify_tiles(annotations, input_dir, tfrecord_files=[]):
-	'''Iterate through folders if using raw images and verify all have an annotation;
-	if using TFRecord, iterate through all records and verify all entries for valid annotation.
+def verify_tiles(annotations, tfrecord_files=[]):
+	'''Iterate through TFRecord files and verify all have a valid annotation.
 	
 	Additionally, generate a manifest to log the number of tiles for each slide.'''
 	success = True
@@ -434,19 +476,6 @@ def verify_tiles(annotations, input_dir, tfrecord_files=[]):
 			manifest[tfrecord_file]['total'] = total
 		for case in case_list_errors:
 			log.error(f"Failed TFRecord integrity check: annotation not found for case {green(case)}", 1)
-	else:
-		manifest['total_train_tiles'] = len(glob(os.path.join(input_dir, "train_data/**/*.jpg")))
-		train_case_list = [i.split('/')[-1] for i in glob(os.path.join(input_dir, "train_data/*"))]
-		eval_case_list = [i.split('/')[-1] for i in glob(os.path.join(input_dir, "eval_data/*"))]
-		for case in train_case_list:
-			manifest['train_data'][case] = len(glob(os.path.join(input_dir, f"train_data/{case}/*.jpg")))
-		for case in eval_case_list:
-			manifest['eval_data'][case] = len(glob(os.path.join(input_dir, f"eval_data/{case}/*.jpg")))
-		case_list = list(set(train_case_list + eval_case_list))
-		for case in case_list:
-			if case not in annotations:
-				log.error(f"Failed image tile integrity check: annotation not found for case {green(case)}", 1)
-				success = False	
 	if not success:
 		print("...failed.")
 		sys.exit()
