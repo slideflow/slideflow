@@ -360,6 +360,18 @@ class Mosaic:
 		self.fig.canvas.mpl_connect('motion_notify_event', hover)
 		self.fig.canvas.mpl_connect('resize_event', resize)'''
 
+	'''def draw_slides(self):
+		log.info("Drawing slides...", 1)
+		self.ax_thumbnail = self.fig.add_subplot(122)
+		self.ax_thumbnail.set_xticklabels([])
+		self.ax_thumbnail.set_yticklabels([])
+		name = list(self.SLIDES)[0]
+		self.ax_thumbnail.imshow(self.SLIDES[name]['thumb'])
+		self.fig.canvas.draw()
+		self.svs_background = self.fig.canvas.copy_from_bbox(self.ax_thumbnail.bbox)
+		self.SLIDES[name]['plot'] = self.ax_thumbnail
+		#self.highlight_slide_on_mosaic(name)'''
+
 	def calculate_distances(self):
 		log.empty("Calculating tile-point distances...", 1)
 		pb = progress_bar.ProgressBar()
@@ -446,18 +458,6 @@ class Mosaic:
 					num_placed += 1
 		log.info(f"Num placed: {num_placed}", 2)
 
-	def draw_slides(self):
-		log.info("Drawing slides...", 1)
-		self.ax_thumbnail = self.fig.add_subplot(122)
-		self.ax_thumbnail.set_xticklabels([])
-		self.ax_thumbnail.set_yticklabels([])
-		name = list(self.SLIDES)[0]
-		self.ax_thumbnail.imshow(self.SLIDES[name]['thumb'])
-		self.fig.canvas.draw()
-		self.svs_background = self.fig.canvas.copy_from_bbox(self.ax_thumbnail.bbox)
-		self.SLIDES[name]['plot'] = self.ax_thumbnail
-		#self.highlight_slide_on_mosaic(name)
-
 	def focus_tfrecords(self, tfrecord_list):
 		for tile in self.GRID:
 			if not len(tile['points']): continue
@@ -488,7 +488,5 @@ class Mosaic:
 				break
 
 # TODO
-# - load metadata
-# - umap pkl
-# - replace plt.imread with automatic use of TFRecord    
-# - metadata with tfrecords / categories
+# - use pkl
+# - use automatic TFRecord image reading to reduce RAM usage    
