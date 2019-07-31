@@ -34,14 +34,18 @@ from tensorboard.plugins.custom_scalar import layout_pb2
 from tensorflow.python.framework import ops
 
 from glob import glob
-from scipy.stats import linregress
+from scipy import stats
 from statistics import median
 from numpy.random import choice
 from sklearn import metrics
 from matplotlib import pyplot as plt
+import seaborn as sns
 
 import slideflow.util as sfutil
 from slideflow.util import tfrecords, TCGAAnnotations, log
+
+import warnings
+warnings.filterwarnings('ignore')
 
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_CASE = 'BALANCE_BY_CASE'
@@ -142,6 +146,7 @@ class SlideflowModel:
 		self.SLIDES = list(slide_to_category.keys())
 		self.TRAIN_TFRECORDS = train_tfrecords
 		self.VALIDATION_TFRECORDS = validation_tfrecords
+		self.MODEL_TYPE = model_type
 		if model_type == 'categorical':
 			self.NUM_CLASSES = len(list(set(slide_to_category.values())))
 		elif model_type == 'linear':
@@ -351,6 +356,7 @@ class SlideflowModel:
 		return model
 
 	def generate_roc(self, y_true, y_pred, name='ROC'):
+		# Statistics
 		fpr, tpr, threshold = metrics.roc_curve(y_true, y_pred)
 		roc_auc = metrics.auc(fpr, tpr)
 
@@ -365,8 +371,31 @@ class SlideflowModel:
 		plt.ylabel('TPR')
 		plt.xlabel('FPR')
 		plt.savefig(os.path.join(self.DATA_DIR, f'{name}.png'))
-
 		return roc_auc
+
+	def generate_scatter(self, y_true, y_pred, name='_plot'):
+		# Error checking
+		if y_true.shape != y_pred.shape:
+			log.error("Y_true and y_pred must have the same shape in order to generate a scatter plot")
+			return
+		
+		# Perform scatter for each outcome variable
+		r_squared = []
+		for i in range(y_true.shape[1]):
+
+			# Statistics
+			slope, intercept, r_value, p_value, std_err = stats.linregress(y_true[:,i], y_pred[:,i])
+			r_squared += [r_value ** 2]
+
+			def r2(x, y):
+				return stats.pearsonr(x, y)[0] ** 2
+
+			# Plot
+			p = sns.jointplot(y_true, y_pred, kind="reg", stat_func=r2)
+			p.set_axis_labels('y_true', 'y_pred')
+			plt.savefig(os.path.join(self.DATA_DIR, f'Scatter{name}.png'))
+
+		return r_squared
 
 	def generate_predictions_and_roc(self, model, dataset_with_casenames, model_type, label=None):
 		'''Dataset must include three items: raw image data, labels, and case names.'''
@@ -391,10 +420,12 @@ class SlideflowModel:
 
 		tile_auc = None
 		slide_auc = None
+		r_squared = None
 
 		if model_type == 'linear':
 			y_true = np.array([[i] for i in y_true])
 			num_cat = len(y_pred[0])
+			r_squared = self.generate_scatter(y_true, y_pred, label_end)
 				
 		if model_type == 'categorical':
 			# Convert y_true to one_hot encoding
@@ -464,7 +495,7 @@ class SlideflowModel:
 				writer.writerow(row)
 
 		log.complete(f"Predictions saved to {sfutil.green(self.DATA_DIR)}", 1)
-		return tile_auc, slide_auc
+		return tile_auc, slide_auc, r_squared
 
 	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None):
 		# Load and initialize model
@@ -480,10 +511,11 @@ class SlideflowModel:
 			self.model = self.build_model(hp)
 			self.model.load_weights(checkpoint)
 
-		tile_auc, slide_auc = self.generate_predictions_and_roc(self.model, dataset_with_casenames, model_type, label="eval")
+		tile_auc, slide_auc, r_squared = self.generate_predictions_and_roc(self.model, dataset_with_casenames, model_type, label="eval")
 
 		log.info(f"Tile AUC: {tile_auc}", 1)
 		log.info(f"Slide AUC: {slide_auc}", 1)
+		log.info(f"R-squared: {r_squared}", 1)
 
 		log.info("Calculating performance metrics...", 1)
 		results = self.model.evaluate(dataset)
@@ -571,20 +603,21 @@ class SlideflowModel:
 							train_acc = logs['accuracy']
 						else:
 							train_acc = logs[hp.loss]
-						tile_auc, slide_auc = parent.generate_predictions_and_roc(self.model, validation_data_with_casenames, hp.model_type(), label=epoch_label)
+						tile_auc, slide_auc, r_squared = parent.generate_predictions_and_roc(self.model, validation_data_with_casenames, hp.model_type(), label=epoch_label)
 						if verbose: log.info("Beginning validation testing", 1)
 						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
 						results[f'epoch{epoch+1}'] = {}
-						results[f'epoch{epoch+1}']['train_acc'] = train_acc
+						results[f'epoch{epoch+1}']['train_acc'] = np.amax(train_acc)
 						results[f'epoch{epoch+1}']['val_loss'] = val_loss
 						results[f'epoch{epoch+1}']['val_acc'] = val_acc
 						results[f'epoch{epoch+1}']['tile_auc'] = tile_auc
 						results[f'epoch{epoch+1}']['slide_auc'] = slide_auc
+						results[f'epoch{epoch+1}']['r_squared'] = r_squared
 
 						with open(results_log, "a") as results_file:
 							writer = csv.writer(results_file)
-							writer.writerow([epoch_label, train_acc, val_loss, val_acc, tile_auc, slide_auc])
+							writer.writerow([epoch_label, np.amax(train_acc), val_loss, val_acc, tile_auc, slide_auc])
 
 		callbacks = [history_callback, PredictionAndEvaluationCallback()]
 		if hp.early_stop:
@@ -634,7 +667,7 @@ class SlideflowModel:
 			val_loss, val_acc = 0,0
 
 		results['final'] = {}
-		results['final']['train_acc'] = train_acc
+		results['final']['train_acc'] = np.amax(train_acc)
 		results['final']['val_loss'] = val_loss
 		results['final']['val_acc'] = val_acc
 
