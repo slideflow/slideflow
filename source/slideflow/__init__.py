@@ -64,9 +64,10 @@ atexit.register(exit_script)
 
 class SlideFlowProject:
 	MANIFEST = None
-	USE_FP16 = True
 
 	def __init__(self, project_folder):
+		'''Initializes project by creating project folder, prompting user for project settings, and project
+		settings to "settings.json" within the project directory.'''
 		os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 		log.header(f"Slideflow v{__version__}\n================")
 		log.header("Loading project...")
@@ -85,6 +86,8 @@ class SlideFlowProject:
 			self.create_project()
 		
 	def extract_tiles(self, filter_header=None, filter_values=None, subfolder=None, skip_validation=False):
+		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
+		validation target is 'per-slide'; and generate TFRecord files from the raw images.'''
 		import slideflow.convoluter as convoluter
 
 		log.header("Extracting image tiles...")
@@ -112,8 +115,8 @@ class SlideFlowProject:
 		self.generate_tfrecord(subfolder)
 
 	def separate_validation_tiles(self, folder):
-		# If validation is performed per-tile, separate tiles from each slide into 
-		#  the necessary number of groups, before combining into tfrecords
+		'''If validation is performed per-tile, separate tiles from each slide into 
+		the necessary number of groups before combining into tfrecords'''
 		val_target = self.PROJECT['validation_target']
 		val_strategy = self.PROJECT['validation_strategy']
 		val_fraction = self.PROJECT['validation_fraction']
@@ -152,14 +155,18 @@ class SlideFlowProject:
 			shutil.rmtree(tiles_dir)		
 
 	def delete_tiles(self, subfolder=None):
+		'''Deletes all contents in the tiles directory (to be executed after TFRecords are generated).'''
 		delete_folder = self.PROJECT['tiles_dir'] if not subfolder else join(self.PROJECT['tiles_dir'], subfolder)
 		shutil.rmtree(delete_folder)
 		log.info(f"Deleted tiles in folder {sfutil.green(delete_folder)}", 1)
 
 	def checkpoint_to_h5(self, model_name):
+		'''Converts a saved Tensorflow checkpoint into a full .h5 model.'''
 		tfrecords.checkpoint_to_h5(self.PROJECT['models_dir'], model_name)
 
 	def update_tfrecord_casenames(self, subfolder=None):
+		'''For a given folder, will iterate through all contents of each tfrecord file, replacing
+		the "case" label with the tfrecord filename.''' 
 		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
 		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
 		log.header(f"Updating TFRecords in {sfutil.green(tfrecord_dir)}...")
@@ -171,7 +178,8 @@ class SlideFlowProject:
 		If a validation plan has already been prepared (e.g. K-fold iterations were already determined), will use the previously generated plan.
 		Otherwise, creates a new plan and logs the result in the TFRecord directory so future models may use the same plan for consistency.
 
-		Returns two arrays: an array of full paths to training tfrecords, and an array of paths to validation tfrecords.''' 
+		Returns:
+			Two arrays: an array of full paths to training tfrecords, and an array of paths to validation tfrecords.''' 
 
 		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
 		subdirs = [sd for sd in os.listdir(tfrecord_dir) if isdir(join(tfrecord_dir, sd))]
@@ -314,6 +322,8 @@ class SlideFlowProject:
 		return training_tfrecords, validation_tfrecords
 
 	def initialize_model(self, model_name, train_tfrecords, validation_tfrecords, category_header, filter_header=None, filter_values=None, skip_validation=False, model_type='categorical'):
+		'''Prepares a Slideflow model using the provided outcome variable (category_header) 
+		and a given set of training and validation tfrecords.'''
 		# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
 		slide_to_category = sfutil.get_annotations_dict(self.PROJECT['annotations'], 'slide', category_header, 
 																							filter_header=filter_header, 
@@ -331,6 +341,7 @@ class SlideFlowProject:
 		return SFM
 
 	def evaluate(self, model, category_header, model_type='categorical', filter_header=None, filter_values=None, subfolder=None, checkpoint=None):
+		'''Evaluates a saved model on a given set of tfrecords.'''
 		log.header(f"Evaluating model {sfutil.bold(model)}...")
 		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
 		model_name = model.split('/')[-1]
@@ -359,6 +370,7 @@ class SlideFlowProject:
 		return results
 
 	def _get_hp(self, row, header):
+		'''Internal function used to convert a row in the batch_train CSV file into a HyperParameters object.'''
 		model_name_i = header.index('model_name')
 		args = header[0:model_name_i] + header[model_name_i+1:]
 		model_name = row[model_name_i]
@@ -377,6 +389,7 @@ class SlideFlowProject:
 		return hp, model_name
 
 	def _get_valid_models(self, batch_train_file, models):
+		'''Internal function used to scan a batch_train file for valid, trainable models.'''
 		models_to_train = []
 		with open(batch_train_file) as csv_file:
 			reader = csv.reader(csv_file, delimiter="\t")
@@ -398,6 +411,7 @@ class SlideFlowProject:
 		return models_to_train
 
 	def _update_results_log(self, results_log_path, model_name, results_dict):
+		'''Internal function used to dynamically update results_log when recording training metrics.'''
 		# First, read current results log into a dictionary
 		results_log = {}
 		if exists(results_log_path):
@@ -577,6 +591,17 @@ class SlideFlowProject:
 				f"Val_loss={final_metrics['val_loss']}, Val_Acc={final_metrics['val_acc']}" )
 
 	def generate_heatmaps(self, model_name, filter_header=None, filter_values=None, resolution='medium'):
+		'''Creates predictive heatmap overlays on a set of slides. 
+
+		Args:
+			model_name		Which model to use for generating predictions
+			filter_header	Column name for filtering input slides based on the project annotations file. 
+			filter_values	List of values to include when filtering slides according to filter_header.
+			resolution		Heatmap resolution (determines stride of tile predictions). 
+								"low" uses a stride equal to tile width.
+								"medium" uses a stride equal 1/2 tile width.
+								"high" uses a stride equal to 1/4 tile width.
+		'''
 		import slideflow.convoluter as convoluter
 		
 		log.header("Generating heatmaps...")
@@ -601,8 +626,8 @@ class SlideFlowProject:
 		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
 	def generate_mosaic(self, model=None, filter_header=None, filter_values=None, focus_header=None, focus_values=None, subfolder=None, resolution="medium"):
-		'''Generates a mosaic map with dimensionality reduction on final layer weights. May use pre-generated final layer weights if available 
-		(e.g. with generate_heatmaps()) by specifying "weights" option; otherwise uses TFRecord datasets and the specified model.'''
+		'''Generates a mosaic map with dimensionality reduction on penultimate layer weights. Tile data is extracted from the provided
+		set of TFRecords and predictions are calculated using the specified model.'''
 		
 		log.header("Generating mosaic map...")
 		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
@@ -672,6 +697,7 @@ class SlideFlowProject:
 		log.complete(f"Wrote {len(sweep)} combinations for sweep to {sfutil.green(filename)}")
 
 	def create_blank_annotations_file(self, outfile=None, slides_dir=None, scan_for_cases=False):
+		'''Creates an example blank annotations file.'''
 		case_header_name = TCGAAnnotations.case
 
 		if not outfile: 
@@ -688,22 +714,11 @@ class SlideFlowProject:
 			sfutil.verify_annotations(outfile, slides_dir=slides_dir)
 
 	def associate_slide_names(self):
+		'''Experimental function used to automatically associated patient names with slide filenames in the annotations file.'''
 		sfutil.verify_annotations(self.PROJECT['annotations'], self.PROJECT['slides_dir'])
 
-	def update_manifest(self, dataset_label, skip_verification=False):
-		manifest_path = sfutil.global_path('manifest.json')
-		if not os.path.exists(manifest_path):
-			self.generate_manifest()
-		else:
-			input_dir = join(self.PROJECT['tfrecord_dir'], dataset_label)
-			annotations = sfutil.get_annotations_dict(self.PROJECT['annotations'], key_name="slide", value_name="category")
-			tfrecord_files = glob(os.path.join(input_dir, "*.tfrecords"))
-			self.MANIFEST = sfutil.load_json(manifest_path)
-			if not skip_verification:
-				self.MANIFEST.update(sfutil.verify_tiles(annotations, tfrecord_files))
-			sfutil.write_json(self.MANIFEST, manifest_path)
-
 	def generate_manifest(self):
+		'''Creates a new manifest file, used to track contents and number of records in project TFRecrds.'''
 		self.MANIFEST = {}
 		input_dir = self.PROJECT['tfrecord_dir']
 		annotations = sfutil.get_annotations_dict(self.PROJECT['annotations'], key_name="slide", value_name="category")
@@ -711,7 +726,22 @@ class SlideFlowProject:
 		self.MANIFEST = sfutil.verify_tiles(annotations, tfrecord_files)
 		sfutil.write_json(self.MANIFEST, sfutil.global_path("manifest.json"))
 
+	def update_manifest(self, subfolder, skip_verification=False):
+		'''Updates manifest to include TFRecords in the given subfolder.'''
+		manifest_path = sfutil.global_path('manifest.json')
+		if not os.path.exists(manifest_path):
+			self.generate_manifest()
+		else:
+			input_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
+			annotations = sfutil.get_annotations_dict(self.PROJECT['annotations'], key_name="slide", value_name="category")
+			tfrecord_files = glob(os.path.join(input_dir, "*.tfrecords"))
+			self.MANIFEST = sfutil.load_json(manifest_path)
+			if not skip_verification:
+				self.MANIFEST.update(sfutil.verify_tiles(annotations, tfrecord_files))
+			sfutil.write_json(self.MANIFEST, manifest_path)
+
 	def load_project(self, directory):
+		'''Loads a saved and pre-configured project.'''
 		if exists(join(directory, "settings.json")):
 			self.PROJECT = sfutil.load_json(join(directory, "settings.json"))
 			log.empty("Project configuration loaded.\n")
@@ -729,9 +759,11 @@ class SlideFlowProject:
 			self.generate_manifest()
 
 	def save_project(self):
+		'''Saves current project configuration as "settings.json".'''
 		sfutil.write_json(self.PROJECT, join(self.PROJECT['root'], 'settings.json'))
 
 	def create_project(self):
+		'''Prompts user to provide all relevant project configuration and saves configuration to "settings.json".'''
 		# General setup and slide configuration
 		project = {'root': sfutil.PROJECT_DIR}
 		project['name'] = input("What is the project name? ")
