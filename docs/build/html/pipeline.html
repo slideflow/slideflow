@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Pipeline Overview &mdash; slideflow 1.0 documentation</title>
+  <title>Pipeline Overview &mdash; slideflow 0.9.9 documentation</title>
   
 
   
@@ -17,34 +17,36 @@
   
 
   
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
 
-  
-  
     
 
   
-
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Setting up a Project" href="project.html" />
     <link rel="prev" title="Introduction" href="intro.html" /> 
-
-  
-  <script src="_static/js/modernizr.min.js"></script>
-
 </head>
 
 <body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
-
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search">
+        <div class="wy-side-nav-search" >
           
 
           
@@ -58,7 +60,7 @@
             
             
               <div class="version">
-                1.0
+                0.9
               </div>
             
           
@@ -162,7 +164,6 @@
             
   <div class="section" id="pipeline-overview">
 <h1>Pipeline Overview<a class="headerlink" href="#pipeline-overview" title="Permalink to this headline">¶</a></h1>
-<img alt="_images/pipeline.png" src="_images/pipeline.png" />
 <p>The overall pipeline is separated into two phases and 6 steps.</p>
 <p>The first phase - <strong>Model Creation</strong> - involves three steps: 1) labeling slides with regions of interest (ROIs), 2) tessellating and preparing image tiles from the slides, and 3) training a neural network model.</p>
 <p>The second phase - <strong>Model Assessment</strong> - also involves three steps: 1) analytics describing model performance, including basic measures like percent accuracy as well as ROCs and dendrograms, 2) creating heatmap overlays for whole-slide images to visualize predictions, and 3) generating mosaic maps to visualize learned image features.</p>
@@ -170,23 +171,23 @@
 <div class="section" id="step-1-create-rois">
 <h2>Step 1: Create ROIs<a class="headerlink" href="#step-1-create-rois" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple">
-<li><strong>Label ROIs</strong>. Using <a class="reference external" href="https://qupath.github.io/">QuPath</a>, annotate whole-slide images with the Polygon tool. Then, load the Groovy script that will export the tile annotations into CSV format by clicking <strong>Automate</strong> -&gt; <strong>Show script editor</strong>. In the box that comes up, click <strong>File</strong> -&gt; <strong>Open</strong> and load the <code class="docutils literal notranslate"><span class="pre">qupath_roi.groovy</span></code> script. Then, press CTRL + R and wait for the script to finish.</li>
+<li><p><strong>Label ROIs</strong>. Using <a class="reference external" href="https://qupath.github.io/">QuPath</a>, annotate whole-slide images with the Polygon tool. Then, load the Groovy script that will export the tile annotations into CSV format by clicking <strong>Automate</strong> -&gt; <strong>Show script editor</strong>. In the box that comes up, click <strong>File</strong> -&gt; <strong>Open</strong> and load the <code class="docutils literal notranslate"><span class="pre">qupath_roi.groovy</span></code> script. Then, press CTRL + R and wait for the script to finish.</p></li>
 </ol>
 <p><em>You may choose to speed-up workflow by loading multiple SVS files into a QuPath project, and then running the script on the entire project using “Run for project.”</em></p>
 </div>
 <div class="section" id="step-2-data-preparation">
 <h2>Step 2: Data Preparation<a class="headerlink" href="#step-2-data-preparation" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple" start="2">
-<li><strong>Extract tiles</strong>. Once ROIs have been created, tiles will need to be extracted from the ROIs across all of your slides. Tiles will be extracted at a given magnification size in microns, and saved at a given resolution in pixels. The optimal extraction size in both microns and pixels will depend on your dataset and model architecture.</li>
-<li><strong>Create validation set</strong>. After tiles have been extracted, a certain percentage of tiles should be set aside for validation testing during training; slideflow will default to setting aside 10% of your tiles for validation.</li>
-<li><strong>Create TFRecords</strong>. Tiles should then be collected and stored as TFRecords, a binary file format used to improve dataset reading performance during training. Each slide should have its own TFRecord file containing its extracted tiles.</li>
+<li><p><strong>Extract tiles</strong>. Once ROIs have been created, tiles will need to be extracted from the ROIs across all of your slides. Tiles will be extracted at a given magnification size in microns, and saved at a given resolution in pixels. The optimal extraction size in both microns and pixels will depend on your dataset and model architecture.</p></li>
+<li><p><strong>Create validation set</strong>. After tiles have been extracted, a certain percentage of tiles should be set aside for validation testing during training; slideflow will default to setting aside 10% of your tiles for validation.</p></li>
+<li><p><strong>Create TFRecords</strong>. Tiles should then be collected and stored as TFRecords, a binary file format used to improve dataset reading performance during training. Each slide should have its own TFRecord file containing its extracted tiles.</p></li>
 </ol>
 </div>
 <div class="section" id="step-3-model-training">
 <h2>Step 3: Model Training<a class="headerlink" href="#step-3-model-training" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple" start="5">
-<li><strong>Choose hyperparameters</strong>. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). One often does not know the best model architecture and hyperparameters to use for a given dataset; training will often need to occur across a variety of models and different combinations of hyperaparameters in order to find the combination with the best performance. You may either choose to train a single model and hyperparameter set one at a time, or you can setup an automatic hyperparameter sweep to test many combinations at once.</li>
-<li><strong>Initiate training</strong>. After the hyperparameters have been set up, training can commence. Training progress can be monitored using Tensorflow’s bundled <code class="docutils literal notranslate"><span class="pre">Tensorboard</span></code> package:</li>
+<li><p><strong>Choose hyperparameters</strong>. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). One often does not know the best model architecture and hyperparameters to use for a given dataset; training will often need to occur across a variety of models and different combinations of hyperaparameters in order to find the combination with the best performance. You may either choose to train a single model and hyperparameter set one at a time, or you can setup an automatic hyperparameter sweep to test many combinations at once.</p></li>
+<li><p><strong>Initiate training</strong>. After the hyperparameters have been set up, training can commence. Training progress can be monitored using Tensorflow’s bundled <code class="docutils literal notranslate"><span class="pre">Tensorboard</span></code> package:</p></li>
 </ol>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir<span class="o">=</span>/path/to/histcon/models/active
 </pre></div>
@@ -195,15 +196,27 @@
 </div>
 <div class="section" id="step-4-analytics">
 <h2>Step 4: Analytics<a class="headerlink" href="#step-4-analytics" title="Permalink to this headline">¶</a></h2>
-<p>Including model performance statistics, ROC, and dendrogram creation. Currently being implemented, documentation will be updated once complete.</p>
+<p>Validation testing is performed both during training - at specified intervals, or epochs - and after training has completed. Validation testing is used to assess model performance and anticipated generalizability. Various metrics are recorded in the project directory at these intervals to assist with model performance assessment, including:</p>
+<ul class="simple">
+<li><p><strong>Training accuracy</strong> (for categorical outcomes)</p></li>
+<li><p><strong>Validation accuracy</strong> (for categorical outcomes)</p></li>
+<li><p><strong>Training loss</strong></p></li>
+<li><p><strong>Validation loss</strong></p></li>
+<li><p><strong>Tile-level ROC and AUC</strong> (for categorical outcomes)</p></li>
+<li><p><strong>Slide-level ROC and AUC</strong> (for categorical outcomes)</p></li>
+<li><p><strong>Scatter plot and R-squared</strong> (for continuous outcomes)</p></li>
+</ul>
 </div>
 <div class="section" id="step-5-visualizing-results-with-heatmaps">
 <h2>Step 5: Visualizing Results with Heatmaps<a class="headerlink" href="#step-5-visualizing-results-with-heatmaps" title="Permalink to this headline">¶</a></h2>
-<p>After a model has been trained, accuracy can be assessed by visualizing predictions for a whole slide image.</p>
+<p>In addition to the above metrics, performance of a trained model can be assessed by visualizing predictions for a set slides as heatmaps.</p>
+<img alt="_images/heatmap_example.png" src="_images/heatmap_example.png" />
 </div>
 <div class="section" id="step-6-mosaic-maps">
 <h2>Step 6: Mosaic maps<a class="headerlink" href="#step-6-mosaic-maps" title="Permalink to this headline">¶</a></h2>
-<p>Visualize learned image features with UMAP/t-SNE plots and mosaic maps. Code completed (<code class="docutils literal notranslate"><span class="pre">mosaic.py</span></code>), documentation pending.</p>
+<p>Finally, learned image features can be visualized using dimensionality reduction on penultimate layer activations.</p>
+<p>A set of image tiles is first provided to your trained model, which calculate <em>penultimate</em> layer activations (as opposed to final layer activations, or predictions). These penultimate layer activations represent image features and are plotted with dimensionality reduction (UMAP/t-SNE). Points on the plot are replaced with image tiles, generating a mosaic map.</p>
+<img alt="_images/mosaic_example.png" src="_images/mosaic_example.png" />
 </div>
 </div>
 
@@ -218,7 +231,7 @@
         <a href="project.html" class="btn btn-neutral float-right" title="Setting up a Project" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="intro.html" class="btn btn-neutral" title="Introduction" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="intro.html" class="btn btn-neutral float-left" title="Introduction" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
@@ -244,26 +257,16 @@
   
 
 
-  
-
-    
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
-    
-
-  
-
-  <script type="text/javascript" src="_static/js/theme.js"></script>
-
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
+
+  
+  
+    
+   
 
 </body>
 </html>

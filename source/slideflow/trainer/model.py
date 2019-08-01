@@ -36,7 +36,6 @@ from tensorflow.python.framework import ops
 from glob import glob
 from scipy import stats
 from statistics import median
-from numpy.random import choice
 from sklearn import metrics
 from matplotlib import pyplot as plt
 import seaborn as sns
@@ -311,7 +310,9 @@ class SlideflowModel:
 		return dataset, dataset_with_casenames, global_num_tiles
 
 	def build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, dataset=None, include_casenames=False):
-		'''Args:
+		'''Assembles dataset inputs from tfrecords.
+		
+		Args:
 			folders:		Array of directories in which to search for cases (subfolders) containing tfrecords
 			balance:		Whether to use input balancing; options are BALANCE_BY_CASE, BALANCE_BY_CATEGORY, NO_BALANCE
 								 (only available if TFRECORDS_BY_CASE=True)'''

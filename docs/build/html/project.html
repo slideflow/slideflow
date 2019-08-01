@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Setting up a Project &mdash; slideflow 1.0 documentation</title>
+  <title>Setting up a Project &mdash; slideflow 0.9.9 documentation</title>
   
 
   
@@ -17,34 +17,36 @@
   
 
   
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
 
-  
-  
     
 
   
-
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Source code" href="modules.html" />
     <link rel="prev" title="Pipeline Overview" href="pipeline.html" /> 
-
-  
-  <script src="_static/js/modernizr.min.js"></script>
-
 </head>
 
 <body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
-
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search">
+        <div class="wy-side-nav-search" >
           
 
           
@@ -58,7 +60,7 @@
             
             
               <div class="version">
-                1.0
+                0.9
               </div>
             
           
@@ -88,6 +90,13 @@
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Setting up a Project</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#project-configuration">Project Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#set-up-annotations">Set up annotations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#extract-tiles">Extract tiles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prepare-hyperparameters">Prepare hyperparameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#train-models">Train models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#evaluate-models">Evaluate models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#generate-heatmaps">Generate heatmaps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#generate-mosaic-maps">Generate mosaic maps</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">Source code</a></li>
@@ -160,18 +169,173 @@
 <p>The easiest way to get the <code class="docutils literal notranslate"><span class="pre">slideflow</span></code> pipeline up and running is to use the bundled project management class, <code class="docutils literal notranslate"><span class="pre">SlideFlowProject</span></code>. In this section, we will examine how to set up a new project and then use the project to execute each of the pipeline steps.</p>
 <p>Before we start, make sure you have each of the following:</p>
 <ol class="arabic simple">
-<li>A collection of slides, preferably in SVS format though JPG images are also supported.</li>
-<li>A collection of ROIs in CSV format, generated using QuPath.</li>
-<li>A plan for which slides will be used for training and which will be used for final testing.</li>
+<li><p>A collection of slides, preferably in SVS format though JPG images are also supported.</p></li>
+<li><p>A collection of ROIs in CSV format, generated using QuPath.</p></li>
+<li><p>A plan for which slides will be used for training and which will be used for final testing.</p></li>
 </ol>
-<p>The script we will use to manage our project is <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code>. An empty version of this script that will setup a project but not perform any pipeline actions is included below:</p>
-<p>To use the script to execute pipeline actions, simply run the script:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 run_project.py
+<p>We will use the <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script in the slideflow directory to both create and manage our project. To create a new project (or run commands on an existing project), use the following syntax:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">james@example:~/slideflow/source$</span> python3 run_project.py -p /path/to/project/directory
 </pre></div>
 </div>
+<p>…where the -p flag is used to designate the path to your project directory.</p>
 <div class="section" id="project-configuration">
 <h2>Project Configuration<a class="headerlink" href="#project-configuration" title="Permalink to this headline">¶</a></h2>
 <p>Upon first executing the script, you will be asked a series of questions regarding your project. Default answers are given in brackets (if the question is a yes/no question, the default answer is the letter which is capitalized); if you press enter without typing anything, the default will be chosen. You can always change your answers later by editing <code class="docutils literal notranslate"><span class="pre">settings.json</span></code> in your project folder. Below is an overview of what you’ll be asked for.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 36%" />
+<col style="width: 64%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>Slides directory</strong></p></td>
+<td><p>Path to folder containing SVS slides.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>ROI directory</strong></p></td>
+<td><p>Path to folder with ROI CSV files.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Annotations file</strong></p></td>
+<td><p>Path to CSV containing annotations.
+Each line represents a unique patient and slide.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Tiles directory</strong></p></td>
+<td><p>Folder in which to store extracted tiles.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>TFRecord directory</strong></p></td>
+<td><p>Folder in which to store TFRecords.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Models directory</strong></p></td>
+<td><p>Folder in which to store trained models.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Pretraining directory</strong></p></td>
+<td><p>Whether to use pretraining. ‘imagenet’ is default,
+but able to use any saved .h5 model.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Tile microns</strong></p></td>
+<td><p>Size of extracted tiles, in microns.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Tile pixels</strong></p></td>
+<td><p>Size of extracted tiles, in pixels.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Validation fraction</strong></p></td>
+<td><p>Fraction of data to save for validation testing.
+Default is 20%.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Validation target</strong></p></td>
+<td><p>How to select validation data; by tile or by slide.
+Default is ‘per-slide’</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Validation strategy</strong></p></td>
+<td><p>Type of validation testing (K-fold, fixed plan, none)
+Default is ‘k-fold’</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="set-up-annotations">
+<h2>Set up annotations<a class="headerlink" href="#set-up-annotations" title="Permalink to this headline">¶</a></h2>
+<p>Your annotations CSV file is used to label patients and slides with clinical data and/or other outcome variables that will be used for training.
+Each line in the annotations file should correspond to a unique patient/slide (<em>Note: v0.9.9 of slideflow currently supports only one slide per patient</em>).</p>
+<p>The annotations file may contain as many columns as you would like, but it must contain the following headers at minimum:</p>
+<ul class="simple">
+<li><p><strong>submitter_id</strong>: patient identifier</p></li>
+<li><p><strong>slide</strong>: slide name (without the .jpg/.svs extension)</p></li>
+<li><p><strong>category</strong>: some outcome variable</p></li>
+</ul>
+</div>
+<div class="section" id="extract-tiles">
+<h2>Extract tiles<a class="headerlink" href="#extract-tiles" title="Permalink to this headline">¶</a></h2>
+<p>After the project has been setup, open the <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file located in the project directory. It should look something like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">SFP</span><span class="p">):</span>
+        <span class="c1">#SFP.create_blank_annotations_file(scan_for_cases=True)</span>
+        <span class="c1">#SFP.associate_slide_names()</span>
+
+        <span class="c1">#SFP.extract_tiles(filter_header=[&#39;dataset&#39;], filter_values=[&#39;train&#39;])</span>
+
+        <span class="c1">#SFP.create_hyperparameter_sweep(finetune_epochs=[5], toplayer_epochs=0, model=[&#39;Xception&#39;], pooling=[&#39;avg&#39;], loss=&#39;sparse_categorical_crossentropy&#39;,</span>
+        <span class="c1">#                               learning_rate=[0.00001, 0.001], batch_size=64, hidden_layers=[1], optimizer=&#39;Adam&#39;, early_stop=True, early_stop_patience=15, balanced_training=[&#39;BALANCE_BY_CATEGORY&#39;],</span>
+        <span class="c1">#                               balanced_validation=&#39;NO_BALANCE&#39;, augment=True, filename=None)</span>
+        <span class="c1">#SFP.train(subfolder=&#39;train1-per-slide&#39;,</span>
+        <span class="c1">#         category_header=&quot;submitter_id&quot;,</span>
+        <span class="c1">#         filter_header=[&quot;dataset&quot;],</span>
+        <span class="c1">#         filter_values=[&quot;train1&quot;],</span>
+        <span class="c1">#         model_type=&#39;linear&#39;)</span>
+        <span class="c1">#         batch_file=&#39;batch_train.tsv&#39;)</span>
+
+        <span class="c1">#SFP.evaluate(model=&#39;HPSweep0&#39;, subfolder=&#39;train_data&#39;, category_header=&quot;description&quot;, filter_header=&#39;description&#39;, filter_values=[&#39;FTC&#39;])</span>
+        <span class="c1">#SFP.generate_heatmaps(&#39;HPSweep0&#39;, filter_header=&#39;slide&#39;, filter_values=[&#39;234801&#39;])</span>
+        <span class="c1">#SFP.generate_mosaic(model=&quot;/home/shawarma/data/slideflow_projects/thyroid_5_cat/models/HPSweep0/trained_model.h5&quot;, subfolder=&quot;train&quot;)</span>
+        <span class="k">pass</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">main()</span></code> function contains several example commands, commented out with “#”. These serve as examples to help remind you of arguments you can use when executing project functions.</p>
+<p>Our first step is tile extraction. To configure our project to extract tiles, uncomment the line with the <code class="docutils literal notranslate"><span class="pre">extract_tiles()</span></code> function. If you want to extract tiles for all of your slides, you may delete all of the suggested arguments and simply use the following syntax:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The optional <code class="docutils literal notranslate"><span class="pre">filter_header</span></code> and <code class="docutils literal notranslate"><span class="pre">filter_values</span></code> arguments are used to filter a subset of slides to act on, according to your annotations file. If not supplied, all valid slides will be used by default.</p>
+<p>To filter according to a column in your annotations file, set <code class="docutils literal notranslate"><span class="pre">filter_header</span></code> to the column name. If you are filtering by multiple columns, supply names in a list. Next, set <code class="docutils literal notranslate"><span class="pre">filter_values</span></code> to a list containing all possible values you want to include. If you are filtering by multiple columns, this will be a nested list.</p>
+<p>For example, to extract tiles only for slides that are labeled as “train” in the “dataset” column header in your annotations file, do:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">filter_header</span><span class="o">=</span><span class="s2">&quot;dataset&quot;</span><span class="p">,</span> <span class="n">filter_values</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>Note: this same syntax with <code class="docutils literal notranslate"><span class="pre">filter_header</span></code> and <code class="docutils literal notranslate"><span class="pre">filter_values</span></code> can be used with nearly all functions in slideflow, including train(), evaluate(), generate_heatmaps(), and generate_mosaic().</p>
+<p>To execute the command we’ve prepared, save the <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file and go to your slideflow directory. Use <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> to begin the tile extraction:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">james@example:~/slideflow/source$</span> python3 run_project.py -p /path/to/project/directory
+</pre></div>
+</div>
+<p>Tiles will be automatically stored in TFRecord format and separated into training and validation steps if necessary.</p>
+</div>
+<div class="section" id="prepare-hyperparameters">
+<h2>Prepare hyperparameters<a class="headerlink" href="#prepare-hyperparameters" title="Permalink to this headline">¶</a></h2>
+<p>The next step is to prepare your hyperparameters and save them to a batch_train CSV file. Use the <code class="docutils literal notranslate"><span class="pre">create_hyperparameter_sweep</span></code> function to automatically set up a sweep of hyperparameter combinations. For example, the following code would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">create_hyperparameter_sweep</span><span class="p">(</span><span class="n">finetune_epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span> <span class="n">toplayer_epochs</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Xception&#39;</span><span class="p">],</span> <span class="n">pooling</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;avg&#39;</span><span class="p">],</span> <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
+                                <span class="n">learning_rate</span><span class="o">=</span><span class="p">[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">],</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">hidden_layers</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">optimizer</span><span class="o">=</span><span class="s1">&#39;Adam&#39;</span><span class="p">,</span> <span class="n">early_stop</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">early_stop_patience</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">balanced_training</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;BALANCE_BY_CATEGORY&#39;</span><span class="p">],</span>
+                                <span class="n">balanced_validation</span><span class="o">=</span><span class="s1">&#39;NO_BALANCE&#39;</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>As above, to execute this command, save your <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file and execute the <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script in the slideflow directory.</p>
+</div>
+<div class="section" id="train-models">
+<h2>Train models<a class="headerlink" href="#train-models" title="Permalink to this headline">¶</a></h2>
+<p>To start training, use the <code class="docutils literal notranslate"><span class="pre">train()</span></code> function, supplying an outcome variable with the <code class="docutils literal notranslate"><span class="pre">category_header</span></code> argument. You may filter slides for training using the <code class="docutils literal notranslate"><span class="pre">filter_header</span></code> and <code class="docutils literal notranslate"><span class="pre">filter_values</span></code> arguments, as above.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">train()</span></code> function will automatically train across all hyperparameters listed in the batch file. It will also automatically train using k-fold validation if supplied in project settings.</p>
+<p>If you are using a continuous variable as an outcome measure, set the argument <code class="docutils literal notranslate"><span class="pre">model_type</span></code> equal to ‘linear’.</p>
+<p>For example, to train using only slides labeled as “train” in the “dataset” column, with the outcome variable defined by the column “category”, use the following syntax:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">category_header</span><span class="o">=</span><span class="s2">&quot;category&quot;</span><span class="p">,</span>
+          <span class="n">filter_header</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;dataset&quot;</span><span class="p">],</span>
+          <span class="n">filter_values</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the <code class="docutils literal notranslate"><span class="pre">results.log</span></code> file in the project directory. Additional analytic data, including ROCs and scatter plots, are saved in the model directories.</p>
+</div>
+<div class="section" id="evaluate-models">
+<h2>Evaluate models<a class="headerlink" href="#evaluate-models" title="Permalink to this headline">¶</a></h2>
+<p>Once you have finished your hyperparameter selection and would like to test your model on a saved external evaluation dataset, you can perform a model evaluation using the <code class="docutils literal notranslate"><span class="pre">evaluate</span></code> function. Specify the model you want to test with the <code class="docutils literal notranslate"><span class="pre">model</span></code> argument.</p>
+<p>For example, to evaluate performance of model “HPSweep0” on slides labeled as “evaluation” in the “dataset” column of our annotations file, use the following:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;HPSweep0&quot;</span><span class="p">,</span>
+          <span class="n">category_header</span><span class="o">=</span><span class="s2">&quot;category&quot;</span><span class="p">,</span>
+          <span class="n">filter_header</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;dataset&quot;</span><span class="p">],</span>
+          <span class="n">filter_values</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;evaluation&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="generate-heatmaps">
+<h2>Generate heatmaps<a class="headerlink" href="#generate-heatmaps" title="Permalink to this headline">¶</a></h2>
+<p>If you would like to generate a predictive heatmap for a set of slides, use the <code class="docutils literal notranslate"><span class="pre">generate_heatmaps()</span></code> function as below:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">generate_heatmaps</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;HPSweep0&quot;</span><span class="p">,</span>
+          <span class="n">filter_header</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;dataset&quot;</span><span class="p">],</span>
+          <span class="n">filter_values</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;evaluation&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="generate-mosaic-maps">
+<h2>Generate mosaic maps<a class="headerlink" href="#generate-mosaic-maps" title="Permalink to this headline">¶</a></h2>
+<p>You can also generate mosaic maps using similar syntax to the above. In addition to simply supplyling a model name, you can also provide a saved *.h5 model directly:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">generate_mosaic</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;/path/to/saved/model.h5&quot;</span><span class="p">,</span>
+          <span class="n">filter_header</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;dataset&quot;</span><span class="p">],</span>
+          <span class="n">filter_values</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;evaluation&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
 </div>
 </div>
 
@@ -186,7 +350,7 @@
         <a href="modules.html" class="btn btn-neutral float-right" title="Source code" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="pipeline.html" class="btn btn-neutral" title="Pipeline Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="pipeline.html" class="btn btn-neutral float-left" title="Pipeline Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
@@ -212,26 +376,16 @@
   
 
 
-  
-
-    
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
-    
-
-  
-
-  <script type="text/javascript" src="_static/js/theme.js"></script>
-
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
+
+  
+  
+    
+   
 
 </body>
 </html>
