@@ -13,6 +13,8 @@ Welcome to the Slideflow documentation!
    intro
    pipeline
    project
+   extract_tiles
+   validation
    modules
 
 Indices and tables
