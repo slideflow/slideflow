@@ -1,0 +1,309 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.trainer &mdash; slideflow 0.9.9 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="slideflow.convoluter" href="slideflow.convoluter.html" />
+    <link rel="prev" title="slideflow.util" href="slideflow.util.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> slideflow
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.9
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project.html">Setting up a Project</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Source code</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="slideflow.html">slideflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.util.html">slideflow.util</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.util.html#module-slideflow.util.datasets">slideflow.util.datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.util.html#module-slideflow.util.fastim">slideflow.util.fastim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.util.html#module-slideflow.util.progress_bar">slideflow.util.progress_bar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.util.html#module-slideflow.util.tfrecords">slideflow.util.tfrecords</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">slideflow.trainer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-slideflow.trainer.model">slideflow.trainer.model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.convoluter.html">slideflow.convoluter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.mosaic.html">slideflow.mosaic</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">slideflow</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="modules.html">Source code</a> &raquo;</li>
+        
+      <li>slideflow.trainer</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/slideflow.trainer.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-slideflow.trainer">
+<span id="slideflow-trainer"></span><h1>slideflow.trainer<a class="headerlink" href="#module-slideflow.trainer" title="Permalink to this headline">¶</a></h1>
+</div>
+<div class="section" id="module-slideflow.trainer.model">
+<span id="slideflow-trainer-model"></span><h1>slideflow.trainer.model<a class="headerlink" href="#module-slideflow.trainer.model" title="Permalink to this headline">¶</a></h1>
+<p>‘Builds a CNN model.</p>
+<dl class="class">
+<dt id="slideflow.trainer.model.HyperParameters">
+<em class="property">class </em><code class="sig-prename descclassname">slideflow.trainer.model.</code><code class="sig-name descname">HyperParameters</code><span class="sig-paren">(</span><em class="sig-param">finetune_epochs=50</em>, <em class="sig-param">toplayer_epochs=0</em>, <em class="sig-param">model='InceptionV3'</em>, <em class="sig-param">pooling='avg'</em>, <em class="sig-param">loss='sparse_categorical_crossentropy'</em>, <em class="sig-param">learning_rate=0.1</em>, <em class="sig-param">batch_size=16</em>, <em class="sig-param">hidden_layers=0</em>, <em class="sig-param">optimizer='Adam'</em>, <em class="sig-param">early_stop=False</em>, <em class="sig-param">early_stop_patience=0</em>, <em class="sig-param">balanced_training='BALANCE_BY_CATEGORY'</em>, <em class="sig-param">balanced_validation='NO_BALANCE'</em>, <em class="sig-param">augment=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/trainer/model.html#HyperParameters"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.trainer.model.HyperParameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="method">
+<dt id="slideflow.trainer.model.HyperParameters.get_model">
+<code class="sig-name descname">get_model</code><span class="sig-paren">(</span><em class="sig-param">input_shape</em>, <em class="sig-param">weights</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/trainer/model.html#HyperParameters.get_model"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.trainer.model.HyperParameters.get_model" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.trainer.model.HyperParameters.get_opt">
+<code class="sig-name descname">get_opt</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/trainer/model.html#HyperParameters.get_opt"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.trainer.model.HyperParameters.get_opt" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.trainer.model.HyperParameters.model_type">
+<code class="sig-name descname">model_type</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/trainer/model.html#HyperParameters.model_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.trainer.model.HyperParameters.model_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="slideflow.trainer.model.SlideflowModel">
+<em class="property">class </em><code class="sig-prename descclassname">slideflow.trainer.model.</code><code class="sig-name descname">SlideflowModel</code><span class="sig-paren">(</span><em class="sig-param">data_directory</em>, <em class="sig-param">image_size</em>, <em class="sig-param">slide_to_category</em>, <em class="sig-param">train_tfrecords</em>, <em class="sig-param">validation_tfrecords</em>, <em class="sig-param">manifest=None</em>, <em class="sig-param">use_fp16=True</em>, <em class="sig-param">model_type='categorical'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/trainer/model.html#SlideflowModel"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.trainer.model.SlideflowModel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Model containing all functions necessary to build input dataset pipelines,
+build a training and validation set model, and monitor and execute training.</p>
+<dl class="method">
+<dt id="slideflow.trainer.model.SlideflowModel.build_dataset_inputs">
+<code class="sig-name descname">build_dataset_inputs</code><span class="sig-paren">(</span><em class="sig-param">tfrecords</em>, <em class="sig-param">batch_size</em>, <em class="sig-param">balance</em>, <em class="sig-param">augment</em>, <em class="sig-param">finite=False</em>, <em class="sig-param">dataset=None</em>, <em class="sig-param">include_casenames=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/trainer/model.html#SlideflowModel.build_dataset_inputs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.trainer.model.SlideflowModel.build_dataset_inputs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Assembles dataset inputs from tfrecords.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folders</strong> – Array of directories in which to search for cases (subfolders) containing tfrecords</p></li>
+<li><p><strong>balance</strong> – Whether to use input balancing; options are BALANCE_BY_CASE, BALANCE_BY_CATEGORY, NO_BALANCE
+(only available if TFRECORDS_BY_CASE=True)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.trainer.model.SlideflowModel.build_model">
+<code class="sig-name descname">build_model</code><span class="sig-paren">(</span><em class="sig-param">hp</em>, <em class="sig-param">pretrain=None</em>, <em class="sig-param">checkpoint=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/trainer/model.html#SlideflowModel.build_model"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.trainer.model.SlideflowModel.build_model" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.trainer.model.SlideflowModel.evaluate">
+<code class="sig-name descname">evaluate</code><span class="sig-paren">(</span><em class="sig-param">tfrecords</em>, <em class="sig-param">hp=None</em>, <em class="sig-param">model=None</em>, <em class="sig-param">model_type='categorical'</em>, <em class="sig-param">checkpoint=None</em>, <em class="sig-param">batch_size=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/trainer/model.html#SlideflowModel.evaluate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.trainer.model.SlideflowModel.evaluate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.trainer.model.SlideflowModel.generate_predictions_and_roc">
+<code class="sig-name descname">generate_predictions_and_roc</code><span class="sig-paren">(</span><em class="sig-param">model</em>, <em class="sig-param">dataset_with_casenames</em>, <em class="sig-param">model_type</em>, <em class="sig-param">label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/trainer/model.html#SlideflowModel.generate_predictions_and_roc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.trainer.model.SlideflowModel.generate_predictions_and_roc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dataset must include three items: raw image data, labels, and case names.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.trainer.model.SlideflowModel.generate_roc">
+<code class="sig-name descname">generate_roc</code><span class="sig-paren">(</span><em class="sig-param">y_true</em>, <em class="sig-param">y_pred</em>, <em class="sig-param">name='ROC'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/trainer/model.html#SlideflowModel.generate_roc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.trainer.model.SlideflowModel.generate_roc" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.trainer.model.SlideflowModel.generate_scatter">
+<code class="sig-name descname">generate_scatter</code><span class="sig-paren">(</span><em class="sig-param">y_true</em>, <em class="sig-param">y_pred</em>, <em class="sig-param">name='_plot'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/trainer/model.html#SlideflowModel.generate_scatter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.trainer.model.SlideflowModel.generate_scatter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.trainer.model.SlideflowModel.retrain_top_layers">
+<code class="sig-name descname">retrain_top_layers</code><span class="sig-paren">(</span><em class="sig-param">model</em>, <em class="sig-param">hp</em>, <em class="sig-param">train_data</em>, <em class="sig-param">validation_data</em>, <em class="sig-param">steps_per_epoch</em>, <em class="sig-param">callbacks=None</em>, <em class="sig-param">epochs=1</em>, <em class="sig-param">verbose=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/trainer/model.html#SlideflowModel.retrain_top_layers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.trainer.model.SlideflowModel.retrain_top_layers" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.trainer.model.SlideflowModel.train">
+<code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param">hp</em>, <em class="sig-param">pretrain='imagenet'</em>, <em class="sig-param">resume_training=None</em>, <em class="sig-param">checkpoint=None</em>, <em class="sig-param">supervised=True</em>, <em class="sig-param">log_frequency=20</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/trainer/model.html#SlideflowModel.train"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.trainer.model.SlideflowModel.train" title="Permalink to this definition">¶</a></dt>
+<dd><p>Train the model for a number of steps, according to flags set by the argument parser.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="slideflow.convoluter.html" class="btn btn-neutral float-right" title="slideflow.convoluter" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="slideflow.util.html" class="btn btn-neutral float-left" title="slideflow.util" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, James M Dolezal
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

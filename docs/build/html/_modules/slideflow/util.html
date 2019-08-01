@@ -1,0 +1,713 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.util &mdash; slideflow 0.9.9 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> slideflow
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.9
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../project.html">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Source code</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">slideflow</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+          <li><a href="../slideflow.html">slideflow</a> &raquo;</li>
+        
+      <li>slideflow.util</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for slideflow.util</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="k">import</span> <span class="n">join</span><span class="p">,</span> <span class="n">isdir</span>
+<span class="kn">from</span> <span class="nn">glob</span> <span class="k">import</span> <span class="n">glob</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">datetime</span><span class="o">,</span> <span class="nn">time</span>
+
+<span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
+<span class="kn">from</span> <span class="nn">tensorflow.keras</span> <span class="k">import</span> <span class="n">backend</span> <span class="k">as</span> <span class="n">K</span>
+
+<span class="c1"># Enable color sequences on Windows</span>
+<span class="k">try</span><span class="p">:</span>
+	<span class="kn">import</span> <span class="nn">ctypes</span>
+	<span class="n">kernel32</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">windll</span><span class="o">.</span><span class="n">kernel32</span>
+	<span class="n">kernel32</span><span class="o">.</span><span class="n">SetConsoleMode</span><span class="p">(</span><span class="n">kernel32</span><span class="o">.</span><span class="n">GetStdHandle</span><span class="p">(</span><span class="o">-</span><span class="mi">11</span><span class="p">),</span> <span class="mi">7</span><span class="p">)</span>
+<span class="k">except</span><span class="p">:</span>
+	<span class="k">pass</span>
+<span class="c1"># ------</span>
+
+<span class="n">PROJECT_DIR</span> <span class="o">=</span> <span class="kc">None</span>
+
+<span class="n">HEADER</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\033</span><span class="s1">[95m&#39;</span>
+<span class="n">BLUE</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\033</span><span class="s1">[94m&#39;</span>
+<span class="n">GREEN</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\033</span><span class="s1">[92m&#39;</span>
+<span class="n">WARNING</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\033</span><span class="s1">[93m&#39;</span>
+<span class="n">FAIL</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\033</span><span class="s1">[91m&#39;</span>
+<span class="n">ENDC</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\033</span><span class="s1">[0m&#39;</span>
+<span class="n">BOLD</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\033</span><span class="s1">[1m&#39;</span>
+<span class="n">UNDERLINE</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\033</span><span class="s1">[4m&#39;</span>
+
+<span class="n">FORMATTING_OPTIONS</span> <span class="o">=</span> <span class="p">[</span><span class="n">HEADER</span><span class="p">,</span> <span class="n">BLUE</span><span class="p">,</span> <span class="n">GREEN</span><span class="p">,</span> <span class="n">WARNING</span><span class="p">,</span> <span class="n">FAIL</span><span class="p">,</span> <span class="n">ENDC</span><span class="p">,</span> <span class="n">BOLD</span><span class="p">,</span> <span class="n">UNDERLINE</span><span class="p">]</span>
+<span class="n">LOGGING_PREFIXES</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39; + &#39;</span><span class="p">,</span> <span class="s1">&#39;    - &#39;</span><span class="p">]</span>
+<span class="n">LOGGING_PREFIXES_WARN</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39; ! &#39;</span><span class="p">,</span> <span class="s1">&#39;    ! &#39;</span><span class="p">]</span>
+<span class="n">LOGGING_PREFIXES_EMPTY</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;   &#39;</span><span class="p">,</span> <span class="s1">&#39;     &#39;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="UpdatedBatchNormalization"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.UpdatedBatchNormalization">[docs]</a><span class="k">class</span> <span class="nc">UpdatedBatchNormalization</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">BatchNormalization</span><span class="p">):</span>
+<div class="viewcode-block" id="UpdatedBatchNormalization.call"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.UpdatedBatchNormalization.call">[docs]</a>	<span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="n">true_phase</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">K</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">K</span><span class="o">.</span><span class="n">learning_phase</span><span class="p">()))</span>
+		<span class="n">trainable</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">trainable</span><span class="p">)</span>
+		<span class="k">with</span> <span class="n">K</span><span class="o">.</span><span class="n">learning_phase_scope</span><span class="p">(</span><span class="n">trainable</span> <span class="o">*</span> <span class="n">true_phase</span><span class="p">):</span>
+			<span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">BatchNormalization</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">training</span><span class="p">)</span></div></div>
+
+<div class="viewcode-block" id="global_path"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.global_path">[docs]</a><span class="k">def</span> <span class="nf">global_path</span><span class="p">(</span><span class="n">path_string</span><span class="p">):</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">PROJECT_DIR</span><span class="p">:</span>
+		<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;ERROR: No project loaded.&quot;</span><span class="p">)</span>
+		<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+	<span class="k">if</span> <span class="n">path_string</span> <span class="ow">and</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">path_string</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">)</span> <span class="ow">and</span> <span class="n">path_string</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;./&quot;</span><span class="p">:</span>
+		<span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROJECT_DIR</span><span class="p">,</span> <span class="n">path_string</span><span class="p">[</span><span class="mi">2</span><span class="p">:])</span>
+	<span class="k">elif</span> <span class="n">path_string</span> <span class="ow">and</span> <span class="p">(</span><span class="n">path_string</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;/&quot;</span><span class="p">):</span>
+		<span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROJECT_DIR</span><span class="p">,</span> <span class="n">path_string</span><span class="p">)</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="k">return</span> <span class="n">path_string</span>		</div>
+
+<div class="viewcode-block" id="warn"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.warn">[docs]</a><span class="k">def</span> <span class="nf">warn</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+	<span class="k">return</span> <span class="n">WARNING</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="o">+</span> <span class="n">ENDC</span></div>
+
+<div class="viewcode-block" id="header"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.header">[docs]</a><span class="k">def</span> <span class="nf">header</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+	<span class="k">return</span> <span class="n">HEADER</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="o">+</span> <span class="n">ENDC</span></div>
+
+<div class="viewcode-block" id="info"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.info">[docs]</a><span class="k">def</span> <span class="nf">info</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+	<span class="k">return</span> <span class="n">BLUE</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="o">+</span> <span class="n">ENDC</span></div>
+
+<div class="viewcode-block" id="green"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.green">[docs]</a><span class="k">def</span> <span class="nf">green</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+	<span class="k">return</span> <span class="n">GREEN</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="o">+</span> <span class="n">ENDC</span></div>
+
+<div class="viewcode-block" id="fail"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.fail">[docs]</a><span class="k">def</span> <span class="nf">fail</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+	<span class="k">return</span> <span class="n">FAIL</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="o">+</span> <span class="n">ENDC</span></div>
+
+<div class="viewcode-block" id="bold"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.bold">[docs]</a><span class="k">def</span> <span class="nf">bold</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+	<span class="k">return</span> <span class="n">BOLD</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="o">+</span> <span class="n">ENDC</span></div>
+
+<div class="viewcode-block" id="underline"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.underline">[docs]</a><span class="k">def</span> <span class="nf">underline</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+	<span class="k">return</span> <span class="n">UNDERLINE</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="o">+</span> <span class="n">ENDC</span></div>
+
+<div class="viewcode-block" id="LOGGING_LEVEL"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.LOGGING_LEVEL">[docs]</a><span class="k">class</span> <span class="nc">LOGGING_LEVEL</span><span class="p">:</span>
+	<span class="n">INFO</span> <span class="o">=</span> <span class="mi">0</span>
+	<span class="n">WARN</span> <span class="o">=</span> <span class="mi">3</span>
+	<span class="n">ERROR</span> <span class="o">=</span> <span class="mi">3</span>
+	<span class="n">COMPLETE</span> <span class="o">=</span> <span class="mi">3</span></div>
+
+<div class="viewcode-block" id="Logger"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.Logger">[docs]</a><span class="k">class</span> <span class="nc">Logger</span><span class="p">:</span>
+	<span class="n">logfile</span> <span class="o">=</span> <span class="kc">None</span>
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">pass</span>
+<div class="viewcode-block" id="Logger.info"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.Logger.info">[docs]</a>	<span class="k">def</span> <span class="nf">info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">l</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">print_func</span><span class="o">=</span><span class="nb">print</span><span class="p">):</span>
+		<span class="n">l</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">LOGGING_PREFIXES</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+		<span class="n">message</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{LOGGING_PREFIXES[l]}</span><span class="s2">[{info(&#39;INFO&#39;)}] </span><span class="si">{text}</span><span class="s2">&quot;</span>
+		<span class="k">if</span> <span class="n">print_func</span> <span class="ow">and</span> <span class="n">l</span> <span class="o">&lt;=</span> <span class="n">LOGGING_LEVEL</span><span class="o">.</span><span class="n">INFO</span><span class="p">:</span>
+			<span class="n">print_func</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">message</span></div>
+<div class="viewcode-block" id="Logger.warn"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.Logger.warn">[docs]</a>	<span class="k">def</span> <span class="nf">warn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">l</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">print_func</span><span class="o">=</span><span class="nb">print</span><span class="p">):</span>
+		<span class="n">l</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">LOGGING_PREFIXES</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+		<span class="n">message</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{LOGGING_PREFIXES_WARN[l]}</span><span class="s2">[{warn(&#39;WARN&#39;)}] </span><span class="si">{text}</span><span class="s2">&quot;</span>
+		<span class="k">if</span> <span class="n">print_func</span> <span class="ow">and</span> <span class="n">l</span> <span class="o">&lt;=</span> <span class="n">LOGGING_LEVEL</span><span class="o">.</span><span class="n">WARN</span><span class="p">:</span>
+			<span class="n">print_func</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">message</span></div>
+<div class="viewcode-block" id="Logger.error"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.Logger.error">[docs]</a>	<span class="k">def</span> <span class="nf">error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">l</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">print_func</span><span class="o">=</span><span class="nb">print</span><span class="p">):</span>
+		<span class="n">l</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">LOGGING_PREFIXES</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+		<span class="n">message</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{LOGGING_PREFIXES_WARN[l]}</span><span class="s2">[{fail(&#39;ERROR&#39;)}] </span><span class="si">{text}</span><span class="s2">&quot;</span>
+		<span class="k">if</span> <span class="n">print_func</span> <span class="ow">and</span> <span class="n">l</span> <span class="o">&lt;=</span> <span class="n">LOGGING_LEVEL</span><span class="o">.</span><span class="n">ERROR</span><span class="p">:</span>
+			<span class="n">print_func</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">message</span></div>
+<div class="viewcode-block" id="Logger.complete"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.Logger.complete">[docs]</a>	<span class="k">def</span> <span class="nf">complete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">l</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">print_func</span><span class="o">=</span><span class="nb">print</span><span class="p">):</span>
+		<span class="n">l</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">LOGGING_PREFIXES</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+		<span class="n">message</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{LOGGING_PREFIXES[l]}</span><span class="s2">[{header(&#39;Complete&#39;)}] </span><span class="si">{text}</span><span class="s2">&quot;</span>
+		<span class="k">if</span> <span class="n">print_func</span> <span class="ow">and</span> <span class="n">l</span> <span class="o">&lt;=</span> <span class="n">LOGGING_LEVEL</span><span class="o">.</span><span class="n">COMPLETE</span><span class="p">:</span>
+			<span class="n">print_func</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">message</span></div>
+<div class="viewcode-block" id="Logger.label"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.Logger.label">[docs]</a>	<span class="k">def</span> <span class="nf">label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">l</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">print_func</span><span class="o">=</span><span class="nb">print</span><span class="p">):</span>
+		<span class="n">l</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">LOGGING_PREFIXES</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+		<span class="n">message</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{LOGGING_PREFIXES[l]}</span><span class="s2">[{green(label)}] </span><span class="si">{text}</span><span class="s2">&quot;</span>
+		<span class="k">if</span> <span class="n">print_func</span> <span class="ow">and</span> <span class="n">l</span> <span class="o">&lt;=</span> <span class="n">LOGGING_LEVEL</span><span class="o">.</span><span class="n">INFO</span><span class="p">:</span>
+			<span class="n">print_func</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">message</span></div>
+<div class="viewcode-block" id="Logger.empty"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.Logger.empty">[docs]</a>	<span class="k">def</span> <span class="nf">empty</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">l</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">print_func</span><span class="o">=</span><span class="nb">print</span><span class="p">):</span>
+		<span class="n">l</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">LOGGING_PREFIXES</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+		<span class="n">message</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{LOGGING_PREFIXES[l]}{text}</span><span class="s2">&quot;</span>
+		<span class="k">if</span> <span class="n">print_func</span> <span class="ow">and</span> <span class="n">l</span> <span class="o">&lt;=</span> <span class="n">LOGGING_LEVEL</span><span class="o">.</span><span class="n">INFO</span><span class="p">:</span>
+			<span class="n">print_func</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">message</span></div>
+<div class="viewcode-block" id="Logger.header"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.Logger.header">[docs]</a>	<span class="k">def</span> <span class="nf">header</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">l</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">print_func</span><span class="o">=</span><span class="nb">print</span><span class="p">):</span>
+		<span class="n">l</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">LOGGING_PREFIXES</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+		<span class="n">message</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="si">{LOGGING_PREFIXES_EMPTY[l]}</span><span class="s2">{bold(text)}&quot;</span>
+		<span class="k">if</span> <span class="n">print_func</span><span class="p">:</span>
+			<span class="n">print_func</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">message</span></div>
+<div class="viewcode-block" id="Logger.log"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.Logger.log">[docs]</a>	<span class="k">def</span> <span class="nf">log</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+		<span class="n">st</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">logfile</span><span class="p">:</span>
+			<span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">FORMATTING_OPTIONS</span><span class="p">:</span>
+				<span class="n">text</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+			<span class="n">outfile</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logfile</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">)</span>
+			<span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;[</span><span class="si">{st}</span><span class="s2">] {text.strip()}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+			<span class="n">outfile</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div></div>
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">Logger</span><span class="p">()</span>
+
+<div class="viewcode-block" id="TCGAAnnotations"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.TCGAAnnotations">[docs]</a><span class="k">class</span> <span class="nc">TCGAAnnotations</span><span class="p">:</span>
+	<span class="n">case</span> <span class="o">=</span> <span class="s1">&#39;submitter_id&#39;</span>
+	<span class="n">project</span> <span class="o">=</span> <span class="s1">&#39;project_id&#39;</span>
+	<span class="n">slide</span> <span class="o">=</span> <span class="s1">&#39;slide&#39;</span></div>
+
+<span class="k">def</span> <span class="nf">_shortname</span><span class="p">(</span><span class="n">string</span><span class="p">):</span>
+	<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">string</span><span class="p">)</span> <span class="o">==</span> <span class="mi">60</span><span class="p">:</span>
+		<span class="c1"># May be TCGA SVS file with long name; convert to case name by returning first 12 characters</span>
+		<span class="k">return</span> <span class="n">string</span><span class="p">[:</span><span class="mi">12</span><span class="p">]</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="k">return</span> <span class="n">string</span>
+
+<div class="viewcode-block" id="yes_no_input"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.yes_no_input">[docs]</a><span class="k">def</span> <span class="nf">yes_no_input</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;no&#39;</span><span class="p">):</span>
+	<span class="n">yes</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;yes&#39;</span><span class="p">,</span><span class="s1">&#39;y&#39;</span><span class="p">]</span>
+	<span class="n">no</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;no&#39;</span><span class="p">,</span> <span class="s1">&#39;n&#39;</span><span class="p">]</span>
+	<span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+		<span class="n">response</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{prompt}</span><span class="s2">&quot;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">response</span> <span class="ow">and</span> <span class="n">default</span><span class="p">:</span>
+			<span class="k">return</span> <span class="kc">True</span> <span class="k">if</span> <span class="n">default</span> <span class="ow">in</span> <span class="n">yes</span> <span class="k">else</span> <span class="kc">False</span>
+		<span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">yes</span><span class="p">:</span>
+			<span class="k">return</span> <span class="kc">True</span>
+		<span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">no</span><span class="p">:</span>
+			<span class="k">return</span> <span class="kc">False</span>
+		<span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Invalid response.&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="dir_input"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.dir_input">[docs]</a><span class="k">def</span> <span class="nf">dir_input</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">create_on_invalid</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">absolute</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+	<span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">absolute</span><span class="p">:</span>
+			<span class="n">response</span> <span class="o">=</span> <span class="n">global_path</span><span class="p">(</span><span class="nb">input</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{prompt}</span><span class="s2">&quot;</span><span class="p">))</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">response</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{prompt}</span><span class="s2">&quot;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">response</span> <span class="ow">and</span> <span class="n">default</span><span class="p">:</span>
+			<span class="n">response</span> <span class="o">=</span> <span class="n">global_path</span><span class="p">(</span><span class="n">default</span><span class="p">)</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">response</span><span class="p">)</span> <span class="ow">and</span> <span class="n">create_on_invalid</span><span class="p">:</span>
+			<span class="k">if</span> <span class="n">yes_no_input</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Directory &quot;</span><span class="si">{response}</span><span class="s1">&quot; does not exist. Create directory? [Y/n] &#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;yes&#39;</span><span class="p">):</span>
+				<span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+				<span class="k">return</span> <span class="n">response</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="k">continue</span>
+		<span class="k">elif</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">response</span><span class="p">):</span>
+			<span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Unable to locate directory &quot;</span><span class="si">{response}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+			<span class="k">continue</span>
+		<span class="k">return</span> <span class="n">response</span></div>
+
+<div class="viewcode-block" id="file_input"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.file_input">[docs]</a><span class="k">def</span> <span class="nf">file_input</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">filetype</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">verify</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+	<span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+		<span class="n">response</span> <span class="o">=</span> <span class="n">global_path</span><span class="p">(</span><span class="nb">input</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{prompt}</span><span class="s2">&quot;</span><span class="p">))</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">response</span> <span class="ow">and</span> <span class="n">default</span><span class="p">:</span>
+			<span class="n">response</span> <span class="o">=</span> <span class="n">global_path</span><span class="p">(</span><span class="n">default</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">verify</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">response</span><span class="p">):</span>
+			<span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Unable to locate file &quot;</span><span class="si">{response}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+			<span class="k">continue</span>
+		<span class="n">extension</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+		<span class="k">if</span> <span class="n">filetype</span> <span class="ow">and</span> <span class="p">(</span><span class="n">extension</span> <span class="o">!=</span> <span class="n">filetype</span><span class="p">):</span>
+			<span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Incorrect filetype; provided file of type &quot;</span><span class="si">{extension}</span><span class="s1">&quot;, need type &quot;</span><span class="si">{filetype}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+			<span class="k">continue</span>
+		<span class="k">return</span> <span class="n">response</span></div>
+
+<div class="viewcode-block" id="int_input"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.int_input">[docs]</a><span class="k">def</span> <span class="nf">int_input</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+	<span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+		<span class="n">response</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{prompt}</span><span class="s2">&quot;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">response</span> <span class="ow">and</span> <span class="n">default</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">default</span>
+		<span class="k">try</span><span class="p">:</span>
+			<span class="n">int_response</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+		<span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Please supply a valid number.&quot;</span><span class="p">)</span>
+			<span class="k">continue</span>
+		<span class="k">return</span> <span class="n">int_response</span></div>
+
+<div class="viewcode-block" id="float_input"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.float_input">[docs]</a><span class="k">def</span> <span class="nf">float_input</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">valid_range</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+	<span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+		<span class="n">response</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{prompt}</span><span class="s2">&quot;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">response</span> <span class="ow">and</span> <span class="n">default</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">default</span>
+		<span class="k">try</span><span class="p">:</span>
+			<span class="n">float_response</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+		<span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Please supply a valid number.&quot;</span><span class="p">)</span>
+			<span class="k">continue</span>
+		<span class="k">if</span> <span class="n">valid_range</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span><span class="n">float_response</span> <span class="o">&gt;=</span> <span class="n">valid_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="n">float_response</span> <span class="o">&lt;=</span> <span class="n">valid_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+			<span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Please supply a valid numer in the range </span><span class="si">{valid_range[0]}</span><span class="s2"> to </span><span class="si">{valid_range[1]}</span><span class="s2">&quot;</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">float_response</span></div>
+
+<div class="viewcode-block" id="choice_input"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.choice_input">[docs]</a><span class="k">def</span> <span class="nf">choice_input</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">valid_choices</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+	<span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+		<span class="n">response</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{prompt}</span><span class="s2">&quot;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">response</span> <span class="ow">and</span> <span class="n">default</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">default</span>
+		<span class="k">if</span> <span class="n">response</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">valid_choices</span><span class="p">:</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Invalid option.&quot;</span><span class="p">)</span>
+			<span class="k">continue</span>
+		<span class="k">return</span> <span class="n">response</span></div>
+
+<div class="viewcode-block" id="load_json"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.load_json">[docs]</a><span class="k">def</span> <span class="nf">load_json</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+	<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">data_file</span><span class="p">:</span>
+		<span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">data_file</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="write_json"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.write_json">[docs]</a><span class="k">def</span> <span class="nf">write_json</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+	<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">data_file</span><span class="p">:</span>
+		<span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">data_file</span><span class="p">)</span></div>
+
+<span class="k">def</span> <span class="nf">_parse_function</span><span class="p">(</span><span class="n">example_proto</span><span class="p">):</span>
+	<span class="n">feature_description</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;category&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">FixedLenFeature</span><span class="p">([],</span> <span class="n">tf</span><span class="o">.</span><span class="n">int64</span><span class="p">),</span>
+						   <span class="s1">&#39;case&#39;</span><span class="p">:</span>     <span class="n">tf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">FixedLenFeature</span><span class="p">([],</span> <span class="n">tf</span><span class="o">.</span><span class="n">string</span><span class="p">),</span>
+						   <span class="s1">&#39;image_raw&#39;</span><span class="p">:</span><span class="n">tf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">FixedLenFeature</span><span class="p">([],</span> <span class="n">tf</span><span class="o">.</span><span class="n">string</span><span class="p">)}</span>
+	<span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">parse_single_example</span><span class="p">(</span><span class="n">example_proto</span><span class="p">,</span> <span class="n">feature_description</span><span class="p">)</span>
+
+<div class="viewcode-block" id="get_slide_paths"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.get_slide_paths">[docs]</a><span class="k">def</span> <span class="nf">get_slide_paths</span><span class="p">(</span><span class="n">slides_dir</span><span class="p">):</span>
+	<span class="n">num_dir</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">slides_dir</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">))</span>
+	<span class="n">slide_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">slides_dir</span><span class="p">,</span> <span class="s1">&#39;**/*.svs&#39;</span><span class="p">))</span>
+					<span class="k">if</span> <span class="n">i</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="n">num_dir</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;thumbs&#39;</span><span class="p">]</span>
+
+	<span class="n">slide_list</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">slides_dir</span><span class="p">,</span> <span class="s1">&#39;**/*.jpg&#39;</span><span class="p">))</span>
+						<span class="k">if</span> <span class="n">i</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="n">num_dir</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;thumbs&#39;</span><span class="p">]</span> <span class="p">)</span>
+
+	<span class="n">slide_list</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">slides_dir</span><span class="p">,</span> <span class="s1">&#39;*.svs&#39;</span><span class="p">)))</span>
+	<span class="n">slide_list</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">slides_dir</span><span class="p">,</span> <span class="s1">&#39;*.jpg&#39;</span><span class="p">)))</span>
+	<span class="k">return</span> <span class="n">slide_list</span></div>
+
+<div class="viewcode-block" id="get_filtered_slide_paths"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.get_filtered_slide_paths">[docs]</a><span class="k">def</span> <span class="nf">get_filtered_slide_paths</span><span class="p">(</span><span class="n">slides_dir</span><span class="p">,</span> <span class="n">annotations_file</span><span class="p">,</span> <span class="n">filter_header</span><span class="p">,</span> <span class="n">filter_values</span><span class="p">):</span>
+	<span class="n">slide_list</span> <span class="o">=</span> <span class="n">get_slide_paths</span><span class="p">(</span><span class="n">slides_dir</span><span class="p">)</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">annotations_file</span><span class="p">):</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Unable to find annotations file at {green(annotations_file)}; unable to filter slides.&quot;</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">slide_list</span>
+	<span class="n">filtered_annotation_dict</span> <span class="o">=</span> <span class="n">get_annotations_dict</span><span class="p">(</span><span class="n">annotations_file</span><span class="p">,</span> <span class="n">TCGAAnnotations</span><span class="o">.</span><span class="n">slide</span><span class="p">,</span> <span class="n">TCGAAnnotations</span><span class="o">.</span><span class="n">case</span><span class="p">,</span> <span class="n">filter_header</span><span class="o">=</span><span class="n">filter_header</span><span class="p">,</span> <span class="n">filter_values</span><span class="o">=</span><span class="n">filter_values</span><span class="p">,</span> <span class="n">use_encode</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+	<span class="n">filtered_slide_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">filtered_annotation_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+	<span class="n">filtered_slide_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">slide</span> <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="n">slide_list</span> <span class="k">if</span> <span class="n">slide</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:</span><span class="o">-</span><span class="mi">4</span><span class="p">]</span> <span class="ow">in</span> <span class="n">filtered_slide_names</span><span class="p">]</span>
+	<span class="k">return</span> <span class="n">filtered_slide_list</span></div>
+
+<div class="viewcode-block" id="get_filtered_tfrecords_paths"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.get_filtered_tfrecords_paths">[docs]</a><span class="k">def</span> <span class="nf">get_filtered_tfrecords_paths</span><span class="p">(</span><span class="n">tfrecords_dir</span><span class="p">,</span> <span class="n">annotations_file</span><span class="p">,</span> <span class="n">filter_header</span><span class="p">,</span> <span class="n">filter_values</span><span class="p">):</span>
+	<span class="n">tfrecord_list</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tfrecords_dir</span><span class="p">,</span> <span class="s2">&quot;*.tfrecords&quot;</span><span class="p">))</span>
+	<span class="n">filtered_annotation_dict</span> <span class="o">=</span> <span class="n">get_annotations_dict</span><span class="p">(</span><span class="n">annotations_file</span><span class="p">,</span> <span class="n">TCGAAnnotations</span><span class="o">.</span><span class="n">slide</span><span class="p">,</span> <span class="n">TCGAAnnotations</span><span class="o">.</span><span class="n">case</span><span class="p">,</span> <span class="n">filter_header</span><span class="o">=</span><span class="n">filter_header</span><span class="p">,</span> <span class="n">filter_values</span><span class="o">=</span><span class="n">filter_values</span><span class="p">,</span> <span class="n">use_encode</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+	<span class="n">filtered_slide_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">filtered_annotation_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+	<span class="n">filtered_tfrecord_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">tfrecord</span> <span class="k">for</span> <span class="n">tfrecord</span> <span class="ow">in</span> <span class="n">tfrecord_list</span> <span class="k">if</span> <span class="n">tfrecord</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:</span><span class="o">-</span><span class="mi">10</span><span class="p">]</span> <span class="ow">in</span> <span class="n">filtered_slide_names</span><span class="p">]</span>
+	<span class="k">return</span> <span class="n">filtered_tfrecord_list</span></div>
+
+<div class="viewcode-block" id="get_annotations_dict"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.get_annotations_dict">[docs]</a><span class="k">def</span> <span class="nf">get_annotations_dict</span><span class="p">(</span><span class="n">annotations_file</span><span class="p">,</span> <span class="n">key_name</span><span class="p">,</span> <span class="n">value_name</span><span class="p">,</span> <span class="n">filter_header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">filter_values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">use_encode</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">use_float</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+	<span class="k">if</span> <span class="n">filter_header</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">filter_values</span><span class="p">:</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;If supplying a filter header, you must also supply filter_values&quot;</span><span class="p">)</span>
+		<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span> 
+	<span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">filter_header</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">list</span> <span class="ow">and</span> <span class="n">filter_header</span><span class="p">:</span>
+		<span class="n">filter_header</span> <span class="o">=</span> <span class="p">[</span><span class="n">filter_header</span><span class="p">]</span>
+		<span class="n">filter_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">filter_values</span><span class="p">]</span>
+	<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">annotations_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">csv_file</span><span class="p">:</span>
+		<span class="n">csv_reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">csv_file</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+		<span class="n">header</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">csv_reader</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+		<span class="n">encode</span> <span class="o">=</span> <span class="kc">False</span>
+		<span class="n">key_dict_int</span> <span class="o">=</span> <span class="p">{}</span>
+		<span class="n">key_dict_str</span> <span class="o">=</span> <span class="p">{}</span>
+		<span class="k">try</span><span class="p">:</span>
+			<span class="n">value_index</span> <span class="o">=</span> <span class="n">header</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">value_name</span><span class="p">)</span>
+			<span class="n">key_index</span> <span class="o">=</span> <span class="n">header</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">key_name</span><span class="p">)</span>
+			<span class="c1">#if filter_header: filter_index = header.index(filter_header)</span>
+			<span class="k">if</span> <span class="n">filter_header</span><span class="p">:</span>
+				<span class="n">filter_indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">header</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">filter_header</span><span class="p">]</span>
+		<span class="k">except</span><span class="p">:</span>
+			<span class="n">column_names</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&quot;</span><span class="si">{key_name}</span><span class="s1">&quot;, &quot;</span><span class="si">{value_name}</span><span class="s1">&quot;&#39;</span>
+			 
+			<span class="k">if</span> <span class="n">filter_header</span><span class="p">:</span>
+				<span class="n">header_names</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filter_header</span><span class="p">)</span> 
+				<span class="n">column_names</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;, &quot;</span><span class="si">{header_names}</span><span class="s1">&quot;&#39;</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Unable to find columns </span><span class="si">{column_names}</span><span class="s2"> in annotation file; confirm file format is correct and headers exist&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+		<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">csv_reader</span><span class="p">:</span>
+			<span class="n">value</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">value_index</span><span class="p">]</span>
+			<span class="n">key</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">key_index</span><span class="p">]</span>
+			<span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">key_dict_str</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+				<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Multiple values of &#39;</span><span class="si">{key}</span><span class="s2">&#39; found in annotation column &#39;</span><span class="si">{key_name}</span><span class="s2">&#39;&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+				<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+			<span class="k">if</span> <span class="n">filter_header</span><span class="p">:</span>
+				<span class="n">should_skip</span> <span class="o">=</span> <span class="kc">False</span>
+				<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">filter_header</span><span class="p">)):</span>
+					<span class="n">observed_value</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">filter_indices</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
+					<span class="c1"># Check if this slide should be skipped</span>
+					<span class="k">if</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">filter_values</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">==</span><span class="nb">str</span> <span class="ow">and</span> <span class="n">observed_value</span><span class="o">!=</span><span class="n">filter_values</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="ow">or</span> <span class="n">observed_value</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">filter_values</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+						<span class="n">should_skip</span> <span class="o">=</span> <span class="kc">True</span>
+				<span class="k">if</span> <span class="n">should_skip</span><span class="p">:</span>
+					<span class="k">continue</span>
+			<span class="n">key_dict_str</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">key</span><span class="p">:</span> <span class="n">value</span><span class="p">})</span>
+			<span class="k">if</span> <span class="n">use_encode</span><span class="p">:</span>
+				<span class="k">try</span><span class="p">:</span>
+					<span class="n">int_value</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+					<span class="n">key_dict_int</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">key</span><span class="p">:</span> <span class="n">int_value</span><span class="p">})</span>
+				<span class="k">except</span><span class="p">:</span>
+					<span class="k">if</span> <span class="n">use_encode</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">encode</span><span class="p">:</span>
+						<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Non-integer in &#39;</span><span class="si">{value_name}</span><span class="s2">&#39; header, encoding with integer values&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+						<span class="n">encode</span> <span class="o">=</span> <span class="kc">True</span>
+
+		<span class="c1"># Raise an error if no tiles were selected based on criteria</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">key_dict_str</span><span class="p">):</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;No tiles were selected based on filtering criteria.&quot;</span><span class="p">)</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+
+		<span class="k">if</span> <span class="n">use_encode</span> <span class="ow">and</span> <span class="n">encode</span><span class="p">:</span>
+			<span class="n">values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">key_dict_str</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+			<span class="n">values</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+			<span class="n">values_str_to_int</span> <span class="o">=</span> <span class="p">{}</span>
+			<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+				<span class="n">values_str_to_int</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">c</span><span class="p">:</span> <span class="n">i</span><span class="p">})</span>
+				<span class="n">number_of_slides</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">c</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">key_dict_str</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+				<span class="n">log</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{value_name}</span><span class="s2"> &#39;{info(c)}&#39; assigned to value &#39;</span><span class="si">{i}</span><span class="s2">&#39; [</span><span class="si">{number_of_slides}</span><span class="s2"> slides]&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+			<span class="k">for</span> <span class="n">value_string</span> <span class="ow">in</span> <span class="n">key_dict_str</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+				<span class="n">key_dict_str</span><span class="p">[</span><span class="n">value_string</span><span class="p">]</span> <span class="o">=</span> <span class="n">values_str_to_int</span><span class="p">[</span><span class="n">key_dict_str</span><span class="p">[</span><span class="n">value_string</span><span class="p">]]</span>
+			<span class="k">return</span> <span class="n">key_dict_str</span>
+		<span class="k">elif</span> <span class="n">use_encode</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">key_dict_int</span>
+		<span class="k">elif</span> <span class="n">use_float</span><span class="p">:</span>
+			<span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">key_dict_str</span><span class="p">:</span>
+				<span class="k">try</span><span class="p">:</span>
+					<span class="n">key_dict_str</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">key_dict_str</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+				<span class="k">except</span><span class="p">:</span>
+					<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Unable to convert data (&quot;</span><span class="si">{key_dict_str[key]}</span><span class="s1">&quot;) into float; please check data integrity and chosen annotation column&#39;</span><span class="p">)</span>
+					<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+			<span class="k">return</span> <span class="n">key_dict_str</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">key_dict_str</span></div>
+
+<div class="viewcode-block" id="verify_annotations"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.verify_annotations">[docs]</a><span class="k">def</span> <span class="nf">verify_annotations</span><span class="p">(</span><span class="n">annotations_file</span><span class="p">,</span> <span class="n">slides_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">annotations_file</span><span class="p">):</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Annotations file {green(annotations_file)} does not exist, unable to verify&quot;</span><span class="p">)</span>
+		<span class="k">return</span>
+	<span class="n">slide_list</span> <span class="o">=</span> <span class="n">get_slide_paths</span><span class="p">(</span><span class="n">slides_dir</span><span class="p">)</span>
+	<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">annotations_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">csv_file</span><span class="p">:</span>
+		<span class="n">csv_reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">csv_file</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+		<span class="c1"># First, verify case, category, and slide headers exist</span>
+		<span class="k">try</span><span class="p">:</span>
+			<span class="n">header</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">csv_reader</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+		<span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Unable to open annotations file {green(annotations_file)}, is it open in another program?&quot;</span><span class="p">)</span>
+			<span class="k">return</span>
+	<span class="k">try</span><span class="p">:</span>
+		<span class="n">case_index</span> <span class="o">=</span> <span class="n">header</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">TCGAAnnotations</span><span class="o">.</span><span class="n">case</span><span class="p">)</span>
+	<span class="k">except</span><span class="p">:</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Check annotations file for header &#39;</span><span class="si">{TCGAAnnotations.case}</span><span class="s2">&#39;.&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+		<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+	<span class="k">try</span><span class="p">:</span>
+		<span class="n">slide_index</span> <span class="o">=</span> <span class="n">header</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">TCGAAnnotations</span><span class="o">.</span><span class="n">slide</span><span class="p">)</span>
+	<span class="k">except</span><span class="p">:</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Header column &#39;slide&#39; not found.&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">slides_dir</span> <span class="ow">and</span> <span class="n">yes_no_input</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Search slides directory and automatically associate cases with slides? [Y/n] &#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;yes&#39;</span><span class="p">):</span>
+			<span class="c1"># First, load all case names from the annotations file</span>
+			<span class="n">slide_index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+			<span class="n">cases</span> <span class="o">=</span> <span class="p">[]</span>
+			<span class="n">case_slide_dict</span> <span class="o">=</span> <span class="p">{}</span>
+			<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">annotations_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">csv_file</span><span class="p">:</span>
+				<span class="n">csv_reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">csv_file</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+				<span class="n">header</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">csv_reader</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+				<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">csv_reader</span><span class="p">:</span>
+					<span class="n">cases</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">row</span><span class="p">[</span><span class="n">case_index</span><span class="p">]])</span>
+			<span class="n">cases</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">cases</span><span class="p">))</span> <span class="c1"># remove duplicates</span>
+			<span class="c1"># Next, search through the slides folder for all SVS/JPG files</span>
+			<span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot; + Searching </span><span class="si">{slides_dir}</span><span class="s2">...&quot;</span><span class="p">)</span>
+			<span class="n">skip_missing</span> <span class="o">=</span> <span class="kc">False</span>
+			<span class="k">for</span> <span class="n">slide_filename</span> <span class="ow">in</span> <span class="n">slide_list</span><span class="p">:</span>
+				<span class="n">slide_name</span> <span class="o">=</span> <span class="n">slide_filename</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:</span><span class="o">-</span><span class="mi">4</span><span class="p">]</span>
+				<span class="c1"># First, make sure the shortname and long name aren&#39;t both in the annotation file</span>
+				<span class="k">if</span> <span class="p">(</span><span class="n">slide_name</span> <span class="o">!=</span> <span class="n">_shortname</span><span class="p">(</span><span class="n">slide_name</span><span class="p">))</span> <span class="ow">and</span> <span class="p">(</span><span class="n">slide_name</span> <span class="ow">in</span> <span class="n">cases</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">_shortname</span><span class="p">(</span><span class="n">slide_name</span><span class="p">)</span> <span class="ow">in</span> <span class="n">cases</span><span class="p">):</span>
+					<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Both slide name </span><span class="si">{slide_name}</span><span class="s2"> and shorthand {_shortname(slide_name)} in annotation file; please remove one.&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+					<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+				<span class="c1"># Check if either the slide name or the shortened version are in the annotation file</span>
+				<span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">x</span> <span class="ow">in</span> <span class="n">cases</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">[</span><span class="n">slide_name</span><span class="p">,</span> <span class="n">_shortname</span><span class="p">(</span><span class="n">slide_name</span><span class="p">)]):</span>
+					<span class="n">slide</span> <span class="o">=</span> <span class="n">slide_name</span> <span class="k">if</span> <span class="n">slide_name</span> <span class="ow">in</span> <span class="n">cases</span> <span class="k">else</span> <span class="n">_shortname</span><span class="p">(</span><span class="n">slide_name</span><span class="p">)</span>
+					<span class="n">case_slide_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">slide</span><span class="p">:</span> <span class="n">slide_name</span><span class="p">})</span>
+				<span class="k">elif</span> <span class="ow">not</span> <span class="n">skip_missing</span><span class="p">:</span>
+					<span class="k">if</span> <span class="ow">not</span> <span class="n">yes_no_input</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot; + [{warn(&#39;WARN&#39;)}] Case &#39;{_shortname(slide_name)}&#39; not found in annotation file, skip this slide? [Y/n] &quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;yes&#39;</span><span class="p">):</span>
+						<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+					<span class="k">else</span><span class="p">:</span>
+						<span class="n">skip_missing</span> <span class="o">=</span> <span class="kc">True</span>
+			
+			<span class="c1"># Now, write the assocations</span>
+			<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">annotations_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">csv_file</span><span class="p">:</span>
+				<span class="n">csv_reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">csv_file</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+				<span class="n">header</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">csv_reader</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+				<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;temp.csv&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">csv_outfile</span><span class="p">:</span>
+					<span class="n">csv_writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">csv_outfile</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+					<span class="n">header</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">TCGAAnnotations</span><span class="o">.</span><span class="n">slide</span><span class="p">])</span>
+					<span class="n">csv_writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+					<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">csv_reader</span><span class="p">:</span>
+						<span class="k">try</span><span class="p">:</span>
+							<span class="n">case</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">case_index</span><span class="p">]</span>
+							<span class="n">row</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">case_slide_dict</span><span class="p">[</span><span class="n">case</span><span class="p">]])</span>
+							<span class="n">csv_writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+						<span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+							<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Unable to locate slide </span><span class="si">{case}</span><span class="s2"> in annotation file&quot;</span><span class="p">)</span>
+			<span class="c1"># Finally, overwrite the previous annotation file</span>
+			<span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">annotations_file</span><span class="p">)</span>
+			<span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="s1">&#39;temp.csv&#39;</span><span class="p">,</span> <span class="n">annotations_file</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+
+	<span class="c1"># Verify all SVS files in the annotation column are valid</span>
+	<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">annotations_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">csv_file</span><span class="p">:</span>
+		<span class="n">csv_reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">csv_file</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+		<span class="n">header</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">csv_reader</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+		<span class="n">skip_warn</span> <span class="o">=</span> <span class="kc">False</span>
+		<span class="n">num_warned</span> <span class="o">=</span> <span class="mi">0</span>
+		<span class="n">warn_threshold</span> <span class="o">=</span> <span class="mi">3</span>
+		<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">csv_reader</span><span class="p">:</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="n">row</span><span class="p">[</span><span class="n">slide_index</span><span class="p">]</span> <span class="ow">in</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:</span><span class="o">-</span><span class="mi">4</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">slide_list</span><span class="p">]:</span>
+				<span class="k">if</span> <span class="ow">not</span> <span class="n">skip_warn</span> <span class="ow">and</span> <span class="n">yes_no_input</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot; + [{warn(&#39;WARN&#39;)}] Unable to locate slide </span><span class="si">{row[slide_index]}</span><span class="s2">. Quit? [y/N] &quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;no&#39;</span><span class="p">):</span>
+					<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">print_func</span> <span class="o">=</span> <span class="nb">print</span> <span class="k">if</span> <span class="n">num_warned</span> <span class="o">&lt;</span> <span class="n">warn_threshold</span> <span class="k">else</span> <span class="kc">None</span>
+					<span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Unable to locate slide </span><span class="si">{row[slide_index]}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">print_func</span><span class="p">)</span>
+					<span class="n">skip_warn</span> <span class="o">=</span> <span class="kc">True</span>
+					<span class="n">num_warned</span> <span class="o">+=</span> <span class="mi">1</span>
+		<span class="k">if</span> <span class="n">num_warned</span> <span class="o">&gt;=</span> <span class="n">warn_threshold</span><span class="p">:</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;...</span><span class="si">{num_warned}</span><span class="s2"> total warnings, see {green(log.logfile)} for details&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="verify_tiles"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.verify_tiles">[docs]</a><span class="k">def</span> <span class="nf">verify_tiles</span><span class="p">(</span><span class="n">annotations</span><span class="p">,</span> <span class="n">tfrecord_files</span><span class="o">=</span><span class="p">[]):</span>
+	<span class="sd">&#39;&#39;&#39;Iterate through TFRecord files and verify all have a valid annotation.</span>
+<span class="sd">	</span>
+<span class="sd">	Additionally, generate a manifest to log the number of tiles for each slide.&#39;&#39;&#39;</span>
+	<span class="n">success</span> <span class="o">=</span> <span class="kc">True</span>
+	<span class="n">case_list</span> <span class="o">=</span> <span class="p">[]</span>
+	<span class="n">manifest</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;train_data&#39;</span><span class="p">:</span> <span class="p">{},</span>
+				<span class="s1">&#39;eval_data&#39;</span><span class="p">:</span> <span class="p">{}}</span>
+	<span class="k">if</span> <span class="n">tfrecord_files</span><span class="p">:</span>
+		<span class="n">case_list_errors</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="k">for</span> <span class="n">tfrecord_file</span> <span class="ow">in</span> <span class="n">tfrecord_files</span><span class="p">:</span>
+			<span class="n">manifest</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">tfrecord_file</span><span class="p">:</span> <span class="p">{}})</span>
+			<span class="n">raw_dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">TFRecordDataset</span><span class="p">(</span><span class="n">tfrecord_file</span><span class="p">)</span>
+			<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">raw_record</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">raw_dataset</span><span class="p">):</span>
+				<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="se">\r</span><span class="s2"> + Verifying tile...</span><span class="si">{i}</span><span class="s2">&quot;</span><span class="p">)</span>
+				<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+				<span class="n">example</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Example</span><span class="p">()</span>
+				<span class="n">example</span><span class="o">.</span><span class="n">ParseFromString</span><span class="p">(</span><span class="n">raw_record</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+				<span class="n">case</span> <span class="o">=</span> <span class="n">example</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">feature</span><span class="p">[</span><span class="s1">&#39;case&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">bytes_list</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+				<span class="n">case_list</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">case</span><span class="p">])</span>
+				<span class="n">case_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">case_list</span><span class="p">))</span>
+				<span class="k">if</span> <span class="n">case</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">manifest</span><span class="p">[</span><span class="n">tfrecord_file</span><span class="p">]:</span>
+					<span class="n">manifest</span><span class="p">[</span><span class="n">tfrecord_file</span><span class="p">][</span><span class="n">case</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">manifest</span><span class="p">[</span><span class="n">tfrecord_file</span><span class="p">][</span><span class="n">case</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+				<span class="k">if</span> <span class="n">case</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">annotations</span><span class="p">:</span>
+					<span class="n">case_list_errors</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">case</span><span class="p">])</span>
+					<span class="n">case_list_errors</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">case_list_errors</span><span class="p">))</span>
+					<span class="n">success</span> <span class="o">=</span> <span class="kc">False</span>
+			<span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+			<span class="k">for</span> <span class="n">case</span> <span class="ow">in</span> <span class="n">manifest</span><span class="p">[</span><span class="n">tfrecord_file</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+				<span class="n">total</span> <span class="o">+=</span> <span class="n">manifest</span><span class="p">[</span><span class="n">tfrecord_file</span><span class="p">][</span><span class="n">case</span><span class="p">]</span>
+			<span class="n">manifest</span><span class="p">[</span><span class="n">tfrecord_file</span><span class="p">][</span><span class="s1">&#39;total&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">total</span>
+		<span class="k">for</span> <span class="n">case</span> <span class="ow">in</span> <span class="n">case_list_errors</span><span class="p">:</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Failed TFRecord integrity check: annotation not found for case {green(case)}&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">success</span><span class="p">:</span>
+		<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;...failed.&quot;</span><span class="p">)</span>
+	<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r\033</span><span class="s2">[K&quot;</span><span class="p">)</span>
+	<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+	<span class="c1"># Now, check to see if all annotations have a corresponding set of tiles</span>
+	<span class="n">num_warned</span> <span class="o">=</span> <span class="mi">0</span>
+	<span class="n">warn_threshold</span> <span class="o">=</span> <span class="mi">3</span>
+	<span class="k">for</span> <span class="n">annotation_case</span> <span class="ow">in</span> <span class="n">annotations</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+		<span class="k">if</span> <span class="n">annotation_case</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">case_list</span><span class="p">:</span>
+			<span class="n">print_func</span> <span class="o">=</span> <span class="nb">print</span> <span class="k">if</span> <span class="n">num_warned</span> <span class="o">&lt;</span> <span class="n">warn_threshold</span> <span class="k">else</span> <span class="kc">None</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Case {green(annotation_case)} in annotation file has no image tiles&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">print_func</span><span class="p">)</span>
+			<span class="n">num_warned</span> <span class="o">+=</span> <span class="mi">1</span>
+	<span class="k">if</span> <span class="n">num_warned</span> <span class="o">&gt;=</span> <span class="n">warn_threshold</span><span class="p">:</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;...</span><span class="si">{num_warned}</span><span class="s2"> total warnings, see {green(log.logfile)} for details&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">manifest</span></div>
+	
+<div class="viewcode-block" id="contains_nested_subdirs"><a class="viewcode-back" href="../../slideflow.util.html#slideflow.util.contains_nested_subdirs">[docs]</a><span class="k">def</span> <span class="nf">contains_nested_subdirs</span><span class="p">(</span><span class="n">directory</span><span class="p">):</span>
+	<span class="n">subdirs</span> <span class="o">=</span> <span class="p">[</span><span class="n">_dir</span> <span class="k">for</span> <span class="n">_dir</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">directory</span><span class="p">)</span> <span class="k">if</span> <span class="n">isdir</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">_dir</span><span class="p">))]</span>
+	<span class="k">for</span> <span class="n">subdir</span> <span class="ow">in</span> <span class="n">subdirs</span><span class="p">:</span>
+		<span class="n">contents</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">subdir</span><span class="p">))</span>
+		<span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">contents</span><span class="p">:</span>
+			<span class="k">if</span> <span class="n">isdir</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">subdir</span><span class="p">,</span> <span class="n">c</span><span class="p">)):</span>
+				<span class="k">return</span> <span class="kc">True</span>
+	<span class="k">return</span> <span class="kc">False</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, James M Dolezal
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

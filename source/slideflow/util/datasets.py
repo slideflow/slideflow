@@ -16,12 +16,14 @@ def make_dir(_dir):
 			pass
 
 def split_tiles(folder, fraction, names):
-	'''Split a directory of *.jpg files into subdirectories.
+	'''Split a directory of .jpg files into subdirectories.
+
 	Args:
 		folder 		folder to search for tiles
 		fraction	array containing fraction of tiles to include in each subdirectory;
 						remaining tiles will be split among subdirectories with fraction of -1
-		names		names of subfolder to split tiles. Must be same length as fraction'''
+		names		names of subfolder to split tiles. Must be same length as fraction
+	'''
 
 	# Initial error checking
 	if len(fraction) != len(names):

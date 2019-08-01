@@ -1,8 +1,6 @@
 Pipeline Overview
 =================
 
-.. image:: pipeline.png
-
 The overall pipeline is separated into two phases and 6 steps. 
 
 The first phase - **Model Creation** - involves three steps: 1) labeling slides with regions of interest (ROIs), 2) tessellating and preparing image tiles from the slides, and 3) training a neural network model. 
@@ -42,13 +40,26 @@ Step 3: Model Training
 
 Step 4: Analytics
 *****************
-Including model performance statistics, ROC, and dendrogram creation. Currently being implemented, documentation will be updated once complete.
+Validation testing is performed both during training - at specified intervals, or epochs - and after training has completed. Validation testing is used to assess model performance and anticipated generalizability. Various metrics are recorded in the project directory at these intervals to assist with model performance assessment, including:
+
+- **Training accuracy** (for categorical outcomes)
+- **Validation accuracy** (for categorical outcomes)
+- **Training loss**
+- **Validation loss**
+- **Tile-level ROC and AUC** (for categorical outcomes)
+- **Slide-level ROC and AUC** (for categorical outcomes)
+- **Scatter plot and R-squared** (for continuous outcomes)
 
 Step 5: Visualizing Results with Heatmaps
 *****************************************
+In addition to the above metrics, performance of a trained model can be assessed by visualizing predictions for a set slides as heatmaps.
 
-After a model has been trained, accuracy can be assessed by visualizing predictions for a whole slide image.
+.. image:: heatmap_example.png
 	
 Step 6: Mosaic maps
 *******************
-Visualize learned image features with UMAP/t-SNE plots and mosaic maps. Code completed (``mosaic.py``), documentation pending.
+Finally, learned image features can be visualized using dimensionality reduction on penultimate layer activations. 
+
+A set of image tiles is first provided to your trained model, which calculate *penultimate* layer activations (as opposed to final layer activations, or predictions). These penultimate layer activations represent image features and are plotted with dimensionality reduction (UMAP/t-SNE). Points on the plot are replaced with image tiles, generating a mosaic map.
+
+.. image:: mosaic_example.png

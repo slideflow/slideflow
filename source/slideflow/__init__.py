@@ -449,6 +449,7 @@ class SlideFlowProject:
 				checkpoint=None, pretrain='imagenet', supervised=True, batch_file=None, model_type='categorical',
 				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
 		'''Train model(s) given configurations found in batch_train.tsv.
+
 		Args:
 			models				(optional) Either string representing a model name or an array of strings containing model names. 
 									Will train models with these names in the batch_train.tsv config file.
@@ -469,8 +470,8 @@ class SlideFlowProject:
 			k_fold_iter			(optional) Which iteration to train if using k-fold validation. Defaults to training all iterations.
 
 		Returns:
-			A dictionary containing model names mapped to train_acc, val_loss, and val_acc'''
-
+			A dictionary containing model names mapped to train_acc, val_loss, and val_acc
+		'''
 		# Get list of slides for training and establish validation plan
 		batch_train_file = self.PROJECT['batch_train_config'] if not batch_file else sfutil.global_path(batch_file)
 		validation_target = self.PROJECT['validation_target'] if not validation_target else validation_target
