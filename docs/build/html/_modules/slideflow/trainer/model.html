@@ -1,0 +1,873 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.trainer.model &mdash; slideflow 0.9.9 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> slideflow
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.9
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../project.html">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">Source code</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">slideflow</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+          <li><a href="../../slideflow.html">slideflow</a> &raquo;</li>
+        
+      <li>slideflow.trainer.model</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for slideflow.trainer.model</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (C) James Dolezal - All Rights Reserved</span>
+<span class="c1">#</span>
+<span class="c1"># Unauthorized copying of this file, via any medium is strictly prohibited</span>
+<span class="c1"># Proprietary and confidential</span>
+<span class="c1"># Written by James Dolezal &lt;jamesmdolezal@gmail.com&gt;, October 2017</span>
+<span class="c1"># ==========================================================================</span>
+
+<span class="c1"># Update 3/2/2019: Beginning tf.data implementation</span>
+<span class="c1"># Update 5/29/2019: Supports both loose image tiles and TFRecords, </span>
+<span class="c1">#   annotations supplied by separate annotation file upon initial model call</span>
+
+<span class="sd">&#39;&#39;&#39;&#39;Builds a CNN model.&#39;&#39;&#39;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">gc</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">import</span> <span class="nn">random</span>
+
+<span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
+<span class="kn">from</span> <span class="nn">tensorflow.keras</span> <span class="k">import</span> <span class="n">backend</span> <span class="k">as</span> <span class="n">K</span>
+<span class="kn">from</span> <span class="nn">tensorboard.plugins.custom_scalar</span> <span class="k">import</span> <span class="n">layout_pb2</span>
+<span class="kn">from</span> <span class="nn">tensorflow.python.framework</span> <span class="k">import</span> <span class="n">ops</span>
+
+<span class="kn">from</span> <span class="nn">glob</span> <span class="k">import</span> <span class="n">glob</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="k">import</span> <span class="n">stats</span>
+<span class="kn">from</span> <span class="nn">statistics</span> <span class="k">import</span> <span class="n">median</span>
+<span class="kn">from</span> <span class="nn">sklearn</span> <span class="k">import</span> <span class="n">metrics</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+
+<span class="kn">import</span> <span class="nn">slideflow.util</span> <span class="k">as</span> <span class="nn">sfutil</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="k">import</span> <span class="n">tfrecords</span><span class="p">,</span> <span class="n">TCGAAnnotations</span><span class="p">,</span> <span class="n">log</span>
+
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">)</span>
+
+<span class="n">BALANCE_BY_CATEGORY</span> <span class="o">=</span> <span class="s1">&#39;BALANCE_BY_CATEGORY&#39;</span>
+<span class="n">BALANCE_BY_CASE</span> <span class="o">=</span> <span class="s1">&#39;BALANCE_BY_CASE&#39;</span>
+<span class="n">NO_BALANCE</span> <span class="o">=</span> <span class="s1">&#39;NO_BALANCE&#39;</span>
+
+<div class="viewcode-block" id="HyperParameters"><a class="viewcode-back" href="../../../slideflow.trainer.html#slideflow.trainer.model.HyperParameters">[docs]</a><span class="k">class</span> <span class="nc">HyperParameters</span><span class="p">:</span>
+	<span class="n">_OptDict</span> <span class="o">=</span> <span class="p">{</span>
+		<span class="s1">&#39;Adam&#39;</span><span class="p">:</span>	<span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Adam</span><span class="p">,</span>
+		<span class="s1">&#39;SGD&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">SGD</span><span class="p">,</span>
+		<span class="s1">&#39;RMSprop&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">RMSprop</span><span class="p">,</span>
+		<span class="s1">&#39;Adagrad&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Adagrad</span><span class="p">,</span>
+		<span class="s1">&#39;Adadelta&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Adadelta</span><span class="p">,</span>
+		<span class="s1">&#39;Adamax&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Adamax</span><span class="p">,</span>
+		<span class="s1">&#39;Nadam&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Nadam</span>
+	<span class="p">}</span>
+	<span class="n">_ModelDict</span> <span class="o">=</span> <span class="p">{</span>
+		<span class="s1">&#39;Xception&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">applications</span><span class="o">.</span><span class="n">Xception</span><span class="p">,</span>
+		<span class="s1">&#39;VGG16&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">applications</span><span class="o">.</span><span class="n">VGG16</span><span class="p">,</span>
+		<span class="s1">&#39;VGG19&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">applications</span><span class="o">.</span><span class="n">VGG19</span><span class="p">,</span>
+		<span class="s1">&#39;ResNet50&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">applications</span><span class="o">.</span><span class="n">ResNet50</span><span class="p">,</span>
+		<span class="c1">#&#39;ResNet101&#39;: tf.keras.applications.ResNet101,</span>
+		<span class="c1">#&#39;ResNet152&#39;: tf.keras.applications.ResNet152,</span>
+		<span class="c1">#&#39;ResNet50V2&#39;: tf.keras.applications.ResNet50V2,</span>
+		<span class="c1">#&#39;ResNet101V2&#39;: tf.keras.applications.ResNet101V2,</span>
+		<span class="c1">#&#39;ResNet152V2&#39;: tf.keras.applications.ResNet152V2,</span>
+		<span class="c1">#&#39;ResNeXt50&#39;: tf.keras.applications.ResNeXt50,</span>
+		<span class="c1">#&#39;ResNeXt101&#39;: tf.keras.applications.ResNeXt101,</span>
+		<span class="s1">&#39;InceptionV3&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">applications</span><span class="o">.</span><span class="n">InceptionV3</span><span class="p">,</span>
+		<span class="s1">&#39;InceptionResNetV2&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">applications</span><span class="o">.</span><span class="n">InceptionResNetV2</span><span class="p">,</span>
+		<span class="s1">&#39;MobileNet&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">applications</span><span class="o">.</span><span class="n">MobileNet</span><span class="p">,</span>
+		<span class="s1">&#39;MobileNetV2&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">applications</span><span class="o">.</span><span class="n">MobileNetV2</span><span class="p">,</span>
+		<span class="c1">#&#39;DenseNet&#39;: tf.keras.applications.DenseNet,</span>
+		<span class="c1">#&#39;NASNet&#39;: tf.keras.applications.NASNet</span>
+	<span class="p">}</span>
+	<span class="n">_LinearLoss</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;mean_squared_error&#39;</span><span class="p">,</span> <span class="s1">&#39;mean_absolute_error&#39;</span><span class="p">,</span> <span class="s1">&#39;mean_absolute_percentage_error&#39;</span><span class="p">,</span> <span class="s1">&#39;mean_squared_logarithmic_error&#39;</span><span class="p">,</span> <span class="s1">&#39;squared_hinge&#39;</span><span class="p">,</span> <span class="s1">&#39;hinge&#39;</span><span class="p">,</span> <span class="s1">&#39;logcosh&#39;</span><span class="p">]</span>
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">finetune_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">toplayer_epochs</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s1">&#39;InceptionV3&#39;</span><span class="p">,</span> <span class="n">pooling</span><span class="o">=</span><span class="s1">&#39;avg&#39;</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
+				 <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">hidden_layers</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="s1">&#39;Adam&#39;</span><span class="p">,</span> <span class="n">early_stop</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> 
+				 <span class="n">early_stop_patience</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">balanced_training</span><span class="o">=</span><span class="n">BALANCE_BY_CATEGORY</span><span class="p">,</span> <span class="n">balanced_validation</span><span class="o">=</span><span class="n">NO_BALANCE</span><span class="p">,</span> 
+				 <span class="n">augment</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39; Additional hyperparameters to consider:</span>
+<span class="sd">		beta1 0.9</span>
+<span class="sd">		beta2 0.999</span>
+<span class="sd">		epsilon 1.0</span>
+<span class="sd">		batch_norm_decay 0.99</span>
+<span class="sd">		&#39;&#39;&#39;</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">toplayer_epochs</span> <span class="o">=</span> <span class="n">toplayer_epochs</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">finetune_epochs</span> <span class="o">=</span> <span class="n">finetune_epochs</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">pooling</span> <span class="o">=</span> <span class="n">pooling</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="o">=</span> <span class="n">loss</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span> <span class="o">=</span> <span class="n">learning_rate</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">optimizer</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">early_stop</span> <span class="o">=</span> <span class="n">early_stop</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">hidden_layers</span> <span class="o">=</span> <span class="n">hidden_layers</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">early_stop_patience</span> <span class="o">=</span> <span class="n">early_stop_patience</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">balanced_training</span> <span class="o">=</span> <span class="n">balanced_training</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">balanced_validation</span> <span class="o">=</span> <span class="n">balanced_validation</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">augment</span> <span class="o">=</span> <span class="n">augment</span>
+
+<div class="viewcode-block" id="HyperParameters.get_opt"><a class="viewcode-back" href="../../../slideflow.trainer.html#slideflow.trainer.model.HyperParameters.get_opt">[docs]</a>	<span class="k">def</span> <span class="nf">get_opt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_OptDict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">](</span><span class="n">lr</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HyperParameters.get_model"><a class="viewcode-back" href="../../../slideflow.trainer.html#slideflow.trainer.model.HyperParameters.get_model">[docs]</a>	<span class="k">def</span> <span class="nf">get_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">,</span> <span class="n">weights</span><span class="p">):</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ModelDict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">](</span>
+			<span class="n">input_shape</span><span class="o">=</span><span class="n">input_shape</span><span class="p">,</span>
+			<span class="n">include_top</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+			<span class="n">pooling</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pooling</span><span class="p">,</span>
+			<span class="n">weights</span><span class="o">=</span><span class="n">weights</span>
+		<span class="p">)</span></div>
+
+<div class="viewcode-block" id="HyperParameters.model_type"><a class="viewcode-back" href="../../../slideflow.trainer.html#slideflow.trainer.model.HyperParameters.model_type">[docs]</a>	<span class="k">def</span> <span class="nf">model_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="n">model_type</span> <span class="o">=</span> <span class="s1">&#39;linear&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_LinearLoss</span> <span class="k">else</span> <span class="s1">&#39;categorical&#39;</span>
+		<span class="k">return</span> <span class="n">model_type</span></div>
+
+	<span class="k">def</span> <span class="nf">_get_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">arg</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">arg</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">==</span><span class="s1">&#39;_&#39;</span> <span class="ow">and</span> <span class="n">arg</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;get_opt&#39;</span><span class="p">,</span> <span class="s1">&#39;get_model&#39;</span><span class="p">,</span> <span class="s1">&#39;model_type&#39;</span><span class="p">]]</span>
+
+	<span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="n">output</span> <span class="o">=</span> <span class="s2">&quot;Hyperparameters:</span><span class="se">\n</span><span class="s2">&quot;</span>
+			
+		<span class="n">args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_args</span><span class="p">()</span>
+		<span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+			<span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg</span><span class="p">)</span>
+			<span class="n">output</span> <span class="o">+=</span> <span class="n">log</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;{sfutil.header(arg)} = </span><span class="si">{value}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">output</span></div>
+
+<div class="viewcode-block" id="SlideflowModel"><a class="viewcode-back" href="../../../slideflow.trainer.html#slideflow.trainer.model.SlideflowModel">[docs]</a><span class="k">class</span> <span class="nc">SlideflowModel</span><span class="p">:</span>
+	<span class="sd">&#39;&#39;&#39; Model containing all functions necessary to build input dataset pipelines,</span>
+<span class="sd">	build a training and validation set model, and monitor and execute training.&#39;&#39;&#39;</span>
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_directory</span><span class="p">,</span> <span class="n">image_size</span><span class="p">,</span> <span class="n">slide_to_category</span><span class="p">,</span> <span class="n">train_tfrecords</span><span class="p">,</span> <span class="n">validation_tfrecords</span><span class="p">,</span> <span class="n">manifest</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">use_fp16</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">model_type</span><span class="o">=</span><span class="s1">&#39;categorical&#39;</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">DATA_DIR</span> <span class="o">=</span> <span class="n">data_directory</span> <span class="c1"># Directory where to write event logs and checkpoints.</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">MANIFEST</span> <span class="o">=</span> <span class="n">manifest</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">IMAGE_SIZE</span> <span class="o">=</span> <span class="n">image_size</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">USE_FP16</span> <span class="o">=</span> <span class="n">use_fp16</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">DTYPE</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">float16</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">USE_FP16</span> <span class="k">else</span> <span class="n">tf</span><span class="o">.</span><span class="n">float32</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">SLIDE_TO_CATEGORY</span> <span class="o">=</span> <span class="n">slide_to_category</span> <span class="c1"># Dictionary mapping slide names to category</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">SLIDES</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">slide_to_category</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">TRAIN_TFRECORDS</span> <span class="o">=</span> <span class="n">train_tfrecords</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">VALIDATION_TFRECORDS</span> <span class="o">=</span> <span class="n">validation_tfrecords</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">MODEL_TYPE</span> <span class="o">=</span> <span class="n">model_type</span>
+		<span class="k">if</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">NUM_CLASSES</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">slide_to_category</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
+		<span class="k">elif</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;linear&#39;</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">NUM_CLASSES</span> <span class="o">=</span> <span class="mi">1</span>
+
+		<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s1">&#39;/cpu&#39;</span><span class="p">):</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">ANNOTATIONS_TABLE</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">StaticHashTable</span><span class="p">(</span>
+				<span class="n">tf</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">KeyValueTensorInitializer</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">slide_to_category</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span> <span class="nb">list</span><span class="p">(</span><span class="n">slide_to_category</span><span class="o">.</span><span class="n">values</span><span class="p">())),</span> <span class="o">-</span><span class="mi">1</span>
+			<span class="p">)</span>
+
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">DATA_DIR</span><span class="p">):</span>
+			<span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">DATA_DIR</span><span class="p">)</span>
+		
+		<span class="c1"># Record which slides are used for training and validation, and to which categories they belong</span>
+		<span class="k">if</span> <span class="n">train_tfrecords</span> <span class="ow">or</span> <span class="n">validation_tfrecords</span><span class="p">:</span>
+			<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">DATA_DIR</span><span class="p">,</span> <span class="s1">&#39;slide_manifest.log&#39;</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">slide_manifest</span><span class="p">:</span>
+				<span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">slide_manifest</span><span class="p">)</span>
+				<span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">,</span> <span class="s1">&#39;dataset&#39;</span><span class="p">,</span> <span class="s1">&#39;category&#39;</span><span class="p">]</span>
+				<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+				<span class="k">if</span> <span class="n">train_tfrecords</span><span class="p">:</span>
+					<span class="k">for</span> <span class="n">tfrecord</span> <span class="ow">in</span> <span class="n">train_tfrecords</span><span class="p">:</span>
+						<span class="n">slide</span> <span class="o">=</span> <span class="n">tfrecord</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:</span><span class="o">-</span><span class="mi">10</span><span class="p">]</span>
+						<span class="k">if</span> <span class="n">slide</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">SLIDES</span><span class="p">:</span>
+							<span class="n">category</span> <span class="o">=</span> <span class="n">slide_to_category</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span>
+							<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">slide</span><span class="p">,</span> <span class="s1">&#39;training&#39;</span><span class="p">,</span> <span class="n">category</span><span class="p">])</span>
+				<span class="k">if</span> <span class="n">validation_tfrecords</span><span class="p">:</span>
+					<span class="k">for</span> <span class="n">tfrecord</span> <span class="ow">in</span> <span class="n">validation_tfrecords</span><span class="p">:</span>
+						<span class="n">slide</span> <span class="o">=</span> <span class="n">tfrecord</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:</span><span class="o">-</span><span class="mi">10</span><span class="p">]</span>
+						<span class="k">if</span> <span class="n">slide</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">SLIDES</span><span class="p">:</span>
+							<span class="n">category</span> <span class="o">=</span> <span class="n">slide_to_category</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span>
+							<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">slide</span><span class="p">,</span> <span class="s1">&#39;validation&#39;</span><span class="p">,</span> <span class="n">category</span><span class="p">])</span>
+
+	<span class="k">def</span> <span class="nf">_process_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image_string</span><span class="p">,</span> <span class="n">augment</span><span class="p">):</span>
+		<span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">decode_jpeg</span><span class="p">(</span><span class="n">image_string</span><span class="p">,</span> <span class="n">channels</span> <span class="o">=</span> <span class="mi">3</span><span class="p">)</span>
+		<span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">per_image_standardization</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+
+		<span class="k">if</span> <span class="n">augment</span><span class="p">:</span>
+			<span class="c1"># Apply augmentations</span>
+			<span class="c1"># Rotate 0, 90, 180, 270 degrees</span>
+			<span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">rot90</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[],</span> <span class="n">minval</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">maxval</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">int32</span><span class="p">))</span>
+
+			<span class="c1"># Random flip and rotation</span>
+			<span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">random_flip_left_right</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+			<span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">random_flip_up_down</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+
+		<span class="n">dtype</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">float16</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">USE_FP16</span> <span class="k">else</span> <span class="n">tf</span><span class="o">.</span><span class="n">float32</span>
+		<span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">convert_image_dtype</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+		<span class="n">image</span><span class="o">.</span><span class="n">set_shape</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">IMAGE_SIZE</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">IMAGE_SIZE</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+		<span class="k">return</span> <span class="n">image</span>
+
+	<span class="k">def</span> <span class="nf">_parse_tfrecord_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record</span><span class="p">):</span>
+		<span class="n">features</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">parse_single_example</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">tfrecords</span><span class="o">.</span><span class="n">FEATURE_DESCRIPTION</span><span class="p">)</span>
+		<span class="n">case</span> <span class="o">=</span> <span class="n">features</span><span class="p">[</span><span class="s1">&#39;case&#39;</span><span class="p">]</span>
+		<span class="n">label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ANNOTATIONS_TABLE</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="n">case</span><span class="p">)</span>
+		<span class="n">image_string</span> <span class="o">=</span> <span class="n">features</span><span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">]</span>
+		<span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_image</span><span class="p">(</span><span class="n">image_string</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">AUGMENT</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">image</span><span class="p">,</span> <span class="n">label</span>
+
+	<span class="k">def</span> <span class="nf">_parse_tfrecord_with_casenames_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record</span><span class="p">):</span>
+		<span class="n">features</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">parse_single_example</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">tfrecords</span><span class="o">.</span><span class="n">FEATURE_DESCRIPTION</span><span class="p">)</span>
+		<span class="n">case</span> <span class="o">=</span> <span class="n">features</span><span class="p">[</span><span class="s1">&#39;case&#39;</span><span class="p">]</span>
+		<span class="n">label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ANNOTATIONS_TABLE</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="n">case</span><span class="p">)</span>
+		<span class="n">image_string</span> <span class="o">=</span> <span class="n">features</span><span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">]</span>
+		<span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_image</span><span class="p">(</span><span class="n">image_string</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">AUGMENT</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">image</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">case</span>
+
+	<span class="k">def</span> <span class="nf">_interleave_tfrecords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tfrecords</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">balance</span><span class="p">,</span> <span class="n">finite</span><span class="p">,</span> <span class="n">dataset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">include_casenames</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;Generates an interleaved dataset from a collection of tfrecord files,</span>
+<span class="sd">		sampling from tfrecord files randomly according to balancing if provided.</span>
+<span class="sd">		Requires self.MANIFEST. Assumes TFRecord files are named by case.</span>
+
+<span class="sd">		Args:</span>
+<span class="sd">			tfrecords	Array of paths to TFRecord files</span>
+<span class="sd">			batch_size	Batch size</span>
+<span class="sd">			balance		Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,</span>
+<span class="sd">							BALANCE_BY_CASE, and NO_BALANCE. If finite option is used, will drop</span>
+<span class="sd">							tiles in order to maintain proportions across the interleaved dataset.</span>
+<span class="sd">			augment		Whether to use data augmentation (random flip/rotate)</span>
+<span class="sd">			finite		Whether create finite or infinite datasets. WARNING: If finite option is </span>
+<span class="sd">							used with balancing, some tiles will be skipped.&#39;&#39;&#39;</span>
+		<span class="n">datasets</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="n">datasets_categories</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="n">num_tiles</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="n">global_num_tiles</span> <span class="o">=</span> <span class="mi">0</span>
+		<span class="n">categories</span> <span class="o">=</span> <span class="p">{}</span>
+		<span class="n">categories_prob</span> <span class="o">=</span> <span class="p">{}</span>
+		<span class="n">categories_tile_fraction</span> <span class="o">=</span> <span class="p">{}</span>
+		
+		<span class="k">if</span> <span class="n">tfrecords</span> <span class="o">==</span> <span class="p">[]:</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;No TFRecords found.&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+		
+		<span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">tfrecords</span><span class="p">:</span>
+			<span class="n">slide_name</span> <span class="o">=</span> <span class="n">filename</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:</span><span class="o">-</span><span class="mi">10</span><span class="p">]</span>
+			<span class="k">if</span> <span class="n">slide_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">SLIDES</span><span class="p">:</span>
+				<span class="k">continue</span>
+			<span class="n">category</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">SLIDE_TO_CATEGORY</span><span class="p">[</span><span class="n">slide_name</span><span class="p">]</span>
+			<span class="n">dataset_to_add</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">TFRecordDataset</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">if</span> <span class="n">finite</span> <span class="k">else</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">TFRecordDataset</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">.</span><span class="n">repeat</span><span class="p">()</span>
+			<span class="n">datasets</span> <span class="o">+=</span> <span class="p">[</span><span class="n">dataset_to_add</span><span class="p">]</span>
+			<span class="n">datasets_categories</span> <span class="o">+=</span> <span class="p">[</span><span class="n">category</span><span class="p">]</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="n">tiles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">MANIFEST</span><span class="p">[</span><span class="n">filename</span><span class="p">][</span><span class="s1">&#39;total&#39;</span><span class="p">]</span>
+			<span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+				<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Manifest not finished, unable to find {sfutil.green(filename)}&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+				<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+			<span class="k">if</span> <span class="n">category</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">categories</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+				<span class="n">categories</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">category</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;num_cases&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+											  <span class="s1">&#39;num_tiles&#39;</span><span class="p">:</span> <span class="n">tiles</span><span class="p">}})</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">categories</span><span class="p">[</span><span class="n">category</span><span class="p">][</span><span class="s1">&#39;num_cases&#39;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+				<span class="n">categories</span><span class="p">[</span><span class="n">category</span><span class="p">][</span><span class="s1">&#39;num_tiles&#39;</span><span class="p">]</span> <span class="o">+=</span> <span class="n">tiles</span>
+			<span class="n">num_tiles</span> <span class="o">+=</span> <span class="p">[</span><span class="n">tiles</span><span class="p">]</span>
+		<span class="k">for</span> <span class="n">category</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">:</span>
+			<span class="n">lowest_category_case_count</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="n">categories</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;num_cases&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">])</span>
+			<span class="n">lowest_category_tile_count</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="n">categories</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;num_tiles&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">])</span>
+			<span class="n">categories_prob</span><span class="p">[</span><span class="n">category</span><span class="p">]</span> <span class="o">=</span> <span class="n">lowest_category_case_count</span> <span class="o">/</span> <span class="n">categories</span><span class="p">[</span><span class="n">category</span><span class="p">][</span><span class="s1">&#39;num_cases&#39;</span><span class="p">]</span>
+			<span class="n">categories_tile_fraction</span><span class="p">[</span><span class="n">category</span><span class="p">]</span> <span class="o">=</span> <span class="n">lowest_category_tile_count</span> <span class="o">/</span> <span class="n">categories</span><span class="p">[</span><span class="n">category</span><span class="p">][</span><span class="s1">&#39;num_tiles&#39;</span><span class="p">]</span>
+		<span class="k">if</span> <span class="n">balance</span> <span class="o">==</span> <span class="n">NO_BALANCE</span><span class="p">:</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Not balancing input&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+			<span class="n">prob_weights</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span><span class="o">/</span><span class="nb">sum</span><span class="p">(</span><span class="n">num_tiles</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">num_tiles</span><span class="p">]</span>
+		<span class="k">if</span> <span class="n">balance</span> <span class="o">==</span> <span class="n">BALANCE_BY_CASE</span><span class="p">:</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Balancing input across cases&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+			<span class="n">prob_weights</span> <span class="o">=</span> <span class="kc">None</span>
+			<span class="k">if</span> <span class="n">finite</span><span class="p">:</span>
+				<span class="c1"># Only take as many tiles as the number of tiles in the smallest dataset</span>
+				<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">datasets</span><span class="p">)):</span>
+					<span class="n">num_to_take</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">num_tiles</span><span class="p">)</span>
+					<span class="n">datasets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">datasets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="n">num_to_take</span><span class="p">)</span>
+					<span class="n">global_num_tiles</span> <span class="o">+=</span> <span class="n">num_to_take</span>
+		<span class="k">if</span> <span class="n">balance</span> <span class="o">==</span> <span class="n">BALANCE_BY_CATEGORY</span><span class="p">:</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Balancing input across categories&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+			<span class="n">prob_weights</span> <span class="o">=</span> <span class="p">[</span><span class="n">categories_prob</span><span class="p">[</span><span class="n">datasets_categories</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">datasets</span><span class="p">))]</span>
+			<span class="k">if</span> <span class="n">finite</span><span class="p">:</span>
+				<span class="c1"># Only take as many tiles as the number of tiles in the smallest category</span>
+				<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">datasets</span><span class="p">)):</span>
+					<span class="n">num_to_take</span> <span class="o">=</span> <span class="n">num_tiles</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">categories_tile_fraction</span><span class="p">[</span><span class="n">datasets_categories</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
+					<span class="n">datasets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">datasets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="n">num_to_take</span><span class="p">)</span>
+					<span class="n">global_num_tiles</span> <span class="o">+=</span> <span class="n">num_to_take</span>
+		<span class="c1"># Remove empty cases</span>
+		<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">prob_weights</span><span class="p">)),</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+			<span class="k">if</span> <span class="n">num_tiles</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+				<span class="k">del</span><span class="p">(</span><span class="n">num_tiles</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+				<span class="k">del</span><span class="p">(</span><span class="n">datasets</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+				<span class="k">del</span><span class="p">(</span><span class="n">datasets_categories</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+				<span class="k">del</span><span class="p">(</span><span class="n">prob_weights</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+		<span class="c1"># If the global tile count was not manually set as above, then assume it is the sum of all tiles across all slides</span>
+		<span class="k">if</span> <span class="n">global_num_tiles</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+			<span class="n">global_num_tiles</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">num_tiles</span><span class="p">)</span>
+		<span class="k">try</span><span class="p">:</span>
+			<span class="n">dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">experimental</span><span class="o">.</span><span class="n">sample_from_datasets</span><span class="p">(</span><span class="n">datasets</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="n">prob_weights</span><span class="p">)</span>
+		<span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;No TFRecords found after filter criteria&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+		<span class="k">if</span> <span class="n">include_casenames</span><span class="p">:</span>
+			<span class="n">dataset_with_casenames</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parse_tfrecord_with_casenames_function</span><span class="p">,</span> <span class="n">num_parallel_calls</span> <span class="o">=</span> <span class="mi">8</span><span class="p">)</span>
+			<span class="n">dataset_with_casenames</span> <span class="o">=</span> <span class="n">dataset_with_casenames</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">dataset_with_casenames</span> <span class="o">=</span> <span class="kc">None</span>
+		<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parse_tfrecord_function</span><span class="p">,</span> <span class="n">num_parallel_calls</span> <span class="o">=</span> <span class="mi">8</span><span class="p">)</span>
+		<span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
+		
+		<span class="k">return</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">dataset_with_casenames</span><span class="p">,</span> <span class="n">global_num_tiles</span>
+
+<div class="viewcode-block" id="SlideflowModel.build_dataset_inputs"><a class="viewcode-back" href="../../../slideflow.trainer.html#slideflow.trainer.model.SlideflowModel.build_dataset_inputs">[docs]</a>	<span class="k">def</span> <span class="nf">build_dataset_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tfrecords</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">balance</span><span class="p">,</span> <span class="n">augment</span><span class="p">,</span> <span class="n">finite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">dataset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">include_casenames</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;Assembles dataset inputs from tfrecords.</span>
+<span class="sd">		</span>
+<span class="sd">		Args:</span>
+<span class="sd">			folders:		Array of directories in which to search for cases (subfolders) containing tfrecords</span>
+<span class="sd">			balance:		Whether to use input balancing; options are BALANCE_BY_CASE, BALANCE_BY_CATEGORY, NO_BALANCE</span>
+<span class="sd">								 (only available if TFRECORDS_BY_CASE=True)&#39;&#39;&#39;</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">AUGMENT</span> <span class="o">=</span> <span class="n">augment</span>
+		<span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;input&#39;</span><span class="p">):</span>
+			<span class="n">dataset</span><span class="p">,</span> <span class="n">dataset_with_casenames</span><span class="p">,</span> <span class="n">num_tiles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interleave_tfrecords</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">balance</span><span class="p">,</span> <span class="n">finite</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">include_casenames</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">dataset_with_casenames</span><span class="p">,</span> <span class="n">num_tiles</span></div>
+
+<div class="viewcode-block" id="SlideflowModel.build_model"><a class="viewcode-back" href="../../../slideflow.trainer.html#slideflow.trainer.model.SlideflowModel.build_model">[docs]</a>	<span class="k">def</span> <span class="nf">build_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hp</span><span class="p">,</span> <span class="n">pretrain</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">checkpoint</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="c1"># Assemble base model, using pretraining (imagenet) or the base layers of a supplied model</span>
+		<span class="k">if</span> <span class="n">pretrain</span><span class="p">:</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Using pretraining from {sfutil.green(pretrain)}&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">pretrain</span> <span class="ow">and</span> <span class="n">pretrain</span><span class="o">!=</span><span class="s1">&#39;imagenet&#39;</span><span class="p">:</span>
+			<span class="c1"># Load pretrained model</span>
+			<span class="n">pretrained_model</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">pretrain</span><span class="p">)</span>
+			<span class="n">base_model</span> <span class="o">=</span> <span class="n">pretrained_model</span><span class="o">.</span><span class="n">get_layer</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="c1"># Create model using ImageNet if specified</span>
+			<span class="n">base_model</span> <span class="o">=</span> <span class="n">hp</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">input_shape</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">IMAGE_SIZE</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">IMAGE_SIZE</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+									  <span class="n">weights</span><span class="o">=</span><span class="n">pretrain</span><span class="p">)</span>
+
+		<span class="c1"># Combine base model with top layer (classification/prediction layer)</span>
+		<span class="n">layers</span> <span class="o">=</span> <span class="p">[</span><span class="n">base_model</span><span class="p">]</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">hp</span><span class="o">.</span><span class="n">pooling</span><span class="p">:</span>
+			<span class="n">layers</span> <span class="o">+=</span> <span class="p">[</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Flatten</span><span class="p">()]</span>
+		<span class="c1"># Add hidden layers if specified</span>
+		<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">hp</span><span class="o">.</span><span class="n">hidden_layers</span><span class="p">):</span>
+			<span class="n">layers</span> <span class="o">+=</span> <span class="p">[</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">500</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;relu&#39;</span><span class="p">)]</span>
+		<span class="c1"># If no hidden layers and no pooling is used, flatten the output prior to softmax</span>
+		
+		<span class="c1"># Add the softmax prediction layer</span>
+		<span class="k">if</span> <span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;linear&quot;</span><span class="p">:</span>
+			<span class="n">layers</span> <span class="o">+=</span> <span class="p">[</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">NUM_CLASSES</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">)]</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">layers</span> <span class="o">+=</span> <span class="p">[</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">NUM_CLASSES</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;softmax&#39;</span><span class="p">)]</span>
+		<span class="n">model</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span><span class="n">layers</span><span class="p">)</span>
+		
+		<span class="k">if</span> <span class="n">checkpoint</span><span class="p">:</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Loading checkpoint weights from {sfutil.green(checkpoint)}&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+			<span class="n">model</span><span class="o">.</span><span class="n">load_weights</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span>
+
+		<span class="k">return</span> <span class="n">model</span></div>
+
+<div class="viewcode-block" id="SlideflowModel.generate_roc"><a class="viewcode-back" href="../../../slideflow.trainer.html#slideflow.trainer.model.SlideflowModel.generate_roc">[docs]</a>	<span class="k">def</span> <span class="nf">generate_roc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;ROC&#39;</span><span class="p">):</span>
+		<span class="c1"># Statistics</span>
+		<span class="n">fpr</span><span class="p">,</span> <span class="n">tpr</span><span class="p">,</span> <span class="n">threshold</span> <span class="o">=</span> <span class="n">metrics</span><span class="o">.</span><span class="n">roc_curve</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">)</span>
+		<span class="n">roc_auc</span> <span class="o">=</span> <span class="n">metrics</span><span class="o">.</span><span class="n">auc</span><span class="p">(</span><span class="n">fpr</span><span class="p">,</span> <span class="n">tpr</span><span class="p">)</span>
+
+		<span class="c1"># Plot</span>
+		<span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+		<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;ROC Curve&#39;</span><span class="p">)</span>
+		<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">fpr</span><span class="p">,</span> <span class="n">tpr</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">label</span> <span class="o">=</span> <span class="s1">&#39;AUC = </span><span class="si">%0.2f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">roc_auc</span><span class="p">)</span>
+		<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span> <span class="o">=</span> <span class="s1">&#39;lower right&#39;</span><span class="p">)</span>
+		<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span><span class="s1">&#39;r--&#39;</span><span class="p">)</span>
+		<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+		<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+		<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;TPR&#39;</span><span class="p">)</span>
+		<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;FPR&#39;</span><span class="p">)</span>
+		<span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">DATA_DIR</span><span class="p">,</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{name}</span><span class="s1">.png&#39;</span><span class="p">))</span>
+		<span class="k">return</span> <span class="n">roc_auc</span></div>
+
+<div class="viewcode-block" id="SlideflowModel.generate_scatter"><a class="viewcode-back" href="../../../slideflow.trainer.html#slideflow.trainer.model.SlideflowModel.generate_scatter">[docs]</a>	<span class="k">def</span> <span class="nf">generate_scatter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;_plot&#39;</span><span class="p">):</span>
+		<span class="c1"># Error checking</span>
+		<span class="k">if</span> <span class="n">y_true</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">y_pred</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Y_true and y_pred must have the same shape in order to generate a scatter plot&quot;</span><span class="p">)</span>
+			<span class="k">return</span>
+		
+		<span class="c1"># Perform scatter for each outcome variable</span>
+		<span class="n">r_squared</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">y_true</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+
+			<span class="c1"># Statistics</span>
+			<span class="n">slope</span><span class="p">,</span> <span class="n">intercept</span><span class="p">,</span> <span class="n">r_value</span><span class="p">,</span> <span class="n">p_value</span><span class="p">,</span> <span class="n">std_err</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">linregress</span><span class="p">(</span><span class="n">y_true</span><span class="p">[:,</span><span class="n">i</span><span class="p">],</span> <span class="n">y_pred</span><span class="p">[:,</span><span class="n">i</span><span class="p">])</span>
+			<span class="n">r_squared</span> <span class="o">+=</span> <span class="p">[</span><span class="n">r_value</span> <span class="o">**</span> <span class="mi">2</span><span class="p">]</span>
+
+			<span class="k">def</span> <span class="nf">r2</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+				<span class="k">return</span> <span class="n">stats</span><span class="o">.</span><span class="n">pearsonr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span>
+
+			<span class="c1"># Plot</span>
+			<span class="n">p</span> <span class="o">=</span> <span class="n">sns</span><span class="o">.</span><span class="n">jointplot</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;reg&quot;</span><span class="p">,</span> <span class="n">stat_func</span><span class="o">=</span><span class="n">r2</span><span class="p">)</span>
+			<span class="n">p</span><span class="o">.</span><span class="n">set_axis_labels</span><span class="p">(</span><span class="s1">&#39;y_true&#39;</span><span class="p">,</span> <span class="s1">&#39;y_pred&#39;</span><span class="p">)</span>
+			<span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">DATA_DIR</span><span class="p">,</span> <span class="n">f</span><span class="s1">&#39;Scatter</span><span class="si">{name}</span><span class="s1">.png&#39;</span><span class="p">))</span>
+
+		<span class="k">return</span> <span class="n">r_squared</span></div>
+
+<div class="viewcode-block" id="SlideflowModel.generate_predictions_and_roc"><a class="viewcode-back" href="../../../slideflow.trainer.html#slideflow.trainer.model.SlideflowModel.generate_predictions_and_roc">[docs]</a>	<span class="k">def</span> <span class="nf">generate_predictions_and_roc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">dataset_with_casenames</span><span class="p">,</span> <span class="n">model_type</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;Dataset must include three items: raw image data, labels, and case names.&#39;&#39;&#39;</span>
+
+		<span class="c1"># TODO: return array of aucs for each outcome variable instead of just last</span>
+		
+		<span class="c1"># Get predictions and performance metrics</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Generating predictions...&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+		<span class="n">label_end</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">label</span> <span class="k">else</span> <span class="n">f</span><span class="s2">&quot;_</span><span class="si">{label}</span><span class="s2">&quot;</span>
+		<span class="n">label_start</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">label</span> <span class="k">else</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{label}</span><span class="s2">_&quot;</span>
+		<span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">cases</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[]</span>
+		<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">batch</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dataset_with_casenames</span><span class="p">):</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="se">\r</span><span class="s2">   - Working on batch </span><span class="si">{i}</span><span class="s2">...&quot;</span><span class="p">)</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+			<span class="n">cases</span> <span class="o">+=</span> <span class="p">[</span><span class="n">case_bytes</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">case_bytes</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()]</span>
+			<span class="n">y_true</span> <span class="o">+=</span> <span class="p">[</span><span class="n">batch</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()]</span>
+			<span class="n">y_pred</span> <span class="o">+=</span> <span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">predict_on_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>
+		<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r\033</span><span class="s2">[K&quot;</span><span class="p">)</span>
+		<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+		<span class="n">y_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">y_pred</span><span class="p">)</span>
+		<span class="n">y_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">y_true</span><span class="p">)</span>
+
+		<span class="n">tile_auc</span> <span class="o">=</span> <span class="kc">None</span>
+		<span class="n">slide_auc</span> <span class="o">=</span> <span class="kc">None</span>
+		<span class="n">r_squared</span> <span class="o">=</span> <span class="kc">None</span>
+
+		<span class="k">if</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;linear&#39;</span><span class="p">:</span>
+			<span class="n">y_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">y_true</span><span class="p">])</span>
+			<span class="n">num_cat</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">y_pred</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+			<span class="n">r_squared</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_scatter</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">label_end</span><span class="p">)</span>
+				
+		<span class="k">if</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
+			<span class="c1"># Convert y_true to one_hot encoding</span>
+			<span class="n">num_cat</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">y_pred</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+			<span class="k">def</span> <span class="nf">to_onehot</span><span class="p">(</span><span class="n">val</span><span class="p">):</span>
+				<span class="n">onehot</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_cat</span>
+				<span class="n">onehot</span><span class="p">[</span><span class="n">val</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+				<span class="k">return</span> <span class="n">onehot</span>
+			<span class="n">y_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">to_onehot</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">y_true</span><span class="p">])</span>
+
+			<span class="c1"># Scan datasets for case-level one_hot encoding</span>
+			<span class="n">case_onehot</span> <span class="o">=</span> <span class="p">{}</span>
+			<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cases</span><span class="p">)):</span>
+				<span class="n">casename</span> <span class="o">=</span> <span class="n">cases</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+				<span class="k">if</span> <span class="n">casename</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">case_onehot</span><span class="p">:</span>
+					<span class="n">case_onehot</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">casename</span><span class="p">:</span> <span class="n">y_true</span><span class="p">[</span><span class="n">i</span><span class="p">]})</span>
+				<span class="c1"># Now check for data integrity problems (case assigned to multiple different outcomes)</span>
+				<span class="k">elif</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">case_onehot</span><span class="p">[</span><span class="n">casename</span><span class="p">],</span> <span class="n">y_true</span><span class="p">[</span><span class="n">i</span><span class="p">]):</span>
+					<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Data integrity failure when generating ROCs&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+					<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+
+			<span class="c1"># Generate tile-level ROC</span>
+			<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_cat</span><span class="p">):</span>
+				<span class="n">tile_auc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_roc</span><span class="p">(</span><span class="n">y_true</span><span class="p">[:,</span> <span class="n">i</span><span class="p">],</span> <span class="n">y_pred</span><span class="p">[:,</span> <span class="n">i</span><span class="p">],</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{label_start}</span><span class="s1">tile_ROC</span><span class="si">{i}</span><span class="s1">&#39;</span><span class="p">)</span>
+				<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Tile-level AUC (cat #</span><span class="si">{i}</span><span class="s2">): </span><span class="si">{tile_auc}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+			<span class="c1"># Generate slide-level ROC</span>
+			<span class="n">onehot_predictions</span> <span class="o">=</span> <span class="p">[]</span>
+			<span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y_pred</span><span class="p">)):</span>
+				<span class="n">predictions</span> <span class="o">=</span> <span class="n">y_pred</span><span class="p">[</span><span class="n">x</span><span class="p">]</span>
+				<span class="n">onehot_predictions</span> <span class="o">+=</span> <span class="p">[[</span><span class="mi">1</span> <span class="k">if</span> <span class="n">pred</span> <span class="o">==</span> <span class="nb">max</span><span class="p">(</span><span class="n">predictions</span><span class="p">)</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">pred</span> <span class="ow">in</span> <span class="n">predictions</span><span class="p">]]</span>
+
+			<span class="n">unique_cases</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">cases</span><span class="p">))</span>
+			<span class="n">percent_calls_by_case</span> <span class="o">=</span> <span class="p">[]</span>
+			<span class="k">for</span> <span class="n">case</span> <span class="ow">in</span> <span class="n">unique_cases</span><span class="p">:</span>
+				<span class="n">percentages</span> <span class="o">=</span> <span class="p">[]</span>
+				<span class="k">for</span> <span class="n">cat_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_cat</span><span class="p">):</span>
+					<span class="n">percentages</span> <span class="o">+=</span> <span class="p">[</span><span class="nb">sum</span><span class="p">([</span> <span class="n">onehot_predictions</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">cat_index</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cases</span><span class="p">))</span> <span class="k">if</span> <span class="n">cases</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">case</span> <span class="p">])</span> <span class="o">/</span> <span class="nb">len</span><span class="p">([</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cases</span><span class="p">))</span> <span class="k">if</span> <span class="n">cases</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">case</span><span class="p">])]</span>
+				<span class="n">percent_calls_by_case</span> <span class="o">+=</span> <span class="p">[</span><span class="n">percentages</span><span class="p">]</span>
+			<span class="n">percent_calls_by_case</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">percent_calls_by_case</span><span class="p">)</span>
+
+			<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_cat</span><span class="p">):</span>
+				<span class="n">case_y_pred</span> <span class="o">=</span> <span class="n">percent_calls_by_case</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span>
+				<span class="n">case_y_true</span> <span class="o">=</span> <span class="p">[</span><span class="n">case_onehot</span><span class="p">[</span><span class="n">case</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">case</span> <span class="ow">in</span> <span class="n">unique_cases</span><span class="p">]</span>
+				<span class="n">slide_auc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_roc</span><span class="p">(</span><span class="n">case_y_true</span><span class="p">,</span> <span class="n">case_y_pred</span><span class="p">,</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{label_start}</span><span class="s1">slide_ROC</span><span class="si">{i}</span><span class="s1">&#39;</span><span class="p">)</span>
+				<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Slide-level AUC (cat #</span><span class="si">{i}</span><span class="s2">): </span><span class="si">{slide_auc}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+			<span class="c1"># Save slide-level predictions</span>
+			<span class="n">slide_csv_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">DATA_DIR</span><span class="p">,</span> <span class="n">f</span><span class="s2">&quot;slide_predictions</span><span class="si">{label_end}</span><span class="s2">.csv&quot;</span><span class="p">)</span>
+			<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">slide_csv_dir</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
+				<span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">outfile</span><span class="p">)</span>
+				<span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;case&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">f</span><span class="s2">&quot;y_true</span><span class="si">{i}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_cat</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="n">f</span><span class="s2">&quot;percent_tiles_positive</span><span class="si">{j}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_cat</span><span class="p">)]</span>
+				<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+				<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">case</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">unique_cases</span><span class="p">):</span>
+					<span class="n">case_y_true_onehot</span> <span class="o">=</span> <span class="n">case_onehot</span><span class="p">[</span><span class="n">case</span><span class="p">]</span>
+					<span class="n">row</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span> <span class="p">[</span><span class="n">case</span><span class="p">],</span> <span class="n">case_y_true_onehot</span><span class="p">,</span> <span class="n">percent_calls_by_case</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="p">])</span>
+					<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+		
+		<span class="c1"># Save tile-level predictions</span>
+		<span class="n">tile_csv_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">DATA_DIR</span><span class="p">,</span> <span class="n">f</span><span class="s2">&quot;tile_predictions</span><span class="si">{label_end}</span><span class="s2">.csv&quot;</span><span class="p">)</span>
+		<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">tile_csv_dir</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
+			<span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">outfile</span><span class="p">)</span>
+			<span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;case&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">f</span><span class="s2">&quot;y_true</span><span class="si">{i}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_cat</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="n">f</span><span class="s2">&quot;y_pred</span><span class="si">{j}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_cat</span><span class="p">)]</span>
+			<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+			<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y_true</span><span class="p">)):</span>
+				<span class="n">row</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([[</span><span class="n">cases</span><span class="p">[</span><span class="n">i</span><span class="p">]],</span> <span class="n">y_true</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">y_pred</span><span class="p">[</span><span class="n">i</span><span class="p">]])</span>
+				<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+
+		<span class="n">log</span><span class="o">.</span><span class="n">complete</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Predictions saved to {sfutil.green(self.DATA_DIR)}&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">tile_auc</span><span class="p">,</span> <span class="n">slide_auc</span><span class="p">,</span> <span class="n">r_squared</span></div>
+
+<div class="viewcode-block" id="SlideflowModel.evaluate"><a class="viewcode-back" href="../../../slideflow.trainer.html#slideflow.trainer.model.SlideflowModel.evaluate">[docs]</a>	<span class="k">def</span> <span class="nf">evaluate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tfrecords</span><span class="p">,</span> <span class="n">hp</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">model_type</span><span class="o">=</span><span class="s1">&#39;categorical&#39;</span><span class="p">,</span> <span class="n">checkpoint</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="c1"># Load and initialize model</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">hp</span> <span class="ow">and</span> <span class="n">checkpoint</span><span class="p">:</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;If using a checkpoint for evaluation, hyperparameters must be specified.&quot;</span><span class="p">)</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+		<span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">hp</span> <span class="k">else</span> <span class="n">hp</span><span class="o">.</span><span class="n">batch_size</span>
+		<span class="n">augment</span> <span class="o">=</span> <span class="kc">False</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">hp</span> <span class="k">else</span> <span class="n">hp</span><span class="o">.</span><span class="n">augment</span>
+		<span class="n">dataset</span><span class="p">,</span> <span class="n">dataset_with_casenames</span><span class="p">,</span> <span class="n">num_tiles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_dataset_inputs</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">NO_BALANCE</span><span class="p">,</span> <span class="n">augment</span><span class="p">,</span> <span class="n">finite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_casenames</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">model</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+		<span class="k">elif</span> <span class="n">checkpoint</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_model</span><span class="p">(</span><span class="n">hp</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">load_weights</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span>
+
+		<span class="n">tile_auc</span><span class="p">,</span> <span class="n">slide_auc</span><span class="p">,</span> <span class="n">r_squared</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_predictions_and_roc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">dataset_with_casenames</span><span class="p">,</span> <span class="n">model_type</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;eval&quot;</span><span class="p">)</span>
+
+		<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Tile AUC: </span><span class="si">{tile_auc}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Slide AUC: </span><span class="si">{slide_auc}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;R-squared: </span><span class="si">{r_squared}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+		<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Calculating performance metrics...&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+		<span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+		<span class="k">return</span> <span class="n">results</span></div>
+
+<div class="viewcode-block" id="SlideflowModel.retrain_top_layers"><a class="viewcode-back" href="../../../slideflow.trainer.html#slideflow.trainer.model.SlideflowModel.retrain_top_layers">[docs]</a>	<span class="k">def</span> <span class="nf">retrain_top_layers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">hp</span><span class="p">,</span> <span class="n">train_data</span><span class="p">,</span> <span class="n">validation_data</span><span class="p">,</span> <span class="n">steps_per_epoch</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">epochs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+		<span class="k">if</span> <span class="n">verbose</span><span class="p">:</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Retraining top layer&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+		<span class="c1"># Freeze the base layer</span>
+		<span class="n">model</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">trainable</span> <span class="o">=</span> <span class="kc">False</span>
+		<span class="n">val_steps</span> <span class="o">=</span> <span class="mi">100</span> <span class="k">if</span> <span class="n">validation_data</span> <span class="k">else</span> <span class="kc">None</span>
+
+		<span class="n">model</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">optimizer</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">lr</span><span class="o">=</span><span class="n">hp</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">),</span>
+					  <span class="n">loss</span><span class="o">=</span><span class="n">hp</span><span class="o">.</span><span class="n">loss</span><span class="p">,</span>
+					  <span class="n">metrics</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;accuracy&#39;</span><span class="p">])</span>
+
+		<span class="n">toplayer_model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">train_data</span><span class="p">,</span>
+				  <span class="n">epochs</span><span class="o">=</span><span class="n">epochs</span><span class="p">,</span>
+				  <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span>
+				  <span class="n">steps_per_epoch</span><span class="o">=</span><span class="n">steps_per_epoch</span><span class="p">,</span>
+				  <span class="n">validation_data</span><span class="o">=</span><span class="n">validation_data</span><span class="p">,</span>
+				  <span class="n">validation_steps</span><span class="o">=</span><span class="n">val_steps</span><span class="p">,</span>
+				  <span class="n">callbacks</span><span class="o">=</span><span class="n">callbacks</span><span class="p">)</span>
+
+		<span class="c1"># Unfreeze the base layer</span>
+		<span class="n">model</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">trainable</span> <span class="o">=</span> <span class="kc">True</span>
+		<span class="k">return</span> <span class="n">toplayer_model</span><span class="o">.</span><span class="n">history</span></div>
+
+<div class="viewcode-block" id="SlideflowModel.train"><a class="viewcode-back" href="../../../slideflow.trainer.html#slideflow.trainer.model.SlideflowModel.train">[docs]</a>	<span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hp</span><span class="p">,</span> <span class="n">pretrain</span><span class="o">=</span><span class="s1">&#39;imagenet&#39;</span><span class="p">,</span> <span class="n">resume_training</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">checkpoint</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">supervised</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">log_frequency</span><span class="o">=</span><span class="mi">20</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;Train the model for a number of steps, according to flags set by the argument parser.&#39;&#39;&#39;</span>
+
+		<span class="c1"># Build inputs</span>
+		<span class="n">train_data</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">num_tiles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_dataset_inputs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">TRAIN_TFRECORDS</span><span class="p">,</span> <span class="n">hp</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">hp</span><span class="o">.</span><span class="n">balanced_training</span><span class="p">,</span> <span class="n">hp</span><span class="o">.</span><span class="n">augment</span><span class="p">,</span> <span class="n">dataset</span><span class="o">=</span><span class="s1">&#39;train&#39;</span><span class="p">,</span> <span class="n">include_casenames</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">VALIDATION_TFRECORDS</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">VALIDATION_TFRECORDS</span><span class="p">):</span>
+			<span class="n">validation_data</span><span class="p">,</span> <span class="n">validation_data_with_casenames</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_dataset_inputs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">VALIDATION_TFRECORDS</span><span class="p">,</span> <span class="n">hp</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">hp</span><span class="o">.</span><span class="n">balanced_validation</span><span class="p">,</span> <span class="n">hp</span><span class="o">.</span><span class="n">augment</span><span class="p">,</span> <span class="n">finite</span><span class="o">=</span><span class="n">supervised</span><span class="p">,</span> <span class="n">dataset</span><span class="o">=</span><span class="s1">&#39;validation&#39;</span><span class="p">,</span> <span class="n">include_casenames</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+			<span class="n">validation_data_for_training</span> <span class="o">=</span> <span class="n">validation_data</span><span class="o">.</span><span class="n">repeat</span><span class="p">()</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">validation_data_for_training</span> <span class="o">=</span> <span class="kc">None</span>
+
+		<span class="c1">#testing overide</span>
+		<span class="c1">#num_tiles = 100</span>
+		<span class="c1">#hp.finetune_epochs = 3</span>
+
+		<span class="c1"># Prepare results</span>
+		<span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
+
+		<span class="c1"># Calculate parameters</span>
+		<span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">hp</span><span class="o">.</span><span class="n">finetune_epochs</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">list</span><span class="p">:</span>
+			<span class="n">hp</span><span class="o">.</span><span class="n">finetune_epochs</span> <span class="o">=</span> <span class="p">[</span><span class="n">hp</span><span class="o">.</span><span class="n">finetune_epochs</span><span class="p">]</span>
+		<span class="n">total_epochs</span> <span class="o">=</span> <span class="n">hp</span><span class="o">.</span><span class="n">toplayer_epochs</span> <span class="o">+</span> <span class="nb">max</span><span class="p">(</span><span class="n">hp</span><span class="o">.</span><span class="n">finetune_epochs</span><span class="p">)</span>
+		<span class="n">initialized_optimizer</span> <span class="o">=</span> <span class="n">hp</span><span class="o">.</span><span class="n">get_opt</span><span class="p">()</span>
+		<span class="n">steps_per_epoch</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">num_tiles</span><span class="o">/</span><span class="n">hp</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span>
+		<span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">BatchNormalization</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">UpdatedBatchNormalization</span>
+		<span class="n">verbose</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">supervised</span> <span class="k">else</span> <span class="mi">0</span>
+		<span class="n">val_steps</span> <span class="o">=</span> <span class="mi">200</span>
+		<span class="n">results_log</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">DATA_DIR</span><span class="p">,</span> <span class="s1">&#39;results_log.csv&#39;</span><span class="p">)</span>
+		<span class="n">metrics</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;accuracy&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">!=</span> <span class="s1">&#39;linear&#39;</span> <span class="k">else</span> <span class="p">[</span><span class="n">hp</span><span class="o">.</span><span class="n">loss</span><span class="p">]</span>
+
+		<span class="c1"># Create callbacks for early stopping, checkpoint saving, summaries, and history</span>
+		<span class="n">history_callback</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">callbacks</span><span class="o">.</span><span class="n">History</span><span class="p">()</span>
+		<span class="n">early_stop_callback</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">callbacks</span><span class="o">.</span><span class="n">EarlyStopping</span><span class="p">(</span><span class="n">monitor</span><span class="o">=</span><span class="s1">&#39;val_loss&#39;</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="n">hp</span><span class="o">.</span><span class="n">early_stop_patience</span><span class="p">)</span>
+		<span class="n">checkpoint_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">DATA_DIR</span><span class="p">,</span> <span class="s2">&quot;cp.ckpt&quot;</span><span class="p">)</span>
+		<span class="n">cp_callback</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">callbacks</span><span class="o">.</span><span class="n">ModelCheckpoint</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">,</span>
+														<span class="n">save_weights_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+														<span class="n">verbose</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+		
+		<span class="n">tensorboard_callback</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">callbacks</span><span class="o">.</span><span class="n">TensorBoard</span><span class="p">(</span><span class="n">log_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">DATA_DIR</span><span class="p">,</span> 
+															<span class="n">histogram_freq</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+															<span class="n">write_graph</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+															<span class="n">update_freq</span><span class="o">=</span><span class="n">hp</span><span class="o">.</span><span class="n">batch_size</span><span class="o">*</span><span class="n">log_frequency</span><span class="p">)</span>
+
+		<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">results_log</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">results_file</span><span class="p">:</span>
+			<span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">results_file</span><span class="p">)</span>
+			<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;epoch&#39;</span><span class="p">,</span> <span class="s1">&#39;train_acc&#39;</span><span class="p">,</span> <span class="s1">&#39;val_loss&#39;</span><span class="p">,</span> <span class="s1">&#39;val_acc&#39;</span><span class="p">,</span> <span class="s1">&#39;tile_auc&#39;</span><span class="p">,</span> <span class="s1">&#39;slide_auc&#39;</span><span class="p">])</span>
+		<span class="n">parent</span> <span class="o">=</span> <span class="bp">self</span>
+
+		<span class="k">class</span> <span class="nc">PredictionAndEvaluationCallback</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">callbacks</span><span class="o">.</span><span class="n">Callback</span><span class="p">):</span>
+			<span class="k">def</span> <span class="nf">on_epoch_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">epoch</span><span class="p">,</span> <span class="n">logs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+				<span class="k">if</span> <span class="n">epoch</span><span class="o">+</span><span class="mi">1</span> <span class="ow">in</span> <span class="n">hp</span><span class="o">.</span><span class="n">finetune_epochs</span><span class="p">:</span>
+					<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">DATA_DIR</span><span class="p">,</span> <span class="n">f</span><span class="s2">&quot;trained_model_epoch{epoch+1}.h5&quot;</span><span class="p">))</span>
+					<span class="k">if</span> <span class="n">parent</span><span class="o">.</span><span class="n">VALIDATION_TFRECORDS</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">VALIDATION_TFRECORDS</span><span class="p">):</span>
+						<span class="n">epoch_label</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;val_epoch{epoch+1}&quot;</span>
+						<span class="k">if</span> <span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">!=</span> <span class="s1">&#39;linear&#39;</span><span class="p">:</span>
+							<span class="n">train_acc</span> <span class="o">=</span> <span class="n">logs</span><span class="p">[</span><span class="s1">&#39;accuracy&#39;</span><span class="p">]</span>
+						<span class="k">else</span><span class="p">:</span>
+							<span class="n">train_acc</span> <span class="o">=</span> <span class="n">logs</span><span class="p">[</span><span class="n">hp</span><span class="o">.</span><span class="n">loss</span><span class="p">]</span>
+						<span class="n">tile_auc</span><span class="p">,</span> <span class="n">slide_auc</span><span class="p">,</span> <span class="n">r_squared</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">generate_predictions_and_roc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">validation_data_with_casenames</span><span class="p">,</span> <span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">(),</span> <span class="n">label</span><span class="o">=</span><span class="n">epoch_label</span><span class="p">)</span>
+						<span class="k">if</span> <span class="n">verbose</span><span class="p">:</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Beginning validation testing&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+						<span class="n">val_loss</span><span class="p">,</span> <span class="n">val_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">validation_data</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+						<span class="n">results</span><span class="p">[</span><span class="n">f</span><span class="s1">&#39;epoch{epoch+1}&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+						<span class="n">results</span><span class="p">[</span><span class="n">f</span><span class="s1">&#39;epoch{epoch+1}&#39;</span><span class="p">][</span><span class="s1">&#39;train_acc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">train_acc</span><span class="p">)</span>
+						<span class="n">results</span><span class="p">[</span><span class="n">f</span><span class="s1">&#39;epoch{epoch+1}&#39;</span><span class="p">][</span><span class="s1">&#39;val_loss&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">val_loss</span>
+						<span class="n">results</span><span class="p">[</span><span class="n">f</span><span class="s1">&#39;epoch{epoch+1}&#39;</span><span class="p">][</span><span class="s1">&#39;val_acc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">val_acc</span>
+						<span class="n">results</span><span class="p">[</span><span class="n">f</span><span class="s1">&#39;epoch{epoch+1}&#39;</span><span class="p">][</span><span class="s1">&#39;tile_auc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tile_auc</span>
+						<span class="n">results</span><span class="p">[</span><span class="n">f</span><span class="s1">&#39;epoch{epoch+1}&#39;</span><span class="p">][</span><span class="s1">&#39;slide_auc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">slide_auc</span>
+						<span class="n">results</span><span class="p">[</span><span class="n">f</span><span class="s1">&#39;epoch{epoch+1}&#39;</span><span class="p">][</span><span class="s1">&#39;r_squared&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">r_squared</span>
+
+						<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">results_log</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">results_file</span><span class="p">:</span>
+							<span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">results_file</span><span class="p">)</span>
+							<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">epoch_label</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">train_acc</span><span class="p">),</span> <span class="n">val_loss</span><span class="p">,</span> <span class="n">val_acc</span><span class="p">,</span> <span class="n">tile_auc</span><span class="p">,</span> <span class="n">slide_auc</span><span class="p">])</span>
+
+		<span class="n">callbacks</span> <span class="o">=</span> <span class="p">[</span><span class="n">history_callback</span><span class="p">,</span> <span class="n">PredictionAndEvaluationCallback</span><span class="p">()]</span>
+		<span class="k">if</span> <span class="n">hp</span><span class="o">.</span><span class="n">early_stop</span><span class="p">:</span>
+			<span class="n">callbacks</span> <span class="o">+=</span> <span class="p">[</span><span class="n">early_stop_callback</span><span class="p">]</span>
+		<span class="k">if</span> <span class="n">supervised</span><span class="p">:</span>
+			<span class="n">callbacks</span> <span class="o">+=</span> <span class="p">[</span><span class="n">cp_callback</span><span class="p">,</span> <span class="n">tensorboard_callback</span><span class="p">]</span>
+
+		<span class="c1"># Build or load model</span>
+		<span class="k">if</span> <span class="n">resume_training</span><span class="p">:</span>
+			<span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>	<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Resuming training from {sfutil.green(resume_training)}&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">resume_training</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_model</span><span class="p">(</span><span class="n">hp</span><span class="p">,</span> <span class="n">pretrain</span><span class="o">=</span><span class="n">pretrain</span><span class="p">,</span> <span class="n">checkpoint</span><span class="o">=</span><span class="n">checkpoint</span><span class="p">)</span>
+
+		<span class="c1"># Retrain top layer only if using transfer learning and not resuming training</span>
+		<span class="k">if</span> <span class="n">hp</span><span class="o">.</span><span class="n">toplayer_epochs</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">retrain_top_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">hp</span><span class="p">,</span> <span class="n">train_data</span><span class="o">.</span><span class="n">repeat</span><span class="p">(),</span> <span class="n">validation_data_for_training</span><span class="p">,</span> <span class="n">steps_per_epoch</span><span class="p">,</span> 
+									<span class="n">callbacks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">epochs</span><span class="o">=</span><span class="n">hp</span><span class="o">.</span><span class="n">toplayer_epochs</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
+
+		<span class="c1"># Fine-tune the model</span>
+		<span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>	<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Beginning fine-tuning&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">loss</span><span class="o">=</span><span class="n">hp</span><span class="o">.</span><span class="n">loss</span><span class="p">,</span>
+					<span class="n">optimizer</span><span class="o">=</span><span class="n">initialized_optimizer</span><span class="p">,</span>
+					<span class="n">metrics</span><span class="o">=</span><span class="n">metrics</span><span class="p">)</span>
+
+		<span class="n">finetune_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">train_data</span><span class="o">.</span><span class="n">repeat</span><span class="p">(),</span>
+			<span class="n">steps_per_epoch</span><span class="o">=</span><span class="n">steps_per_epoch</span><span class="p">,</span>
+			<span class="n">epochs</span><span class="o">=</span><span class="n">total_epochs</span><span class="p">,</span>
+			<span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span>
+			<span class="n">initial_epoch</span><span class="o">=</span><span class="n">hp</span><span class="o">.</span><span class="n">toplayer_epochs</span><span class="p">,</span>
+			<span class="n">validation_data</span><span class="o">=</span><span class="n">validation_data_for_training</span><span class="p">,</span>
+			<span class="n">validation_steps</span><span class="o">=</span><span class="n">val_steps</span><span class="p">,</span>
+			<span class="n">callbacks</span><span class="o">=</span><span class="n">callbacks</span><span class="p">)</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">DATA_DIR</span><span class="p">,</span> <span class="s2">&quot;trained_model.h5&quot;</span><span class="p">))</span>
+		<span class="k">if</span> <span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">()</span> <span class="o">!=</span> <span class="s1">&#39;linear&#39;</span><span class="p">:</span>
+			<span class="n">train_acc</span> <span class="o">=</span> <span class="n">finetune_model</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="s1">&#39;accuracy&#39;</span><span class="p">]</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">train_acc</span> <span class="o">=</span> <span class="n">finetune_model</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="n">hp</span><span class="o">.</span><span class="n">loss</span><span class="p">]</span>
+
+		<span class="c1"># Final validation testing, getting both overall accuracy/loss and predictions for ROCs</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">VALIDATION_TFRECORDS</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">VALIDATION_TFRECORDS</span><span class="p">):</span>
+			<span class="k">if</span> <span class="n">verbose</span><span class="p">:</span> <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Beginning final validation testing&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+			<span class="n">val_loss</span><span class="p">,</span> <span class="n">val_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">validation_data</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">val_loss</span><span class="p">,</span> <span class="n">val_acc</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span><span class="mi">0</span>
+
+		<span class="n">results</span><span class="p">[</span><span class="s1">&#39;final&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+		<span class="n">results</span><span class="p">[</span><span class="s1">&#39;final&#39;</span><span class="p">][</span><span class="s1">&#39;train_acc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">train_acc</span><span class="p">)</span>
+		<span class="n">results</span><span class="p">[</span><span class="s1">&#39;final&#39;</span><span class="p">][</span><span class="s1">&#39;val_loss&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">val_loss</span>
+		<span class="n">results</span><span class="p">[</span><span class="s1">&#39;final&#39;</span><span class="p">][</span><span class="s1">&#39;val_acc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">val_acc</span>
+
+		<span class="k">return</span> <span class="n">results</span></div></div>
+		
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, James M Dolezal
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

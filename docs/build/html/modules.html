@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Source code &mdash; slideflow 1.0 documentation</title>
+  <title>Source code &mdash; slideflow 0.9.9 documentation</title>
   
 
   
@@ -17,34 +17,36 @@
   
 
   
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
 
-  
-  
     
 
   
-
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="convoluter module" href="convoluter.html" />
+    <link rel="next" title="slideflow" href="slideflow.html" />
     <link rel="prev" title="Setting up a Project" href="project.html" /> 
-
-  
-  <script src="_static/js/modernizr.min.js"></script>
-
 </head>
 
 <body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
-
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search">
+        <div class="wy-side-nav-search" >
           
 
           
@@ -58,7 +60,7 @@
             
             
               <div class="version">
-                1.0
+                0.9
               </div>
             
           
@@ -88,12 +90,16 @@
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project.html">Setting up a Project</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Source code</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="convoluter.html">convoluter module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="histcon.html">histcon module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="progress_bar.html">progress module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="data_utils.html">data_utils module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="fastim.html">fastim module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="mosaic.html">fastim module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.html">slideflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.util.html">slideflow.util</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.util.html#module-slideflow.util.datasets">slideflow.util.datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.util.html#module-slideflow.util.fastim">slideflow.util.fastim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.util.html#module-slideflow.util.progress_bar">slideflow.util.progress_bar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.util.html#module-slideflow.util.tfrecords">slideflow.util.tfrecords</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.trainer.html">slideflow.trainer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.trainer.html#module-slideflow.trainer.model">slideflow.trainer.model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.convoluter.html">slideflow.convoluter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.mosaic.html">slideflow.mosaic</a></li>
 </ul>
 </li>
 </ul>
@@ -164,12 +170,16 @@
 <h1>Source code<a class="headerlink" href="#source-code" title="Permalink to this headline">¶</a></h1>
 <div class="toctree-wrapper compound">
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="convoluter.html">convoluter module</a></li>
-<li class="toctree-l1"><a class="reference internal" href="histcon.html">histcon module</a></li>
-<li class="toctree-l1"><a class="reference internal" href="progress_bar.html">progress module</a></li>
-<li class="toctree-l1"><a class="reference internal" href="data_utils.html">data_utils module</a></li>
-<li class="toctree-l1"><a class="reference internal" href="fastim.html">fastim module</a></li>
-<li class="toctree-l1"><a class="reference internal" href="mosaic.html">fastim module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.html">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.util.html#module-slideflow.util.datasets">slideflow.util.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.util.html#module-slideflow.util.fastim">slideflow.util.fastim</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.util.html#module-slideflow.util.progress_bar">slideflow.util.progress_bar</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.util.html#module-slideflow.util.tfrecords">slideflow.util.tfrecords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.trainer.html">slideflow.trainer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.trainer.html#module-slideflow.trainer.model">slideflow.trainer.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.convoluter.html">slideflow.convoluter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.mosaic.html">slideflow.mosaic</a></li>
 </ul>
 </div>
 </div>
@@ -182,10 +192,10 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="convoluter.html" class="btn btn-neutral float-right" title="convoluter module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="slideflow.html" class="btn btn-neutral float-right" title="slideflow" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="project.html" class="btn btn-neutral" title="Setting up a Project" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="project.html" class="btn btn-neutral float-left" title="Setting up a Project" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
@@ -211,26 +221,16 @@
   
 
 
-  
-
-    
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
-    
-
-  
-
-  <script type="text/javascript" src="_static/js/theme.js"></script>
-
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
+
+  
+  
+    
+   
 
 </body>
 </html>
