@@ -19,8 +19,8 @@ Image.MAX_IMAGE_PIXELS = 100000000000
 Fast Plotter for Large Images - Resamples Images to a target resolution on each zoom.
 '''
 class FastImshow:
-    '''
-    Fast plotter for large image buffers
+    '''Fast plotter for large image buffers
+
     Example::
         sz = (10000,20000) # rows, cols
         buf = np.arange(sz[0]*sz[1]).reshape(sz)

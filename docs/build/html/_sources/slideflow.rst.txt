@@ -1,7 +1,7 @@
-fastim module
-=============
+slideflow
+=========
 
-.. automodule:: mosaic
+.. automodule:: slideflow
     :members:
     :undoc-members:
     :show-inheritance:

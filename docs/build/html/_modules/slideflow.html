@@ -1,0 +1,993 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow &mdash; slideflow 0.9.9 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> slideflow
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.9
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../project.html">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">Source code</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">slideflow</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="index.html">Module code</a> &raquo;</li>
+        
+      <li>slideflow</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for slideflow</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;tensorflow&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">ERROR</span><span class="p">)</span>
+<span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
+
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="k">import</span> <span class="n">join</span><span class="p">,</span> <span class="n">isfile</span><span class="p">,</span> <span class="n">exists</span><span class="p">,</span> <span class="n">isdir</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="k">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">glob</span> <span class="k">import</span> <span class="n">glob</span>
+<span class="kn">from</span> <span class="nn">random</span> <span class="k">import</span> <span class="n">shuffle</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+
+<span class="kn">import</span> <span class="nn">gc</span>
+<span class="kn">import</span> <span class="nn">atexit</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">slideflow.trainer.model</span> <span class="k">as</span> <span class="nn">sfmodel</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span>
+<span class="kn">import</span> <span class="nn">slideflow.util</span> <span class="k">as</span> <span class="nn">sfutil</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="k">import</span> <span class="n">datasets</span><span class="p">,</span> <span class="n">tfrecords</span><span class="p">,</span> <span class="n">TCGAAnnotations</span><span class="p">,</span> <span class="n">log</span>
+<span class="kn">from</span> <span class="nn">slideflow.mosaic</span> <span class="k">import</span> <span class="n">Mosaic</span>
+
+<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;0.9.9&quot;</span>
+
+<span class="n">SKIP_VERIFICATION</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="n">NUM_THREADS</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="n">EVAL_BATCH_SIZE</span> <span class="o">=</span> <span class="mi">64</span>
+<span class="n">GPU_LOCK</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="n">NO_LABEL</span> <span class="o">=</span> <span class="s1">&#39;no_label&#39;</span>
+<span class="n">SOURCE_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+
+<div class="viewcode-block" id="set_logging_level"><a class="viewcode-back" href="../slideflow.html#slideflow.set_logging_level">[docs]</a><span class="k">def</span> <span class="nf">set_logging_level</span><span class="p">(</span><span class="n">level</span><span class="p">):</span>
+	<span class="n">sfutil</span><span class="o">.</span><span class="n">LOGGING_LEVEL</span><span class="o">.</span><span class="n">INFO</span> <span class="o">=</span> <span class="n">level</span></div>
+
+<div class="viewcode-block" id="autoselect_gpu"><a class="viewcode-back" href="../slideflow.html#slideflow.autoselect_gpu">[docs]</a><span class="k">def</span> <span class="nf">autoselect_gpu</span><span class="p">(</span><span class="n">number_available</span><span class="p">):</span>
+	<span class="k">global</span> <span class="n">GPU_LOCK</span>
+	<span class="sd">&#39;&#39;&#39;Automatically claims a free GPU and creates a lock file to prevent </span>
+<span class="sd">	other instances of slideflow from using the same GPU.&#39;&#39;&#39;</span>
+	<span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">number_available</span><span class="p">):</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">SOURCE_DIR</span><span class="p">,</span> <span class="n">f</span><span class="s2">&quot;gpu</span><span class="si">{n}</span><span class="s2">.lock&quot;</span><span class="p">)):</span>
+			<span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Requesting GPU #</span><span class="si">{n}</span><span class="s2">&quot;</span><span class="p">)</span>
+			<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;CUDA_VISIBLE_DEVICES&quot;</span><span class="p">]</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+			<span class="nb">open</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">SOURCE_DIR</span><span class="p">,</span> <span class="n">f</span><span class="s2">&quot;gpu</span><span class="si">{n}</span><span class="s2">.lock&quot;</span><span class="p">),</span> <span class="s1">&#39;a&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+			<span class="n">GPU_LOCK</span> <span class="o">=</span> <span class="n">n</span>
+			<span class="k">return</span>
+	<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;No free GPUs detected; try deleting &#39;gpu[#].lock&#39; files in the slideflow directory if GPUs are not in use.&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="select_gpu"><a class="viewcode-back" href="../slideflow.html#slideflow.select_gpu">[docs]</a><span class="k">def</span> <span class="nf">select_gpu</span><span class="p">(</span><span class="n">number</span><span class="p">):</span>
+	<span class="k">global</span> <span class="n">GPU_LOCK</span>
+	<span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Requesting GPU #</span><span class="si">{number}</span><span class="s2">&quot;</span><span class="p">)</span>
+	<span class="n">GPU_LOCK</span> <span class="o">=</span> <span class="n">number</span>
+	<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;CUDA_VISIBLE_DEVICES&quot;</span><span class="p">]</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">number</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="exit_script"><a class="viewcode-back" href="../slideflow.html#slideflow.exit_script">[docs]</a><span class="k">def</span> <span class="nf">exit_script</span><span class="p">():</span>
+	<span class="k">global</span> <span class="n">GPU_LOCK</span>
+	<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Cleaning up...&quot;</span><span class="p">)</span>
+	<span class="k">if</span> <span class="n">GPU_LOCK</span> <span class="o">!=</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">SOURCE_DIR</span><span class="p">,</span> <span class="n">f</span><span class="s2">&quot;gpu</span><span class="si">{GPU_LOCK}</span><span class="s2">.lock&quot;</span><span class="p">)):</span>
+		<span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Freeing GPU </span><span class="si">{GPU_LOCK}</span><span class="s2">...&quot;</span><span class="p">)</span>
+		<span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">SOURCE_DIR</span><span class="p">,</span> <span class="n">f</span><span class="s2">&quot;gpu</span><span class="si">{GPU_LOCK}</span><span class="s2">.lock&quot;</span><span class="p">))</span></div>
+	
+<span class="n">atexit</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">exit_script</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SlideFlowProject"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject">[docs]</a><span class="k">class</span> <span class="nc">SlideFlowProject</span><span class="p">:</span>
+	<span class="n">MANIFEST</span> <span class="o">=</span> <span class="kc">None</span>
+	<span class="n">USE_FP16</span> <span class="o">=</span> <span class="kc">True</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_folder</span><span class="p">):</span>
+		<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;TF_CPP_MIN_LOG_LEVEL&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;3&quot;</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">header</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Slideflow v</span><span class="si">{__version__}</span><span class="se">\n</span><span class="s2">================&quot;</span><span class="p">)</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">header</span><span class="p">(</span><span class="s2">&quot;Loading project...&quot;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">project_folder</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">project_folder</span><span class="p">):</span>
+			<span class="k">if</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">yes_no_input</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Directory &quot;</span><span class="si">{project_folder}</span><span class="s1">&quot; does not exist. Create directory and set as project root? [Y/n] &#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;yes&#39;</span><span class="p">):</span>
+				<span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">project_folder</span><span class="p">)</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">project_folder</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">dir_input</span><span class="p">(</span><span class="s2">&quot;Where is the project root directory? &quot;</span><span class="p">,</span> <span class="n">create_on_invalid</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">project_folder</span><span class="p">:</span>
+			<span class="n">project_folder</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">dir_input</span><span class="p">(</span><span class="s2">&quot;Where is the project root directory? &quot;</span><span class="p">,</span> <span class="n">create_on_invalid</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+		<span class="n">sfutil</span><span class="o">.</span><span class="n">PROJECT_DIR</span> <span class="o">=</span> <span class="n">project_folder</span>
+
+		<span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">project_folder</span><span class="p">,</span> <span class="s2">&quot;settings.json&quot;</span><span class="p">)):</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="n">project_folder</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">create_project</span><span class="p">()</span>
+		
+<div class="viewcode-block" id="SlideFlowProject.extract_tiles"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.extract_tiles">[docs]</a>	<span class="k">def</span> <span class="nf">extract_tiles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filter_header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">filter_values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subfolder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">skip_validation</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+		<span class="kn">import</span> <span class="nn">slideflow.convoluter</span> <span class="k">as</span> <span class="nn">convoluter</span>
+
+		<span class="n">log</span><span class="o">.</span><span class="n">header</span><span class="p">(</span><span class="s2">&quot;Extracting image tiles...&quot;</span><span class="p">)</span>
+		<span class="n">subfolder</span> <span class="o">=</span> <span class="n">NO_LABEL</span> <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">subfolder</span> <span class="ow">or</span> <span class="n">subfolder</span><span class="o">==</span><span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="n">subfolder</span>
+		<span class="n">convoluter</span><span class="o">.</span><span class="n">NUM_THREADS</span> <span class="o">=</span> <span class="n">NUM_THREADS</span>
+		<span class="n">slide_list</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">get_filtered_slide_paths</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;slides_dir&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">],</span> <span class="n">filter_header</span><span class="o">=</span><span class="n">filter_header</span><span class="p">,</span>
+																				  							  <span class="n">filter_values</span><span class="o">=</span><span class="n">filter_values</span><span class="p">)</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Extracting tiles from {len(slide_list)} slides&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+		<span class="n">save_folder</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tiles_dir&#39;</span><span class="p">],</span> <span class="n">subfolder</span><span class="p">)</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">save_folder</span><span class="p">):</span>
+			<span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">save_folder</span><span class="p">)</span>
+
+		<span class="n">c</span> <span class="o">=</span> <span class="n">convoluter</span><span class="o">.</span><span class="n">Convoluter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tile_px&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tile_um&#39;</span><span class="p">],</span> <span class="n">batch_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+																					<span class="n">use_fp16</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;use_fp16&#39;</span><span class="p">],</span> 
+																					<span class="n">stride_div</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+																					<span class="n">save_folder</span><span class="o">=</span><span class="n">save_folder</span><span class="p">,</span> 
+																					<span class="n">roi_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;roi_dir&#39;</span><span class="p">])</span>
+		<span class="n">c</span><span class="o">.</span><span class="n">load_slides</span><span class="p">(</span><span class="n">slide_list</span><span class="p">)</span>
+		<span class="n">c</span><span class="o">.</span><span class="n">convolute_slides</span><span class="p">(</span><span class="n">export_tiles</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">skip_validation</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;validation_target&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;per-tile&#39;</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">separate_validation_tiles</span><span class="p">(</span><span class="n">save_folder</span><span class="p">)</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">generate_tfrecord</span><span class="p">(</span><span class="n">subfolder</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.separate_validation_tiles"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.separate_validation_tiles">[docs]</a>	<span class="k">def</span> <span class="nf">separate_validation_tiles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder</span><span class="p">):</span>
+		<span class="c1"># If validation is performed per-tile, separate tiles from each slide into </span>
+		<span class="c1">#  the necessary number of groups, before combining into tfrecords</span>
+		<span class="n">val_target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;validation_target&#39;</span><span class="p">]</span>
+		<span class="n">val_strategy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;validation_strategy&#39;</span><span class="p">]</span>
+		<span class="n">val_fraction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;validation_fraction&#39;</span><span class="p">]</span>
+		<span class="n">k_fold</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;validation_k_fold&#39;</span><span class="p">]</span>
+
+		<span class="k">if</span> <span class="n">val_target</span> <span class="o">==</span> <span class="s1">&#39;per-tile&#39;</span><span class="p">:</span>
+			<span class="k">if</span> <span class="n">val_strategy</span> <span class="o">==</span> <span class="s1">&#39;boostrap&#39;</span><span class="p">:</span>
+				<span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Validation bootstrapping is not supported when the validation target is per-tile; will generate random fixed validation target&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+			<span class="k">if</span> <span class="n">val_strategy</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;bootstrap&#39;</span><span class="p">,</span> <span class="s1">&#39;fixed&#39;</span><span class="p">):</span>
+				<span class="c1"># Split the extracted tiles into two groups</span>
+				<span class="n">datasets</span><span class="o">.</span><span class="n">split_tiles</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">fraction</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">val_fraction</span><span class="p">],</span> <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;training&#39;</span><span class="p">,</span> <span class="s1">&#39;validation&#39;</span><span class="p">])</span>
+			<span class="k">if</span> <span class="n">val_strategy</span> <span class="o">==</span> <span class="s1">&#39;k-fold&#39;</span><span class="p">:</span>
+				<span class="n">datasets</span><span class="o">.</span><span class="n">split_tiles</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">fraction</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">k_fold</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="n">f</span><span class="s1">&#39;kfold-</span><span class="si">{i}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k_fold</span><span class="p">)])</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.generate_tfrecord"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.generate_tfrecord">[docs]</a>	<span class="k">def</span> <span class="nf">generate_tfrecord</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subfolder</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;Create tfrecord files from a collection of raw images&#39;&#39;&#39;</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">header</span><span class="p">(</span><span class="s1">&#39;Writing TFRecord files...&#39;</span><span class="p">)</span>
+		<span class="n">subfolder</span> <span class="o">=</span> <span class="n">NO_LABEL</span> <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">subfolder</span> <span class="ow">or</span> <span class="n">subfolder</span><span class="o">==</span><span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="n">subfolder</span>
+		<span class="n">tfrecord_dir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tfrecord_dir&#39;</span><span class="p">],</span> <span class="n">subfolder</span><span class="p">)</span>
+		<span class="n">tiles_dir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tiles_dir&#39;</span><span class="p">],</span> <span class="n">subfolder</span><span class="p">)</span>
+
+		<span class="c1"># Check to see if subdirectories in the target folders are case directories (contain images)</span>
+		<span class="c1">#  or are further subdirectories (e.g. validation and training)</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Scanning tile directory structure...&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">contains_nested_subdirs</span><span class="p">(</span><span class="n">tiles_dir</span><span class="p">):</span>
+			<span class="n">subdirs</span> <span class="o">=</span> <span class="p">[</span><span class="n">_dir</span> <span class="k">for</span> <span class="n">_dir</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">tiles_dir</span><span class="p">)</span> <span class="k">if</span> <span class="n">isdir</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tiles_dir</span><span class="p">,</span> <span class="n">_dir</span><span class="p">))]</span>
+			<span class="k">for</span> <span class="n">subdir</span> <span class="ow">in</span> <span class="n">subdirs</span><span class="p">:</span>
+				<span class="n">tfrecord_subdir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">tfrecord_dir</span><span class="p">,</span> <span class="n">subdir</span><span class="p">)</span>
+				<span class="n">tfrecords</span><span class="o">.</span><span class="n">write_tfrecords_multi</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tiles_dir</span><span class="p">,</span> <span class="n">subdir</span><span class="p">),</span> <span class="n">tfrecord_subdir</span><span class="p">)</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">update_manifest</span><span class="p">(</span><span class="n">tfrecord_subdir</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">tfrecords</span><span class="o">.</span><span class="n">write_tfrecords_multi</span><span class="p">(</span><span class="n">tiles_dir</span><span class="p">,</span> <span class="n">tfrecord_dir</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">update_manifest</span><span class="p">(</span><span class="n">tfrecord_dir</span><span class="p">)</span>
+
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;delete_tiles&#39;</span><span class="p">]:</span>
+			<span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">tiles_dir</span><span class="p">)</span>		</div>
+
+<div class="viewcode-block" id="SlideFlowProject.delete_tiles"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.delete_tiles">[docs]</a>	<span class="k">def</span> <span class="nf">delete_tiles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subfolder</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="n">delete_folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tiles_dir&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">subfolder</span> <span class="k">else</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tiles_dir&#39;</span><span class="p">],</span> <span class="n">subfolder</span><span class="p">)</span>
+		<span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">delete_folder</span><span class="p">)</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Deleted tiles in folder {sfutil.green(delete_folder)}&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.checkpoint_to_h5"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.checkpoint_to_h5">[docs]</a>	<span class="k">def</span> <span class="nf">checkpoint_to_h5</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_name</span><span class="p">):</span>
+		<span class="n">tfrecords</span><span class="o">.</span><span class="n">checkpoint_to_h5</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;models_dir&#39;</span><span class="p">],</span> <span class="n">model_name</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.update_tfrecord_casenames"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.update_tfrecord_casenames">[docs]</a>	<span class="k">def</span> <span class="nf">update_tfrecord_casenames</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subfolder</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="n">subfolder</span> <span class="o">=</span> <span class="n">NO_LABEL</span> <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">subfolder</span> <span class="ow">or</span> <span class="n">subfolder</span><span class="o">==</span><span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="n">subfolder</span>
+		<span class="n">tfrecord_dir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tfrecord_dir&#39;</span><span class="p">],</span> <span class="n">subfolder</span><span class="p">)</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">header</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Updating TFRecords in {sfutil.green(tfrecord_dir)}...&quot;</span><span class="p">)</span>
+		<span class="n">tfrecords</span><span class="o">.</span><span class="n">tfrecord_name_to_case</span><span class="p">(</span><span class="n">tfrecord_dir</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.get_training_and_validation_tfrecords"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.get_training_and_validation_tfrecords">[docs]</a>	<span class="k">def</span> <span class="nf">get_training_and_validation_tfrecords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subfolder</span><span class="p">,</span> <span class="n">slide_list</span><span class="p">,</span> <span class="n">validation_target</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">validation_strategy</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+												<span class="n">validation_fraction</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">validation_k_fold</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">k_fold_iter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;From a specified subfolder within the project&#39;s main TFRecord folder, prepare a training set and validation set.</span>
+<span class="sd">		If a validation plan has already been prepared (e.g. K-fold iterations were already determined), will use the previously generated plan.</span>
+<span class="sd">		Otherwise, creates a new plan and logs the result in the TFRecord directory so future models may use the same plan for consistency.</span>
+
+<span class="sd">		Returns two arrays: an array of full paths to training tfrecords, and an array of paths to validation tfrecords.&#39;&#39;&#39;</span> 
+
+		<span class="n">tfrecord_dir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tfrecord_dir&#39;</span><span class="p">],</span> <span class="n">subfolder</span><span class="p">)</span>
+		<span class="n">subdirs</span> <span class="o">=</span> <span class="p">[</span><span class="n">sd</span> <span class="k">for</span> <span class="n">sd</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">tfrecord_dir</span><span class="p">)</span> <span class="k">if</span> <span class="n">isdir</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tfrecord_dir</span><span class="p">,</span> <span class="n">sd</span><span class="p">))]</span>
+		<span class="k">if</span> <span class="n">k_fold_iter</span><span class="p">:</span> <span class="n">k_fold_index</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">k_fold_iter</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span>
+		<span class="n">training_tfrecords</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="n">validation_tfrecords</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="n">validation_plan</span> <span class="o">=</span> <span class="p">{}</span>
+
+		<span class="n">val_target</span> <span class="o">=</span> <span class="n">validation_target</span> <span class="k">if</span> <span class="n">validation_target</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;validation_target&#39;</span><span class="p">]</span>
+		<span class="n">val_strategy</span> <span class="o">=</span> <span class="n">validation_strategy</span> <span class="k">if</span> <span class="n">validation_strategy</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;validation_strategy&#39;</span><span class="p">]</span>
+		<span class="n">val_fraction</span> <span class="o">=</span> <span class="n">validation_fraction</span> <span class="k">if</span> <span class="n">validation_fraction</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;validation_fraction&#39;</span><span class="p">]</span>
+		<span class="n">k_fold</span> <span class="o">=</span> <span class="n">validation_k_fold</span> <span class="k">if</span> <span class="n">validation_k_fold</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;validation_k_fold&#39;</span><span class="p">]</span>
+
+		<span class="c1"># If validation is done per-tile, use pre-separated TFRecord files (validation separation done at time of TFRecord creation)</span>
+		<span class="k">if</span> <span class="n">val_target</span> <span class="o">==</span> <span class="s1">&#39;per-tile&#39;</span><span class="p">:</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Loading pre-separated TFRecords in {sfutil.green(subfolder)}&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+			<span class="k">if</span> <span class="n">val_strategy</span> <span class="o">==</span> <span class="s1">&#39;bootstrap&#39;</span><span class="p">:</span>
+				<span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Validation bootstrapping is not supported when the validation target is per-tile; using tfrecords in &#39;training&#39; and &#39;validation&#39; subdirectories&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+			<span class="k">if</span> <span class="n">val_strategy</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;bootstrap&#39;</span><span class="p">,</span> <span class="s1">&#39;fixed&#39;</span><span class="p">):</span>
+				<span class="c1"># Load tfrecords from &#39;validation&#39; and &#39;training&#39; subdirectories</span>
+				<span class="k">if</span> <span class="p">(</span><span class="s1">&#39;validation&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">subdirs</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="s1">&#39;training&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">subdirs</span><span class="p">):</span>
+					<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;{sfutil.bold(val_strategy)} selected as validation strategy but tfrecords are not organized as such (unable to find &#39;training&#39; or &#39;validation&#39; subdirectories)&quot;</span><span class="p">)</span>
+					<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+				<span class="n">training_tfrecords</span> <span class="o">+=</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tfrecord_dir</span><span class="p">,</span> <span class="s1">&#39;training&#39;</span><span class="p">,</span> <span class="s2">&quot;*.tfrecords&quot;</span><span class="p">))</span>
+				<span class="n">validation_tfrecords</span> <span class="o">+=</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tfrecord_dir</span><span class="p">,</span> <span class="s1">&#39;validation&#39;</span><span class="p">,</span> <span class="s2">&quot;*.tfrecords&quot;</span><span class="p">))</span>
+			<span class="k">elif</span> <span class="n">val_strategy</span> <span class="o">==</span> <span class="s1">&#39;k-fold&#39;</span><span class="p">:</span>
+				<span class="k">if</span> <span class="ow">not</span> <span class="n">k_fold_iter</span><span class="p">:</span>
+					<span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;No k-fold iteration specified; assuming iteration #1&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+					<span class="n">k_fold_iter</span> <span class="o">=</span> <span class="mi">1</span>
+				<span class="k">if</span> <span class="n">k_fold_iter</span> <span class="o">&gt;</span> <span class="n">k_fold</span><span class="p">:</span>
+					<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;K-fold iteration supplied (</span><span class="si">{k_fold_iter}</span><span class="s2">) exceeds the project K-fold setting (</span><span class="si">{k_fold}</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+					<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+				<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k_fold</span><span class="p">):</span>
+					<span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tfrecord_dir</span><span class="p">,</span> <span class="n">f</span><span class="s1">&#39;kfold-</span><span class="si">{k}</span><span class="s1">&#39;</span><span class="p">)):</span>
+						<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Unable to find kfold-</span><span class="si">{k}</span><span class="s2"> in {sfutil.green(tfrecord_dir)}&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+						<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+					<span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="n">k_fold_index</span><span class="p">:</span>
+						<span class="n">validation_tfrecords</span> <span class="o">+=</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tfrecord_dir</span><span class="p">,</span> <span class="n">f</span><span class="s1">&#39;kfold-</span><span class="si">{k}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s2">&quot;*.tfrecords&quot;</span><span class="p">))</span>
+					<span class="k">else</span><span class="p">:</span>
+						<span class="n">training_tfrecords</span> <span class="o">+=</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tfrecord_dir</span><span class="p">,</span> <span class="n">f</span><span class="s1">&#39;kfold-</span><span class="si">{k}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s2">&quot;*.tfrecords&quot;</span><span class="p">))</span>
+			<span class="k">elif</span> <span class="n">val_strategy</span> <span class="o">==</span> <span class="s1">&#39;none&#39;</span><span class="p">:</span>
+				<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">subdirs</span><span class="p">):</span>
+					<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Validation strategy set as &#39;none&#39; but the TFRecord directory has been configured for validation (contains subfolders {&#39;, &#39;.join(subdirs)})&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+					<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+			<span class="c1"># Remove tfrecords not specified in slide_list</span>
+			<span class="n">training_tfrecords</span> <span class="o">=</span> <span class="p">[</span><span class="n">tfr</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">training_tfrecords</span> <span class="k">if</span> <span class="n">tfr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:</span><span class="o">-</span><span class="mi">10</span><span class="p">]</span> <span class="ow">in</span> <span class="n">slide_list</span><span class="p">]</span>
+			<span class="n">validation_tfrecords</span> <span class="o">=</span> <span class="p">[</span><span class="n">tfr</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">validation_tfrecords</span> <span class="k">if</span> <span class="n">tfr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:</span><span class="o">-</span><span class="mi">10</span><span class="p">]</span> <span class="ow">in</span> <span class="n">slide_list</span><span class="p">]</span>
+
+		<span class="c1"># If validation is done per-slide, create and log a validation subset</span>
+		<span class="k">elif</span> <span class="n">val_target</span> <span class="o">==</span> <span class="s1">&#39;per-slide&#39;</span><span class="p">:</span>
+			<span class="n">validation_log</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">tfrecord_dir</span><span class="p">,</span> <span class="s2">&quot;validation_plan.json&quot;</span><span class="p">)</span>
+			<span class="n">tfrecords</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tfrecord_dir</span><span class="p">,</span> <span class="s2">&quot;*.tfrecords&quot;</span><span class="p">))</span>
+			<span class="n">tfrecords</span> <span class="o">=</span> <span class="p">[</span><span class="n">tfr</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tfrecord_dir</span><span class="p">,</span> <span class="s2">&quot;*.tfrecords&quot;</span><span class="p">))</span> <span class="k">if</span> <span class="n">tfr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:</span><span class="o">-</span><span class="mi">10</span><span class="p">]</span> <span class="ow">in</span> <span class="n">slide_list</span><span class="p">]</span>
+			<span class="n">shuffle</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">)</span>
+			<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">subdirs</span><span class="p">):</span>
+				<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Validation target set to &#39;per-slide&#39;, but the TFRecord directory has validation configured per-tile (contains subfolders {&#39;, &#39;.join(subdirs)}&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+				<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+			<span class="k">if</span> <span class="n">val_strategy</span> <span class="o">==</span> <span class="s1">&#39;bootstrap&#39;</span><span class="p">:</span>
+				<span class="n">num_val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">val_fraction</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">))</span>
+				<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Using boostrap validation: selecting {sfutil.bold(num_val)} slides at random to use for validation testing&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+				<span class="n">validation_tfrecords</span> <span class="o">=</span> <span class="n">tfrecords</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">num_val</span><span class="p">]</span>
+				<span class="n">training_tfrecords</span> <span class="o">=</span> <span class="n">tfrecords</span><span class="p">[</span><span class="n">num_val</span><span class="p">:]</span>
+			<span class="k">elif</span> <span class="n">val_strategy</span> <span class="o">==</span> <span class="s1">&#39;fixed&#39;</span><span class="p">:</span>
+				<span class="n">num_val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">val_fraction</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">))</span>
+				<span class="c1"># Start by checking for a valid plan</span>
+				<span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">validation_log</span><span class="p">):</span>
+					<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;No validation log found; will log validation plan at {sfutil.green(validation_log)}&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">validation_plan</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">load_json</span><span class="p">(</span><span class="n">validation_log</span><span class="p">)</span>
+					<span class="k">if</span> <span class="s1">&#39;fixed&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">validation_plan</span><span class="p">:</span>
+						<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;No fixed validation plan found in {sfutil.green(validation_log)}; will create new plan&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+					<span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">validation_plan</span><span class="p">[</span><span class="s1">&#39;fixed&#39;</span><span class="p">])</span> <span class="o">!=</span> <span class="n">num_val</span><span class="p">:</span>
+						<span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Fixed validation plan detected at {sfutil.green(validation_log)}, but does not match provided slide set; will create new validation plan&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+					<span class="k">else</span><span class="p">:</span>
+						<span class="n">valid_plan</span> <span class="o">=</span> <span class="kc">True</span>
+						<span class="k">for</span> <span class="n">tf</span> <span class="ow">in</span> <span class="n">validation_plan</span><span class="p">[</span><span class="s1">&#39;fixed&#39;</span><span class="p">]:</span>
+							<span class="k">if</span> <span class="n">tf</span><span class="p">[:</span><span class="o">-</span><span class="mi">10</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">slide_list</span><span class="p">:</span>
+								<span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Fixed validation plan detected at {sfutil.green(validation_log)}, but contains tfrecords not in slide set; will create new validation plan&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+								<span class="n">valid_plan</span> <span class="o">=</span> <span class="kc">False</span>
+						<span class="k">if</span> <span class="n">valid_plan</span><span class="p">:</span>
+							<span class="c1"># Use existing valid plan</span>
+							<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Using fixed validation plan detected at {sfutil.green(validation_log)}&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+							<span class="n">training_tfrecords</span> <span class="o">=</span> <span class="p">[</span><span class="n">tfr</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">tfrecords</span> <span class="k">if</span> <span class="n">tfr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">validation_plan</span><span class="p">[</span><span class="s1">&#39;fixed&#39;</span><span class="p">]]</span> 
+							<span class="n">validation_tfrecords</span> <span class="o">=</span> <span class="p">[</span><span class="n">tfr</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">tfrecords</span> <span class="k">if</span> <span class="n">tfr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">in</span> <span class="n">validation_plan</span><span class="p">[</span><span class="s1">&#39;fixed&#39;</span><span class="p">]]</span> 
+							<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+							<span class="k">return</span> <span class="n">training_tfrecords</span><span class="p">,</span> <span class="n">validation_tfrecords</span>
+				<span class="c1"># Create a new fixed validation plan and log plan results</span>
+				<span class="n">validation_tfrecords</span> <span class="o">=</span> <span class="n">tfrecords</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">num_val</span><span class="p">]</span>
+				<span class="n">training_tfrecords</span> <span class="o">=</span> <span class="n">tfrecords</span><span class="p">[</span><span class="n">num_val</span><span class="p">:]</span>
+				<span class="n">validation_plan</span><span class="p">[</span><span class="s1">&#39;fixed&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">tfr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">validation_tfrecords</span><span class="p">]</span>
+				<span class="n">sfutil</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="n">validation_plan</span><span class="p">,</span> <span class="n">validation_log</span><span class="p">)</span>
+			<span class="k">elif</span> <span class="n">val_strategy</span> <span class="o">==</span> <span class="s1">&#39;k-fold&#39;</span><span class="p">:</span>
+				<span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">validation_log</span><span class="p">):</span>
+					<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;No validation log found; will log validation plan at {sfutil.green(validation_log)}&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">validation_plan</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">load_json</span><span class="p">(</span><span class="n">validation_log</span><span class="p">)</span>
+					<span class="k">if</span> <span class="s1">&#39;k-fold&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">validation_plan</span><span class="p">:</span>
+						<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;No k-fold validation plan found in {sfutil.green(validation_log)}; will create new plan&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+					<span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">validation_plan</span><span class="p">[</span><span class="s1">&#39;k-fold&#39;</span><span class="p">])</span> <span class="o">!=</span> <span class="n">k_fold</span><span class="p">:</span>
+						<span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;K-fold validation plan detected at {sfutil.green(validation_log)}, but logged k ({len(validation_plan[&#39;k-fold&#39;])}) does not match project setting (</span><span class="si">{k_fold}</span><span class="s2">); will create new validation plan&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+					<span class="k">else</span><span class="p">:</span>
+						<span class="n">logged_cases</span> <span class="o">=</span> <span class="p">[]</span>
+						<span class="k">for</span> <span class="n">fold</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">validation_plan</span><span class="p">[</span><span class="s1">&#39;k-fold&#39;</span><span class="p">])):</span>
+							<span class="n">logged_cases</span> <span class="o">+=</span> <span class="n">validation_plan</span><span class="p">[</span><span class="s1">&#39;k-fold&#39;</span><span class="p">][</span><span class="n">fold</span><span class="p">]</span>
+						<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">logged_cases</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">):</span>
+							<span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;K-fold validation plan detected at {sfutil.green(validation_log)}, but number of cases do not match; will create new plan&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+						<span class="k">else</span><span class="p">:</span>
+							<span class="n">valid_plan</span> <span class="o">=</span> <span class="kc">True</span>
+							<span class="k">for</span> <span class="n">tf</span> <span class="ow">in</span> <span class="n">logged_cases</span><span class="p">:</span>
+								<span class="k">if</span> <span class="n">tf</span><span class="p">[:</span><span class="o">-</span><span class="mi">10</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">slide_list</span><span class="p">:</span>
+									<span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;K-fold validation plan detected at {sfutil.green(validation_log)}, but contains tfrecords not in slide set; will create new validation plan&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+									<span class="n">valid_plan</span> <span class="o">=</span> <span class="kc">False</span>
+							<span class="k">if</span> <span class="n">valid_plan</span><span class="p">:</span>
+								<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Using k-fold validation plan detected at {sfutil.green(validation_log)}&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+								<span class="n">training_tfrecords</span> <span class="o">=</span> <span class="p">[</span><span class="n">tfr</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">tfrecords</span> <span class="k">if</span> <span class="p">(</span><span class="n">tfr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">validation_plan</span><span class="p">[</span><span class="s1">&#39;k-fold&#39;</span><span class="p">][</span><span class="n">k_fold_index</span><span class="p">])</span> <span class="ow">and</span> 
+																				  <span class="p">(</span><span class="n">tfr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">in</span> <span class="n">logged_cases</span><span class="p">)]</span>
+								<span class="n">validation_tfrecords</span> <span class="o">=</span> <span class="p">[</span><span class="n">tfr</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">tfrecords</span> <span class="k">if</span> <span class="n">tfr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">in</span> <span class="n">validation_plan</span><span class="p">[</span><span class="s1">&#39;k-fold&#39;</span><span class="p">][</span><span class="n">k_fold_index</span><span class="p">]]</span> 
+								<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+								<span class="k">return</span> <span class="n">training_tfrecords</span><span class="p">,</span> <span class="n">validation_tfrecords</span>
+				<span class="c1"># Create a new k-fold validation plan and log plan results</span>
+				<span class="n">validation_plan</span><span class="p">[</span><span class="s1">&#39;k-fold&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+				<span class="k">def</span> <span class="nf">split</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+					<span class="n">k</span><span class="p">,</span> <span class="n">m</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="n">n</span><span class="p">)</span>
+					<span class="k">return</span> <span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span> <span class="nb">min</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">m</span><span class="p">):(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span> <span class="nb">min</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">m</span><span class="p">)]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
+
+				<span class="n">split_records</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">split</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">,</span> <span class="n">k_fold</span><span class="p">))</span>
+				<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k_fold</span><span class="p">):</span>
+					<span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="n">k_fold_index</span><span class="p">:</span>
+						<span class="n">validation_tfrecords</span> <span class="o">=</span> <span class="n">split_records</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+					<span class="k">else</span><span class="p">:</span>
+						<span class="n">training_tfrecords</span> <span class="o">+=</span> <span class="n">split_records</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+					<span class="n">validation_plan</span><span class="p">[</span><span class="s1">&#39;k-fold&#39;</span><span class="p">]</span> <span class="o">+=</span> <span class="p">[[</span><span class="n">tfr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">split_records</span><span class="p">[</span><span class="n">k</span><span class="p">]]]</span>
+				<span class="n">sfutil</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="n">validation_plan</span><span class="p">,</span> <span class="n">validation_log</span><span class="p">)</span>
+
+			<span class="k">elif</span> <span class="n">val_strategy</span> <span class="o">==</span> <span class="s1">&#39;none&#39;</span><span class="p">:</span>
+				<span class="n">training_tfrecords</span> <span class="o">+=</span> <span class="n">tfrecords</span>
+
+		<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">training_tfrecords</span><span class="p">,</span> <span class="n">validation_tfrecords</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.initialize_model"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.initialize_model">[docs]</a>	<span class="k">def</span> <span class="nf">initialize_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_name</span><span class="p">,</span> <span class="n">train_tfrecords</span><span class="p">,</span> <span class="n">validation_tfrecords</span><span class="p">,</span> <span class="n">category_header</span><span class="p">,</span> <span class="n">filter_header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">filter_values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">skip_validation</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">model_type</span><span class="o">=</span><span class="s1">&#39;categorical&#39;</span><span class="p">):</span>
+		<span class="c1"># Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)</span>
+		<span class="n">slide_to_category</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">get_annotations_dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">],</span> <span class="s1">&#39;slide&#39;</span><span class="p">,</span> <span class="n">category_header</span><span class="p">,</span> 
+																							<span class="n">filter_header</span><span class="o">=</span><span class="n">filter_header</span><span class="p">,</span> 
+																							<span class="n">filter_values</span><span class="o">=</span><span class="n">filter_values</span><span class="p">,</span>
+																							<span class="n">use_encode</span><span class="o">=</span><span class="p">(</span><span class="n">model_type</span><span class="o">==</span><span class="s1">&#39;categorical&#39;</span><span class="p">),</span>
+																							<span class="n">use_float</span><span class="o">=</span><span class="p">(</span><span class="n">model_type</span><span class="o">==</span><span class="s1">&#39;linear&#39;</span><span class="p">))</span>
+
+		<span class="n">model_dir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;models_dir&#39;</span><span class="p">],</span> <span class="n">model_name</span><span class="p">)</span>
+
+		<span class="c1"># Build a model using the slide list as input and the annotations dictionary as output labels</span>
+		<span class="n">SFM</span> <span class="o">=</span> <span class="n">sfmodel</span><span class="o">.</span><span class="n">SlideflowModel</span><span class="p">(</span><span class="n">model_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tile_px&#39;</span><span class="p">],</span> <span class="n">slide_to_category</span><span class="p">,</span> <span class="n">train_tfrecords</span><span class="p">,</span> <span class="n">validation_tfrecords</span><span class="p">,</span>
+																				<span class="n">manifest</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">MANIFEST</span><span class="p">,</span> 
+																				<span class="n">use_fp16</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;use_fp16&#39;</span><span class="p">],</span>
+																				<span class="n">model_type</span><span class="o">=</span><span class="n">model_type</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">SFM</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.evaluate"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.evaluate">[docs]</a>	<span class="k">def</span> <span class="nf">evaluate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">category_header</span><span class="p">,</span> <span class="n">model_type</span><span class="o">=</span><span class="s1">&#39;categorical&#39;</span><span class="p">,</span> <span class="n">filter_header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">filter_values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subfolder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">checkpoint</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">header</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Evaluating model {sfutil.bold(model)}...&quot;</span><span class="p">)</span>
+		<span class="n">subfolder</span> <span class="o">=</span> <span class="n">NO_LABEL</span> <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">subfolder</span> <span class="ow">or</span> <span class="n">subfolder</span><span class="o">==</span><span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="n">subfolder</span>
+		<span class="n">model_name</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+		<span class="n">tfrecord_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tfrecord_dir&#39;</span><span class="p">],</span> <span class="n">subfolder</span><span class="p">)</span>
+		<span class="n">tfrecords</span> <span class="o">=</span> <span class="p">[]</span>
+
+		<span class="c1"># Check if given subfolder contains split data (tiles split into multiple TFRecords, likely for validation testing)</span>
+		<span class="c1"># If true, can merge inputs and evaluate all data.</span>
+		<span class="n">subdirs</span> <span class="o">=</span> <span class="p">[</span><span class="n">sd</span> <span class="k">for</span> <span class="n">sd</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">tfrecord_path</span><span class="p">)</span> <span class="k">if</span> <span class="n">isdir</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tfrecord_path</span><span class="p">,</span> <span class="n">sd</span><span class="p">))]</span>
+		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">subdirs</span><span class="p">):</span>
+			<span class="k">if</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">yes_no_input</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Warning: TFRecord directory {sfutil.green(subfolder)} contains data split into sub-directories ({&#39;, &#39;.join([sfutil.green(s) for s in subdirs])}); merge for evaluation? [y/N] &quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;no&#39;</span><span class="p">):</span>
+				<span class="n">folders_to_search</span> <span class="o">=</span> <span class="p">[</span><span class="n">join</span><span class="p">(</span><span class="n">tfrecord_path</span><span class="p">,</span> <span class="n">subdir</span><span class="p">)</span> <span class="k">for</span> <span class="n">subdir</span> <span class="ow">in</span> <span class="n">subdirs</span><span class="p">]</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="k">return</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">folders_to_search</span> <span class="o">=</span> <span class="p">[</span><span class="n">tfrecord_path</span><span class="p">]</span>
+		<span class="k">for</span> <span class="n">folder</span> <span class="ow">in</span> <span class="n">folders_to_search</span><span class="p">:</span>
+			<span class="n">tfrecords</span> <span class="o">+=</span> <span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;*.tfrecords&quot;</span><span class="p">))</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Evaluating {sfutil.bold(len(tfrecords))} tfrecords&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+		<span class="c1"># Set up model for evaluation</span>
+		<span class="n">SFM</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initialize_model</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;eval-</span><span class="si">{model_name}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">category_header</span><span class="p">,</span> <span class="n">filter_header</span><span class="p">,</span> <span class="n">filter_values</span><span class="p">,</span> <span class="n">skip_validation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">model_type</span><span class="o">=</span><span class="n">model_type</span><span class="p">)</span>
+		<span class="n">model_dir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;models_dir&#39;</span><span class="p">],</span> <span class="n">model</span><span class="p">,</span> <span class="s2">&quot;trained_model.h5&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">model</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:]</span> <span class="o">!=</span> <span class="s2">&quot;.h5&quot;</span> <span class="k">else</span> <span class="n">model</span>
+		<span class="n">results</span> <span class="o">=</span> <span class="n">SFM</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">tfrecords</span><span class="o">=</span><span class="n">tfrecords</span><span class="p">,</span> <span class="n">hp</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="n">model_dir</span><span class="p">,</span> <span class="n">model_type</span><span class="o">=</span><span class="n">model_type</span><span class="p">,</span> <span class="n">checkpoint</span><span class="o">=</span><span class="n">checkpoint</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">EVAL_BATCH_SIZE</span><span class="p">)</span>
+		<span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">results</span></div>
+
+	<span class="k">def</span> <span class="nf">_get_hp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">row</span><span class="p">,</span> <span class="n">header</span><span class="p">):</span>
+		<span class="n">model_name_i</span> <span class="o">=</span> <span class="n">header</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;model_name&#39;</span><span class="p">)</span>
+		<span class="n">args</span> <span class="o">=</span> <span class="n">header</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">model_name_i</span><span class="p">]</span> <span class="o">+</span> <span class="n">header</span><span class="p">[</span><span class="n">model_name_i</span><span class="o">+</span><span class="mi">1</span><span class="p">:]</span>
+		<span class="n">model_name</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">model_name_i</span><span class="p">]</span>
+		<span class="n">hp</span> <span class="o">=</span> <span class="n">sfmodel</span><span class="o">.</span><span class="n">HyperParameters</span><span class="p">()</span>
+		<span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+			<span class="n">value</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">header</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">arg</span><span class="p">)]</span>
+			<span class="k">if</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">hp</span><span class="o">.</span><span class="n">_get_args</span><span class="p">():</span>
+				<span class="k">if</span> <span class="n">arg</span> <span class="o">!=</span> <span class="s1">&#39;finetune_epochs&#39;</span><span class="p">:</span>
+					<span class="n">arg_type</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">hp</span><span class="p">,</span> <span class="n">arg</span><span class="p">))</span>
+					<span class="nb">setattr</span><span class="p">(</span><span class="n">hp</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">arg_type</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">epochs</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)]</span>
+					<span class="nb">setattr</span><span class="p">(</span><span class="n">hp</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">epochs</span><span class="p">)</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Unknown argument &#39;</span><span class="si">{arg}</span><span class="s2">&#39; found in training config file.&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">hp</span><span class="p">,</span> <span class="n">model_name</span>
+
+	<span class="k">def</span> <span class="nf">_get_valid_models</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch_train_file</span><span class="p">,</span> <span class="n">models</span><span class="p">):</span>
+		<span class="n">models_to_train</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">batch_train_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">csv_file</span><span class="p">:</span>
+			<span class="n">reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">csv_file</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+			<span class="n">header</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="n">model_name_i</span> <span class="o">=</span> <span class="n">header</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;model_name&#39;</span><span class="p">)</span>
+			<span class="k">except</span><span class="p">:</span>
+				<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Unable to find column &#39;model_name&#39; in the batch training config file.&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+				<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span> 
+			<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+				<span class="n">model_name</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">model_name_i</span><span class="p">]</span>
+				<span class="c1"># First check if this row is a valid model</span>
+				<span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">models</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">models</span><span class="p">)</span><span class="o">==</span><span class="nb">str</span> <span class="ow">and</span> <span class="n">model_name</span><span class="o">==</span><span class="n">models</span><span class="p">)</span> <span class="ow">or</span> <span class="n">model_name</span> <span class="ow">in</span> <span class="n">models</span><span class="p">:</span>
+					<span class="c1"># Now verify there are no duplicate model names</span>
+					<span class="k">if</span> <span class="n">model_name</span> <span class="ow">in</span> <span class="n">models_to_train</span><span class="p">:</span>
+						<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Duplicate model names found in {sfutil.green(batch_train_file)}.&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+						<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+					<span class="n">models_to_train</span> <span class="o">+=</span> <span class="p">[</span><span class="n">model_name</span><span class="p">]</span>
+		<span class="k">return</span> <span class="n">models_to_train</span>
+
+	<span class="k">def</span> <span class="nf">_update_results_log</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">results_log_path</span><span class="p">,</span> <span class="n">model_name</span><span class="p">,</span> <span class="n">results_dict</span><span class="p">):</span>
+		<span class="c1"># First, read current results log into a dictionary</span>
+		<span class="n">results_log</span> <span class="o">=</span> <span class="p">{}</span>
+		<span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">results_log_path</span><span class="p">):</span>
+			<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">results_log_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">results_file</span><span class="p">:</span>
+				<span class="n">reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">results_file</span><span class="p">)</span>
+				<span class="n">headers</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+				<span class="n">model_name_i</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;model_name&#39;</span><span class="p">)</span>
+				<span class="n">result_keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">headers</span> <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="s1">&#39;model_name&#39;</span><span class="p">]</span>
+				<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+					<span class="n">name</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">model_name_i</span><span class="p">]</span>
+					<span class="n">results_log</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+					<span class="k">for</span> <span class="n">result_key</span> <span class="ow">in</span> <span class="n">result_keys</span><span class="p">:</span>
+						<span class="n">result</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">result_key</span><span class="p">)]</span>
+						<span class="n">results_log</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="n">result_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+			<span class="c1"># Move the current log file into a temporary file</span>
+			<span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">results_log_path</span><span class="p">,</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{results_log_path}</span><span class="s2">.temp&quot;</span><span class="p">)</span>
+
+		<span class="c1"># Next, update the results log with the new results data</span>
+		<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="n">results_dict</span><span class="p">:</span>
+			<span class="n">results_log</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{model_name}</span><span class="s1">-</span><span class="si">{epoch}</span><span class="s1">&#39;</span><span class="p">:</span> <span class="n">results_dict</span><span class="p">[</span><span class="n">epoch</span><span class="p">]})</span>
+
+		<span class="c1"># Finally, create a new log file incorporating the new data</span>
+		<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">results_log_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">results_file</span><span class="p">:</span>
+			<span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">results_file</span><span class="p">)</span>
+			<span class="n">result_keys</span> <span class="o">=</span> <span class="p">[]</span>
+			<span class="c1"># Search through results to find all results keys</span>
+			<span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">results_log</span><span class="p">:</span>
+				<span class="n">result_keys</span> <span class="o">+=</span> <span class="nb">list</span><span class="p">(</span><span class="n">results_log</span><span class="p">[</span><span class="n">model</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+			<span class="c1"># Remove duplicate result keys</span>
+			<span class="n">result_keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">result_keys</span><span class="p">))</span>
+			<span class="c1"># Write header labels</span>
+			<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;model_name&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">result_keys</span><span class="p">)</span>
+			<span class="c1"># Iterate through model results and record</span>
+			<span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">results_log</span><span class="p">:</span>
+				<span class="n">row</span> <span class="o">=</span> <span class="p">[</span><span class="n">model</span><span class="p">]</span>
+				<span class="c1"># Include all saved metrics</span>
+				<span class="k">for</span> <span class="n">result_key</span> <span class="ow">in</span> <span class="n">result_keys</span><span class="p">:</span>
+					<span class="k">if</span> <span class="n">result_key</span> <span class="ow">in</span> <span class="n">results_log</span><span class="p">[</span><span class="n">model</span><span class="p">]:</span>
+						<span class="n">row</span> <span class="o">+=</span> <span class="p">[</span><span class="n">results_log</span><span class="p">[</span><span class="n">model</span><span class="p">][</span><span class="n">result_key</span><span class="p">]]</span>
+					<span class="k">else</span><span class="p">:</span>
+						<span class="n">row</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;&quot;</span><span class="p">]</span>
+				<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+
+		<span class="c1"># Delete the old results log file</span>
+		<span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{results_log_path}</span><span class="s2">.temp&quot;</span><span class="p">):</span>
+			<span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{results_log_path}</span><span class="s2">.temp&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SlideFlowProject.train"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.train">[docs]</a>	<span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">models</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subfolder</span><span class="o">=</span><span class="n">NO_LABEL</span><span class="p">,</span> <span class="n">category_header</span><span class="o">=</span><span class="s1">&#39;category&#39;</span><span class="p">,</span> <span class="n">filter_header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">filter_values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resume_training</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+				<span class="n">checkpoint</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pretrain</span><span class="o">=</span><span class="s1">&#39;imagenet&#39;</span><span class="p">,</span> <span class="n">supervised</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">batch_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">model_type</span><span class="o">=</span><span class="s1">&#39;categorical&#39;</span><span class="p">,</span>
+				<span class="n">validation_target</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">validation_strategy</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">validation_fraction</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">validation_k_fold</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">k_fold_iter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;Train model(s) given configurations found in batch_train.tsv.</span>
+
+<span class="sd">		Args:</span>
+<span class="sd">			models				(optional) Either string representing a model name or an array of strings containing model names. </span>
+<span class="sd">									Will train models with these names in the batch_train.tsv config file.</span>
+<span class="sd">									Defaults to None, which will train all models in the batch_train.tsv config file.</span>
+<span class="sd">			subfolder			(optional) Which dataset to pull tfrecord files from (subdirectory in tfrecord_dir); defaults to &#39;no_label&#39;</span>
+<span class="sd">			category_header		(optional) Which header in the annotation file to use for the output category. Defaults to &#39;category&#39;</span>
+<span class="sd">			filter_header		(optional) Filter slides to inculde in training by this column</span>
+<span class="sd">			filter_values		(optional) String or array of strings. Only train on slides with these values in the filter_header column.</span>
+<span class="sd">			resume_training		(optional) Path to .h5 model to continue training</span>
+<span class="sd">			checkpoint			(optional) Path to cp.ckpt from which to load weights</span>
+<span class="sd">			supervised			(optional) Whether to use verbose output and save training progress to Tensorboard</span>
+<span class="sd">			batch_file			(optional) Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.</span>
+<span class="sd">			model_type			(optional) Type of output variable, either categorical (default) or linear.</span>
+<span class="sd">			validation_target 	(optional) Whether to select validation data on a &#39;per-slide&#39; or &#39;per-tile&#39; basis. If not specified, will use project default.</span>
+<span class="sd">			validation_strategy	(optional) Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.</span>
+<span class="sd">			validation_fraction	(optional) Fraction of data to use for validation testing. If not specified, will use project default.</span>
+<span class="sd">			validation_k_fold 	(optional) K, if using k-fold validation. If not specified, will use project default.</span>
+<span class="sd">			k_fold_iter			(optional) Which iteration to train if using k-fold validation. Defaults to training all iterations.</span>
+
+<span class="sd">		Returns:</span>
+<span class="sd">			A dictionary containing model names mapped to train_acc, val_loss, and val_acc</span>
+<span class="sd">		&#39;&#39;&#39;</span>
+		<span class="c1"># Get list of slides for training and establish validation plan</span>
+		<span class="n">batch_train_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;batch_train_config&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">batch_file</span> <span class="k">else</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">global_path</span><span class="p">(</span><span class="n">batch_file</span><span class="p">)</span>
+		<span class="n">validation_target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;validation_target&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">validation_target</span> <span class="k">else</span> <span class="n">validation_target</span>
+		<span class="n">validation_strategy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;validation_strategy&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">validation_strategy</span> <span class="k">else</span> <span class="n">validation_strategy</span>
+		<span class="n">validation_fraction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;validation_fraction&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">validation_fraction</span> <span class="k">else</span> <span class="n">validation_fraction</span>
+		<span class="n">validation_k_fold</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;validation_k_fold&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">validation_k_fold</span> <span class="k">else</span> <span class="n">validation_k_fold</span>
+		<span class="n">k_fold_iter</span> <span class="o">=</span> <span class="p">[</span><span class="n">k_fold_iter</span><span class="p">]</span> <span class="k">if</span> <span class="p">(</span><span class="n">k_fold_iter</span> <span class="o">!=</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">k_fold_iter</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="n">k_fold_iter</span>
+		<span class="n">k_fold</span> <span class="o">=</span> <span class="n">validation_k_fold</span> <span class="k">if</span> <span class="n">validation_strategy</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;k-fold&#39;</span><span class="p">,</span> <span class="s1">&#39;bootstrap&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="mi">0</span>
+		<span class="n">valid_k</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">k_fold</span> <span class="k">else</span> <span class="p">[</span><span class="n">kf</span> <span class="k">for</span> <span class="n">kf</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k_fold</span><span class="p">)</span> <span class="k">if</span> <span class="p">((</span><span class="n">k_fold_iter</span> <span class="ow">and</span> <span class="n">kf</span> <span class="ow">in</span> <span class="n">k_fold_iter</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="n">k_fold_iter</span><span class="p">))]</span>
+		<span class="n">results_log_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;root&#39;</span><span class="p">],</span> <span class="s2">&quot;results_log.csv&quot;</span><span class="p">)</span>
+
+		<span class="n">slide_to_category</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">get_annotations_dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">],</span> <span class="s1">&#39;slide&#39;</span><span class="p">,</span> <span class="n">category_header</span><span class="p">,</span> 
+																							<span class="n">filter_header</span><span class="o">=</span><span class="n">filter_header</span><span class="p">,</span> 
+																							<span class="n">filter_values</span><span class="o">=</span><span class="n">filter_values</span><span class="p">,</span>
+																							<span class="n">use_encode</span><span class="o">=</span><span class="p">(</span><span class="n">model_type</span><span class="o">==</span><span class="s1">&#39;categorical&#39;</span><span class="p">))</span>
+		<span class="n">slide_list</span> <span class="o">=</span> <span class="n">slide_to_category</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+
+		<span class="c1"># Quickly scan for errors (duplicate model names) and prepare models to train</span>
+		<span class="n">models_to_train</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_valid_models</span><span class="p">(</span><span class="n">batch_train_file</span><span class="p">,</span> <span class="n">models</span><span class="p">)</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">header</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Training {len(models_to_train)} models...&quot;</span><span class="p">)</span>
+
+		<span class="c1"># Next, prepare the multiprocessing manager (needed to free VRAM after training)</span>
+		<span class="n">manager</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Manager</span><span class="p">()</span>
+		<span class="n">results_dict</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">dict</span><span class="p">()</span>
+
+		<span class="c1"># Create a worker that can execute one round of training</span>
+		<span class="k">def</span> <span class="nf">trainer</span><span class="p">(</span><span class="n">results_dict</span><span class="p">,</span> <span class="n">model_name</span><span class="p">,</span> <span class="n">hp</span><span class="p">,</span> <span class="n">k_fold_i</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+			<span class="k">if</span> <span class="n">supervised</span><span class="p">:</span>
+				<span class="n">k_fold_msg</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">k_fold_i</span> <span class="k">else</span> <span class="n">f</span><span class="s2">&quot; (</span><span class="si">{validation_strategy}</span><span class="s2"> iteration #</span><span class="si">{k_fold_i}</span><span class="s2">)&quot;</span>
+				<span class="n">log</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Training model {sfutil.bold(model_name)}</span><span class="si">{k_fold_msg}</span><span class="s2">...&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+				<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">hp</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+			<span class="n">full_model_name</span> <span class="o">=</span> <span class="n">model_name</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">k_fold_i</span> <span class="k">else</span> <span class="n">model_name</span><span class="o">+</span><span class="n">f</span><span class="s2">&quot;-kfold</span><span class="si">{k_fold_i}</span><span class="s2">&quot;</span>
+
+			<span class="c1"># Get TFRecords for training and validation</span>
+			<span class="n">training_tfrecords</span><span class="p">,</span> <span class="n">validation_tfrecords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_training_and_validation_tfrecords</span><span class="p">(</span><span class="n">subfolder</span><span class="p">,</span> <span class="n">slide_list</span><span class="p">,</span> <span class="n">validation_target</span><span class="o">=</span><span class="n">validation_target</span><span class="p">,</span>
+																														 <span class="n">validation_strategy</span><span class="o">=</span><span class="n">validation_strategy</span><span class="p">,</span>
+																														 <span class="n">validation_fraction</span><span class="o">=</span><span class="n">validation_fraction</span><span class="p">,</span>
+																														 <span class="n">validation_k_fold</span><span class="o">=</span><span class="n">validation_k_fold</span><span class="p">,</span>
+																														 <span class="n">k_fold_iter</span><span class="o">=</span><span class="n">k_fold_i</span><span class="p">)</span>
+			<span class="c1"># Initialize model</span>
+			<span class="n">SFM</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initialize_model</span><span class="p">(</span><span class="n">full_model_name</span><span class="p">,</span> <span class="n">training_tfrecords</span><span class="p">,</span> <span class="n">validation_tfrecords</span><span class="p">,</span> <span class="n">category_header</span><span class="p">,</span> <span class="n">filter_header</span><span class="p">,</span> <span class="n">filter_values</span><span class="p">,</span> <span class="n">model_type</span><span class="o">=</span><span class="n">model_type</span><span class="p">)</span>
+
+			<span class="c1"># Log hyperparameters</span>
+			<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;models_dir&#39;</span><span class="p">],</span> <span class="n">full_model_name</span><span class="p">,</span> <span class="s1">&#39;hyperparameters.log&#39;</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">hp_file</span><span class="p">:</span>
+				<span class="n">hp_text</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;Tile pixel size: </span><span class="si">{self.PROJECT[&#39;tile_px&#39;]}</span><span class="se">\n</span><span class="s2">&quot;</span>
+				<span class="n">hp_text</span> <span class="o">+=</span> <span class="n">f</span><span class="s2">&quot;Tile micron size: </span><span class="si">{self.PROJECT[&#39;tile_um&#39;]}</span><span class="se">\n</span><span class="s2">&quot;</span>
+				<span class="n">hp_text</span> <span class="o">+=</span> <span class="nb">str</span><span class="p">(</span><span class="n">hp</span><span class="p">)</span>
+				<span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">FORMATTING_OPTIONS</span><span class="p">:</span>
+					<span class="n">hp_text</span> <span class="o">=</span> <span class="n">hp_text</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+				<span class="n">hp_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">hp_text</span><span class="p">)</span>
+
+			<span class="c1"># Execute training</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="n">results</span> <span class="o">=</span> <span class="n">SFM</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">hp</span><span class="p">,</span> <span class="n">pretrain</span><span class="o">=</span><span class="n">pretrain</span><span class="p">,</span> 
+										<span class="n">resume_training</span><span class="o">=</span><span class="n">resume_training</span><span class="p">,</span> 
+										<span class="n">checkpoint</span><span class="o">=</span><span class="n">checkpoint</span><span class="p">,</span>
+										<span class="n">supervised</span><span class="o">=</span><span class="n">supervised</span><span class="p">)</span>
+				<span class="n">results_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">full_model_name</span><span class="p">:</span> <span class="n">results</span><span class="p">})</span>
+				<span class="k">del</span><span class="p">(</span><span class="n">SFM</span><span class="p">)</span>
+			<span class="k">except</span> <span class="n">tf</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">ResourceExhaustedError</span><span class="p">:</span>
+				<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Training failed for {sfutil.bold(model_name)}, GPU memory exceeded.&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+				<span class="k">del</span><span class="p">(</span><span class="n">SFM</span><span class="p">)</span>
+				<span class="k">return</span>
+
+		<span class="c1"># Assembling list of models and hyperparameters from batch_train.tsv file</span>
+		<span class="n">batch_train_rows</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">batch_train_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">csv_file</span><span class="p">:</span>
+			<span class="n">reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">csv_file</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+			<span class="n">header</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+			<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+				<span class="n">batch_train_rows</span> <span class="o">+=</span> <span class="p">[</span><span class="n">row</span><span class="p">]</span>
+			
+		<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">batch_train_rows</span><span class="p">:</span>
+			<span class="c1"># Read hyperparameters</span>
+			<span class="n">hp</span><span class="p">,</span> <span class="n">model_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_hp</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">header</span><span class="p">)</span>
+			<span class="k">if</span> <span class="n">model_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">models_to_train</span><span class="p">:</span> <span class="k">continue</span>
+			<span class="n">model_iterations</span> <span class="o">=</span> <span class="p">[</span><span class="n">model_name</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">k_fold</span> <span class="k">else</span> <span class="p">[</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{model_name}</span><span class="s2">-kfold{k+1}&quot;</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">valid_k</span><span class="p">]</span>
+
+			<span class="c1"># Perform training</span>
+			<span class="k">if</span> <span class="n">k_fold</span><span class="p">:</span>
+				<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">valid_k</span><span class="p">:</span>
+					<span class="n">process</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">trainer</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">results_dict</span><span class="p">,</span> <span class="n">model_name</span><span class="p">,</span> <span class="n">hp</span><span class="p">,</span> <span class="n">k</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
+					<span class="n">process</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+					<span class="n">process</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">process</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">trainer</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">results_dict</span><span class="p">,</span> <span class="n">model_name</span><span class="p">,</span> <span class="n">hp</span><span class="p">))</span>
+				<span class="n">process</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+				<span class="n">process</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+
+			<span class="c1"># Record results</span>
+			<span class="k">for</span> <span class="n">mi</span> <span class="ow">in</span> <span class="n">model_iterations</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">mi</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">results_dict</span><span class="p">:</span>
+					<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Training failed for model </span><span class="si">{model_name}</span><span class="s2"> for an unknown reason&quot;</span><span class="p">)</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">_update_results_log</span><span class="p">(</span><span class="n">results_log_path</span><span class="p">,</span> <span class="n">mi</span><span class="p">,</span> <span class="n">results_dict</span><span class="p">[</span><span class="n">mi</span><span class="p">])</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">complete</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Training complete for model </span><span class="si">{model_name}</span><span class="s2">, results saved to {sfutil.green(results_log_path)}&quot;</span><span class="p">)</span>
+		
+		<span class="c1"># Print summary of all models</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">complete</span><span class="p">(</span><span class="s2">&quot;Training complete; validation accuracies:&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+		<span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">results_dict</span><span class="p">:</span>
+			<span class="n">final_metrics</span> <span class="o">=</span> <span class="n">results_dict</span><span class="p">[</span><span class="n">model</span><span class="p">][</span><span class="s1">&#39;final&#39;</span><span class="p">]</span>
+			<span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot; - {sfutil.green(model)}: Train_Acc={str(final_metrics[&#39;train_acc&#39;])}, &quot;</span> <span class="o">+</span>
+				<span class="n">f</span><span class="s2">&quot;Val_loss=</span><span class="si">{final_metrics[&#39;val_loss&#39;]}</span><span class="s2">, Val_Acc=</span><span class="si">{final_metrics[&#39;val_acc&#39;]}</span><span class="s2">&quot;</span> <span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.generate_heatmaps"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.generate_heatmaps">[docs]</a>	<span class="k">def</span> <span class="nf">generate_heatmaps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_name</span><span class="p">,</span> <span class="n">filter_header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">filter_values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="s1">&#39;medium&#39;</span><span class="p">):</span>
+		<span class="kn">import</span> <span class="nn">slideflow.convoluter</span> <span class="k">as</span> <span class="nn">convoluter</span>
+		
+		<span class="n">log</span><span class="o">.</span><span class="n">header</span><span class="p">(</span><span class="s2">&quot;Generating heatmaps...&quot;</span><span class="p">)</span>
+		<span class="n">resolutions</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;low&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;medium&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;high&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">}</span>
+		<span class="k">try</span><span class="p">:</span>
+			<span class="n">stride_div</span> <span class="o">=</span> <span class="n">resolutions</span><span class="p">[</span><span class="n">resolution</span><span class="p">]</span>
+		<span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Invalid resolution &#39;</span><span class="si">{resolution}</span><span class="s2">&#39;: must be either &#39;low&#39;, &#39;medium&#39;, or &#39;high&#39;.&quot;</span><span class="p">)</span>
+			<span class="k">return</span>
+		<span class="n">slide_list</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">get_filtered_slide_paths</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;slides_dir&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">],</span> <span class="n">filter_header</span><span class="o">=</span><span class="n">filter_header</span><span class="p">,</span>
+																				  							  <span class="n">filter_values</span><span class="o">=</span><span class="n">filter_values</span><span class="p">)</span>
+		<span class="n">heatmaps_folder</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;root&#39;</span><span class="p">],</span> <span class="s1">&#39;heatmaps&#39;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">heatmaps_folder</span><span class="p">):</span> <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">heatmaps_folder</span><span class="p">)</span>
+
+		<span class="n">c</span> <span class="o">=</span> <span class="n">convoluter</span><span class="o">.</span><span class="n">Convoluter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tile_px&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tile_um&#39;</span><span class="p">],</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span>
+																					<span class="n">use_fp16</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;use_fp16&#39;</span><span class="p">],</span>
+																					<span class="n">stride_div</span><span class="o">=</span><span class="n">stride_div</span><span class="p">,</span>
+																					<span class="n">save_folder</span><span class="o">=</span><span class="n">heatmaps_folder</span><span class="p">,</span>
+																					<span class="n">roi_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;roi_dir&#39;</span><span class="p">])</span>
+		<span class="n">c</span><span class="o">.</span><span class="n">load_slides</span><span class="p">(</span><span class="n">slide_list</span><span class="p">)</span>
+		<span class="n">c</span><span class="o">.</span><span class="n">build_model</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;models_dir&#39;</span><span class="p">],</span> <span class="n">model_name</span><span class="p">,</span> <span class="s1">&#39;trained_model.h5&#39;</span><span class="p">))</span>
+		<span class="n">c</span><span class="o">.</span><span class="n">convolute_slides</span><span class="p">(</span><span class="n">save_heatmaps</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">save_final_layer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">export_tiles</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.generate_mosaic"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.generate_mosaic">[docs]</a>	<span class="k">def</span> <span class="nf">generate_mosaic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">filter_header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">filter_values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">focus_header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">focus_values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subfolder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="s2">&quot;medium&quot;</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;Generates a mosaic map with dimensionality reduction on final layer weights. May use pre-generated final layer weights if available </span>
+<span class="sd">		(e.g. with generate_heatmaps()) by specifying &quot;weights&quot; option; otherwise uses TFRecord datasets and the specified model.&#39;&#39;&#39;</span>
+		
+		<span class="n">log</span><span class="o">.</span><span class="n">header</span><span class="p">(</span><span class="s2">&quot;Generating mosaic map...&quot;</span><span class="p">)</span>
+		<span class="n">subfolder</span> <span class="o">=</span> <span class="n">NO_LABEL</span> <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">subfolder</span> <span class="ow">or</span> <span class="n">subfolder</span><span class="o">==</span><span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="n">subfolder</span>
+		<span class="n">slide_list</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">get_filtered_tfrecords_paths</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tfrecord_dir&#39;</span><span class="p">],</span> <span class="n">subfolder</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">],</span> 
+																										<span class="n">filter_header</span><span class="o">=</span><span class="n">filter_header</span><span class="p">,</span>
+																				  						<span class="n">filter_values</span><span class="o">=</span><span class="n">filter_values</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">focus_header</span> <span class="ow">and</span> <span class="n">focus_values</span><span class="p">:</span>
+			<span class="n">focus_list</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">get_filtered_tfrecords_paths</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tfrecord_dir&#39;</span><span class="p">],</span> <span class="n">subfolder</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">],</span> 
+																										<span class="n">filter_header</span><span class="o">=</span><span class="n">focus_header</span><span class="p">,</span>
+																										<span class="n">filter_values</span><span class="o">=</span><span class="n">focus_values</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">focus_list</span> <span class="o">=</span> <span class="kc">None</span>
+		<span class="n">mosaic</span> <span class="o">=</span> <span class="n">Mosaic</span><span class="p">(</span><span class="n">save_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;root&#39;</span><span class="p">],</span> <span class="n">resolution</span><span class="o">=</span><span class="n">resolution</span><span class="p">)</span>
+		<span class="n">mosaic</span><span class="o">.</span><span class="n">generate_from_tfrecords</span><span class="p">(</span><span class="n">slide_list</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">image_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tile_px&#39;</span><span class="p">],</span> <span class="n">focus</span><span class="o">=</span><span class="n">focus_list</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.create_blank_train_config"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.create_blank_train_config">[docs]</a>	<span class="k">def</span> <span class="nf">create_blank_train_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;Creates a CSV file with the batch training structure.&#39;&#39;&#39;</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">filename</span><span class="p">:</span>
+			<span class="n">filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;batch_train_config&#39;</span><span class="p">]</span>
+		<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">csv_outfile</span><span class="p">:</span>
+			<span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">csv_outfile</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+			<span class="c1"># Create headers and first row</span>
+			<span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;model_name&#39;</span><span class="p">]</span>
+			<span class="n">firstrow</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;model1&#39;</span><span class="p">]</span>
+			<span class="n">default_hp</span> <span class="o">=</span> <span class="n">sfmodel</span><span class="o">.</span><span class="n">HyperParameters</span><span class="p">()</span>
+			<span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">default_hp</span><span class="o">.</span><span class="n">_get_args</span><span class="p">():</span>
+				<span class="n">header</span> <span class="o">+=</span> <span class="p">[</span><span class="n">arg</span><span class="p">]</span>
+				<span class="n">firstrow</span> <span class="o">+=</span> <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="n">default_hp</span><span class="p">,</span> <span class="n">arg</span><span class="p">)]</span>
+			<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+			<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">firstrow</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.create_hyperparameter_sweep"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.create_hyperparameter_sweep">[docs]</a>	<span class="k">def</span> <span class="nf">create_hyperparameter_sweep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">finetune_epochs</span><span class="p">,</span> <span class="n">toplayer_epochs</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">pooling</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">learning_rate</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">hidden_layers</span><span class="p">,</span>
+									<span class="n">optimizer</span><span class="p">,</span> <span class="n">early_stop</span><span class="p">,</span> <span class="n">early_stop_patience</span><span class="p">,</span> <span class="n">balanced_training</span><span class="p">,</span> <span class="n">balanced_validation</span><span class="p">,</span> <span class="n">augment</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;Prepares a hyperparameter sweep using the batch train config file.&#39;&#39;&#39;</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">header</span><span class="p">(</span><span class="s2">&quot;Preparing hyperparameter sweep...&quot;</span><span class="p">)</span>
+		<span class="c1"># Assemble all possible combinations of provided hyperparameters</span>
+		<span class="n">pdict</span> <span class="o">=</span> <span class="nb">locals</span><span class="p">()</span>
+		<span class="k">del</span><span class="p">(</span><span class="n">pdict</span><span class="p">[</span><span class="s1">&#39;self&#39;</span><span class="p">])</span>
+		<span class="k">del</span><span class="p">(</span><span class="n">pdict</span><span class="p">[</span><span class="s1">&#39;filename&#39;</span><span class="p">])</span>
+		<span class="k">del</span><span class="p">(</span><span class="n">pdict</span><span class="p">[</span><span class="s1">&#39;finetune_epochs&#39;</span><span class="p">])</span>
+		<span class="n">args</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">pdict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+		<span class="n">args</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+		<span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+			<span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">pdict</span><span class="p">[</span><span class="n">arg</span><span class="p">])</span> <span class="o">!=</span> <span class="nb">list</span><span class="p">:</span>
+				<span class="n">pdict</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">pdict</span><span class="p">[</span><span class="n">arg</span><span class="p">]]</span>
+		<span class="n">argsv</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">pdict</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+		<span class="n">argsv</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+		<span class="n">sweep</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="o">*</span><span class="n">argsv</span><span class="p">))</span>
+
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">filename</span><span class="p">:</span>
+			<span class="n">filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;batch_train_config&#39;</span><span class="p">]</span>
+		<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">csv_outfile</span><span class="p">:</span>
+			<span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">csv_outfile</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+			<span class="c1"># Create headers</span>
+			<span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;model_name&#39;</span><span class="p">,</span> <span class="s1">&#39;finetune_epochs&#39;</span><span class="p">]</span>
+			<span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+				<span class="n">header</span> <span class="o">+=</span> <span class="p">[</span><span class="n">arg</span><span class="p">]</span>
+			<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+			<span class="c1"># Iterate through sweep</span>
+			<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">params</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sweep</span><span class="p">):</span>
+				<span class="n">row</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="s1">&#39;HPSweep</span><span class="si">{i}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">finetune_epochs</span><span class="p">])]</span>
+				<span class="n">full_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">finetune_epochs</span><span class="p">]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+				<span class="n">hp</span> <span class="o">=</span> <span class="n">sfmodel</span><span class="o">.</span><span class="n">HyperParameters</span><span class="p">(</span><span class="o">*</span><span class="n">full_params</span><span class="p">)</span>
+				<span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+					<span class="n">row</span> <span class="o">+=</span> <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="n">hp</span><span class="p">,</span> <span class="n">arg</span><span class="p">)]</span>
+				<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">complete</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Wrote {len(sweep)} combinations for sweep to {sfutil.green(filename)}&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.create_blank_annotations_file"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.create_blank_annotations_file">[docs]</a>	<span class="k">def</span> <span class="nf">create_blank_annotations_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outfile</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">slides_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scan_for_cases</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+		<span class="n">case_header_name</span> <span class="o">=</span> <span class="n">TCGAAnnotations</span><span class="o">.</span><span class="n">case</span>
+
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">outfile</span><span class="p">:</span> 
+			<span class="n">outfile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">]</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">slides_dir</span><span class="p">:</span>
+			<span class="n">slides_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;slides_dir&#39;</span><span class="p">]</span>
+
+		<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">outfile</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">csv_outfile</span><span class="p">:</span>
+			<span class="n">csv_writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">csv_outfile</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+			<span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="n">case_header_name</span><span class="p">,</span> <span class="s1">&#39;dataset&#39;</span><span class="p">,</span> <span class="s1">&#39;category&#39;</span><span class="p">]</span>
+			<span class="n">csv_writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+
+		<span class="k">if</span> <span class="n">scan_for_cases</span><span class="p">:</span>
+			<span class="n">sfutil</span><span class="o">.</span><span class="n">verify_annotations</span><span class="p">(</span><span class="n">outfile</span><span class="p">,</span> <span class="n">slides_dir</span><span class="o">=</span><span class="n">slides_dir</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.associate_slide_names"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.associate_slide_names">[docs]</a>	<span class="k">def</span> <span class="nf">associate_slide_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="n">sfutil</span><span class="o">.</span><span class="n">verify_annotations</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;slides_dir&#39;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.update_manifest"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.update_manifest">[docs]</a>	<span class="k">def</span> <span class="nf">update_manifest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset_label</span><span class="p">,</span> <span class="n">skip_verification</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+		<span class="n">manifest_path</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">global_path</span><span class="p">(</span><span class="s1">&#39;manifest.json&#39;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">manifest_path</span><span class="p">):</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">generate_manifest</span><span class="p">()</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">input_dir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tfrecord_dir&#39;</span><span class="p">],</span> <span class="n">dataset_label</span><span class="p">)</span>
+			<span class="n">annotations</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">get_annotations_dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">],</span> <span class="n">key_name</span><span class="o">=</span><span class="s2">&quot;slide&quot;</span><span class="p">,</span> <span class="n">value_name</span><span class="o">=</span><span class="s2">&quot;category&quot;</span><span class="p">)</span>
+			<span class="n">tfrecord_files</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">input_dir</span><span class="p">,</span> <span class="s2">&quot;*.tfrecords&quot;</span><span class="p">))</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">MANIFEST</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">load_json</span><span class="p">(</span><span class="n">manifest_path</span><span class="p">)</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="n">skip_verification</span><span class="p">:</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">MANIFEST</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">sfutil</span><span class="o">.</span><span class="n">verify_tiles</span><span class="p">(</span><span class="n">annotations</span><span class="p">,</span> <span class="n">tfrecord_files</span><span class="p">))</span>
+			<span class="n">sfutil</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">MANIFEST</span><span class="p">,</span> <span class="n">manifest_path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.generate_manifest"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.generate_manifest">[docs]</a>	<span class="k">def</span> <span class="nf">generate_manifest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">MANIFEST</span> <span class="o">=</span> <span class="p">{}</span>
+		<span class="n">input_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;tfrecord_dir&#39;</span><span class="p">]</span>
+		<span class="n">annotations</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">get_annotations_dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">],</span> <span class="n">key_name</span><span class="o">=</span><span class="s2">&quot;slide&quot;</span><span class="p">,</span> <span class="n">value_name</span><span class="o">=</span><span class="s2">&quot;category&quot;</span><span class="p">)</span>
+		<span class="n">tfrecord_files</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">input_dir</span><span class="p">,</span> <span class="s2">&quot;**/*.tfrecords&quot;</span><span class="p">))</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">MANIFEST</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">verify_tiles</span><span class="p">(</span><span class="n">annotations</span><span class="p">,</span> <span class="n">tfrecord_files</span><span class="p">)</span>
+		<span class="n">sfutil</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">MANIFEST</span><span class="p">,</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">global_path</span><span class="p">(</span><span class="s2">&quot;manifest.json&quot;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.load_project"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.load_project">[docs]</a>	<span class="k">def</span> <span class="nf">load_project</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">directory</span><span class="p">):</span>
+		<span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="s2">&quot;settings.json&quot;</span><span class="p">)):</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">load_json</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="s2">&quot;settings.json&quot;</span><span class="p">))</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="s2">&quot;Project configuration loaded.</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Unable to locate settings.json at location &quot;</span><span class="si">{directory}</span><span class="s1">&quot;.&#39;</span><span class="p">)</span>
+
+		<span class="c1"># Enable logging</span>
+		<span class="n">log</span><span class="o">.</span><span class="n">logfile</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">global_path</span><span class="p">(</span><span class="s2">&quot;log.log&quot;</span><span class="p">)</span>
+
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">SKIP_VERIFICATION</span><span class="p">:</span>
+			<span class="n">sfutil</span><span class="o">.</span><span class="n">verify_annotations</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">],</span> <span class="n">slides_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;slides_dir&#39;</span><span class="p">])</span>
+		<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">sfutil</span><span class="o">.</span><span class="n">global_path</span><span class="p">(</span><span class="s2">&quot;manifest.json&quot;</span><span class="p">)):</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">MANIFEST</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">load_json</span><span class="p">(</span><span class="n">sfutil</span><span class="o">.</span><span class="n">global_path</span><span class="p">(</span><span class="s2">&quot;manifest.json&quot;</span><span class="p">))</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">generate_manifest</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.save_project"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.save_project">[docs]</a>	<span class="k">def</span> <span class="nf">save_project</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="n">sfutil</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">,</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;root&#39;</span><span class="p">],</span> <span class="s1">&#39;settings.json&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SlideFlowProject.create_project"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideFlowProject.create_project">[docs]</a>	<span class="k">def</span> <span class="nf">create_project</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="c1"># General setup and slide configuration</span>
+		<span class="n">project</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;root&#39;</span><span class="p">:</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">PROJECT_DIR</span><span class="p">}</span>
+		<span class="n">project</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;What is the project name? &quot;</span><span class="p">)</span>
+		<span class="n">project</span><span class="p">[</span><span class="s1">&#39;slides_dir&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">dir_input</span><span class="p">(</span><span class="s2">&quot;Where are the SVS slides stored? [./slides] &quot;</span><span class="p">,</span>
+									<span class="n">default</span><span class="o">=</span><span class="s1">&#39;./slides&#39;</span><span class="p">,</span> <span class="n">create_on_invalid</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+		<span class="n">project</span><span class="p">[</span><span class="s1">&#39;roi_dir&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">dir_input</span><span class="p">(</span><span class="s2">&quot;Where are the ROI files (CSV) stored? [./slides] &quot;</span><span class="p">,</span>
+									<span class="n">default</span><span class="o">=</span><span class="s1">&#39;./slides&#39;</span><span class="p">,</span> <span class="n">create_on_invalid</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+		
+		<span class="c1"># Ask for annotations file location; if one has not been made, offer to create a blank template and then exit</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">yes_no_input</span><span class="p">(</span><span class="s2">&quot;Has an annotations (CSV) file already been created? [y/N] &quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;no&#39;</span><span class="p">):</span>
+			<span class="k">if</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">yes_no_input</span><span class="p">(</span><span class="s2">&quot;Create a blank annotations file? [Y/n] &quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;yes&#39;</span><span class="p">):</span>
+				<span class="n">project</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">file_input</span><span class="p">(</span><span class="s2">&quot;Where will the annotation file be located? [./annotations.csv] &quot;</span><span class="p">,</span> 
+									<span class="n">default</span><span class="o">=</span><span class="s1">&#39;./annotations.csv&#39;</span><span class="p">,</span> <span class="n">filetype</span><span class="o">=</span><span class="s2">&quot;csv&quot;</span><span class="p">,</span> <span class="n">verify</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">create_blank_annotations_file</span><span class="p">(</span><span class="n">project</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">],</span> <span class="n">project</span><span class="p">[</span><span class="s1">&#39;slides_dir&#39;</span><span class="p">],</span> <span class="n">scan_for_cases</span><span class="o">=</span><span class="n">sfutil</span><span class="o">.</span><span class="n">yes_no_input</span><span class="p">(</span><span class="s2">&quot;Scan slide folder for case names? [Y/n] &quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;yes&#39;</span><span class="p">))</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">project</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">file_input</span><span class="p">(</span><span class="s2">&quot;Where is the project annotations (CSV) file located? [./annotations.csv] &quot;</span><span class="p">,</span> 
+									<span class="n">default</span><span class="o">=</span><span class="s1">&#39;./annotations.csv&#39;</span><span class="p">,</span> <span class="n">filetype</span><span class="o">=</span><span class="s2">&quot;csv&quot;</span><span class="p">)</span>
+
+		<span class="c1"># Slide tessellation</span>
+		<span class="n">project</span><span class="p">[</span><span class="s1">&#39;tiles_dir&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">dir_input</span><span class="p">(</span><span class="s2">&quot;Where will the tessellated image tiles be stored? (recommend SSD) [./tiles] &quot;</span><span class="p">,</span>
+									<span class="n">default</span><span class="o">=</span><span class="s1">&#39;./tiles&#39;</span><span class="p">,</span> <span class="n">create_on_invalid</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+		<span class="n">project</span><span class="p">[</span><span class="s1">&#39;use_tfrecord&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">yes_no_input</span><span class="p">(</span><span class="s2">&quot;Store tiles in TFRecord format? (required for training) [Y/n] &quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;yes&#39;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">project</span><span class="p">[</span><span class="s1">&#39;use_tfrecord&#39;</span><span class="p">]:</span>
+			<span class="n">project</span><span class="p">[</span><span class="s1">&#39;delete_tiles&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">yes_no_input</span><span class="p">(</span><span class="s2">&quot;Should raw tile images be deleted after TFRecord storage? [Y/n] &quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;yes&#39;</span><span class="p">)</span>
+			<span class="n">project</span><span class="p">[</span><span class="s1">&#39;tfrecord_dir&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">dir_input</span><span class="p">(</span><span class="s2">&quot;Where should the TFRecord files be stored? (recommend HDD) [./tfrecord] &quot;</span><span class="p">,</span>
+									<span class="n">default</span><span class="o">=</span><span class="s1">&#39;./tfrecord&#39;</span><span class="p">,</span> <span class="n">create_on_invalid</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+		<span class="c1"># Training</span>
+		<span class="n">project</span><span class="p">[</span><span class="s1">&#39;models_dir&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">dir_input</span><span class="p">(</span><span class="s2">&quot;Where should the saved models be stored? [./models] &quot;</span><span class="p">,</span>
+									<span class="n">default</span><span class="o">=</span><span class="s1">&#39;./models&#39;</span><span class="p">,</span> <span class="n">create_on_invalid</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+		<span class="n">project</span><span class="p">[</span><span class="s1">&#39;tile_um&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">int_input</span><span class="p">(</span><span class="s2">&quot;What is the tile width in microns? [280] &quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">280</span><span class="p">)</span>
+		<span class="n">project</span><span class="p">[</span><span class="s1">&#39;tile_px&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">int_input</span><span class="p">(</span><span class="s2">&quot;What is the tile width in pixels? [224] &quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">224</span><span class="p">)</span>
+		<span class="n">project</span><span class="p">[</span><span class="s1">&#39;use_fp16&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">yes_no_input</span><span class="p">(</span><span class="s2">&quot;Should FP16 be used instead of FP32? (recommended) [Y/n] &quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;yes&#39;</span><span class="p">)</span>
+		<span class="n">project</span><span class="p">[</span><span class="s1">&#39;batch_train_config&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">file_input</span><span class="p">(</span><span class="s2">&quot;Location for the batch training TSV config file? [./batch_train.tsv] &quot;</span><span class="p">,</span>
+													<span class="n">default</span><span class="o">=</span><span class="s1">&#39;./batch_train.tsv&#39;</span><span class="p">,</span> <span class="n">filetype</span><span class="o">=</span><span class="s1">&#39;tsv&#39;</span><span class="p">,</span> <span class="n">verify</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+		
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">project</span><span class="p">[</span><span class="s1">&#39;batch_train_config&#39;</span><span class="p">]):</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Batch training file not found, creating blank&quot;</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">create_blank_train_config</span><span class="p">(</span><span class="n">project</span><span class="p">[</span><span class="s1">&#39;batch_train_config&#39;</span><span class="p">])</span>
+		
+		<span class="c1"># Validation strategy</span>
+		<span class="n">project</span><span class="p">[</span><span class="s1">&#39;validation_fraction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">float_input</span><span class="p">(</span><span class="s2">&quot;What fraction of training data should be used for validation testing? [0.2] &quot;</span><span class="p">,</span> <span class="n">valid_range</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+		<span class="n">project</span><span class="p">[</span><span class="s1">&#39;validation_target&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">choice_input</span><span class="p">(</span><span class="s2">&quot;How should validation data be selected by default, per-tile or per-slide? [per-slide] &quot;</span><span class="p">,</span> <span class="n">valid_choices</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;per-tile&#39;</span><span class="p">,</span> <span class="s1">&#39;per-slide&#39;</span><span class="p">],</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;per-slide&#39;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">project</span><span class="p">[</span><span class="s1">&#39;validation_target&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;per-slide&#39;</span><span class="p">:</span>
+			<span class="n">project</span><span class="p">[</span><span class="s1">&#39;validation_strategy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">choice_input</span><span class="p">(</span><span class="s2">&quot;Which validation strategy should be used by default, k-fold, bootstrap, or fixed? &quot;</span><span class="p">,</span> <span class="n">valid_choices</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;k-fold&#39;</span><span class="p">,</span> <span class="s1">&#39;bootstrap&#39;</span><span class="p">,</span> <span class="s1">&#39;fixed&#39;</span><span class="p">,</span> <span class="s1">&#39;none&#39;</span><span class="p">])</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">project</span><span class="p">[</span><span class="s1">&#39;validation_strategy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">choice_input</span><span class="p">(</span><span class="s2">&quot;Which validation strategy should be used by default, k-fold or fixed? &quot;</span><span class="p">,</span> <span class="n">valid_choices</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;k-fold&#39;</span><span class="p">,</span> <span class="s1">&#39;fixed&#39;</span><span class="p">,</span> <span class="s1">&#39;none&#39;</span><span class="p">])</span>
+		<span class="k">if</span> <span class="n">project</span><span class="p">[</span><span class="s1">&#39;validation_strategy&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;k-fold&#39;</span><span class="p">:</span>
+			<span class="n">project</span><span class="p">[</span><span class="s1">&#39;validation_k_fold&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">int_input</span><span class="p">(</span><span class="s2">&quot;What is K? [3] &quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+		<span class="k">elif</span> <span class="n">project</span><span class="p">[</span><span class="s1">&#39;validation_strategy&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;bootstrap&#39;</span><span class="p">:</span>
+			<span class="n">project</span><span class="p">[</span><span class="s1">&#39;validation_k_fold&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">int_input</span><span class="p">(</span><span class="s2">&quot;How many iterations should be performed when bootstrapping? [3] &quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">project</span><span class="p">[</span><span class="s1">&#39;validation_k_fold&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+		<span class="n">sfutil</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">join</span><span class="p">(</span><span class="n">sfutil</span><span class="o">.</span><span class="n">PROJECT_DIR</span><span class="p">,</span> <span class="s1">&#39;settings.json&#39;</span><span class="p">))</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span> <span class="o">=</span> <span class="n">project</span>
+
+		<span class="c1"># Write a sample actions.py file</span>
+		<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">SOURCE_DIR</span><span class="p">,</span> <span class="s1">&#39;sample_actions.py&#39;</span><span class="p">),</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">sample_file</span><span class="p">:</span>
+			<span class="n">sample_actions</span> <span class="o">=</span> <span class="n">sample_file</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+			<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sfutil</span><span class="o">.</span><span class="n">PROJECT_DIR</span><span class="p">,</span> <span class="s1">&#39;actions.py&#39;</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">actions_file</span><span class="p">:</span>
+				<span class="n">actions_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">sample_actions</span><span class="p">)</span>
+
+		<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Project configuration saved.</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+		<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, James M Dolezal
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

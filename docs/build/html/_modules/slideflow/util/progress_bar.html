@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>progress_bar &mdash; slideflow 1.0 documentation</title>
+  <title>slideflow.util.progress_bar &mdash; slideflow 0.9.9 documentation</title>
   
 
   
@@ -17,36 +17,38 @@
   
 
   
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
 
-  
-  
     
 
   
-
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" /> 
-
-  
-  <script src="../_static/js/modernizr.min.js"></script>
-
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
-
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search">
+        <div class="wy-side-nav-search" >
           
 
           
-            <a href="../index.html" class="icon icon-home"> slideflow
+            <a href="../../../index.html" class="icon icon-home"> slideflow
           
 
           
@@ -56,14 +58,14 @@
             
             
               <div class="version">
-                1.0
+                0.9
               </div>
             
           
 
           
 <div role="search">
-  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
@@ -82,10 +84,10 @@
             
               <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../pipeline.html">Pipeline Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../project.html">Setting up a Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../modules.html">Source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../project.html">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">Source code</a></li>
 </ul>
 
             
@@ -100,7 +102,7 @@
       <nav class="wy-nav-top" aria-label="top navigation">
         
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="../index.html">slideflow</a>
+          <a href="../../../index.html">slideflow</a>
         
       </nav>
 
@@ -129,11 +131,15 @@
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="../index.html">Docs</a> &raquo;</li>
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
         
-          <li><a href="index.html">Module code</a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
         
-      <li>progress_bar</li>
+          <li><a href="../../slideflow.html">slideflow</a> &raquo;</li>
+        
+          <li><a href="../util.html">slideflow.util</a> &raquo;</li>
+        
+      <li>slideflow.util.progress_bar</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -148,14 +154,14 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <h1>Source code for progress_bar</h1><div class="highlight"><pre>
+  <h1>Source code for slideflow.util.progress_bar</h1><div class="highlight"><pre>
 <span></span><span class="c1"># Progress bar</span>
 <span class="c1"># James M Dolezal, (c) 2019</span>
 
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">time</span>
 
-<div class="viewcode-block" id="ProgressBar"><a class="viewcode-back" href="../progress_bar.html#progress_bar.ProgressBar">[docs]</a><span class="k">class</span> <span class="nc">ProgressBar</span><span class="p">:</span>
+<div class="viewcode-block" id="ProgressBar"><a class="viewcode-back" href="../../../slideflow.util.html#slideflow.util.progress_bar.ProgressBar">[docs]</a><span class="k">class</span> <span class="nc">ProgressBar</span><span class="p">:</span>
 	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bar_length</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">counter_text</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">BARS</span> <span class="o">=</span> <span class="p">{}</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">bar_length</span> <span class="o">=</span> <span class="n">bar_length</span>
@@ -166,7 +172,7 @@
 		<span class="bp">self</span><span class="o">.</span><span class="n">starttime</span> <span class="o">=</span> <span class="kc">None</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
 
-<div class="viewcode-block" id="ProgressBar.add_bar"><a class="viewcode-back" href="../progress_bar.html#progress_bar.ProgressBar.add_bar">[docs]</a>	<span class="k">def</span> <span class="nf">add_bar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">endval</span><span class="p">,</span> <span class="n">endtext</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+<div class="viewcode-block" id="ProgressBar.add_bar"><a class="viewcode-back" href="../../../slideflow.util.html#slideflow.util.progress_bar.ProgressBar.add_bar">[docs]</a>	<span class="k">def</span> <span class="nf">add_bar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">endval</span><span class="p">,</span> <span class="n">endtext</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
 		<span class="n">bar_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">next_id</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">next_id</span> <span class="o">+=</span> <span class="mi">1</span>
 
@@ -182,16 +188,16 @@
 		<span class="bp">self</span><span class="o">.</span><span class="n">hard_refresh</span><span class="p">()</span>
 		<span class="k">return</span> <span class="n">bar_id</span></div>
 
-<div class="viewcode-block" id="ProgressBar.arrow"><a class="viewcode-back" href="../progress_bar.html#progress_bar.ProgressBar.arrow">[docs]</a>	<span class="k">def</span> <span class="nf">arrow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">percent</span><span class="p">):</span>
+<div class="viewcode-block" id="ProgressBar.arrow"><a class="viewcode-back" href="../../../slideflow.util.html#slideflow.util.progress_bar.ProgressBar.arrow">[docs]</a>	<span class="k">def</span> <span class="nf">arrow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">percent</span><span class="p">):</span>
 		<span class="k">return</span> <span class="nb">chr</span><span class="p">(</span><span class="mh">0x2588</span><span class="p">)</span> <span class="o">*</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">percent</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">bar_length</span><span class="p">))</span></div>
 
-<div class="viewcode-block" id="ProgressBar.update"><a class="viewcode-back" href="../progress_bar.html#progress_bar.ProgressBar.update">[docs]</a>	<span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_id</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="ProgressBar.update"><a class="viewcode-back" href="../../../slideflow.util.html#slideflow.util.progress_bar.ProgressBar.update">[docs]</a>	<span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_id</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">[</span><span class="n">_id</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">[</span><span class="n">_id</span><span class="p">]</span><span class="o">.</span><span class="n">endvalue</span><span class="p">)</span>
 		<span class="k">if</span> <span class="n">text</span><span class="p">:</span>
 			<span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">[</span><span class="n">_id</span><span class="p">]</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="n">text</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="ProgressBar.refresh"><a class="viewcode-back" href="../progress_bar.html#progress_bar.ProgressBar.refresh">[docs]</a>	<span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="ProgressBar.refresh"><a class="viewcode-back" href="../../../slideflow.util.html#slideflow.util.progress_bar.ProgressBar.refresh">[docs]</a>	<span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">starttime</span><span class="p">:</span>
 			<span class="bp">self</span><span class="o">.</span><span class="n">starttime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
 		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -211,9 +217,10 @@
 		<span class="bp">self</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="n">out_text</span>
 		<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="ProgressBar.end"><a class="viewcode-back" href="../progress_bar.html#progress_bar.ProgressBar.end">[docs]</a>	<span class="k">def</span> <span class="nf">end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+<div class="viewcode-block" id="ProgressBar.end"><a class="viewcode-back" href="../../../slideflow.util.html#slideflow.util.progress_bar.ProgressBar.end">[docs]</a>	<span class="k">def</span> <span class="nf">end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
 		<span class="k">if</span> <span class="n">_id</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
-			<span class="k">for</span> <span class="n">bar_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">:</span>
+			<span class="n">bars_keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+			<span class="k">for</span> <span class="n">bar_id</span> <span class="ow">in</span> <span class="n">bars_keys</span><span class="p">:</span>
 				<span class="k">del</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">[</span><span class="n">bar_id</span><span class="p">])</span>
 				<span class="c1">#self.BARS[bar_id].value = self.BARS[bar_id].endvalue</span>
 			<span class="bp">self</span><span class="o">.</span><span class="n">hard_refresh</span><span class="p">()</span>
@@ -222,22 +229,22 @@
 			<span class="k">del</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">[</span><span class="n">_id</span><span class="p">])</span>
 			<span class="bp">self</span><span class="o">.</span><span class="n">hard_refresh</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="ProgressBar.print"><a class="viewcode-back" href="../progress_bar.html#progress_bar.ProgressBar.print">[docs]</a>	<span class="k">def</span> <span class="nf">print</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+<div class="viewcode-block" id="ProgressBar.print"><a class="viewcode-back" href="../../../slideflow.util.html#slideflow.util.progress_bar.ProgressBar.print">[docs]</a>	<span class="k">def</span> <span class="nf">print</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
 		<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r\033</span><span class="s2">[K&quot;</span> <span class="o">+</span> <span class="n">text</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
 		<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">hard_refresh</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="ProgressBar.hard_refresh"><a class="viewcode-back" href="../progress_bar.html#progress_bar.ProgressBar.hard_refresh">[docs]</a>	<span class="k">def</span> <span class="nf">hard_refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="ProgressBar.hard_refresh"><a class="viewcode-back" href="../../../slideflow.util.html#slideflow.util.progress_bar.ProgressBar.hard_refresh">[docs]</a>	<span class="k">def</span> <span class="nf">hard_refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="ProgressBar.regen_tail"><a class="viewcode-back" href="../progress_bar.html#progress_bar.ProgressBar.regen_tail">[docs]</a>	<span class="k">def</span> <span class="nf">regen_tail</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="ProgressBar.regen_tail"><a class="viewcode-back" href="../../../slideflow.util.html#slideflow.util.progress_bar.ProgressBar.regen_tail">[docs]</a>	<span class="k">def</span> <span class="nf">regen_tail</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">starttime</span><span class="p">:</span>
 			<span class="bp">self</span><span class="o">.</span><span class="n">starttime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
 			<span class="k">return</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">tail</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot; {int(self.counter/(time.time()-self.starttime))}</span><span class="si">{self.counter_text}</span><span class="s2">/sec&quot;</span></div>
 
-<div class="viewcode-block" id="ProgressBar.update_counter"><a class="viewcode-back" href="../progress_bar.html#progress_bar.ProgressBar.update_counter">[docs]</a>	<span class="k">def</span> <span class="nf">update_counter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<div class="viewcode-block" id="ProgressBar.update_counter"><a class="viewcode-back" href="../../../slideflow.util.html#slideflow.util.progress_bar.ProgressBar.update_counter">[docs]</a>	<span class="k">def</span> <span class="nf">update_counter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">counter</span> <span class="o">+=</span> <span class="n">value</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">regen_tail</span><span class="p">()</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span></div></div>
@@ -270,26 +277,16 @@
   
 
 
-  
-
-    
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../_static/jquery.js"></script>
-        <script type="text/javascript" src="../_static/underscore.js"></script>
-        <script type="text/javascript" src="../_static/doctools.js"></script>
-        <script type="text/javascript" src="../_static/language_data.js"></script>
-    
-
-  
-
-  <script type="text/javascript" src="../_static/js/theme.js"></script>
-
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
+
+  
+  
+    
+   
 
 </body>
 </html>

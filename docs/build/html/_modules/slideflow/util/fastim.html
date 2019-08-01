@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>fastim &mdash; slideflow 1.0 documentation</title>
+  <title>slideflow.util.fastim &mdash; slideflow 0.9.9 documentation</title>
   
 
   
@@ -17,36 +17,38 @@
   
 
   
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
 
-  
-  
     
 
   
-
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" /> 
-
-  
-  <script src="../_static/js/modernizr.min.js"></script>
-
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
-
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search">
+        <div class="wy-side-nav-search" >
           
 
           
-            <a href="../index.html" class="icon icon-home"> slideflow
+            <a href="../../../index.html" class="icon icon-home"> slideflow
           
 
           
@@ -56,14 +58,14 @@
             
             
               <div class="version">
-                1.0
+                0.9
               </div>
             
           
 
           
 <div role="search">
-  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
@@ -82,10 +84,10 @@
             
               <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../pipeline.html">Pipeline Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../project.html">Setting up a Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../modules.html">Source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../project.html">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">Source code</a></li>
 </ul>
 
             
@@ -100,7 +102,7 @@
       <nav class="wy-nav-top" aria-label="top navigation">
         
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="../index.html">slideflow</a>
+          <a href="../../../index.html">slideflow</a>
         
       </nav>
 
@@ -129,11 +131,15 @@
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="../index.html">Docs</a> &raquo;</li>
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
         
-          <li><a href="index.html">Module code</a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
         
-      <li>fastim</li>
+          <li><a href="../../slideflow.html">slideflow</a> &raquo;</li>
+        
+          <li><a href="../util.html">slideflow.util</a> &raquo;</li>
+        
+      <li>slideflow.util.fastim</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -148,7 +154,7 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <h1>Source code for fastim</h1><div class="highlight"><pre>
+  <h1>Source code for slideflow.util.fastim</h1><div class="highlight"><pre>
 <span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
@@ -169,9 +175,9 @@
 <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">Fast Plotter for Large Images - Resamples Images to a target resolution on each zoom.</span>
 <span class="sd">&#39;&#39;&#39;</span>
-<div class="viewcode-block" id="FastImshow"><a class="viewcode-back" href="../fastim.html#fastim.FastImshow">[docs]</a><span class="k">class</span> <span class="nc">FastImshow</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">    Fast plotter for large image buffers</span>
+<div class="viewcode-block" id="FastImshow"><a class="viewcode-back" href="../../../slideflow.util.html#slideflow.util.fastim.FastImshow">[docs]</a><span class="k">class</span> <span class="nc">FastImshow</span><span class="p">:</span>
+    <span class="sd">&#39;&#39;&#39;Fast plotter for large image buffers</span>
+
 <span class="sd">    Example::</span>
 <span class="sd">        sz = (10000,20000) # rows, cols</span>
 <span class="sd">        buf = np.arange(sz[0]*sz[1]).reshape(sz)</span>
@@ -206,7 +212,7 @@
 
     <span class="c1"># end __init__</span>
 
-<div class="viewcode-block" id="FastImshow.get_strides"><a class="viewcode-back" href="../fastim.html#fastim.FastImshow.get_strides">[docs]</a>    <span class="k">def</span> <span class="nf">get_strides</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span><span class="n">xstart</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">xend</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">ystart</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">yend</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">tgt_res</span><span class="o">=</span><span class="mi">512</span> <span class="p">):</span>
+<div class="viewcode-block" id="FastImshow.get_strides"><a class="viewcode-back" href="../../../slideflow.util.html#slideflow.util.fastim.FastImshow.get_strides">[docs]</a>    <span class="k">def</span> <span class="nf">get_strides</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span><span class="n">xstart</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">xend</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">ystart</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">yend</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">tgt_res</span><span class="o">=</span><span class="mi">512</span> <span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Get sampling strides for a given bounding region. If none is provided,</span>
 <span class="sd">           use the full buffer size</span>
@@ -229,7 +235,7 @@
         <span class="k">return</span> <span class="n">stridex</span><span class="p">,</span><span class="n">stridey</span></div>
     <span class="c1"># end get_strides</span>
         
-<div class="viewcode-block" id="FastImshow.ax_update"><a class="viewcode-back" href="../fastim.html#fastim.FastImshow.ax_update">[docs]</a>    <span class="k">def</span> <span class="nf">ax_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">):</span>
+<div class="viewcode-block" id="FastImshow.ax_update"><a class="viewcode-back" href="../../../slideflow.util.html#slideflow.util.fastim.FastImshow.ax_update">[docs]</a>    <span class="k">def</span> <span class="nf">ax_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Event handler for re-plotting on zoom</span>
 <span class="sd">        - gets bounds in img extent coordinates</span>
@@ -261,7 +267,7 @@
         <span class="n">ax</span><span class="o">.</span><span class="n">figure</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">draw_idle</span><span class="p">()</span></div>
     <span class="c1"># end ax_update</span>
 
-<div class="viewcode-block" id="FastImshow.show"><a class="viewcode-back" href="../fastim.html#fastim.FastImshow.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="FastImshow.show"><a class="viewcode-back" href="../../../slideflow.util.html#slideflow.util.fastim.FastImshow.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Initial plotter for buffer</span>
 <span class="sd">        &#39;&#39;&#39;</span>
@@ -319,26 +325,16 @@
   
 
 
-  
-
-    
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../_static/jquery.js"></script>
-        <script type="text/javascript" src="../_static/underscore.js"></script>
-        <script type="text/javascript" src="../_static/doctools.js"></script>
-        <script type="text/javascript" src="../_static/language_data.js"></script>
-    
-
-  
-
-  <script type="text/javascript" src="../_static/js/theme.js"></script>
-
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
+
+  
+  
+    
+   
 
 </body>
 </html>

@@ -1,0 +1,662 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.util &mdash; slideflow 0.9.9 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="slideflow.trainer" href="slideflow.trainer.html" />
+    <link rel="prev" title="slideflow" href="slideflow.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> slideflow
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.9
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project.html">Setting up a Project</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Source code</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="slideflow.html">slideflow</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">slideflow.util</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-slideflow.util.datasets">slideflow.util.datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-slideflow.util.fastim">slideflow.util.fastim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-slideflow.util.progress_bar">slideflow.util.progress_bar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-slideflow.util.tfrecords">slideflow.util.tfrecords</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.trainer.html">slideflow.trainer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.trainer.html#module-slideflow.trainer.model">slideflow.trainer.model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.convoluter.html">slideflow.convoluter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.mosaic.html">slideflow.mosaic</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">slideflow</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="modules.html">Source code</a> &raquo;</li>
+        
+      <li>slideflow.util</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/slideflow.util.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-slideflow.util">
+<span id="slideflow-util"></span><h1>slideflow.util<a class="headerlink" href="#module-slideflow.util" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="slideflow.util.LOGGING_LEVEL">
+<em class="property">class </em><code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">LOGGING_LEVEL</code><a class="reference internal" href="_modules/slideflow/util.html#LOGGING_LEVEL"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.LOGGING_LEVEL" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="attribute">
+<dt id="slideflow.util.LOGGING_LEVEL.COMPLETE">
+<code class="sig-name descname">COMPLETE</code><em class="property"> = 3</em><a class="headerlink" href="#slideflow.util.LOGGING_LEVEL.COMPLETE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.util.LOGGING_LEVEL.ERROR">
+<code class="sig-name descname">ERROR</code><em class="property"> = 3</em><a class="headerlink" href="#slideflow.util.LOGGING_LEVEL.ERROR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.util.LOGGING_LEVEL.INFO">
+<code class="sig-name descname">INFO</code><em class="property"> = 0</em><a class="headerlink" href="#slideflow.util.LOGGING_LEVEL.INFO" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.util.LOGGING_LEVEL.WARN">
+<code class="sig-name descname">WARN</code><em class="property"> = 3</em><a class="headerlink" href="#slideflow.util.LOGGING_LEVEL.WARN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="slideflow.util.Logger">
+<em class="property">class </em><code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">Logger</code><a class="reference internal" href="_modules/slideflow/util.html#Logger"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.Logger" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="method">
+<dt id="slideflow.util.Logger.complete">
+<code class="sig-name descname">complete</code><span class="sig-paren">(</span><em class="sig-param">text</em>, <em class="sig-param">l=0</em>, <em class="sig-param">print_func=&lt;built-in function print&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#Logger.complete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.Logger.complete" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.Logger.empty">
+<code class="sig-name descname">empty</code><span class="sig-paren">(</span><em class="sig-param">text</em>, <em class="sig-param">l=0</em>, <em class="sig-param">print_func=&lt;built-in function print&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#Logger.empty"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.Logger.empty" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.Logger.error">
+<code class="sig-name descname">error</code><span class="sig-paren">(</span><em class="sig-param">text</em>, <em class="sig-param">l=0</em>, <em class="sig-param">print_func=&lt;built-in function print&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#Logger.error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.Logger.error" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.Logger.header">
+<code class="sig-name descname">header</code><span class="sig-paren">(</span><em class="sig-param">text</em>, <em class="sig-param">l=0</em>, <em class="sig-param">print_func=&lt;built-in function print&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#Logger.header"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.Logger.header" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.Logger.info">
+<code class="sig-name descname">info</code><span class="sig-paren">(</span><em class="sig-param">text</em>, <em class="sig-param">l=0</em>, <em class="sig-param">print_func=&lt;built-in function print&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#Logger.info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.Logger.info" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.Logger.label">
+<code class="sig-name descname">label</code><span class="sig-paren">(</span><em class="sig-param">label</em>, <em class="sig-param">text</em>, <em class="sig-param">l=0</em>, <em class="sig-param">print_func=&lt;built-in function print&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#Logger.label"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.Logger.label" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.Logger.log">
+<code class="sig-name descname">log</code><span class="sig-paren">(</span><em class="sig-param">text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#Logger.log"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.Logger.log" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.util.Logger.logfile">
+<code class="sig-name descname">logfile</code><em class="property"> = None</em><a class="headerlink" href="#slideflow.util.Logger.logfile" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.Logger.warn">
+<code class="sig-name descname">warn</code><span class="sig-paren">(</span><em class="sig-param">text</em>, <em class="sig-param">l=0</em>, <em class="sig-param">print_func=&lt;built-in function print&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#Logger.warn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.Logger.warn" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="slideflow.util.TCGAAnnotations">
+<em class="property">class </em><code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">TCGAAnnotations</code><a class="reference internal" href="_modules/slideflow/util.html#TCGAAnnotations"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.TCGAAnnotations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="attribute">
+<dt id="slideflow.util.TCGAAnnotations.case">
+<code class="sig-name descname">case</code><em class="property"> = 'submitter_id'</em><a class="headerlink" href="#slideflow.util.TCGAAnnotations.case" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.util.TCGAAnnotations.project">
+<code class="sig-name descname">project</code><em class="property"> = 'project_id'</em><a class="headerlink" href="#slideflow.util.TCGAAnnotations.project" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.util.TCGAAnnotations.slide">
+<code class="sig-name descname">slide</code><em class="property"> = 'slide'</em><a class="headerlink" href="#slideflow.util.TCGAAnnotations.slide" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="slideflow.util.UpdatedBatchNormalization">
+<em class="property">class </em><code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">UpdatedBatchNormalization</code><span class="sig-paren">(</span><em class="sig-param">axis=-1</em>, <em class="sig-param">momentum=0.99</em>, <em class="sig-param">epsilon=0.001</em>, <em class="sig-param">center=True</em>, <em class="sig-param">scale=True</em>, <em class="sig-param">beta_initializer='zeros'</em>, <em class="sig-param">gamma_initializer='ones'</em>, <em class="sig-param">moving_mean_initializer='zeros'</em>, <em class="sig-param">moving_variance_initializer='ones'</em>, <em class="sig-param">beta_regularizer=None</em>, <em class="sig-param">gamma_regularizer=None</em>, <em class="sig-param">beta_constraint=None</em>, <em class="sig-param">gamma_constraint=None</em>, <em class="sig-param">renorm=False</em>, <em class="sig-param">renorm_clipping=None</em>, <em class="sig-param">renorm_momentum=0.99</em>, <em class="sig-param">fused=None</em>, <em class="sig-param">trainable=True</em>, <em class="sig-param">virtual_batch_size=None</em>, <em class="sig-param">adjustment=None</em>, <em class="sig-param">name=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#UpdatedBatchNormalization"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.UpdatedBatchNormalization" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">tensorflow.python.keras.layers.normalization_v2.BatchNormalization</span></code></p>
+<dl class="method">
+<dt id="slideflow.util.UpdatedBatchNormalization.call">
+<code class="sig-name descname">call</code><span class="sig-paren">(</span><em class="sig-param">inputs</em>, <em class="sig-param">training=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#UpdatedBatchNormalization.call"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.UpdatedBatchNormalization.call" title="Permalink to this definition">¶</a></dt>
+<dd><p>This is where the layer’s logic lives.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>inputs</strong> – Input tensor, or list/tuple of input tensors.</p></li>
+<li><p><strong>**kwargs</strong> – Additional keyword arguments.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A tensor or list/tuple of tensors.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.bold">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">bold</code><span class="sig-paren">(</span><em class="sig-param">text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#bold"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.bold" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.choice_input">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">choice_input</code><span class="sig-paren">(</span><em class="sig-param">prompt</em>, <em class="sig-param">valid_choices</em>, <em class="sig-param">default=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#choice_input"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.choice_input" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.contains_nested_subdirs">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">contains_nested_subdirs</code><span class="sig-paren">(</span><em class="sig-param">directory</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#contains_nested_subdirs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.contains_nested_subdirs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.dir_input">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">dir_input</code><span class="sig-paren">(</span><em class="sig-param">prompt</em>, <em class="sig-param">default=None</em>, <em class="sig-param">create_on_invalid=False</em>, <em class="sig-param">absolute=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#dir_input"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.dir_input" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.fail">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">fail</code><span class="sig-paren">(</span><em class="sig-param">text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#fail"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.fail" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.file_input">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">file_input</code><span class="sig-paren">(</span><em class="sig-param">prompt</em>, <em class="sig-param">default=None</em>, <em class="sig-param">filetype=None</em>, <em class="sig-param">verify=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#file_input"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.file_input" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.float_input">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">float_input</code><span class="sig-paren">(</span><em class="sig-param">prompt</em>, <em class="sig-param">default=None</em>, <em class="sig-param">valid_range=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#float_input"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.float_input" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.get_annotations_dict">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">get_annotations_dict</code><span class="sig-paren">(</span><em class="sig-param">annotations_file</em>, <em class="sig-param">key_name</em>, <em class="sig-param">value_name</em>, <em class="sig-param">filter_header=None</em>, <em class="sig-param">filter_values=None</em>, <em class="sig-param">use_encode=True</em>, <em class="sig-param">use_float=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#get_annotations_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.get_annotations_dict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.get_filtered_slide_paths">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">get_filtered_slide_paths</code><span class="sig-paren">(</span><em class="sig-param">slides_dir</em>, <em class="sig-param">annotations_file</em>, <em class="sig-param">filter_header</em>, <em class="sig-param">filter_values</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#get_filtered_slide_paths"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.get_filtered_slide_paths" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.get_filtered_tfrecords_paths">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">get_filtered_tfrecords_paths</code><span class="sig-paren">(</span><em class="sig-param">tfrecords_dir</em>, <em class="sig-param">annotations_file</em>, <em class="sig-param">filter_header</em>, <em class="sig-param">filter_values</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#get_filtered_tfrecords_paths"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.get_filtered_tfrecords_paths" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.get_slide_paths">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">get_slide_paths</code><span class="sig-paren">(</span><em class="sig-param">slides_dir</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#get_slide_paths"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.get_slide_paths" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.global_path">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">global_path</code><span class="sig-paren">(</span><em class="sig-param">path_string</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#global_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.global_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.green">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">green</code><span class="sig-paren">(</span><em class="sig-param">text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#green"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.green" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.header">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">header</code><span class="sig-paren">(</span><em class="sig-param">text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#header"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.header" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.info">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">info</code><span class="sig-paren">(</span><em class="sig-param">text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.info" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.int_input">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">int_input</code><span class="sig-paren">(</span><em class="sig-param">prompt</em>, <em class="sig-param">default=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#int_input"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.int_input" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.load_json">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">load_json</code><span class="sig-paren">(</span><em class="sig-param">filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#load_json"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.load_json" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.underline">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">underline</code><span class="sig-paren">(</span><em class="sig-param">text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#underline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.underline" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.verify_annotations">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">verify_annotations</code><span class="sig-paren">(</span><em class="sig-param">annotations_file</em>, <em class="sig-param">slides_dir=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#verify_annotations"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.verify_annotations" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.verify_tiles">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">verify_tiles</code><span class="sig-paren">(</span><em class="sig-param">annotations</em>, <em class="sig-param">tfrecord_files=[]</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#verify_tiles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.verify_tiles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate through TFRecord files and verify all have a valid annotation.</p>
+<p>Additionally, generate a manifest to log the number of tiles for each slide.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.warn">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">warn</code><span class="sig-paren">(</span><em class="sig-param">text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#warn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.warn" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.write_json">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">write_json</code><span class="sig-paren">(</span><em class="sig-param">data</em>, <em class="sig-param">filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#write_json"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.write_json" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.yes_no_input">
+<code class="sig-prename descclassname">slideflow.util.</code><code class="sig-name descname">yes_no_input</code><span class="sig-paren">(</span><em class="sig-param">prompt</em>, <em class="sig-param">default='no'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util.html#yes_no_input"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.yes_no_input" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-slideflow.util.datasets">
+<span id="slideflow-util-datasets"></span><h1>slideflow.util.datasets<a class="headerlink" href="#module-slideflow.util.datasets" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="slideflow.util.datasets.build_validation">
+<code class="sig-prename descclassname">slideflow.util.datasets.</code><code class="sig-name descname">build_validation</code><span class="sig-paren">(</span><em class="sig-param">train_dir</em>, <em class="sig-param">eval_dir</em>, <em class="sig-param">fraction=0.1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/datasets.html#build_validation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.datasets.build_validation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.datasets.make_dir">
+<code class="sig-prename descclassname">slideflow.util.datasets.</code><code class="sig-name descname">make_dir</code><span class="sig-paren">(</span><em class="sig-param">_dir</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/datasets.html#make_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.datasets.make_dir" title="Permalink to this definition">¶</a></dt>
+<dd><p>Makes a directory if one does not already exist, in a manner compatible with multithreading.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.datasets.merge_validation">
+<code class="sig-prename descclassname">slideflow.util.datasets.</code><code class="sig-name descname">merge_validation</code><span class="sig-paren">(</span><em class="sig-param">train_dir</em>, <em class="sig-param">eval_dir</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/datasets.html#merge_validation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.datasets.merge_validation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.datasets.split_tiles">
+<code class="sig-prename descclassname">slideflow.util.datasets.</code><code class="sig-name descname">split_tiles</code><span class="sig-paren">(</span><em class="sig-param">folder</em>, <em class="sig-param">fraction</em>, <em class="sig-param">names</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/datasets.html#split_tiles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.datasets.split_tiles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Split a directory of .jpg files into subdirectories.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folder to search for tiles</strong> (<em>folder</em>) – </p></li>
+<li><p><strong>array containing fraction of tiles to include in each subdirectory;</strong> (<em>fraction</em>) – remaining tiles will be split among subdirectories with fraction of -1</p></li>
+<li><p><strong>names of subfolder to split tiles. Must be same length as fraction</strong> (<em>names</em>) – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-slideflow.util.fastim">
+<span id="slideflow-util-fastim"></span><h1>slideflow.util.fastim<a class="headerlink" href="#module-slideflow.util.fastim" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="slideflow.util.fastim.FastImshow">
+<em class="property">class </em><code class="sig-prename descclassname">slideflow.util.fastim.</code><code class="sig-name descname">FastImshow</code><span class="sig-paren">(</span><em class="sig-param">buf</em>, <em class="sig-param">ax</em>, <em class="sig-param">extent=None</em>, <em class="sig-param">tgt_res=512</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/fastim.html#FastImshow"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.fastim.FastImshow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Fast plotter for large image buffers</p>
+<dl class="simple">
+<dt>Example::</dt><dd><p>sz = (10000,20000) # rows, cols
+buf = np.arange(sz[0]*sz[1]).reshape(sz)
+extent = (100,150,1000,2000)  # arbitrary extent
+fig = plt.figure()
+ax  = fig.add_subplot(111)
+im = FastImshow(buf,ax,extent=extent,tgt_res=1024)
+im.show()
+plt.show()</p>
+</dd>
+</dl>
+<dl class="method">
+<dt id="slideflow.util.fastim.FastImshow.ax_update">
+<code class="sig-name descname">ax_update</code><span class="sig-paren">(</span><em class="sig-param">ax</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/fastim.html#FastImshow.ax_update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.fastim.FastImshow.ax_update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Event handler for re-plotting on zoom
+- gets bounds in img extent coordinates
+- converts to buffer coordinates
+- calculates appropriate strides
+- sets new data in the axis</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.fastim.FastImshow.get_strides">
+<code class="sig-name descname">get_strides</code><span class="sig-paren">(</span><em class="sig-param">xstart=0</em>, <em class="sig-param">xend=-1</em>, <em class="sig-param">ystart=0</em>, <em class="sig-param">yend=-1</em>, <em class="sig-param">tgt_res=512</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/fastim.html#FastImshow.get_strides"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.fastim.FastImshow.get_strides" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Get sampling strides for a given bounding region. If none is provided,</dt><dd><p>use the full buffer size</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.fastim.FastImshow.show">
+<code class="sig-name descname">show</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/fastim.html#FastImshow.show"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.fastim.FastImshow.show" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initial plotter for buffer</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-slideflow.util.progress_bar">
+<span id="slideflow-util-progress-bar"></span><h1>slideflow.util.progress_bar<a class="headerlink" href="#module-slideflow.util.progress_bar" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="slideflow.util.progress_bar.ProgressBar">
+<em class="property">class </em><code class="sig-prename descclassname">slideflow.util.progress_bar.</code><code class="sig-name descname">ProgressBar</code><span class="sig-paren">(</span><em class="sig-param">bar_length=20</em>, <em class="sig-param">counter_text=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/progress_bar.html#ProgressBar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.progress_bar.ProgressBar" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="method">
+<dt id="slideflow.util.progress_bar.ProgressBar.add_bar">
+<code class="sig-name descname">add_bar</code><span class="sig-paren">(</span><em class="sig-param">val</em>, <em class="sig-param">endval</em>, <em class="sig-param">endtext=''</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/progress_bar.html#ProgressBar.add_bar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.progress_bar.ProgressBar.add_bar" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.progress_bar.ProgressBar.arrow">
+<code class="sig-name descname">arrow</code><span class="sig-paren">(</span><em class="sig-param">percent</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/progress_bar.html#ProgressBar.arrow"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.progress_bar.ProgressBar.arrow" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.progress_bar.ProgressBar.end">
+<code class="sig-name descname">end</code><span class="sig-paren">(</span><em class="sig-param">_id=-1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/progress_bar.html#ProgressBar.end"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.progress_bar.ProgressBar.end" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.progress_bar.ProgressBar.hard_refresh">
+<code class="sig-name descname">hard_refresh</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/progress_bar.html#ProgressBar.hard_refresh"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.progress_bar.ProgressBar.hard_refresh" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.progress_bar.ProgressBar.print">
+<code class="sig-name descname">print</code><span class="sig-paren">(</span><em class="sig-param">text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/progress_bar.html#ProgressBar.print"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.progress_bar.ProgressBar.print" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.progress_bar.ProgressBar.refresh">
+<code class="sig-name descname">refresh</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/progress_bar.html#ProgressBar.refresh"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.progress_bar.ProgressBar.refresh" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.progress_bar.ProgressBar.regen_tail">
+<code class="sig-name descname">regen_tail</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/progress_bar.html#ProgressBar.regen_tail"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.progress_bar.ProgressBar.regen_tail" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.progress_bar.ProgressBar.update">
+<code class="sig-name descname">update</code><span class="sig-paren">(</span><em class="sig-param">_id</em>, <em class="sig-param">val</em>, <em class="sig-param">text=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/progress_bar.html#ProgressBar.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.progress_bar.ProgressBar.update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.util.progress_bar.ProgressBar.update_counter">
+<code class="sig-name descname">update_counter</code><span class="sig-paren">(</span><em class="sig-param">value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/progress_bar.html#ProgressBar.update_counter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.progress_bar.ProgressBar.update_counter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-slideflow.util.tfrecords">
+<span id="slideflow-util-tfrecords"></span><h1>slideflow.util.tfrecords<a class="headerlink" href="#module-slideflow.util.tfrecords" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="slideflow.util.tfrecords.assign_case_across_tfrecord">
+<code class="sig-prename descclassname">slideflow.util.tfrecords.</code><code class="sig-name descname">assign_case_across_tfrecord</code><span class="sig-paren">(</span><em class="sig-param">tfrecord_file</em>, <em class="sig-param">case</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/tfrecords.html#assign_case_across_tfrecord"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.tfrecords.assign_case_across_tfrecord" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.tfrecords.checkpoint_to_h5">
+<code class="sig-prename descclassname">slideflow.util.tfrecords.</code><code class="sig-name descname">checkpoint_to_h5</code><span class="sig-paren">(</span><em class="sig-param">models_dir</em>, <em class="sig-param">model_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/tfrecords.html#checkpoint_to_h5"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.tfrecords.checkpoint_to_h5" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.tfrecords.image_example">
+<code class="sig-prename descclassname">slideflow.util.tfrecords.</code><code class="sig-name descname">image_example</code><span class="sig-paren">(</span><em class="sig-param">category</em>, <em class="sig-param">case</em>, <em class="sig-param">image_string</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/tfrecords.html#image_example"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.tfrecords.image_example" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.tfrecords.join_tfrecord">
+<code class="sig-prename descclassname">slideflow.util.tfrecords.</code><code class="sig-name descname">join_tfrecord</code><span class="sig-paren">(</span><em class="sig-param">input_folder</em>, <em class="sig-param">output_file</em>, <em class="sig-param">assign_case=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/tfrecords.html#join_tfrecord"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.tfrecords.join_tfrecord" title="Permalink to this definition">¶</a></dt>
+<dd><p>Randomly samples from tfrecords in the input folder with shuffling,
+and combines into a single tfrecord file.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.tfrecords.print_tfrecord">
+<code class="sig-prename descclassname">slideflow.util.tfrecords.</code><code class="sig-name descname">print_tfrecord</code><span class="sig-paren">(</span><em class="sig-param">target</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/tfrecords.html#print_tfrecord"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.tfrecords.print_tfrecord" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prints the case names for records in the given tfrecord file</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.tfrecords.split_tfrecord">
+<code class="sig-prename descclassname">slideflow.util.tfrecords.</code><code class="sig-name descname">split_tfrecord</code><span class="sig-paren">(</span><em class="sig-param">tfrecord_file</em>, <em class="sig-param">output_folder</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/tfrecords.html#split_tfrecord"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.tfrecords.split_tfrecord" title="Permalink to this definition">¶</a></dt>
+<dd><p>Splits records from a single tfrecord file into individual tfrecord files by case.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.tfrecords.tfrecord_name_to_case">
+<code class="sig-prename descclassname">slideflow.util.tfrecords.</code><code class="sig-name descname">tfrecord_name_to_case</code><span class="sig-paren">(</span><em class="sig-param">directory</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/tfrecords.html#tfrecord_name_to_case"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.tfrecords.tfrecord_name_to_case" title="Permalink to this definition">¶</a></dt>
+<dd><p>Opens all tfrecord files within a folder, and for each record, replaces ‘case’ with name of the tfrecord.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.tfrecords.write_tfrecords_merge">
+<code class="sig-prename descclassname">slideflow.util.tfrecords.</code><code class="sig-name descname">write_tfrecords_merge</code><span class="sig-paren">(</span><em class="sig-param">input_directory</em>, <em class="sig-param">output_directory</em>, <em class="sig-param">filename</em>, <em class="sig-param">annotations_file=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/tfrecords.html#write_tfrecords_merge"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.tfrecords.write_tfrecords_merge" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scans a folder for subfolders, assumes subfolders are case names. Assembles all image tiles within
+subfolders and labels using the provided annotation_dict, assuming the subfolder is the case name.
+Collects all image tiles and exports into a single tfrecord file.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.tfrecords.write_tfrecords_multi">
+<code class="sig-prename descclassname">slideflow.util.tfrecords.</code><code class="sig-name descname">write_tfrecords_multi</code><span class="sig-paren">(</span><em class="sig-param">input_directory</em>, <em class="sig-param">output_directory</em>, <em class="sig-param">annotations_file=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/tfrecords.html#write_tfrecords_multi"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.tfrecords.write_tfrecords_multi" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scans a folder for subfolders, assumes subfolders are slide names. Assembles all image tiles within
+subfolders and labels using the provided annotation_dict, assuming the subfolder is the case name.
+Collects all image tiles and exports into multiple tfrecord files, one for each case.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="slideflow.util.tfrecords.write_tfrecords_single">
+<code class="sig-prename descclassname">slideflow.util.tfrecords.</code><code class="sig-name descname">write_tfrecords_single</code><span class="sig-paren">(</span><em class="sig-param">input_directory</em>, <em class="sig-param">output_directory</em>, <em class="sig-param">filename</em>, <em class="sig-param">category</em>, <em class="sig-param">case</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/util/tfrecords.html#write_tfrecords_single"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.util.tfrecords.write_tfrecords_single" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scans a folder for image tiles, annotates using the provided category and case, exports
+into a single tfrecord file.</p>
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="slideflow.trainer.html" class="btn btn-neutral float-right" title="slideflow.trainer" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="slideflow.html" class="btn btn-neutral float-left" title="slideflow" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, James M Dolezal
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
