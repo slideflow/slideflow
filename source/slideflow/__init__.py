@@ -330,7 +330,6 @@ class SlideFlowProject:
 																							filter_values=filter_values,
 																							use_encode=(model_type=='categorical'),
 																							use_float=(model_type=='linear'))
-
 		model_dir = join(self.PROJECT['models_dir'], model_name)
 
 		# Build a model using the slide list as input and the annotations dictionary as output labels
@@ -360,10 +359,10 @@ class SlideFlowProject:
 			folders_to_search = [tfrecord_path]
 		for folder in folders_to_search:
 			tfrecords += glob(os.path.join(folder, "*.tfrecords"))
-		log.info(f"Evaluating {sfutil.bold(len(tfrecords))} tfrecords", 1)
 
 		# Set up model for evaluation
 		SFM = self.initialize_model(f"eval-{model_name}", None, None, category_header, filter_header, filter_values, skip_validation=True, model_type=model_type)
+		log.info(f"Evaluating {sfutil.bold(len(SFM.SLIDE_TO_CATEGORY.keys()))} tfrecords", 1)
 		model_dir = join(self.PROJECT['models_dir'], model, "trained_model.h5") if model[-3:] != ".h5" else model
 		results = SFM.evaluate(tfrecords=tfrecords, hp=None, model=model_dir, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
 		print(results)
