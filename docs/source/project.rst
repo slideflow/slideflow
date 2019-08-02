@@ -57,7 +57,7 @@ For more information about setting up a validation plan, see :ref:`validation_pl
 
 Setting up annotations
 **********************
-+-------------------+---------------+-----------+-------------------------------+
+
 Your annotations CSV file is used to label patients and slides with clinical data and/or other outcome variables that will be used for training.
 Each line in the annotations file should correspond to a unique patient/slide (*Note: v0.9.9 of slideflow currently supports only one slide per patient*).
 
@@ -69,17 +69,19 @@ The annotations file may contain as many columns as you would like, but it must 
 
 An example annotations file is given below:
 
-+-------------------+---------------+-----------+-------------------------------+
-| *submitter_id*	| *category*	| *dataset*	| *slide*						|
-+-------------------+---------------+-----------+-------------------------------+
-| TCGA-EL-A23A		| EGFR-mutant	| train		| TCGA-EL-A3CO-01Z-00-DX1-7BF5F	|
-+-------------------+---------------+-----------+-------------------------------+
-| TCGA-EL-A35B		| EGFR-mutant	| eval		| TCGA-EL-A35B-01Z-00-DX1-89FCD	|
-+-------------------+---------------+-----------+-------------------------------+
-| TCGA-EL-A26X		| non-mutant	| train		| TCGA-EL-A26X-01Z-00-DX1-4HA2C	|
-+-------------------+---------------+-----------+-------------------------------+
-| TCGA-EL-B83L		| non-mutant	| eval		| TCGA-EL-B83L-01Z-00-DX1-6BC5L	|
-+-------------------+---------------+-----------+-------------------------------+
++-----------------------+---------------+-----------+-----------------------------------+
+| *submitter_id*	| *category*	| *dataset* | *slide*				|
++-----------------------+---------------+-----------+-----------------------------------+
+| TCGA-EL-A23A		| EGFR-mutant	| train	    | TCGA-EL-A3CO-01Z-00-DX1-7BF5F	|
++-----------------------+---------------+-----------+-----------------------------------+
+| TCGA-EL-A35B		| EGFR-mutant	| eval	    | TCGA-EL-A35B-01Z-00-DX1-89FCD	|
++-----------------------+---------------+-----------+-----------------------------------+
+| TCGA-EL-A26X		| non-mutant	| train	    | TCGA-EL-A26X-01Z-00-DX1-4HA2C	|
++-----------------------+---------------+-----------+-----------------------------------+
+| TCGA-EL-B83L		| non-mutant	| eval	    | TCGA-EL-B83L-01Z-00-DX1-6BC5L	|
++-----------------------+---------------+-----------+-----------------------------------+
+
+.. _execute:
 
 Executing commands
 ******************
