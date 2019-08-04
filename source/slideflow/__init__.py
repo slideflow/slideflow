@@ -146,10 +146,10 @@ class SlideFlowProject:
 			for subdir in subdirs:
 				tfrecord_subdir = join(tfrecord_dir, subdir)
 				tfrecords.write_tfrecords_multi(join(tiles_dir, subdir), tfrecord_subdir)
-				self.update_manifest(tfrecord_subdir)
 		else:
 			tfrecords.write_tfrecords_multi(tiles_dir, tfrecord_dir)
-			self.update_manifest(tfrecord_dir)
+
+		self.update_manifest()
 
 		if self.PROJECT['delete_tiles']:
 			shutil.rmtree(tiles_dir)		
@@ -334,7 +334,7 @@ class SlideFlowProject:
 
 		# Build a model using the slide list as input and the annotations dictionary as output labels
 		SFM = sfmodel.SlideflowModel(model_dir, self.PROJECT['tile_px'], slide_to_category, train_tfrecords, validation_tfrecords,
-																				manifest=self.MANIFEST, 
+																				manifest=sfutil.get_global_manifest(self.PROJECT['tfrecord_dir']),
 																				use_fp16=self.PROJECT['use_fp16'],
 																				model_type=model_type)
 		return SFM
@@ -716,28 +716,17 @@ class SlideFlowProject:
 		'''Experimental function used to automatically associated patient names with slide filenames in the annotations file.'''
 		sfutil.verify_annotations(self.PROJECT['annotations'], self.PROJECT['slides_dir'])
 
-	def generate_manifest(self):
-		'''Creates a new manifest file, used to track contents and number of records in project TFRecrds.'''
-		self.MANIFEST = {}
-		input_dir = self.PROJECT['tfrecord_dir']
-		annotations = sfutil.get_annotations_dict(self.PROJECT['annotations'], key_name="slide", value_name="category")
-		tfrecord_files = glob(os.path.join(input_dir, "**/*.tfrecords"))
-		self.MANIFEST = sfutil.update_tfrecord_manifest(annotations, tfrecord_files)
-		sfutil.write_json(self.MANIFEST, sfutil.global_path("manifest.json"))
-
-	def update_manifest(self, subfolder, skip_verification=False):
-		'''Updates manifest to include TFRecords in the given subfolder.'''
-		manifest_path = sfutil.global_path('manifest.json')
-		if not os.path.exists(manifest_path):
-			self.generate_manifest()
-		else:
-			input_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
-			annotations = sfutil.get_annotations_dict(self.PROJECT['annotations'], key_name="slide", value_name="category")
-			tfrecord_files = glob(os.path.join(input_dir, "*.tfrecords"))
-			self.MANIFEST = sfutil.load_json(manifest_path)
-			if not skip_verification:
-				self.MANIFEST.update(sfutil.update_tfrecord_manifest(annotations, tfrecord_files))
-			sfutil.write_json(self.MANIFEST, manifest_path)
+	def update_manifest(self, force_update=False):
+		'''Updates manifest file in the TFRecord directory, used to track number of records and verify annotations.
+		
+		Args:
+			force_update	If True, will re-validate contents of all TFRecords. If False, will only validate
+								contents of TFRecords not yet in the manifest
+		'''
+		sfutil.update_tfrecord_manifest(directory=self.PROJECT['tfrecord_dir'], 
+										annotations=sfutil.get_annotations_dict(self.PROJECT['annotations'],key_name="slide", 
+																											value_name="category"),
+										force_update=force_update)
 
 	def load_project(self, directory):
 		'''Loads a saved and pre-configured project.'''
@@ -751,11 +740,10 @@ class SlideFlowProject:
 		log.logfile = sfutil.global_path("log.log")
 
 		if not SKIP_VERIFICATION:
+			log.header("Verifying Annotations...")
 			sfutil.verify_annotations(self.PROJECT['annotations'], slides_dir=self.PROJECT['slides_dir'])
-		if os.path.exists(sfutil.global_path("manifest.json")):
-			self.MANIFEST = sfutil.load_json(sfutil.global_path("manifest.json"))
-		else:
-			self.generate_manifest()
+			log.header("Verifying TFRecord manifest...")
+			self.update_manifest()
 
 	def save_project(self):
 		'''Saves current project configuration as "settings.json".'''
