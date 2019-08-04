@@ -455,7 +455,7 @@ def verify_annotations(annotations_file, slides_dir=None):
 		if num_warned >= warn_threshold:
 			log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)
 
-def verify_tiles(annotations, tfrecord_files=[]):
+def update_tfrecord_manifest(annotations, tfrecord_files=[]):
 	'''Iterate through TFRecord files and verify all have a valid annotation.
 	
 	Additionally, generate a manifest to log the number of tiles for each slide.'''
