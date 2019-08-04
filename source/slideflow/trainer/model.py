@@ -419,8 +419,8 @@ class SlideflowModel:
 		y_pred = np.concatenate(y_pred)
 		y_true = np.concatenate(y_true)
 
-		tile_auc = None
-		slide_auc = None
+		tile_auc = []
+		slide_auc = []
 		r_squared = None
 
 		if model_type == 'linear':
