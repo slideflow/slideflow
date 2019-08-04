@@ -450,8 +450,9 @@ class SlideflowModel:
 
 			# Generate tile-level ROC
 			for i in range(num_cat):
-				tile_auc = self.generate_roc(y_true[:, i], y_pred[:, i], f'{label_start}tile_ROC{i}')
-				log.info(f"Tile-level AUC (cat #{i}): {tile_auc}", 1)
+				auc = self.generate_roc(y_true[:, i], y_pred[:, i], f'{label_start}tile_ROC{i}')
+				tile_auc += [auc]
+				log.info(f"Tile-level AUC (cat #{i}): {auc}", 1)
 
 			# Generate slide-level ROC
 			onehot_predictions = []
@@ -471,8 +472,9 @@ class SlideflowModel:
 			for i in range(num_cat):
 				case_y_pred = percent_calls_by_case[:, i]
 				case_y_true = [case_onehot[case][i] for case in unique_cases]
-				slide_auc = self.generate_roc(case_y_true, case_y_pred, f'{label_start}slide_ROC{i}')
-				log.info(f"Slide-level AUC (cat #{i}): {slide_auc}", 1)
+				auc = self.generate_roc(case_y_true, case_y_pred, f'{label_start}slide_ROC{i}')
+				slide_auc += [auc]
+				log.info(f"Slide-level AUC (cat #{i}): {auc}", 1)
 
 			# Save slide-level predictions
 			slide_csv_dir = os.path.join(self.DATA_DIR, f"slide_predictions{label_end}.csv")
@@ -612,8 +614,10 @@ class SlideflowModel:
 						results[f'epoch{epoch+1}']['train_acc'] = np.amax(train_acc)
 						results[f'epoch{epoch+1}']['val_loss'] = val_loss
 						results[f'epoch{epoch+1}']['val_acc'] = val_acc
-						results[f'epoch{epoch+1}']['tile_auc'] = tile_auc
-						results[f'epoch{epoch+1}']['slide_auc'] = slide_auc
+						for i, auc in enumerate(tile_auc):
+							results[f'epoch{epoch+1}'][f'tile_auc{i}'] = auc
+						for i, auc in enumerate(slide_auc):
+							results[f'epoch{epoch+1}'][f'slide_auc{i}'] = auc
 						results[f'epoch{epoch+1}']['r_squared'] = r_squared
 
 						with open(results_log, "a") as results_file:
