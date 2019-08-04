@@ -722,7 +722,7 @@ class SlideFlowProject:
 		input_dir = self.PROJECT['tfrecord_dir']
 		annotations = sfutil.get_annotations_dict(self.PROJECT['annotations'], key_name="slide", value_name="category")
 		tfrecord_files = glob(os.path.join(input_dir, "**/*.tfrecords"))
-		self.MANIFEST = sfutil.verify_tiles(annotations, tfrecord_files)
+		self.MANIFEST = sfutil.update_tfrecord_manifest(annotations, tfrecord_files)
 		sfutil.write_json(self.MANIFEST, sfutil.global_path("manifest.json"))
 
 	def update_manifest(self, subfolder, skip_verification=False):
@@ -736,7 +736,7 @@ class SlideFlowProject:
 			tfrecord_files = glob(os.path.join(input_dir, "*.tfrecords"))
 			self.MANIFEST = sfutil.load_json(manifest_path)
 			if not skip_verification:
-				self.MANIFEST.update(sfutil.verify_tiles(annotations, tfrecord_files))
+				self.MANIFEST.update(sfutil.update_tfrecord_manifest(annotations, tfrecord_files))
 			sfutil.write_json(self.MANIFEST, manifest_path)
 
 	def load_project(self, directory):
