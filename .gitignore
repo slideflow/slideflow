@@ -5,3 +5,4 @@ source/slideflow/convoluter/__pycache__/*
 source/slideflow/mosaic/__pycache__/*
 source/slideflow/trainer/__pycache__/*
 source/slideflow/util/__pycache__/*
+source/.vscode/*
