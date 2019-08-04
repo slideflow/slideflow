@@ -3,7 +3,7 @@ import json
 import csv
 
 import os
-from os.path import join, isdir
+from os.path import join, isdir, exists
 from glob import glob
 import shutil
 import datetime, time
@@ -455,55 +455,87 @@ def verify_annotations(annotations_file, slides_dir=None):
 		if num_warned >= warn_threshold:
 			log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)
 
-def update_tfrecord_manifest(annotations, tfrecord_files=[]):
-	'''Iterate through TFRecord files and verify all have a valid annotation.
+def get_relative_tfrecord_paths(root, directory=""):
+	tfrecords = [join(directory, f) for f in os.listdir(join(root, directory)) if (not isdir(join(root, directory, f)) and len(f) > 10 and f[-10:] == ".tfrecords")]
+	subdirs = [f for f in os.listdir(join(root, directory)) if isdir(join(root, directory, f))]
+	for sub in subdirs:
+		tfrecords += get_relative_tfrecord_paths(root, join(directory, sub))
+	return tfrecords
+
+def get_global_manifest(directory):
+	'''Loads a saved relative manifest at a directory and returns a dict containing
+	absolute/global path and file names.'''
+	manifest_path = join(directory, "manifest.json")
+	if not exists(manifest_path):
+		log.error(f"No manifest file detected in {directory}; will create now")
+		update_tfrecord_manifest(directory)
+	relative_manifest = load_json(manifest_path)
+	global_manifest = {}
+	for record in relative_manifest:
+		global_manifest.update({join(directory, record): relative_manifest[record]})
+	return global_manifest
+
+def update_tfrecord_manifest(directory, annotations=None, force_update=False):
+	'''Log number of tiles in each TFRecord file present in the given directory and all subdirectories, 
+	saving manifest to file within the parent directory.
 	
-	Additionally, generate a manifest to log the number of tiles for each slide.'''
-	success = True
+	Additionally, if annotations are provided, verify all TFRecords have a valid annotation.'''
+
 	case_list = []
-	manifest = {'train_data': {},
-				'eval_data': {}}
-	if tfrecord_files:
-		case_list_errors = []
-		for tfrecord_file in tfrecord_files:
-			manifest.update({tfrecord_file: {}})
-			raw_dataset = tf.data.TFRecordDataset(tfrecord_file)
-			for i, raw_record in enumerate(raw_dataset):
-				sys.stdout.write(f"\r + Verifying tile...{i}")
-				sys.stdout.flush()
-				example = tf.train.Example()
-				example.ParseFromString(raw_record.numpy())
-				case = example.features.feature['case'].bytes_list.value[0].decode('utf-8')
-				case_list.extend([case])
-				case_list = list(set(case_list))
-				if case not in manifest[tfrecord_file]:
-					manifest[tfrecord_file][case] = 1
-				else:
-					manifest[tfrecord_file][case] += 1
-				if case not in annotations:
-					case_list_errors.extend([case])
-					case_list_errors = list(set(case_list_errors))
-					success = False
-			total = 0
-			for case in manifest[tfrecord_file].keys():
-				total += manifest[tfrecord_file][case]
-			manifest[tfrecord_file]['total'] = total
-		for case in case_list_errors:
-			log.error(f"Failed TFRecord integrity check: annotation not found for case {green(case)}", 1)
-	if not success:
-		print("...failed.")
+	manifest_path = join(directory, "manifest.json")
+	manifest = {} if not exists(manifest_path) else load_json(manifest_path)
+	relative_tfrecord_paths = get_relative_tfrecord_paths(directory)
+
+	case_list_errors = []
+	for rel_tfr in relative_tfrecord_paths:
+		tfr = join(directory, rel_tfr)
+
+		if (not force_update) and (rel_tfr in manifest) and ('total' in manifest[rel_tfr]):
+			continue
+
+		manifest.update({rel_tfr: {}})
+		raw_dataset = tf.data.TFRecordDataset(tfr)
+		sys.stdout.write(f"\r + Verifying tiles in {green(rel_tfr)}...")
+		sys.stdout.flush()
+		total = 0
+		for raw_record in raw_dataset:
+			example = tf.train.Example()
+			example.ParseFromString(raw_record.numpy())
+			case = example.features.feature['case'].bytes_list.value[0].decode('utf-8')
+			case_list.extend([case])
+			case_list = list(set(case_list))
+			if case not in manifest[rel_tfr]:
+				manifest[rel_tfr][case] = 1
+			else:
+				manifest[rel_tfr][case] += 1
+			if annotations and case not in annotations:
+				case_list_errors.extend([case])
+				case_list_errors = list(set(case_list_errors))
+				success = False
+			total += 1
+		manifest[rel_tfr]['total'] = total
+
+	for case in case_list_errors:
+		log.error(f"Failed TFRecord integrity check: annotation not found for case {green(case)}", 1)
+
 	sys.stdout.write("\r\033[K")
 	sys.stdout.flush()
+
+	# Write manifest file
+	write_json(manifest, manifest_path)
+
 	# Now, check to see if all annotations have a corresponding set of tiles
-	num_warned = 0
-	warn_threshold = 3
-	for annotation_case in annotations.keys():
-		if annotation_case not in case_list:
-			print_func = print if num_warned < warn_threshold else None
-			log.warn(f"Case {green(annotation_case)} in annotation file has no image tiles", 2, print_func)
-			num_warned += 1
-	if num_warned >= warn_threshold:
-		log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 2)
+	if annotations:
+		num_warned = 0
+		warn_threshold = 3
+		for annotation_case in annotations.keys():
+			if annotation_case not in case_list:
+				print_func = print if num_warned < warn_threshold else None
+				log.warn(f"Case {green(annotation_case)} in annotation file has no image tiles", 2, print_func)
+				num_warned += 1
+		if num_warned >= warn_threshold:
+			log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 2)
+
 	return manifest
 	
 def contains_nested_subdirs(directory):
