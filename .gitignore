@@ -1,1 +1,7 @@
 source/run_project.py
+docs/build/*
+source/slideflow/__pycache__/*
+source/slideflow/convoluter/__pycache__/*
+source/slideflow/mosaic/__pycache__/*
+source/slideflow/trainer/__pycache__/*
+source/slideflow/util/__pycache__/*
