@@ -108,7 +108,7 @@ class SlideReader:
 		self.shortname = sfutil._shortname(self.name)
 		self.export_folder = export_folder
 		self.size_px = size_px
-		self.tiles_path = join(self.export_folder, self.name) # previously self.shortname
+		self.tiles_path = None if not export_folder else join(self.export_folder, self.name) # previously self.shortname
 
 		# Initiate SVS or JPG slide reader
 		if filetype == "svs":
@@ -121,6 +121,8 @@ class SlideReader:
 				return
 		elif filetype == "jpg":
 			self.slide = JPGSlide(path, mpp=DEFAULT_JPG_MPP)
+		elif filetype == "tiff":
+			self.slide = ops.OpenSlide(path)
 		else:
 			log.error(f"Unsupported file type '{filetype}' for case {self.shortname}.", 1, self.print)
 			self.load_error = True
