@@ -146,9 +146,17 @@ class Mosaic:
 
 		# Load model
 		_model = tf.keras.models.load_model(model)
-		loaded_model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
-											 outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
-		num_classes = _model.layers[-1].output_shape[-1]
+		complete_model=False
+		try:
+			loaded_model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
+												outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
+			num_classes = _model.layers[-1].output_shape[-1]
+		except AttributeError:
+			# Provides support for complete models that were not generated using Slideflow
+			complete_model=True
+			loaded_model = tf.keras.models.Model(inputs=[_model.input],
+												 outputs=[_model.layers[-2].output])
+			num_classes = 1
 		
 
 		results = []
@@ -181,7 +189,11 @@ class Mosaic:
 				sys.stdout.write(f"\r - Working on batch {i}")
 				sys.stdout.flush()
 				indices = list(range(len(indices_arr), len(indices_arr) + len(batch_processed_images)))
-				fl_weights, logits = loaded_model.predict([batch_processed_images, batch_processed_images])
+				if not complete_model:
+					fl_weights, logits = loaded_model.predict([batch_processed_images, batch_processed_images])
+				else:
+					fl_weights = loaded_model.predict([batch_processed_images])
+					logits = [-1] * self.BATCH_SIZE
 				fl_weights_arr = fl_weights if fl_weights_arr == [] else np.concatenate([fl_weights_arr, fl_weights])
 				logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
 				cases_arr = batch_cases if cases_arr == [] else np.concatenate([cases_arr, batch_cases])
