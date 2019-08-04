@@ -614,6 +614,7 @@ class SlideFlowProject:
 																				  							  filter_values=filter_values)
 		heatmaps_folder = os.path.join(self.PROJECT['root'], 'heatmaps')
 		if not os.path.exists(heatmaps_folder): os.makedirs(heatmaps_folder)
+		model_path = model_name if model_name[-3:] == ".h5" else join(self.PROJECT['models_dir'], model_name, 'trained_model.h5')
 
 		c = convoluter.Convoluter(self.PROJECT['tile_px'], self.PROJECT['tile_um'], batch_size=64,
 																					use_fp16=self.PROJECT['use_fp16'],
@@ -621,7 +622,7 @@ class SlideFlowProject:
 																					save_folder=heatmaps_folder,
 																					roi_dir=self.PROJECT['roi_dir'])
 		c.load_slides(slide_list)
-		c.build_model(join(self.PROJECT['models_dir'], model_name, 'trained_model.h5'))
+		c.build_model(model_path)
 		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
 	def generate_mosaic(self, model=None, filter_header=None, filter_values=None, focus_header=None, focus_values=None, subfolder=None, resolution="medium"):
