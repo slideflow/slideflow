@@ -4,6 +4,7 @@ import sys
 import shutil
 import logging
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
+from comet_ml import Experiment
 import tensorflow as tf
 
 from os.path import join, isfile, exists, isdir
@@ -32,6 +33,7 @@ GPU_LOCK = None
 NO_LABEL = 'no_label'
 SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
 VALIDATION_ID = ''.join(choice(ascii_lowercase) for i in range(10))
+COMET_API_KEY = "A3VWRcPaHgqc4H5K0FoCtRXbp"
 
 def set_logging_level(level):
 	sfutil.LOGGING_LEVEL.INFO = level
@@ -522,6 +524,13 @@ class SlideFlowProject:
 				log.info(hp, 1)
 			full_model_name = model_name if not k_fold_i else model_name+f"-kfold{k_fold_i}"
 
+			# Initialize Comet experiment
+			experiment = Experiment(COMET_API_KEY, project_name=self.PROJECT['name'])
+			experiment.log_parameters(hp._get_dict())
+			experiment.set_name(model_name) #vs. experiment.log_other('model_name', model_name)
+			if k_fold_i:
+				experiment.log_other('k_fold_iter", k_fold_i')
+
 			# Get TFRecords for training and validation
 			training_tfrecords, validation_tfrecords = self.get_training_and_validation_tfrecords(subfolder, slide_list, validation_target=validation_target,
 																														 validation_strategy=validation_strategy,
@@ -532,6 +541,7 @@ class SlideFlowProject:
 			SFM = self.initialize_model(full_model_name, training_tfrecords, validation_tfrecords, category_header, filter_header, filter_values, model_type=model_type)
 
 			# Log hyperparameters
+			experiment.log_parameters
 			with open(os.path.join(self.PROJECT['models_dir'], full_model_name, 'hyperparameters.log'), 'w') as hp_file:
 				hp_text = f"Tile pixel size: {self.PROJECT['tile_px']}\n"
 				hp_text += f"Tile micron size: {self.PROJECT['tile_um']}\n"
@@ -547,6 +557,9 @@ class SlideFlowProject:
 										checkpoint=checkpoint,
 										supervised=supervised)
 				results_dict.update({full_model_name: results})
+				logged_epochs = [int(e[5:]) for e in results.keys() if e[:5] == 'epoch']
+				
+				experiment.log_metrics(results[f'epoch{max(logged_epochs)}'])
 				del(SFM)
 			except tf.errors.ResourceExhaustedError:
 				log.error(f"Training failed for {sfutil.bold(model_name)}, GPU memory exceeded.", 0)
