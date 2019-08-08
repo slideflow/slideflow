@@ -123,6 +123,12 @@ class HyperParameters:
 	def _get_args(self):
 		return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt', 'get_model', 'model_type']]
 
+	def _get_dict(self):
+		d = {}
+		for arg in self._get_args():
+			d.update({arg: getattr(self, arg)})
+		return d
+
 	def __str__(self):
 		output = "Hyperparameters:\n"
 			
