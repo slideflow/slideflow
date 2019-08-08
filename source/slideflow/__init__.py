@@ -527,9 +527,9 @@ class SlideFlowProject:
 			# Initialize Comet experiment
 			experiment = Experiment(COMET_API_KEY, project_name=self.PROJECT['name'])
 			experiment.log_parameters(hp._get_dict())
-			experiment.set_name(model_name) #vs. experiment.log_other('model_name', model_name)
+			experiment.log_other('model_name', model_name)
 			if k_fold_i:
-				experiment.log_other('k_fold_iter", k_fold_i')
+				experiment.log_other('k_fold_iter', k_fold_i)
 
 			# Get TFRecords for training and validation
 			training_tfrecords, validation_tfrecords = self.get_training_and_validation_tfrecords(subfolder, slide_list, validation_target=validation_target,
@@ -540,8 +540,6 @@ class SlideFlowProject:
 			# Initialize model
 			SFM = self.initialize_model(full_model_name, training_tfrecords, validation_tfrecords, category_header, filter_header, filter_values, model_type=model_type)
 
-			# Log hyperparameters
-			experiment.log_parameters
 			with open(os.path.join(self.PROJECT['models_dir'], full_model_name, 'hyperparameters.log'), 'w') as hp_file:
 				hp_text = f"Tile pixel size: {self.PROJECT['tile_px']}\n"
 				hp_text += f"Tile micron size: {self.PROJECT['tile_um']}\n"
