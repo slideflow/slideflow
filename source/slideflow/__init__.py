@@ -9,7 +9,8 @@ import tensorflow as tf
 from os.path import join, isfile, exists, isdir
 from pathlib import Path
 from glob import glob
-from random import shuffle
+from random import shuffle, choice
+from string import ascii_lowercase
 import csv
 
 import gc
@@ -30,6 +31,7 @@ EVAL_BATCH_SIZE = 64
 GPU_LOCK = None
 NO_LABEL = 'no_label'
 SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
+VALIDATION_ID = ''.join(choice(ascii_lowercase) for i in range(10))
 
 def set_logging_level(level):
 	sfutil.LOGGING_LEVEL.INFO = level
@@ -230,7 +232,7 @@ class SlideFlowProject:
 
 		# If validation is done per-slide, create and log a validation subset
 		elif val_target == 'per-slide':
-			validation_log = join(tfrecord_dir, "validation_plan.json")
+			
 			tfrecords = glob(join(tfrecord_dir, "*.tfrecords"))
 			tfrecords = [tfr for tfr in glob(join(tfrecord_dir, "*.tfrecords")) if tfr.split('/')[-1][:-10] in slide_list]
 			shuffle(tfrecords)
@@ -243,6 +245,7 @@ class SlideFlowProject:
 				validation_tfrecords = tfrecords[0:num_val]
 				training_tfrecords = tfrecords[num_val:]
 			elif val_strategy == 'fixed':
+				validation_log = join(tfrecord_dir, "validation_plan_fixed.json")
 				num_val = int(val_fraction * len(tfrecords))
 				# Start by checking for a valid plan
 				if not exists(validation_log):
@@ -272,6 +275,7 @@ class SlideFlowProject:
 				validation_plan['fixed'] = [tfr.split('/')[-1] for tfr in validation_tfrecords]
 				sfutil.write_json(validation_plan, validation_log)
 			elif val_strategy == 'k-fold':
+				validation_log = join(tfrecord_dir, f"validation_plan_k-fold_{VALIDATION_ID}.json")
 				if not exists(validation_log):
 					log.info(f"No validation log found; will log validation plan at {sfutil.green(validation_log)}", 1)
 				else:
