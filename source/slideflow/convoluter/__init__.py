@@ -132,8 +132,8 @@ class SlideReader:
 		if roi_dir and exists(join(roi_dir, self.name + ".csv")):
 			num_rois = self.load_csv_roi(join(roi_dir, self.name + ".csv"))
 		# Else try loading ROI from same folder as SVS
-		elif exists(path[:-4] + ".csv"):
-			num_rois = self.load_csv_roi(path[:-4] + ".csv")
+		elif exists(path.split(".")[0] + ".csv"):
+			num_rois = self.load_csv_roi(path.split(".")[0] + ".csv")
 		else:
 			if SKIP_MISSING_ROI:
 				log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.print)
@@ -341,7 +341,7 @@ class Convoluter:
 
 	def load_slides(self, slides_array, category="None"):
 		for slide_path in slides_array:
-			name = slide_path.split('/')[-1][:-4]
+			name = slide_path.split('/')[-1].split(".")[0]
 			filetype = slide_path.split('/')[-1][-3:]
 			self.SLIDES.update({name: { "name": name,
 										"path": slide_path,
@@ -590,53 +590,3 @@ class Convoluter:
 			fig.canvas.set_window_title(name)
 			implot.show()
 			plt.show()
-
-def get_args():
-	parser = argparse.ArgumentParser(description = 'Convolutionally applies a saved Tensorflow model to a larger image, displaying the result as a heatmap overlay.')
-	parser.add_argument('-m', '--model', help='Path to Tensorflow model directory containing stored checkpoint.')
-	parser.add_argument('-s', '--slide', help='Path to whole-slide image (SVS or JPG format) or folder of images (SVS or JPG) to analyze.')
-	parser.add_argument('-r', '--roi', help='Path to CSV ROI files.')
-	parser.add_argument('-o', '--out', help='Path to directory in which exported images and data will be saved.')
-	parser.add_argument('-b', '--batch', type=int, default = 64, help='Batch size for which to run the analysis.')
-	parser.add_argument('--px', type=int, default=512, help='Size of image patches to analyze, in pixels.')
-	parser.add_argument('--um', type=float, default=255.3856, help='Size of image patches to analyze, in microns.')
-	parser.add_argument('--fp16', action="store_true", help='Use Float16 operators (half-precision) instead of Float32.')
-	parser.add_argument('--save', action="store_true", help='Save heatmaps to PNG file instead of displaying.')
-	parser.add_argument('--final', action="store_true", help='Calculate and export image tiles and final layer weights.')
-	parser.add_argument('--display', action="store_true", help='Display results with interactive heatmap for each whole-slide image.')
-	parser.add_argument('--export', action="store_true", help='Save extracted image tiles.')
-	parser.add_argument('--augment', action="store_true", help='Augment extracted tiles with flipping/rotating.')
-	parser.add_argument('--num_threads', type=int, help='Number of threads to use when tessellating.')
-	parser.add_argument('--stride', type=int, default=2, help='Integer 1-4. Stride to use when making heatmaps. Lower numbers will generate lower resolution heatmaps.')
-	return parser.parse_args()
-
-if __name__==('__main__'):
-	# Disable warnings to maintain clean output
-	os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-	#tf.logging.set_verbosity(tf.logging.ERROR)
-	args = get_args()
-
-	if not args.out: args.out = args.slide
-	if args.num_threads: NUM_THREADS = args.num_threads
-
-	c = Convoluter(args.px, args.um, args.batch, args.fp16, args.stride, args.out, args.roi, augment=args.augment)
-
-	# Load images/slides
-	# If a single file is provided with the --slide flag, then load only that image
-	if isfile(args.slide):
-		c.load_slides(args.slide)
-	else:
-		# Otherwise, assume the --slide flag provided a directory and attempt to load images in the directory 
-		# First, load all images in the directory, without assigning any category labels
-		slide_list = [join(args.slide, i) for i in os.listdir(args.slide) if (isfile(join(args.slide, i)) and (i[-3:].lower() in ("svs", "jpg")))]	
-		c.load_slides(slide_list)
-		# Next, load images in subdirectories, assigning category labels by subdirectory name
-		dir_list = [d for d in os.listdir(args.slide) if not isfile(join(args.slide, d))]
-		for directory in dir_list:
-			# Ignore images if in the thumbnails or QuPath project directory
-			if directory in ["thumbs", "QuPath_Project"]: continue
-			slide_list = [join(args.slide, directory, i) for i in os.listdir(join(args.slide, directory)) if (isfile(join(args.slide, directory, i)) and (i[-3:].lower() in ("svs", "jpg")))]	
-			c.load_slides(slide_list, category=directory)
-			
-	c.build_model(args.model)
-	c.convolute_slides(args.save, args.display, args.final, args.export)
