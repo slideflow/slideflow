@@ -342,7 +342,7 @@ class Convoluter:
 	def load_slides(self, slides_array, category="None"):
 		for slide_path in slides_array:
 			name = slide_path.split('/')[-1].split(".")[0]
-			filetype = slide_path.split('/')[-1][-3:]
+			filetype = slide_path.split('/')[-1].split(".")[-1]
 			self.SLIDES.update({name: { "name": name,
 										"path": slide_path,
 										"type": filetype,
