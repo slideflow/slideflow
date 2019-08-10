@@ -123,6 +123,12 @@ class HyperParameters:
 	def _get_args(self):
 		return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt', 'get_model', 'model_type']]
 
+	def _get_dict(self):
+		d = {}
+		for arg in self._get_args():
+			d.update({arg: getattr(self, arg)})
+		return d
+
 	def __str__(self):
 		output = "Hyperparameters:\n"
 			
@@ -237,11 +243,13 @@ class SlideflowModel:
 		if tfrecords == []:
 			log.error(f"No TFRecords found.", 1)
 			sys.exit()
-		
+
 		for filename in tfrecords:
 			slide_name = filename.split('/')[-1][:-10]
+			
 			if slide_name not in self.SLIDES:
 				continue
+			
 			category = self.SLIDE_TO_CATEGORY[slide_name]
 			dataset_to_add = tf.data.TFRecordDataset(filename) if finite else tf.data.TFRecordDataset(filename).repeat()
 			datasets += [dataset_to_add]
@@ -297,7 +305,7 @@ class SlideflowModel:
 		try:
 			dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
 		except IndexError:
-			log.error(f"No TFRecords found after filter criteria", 1)
+			log.error(f"No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder", 1)
 			sys.exit()
 		if include_casenames:
 			dataset_with_casenames = dataset.map(self._parse_tfrecord_with_casenames_function, num_parallel_calls = 8)
