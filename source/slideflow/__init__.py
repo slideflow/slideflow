@@ -385,7 +385,11 @@ class SlideFlowProject:
 			if arg in hp._get_args():
 				if arg != 'finetune_epochs':
 					arg_type = type(getattr(hp, arg))
-					setattr(hp, arg, arg_type(value))
+					if arg_type == bool:
+						bool_val = True if value.lower() in ['true', 'yes', 'y', 't'] else False
+						setattr(hp, arg, bool_val)
+					else:
+						setattr(hp, arg, arg_type(value))
 				else:
 					epochs = [int(i) for i in value.split(',')]
 					setattr(hp, arg, epochs)
