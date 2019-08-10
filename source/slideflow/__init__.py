@@ -386,7 +386,13 @@ class SlideFlowProject:
 				if arg != 'finetune_epochs':
 					arg_type = type(getattr(hp, arg))
 					if arg_type == bool:
-						bool_val = True if value.lower() in ['true', 'yes', 'y', 't'] else False
+						if value.lower() in ['true', 'yes', 'y', 't']:
+							bool_val = True
+						elif value.lower() in ['false', 'no', 'n', 'f']:
+							bool_val = False
+						else:
+							log.warn(f'Unable to parse arg "{arg}" with value "{value}" in batch training file into true/false; will default to True', 1)
+							bool_val = True
 						setattr(hp, arg, bool_val)
 					else:
 						setattr(hp, arg, arg_type(value))
