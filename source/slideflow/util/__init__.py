@@ -261,8 +261,12 @@ def get_slide_paths(slides_dir):
 	slide_list.extend( [i for i in glob(join(slides_dir, '**/*.jpg'))
 						if i.split('/')[num_dir] != 'thumbs'] )
 
+	slide_list.extend( [i for i in glob(join(slides_dir, '**/*.tiff'))
+						if i.split('/')[num_dir] != 'thumbs'] )
+
 	slide_list.extend(glob(join(slides_dir, '*.svs')))
 	slide_list.extend(glob(join(slides_dir, '*.jpg')))
+	slide_list.extend(glob(join(slides_dir, '*.tiff')))
 	return slide_list
 
 def get_filtered_slide_paths(slides_dir, annotations_file, filter_header, filter_values):
@@ -272,7 +276,7 @@ def get_filtered_slide_paths(slides_dir, annotations_file, filter_header, filter
 		return slide_list
 	filtered_annotation_dict = get_annotations_dict(annotations_file, TCGAAnnotations.slide, TCGAAnnotations.case, filter_header=filter_header, filter_values=filter_values, use_encode=False)
 	filtered_slide_names = list(filtered_annotation_dict.keys())
-	filtered_slide_list = [slide for slide in slide_list if slide.split('/')[-1][:-4] in filtered_slide_names]
+	filtered_slide_list = [slide for slide in slide_list if slide.split('/')[-1].split(".")[0] in filtered_slide_names]
 	return filtered_slide_list
 
 def get_filtered_tfrecords_paths(tfrecords_dir, annotations_file, filter_header, filter_values):
@@ -400,7 +404,7 @@ def verify_annotations(annotations_file, slides_dir=None):
 			print(f" + Searching {slides_dir}...")
 			skip_missing = False
 			for slide_filename in slide_list:
-				slide_name = slide_filename.split('/')[-1][:-4]
+				slide_name = slide_filename.split('/')[-1].split(".")[0]
 				# First, make sure the shortname and long name aren't both in the annotation file
 				if (slide_name != _shortname(slide_name)) and (slide_name in cases) and (_shortname(slide_name) in cases):
 					log.error(f"Both slide name {slide_name} and shorthand {_shortname(slide_name)} in annotation file; please remove one.", 1)
@@ -444,7 +448,7 @@ def verify_annotations(annotations_file, slides_dir=None):
 		num_warned = 0
 		warn_threshold = 3
 		for row in csv_reader:
-			if not row[slide_index] in [s.split('/')[-1][:-4] for s in slide_list]:
+			if not row[slide_index] in [s.split('/')[-1].split(".")[0] for s in slide_list]:
 				if not skip_warn and yes_no_input(f" + [{warn('WARN')}] Unable to locate slide {row[slide_index]}. Quit? [y/N] ", default='no'):
 					sys.exit()
 				else:
