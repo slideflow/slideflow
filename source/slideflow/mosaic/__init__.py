@@ -100,8 +100,8 @@ class Mosaic:
 	def load_slides(self, slides_array, category="None"):
 		log.info(f"Loading SVS slides ...", 1)
 		for slide in slides_array:
-			name = slide[:-4]
-			filetype = slide[-3:]
+			name = slide.split(".")[0]
+			filetype = slide.split(".")[-1]
 			path = slide
 
 			try:
