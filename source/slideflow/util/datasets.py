@@ -41,7 +41,7 @@ def split_tiles(folder, fraction, names):
 		case_directory = join(folder, case)
 		case_files = [f for f in listdir(case_directory) 
 						if (isfile(join(case_directory, f))) and
-						(f[-3:] == 'jpg')]
+						(f.split('.')[-1] == 'jpg')]
 
 		shuffle(case_files)
 		num_files = len(case_files)
@@ -98,7 +98,7 @@ def build_validation(train_dir, eval_dir, fraction = 0.1):
 		make_dir(join(eval_dir, case_dir))
 		files = [file for file in listdir(join(train_dir, case_dir)) 
 					if (isfile(join(train_dir, case_dir, file))) and
-						(file[-3:] == "jpg")]
+						(file.split('.')[-1] == "jpg")]
 		shuffle(files)
 		num_to_move = int(len(files)*fraction)
 		total_moved += num_to_move
@@ -115,7 +115,7 @@ def merge_validation(train_dir, eval_dir):
 		for case_dir in case_dirs:
 			files = [file for file in listdir(join(eval_dir, cat_dir, case_dir)) 
 						if (isfile(join(eval_dir, cat_dir, case_dir, file))) and
-						   (file[-3:] == "jpg")]
+						   (file.split('.')[-1] == "jpg")]
 			for file in files:
 				shutil.move(join(eval_dir, cat_dir, case_dir, file), join(train_dir, cat_dir, case_dir, file))
 			print(f"  Merged {len(files)} files for case {case_dir}")
