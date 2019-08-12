@@ -80,8 +80,9 @@ class HyperParameters:
 		#'NASNet': tf.keras.applications.NASNet
 	}
 	_LinearLoss = ['mean_squared_error', 'mean_absolute_error', 'mean_absolute_percentage_error', 'mean_squared_logarithmic_error', 'squared_hinge', 'hinge', 'logcosh']
-	def __init__(self, finetune_epochs=50, toplayer_epochs=0, model='InceptionV3', pooling='avg', loss='sparse_categorical_crossentropy',
-				 learning_rate=0.1, batch_size=16, hidden_layers=0, optimizer='Adam', early_stop=False, 
+
+	def __init__(self, finetune_epochs=10, toplayer_epochs=0, model='InceptionV3', pooling='max', loss='sparse_categorical_crossentropy',
+				 learning_rate=0.001, batch_size=16, hidden_layers=1, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
 				 augment=True):
 		''' Additional hyperparameters to consider:

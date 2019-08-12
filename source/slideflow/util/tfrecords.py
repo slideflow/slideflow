@@ -46,7 +46,7 @@ def image_example(category, case, image_string):
 	
 def _get_images_by_dir(directory):
 	files = [f for f in listdir(directory) if (isfile(join(directory, f))) and
-				(f[-3:] == "jpg")]
+				(f.split('.')[-1] == "jpg")]
 	return files
 
 def _try_getting_category(annotations_dict, case):
