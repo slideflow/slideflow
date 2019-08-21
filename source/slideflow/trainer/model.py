@@ -219,7 +219,7 @@ class SlideflowModel:
 		image = self._process_image(image_string, self.AUGMENT)
 		return image, label, case
 
-	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, dataset=None, include_casenames=False):
+	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, include_casenames=False):
 		'''Generates an interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to balancing if provided.
 		Requires self.MANIFEST. Assumes TFRecord files are named by case.
@@ -233,6 +233,8 @@ class SlideflowModel:
 			augment		Whether to use data augmentation (random flip/rotate)
 			finite		Whether create finite or infinite datasets. WARNING: If finite option is 
 							used with balancing, some tiles will be skipped.'''
+							 
+		log.info(f"Interleaving {len(tfrecords)} tfrecords, finite={finite}", 1)
 		datasets = []
 		datasets_categories = []
 		num_tiles = []
@@ -273,10 +275,10 @@ class SlideflowModel:
 			categories_prob[category] = lowest_category_case_count / categories[category]['num_cases']
 			categories_tile_fraction[category] = lowest_category_tile_count / categories[category]['num_tiles']
 		if balance == NO_BALANCE:
-			log.info(f"Not balancing input", 1)
+			log.info(f"Not balancing input", 2)
 			prob_weights = [i/sum(num_tiles) for i in num_tiles]
 		if balance == BALANCE_BY_CASE:
-			log.info(f"Balancing input across cases", 1)
+			log.info(f"Balancing input across cases", 2)
 			prob_weights = None
 			if finite:
 				# Only take as many tiles as the number of tiles in the smallest dataset
@@ -285,14 +287,17 @@ class SlideflowModel:
 					datasets[i] = datasets[i].take(num_to_take)
 					global_num_tiles += num_to_take
 		if balance == BALANCE_BY_CATEGORY:
-			log.info(f"Balancing input across categories", 1)
+			log.info(f"Balancing input across categories", 2)
 			prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
 			if finite:
 				# Only take as many tiles as the number of tiles in the smallest category
 				for i in range(len(datasets)):
-					num_to_take = num_tiles[i] * categories_tile_fraction[datasets_categories[i]]
+					num_to_take = int(num_tiles[i] * categories_tile_fraction[datasets_categories[i]])
+					log.info(f"Tile fraction (dataset {i+1}/{len(datasets)}): {categories_tile_fraction[datasets_categories[i]]}, taking {num_to_take}", 2)
 					datasets[i] = datasets[i].take(num_to_take)
 					global_num_tiles += num_to_take
+				log.info(f"Global num tiles: {global_num_tiles}", 2)
+		
 		# Remove empty cases
 		for i in sorted(range(len(prob_weights)), reverse=True):
 			if num_tiles[i] == 0:
@@ -318,7 +323,7 @@ class SlideflowModel:
 		
 		return dataset, dataset_with_casenames, global_num_tiles
 
-	def build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, dataset=None, include_casenames=False):
+	def build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, include_casenames=False):
 		'''Assembles dataset inputs from tfrecords.
 		
 		Args:
@@ -327,7 +332,7 @@ class SlideflowModel:
 								 (only available if TFRECORDS_BY_CASE=True)'''
 		self.AUGMENT = augment
 		with tf.name_scope('input'):
-			dataset, dataset_with_casenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, dataset, include_casenames)
+			dataset, dataset_with_casenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, include_casenames)
 		return dataset, dataset_with_casenames, num_tiles
 
 	def build_model(self, hp, pretrain=None, checkpoint=None):
@@ -560,9 +565,9 @@ class SlideflowModel:
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 
 		# Build inputs
-		train_data, _, num_tiles = self.build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, dataset='train', include_casenames=False)
+		train_data, _, num_tiles = self.build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, include_casenames=False)
 		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
-			validation_data, validation_data_with_casenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation', include_casenames=True)
+			validation_data, validation_data_with_casenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, include_casenames=True)
 			validation_data_for_training = validation_data.repeat()
 		else:
 			validation_data_for_training = None
