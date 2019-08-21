@@ -219,7 +219,7 @@ class SlideflowModel:
 		image = self._process_image(image_string, self.AUGMENT)
 		return image, label, case
 
-	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, dataset=None, include_casenames=False):
+	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, include_casenames=False):
 		'''Generates an interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to balancing if provided.
 		Requires self.MANIFEST. Assumes TFRecord files are named by case.
@@ -318,7 +318,7 @@ class SlideflowModel:
 		
 		return dataset, dataset_with_casenames, global_num_tiles
 
-	def build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, dataset=None, include_casenames=False):
+	def build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, include_casenames=False):
 		'''Assembles dataset inputs from tfrecords.
 		
 		Args:
@@ -327,7 +327,7 @@ class SlideflowModel:
 								 (only available if TFRECORDS_BY_CASE=True)'''
 		self.AUGMENT = augment
 		with tf.name_scope('input'):
-			dataset, dataset_with_casenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, dataset, include_casenames)
+			dataset, dataset_with_casenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, include_casenames)
 		return dataset, dataset_with_casenames, num_tiles
 
 	def build_model(self, hp, pretrain=None, checkpoint=None):
@@ -560,9 +560,9 @@ class SlideflowModel:
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 
 		# Build inputs
-		train_data, _, num_tiles = self.build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, dataset='train', include_casenames=False)
+		train_data, _, num_tiles = self.build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, include_casenames=False)
 		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
-			validation_data, validation_data_with_casenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, dataset='validation', include_casenames=True)
+			validation_data, validation_data_with_casenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, include_casenames=True)
 			validation_data_for_training = validation_data.repeat()
 		else:
 			validation_data_for_training = None
