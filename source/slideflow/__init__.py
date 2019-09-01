@@ -58,14 +58,14 @@ def select_gpu(number):
 	GPU_LOCK = number
 	os.environ["CUDA_VISIBLE_DEVICES"]=str(number)
 
-def exit_script():
+def release_gpu():
 	global GPU_LOCK
 	print("Cleaning up...")
 	if GPU_LOCK != None and exists(join(SOURCE_DIR, f"gpu{GPU_LOCK}.lock")):
 		print(f"Freeing GPU {GPU_LOCK}...")
 		os.remove(join(SOURCE_DIR, f"gpu{GPU_LOCK}.lock"))
 	
-atexit.register(exit_script)
+atexit.register(release_gpu)
 
 class SlideFlowProject:
 	MANIFEST = None

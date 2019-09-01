@@ -275,10 +275,10 @@ class SlideflowModel:
 			categories_prob[category] = lowest_category_case_count / categories[category]['num_cases']
 			categories_tile_fraction[category] = lowest_category_tile_count / categories[category]['num_tiles']
 		if balance == NO_BALANCE:
-			log.info(f"Not balancing input", 2)
+			log.empty(f"Not balancing input", 2)
 			prob_weights = [i/sum(num_tiles) for i in num_tiles]
 		if balance == BALANCE_BY_CASE:
-			log.info(f"Balancing input across cases", 2)
+			log.empty(f"Balancing input across cases", 2)
 			prob_weights = None
 			if finite:
 				# Only take as many tiles as the number of tiles in the smallest dataset
@@ -287,7 +287,7 @@ class SlideflowModel:
 					datasets[i] = datasets[i].take(num_to_take)
 					global_num_tiles += num_to_take
 		if balance == BALANCE_BY_CATEGORY:
-			log.info(f"Balancing input across categories", 2)
+			log.empty(f"Balancing input across categories", 2)
 			prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
 			if finite:
 				# Only take as many tiles as the number of tiles in the smallest category
