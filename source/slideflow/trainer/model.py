@@ -293,10 +293,10 @@ class SlideflowModel:
 				# Only take as many tiles as the number of tiles in the smallest category
 				for i in range(len(datasets)):
 					num_to_take = int(num_tiles[i] * categories_tile_fraction[datasets_categories[i]])
-					log.info(f"Tile fraction (dataset {i+1}/{len(datasets)}): {categories_tile_fraction[datasets_categories[i]]}, taking {num_to_take}", 2)
+					log.empty(f"Tile fraction (dataset {i+1}/{len(datasets)}): {categories_tile_fraction[datasets_categories[i]]}, taking {num_to_take}", 2)
 					datasets[i] = datasets[i].take(num_to_take)
 					global_num_tiles += num_to_take
-				log.info(f"Global num tiles: {global_num_tiles}", 2)
+				log.empty(f"Global num tiles: {global_num_tiles}", 2)
 		
 		# Remove empty cases
 		for i in sorted(range(len(prob_weights)), reverse=True):

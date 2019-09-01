@@ -187,7 +187,11 @@ class SlideFlowProject:
 			Two arrays: an array of full paths to training tfrecords, and an array of paths to validation tfrecords.''' 
 
 		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
-		subdirs = [sd for sd in os.listdir(tfrecord_dir) if isdir(join(tfrecord_dir, sd))]
+		try:
+			subdirs = [sd for sd in os.listdir(tfrecord_dir) if isdir(join(tfrecord_dir, sd))]
+		except:
+			log.error(f"Unable to find TFRecord location {sfutil.green(tfrecord_dir)}")
+			sys.exit()
 		if k_fold_iter: k_fold_index = int(k_fold_iter)-1
 		training_tfrecords = []
 		validation_tfrecords = []
