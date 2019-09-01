@@ -159,8 +159,10 @@ class SlideflowModel:
 			self.NUM_CLASSES = 1
 
 		with tf.device('/cpu'):
+			slide_to_category_keys = list(slide_to_category.keys())
+			slide_to_category_values = [slide_to_category[key] for key in slide_to_category_keys]
 			self.ANNOTATIONS_TABLE = tf.lookup.StaticHashTable(
-				tf.lookup.KeyValueTensorInitializer(list(slide_to_category.keys()), list(slide_to_category.values())), -1
+				tf.lookup.KeyValueTensorInitializer(slide_to_category_keys, slide_to_category_values), -1
 			)
 
 		if not os.path.exists(self.DATA_DIR):
@@ -429,8 +431,8 @@ class SlideflowModel:
 			validation_data_for_training = None
 
 		#testing overide
-		num_tiles = 100
-		hp.finetune_epochs = 3
+		#num_tiles = 100
+		#hp.finetune_epochs = 3
 
 		# Prepare results
 		results = {}
