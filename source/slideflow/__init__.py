@@ -176,7 +176,7 @@ class SlideFlowProject:
 		log.header(f"Updating TFRecords in {sfutil.green(tfrecord_dir)}...")
 		tfrecords.tfrecord_name_to_case(tfrecord_dir)
 
-	def get_training_and_validation_tfrecords(self, subfolder, slide_list, validation_target=None, validation_strategy=None, 
+	def get_training_and_validation_tfrecords(self, subfolder, slide_list, slide_categories, model_type, validation_target=None, validation_strategy=None, 
 												validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
 		'''From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
 		If a validation plan has already been prepared (e.g. K-fold iterations were already determined), will use the previously generated plan.
@@ -234,8 +234,6 @@ class SlideFlowProject:
 
 		# If validation is done per-slide, create and log a validation subset
 		elif val_target == 'per-slide':
-			
-			tfrecords = glob(join(tfrecord_dir, "*.tfrecords"))
 			tfrecords = [tfr for tfr in glob(join(tfrecord_dir, "*.tfrecords")) if tfr.split('/')[-1][:-10] in slide_list]
 			shuffle(tfrecords)
 			if len(subdirs):
@@ -305,14 +303,30 @@ class SlideFlowProject:
 								validation_tfrecords = [tfr for tfr in tfrecords if tfr.split('/')[-1] in validation_plan['k-fold'][k_fold_index]] 
 								log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation", 1)
 								return training_tfrecords, validation_tfrecords
+
 				# Create a new k-fold validation plan and log plan results
 				validation_plan['k-fold'] = []
 
+				def flatten(l):
+					'''Flattens a list'''
+					return [y for x in l for y in x]
+
 				def split(a, n):
+					'''Function to split a list into n components'''
 					k, m = divmod(len(a), n)
 					return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
 
-				split_records = list(split(tfrecords, k_fold))
+				def balanced_split_by_category(a, n, c):
+					'''Function to split a list into n components, balanced by category c'''
+					# First, split the array according to output category
+					a_split_by_c = [[a[i] for i in range(len(a)) if b[i] == c] for c in set(b)]
+					# Then, for each sublist, split into n components
+					a_split_by_c_split_by_n = [list(split(sub_a, n)) for sub_a in a_split_by_c]
+					result = [flatten([item[ni] for item in a_split_by_c_split_by_n]) for ni in range(n)]
+					return result
+
+				split_records = list(balanced_split_by_category(tfrecords, k_fold, slide_categories)) if model_type == 'categorical' else list(split(tfrecords, k_fold))
+
 				for k in range(k_fold):
 					if k == k_fold_index:
 						validation_tfrecords = split_records[k]
@@ -517,6 +531,7 @@ class SlideFlowProject:
 																							filter_values=filter_values,
 																							use_encode=(model_type=='categorical'))
 		slide_list = slide_to_category.keys()
+		slide_categories = slide_to_category.values()
 
 		# Quickly scan for errors (duplicate model names) and prepare models to train
 		models_to_train = self._get_valid_models(batch_train_file, models)
@@ -542,7 +557,8 @@ class SlideFlowProject:
 				experiment.log_other('k_fold_iter', k_fold_i)
 
 			# Get TFRecords for training and validation
-			training_tfrecords, validation_tfrecords = self.get_training_and_validation_tfrecords(subfolder, slide_list, validation_target=validation_target,
+			training_tfrecords, validation_tfrecords = self.get_training_and_validation_tfrecords(subfolder, slide_list, slide_categories, model_type,
+																														 validation_target=validation_target,
 																														 validation_strategy=validation_strategy,
 																														 validation_fraction=validation_fraction,
 																														 validation_k_fold=validation_k_fold,
