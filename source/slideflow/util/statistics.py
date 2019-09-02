@@ -122,7 +122,7 @@ def generate_predictions_and_roc(model, dataset_with_casenames, model_type, data
 		# Generate tile-level ROC
 		for i in range(num_cat):
 			auc = generate_roc(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_ROC{i}')
-			generate_histogram(y_true[:, 1], y_pred[:, 1], data_dir, f'{label_start}tile_histogram{i}')
+			generate_histogram(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_histogram{i}')
 			tile_auc += [auc]
 			log.info(f"Tile-level AUC (cat #{i}): {auc}", 1)
 
