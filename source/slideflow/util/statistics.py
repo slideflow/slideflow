@@ -15,6 +15,18 @@ import slideflow.util as sfutil
 
 DATA_DIR = ""
 
+def generate_histogram(y_true, y_pred, data_dir, name='histogram'):
+	'''Generates histogram of y_pred, labeled by y_true'''
+	cat_false = [y_pred[i] for i in range(len(y_pred)) if y_true[i] == 0]
+	cat_true = [y_pred[i] for i in range(len(y_pred)) if y_true[i] == 1]
+
+	plt.clf()
+	plt.title('Tile-level Predictions')
+	sns.distplot( cat_false , color="skyblue", label="Negative")
+	sns.distplot( cat_true , color="red", label="Positive")
+	plt.legend()
+	plt.savefig(os.path.join(data_dir, f'{name}.png'))
+
 def generate_roc(y_true, y_pred, data_dir, name='ROC'):
 	# Statistics
 	fpr, tpr, threshold = metrics.roc_curve(y_true, y_pred)
@@ -110,15 +122,25 @@ def generate_predictions_and_roc(model, dataset_with_casenames, model_type, data
 		# Generate tile-level ROC
 		for i in range(num_cat):
 			auc = generate_roc(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_ROC{i}')
+			generate_histogram(y_true[:, 1], y_pred[:, 1], data_dir, f'{label_start}tile_histogram{i}')
 			tile_auc += [auc]
 			log.info(f"Tile-level AUC (cat #{i}): {auc}", 1)
 
-		# Generate slide-level ROC
+		# Convert predictions to one-hot encoding
 		onehot_predictions = []
 		for x in range(len(y_pred)):
 			predictions = y_pred[x]
 			onehot_predictions += [[1 if pred == max(predictions) else 0 for pred in predictions]]
+		
+		# Compare one-hot predictions to one-hot y_true for category-level accuracy
+		for cat_index in range(num_cat):
+			num_tiles_in_category = sum([yt[cat_index] for yt in y_true])
+			num_predicted_in_category = sum([yp[cat_index] for yp in onehot_predictions])
+			category_accuracy = num_predicted_in_category / num_tiles_in_category
+			cat_percent_acc = category_accuracy * 100
+			log.info(f"Category {cat_index} accuracy: {cat_percent_acc:.1f}% ({num_predicted_in_category}/{num_tiles_in_category})")
 
+		# Generate slide-level ROC
 		unique_cases = list(set(cases))
 		percent_calls_by_case = []
 		for case in unique_cases:
@@ -134,9 +156,6 @@ def generate_predictions_and_roc(model, dataset_with_casenames, model_type, data
 			auc = generate_roc(case_y_true, case_y_pred, data_dir, f'{label_start}slide_ROC{i}')
 			slide_auc += [auc]
 			log.info(f"Slide-level AUC (cat #{i}): {auc}", 1)
-			# Write raw data for debugging
-			#with open(os.path.join(data_dir, f"ROC_{i}.txt"), 'w') as dumpfile:
-			#	writer = csv.writer(dumpfile)	
 
 		# Save slide-level predictions
 		slide_csv_dir = os.path.join(data_dir, f"slide_predictions{label_end}.csv")
