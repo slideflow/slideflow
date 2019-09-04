@@ -386,7 +386,7 @@ class SlideflowModel:
 			self.model = self.build_model(hp)
 			self.model.load_weights(checkpoint)
 
-		tile_auc, slide_auc, r_squared = statistics.generate_predictions_and_roc(self.model, dataset_with_casenames, model_type, self.DATA_DIR, label="eval")
+		tile_auc, slide_auc, r_squared = statistics.generate_performance_metrics(self.model, dataset_with_casenames, model_type, self.DATA_DIR, label="eval")
 
 		log.info(f"Tile AUC: {tile_auc}", 1)
 		log.info(f"Slide AUC: {slide_auc}", 1)
@@ -478,7 +478,7 @@ class SlideflowModel:
 							train_acc = logs['accuracy']
 						else:
 							train_acc = logs[hp.loss]
-						tile_auc, slide_auc, r_squared = statistics.generate_predictions_and_roc(self.model, validation_data_with_casenames, hp.model_type(), parent.DATA_DIR, label=epoch_label)
+						tile_auc, slide_auc, r_squared = statistics.generate_performance_metrics(self.model, validation_data_with_casenames, hp.model_type(), parent.DATA_DIR, label=epoch_label)
 						if verbose: log.info("Beginning validation testing", 1)
 						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
