@@ -69,7 +69,7 @@ def generate_scatter(y_true, y_pred, data_dir, name='_plot'):
 
 	return r_squared
 
-def generate_predictions_and_roc(model, dataset_with_casenames, model_type, data_dir, label=None):
+def generate_performance_metrics(model, dataset_with_casenames, model_type, data_dir, label=None):
 	'''Dataset must include three items: raw image data, labels, and case names.'''
 
 	# TODO: return array of aucs for each outcome variable instead of just last
