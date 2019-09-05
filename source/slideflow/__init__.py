@@ -34,6 +34,7 @@ NO_LABEL = 'no_label'
 SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
 VALIDATION_ID = ''.join(choice(ascii_lowercase) for i in range(10))
 COMET_API_KEY = "A3VWRcPaHgqc4H5K0FoCtRXbp"
+DEBUGGING = False
 
 def set_logging_level(level):
 	sfutil.LOGGING_LEVEL.INFO = level
@@ -57,14 +58,14 @@ def select_gpu(number):
 	GPU_LOCK = number
 	os.environ["CUDA_VISIBLE_DEVICES"]=str(number)
 
-def exit_script():
+def release_gpu():
 	global GPU_LOCK
 	print("Cleaning up...")
 	if GPU_LOCK != None and exists(join(SOURCE_DIR, f"gpu{GPU_LOCK}.lock")):
 		print(f"Freeing GPU {GPU_LOCK}...")
 		os.remove(join(SOURCE_DIR, f"gpu{GPU_LOCK}.lock"))
 	
-atexit.register(exit_script)
+atexit.register(release_gpu)
 
 class SlideFlowProject:
 	MANIFEST = None
@@ -176,7 +177,7 @@ class SlideFlowProject:
 		log.header(f"Updating TFRecords in {sfutil.green(tfrecord_dir)}...")
 		tfrecords.tfrecord_name_to_case(tfrecord_dir)
 
-	def get_training_and_validation_tfrecords(self, subfolder, slide_list, validation_target=None, validation_strategy=None, 
+	def get_training_and_validation_tfrecords(self, subfolder, slide_list, slide_to_category, model_type, validation_target=None, validation_strategy=None, 
 												validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
 		'''From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
 		If a validation plan has already been prepared (e.g. K-fold iterations were already determined), will use the previously generated plan.
@@ -186,7 +187,11 @@ class SlideFlowProject:
 			Two arrays: an array of full paths to training tfrecords, and an array of paths to validation tfrecords.''' 
 
 		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
-		subdirs = [sd for sd in os.listdir(tfrecord_dir) if isdir(join(tfrecord_dir, sd))]
+		try:
+			subdirs = [sd for sd in os.listdir(tfrecord_dir) if isdir(join(tfrecord_dir, sd))]
+		except:
+			log.error(f"Unable to find TFRecord location {sfutil.green(tfrecord_dir)}")
+			sys.exit()
 		if k_fold_iter: k_fold_index = int(k_fold_iter)-1
 		training_tfrecords = []
 		validation_tfrecords = []
@@ -234,10 +239,14 @@ class SlideFlowProject:
 
 		# If validation is done per-slide, create and log a validation subset
 		elif val_target == 'per-slide':
-			
-			tfrecords = glob(join(tfrecord_dir, "*.tfrecords"))
-			tfrecords = [tfr for tfr in glob(join(tfrecord_dir, "*.tfrecords")) if tfr.split('/')[-1][:-10] in slide_list]
-			shuffle(tfrecords)
+
+			# Get tfrecords list, associate with categories, and shuffle
+			tfrecord_dir_list = glob(join(tfrecord_dir, "*.tfrecords"))
+			tfrecords_and_categories = [[tfr, slide_to_category[tfr.split('/')[-1][:-10]]] for tfr in tfrecord_dir_list if tfr.split('/')[-1][:-10] in slide_list]
+			shuffle(tfrecords_and_categories)
+			tfrecords = [tc[0] for tc in tfrecords_and_categories]
+			categories = [tc[1] for tc in tfrecords_and_categories]
+
 			if len(subdirs):
 				log.error(f"Validation target set to 'per-slide', but the TFRecord directory has validation configured per-tile (contains subfolders {', '.join(subdirs)}", 1)
 				sys.exit()
@@ -305,14 +314,40 @@ class SlideFlowProject:
 								validation_tfrecords = [tfr for tfr in tfrecords if tfr.split('/')[-1] in validation_plan['k-fold'][k_fold_index]] 
 								log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation", 1)
 								return training_tfrecords, validation_tfrecords
+
 				# Create a new k-fold validation plan and log plan results
 				validation_plan['k-fold'] = []
 
+				def flatten(l):
+					'''Flattens a list'''
+					return [y for x in l for y in x]
+
 				def split(a, n):
+					'''Function to split a list into n components'''
 					k, m = divmod(len(a), n)
 					return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
 
-				split_records = list(split(tfrecords, k_fold))
+				def balanced_split_by_category(a, n, c):
+					'''Function to split a list into n components, balanced by category c'''
+					# First, split the array according to output category
+					a_split_by_c = [[a[i] for i in range(len(a)) if c[i] == category] for category in set(c)]
+
+					# Then, for each sublist, split into n components
+					a_split_by_c_split_by_n = [list(split(sub_a, n)) for sub_a in a_split_by_c]
+
+					# Print splitting as a table
+					log.empty(sfutil.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(c)))])), 2)
+					for k in range(n):
+						log.empty(f"K-fold-{k}\t" + "\t".join([str(len(clist[k])) for clist in a_split_by_c_split_by_n]), 2)
+
+					a_split_by_c_split_by_n = [list(split(sub_a, n)) for sub_a in a_split_by_c]
+					result = [flatten([item[ni] for item in a_split_by_c_split_by_n]) for ni in range(n)]
+					return result
+
+				print
+
+				split_records = list(balanced_split_by_category(tfrecords, k_fold, categories)) if model_type == 'categorical' else list(split(tfrecords, k_fold))
+
 				for k in range(k_fold):
 					if k == k_fold_index:
 						validation_tfrecords = split_records[k]
@@ -516,7 +551,7 @@ class SlideFlowProject:
 																							filter_header=filter_header, 
 																							filter_values=filter_values,
 																							use_encode=(model_type=='categorical'))
-		slide_list = slide_to_category.keys()
+		slide_list = list(slide_to_category.keys())
 
 		# Quickly scan for errors (duplicate model names) and prepare models to train
 		models_to_train = self._get_valid_models(batch_train_file, models)
@@ -535,14 +570,16 @@ class SlideFlowProject:
 			full_model_name = model_name if not k_fold_i else model_name+f"-kfold{k_fold_i}"
 
 			# Initialize Comet experiment
-			experiment = Experiment(COMET_API_KEY, project_name=self.PROJECT['name'])
-			experiment.log_parameters(hp._get_dict())
-			experiment.log_other('model_name', model_name)
-			if k_fold_i:
-				experiment.log_other('k_fold_iter', k_fold_i)
+			if not DEBUGGING:
+				experiment = Experiment(COMET_API_KEY, project_name=self.PROJECT['name'])
+				experiment.log_parameters(hp._get_dict())
+				experiment.log_other('model_name', model_name)
+				if k_fold_i:
+					experiment.log_other('k_fold_iter', k_fold_i)
 
 			# Get TFRecords for training and validation
-			training_tfrecords, validation_tfrecords = self.get_training_and_validation_tfrecords(subfolder, slide_list, validation_target=validation_target,
+			training_tfrecords, validation_tfrecords = self.get_training_and_validation_tfrecords(subfolder, slide_list, slide_to_category, model_type,
+																														 validation_target=validation_target,
 																														 validation_strategy=validation_strategy,
 																														 validation_fraction=validation_fraction,
 																														 validation_k_fold=validation_k_fold,
@@ -567,7 +604,7 @@ class SlideFlowProject:
 				results_dict.update({full_model_name: results})
 				logged_epochs = [int(e[5:]) for e in results.keys() if e[:5] == 'epoch']
 				
-				experiment.log_metrics(results[f'epoch{max(logged_epochs)}'])
+				if not DEBUGGING: experiment.log_metrics(results[f'epoch{max(logged_epochs)}'])
 				del(SFM)
 			except tf.errors.ResourceExhaustedError:
 				log.error(f"Training failed for {sfutil.bold(model_name)}, GPU memory exceeded.", 0)
@@ -591,13 +628,20 @@ class SlideFlowProject:
 			# Perform training
 			if k_fold:
 				for k in valid_k:
-					process = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp, k+1))
+					if DEBUGGING:
+						trainer(results_dict, model_name, hp, k+1)
+					else:
+						process = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp, k+1))
+						process.start()
+						process.join()
+					
+			else:
+				if DEBUGGING:
+					trainer(results_dict, model_name, hp)
+				else:
+					process = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp))
 					process.start()
 					process.join()
-			else:
-				process = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp))
-				process.start()
-				process.join()
 
 			# Record results
 			for mi in model_iterations:
