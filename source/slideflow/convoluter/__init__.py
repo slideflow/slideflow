@@ -124,7 +124,7 @@ class SlideReader:
 		elif filetype == "tiff":
 			self.slide = ops.OpenSlide(path)
 		else:
-			log.error(f"Unsupported file type '{filetype}' for case {self.shortname}.", 1, self.print)
+			log.error(f"Unsupported file type '{filetype}' for slide {self.name}.", 1, self.print)
 			self.load_error = True
 			return
 
@@ -189,7 +189,7 @@ class SlideReader:
 		try:
 			loaded_correctly = bool(self.shape) 
 		except:
-			log.error(f"Slide failed to load properly for case {sfutil.green(self.shortname)}", 1, self.print)
+			log.error(f"Slide failed to load properly for slide {sfutil.green(self.name)}", 1, self.print)
 			sys.exit()
 		return loaded_correctly
 
@@ -216,7 +216,7 @@ class SlideReader:
 
 		total_logits_count = int(len(coord) * roi_area_fraction)
 		if total_logits_count == 0:
-			log.warn(f"No tiles were able to be extracted at the given micron size for case {sfutil.green(self.shortname)}", 1)
+			log.warn(f"No tiles were able to be extracted at the given micron size for slide {sfutil.green(self.name)}", 1)
 			return None, None, None, None, None
 		# Create mask for indicating whether tile was extracted
 		tile_mask = np.asarray([0 for i in range(len(coord))])
@@ -398,13 +398,13 @@ class Convoluter:
 			return
 
 		# Otherwise, we are generating heatmaps and unable to use multithreading or multiprocessing
-		for case_name in self.SLIDES:
-			slide = self.SLIDES[case_name]
+		for slide_name in self.SLIDES:
+			slide = self.SLIDES[slide_name]
 			category = slide['category']
-			shortname = sfutil._shortname(case_name)
+			shortname = sfutil._shortname(slide_name)
 
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
-			log.empty(f"Working on case {sfutil.green(shortname)}", 1, pb.print)
+			log.empty(f"Working on slide {sfutil.green(slide)}", 1, pb.print)
 
 			# Load the slide
 			whole_slide = SlideReader(slide['path'], slide['name'], slide['type'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
@@ -417,26 +417,23 @@ class Convoluter:
 																									pb=pb)
 			# Save the results
 			if save_heatmaps:
-				self.gen_heatmaps(slide, whole_slide.thumb, logits, self.SIZE_PX, case_name, save=True)
+				self.gen_heatmaps(slide, whole_slide.thumb, logits, self.SIZE_PX, slide_name, save=True)
 			if save_final_layer:
-				self.export_weights(final_layer, final_layer_labels, logits_flat, case_name, category)
+				self.export_weights(final_layer, final_layer_labels, logits_flat, slide_name, category)
 			if display_heatmaps:
-				self.gen_heatmaps(slide, whole_slide.thumb, logits, self.SIZE_PX, case_name, save=False)
+				self.gen_heatmaps(slide, whole_slide.thumb, logits, self.SIZE_PX, slide_name, save=False)
 
 	def export_tiles(self, slide, pb):
-		case_name = slide['name']
+		slide_name = slide['name']
 		category = slide['category']
 		path = slide['path']
 		filetype = slide['type']
 		
-		shortname = sfutil._shortname(case_name)
-		
-
-		#log.empty(f"Exporting tiles for case {sfutil.green(shortname)}", 1, pb.print)
-		log.empty(f"Exporting tiles for case {shortname}", 1, pb.print)
+		shortname = sfutil._shortname(slide_name)
+		log.empty(f"Exporting tiles for slide {slide_name}", 1, pb.print)
 		
 		# Load the slide	
-		whole_slide = SlideReader(path, case_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
+		whole_slide = SlideReader(path, slide_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
 		if not whole_slide.loaded_correctly():
 			return False
 		
@@ -444,7 +441,7 @@ class Convoluter:
 		gen_slice, _, _, _, _ = whole_slide.build_generator(export=True, augment=self.AUGMENT)
 
 		if not gen_slice:
-			log.error(f"No tiles extracted from case {sfutil.green(shortname)}", 1)
+			log.error(f"No tiles extracted from slide {sfutil.green(slide_name)}", 1)
 			return False
 
 		# Now iterate through the generator to save the images
@@ -536,7 +533,7 @@ class Convoluter:
 		with open(join(self.SAVE_FOLDER, 'final_layer_weights.csv'), write_mode) as csv_file:
 			csv_writer = csv.writer(csv_file, delimiter = ',')
 			if not csv_started:
-				csv_writer.writerow(["Tile_num", "Case", "Category"] + [f"Logits{l}" for l in range(len(logits[0]))] + [f"Node{n}" for n in range(len(output[0]))])
+				csv_writer.writerow(["Tile_num", "Slide", "Category"] + [f"Logits{l}" for l in range(len(logits[0]))] + [f"Node{n}" for n in range(len(output[0]))])
 			for l in range(len(output)):
 				logit = logits[l].tolist()
 				out = output[l].tolist()
