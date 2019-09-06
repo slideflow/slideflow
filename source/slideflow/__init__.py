@@ -24,7 +24,7 @@ import slideflow.util as sfutil
 from slideflow.util import datasets, tfrecords, TCGAAnnotations, log
 from slideflow.mosaic import Mosaic
 
-__version__ = "0.9.9"
+__version__ = "1.0.0d"
 
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
@@ -34,7 +34,7 @@ NO_LABEL = 'no_label'
 SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
 VALIDATION_ID = ''.join(choice(ascii_lowercase) for i in range(10))
 COMET_API_KEY = "A3VWRcPaHgqc4H5K0FoCtRXbp"
-DEBUGGING = False
+DEBUGGING = True
 
 def set_logging_level(level):
 	sfutil.LOGGING_LEVEL.INFO = level
@@ -115,26 +115,16 @@ class SlideFlowProject:
 		c.convolute_slides(export_tiles=True)
 
 		if not skip_validation and self.PROJECT['validation_target'] == 'per-tile':
-			self.separate_validation_tiles(save_folder)
+			if self.PROJECT['validation_target'] == 'per-tile':
+				if self.PROJECT['validation_strategy'] == 'boostrap':
+					log.warn("Validation bootstrapping is not supported when the validation target is per-tile; will generate random fixed validation target", 1)
+				if self.PROJECT['validation_strategy'] in ('bootstrap', 'fixed'):
+					# Split the extracted tiles into two groups
+					datasets.split_tiles(folder, fraction=[-1, self.PROJECT['validation_fraction']], names=['training', 'validation'])
+				if self.PROJECT['validation_strategy'] == 'k-fold':
+					datasets.split_tiles(folder, fraction=[-1] * self.PROJECT['validation_k_fold'], names=[f'kfold-{i}' for i in range(self.PROJECT['validation_k_fold'])])
 
 		self.generate_tfrecord(subfolder)
-
-	def separate_validation_tiles(self, folder):
-		'''If validation is performed per-tile, separate tiles from each slide into 
-		the necessary number of groups before combining into tfrecords'''
-		val_target = self.PROJECT['validation_target']
-		val_strategy = self.PROJECT['validation_strategy']
-		val_fraction = self.PROJECT['validation_fraction']
-		k_fold = self.PROJECT['validation_k_fold']
-
-		if val_target == 'per-tile':
-			if val_strategy == 'boostrap':
-				log.warn("Validation bootstrapping is not supported when the validation target is per-tile; will generate random fixed validation target", 1)
-			if val_strategy in ('bootstrap', 'fixed'):
-				# Split the extracted tiles into two groups
-				datasets.split_tiles(folder, fraction=[-1, val_fraction], names=['training', 'validation'])
-			if val_strategy == 'k-fold':
-				datasets.split_tiles(folder, fraction=[-1] * k_fold, names=[f'kfold-{i}' for i in range(k_fold)])
 
 	def generate_tfrecord(self, subfolder=None):
 		'''Create tfrecord files from a collection of raw images'''
@@ -143,7 +133,7 @@ class SlideFlowProject:
 		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
 		tiles_dir = join(self.PROJECT['tiles_dir'], subfolder)
 
-		# Check to see if subdirectories in the target folders are case directories (contain images)
+		# Check to see if subdirectories in the target folders are slide directories (contain images)
 		#  or are further subdirectories (e.g. validation and training)
 		log.info('Scanning tile directory structure...', 1)
 		if sfutil.contains_nested_subdirs(tiles_dir):
@@ -165,216 +155,16 @@ class SlideFlowProject:
 		shutil.rmtree(delete_folder)
 		log.info(f"Deleted tiles in folder {sfutil.green(delete_folder)}", 1)
 
-	def checkpoint_to_h5(self, model_name):
-		'''Converts a saved Tensorflow checkpoint into a full .h5 model.'''
-		tfrecords.checkpoint_to_h5(self.PROJECT['models_dir'], model_name)
-
-	def update_tfrecord_casenames(self, subfolder=None):
-		'''For a given folder, will iterate through all contents of each tfrecord file, replacing
-		the "case" label with the tfrecord filename.''' 
-		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
-		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
-		log.header(f"Updating TFRecords in {sfutil.green(tfrecord_dir)}...")
-		tfrecords.tfrecord_name_to_case(tfrecord_dir)
-
-	def get_training_and_validation_tfrecords(self, subfolder, slide_list, slide_to_category, model_type, validation_target=None, validation_strategy=None, 
-												validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
-		'''From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
-		If a validation plan has already been prepared (e.g. K-fold iterations were already determined), will use the previously generated plan.
-		Otherwise, creates a new plan and logs the result in the TFRecord directory so future models may use the same plan for consistency.
-
-		Returns:
-			Two arrays: an array of full paths to training tfrecords, and an array of paths to validation tfrecords.''' 
-
-		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
-		try:
-			subdirs = [sd for sd in os.listdir(tfrecord_dir) if isdir(join(tfrecord_dir, sd))]
-		except:
-			log.error(f"Unable to find TFRecord location {sfutil.green(tfrecord_dir)}")
-			sys.exit()
-		if k_fold_iter: k_fold_index = int(k_fold_iter)-1
-		training_tfrecords = []
-		validation_tfrecords = []
-		validation_plan = {}
-
-		val_target = validation_target if validation_target else self.PROJECT['validation_target']
-		val_strategy = validation_strategy if validation_strategy else self.PROJECT['validation_strategy']
-		val_fraction = validation_fraction if validation_fraction else self.PROJECT['validation_fraction']
-		k_fold = validation_k_fold if validation_k_fold else self.PROJECT['validation_k_fold']
-
-		# If validation is done per-tile, use pre-separated TFRecord files (validation separation done at time of TFRecord creation)
-		if val_target == 'per-tile':
-			log.info(f"Loading pre-separated TFRecords in {sfutil.green(subfolder)}", 1)
-			if val_strategy == 'bootstrap':
-				log.warn("Validation bootstrapping is not supported when the validation target is per-tile; using tfrecords in 'training' and 'validation' subdirectories", 1)
-			if val_strategy in ('bootstrap', 'fixed'):
-				# Load tfrecords from 'validation' and 'training' subdirectories
-				if ('validation' not in subdirs) or ('training' not in subdirs):
-					log.error(f"{sfutil.bold(val_strategy)} selected as validation strategy but tfrecords are not organized as such (unable to find 'training' or 'validation' subdirectories)")
-					sys.exit()
-				training_tfrecords += glob(join(tfrecord_dir, 'training', "*.tfrecords"))
-				validation_tfrecords += glob(join(tfrecord_dir, 'validation', "*.tfrecords"))
-			elif val_strategy == 'k-fold':
-				if not k_fold_iter:
-					log.warn("No k-fold iteration specified; assuming iteration #1", 1)
-					k_fold_iter = 1
-				if k_fold_iter > k_fold:
-					log.error(f"K-fold iteration supplied ({k_fold_iter}) exceeds the project K-fold setting ({k_fold})", 1)
-					sys.exit()
-				for k in range(k_fold):
-					if not exists(join(tfrecord_dir, f'kfold-{k}')):
-						log.error(f"Unable to find kfold-{k} in {sfutil.green(tfrecord_dir)}", 1)
-						sys.exit()
-					if k == k_fold_index:
-						validation_tfrecords += glob(join(tfrecord_dir, f'kfold-{k}', "*.tfrecords"))
-					else:
-						training_tfrecords += glob(join(tfrecord_dir, f'kfold-{k}', "*.tfrecords"))
-			elif val_strategy == 'none':
-				if len(subdirs):
-					log.error(f"Validation strategy set as 'none' but the TFRecord directory has been configured for validation (contains subfolders {', '.join(subdirs)})", 1)
-					sys.exit()
-			# Remove tfrecords not specified in slide_list
-			training_tfrecords = [tfr for tfr in training_tfrecords if tfr.split('/')[-1][:-10] in slide_list]
-			validation_tfrecords = [tfr for tfr in validation_tfrecords if tfr.split('/')[-1][:-10] in slide_list]
-
-		# If validation is done per-slide, create and log a validation subset
-		elif val_target == 'per-slide':
-
-			# Get tfrecords list, associate with categories, and shuffle
-			tfrecord_dir_list = glob(join(tfrecord_dir, "*.tfrecords"))
-			tfrecords_and_categories = [[tfr, slide_to_category[tfr.split('/')[-1][:-10]]] for tfr in tfrecord_dir_list if tfr.split('/')[-1][:-10] in slide_list]
-			shuffle(tfrecords_and_categories)
-			tfrecords = [tc[0] for tc in tfrecords_and_categories]
-			categories = [tc[1] for tc in tfrecords_and_categories]
-
-			if len(subdirs):
-				log.error(f"Validation target set to 'per-slide', but the TFRecord directory has validation configured per-tile (contains subfolders {', '.join(subdirs)}", 1)
-				sys.exit()
-			if val_strategy == 'bootstrap':
-				num_val = int(val_fraction * len(tfrecords))
-				log.info(f"Using boostrap validation: selecting {sfutil.bold(num_val)} slides at random to use for validation testing", 1)
-				validation_tfrecords = tfrecords[0:num_val]
-				training_tfrecords = tfrecords[num_val:]
-			elif val_strategy == 'fixed':
-				validation_log = join(tfrecord_dir, "validation_plan_fixed.json")
-				num_val = int(val_fraction * len(tfrecords))
-				# Start by checking for a valid plan
-				if not exists(validation_log):
-					log.info(f"No validation log found; will log validation plan at {sfutil.green(validation_log)}", 1)
-				else:
-					validation_plan = sfutil.load_json(validation_log)
-					if 'fixed' not in validation_plan:
-						log.info(f"No fixed validation plan found in {sfutil.green(validation_log)}; will create new plan", 1)
-					elif len(validation_plan['fixed']) != num_val:
-						log.warn(f"Fixed validation plan detected at {sfutil.green(validation_log)}, but does not match provided slide set; will create new validation plan", 1)
-					else:
-						valid_plan = True
-						for tf in validation_plan['fixed']:
-							if tf[:-10] not in slide_list:
-								log.warn(f"Fixed validation plan detected at {sfutil.green(validation_log)}, but contains tfrecords not in slide set; will create new validation plan", 1)
-								valid_plan = False
-						if valid_plan:
-							# Use existing valid plan
-							log.info(f"Using fixed validation plan detected at {sfutil.green(validation_log)}", 1)
-							training_tfrecords = [tfr for tfr in tfrecords if tfr.split('/')[-1] not in validation_plan['fixed']] 
-							validation_tfrecords = [tfr for tfr in tfrecords if tfr.split('/')[-1] in validation_plan['fixed']] 
-							log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation", 1)
-							return training_tfrecords, validation_tfrecords
-				# Create a new fixed validation plan and log plan results
-				validation_tfrecords = tfrecords[0:num_val]
-				training_tfrecords = tfrecords[num_val:]
-				validation_plan['fixed'] = [tfr.split('/')[-1] for tfr in validation_tfrecords]
-				sfutil.write_json(validation_plan, validation_log)
-			elif val_strategy == 'k-fold':
-				validation_log = join(tfrecord_dir, f"validation_plan_k-fold_{VALIDATION_ID}.json")
-				if not exists(validation_log):
-					log.info(f"No validation log found; will log validation plan at {sfutil.green(validation_log)}", 1)
-				else:
-					validation_plan = sfutil.load_json(validation_log)
-					if 'k-fold' not in validation_plan:
-						log.info(f"No k-fold validation plan found in {sfutil.green(validation_log)}; will create new plan", 1)
-					elif len(validation_plan['k-fold']) != k_fold:
-						log.warn(f"K-fold validation plan detected at {sfutil.green(validation_log)}, but logged k ({len(validation_plan['k-fold'])}) does not match project setting ({k_fold}); will create new validation plan", 1)
-					else:
-						logged_cases = []
-						for fold in range(len(validation_plan['k-fold'])):
-							logged_cases += validation_plan['k-fold'][fold]
-						if len(logged_cases) != len(tfrecords):
-							log.warn(f"K-fold validation plan detected at {sfutil.green(validation_log)}, but number of cases do not match; will create new plan", 1)
-						else:
-							valid_plan = True
-							for tf in logged_cases:
-								if tf[:-10] not in slide_list:
-									log.warn(f"K-fold validation plan detected at {sfutil.green(validation_log)}, but contains tfrecords not in slide set; will create new validation plan", 1)
-									valid_plan = False
-							if valid_plan:
-								log.info(f"Using k-fold validation plan detected at {sfutil.green(validation_log)}", 1)
-								training_tfrecords = [tfr for tfr in tfrecords if (tfr.split('/')[-1] not in validation_plan['k-fold'][k_fold_index]) and 
-																				  (tfr.split('/')[-1] in logged_cases)]
-								validation_tfrecords = [tfr for tfr in tfrecords if tfr.split('/')[-1] in validation_plan['k-fold'][k_fold_index]] 
-								log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation", 1)
-								return training_tfrecords, validation_tfrecords
-
-				# Create a new k-fold validation plan and log plan results
-				validation_plan['k-fold'] = []
-
-				def flatten(l):
-					'''Flattens a list'''
-					return [y for x in l for y in x]
-
-				def split(a, n):
-					'''Function to split a list into n components'''
-					k, m = divmod(len(a), n)
-					return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
-
-				def balanced_split_by_category(a, n, c):
-					'''Function to split a list into n components, balanced by category c'''
-					# First, split the array according to output category
-					a_split_by_c = [[a[i] for i in range(len(a)) if c[i] == category] for category in set(c)]
-
-					# Then, for each sublist, split into n components
-					a_split_by_c_split_by_n = [list(split(sub_a, n)) for sub_a in a_split_by_c]
-
-					# Print splitting as a table
-					log.empty(sfutil.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(c)))])), 2)
-					for k in range(n):
-						log.empty(f"K-fold-{k}\t" + "\t".join([str(len(clist[k])) for clist in a_split_by_c_split_by_n]), 2)
-
-					a_split_by_c_split_by_n = [list(split(sub_a, n)) for sub_a in a_split_by_c]
-					result = [flatten([item[ni] for item in a_split_by_c_split_by_n]) for ni in range(n)]
-					return result
-
-				print
-
-				split_records = list(balanced_split_by_category(tfrecords, k_fold, categories)) if model_type == 'categorical' else list(split(tfrecords, k_fold))
-
-				for k in range(k_fold):
-					if k == k_fold_index:
-						validation_tfrecords = split_records[k]
-					else:
-						training_tfrecords += split_records[k]
-					validation_plan['k-fold'] += [[tfr.split('/')[-1] for tfr in split_records[k]]]
-				sfutil.write_json(validation_plan, validation_log)
-
-			elif val_strategy == 'none':
-				training_tfrecords += tfrecords
-
-		log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation", 1)
-		return training_tfrecords, validation_tfrecords
-
-	def initialize_model(self, model_name, train_tfrecords, validation_tfrecords, category_header, filter_header=None, filter_values=None, skip_validation=False, model_type='categorical'):
+	def initialize_model(self, model_name, train_tfrecords, validation_tfrecords, category_header, filters=None, skip_validation=False, model_type='categorical'):
 		'''Prepares a Slideflow model using the provided outcome variable (category_header) 
 		and a given set of training and validation tfrecords.'''
 		# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
-		slide_to_category = sfutil.get_annotations_dict(self.PROJECT['annotations'], 'slide', category_header, 
-																							filter_header=filter_header, 
-																							filter_values=filter_values,
-																							use_encode=(model_type=='categorical'),
-																							use_float=(model_type=='linear'))
+		outcome_type = 'float' if model_type == 'linear' else 'int'																					
+		outcomes = sfutil.get_outcomes_from_annotations(category_header, filters=filters, outcome_type=outcome_type)
 		model_dir = join(self.PROJECT['models_dir'], model_name)
 
 		# Build a model using the slide list as input and the annotations dictionary as output labels
-		SFM = sfmodel.SlideflowModel(model_dir, self.PROJECT['tile_px'], slide_to_category, train_tfrecords, validation_tfrecords,
+		SFM = sfmodel.SlideflowModel(model_dir, self.PROJECT['tile_px'], outcomes, train_tfrecords, validation_tfrecords,
 																				manifest=sfutil.get_global_manifest(self.PROJECT['tfrecord_dir']),
 																				use_fp16=self.PROJECT['use_fp16'],
 																				model_type=model_type)
@@ -509,7 +299,7 @@ class SlideFlowProject:
 		if exists(f"{results_log_path}.temp"):
 			os.remove(f"{results_log_path}.temp")
 
-	def train(self, models=None, subfolder=NO_LABEL, category_header='category', filter_header=None, filter_values=None, resume_training=None, 
+	def train(self, models=None, subfolder=NO_LABEL, category_header='category', filters=None, resume_training=None, 
 				checkpoint=None, pretrain='imagenet', supervised=True, batch_file=None, model_type='categorical',
 				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
 		'''Train model(s) given configurations found in batch_train.tsv.
@@ -520,8 +310,7 @@ class SlideFlowProject:
 									Defaults to None, which will train all models in the batch_train.tsv config file.
 			subfolder			(optional) Which dataset to pull tfrecord files from (subdirectory in tfrecord_dir); defaults to 'no_label'
 			category_header		(optional) Which header in the annotation file to use for the output category. Defaults to 'category'
-			filter_header		(optional) Filter slides to inculde in training by this column
-			filter_values		(optional) String or array of strings. Only train on slides with these values in the filter_header column.
+			filters				(optional) Dictionary of column names mapping to column values by which to filter slides using the annotation file.
 			resume_training		(optional) Path to .h5 model to continue training
 			checkpoint			(optional) Path to cp.ckpt from which to load weights
 			supervised			(optional) Whether to use verbose output and save training progress to Tensorboard
@@ -542,16 +331,14 @@ class SlideFlowProject:
 		validation_strategy = self.PROJECT['validation_strategy'] if not validation_strategy else validation_strategy
 		validation_fraction = self.PROJECT['validation_fraction'] if not validation_fraction else validation_fraction
 		validation_k_fold = self.PROJECT['validation_k_fold'] if not validation_k_fold else validation_k_fold
+		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
+		results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
 		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and type(k_fold_iter) != list) else k_fold_iter
 		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
 		valid_k = [] if not k_fold else [kf for kf in range(k_fold) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
-		results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
-
-		slide_to_category = sfutil.get_annotations_dict(self.PROJECT['annotations'], 'slide', category_header, 
-																							filter_header=filter_header, 
-																							filter_values=filter_values,
-																							use_encode=(model_type=='categorical'))
-		slide_list = list(slide_to_category.keys())
+		
+		outcome_type = 'float' if model_type == 'linear' else 'int'																					
+		outcomes = sfutil.get_outcomes_from_annotations(category_header, filters=filters, outcome_type=outcome_type)
 
 		# Quickly scan for errors (duplicate model names) and prepare models to train
 		models_to_train = self._get_valid_models(batch_train_file, models)
@@ -578,14 +365,14 @@ class SlideFlowProject:
 					experiment.log_other('k_fold_iter', k_fold_i)
 
 			# Get TFRecords for training and validation
-			training_tfrecords, validation_tfrecords = self.get_training_and_validation_tfrecords(subfolder, slide_list, slide_to_category, model_type,
-																														 validation_target=validation_target,
-																														 validation_strategy=validation_strategy,
-																														 validation_fraction=validation_fraction,
-																														 validation_k_fold=validation_k_fold,
-																														 k_fold_iter=k_fold_i)
+			training_tfrecords, validation_tfrecords = tfrecords.get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type,
+																										validation_target=validation_target,
+																										validation_strategy=validation_strategy,
+																										validation_fraction=validation_fraction,
+																										validation_k_fold=validation_k_fold,
+																										k_fold_iter=k_fold_i)
 			# Initialize model
-			SFM = self.initialize_model(full_model_name, training_tfrecords, validation_tfrecords, category_header, filter_header, filter_values, model_type=model_type)
+			SFM = self.initialize_model(full_model_name, training_tfrecords, validation_tfrecords, category_header, filters, model_type=model_type)
 
 			with open(os.path.join(self.PROJECT['models_dir'], full_model_name, 'hyperparameters.log'), 'w') as hp_file:
 				hp_text = f"Tile pixel size: {self.PROJECT['tile_px']}\n"
@@ -634,7 +421,6 @@ class SlideFlowProject:
 						process = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp, k+1))
 						process.start()
 						process.join()
-					
 			else:
 				if DEBUGGING:
 					trainer(results_dict, model_name, hp)
@@ -765,10 +551,8 @@ class SlideFlowProject:
 				writer.writerow(row)
 		log.complete(f"Wrote {len(sweep)} combinations for sweep to {sfutil.green(filename)}")
 
-	def create_blank_annotations_file(self, outfile=None, slides_dir=None, scan_for_cases=False):
+	def create_blank_annotations_file(self, outfile=None, slides_dir=None, scan_for_slides=False):
 		'''Creates an example blank annotations file.'''
-		case_header_name = TCGAAnnotations.case
-
 		if not outfile: 
 			outfile = self.PROJECT['annotations']
 		if not slides_dir:
@@ -776,10 +560,10 @@ class SlideFlowProject:
 
 		with open(outfile, 'w') as csv_outfile:
 			csv_writer = csv.writer(csv_outfile, delimiter=',')
-			header = [case_header_name, 'dataset', 'category']
+			header = [TCGAAnnotations.patient, 'dataset', 'category']
 			csv_writer.writerow(header)
 
-		if scan_for_cases:
+		if scan_for_slides:
 			sfutil.verify_annotations(outfile, slides_dir=slides_dir)
 
 	def associate_slide_names(self):
@@ -794,8 +578,6 @@ class SlideFlowProject:
 								contents of TFRecords not yet in the manifest
 		'''
 		sfutil.update_tfrecord_manifest(directory=self.PROJECT['tfrecord_dir'], 
-										annotations=sfutil.get_annotations_dict(self.PROJECT['annotations'],key_name="slide", 
-																											value_name="category"),
 										force_update=force_update)
 
 	def load_project(self, directory):
@@ -814,6 +596,9 @@ class SlideFlowProject:
 			sfutil.verify_annotations(self.PROJECT['annotations'], slides_dir=self.PROJECT['slides_dir'])
 			log.header("Verifying TFRecord manifest...")
 			self.update_manifest()
+
+		# Load annotations
+		sfutil.load_annotations(self.PROJECT['annotations'])
 
 	def save_project(self):
 		'''Saves current project configuration as "settings.json".'''
@@ -834,7 +619,7 @@ class SlideFlowProject:
 			if sfutil.yes_no_input("Create a blank annotations file? [Y/n] ", default='yes'):
 				project['annotations'] = sfutil.file_input("Where will the annotation file be located? [./annotations.csv] ", 
 									default='./annotations.csv', filetype="csv", verify=False)
-				self.create_blank_annotations_file(project['annotations'], project['slides_dir'], scan_for_cases=sfutil.yes_no_input("Scan slide folder for case names? [Y/n] ", default='yes'))
+				self.create_blank_annotations_file(project['annotations'], project['slides_dir'], scan_for_slides=sfutil.yes_no_input("Scan slide folder and associate with patients? [Y/n] ", default='yes'))
 		else:
 			project['annotations'] = sfutil.file_input("Where is the project annotations (CSV) file located? [./annotations.csv] ", 
 									default='./annotations.csv', filetype="csv")
