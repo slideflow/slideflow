@@ -282,8 +282,8 @@ def get_filtered_tfrecords_paths(tfrecords_dir, filters):
 	return filtered_tfrecord_list
 
 def get_slides_from_annotations(filters=None):
-	global ANNOTATIONS
 	'''Returns a list of slide names from the annotations file using a given set of filters.'''
+	global ANNOTATIONS
 	result = []
 	if not len(ANNOTATIONS):
 		log.error("No annotations loaded; will exit.")
@@ -298,83 +298,71 @@ def get_slides_from_annotations(filters=None):
 				if filter_key not in ann.keys():
 					log.error(f"Filter header {filter_key} not found in annotations file.")
 					sys.exit()
-				if (type(filters[filter_key]) == list and ann[filter_key] not in filters[filter_key]) or filters[filter_key] != ann[filter_key]:
+				if    ((type(filters[filter_key]) == list and ann[filter_key] not in filters[filter_key]) 
+					or (type(filters[filter_key]) != list and filters[filter_key] != ann[filter_key])):
 					skip_annotation = True
 					break
 			if skip_annotation: continue
 		result += [ann[TCGA.slide]]
 	return result
 
-def get_outcomes_from_annotations(outcome, filters=None, outcome_type='string'):
+def get_outcomes_from_annotations(outcome, filters=None, use_float=False):
 	'''Returns a dictionary of slide names mapping to patient id and an outcome variable.
 	Args:
 		outcome			annotation header that specifies outcome variable
 		filters			dictionary of filters to use when selecting slides from annotations file
-		use_encode		Either 'string', 'float', or 'int'. Will attempt to convert outcome to the specified type.
-							If 'int' and outcomes are not integers, will encode outcomes. 
+		use_float		If true, will try to convert data into float
 	'''
 	global ANNOTATIONS
 	slides = get_slides_from_annotations(filters)
+	filtered_annotations = [a for a in ANNOTATIONS if a[TCGA.slide] in slides]
 	results = {}
 
 	try:
-		outcomes = [a[outcome] for a in ANNOTATIONS if a[TCGA.slide] in slides]
+		filtered_outcomes = [a[outcome] for a in filtered_annotations]
 	except KeyError:
 		log.error(f"Unable to find column {outcome} in annotation file.", 1)
 		sys.exit()
 
 	# Ensure outcomes can be converted to desired type
-	use_encode = False
-	try:
-		if outcome_type == 'int':
-			r = [int(o) for o in outcomes]
-		elif outcome_type == 'float':
-			r = [float(o) for o in outcomes]
-	except ValueError:
-		if outcome_type == 'int':
-			log.warn(f"Unable to convert outcome {outcome} into int; will use encoding.", 1)
-			use_encode = True
-		else:
-			log.error(f"Unable to convert outcome {outcome} into type {outcome_type}.", 1)
+	if use_float:
+		try:
+			filtered_outcomes = [float(o) for o in filtered_outcomes]
+		except ValueError:
+			log.error(f"Unable to convert outcome {outcome} into type 'float'.", 1)
 			sys.exit()
-	if use_encode:
-		unique_outcomes = list(set(outcomes))
+	else:
+		log.info(f'Assigning outcome descriptors in column "{outcome}" to numerical values', 1)
+		unique_outcomes = list(set(filtered_outcomes))
 		unique_outcomes.sort()
 		for i, uo in enumerate(unique_outcomes):
-			num_matching_slides = sum(o == uo for o in outcomes)
-			log.empty(f"{outcome} '{info(uo)}' assigned to value '{i}' [total: {num_matching_slides} slides]", 2)
+			num_matching_slides_filtered = sum(o == uo for o in filtered_outcomes)
+			log.empty(f"{outcome} '{info(uo)}' assigned to value '{i}' [{bold(str(num_matching_slides_filtered))} slides]", 2)
 
 	# Create function to process/convert outcome
 	def _process_outcome(o):
-		if outcome_type == 'int':
-			if use_encode:
-				return unique_outcomes.index(o)
-			else:
-				return int(o)
-		elif outcome_type == 'float':
-			return float(o)
-		else:
+		if use_float:
 			return o
+		else:
+			return unique_outcomes.index(o)
 
 	# Assemble results dictionary
 	patient_outcomes = {}
-	for annotation in ANNOTATIONS:
+	for annotation in filtered_annotations:
 		slide = annotation[TCGA.slide]
 		patient = annotation[TCGA.patient]
-		outcome = _process_outcome(annotation[outcome])
+		annotation_outcome = _process_outcome(annotation[outcome])
 
 		# Ensure patients do not have multiple outcomes
 		if patient not in patient_outcomes:
-			patient_outcomes[patient] = outcome
-		elif patient_outcomes[patient] != outcome:
+			patient_outcomes[patient] = annotation_outcome
+		elif patient_outcomes[patient] != annotation_outcome:
 			log.error(f"Multiple outcomes in header {outcome} found for patient {patient}", 1)
 			sys.exit()
 
 		if slide in slides:
-			results[slide] = {
-				'outcome':		outcome
-				TCGA.patient:	annotation
-			}
+			results[slide] = {'outcome': annotation_outcome}
+			results[slide][TCGA.patient] = patient
 	return results
 
 def update_annotations_with_slidenames(annotations_file, slides_dir):
@@ -599,7 +587,6 @@ def update_tfrecord_manifest(directory, force_update=False):
 			if slide not in slide_names_from_annotations:
 				slide_list_errors.extend([slide])
 				slide_list_errors = list(set(slide_list_errors))
-				success = False
 			total += 1
 		manifest[rel_tfr]['total'] = total
 

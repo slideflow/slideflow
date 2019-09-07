@@ -1,5 +1,5 @@
 def main(SFP):
-	#SFP.create_blank_annotations_file(scan_for_slides=True)
+	#SFP.create_blank_annotations_file()
 	#SFP.associate_slide_names()
 	
 	#SFP.extract_tiles(filters = {'to_extract': 'yes'}, subfolder='all')
