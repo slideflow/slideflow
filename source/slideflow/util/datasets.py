@@ -2,6 +2,7 @@ import shutil
 
 from os import listdir, makedirs
 from os.path import isfile, isdir, join, exists
+import sys
 from random import shuffle
 import argparse
 import slideflow.util as sfutil
