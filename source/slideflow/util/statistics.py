@@ -135,10 +135,10 @@ def generate_performance_metrics(model, dataset_with_slidenames, model_type, dat
 		# Compare one-hot predictions to one-hot y_true for category-level accuracy
 		for cat_index in range(num_cat):
 			num_tiles_in_category = sum([yt[cat_index] for yt in y_true])
-			num_predicted_in_category = sum([yp[cat_index] for yp in onehot_predictions])
-			category_accuracy = num_predicted_in_category / num_tiles_in_category
+			num_correctly_predicted_in_category = sum([yp[cat_index] for i, yp in enumerate(onehot_predictions) if y_true[i][cat_index]])
+			category_accuracy = num_correctly_predicted_in_category / num_tiles_in_category
 			cat_percent_acc = category_accuracy * 100
-			log.info(f"Category {cat_index} accuracy: {cat_percent_acc:.1f}% ({num_predicted_in_category}/{num_tiles_in_category})")
+			log.info(f"Category {cat_index} accuracy: {cat_percent_acc:.1f}% ({num_correctly_predicted_in_category}/{num_tiles_in_category})")
 
 		# Generate slide-level ROC
 		unique_slides = list(set(slides))
