@@ -261,8 +261,8 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 				'outcome': outcomes[slide]['outcome'],
 				'slides': [slide]
 			}
-		elif patients_dict[patient] != outcomes[slide]['outcome']:
-			log.error(f"Multiple outcomes found for patient {patient}", 1)
+		elif patients_dict[patient]['outcome'] != outcomes[slide]['outcome']:
+			log.error(f"Multiple outcomes found for patient {patient} ({patients_dict[patient]['outcome']}, {outcomes[slide]['outcome']})", 1)
 			sys.exit()
 		else:
 			patients_dict[patient]['slides'] += [slide]
@@ -386,6 +386,13 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 				else:
 					log.error(f"Unknown validation strategy {validation_strategy} requested.")
 					sys.exit()
+
+		# Perform final integrity check to ensure no patients are in both training and validation slides
+		validation_pt = list(set([outcomes[slide][sfutil.TCGA.patient] for slide in validation_slides]))
+		training_pt = list(set([outcomes[slide][sfutil.TCGA.patient] for slide in training_slides]))
+		if sum([pt in training_pt for pt in validation_pt]):
+			log.error(f"At least one patient is in both validation and training sets.")
+			sys.exit()
 
 		# Return list of tfrecords
 		validation_tfrecords = [tfr for tfr in tfrecord_dir_list if tfr.split('/')[-1].split('.')[0] in validation_slides]

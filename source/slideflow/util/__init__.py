@@ -357,7 +357,7 @@ def get_outcomes_from_annotations(outcome, filters=None, use_float=False):
 		if patient not in patient_outcomes:
 			patient_outcomes[patient] = annotation_outcome
 		elif patient_outcomes[patient] != annotation_outcome:
-			log.error(f"Multiple outcomes in header {outcome} found for patient {patient}", 1)
+			log.error(f"Multiple outcomes in header {outcome} found for patient {patient} ({patient_outcomes[patient]}, {annotation_outcome})", 1)
 			sys.exit()
 
 		if slide in slides:
