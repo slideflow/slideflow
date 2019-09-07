@@ -46,6 +46,7 @@ import matplotlib.colors as mcol
 from matplotlib import pyplot as mp
 
 import slideflow.util as sfutil
+import slideflow.util.datasets as sfdatasets
 from slideflow.util import log, progress_bar
 from slideflow.util.fastim import FastImshow
 
@@ -174,7 +175,7 @@ class SlideReader:
 
 		# Generating thumbnail for heatmap
 		thumbs_path = join('/'.join(path.split('/')[:-1]), "thumbs")
-		if not os.path.exists(thumbs_path): os.makedirs(thumbs_path)
+		sfdatasets.make_dir(thumbs_path)
 		goal_thumb_area = 4096*4096
 		y_x_ratio = self.shape[1] / self.shape[0]
 		thumb_x = sqrt(goal_thumb_area / y_x_ratio)
@@ -382,13 +383,10 @@ class Convoluter:
 
 		# Check if we are doing image tile extraction only
 		if export_tiles and not (display_heatmaps or save_final_layer or save_heatmaps):
-			log.info("Exporting tiles only, no new calculations or heatmaps will be generated.", 1)
+			log.info("Exporting tiles only.", 1)
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
 			def worker(slide):
-				#result = self.export_tiles(self.SLIDES[slide], pb)
-				#print('result', slide, result)
-				result = self.export_tiles(self.SLIDES[slide], pb)
-				#print(result)
+				self.export_tiles(self.SLIDES[slide], pb)
 			if NUM_THREADS > 1:
 				pool = Pool(NUM_THREADS)
 				pool.map(worker, self.SLIDES)#lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
@@ -401,7 +399,6 @@ class Convoluter:
 		for slide_name in self.SLIDES:
 			slide = self.SLIDES[slide_name]
 			category = slide['category']
-			shortname = sfutil._shortname(slide_name)
 
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
 			log.empty(f"Working on slide {sfutil.green(slide)}", 1, pb.print)
@@ -425,11 +422,8 @@ class Convoluter:
 
 	def export_tiles(self, slide, pb):
 		slide_name = slide['name']
-		category = slide['category']
 		path = slide['path']
 		filetype = slide['type']
-		
-		shortname = sfutil._shortname(slide_name)
 		log.empty(f"Exporting tiles for slide {slide_name}", 1, pb.print)
 		
 		# Load the slide	
@@ -475,10 +469,6 @@ class Convoluter:
 		for batch_images, batch_labels, batch_unique in tile_dataset:
 			count = min(count, total_logits_count)
 			prelogits, logits = self.model.predict([batch_images, batch_images])
-			if not pb:
-				progress_bar.bar(count, total_logits_count, text = "Calculated {} images out of {}. "
-																	.format(min(count, total_logits_count),
-																		total_logits_count))
 			count += len(batch_images)
 			prelogits_arr = prelogits if prelogits_arr == [] else np.concatenate([prelogits_arr, prelogits])
 			logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])

@@ -21,10 +21,10 @@ import slideflow.trainer.model as sfmodel
 import itertools
 import multiprocessing
 import slideflow.util as sfutil
-from slideflow.util import datasets, tfrecords, TCGAAnnotations, log
+from slideflow.util import datasets, tfrecords, TCGA, log
 from slideflow.mosaic import Mosaic
 
-__version__ = "1.0.0d"
+__version__ = "1.0.1d"
 
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
@@ -90,7 +90,7 @@ class SlideFlowProject:
 		else:
 			self.create_project()
 		
-	def extract_tiles(self, filter_header=None, filter_values=None, subfolder=None, skip_validation=False):
+	def extract_tiles(self, filters=None, subfolder=None, skip_validation=False):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-slide'; and generate TFRecord files from the raw images.'''
 		import slideflow.convoluter as convoluter
@@ -98,8 +98,7 @@ class SlideFlowProject:
 		log.header("Extracting image tiles...")
 		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
 		convoluter.NUM_THREADS = NUM_THREADS
-		slide_list = sfutil.get_filtered_slide_paths(self.PROJECT['slides_dir'], self.PROJECT['annotations'], filter_header=filter_header,
-																				  							  filter_values=filter_values)
+		slide_list = sfutil.get_filtered_slide_paths(self.PROJECT['slides_dir'], filters=filters)
 		log.info(f"Extracting tiles from {len(slide_list)} slides", 1)
 
 		save_folder = join(self.PROJECT['tiles_dir'], subfolder)
@@ -120,9 +119,9 @@ class SlideFlowProject:
 					log.warn("Validation bootstrapping is not supported when the validation target is per-tile; will generate random fixed validation target", 1)
 				if self.PROJECT['validation_strategy'] in ('bootstrap', 'fixed'):
 					# Split the extracted tiles into two groups
-					datasets.split_tiles(folder, fraction=[-1, self.PROJECT['validation_fraction']], names=['training', 'validation'])
+					datasets.split_tiles(save_folder, fraction=[-1, self.PROJECT['validation_fraction']], names=['training', 'validation'])
 				if self.PROJECT['validation_strategy'] == 'k-fold':
-					datasets.split_tiles(folder, fraction=[-1] * self.PROJECT['validation_k_fold'], names=[f'kfold-{i}' for i in range(self.PROJECT['validation_k_fold'])])
+					datasets.split_tiles(save_folder, fraction=[-1] * self.PROJECT['validation_k_fold'], names=[f'kfold-{i}' for i in range(self.PROJECT['validation_k_fold'])])
 
 		self.generate_tfrecord(subfolder)
 
@@ -155,12 +154,10 @@ class SlideFlowProject:
 		shutil.rmtree(delete_folder)
 		log.info(f"Deleted tiles in folder {sfutil.green(delete_folder)}", 1)
 
-	def initialize_model(self, model_name, train_tfrecords, validation_tfrecords, category_header, filters=None, skip_validation=False, model_type='categorical'):
+	def initialize_model(self, model_name, train_tfrecords, validation_tfrecords, outcomes, model_type='categorical'):
 		'''Prepares a Slideflow model using the provided outcome variable (category_header) 
 		and a given set of training and validation tfrecords.'''
 		# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
-		outcome_type = 'float' if model_type == 'linear' else 'int'																					
-		outcomes = sfutil.get_outcomes_from_annotations(category_header, filters=filters, outcome_type=outcome_type)
 		model_dir = join(self.PROJECT['models_dir'], model_name)
 
 		# Build a model using the slide list as input and the annotations dictionary as output labels
@@ -170,7 +167,7 @@ class SlideFlowProject:
 																				model_type=model_type)
 		return SFM
 
-	def evaluate(self, model, category_header, model_type='categorical', filter_header=None, filter_values=None, subfolder=None, checkpoint=None):
+	def evaluate(self, model, category_header, model_type='categorical', filters=None, subfolder=None, checkpoint=None):
 		'''Evaluates a saved model on a given set of tfrecords.'''
 		log.header(f"Evaluating model {sfutil.bold(model)}...")
 		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
@@ -192,8 +189,9 @@ class SlideFlowProject:
 			tfrecords += glob(os.path.join(folder, "*.tfrecords"))
 
 		# Set up model for evaluation
-		SFM = self.initialize_model(f"eval-{model_name}", None, None, category_header, filter_header, filter_values, skip_validation=True, model_type=model_type)
-		log.info(f"Evaluating {sfutil.bold(len(SFM.SLIDE_TO_CATEGORY.keys()))} tfrecords", 1)
+		outcomes = sfutil.get_outcomes_from_annotations(category_header, filters=filters, use_float=(model_type=='linear'))
+		SFM = self.initialize_model(f"eval-{model_name}", None, None, outcomes, model_type=model_type)
+		log.info(f"Evaluating {sfutil.bold(len(SFM.SLIDES))} tfrecords", 1)
 		model_dir = join(self.PROJECT['models_dir'], model, "trained_model.h5") if model[-3:] != ".h5" else model
 		results = SFM.evaluate(tfrecords=tfrecords, hp=None, model=model_dir, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
 		print(results)
@@ -336,10 +334,7 @@ class SlideFlowProject:
 		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and type(k_fold_iter) != list) else k_fold_iter
 		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
 		valid_k = [] if not k_fold else [kf for kf in range(k_fold) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
-		
-		outcome_type = 'float' if model_type == 'linear' else 'int'																					
-		outcomes = sfutil.get_outcomes_from_annotations(category_header, filters=filters, outcome_type=outcome_type)
-
+																						
 		# Quickly scan for errors (duplicate model names) and prepare models to train
 		models_to_train = self._get_valid_models(batch_train_file, models)
 		log.header(f"Training {len(models_to_train)} models...")
@@ -347,6 +342,10 @@ class SlideFlowProject:
 		# Next, prepare the multiprocessing manager (needed to free VRAM after training)
 		manager = multiprocessing.Manager()
 		results_dict = manager.dict()
+
+		# Load outcomes from annotations file
+		outcomes = sfutil.get_outcomes_from_annotations(category_header, filters=filters, use_float=(model_type == 'linear'))
+		print()
 
 		# Create a worker that can execute one round of training
 		def trainer(results_dict, model_name, hp, k_fold_i=None):
@@ -372,7 +371,7 @@ class SlideFlowProject:
 																										validation_k_fold=validation_k_fold,
 																										k_fold_iter=k_fold_i)
 			# Initialize model
-			SFM = self.initialize_model(full_model_name, training_tfrecords, validation_tfrecords, category_header, filters, model_type=model_type)
+			SFM = self.initialize_model(full_model_name, training_tfrecords, validation_tfrecords, outcomes, model_type=model_type)
 
 			with open(os.path.join(self.PROJECT['models_dir'], full_model_name, 'hyperparameters.log'), 'w') as hp_file:
 				hp_text = f"Tile pixel size: {self.PROJECT['tile_px']}\n"
@@ -444,7 +443,7 @@ class SlideFlowProject:
 			print(f" - {sfutil.green(model)}: Train_Acc={str(final_metrics['train_acc'])}, " +
 				f"Val_loss={final_metrics['val_loss']}, Val_Acc={final_metrics['val_acc']}" )
 
-	def generate_heatmaps(self, model_name, filter_header=None, filter_values=None, resolution='medium'):
+	def generate_heatmaps(self, model_name, filters=None, resolution='medium'):
 		'''Creates predictive heatmap overlays on a set of slides. 
 
 		Args:
@@ -465,8 +464,7 @@ class SlideFlowProject:
 		except KeyError:
 			log.error(f"Invalid resolution '{resolution}': must be either 'low', 'medium', or 'high'.")
 			return
-		slide_list = sfutil.get_filtered_slide_paths(self.PROJECT['slides_dir'], self.PROJECT['annotations'], filter_header=filter_header,
-																				  							  filter_values=filter_values)
+		slide_list = sfutil.get_filtered_slide_paths(self.PROJECT['slides_dir'], filters=filters)
 		heatmaps_folder = os.path.join(self.PROJECT['root'], 'heatmaps')
 		if not os.path.exists(heatmaps_folder): os.makedirs(heatmaps_folder)
 		model_path = model_name if model_name[-3:] == ".h5" else join(self.PROJECT['models_dir'], model_name, 'trained_model.h5')
@@ -480,19 +478,15 @@ class SlideFlowProject:
 		c.build_model(model_path)
 		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
-	def generate_mosaic(self, model=None, filter_header=None, filter_values=None, focus_header=None, focus_values=None, subfolder=None, resolution="medium"):
+	def generate_mosaic(self, model=None, filters=None, focus_header=None, focus_values=None, subfolder=None, resolution="medium"):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer weights. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.'''
 		
 		log.header("Generating mosaic map...")
 		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
-		slide_list = sfutil.get_filtered_tfrecords_paths(join(self.PROJECT['tfrecord_dir'], subfolder), self.PROJECT['annotations'], 
-																										filter_header=filter_header,
-																				  						filter_values=filter_values)
+		slide_list = sfutil.get_filtered_tfrecords_paths(join(self.PROJECT['tfrecord_dir'], subfolder), filters=filters)
 		if focus_header and focus_values:
-			focus_list = sfutil.get_filtered_tfrecords_paths(join(self.PROJECT['tfrecord_dir'], subfolder), self.PROJECT['annotations'], 
-																										filter_header=focus_header,
-																										filter_values=focus_values)
+			focus_list = sfutil.get_filtered_tfrecords_paths(join(self.PROJECT['tfrecord_dir'], subfolder), filters=filters)
 		else:
 			focus_list = None
 		mosaic = Mosaic(save_dir=self.PROJECT['root'], resolution=resolution)
@@ -551,7 +545,7 @@ class SlideFlowProject:
 				writer.writerow(row)
 		log.complete(f"Wrote {len(sweep)} combinations for sweep to {sfutil.green(filename)}")
 
-	def create_blank_annotations_file(self, outfile=None, slides_dir=None, scan_for_slides=False):
+	def create_blank_annotations_file(self, outfile=None, slides_dir=None):
 		'''Creates an example blank annotations file.'''
 		if not outfile: 
 			outfile = self.PROJECT['annotations']
@@ -560,15 +554,12 @@ class SlideFlowProject:
 
 		with open(outfile, 'w') as csv_outfile:
 			csv_writer = csv.writer(csv_outfile, delimiter=',')
-			header = [TCGAAnnotations.patient, 'dataset', 'category']
+			header = [TCGA.patient, 'dataset', 'category']
 			csv_writer.writerow(header)
-
-		if scan_for_slides:
-			sfutil.verify_annotations(outfile, slides_dir=slides_dir)
 
 	def associate_slide_names(self):
 		'''Experimental function used to automatically associated patient names with slide filenames in the annotations file.'''
-		sfutil.verify_annotations(self.PROJECT['annotations'], self.PROJECT['slides_dir'])
+		sfutil.verify_annotations_slides(self.PROJECT['slides_dir'])
 
 	def update_manifest(self, force_update=False):
 		'''Updates manifest file in the TFRecord directory, used to track number of records and verify annotations.
@@ -593,7 +584,7 @@ class SlideFlowProject:
 
 		if not SKIP_VERIFICATION:
 			log.header("Verifying Annotations...")
-			sfutil.verify_annotations(self.PROJECT['annotations'], slides_dir=self.PROJECT['slides_dir'])
+			sfutil.verify_annotations_slides(slides_dir=self.PROJECT['slides_dir'])
 			log.header("Verifying TFRecord manifest...")
 			self.update_manifest()
 
@@ -619,7 +610,7 @@ class SlideFlowProject:
 			if sfutil.yes_no_input("Create a blank annotations file? [Y/n] ", default='yes'):
 				project['annotations'] = sfutil.file_input("Where will the annotation file be located? [./annotations.csv] ", 
 									default='./annotations.csv', filetype="csv", verify=False)
-				self.create_blank_annotations_file(project['annotations'], project['slides_dir'], scan_for_slides=sfutil.yes_no_input("Scan slide folder and associate with patients? [Y/n] ", default='yes'))
+				self.create_blank_annotations_file(project['annotations'], project['slides_dir'])
 		else:
 			project['annotations'] = sfutil.file_input("Where is the project annotations (CSV) file located? [./annotations.csv] ", 
 									default='./annotations.csv', filetype="csv")

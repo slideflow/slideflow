@@ -35,7 +35,7 @@ def _int64_feature(value):
 	"""Returns an int64_list from a bool / enum / int / uint."""
 	return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-def image_example(category, slide, image_string):
+def image_example(slide, image_string):
 	feature = {
 		'slide':     _bytes_feature(slide),
 		'image_raw':_bytes_feature(image_string),
@@ -92,7 +92,6 @@ def split_tfrecord(tfrecord_file, output_folder):
 	for record in dataset:
 		features = _parse_tfrecord_function(record)
 		slide = features['slide'].numpy()
-		category = features['category'].numpy()
 		image_raw = features['image_raw'].numpy()
 		shortname = sfutil._shortname(slide.decode('utf-8'))
 
@@ -102,7 +101,7 @@ def split_tfrecord(tfrecord_file, output_folder):
 			writers.update({shortname: writer})
 		else:
 			writer = writers[shortname]
-		tf_example = image_example(category, slide, image_raw)
+		tf_example = image_example(slide, image_raw)
 		writer.write(tf_example.SerializeToString())
 
 	for slide in writers.keys():
@@ -124,7 +123,7 @@ def print_tfrecord(target):
 		for tfr in tfrecord_files:
 			_print_record(tfr)		
 
-def write_tfrecords_merge(input_directory, output_directory, filename, annotations_file=None):
+def write_tfrecords_merge(input_directory, output_directory, filename):
 	'''Scans a folder for subfolders, assumes subfolders are slide names. Assembles all image tiles within 
 	subfolders and labels using the provided annotation_dict, assuming the subfolder is the slide name. 
 	Collects all image tiles and exports into a single tfrecord file.'''
@@ -148,7 +147,7 @@ def write_tfrecords_merge(input_directory, output_directory, filename, annotatio
 	log.empty(f"Wrote {len(keys)} image tiles to {sfutil.green(tfrecord_path)}", 1)
 	return len(keys)
 
-def write_tfrecords_multi(input_directory, output_directory, annotations_file=None):
+def write_tfrecords_multi(input_directory, output_directory):
 	'''Scans a folder for subfolders, assumes subfolders are slide names. Assembles all image tiles within 
 	subfolders and labels using the provided annotation_dict, assuming the subfolder is the slide name. 
 	Collects all image tiles and exports into multiple tfrecord files, one for each slide.'''
@@ -243,7 +242,7 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 	k_fold = validation_k_fold
 	training_tfrecords = []
 	validation_tfrecords = []
-	validation_plan = {}
+	accepted_plan = None
 	slide_list = list(outcomes.keys())
 	tfrecord_dir_list = glob(join(tfrecord_dir, "*.tfrecords"))
 	tfrecord_dir_list_names = [tfr.split('/')[-1][:-10] for tfr in tfrecord_dir_list]
@@ -252,7 +251,7 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 	# slideflow.util.get_outcomes_from_annotations() ensures no duplicate outcomes are found in a single patient
 	patients_dict = {}
 	for slide in slide_list:
-		patient = outcomes[slide][TCGA.patient]
+		patient = outcomes[slide][sfutil.TCGA.patient]
 		# Skip slides not found in directory
 		if slide not in tfrecord_dir_list_names:
 			log.warn(f"Slide {slide} not found in tfrecord directory, skipping", 1)
@@ -274,7 +273,7 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 
 	# If validation is done per-tile, use pre-separated TFRecord files (validation separation done at time of TFRecord creation)
 	if validation_target == 'per-tile':
-		log.info(f"Loading pre-separated TFRecords in {sfutil.green(subfolder)}", 1)
+		log.info(f"Loading pre-separated TFRecords in {sfutil.green(tfrecord_dir)}", 1)
 		if validation_strategy == 'bootstrap':
 			log.warn("Validation bootstrapping is not supported when the validation target is per-tile; using tfrecords in 'training' and 'validation' subdirectories", 1)
 		if validation_strategy in ('bootstrap', 'fixed'):
@@ -308,91 +307,91 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 		validation_tfrecords = [tfr for tfr in validation_tfrecords if tfr.split('/')[-1][:-10] in slide_list]
 
 	# If validation is done per-patient, create and log a validation subset
-	accepted_plan = None
 	elif validation_target == 'per-patient':
 		if len(subdirs):
 			log.error(f"Validation target set to 'per-patient', but the TFRecord directory has validation configured per-tile (contains subfolders {', '.join(subdirs)}", 1)
 			sys.exit()
 		if validation_strategy == 'none':
-			training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in patients_dict.keys()])
+			log.info(f"Validation strategy set to 'none'; selecting no tfrecords for validation.", 1)
+			training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in patients_dict.keys()]).tolist()
 			validation_slides = []
 		elif validation_strategy == 'bootstrap':
 			num_val = int(validation_fraction * len(patients))
 			log.info(f"Using boostrap validation: selecting {sfutil.bold(num_val)} patients at random to use for validation testing", 1)
 			validation_patients = patients[0:num_val]
 			training_patients = patients[num_val:]
-			validation_slides = np.concatenate([patients_dict[patient]['slides'] for patient in validation_patients])
-			training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in training_patients])
+			validation_slides = np.concatenate([patients_dict[patient]['slides'] for patient in validation_patients]).tolist()
+			training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in training_patients]).tolist()
 		else:
 			# Try to load validation plan
 			validation_log = join(tfrecord_dir, "validation_plans.json")
-			if not exists(validation_log):
-				log.info(f"No validation log found; will log validation plan at {sfutil.green(validation_log)}", 1)
-			else:
-				validation_plans = sfutil.load_json(validation_log)
-				for plan in validation_plans:
-					# First, see if plan type is the same
-					if plan['strategy'] != validation_strategy:
-						continue
-					# If k-fold, check that k-fold length is the same
-					if validation_strategy == 'k-fold' and len(list(plan['tfrecords'].keys())) != k_fold:
-						continue
-					# Then, check if patient lists are the same
-					plan_patients = list(plan['patients'].keys())
-					plan_patients.sort()
-					if plan_patients == sorted_patients:
-						# Finally, check if outcome variables are the same
-						if [patients_dict[p]['outcome'] for p in plan_patients] == [plan['patients'][p]['outcome'] for p in plan_patients]:
-							log.info(f"Using {validation_strategy} validation plan detected at {sfutil.green(validation_log)}", 1)
-							accepted_plan = plan
-							break
-				# If no plan found, create a new one
-				if not accepted_plan:
-					log.info(f"No suitable validation plan found; will log plan at {sfutil.green(validation_log)}", 1)
-					new_plan = {
-						'strategy':		validation_strategy,
-						'patients':		patients_dict,
-						'tfrecords':	{}
-					}
-					if validation_strategy == 'fixed':
-						num_val = int(validation_fraction * len(patients))
-						validation_patients = patients[0:num_val]
-						training_patients = patients[num_val:]
-						validation_slides = np.concatenate([patients_dict[patient]['slides'] for patient in validation_patients])
-						training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in training_patients])
-						new_plan['tfrecords']['validation'] = validation_slides
-						new_plan['tfrecords']['training'] = training_slides
-					elif validation_strategy == 'k-fold':
-						k_fold_patients = split_patients_list(patients_dict, k_fold, balance=('outcome' if model_type == 'categorical' else None))
-						training_patients = []
-						for k in range(k_fold):
-							new_plan['tfrecords'][f'k-fold-{k+1}'] = k_fold_patients[k]
-							if k == k_fold_index:
-								validation_patients = k_fold_patients[k]
-							else:
-								training_patients += k_fold_patients[k]
-						validation_slides = np.concatenate([patients_dict[patient]['slides'] for patient in validation_patients])
-						training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in training_patients])
-					else:
-						log.error(f"Unknown validation strategy {validation_strategy} requested.")
-						sys.exit()
-					# Write the new plan to log
-					validation_plans += [new_plan]
-					sfutil.write_json(validation_plans, validation_log)
+			validation_plans = [] if not exists(validation_log) else sfutil.load_json(validation_log)
+			for plan in validation_plans:
+				# First, see if plan type is the same
+				if plan['strategy'] != validation_strategy:
+					continue
+				# If k-fold, check that k-fold length is the same
+				if validation_strategy == 'k-fold' and len(list(plan['tfrecords'].keys())) != k_fold:
+					continue
+				# Then, check if patient lists are the same
+				plan_patients = list(plan['patients'].keys())
+				plan_patients.sort()
+				if plan_patients == sorted_patients:
+					# Finally, check if outcome variables are the same
+					if [patients_dict[p]['outcome'] for p in plan_patients] == [plan['patients'][p]['outcome'] for p in plan_patients]:
+						log.info(f"Using {validation_strategy} validation plan detected at {sfutil.green(validation_log)}", 1)
+						accepted_plan = plan
+						break
+			# If no plan found, create a new one
+			if not accepted_plan:
+				log.info(f"No suitable validation plan found; will log plan at {sfutil.green(validation_log)}", 1)
+				new_plan = {
+					'strategy':		validation_strategy,
+					'patients':		patients_dict,
+					'tfrecords':	{}
+				}
+				if validation_strategy == 'fixed':
+					num_val = int(validation_fraction * len(patients))
+					validation_patients = patients[0:num_val]
+					training_patients = patients[num_val:]
+					validation_slides = np.concatenate([patients_dict[patient]['slides'] for patient in validation_patients]).tolist()
+					training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in training_patients]).tolist()
+					new_plan['tfrecords']['validation'] = validation_slides
+					new_plan['tfrecords']['training'] = training_slides
+				elif validation_strategy == 'k-fold':
+					k_fold_patients = split_patients_list(patients_dict, k_fold, balance=('outcome' if model_type == 'categorical' else None))
+					training_patients = []
+					for k in range(k_fold):
+						new_plan['tfrecords'][f'k-fold-{k+1}'] = k_fold_patients[k]
+						if k == k_fold_index:
+							validation_patients = k_fold_patients[k]
+						else:
+							training_patients += k_fold_patients[k]
+					validation_slides = np.concatenate([patients_dict[patient]['slides'] for patient in validation_patients]).tolist()
+					training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in training_patients]).tolist()
 				else:
-					# Use existing plan
-					if validation_strategy == 'fixed':
-						validation_slides = accepted_plan['tfrecords']['validation']
-						training_slides = accepted_plan['tfrecords']['validation']
-					elif validation_strategy == 'k-fold':
-						validation_slides = accepted_plan['tfrecords'][f'k-fold-{k_fold_iter}']
-						training_slides = np.concatenate([accepted_plan['tfrecords'][f'k-fold-{ki+1}'] for ki in range(k_fold) if ki != k_fold_index])
-					else:
-						log.error(f"Unknown validation strategy {validation_strategy} requested.")
-						sys.exit()
+					log.error(f"Unknown validation strategy {validation_strategy} requested.")
+					sys.exit()
+				# Write the new plan to log
+				validation_plans += [new_plan]
+				sfutil.write_json(validation_plans, validation_log)
+			else:
+				# Use existing plan
+				if validation_strategy == 'fixed':
+					validation_slides = accepted_plan['tfrecords']['validation']
+					training_slides = accepted_plan['tfrecords']['training']
+				elif validation_strategy == 'k-fold':
+					validation_slides = accepted_plan['tfrecords'][f'k-fold-{k_fold_iter}']
+					training_slides = np.concatenate([accepted_plan['tfrecords'][f'k-fold-{ki+1}'] for ki in range(k_fold) if ki != k_fold_index]).tolist()
+				else:
+					log.error(f"Unknown validation strategy {validation_strategy} requested.")
+					sys.exit()
 
 		# Return list of tfrecords
 		validation_tfrecords = [tfr for tfr in tfrecord_dir_list if tfr.split('/')[-1].split('.')[0] in validation_slides]
 		training_tfrecords = [tfr for tfr in tfrecord_dir_list if tfr.split('/')[-1].split('.')[0] in training_slides]
+	else:
+		log.error(f"Invalid validation strategy '{validation_target}' detected; must be either 'per-tile' or 'per-patient'.", 1)
+		sys.exit()
 	log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation", 1)
 	return training_tfrecords, validation_tfrecords
