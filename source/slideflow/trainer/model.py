@@ -390,10 +390,11 @@ class SlideflowModel:
 			self.model = self.build_model(hp)
 			self.model.load_weights(checkpoint)
 
-		tile_auc, slide_auc, r_squared = sfstats.generate_performance_metrics(self.model, dataset_with_slidenames, model_type, self.DATA_DIR, label="eval")
+		tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, dataset_with_slidenames, self.SLIDE_ANNOTATIONS, model_type, self.DATA_DIR, label="eval")
 
 		log.info(f"Tile AUC: {tile_auc}", 1)
 		log.info(f"Slide AUC: {slide_auc}", 1)
+		log.info(f"Patient AUC: {patient_auc}", 1)
 		log.info(f"R-squared: {r_squared}", 1)
 
 		log.info("Calculating performance metrics...", 1)
@@ -468,7 +469,7 @@ class SlideflowModel:
 
 		with open(results_log, "w") as results_file:
 			writer = csv.writer(results_file)
-			writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc', 'tile_auc', 'slide_auc'])
+			writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc'])
 		parent = self
 
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
@@ -482,7 +483,7 @@ class SlideflowModel:
 							train_acc = logs['accuracy']
 						else:
 							train_acc = logs[hp.loss]
-						tile_auc, slide_auc, r_squared = sfstats.generate_performance_metrics(self.model, validation_data_with_slidenames, hp.model_type(), parent.DATA_DIR, label=epoch_label)
+						tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, validation_data_with_slidenames, parent.SLIDE_ANNOTATIONS, hp.model_type(), parent.DATA_DIR, label=epoch_label)
 						if verbose: log.info("Beginning validation testing", 1)
 						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
@@ -494,11 +495,13 @@ class SlideflowModel:
 							results[f'epoch{epoch+1}'][f'tile_auc{i}'] = auc
 						for i, auc in enumerate(slide_auc):
 							results[f'epoch{epoch+1}'][f'slide_auc{i}'] = auc
+						for i, auc in enumerate(patient_auc):
+							results[f'epoch{epoch+1}'][f'patient_auc{i}'] = auc
 						results[f'epoch{epoch+1}']['r_squared'] = r_squared
 
 						with open(results_log, "a") as results_file:
 							writer = csv.writer(results_file)
-							writer.writerow([epoch_label, np.amax(train_acc), val_loss, val_acc, tile_auc, slide_auc])
+							writer.writerow([epoch_label, np.amax(train_acc), val_loss, val_acc, tile_auc, slide_auc, patient_auc])
 
 		callbacks = [history_callback, PredictionAndEvaluationCallback()]
 		if hp.early_stop:
