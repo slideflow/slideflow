@@ -453,7 +453,8 @@ class SlideFlowProject:
 		# Print summary of all models
 		log.complete("Training complete; validation accuracies:", 0)
 		for model in results_dict:
-			final_metrics = results_dict[model]['final']
+			last_epoch = max([int(e.split('epoch')[-1]) for e in results_dict[model].keys() if 'epoch' in e ])
+			final_metrics = results_dict[model][f'epoch{last_epoch}']
 			print(f" - {sfutil.green(model)}: Train_Acc={str(final_metrics['train_acc'])}, " +
 				f"Val_loss={final_metrics['val_loss']}, Val_Acc={final_metrics['val_acc']}" )
 

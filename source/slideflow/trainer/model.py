@@ -525,7 +525,7 @@ class SlideflowModel:
 					optimizer=initialized_optimizer,
 					metrics=metrics)
 
-		finetune_model = self.model.fit(train_data.repeat(),
+		self.model.fit(train_data.repeat(),
 			steps_per_epoch=steps_per_epoch,
 			epochs=total_epochs,
 			verbose=verbose,
@@ -535,22 +535,6 @@ class SlideflowModel:
 			callbacks=callbacks)
 
 		self.model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
-		if hp.model_type() != 'linear':
-			train_acc = finetune_model.history['accuracy']
-		else:
-			train_acc = finetune_model.history[hp.loss]
-
-		# Final validation testing, getting both overall accuracy/loss and predictions for ROCs
-		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
-			if verbose: log.info("Beginning final validation testing", 1)
-			val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
-		else:
-			val_loss, val_acc = 0,0
-
-		results['final'] = {}
-		results['final']['train_acc'] = np.amax(train_acc)
-		results['final']['val_loss'] = val_loss
-		results['final']['val_acc'] = val_acc
 
 		return results
 		
