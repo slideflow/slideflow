@@ -5,7 +5,7 @@ import argparse
 sf.set_logging_level(3)
 sf.autoselect_gpu(2)
 sf.NUM_THREADS = 4
-sf.SKIP_VERIFICATION = True
+sf.SKIP_VERIFICATION = False
 
 parser = argparse.ArgumentParser(description = "Helper to guide through the SlideFlow pipeline")
 parser.add_argument('-p', '--project', help='Path to project directory.')
