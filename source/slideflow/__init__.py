@@ -373,9 +373,23 @@ class SlideFlowProject:
 			# Initialize model
 			SFM = self.initialize_model(full_model_name, training_tfrecords, validation_tfrecords, outcomes, model_type=model_type)
 
+			# Log model settings and hyperparameters
 			with open(os.path.join(self.PROJECT['models_dir'], full_model_name, 'hyperparameters.log'), 'w') as hp_file:
-				hp_text = f"Tile pixel size: {self.PROJECT['tile_px']}\n"
+				hp_text = f"Model name: {model_name}\n"
+				hp_text += f"Tile pixel size: {self.PROJECT['tile_px']}\n"
 				hp_text += f"Tile micron size: {self.PROJECT['tile_um']}\n"
+				hp_text += f"Model type: {model_type}\n"
+				hp_text += f"TFRecord directory: {tfrecord_dir}\n"
+				hp_text += f"Validation target: {validation_target}\n"
+				hp_text += f"Validation strategy: {validation_strategy}\n"
+				hp_text += f"Validation fraction: {validation_fraction}\n"
+				if validation_strategy == 'k-fold':
+					hp_text += f"Validation k-fold: {validation_k_fold}\n"
+					hp_text += f"Validation k-fold iteration: {k_fold_i}\n"
+				hp_text += f"Filters:\n"
+				for filter_name in filters:
+					f_vals = ", ".join(filters[filter_name])
+					hp_text += f"   {filter_name}: {f_vals}\n"
 				hp_text += str(hp)
 				for s in sfutil.FORMATTING_OPTIONS:
 					hp_text = hp_text.replace(s, "")
