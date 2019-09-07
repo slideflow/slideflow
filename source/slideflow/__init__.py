@@ -597,14 +597,14 @@ class SlideFlowProject:
 		# Enable logging
 		log.logfile = sfutil.global_path("log.log")
 
+		# Load annotations
+		sfutil.load_annotations(self.PROJECT['annotations'], self.PROJECT['slides_dir'])
+
 		if not SKIP_VERIFICATION:
 			log.header("Verifying Annotations...")
 			sfutil.verify_annotations_slides(slides_dir=self.PROJECT['slides_dir'])
 			log.header("Verifying TFRecord manifest...")
 			self.update_manifest()
-
-		# Load annotations
-		sfutil.load_annotations(self.PROJECT['annotations'])
 
 	def save_project(self):
 		'''Saves current project configuration as "settings.json".'''
