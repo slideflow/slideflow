@@ -422,8 +422,8 @@ def update_tfrecord(tfrecord_file, old_feature_description=OLD_FEATURE_DESCRIPTI
 	writer = tf.io.TFRecordWriter(tfrecord_file)
 	for record in dataset:
 		features = tf.io.parse_single_example(record, old_feature_description)
-		slide = features[slide].numpy()
-		image_raw = features[image_raw].numpy()
-		tf_example = image_example(slide=slide, image_string=image_raw)
+		slidename = features[slide].numpy()
+		image_raw_data = features[image_raw].numpy()
+		tf_example = image_example(slide=slidename, image_string=image_raw_data)
 		writer.write(tf_example.SerializeToString())
 	writer.close()
