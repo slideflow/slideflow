@@ -396,9 +396,12 @@ class SlideFlowProject:
 					hp_text += f"Validation k-fold: {validation_k_fold}\n"
 					hp_text += f"Validation k-fold iteration: {k_fold_i}\n"
 				hp_text += f"Filters:\n"
-				for filter_name in filters:
-					f_vals = ", ".join(filters[filter_name])
-					hp_text += f"   {filter_name}: {f_vals}\n"
+				if filters:
+					for filter_name in filters:
+						f_vals = ", ".join(filters[filter_name])
+						hp_text += f"   {filter_name}: {f_vals}\n"
+				else:
+					hp_text += "No filters\n"
 				hp_text += str(hp)
 				for s in sfutil.FORMATTING_OPTIONS:
 					hp_text = hp_text.replace(s, "")
