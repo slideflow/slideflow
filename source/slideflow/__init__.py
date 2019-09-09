@@ -146,7 +146,16 @@ class SlideFlowProject:
 		self.update_manifest()
 
 		if self.PROJECT['delete_tiles']:
-			shutil.rmtree(tiles_dir)		
+			shutil.rmtree(tiles_dir)
+
+	def update_tfrecords(self);
+		log.header('Updating TFRecords...')
+		subfolders = [join(self.PROJECT['tfrecord_dir'], _dir) for _dir in os.listdir(self.PROJECT['tfrecord_dir'], if isdir(join(self.PROJECT['tfrecord_dir'], _dir)))]
+		num_updated = 0
+		for subfolder in subfolders:
+			log.info(f"Updating TFRecords in {sfutil.green(subfolder)}...")
+			num_updated += tfrecords.update_tfrecord_dir(subfolder, slide='case', image_raw='image_raw')
+		log.complete(f"Updated {sfutil.bold(num_updated)} records")
 
 	def delete_tiles(self, subfolder=None):
 		'''Deletes all contents in the tiles directory (to be executed after TFRecords are generated).'''
