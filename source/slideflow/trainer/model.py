@@ -2,14 +2,14 @@
 #
 # Unauthorized copying of this file, via any medium is strictly prohibited
 # Proprietary and confidential
-# Written by James Dolezal <jamesmdolezal@gmail.com>, October 2017
+# Written by James Dolezal <jamesmdolezal@gmail.com>, September 2019
 # ==========================================================================
 
 # Update 3/2/2019: Beginning tf.data implementation
 # Update 5/29/2019: Supports both loose image tiles and TFRecords, 
 #   annotations supplied by separate annotation file upon initial model call
 
-''''Builds a CNN model.'''
+'''Builds a CNN model.'''
 
 from __future__ import absolute_import
 from __future__ import division
