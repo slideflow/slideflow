@@ -160,17 +160,17 @@ class Mosaic:
 		
 
 		results = []
-		fl_weights_all, logits_all, cases_all, indices_all, images_all, tfrecord_all = [], [], [], [], [], []
+		fl_weights_all, logits_all, slides_all, indices_all, images_all, tfrecord_all = [], [], [], [], [], []
 
 		def _parse_function(record):
 			features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
-			case = features['case']
+			slide = features['slide']
 			image_string = features['image_raw']
 			raw_image = tf.image.decode_jpeg(image_string, channels=3)
 			processed_image = tf.image.per_image_standardization(raw_image)
 			processed_image = tf.image.convert_image_dtype(processed_image, self.DTYPE)
 			processed_image.set_shape([image_size, image_size, 3])
-			return processed_image, raw_image, case
+			return processed_image, raw_image, slide
 
 		# Calculate final layer weights for each tfrecord
 		for tfrecord in tfrecord_array:
@@ -182,9 +182,9 @@ class Mosaic:
 			self.tfrecord_paths += [tfrecord]
 			tfrecord_index = self.tfrecord_paths.index(tfrecord)
 
-			fl_weights_arr, logits_arr, cases_arr, indices_arr, images_arr = [], [], [], [], []
+			fl_weights_arr, logits_arr, slides_arr, indices_arr, images_arr = [], [], [], [], []
 			for i, data in enumerate(dataset):
-				batch_processed_images, batch_raw_images, batch_cases = data
+				batch_processed_images, batch_raw_images, batch_slides = data
 				batch_raw_images_np = batch_raw_images.numpy()
 				sys.stdout.write(f"\r - Working on batch {i}")
 				sys.stdout.flush()
@@ -196,29 +196,29 @@ class Mosaic:
 					logits = [-1] * self.BATCH_SIZE
 				fl_weights_arr = fl_weights if fl_weights_arr == [] else np.concatenate([fl_weights_arr, fl_weights])
 				logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
-				cases_arr = batch_cases if cases_arr == [] else np.concatenate([cases_arr, batch_cases])
+				slides_arr = batch_slides if slides_arr == [] else np.concatenate([slides_arr, batch_slides])
 				images_arr = batch_raw_images_np if images_arr == [] else np.concatenate([images_arr, batch_raw_images_np])
 				indices_arr = indices if indices_arr == [] else np.concatenate([indices_arr, indices])
 			sys.stdout.write("\r\033[K")
 			sys.stdout.flush()
 
-			tfrecord_arr = np.array([tfrecord_index] * len(cases_arr))
+			tfrecord_arr = np.array([tfrecord_index] * len(slides_arr))
 
 			fl_weights_all = fl_weights_arr if fl_weights_all == [] else np.concatenate([fl_weights_all, fl_weights_arr])
 			logits_all = logits_arr if logits_all == [] else np.concatenate([logits_all, logits_arr])
-			cases_all = cases_arr if cases_all == [] else np.concatenate([cases_all, cases_arr])
+			slides_all = slides_arr if slides_all == [] else np.concatenate([slides_all, slides_arr])
 			images_all = images_arr if images_all == [] else np.concatenate([images_all, images_arr])
 			indices_all = indices_arr if indices_all == [] else np.concatenate([indices_all, indices_arr])
 			tfrecord_all = tfrecord_arr if tfrecord_all == [] else np.concatenate([tfrecord_all, tfrecord_arr])\
 
-		# Returns a 2D array, with each element containing FL weights, logits, case name, tfrecord name, and tfrecord indices
-		return fl_weights_all, logits_all, cases_all, images_all, indices_all, tfrecord_all           
+		# Returns a 2D array, with each element containing FL weights, logits, slide name, tfrecord name, and tfrecord indices
+		return fl_weights_all, logits_all, slides_all, images_all, indices_all, tfrecord_all           
 
 	def generate_from_tfrecords(self, tfrecord_array, model, image_size, focus=None):
-		fl_weights, logits, cases, images, indices, tfrecords = self.generate_final_layer_from_tfrecords(tfrecord_array, model, image_size)
+		fl_weights, logits, slides, images, indices, tfrecords = self.generate_final_layer_from_tfrecords(tfrecord_array, model, image_size)
 		
 		dl_coord = gen_umap(fl_weights)
-		self.load_coordinates(dl_coord, [cases, tfrecords, indices, images])
+		self.load_coordinates(dl_coord, [slides, tfrecords, indices, images])
 		self.place_tile_outlines()
 		#if len(self.SLIDES):
 		#	self.generate_hover_events()
@@ -235,9 +235,9 @@ class Mosaic:
 		points_x = []
 		points_y = []
 		point_index = 0
-		cases, tfrecords, indices, images = meta
+		slides, tfrecords, indices, images = meta
 		for i, p in enumerate(coord):
-			case = cases[i]
+			slide = slides[i]
 			tfrecord = self.tfrecord_paths[tfrecords[i]]
 			tfrecord_index = indices[i]
 			category = 'none'
@@ -248,7 +248,7 @@ class Mosaic:
 								'index':point_index,
 								'neighbors':[],
 								'category':category,
-								'case':case,
+								'slide':slide,
 								'tfrecord':tfrecord,
 								'tfrecord_index':tfrecord_index,
 								'paired_tile':None,
@@ -340,9 +340,9 @@ class Mosaic:
 						if self.svs_background: self.fig.canvas.restore_region(self.svs_background)
 						for index in tile['points']:
 							point = self.points[index]
-							case = point['case']
-							if case in self.SLIDES:
-								slide = self.SLIDES[case]
+							slide = point['slide']
+							if slide in self.SLIDES:
+								slide = self.SLIDES[slide]
 								size = slide['tile_size']
 								origin_x, origin_y = slide['coords'][point['tile_num']]
 								origin_x *= slide['ratio']
@@ -431,15 +431,15 @@ class Mosaic:
 				point = self.points[closest_point]
 				#tile_image = plt.imread(point['image_path'])
 				tile_image = point['image_data']
-				tile_alpha, num_case, num_other = 1, 0, 0
+				tile_alpha, num_slide, num_other = 1, 0, 0
 				if self.SVS and len(tile['points']):
 					for point_index in tile['points']:
 						point = self.points[point_index]
-						if point['case'] == self.SVS:
-							num_case += 1
+						if point['slide'] == self.SVS:
+							num_slide += 1
 						else:
 							num_other += 1
-					fraction_svs = num_case / (num_other + num_case)
+					fraction_svs = num_slide / (num_other + num_slide)
 					tile_alpha = fraction_svs
 				if not self.export:
 					tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
