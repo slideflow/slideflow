@@ -366,7 +366,7 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 					k_fold_patients = split_patients_list(patients_dict, k_fold, balance=('outcome' if model_type == 'categorical' else None))
 					training_patients = []
 					for k in range(k_fold):
-						new_plan['tfrecords'][f'k-fold-{k+1}'] = k_fold_patients[k]
+						new_plan['tfrecords'][f'k-fold-{k+1}'] = np.concatenate([patients_dict[patient]['slides'] for patient in k_fold_patients[k]]).tolist()
 						if k == k_fold_index:
 							validation_patients = k_fold_patients[k]
 						else:
