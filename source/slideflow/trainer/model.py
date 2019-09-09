@@ -2,14 +2,14 @@
 #
 # Unauthorized copying of this file, via any medium is strictly prohibited
 # Proprietary and confidential
-# Written by James Dolezal <jamesmdolezal@gmail.com>, October 2017
+# Written by James Dolezal <jamesmdolezal@gmail.com>, September 2019
 # ==========================================================================
 
 # Update 3/2/2019: Beginning tf.data implementation
 # Update 5/29/2019: Supports both loose image tiles and TFRecords, 
 #   annotations supplied by separate annotation file upon initial model call
 
-''''Builds a CNN model.'''
+'''Builds a CNN model.'''
 
 from __future__ import absolute_import
 from __future__ import division
@@ -41,13 +41,15 @@ from matplotlib import pyplot as plt
 import seaborn as sns
 
 import slideflow.util as sfutil
-from slideflow.util import tfrecords, TCGAAnnotations, log, statistics
+from slideflow.util import tfrecords, TCGA, log
+
+import slideflow.util.statistics as sfstats
 
 import warnings
 warnings.filterwarnings('ignore')
 
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
-BALANCE_BY_CASE = 'BALANCE_BY_CASE'
+BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
 NO_BALANCE = 'NO_BALANCE'
 
 class HyperParameters:
@@ -142,27 +144,27 @@ class HyperParameters:
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
-	def __init__(self, data_directory, image_size, slide_to_category, train_tfrecords, validation_tfrecords, manifest=None, use_fp16=True, model_type='categorical'):
+	def __init__(self, data_directory, image_size, slide_annotations, train_tfrecords, validation_tfrecords, manifest=None, use_fp16=True, model_type='categorical'):
 		self.DATA_DIR = data_directory # Directory where to write event logs and checkpoints.
 		self.MANIFEST = manifest
 		self.IMAGE_SIZE = image_size
 		self.USE_FP16 = use_fp16
 		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
-		self.SLIDE_TO_CATEGORY = slide_to_category # Dictionary mapping slide names to category
-		self.SLIDES = list(slide_to_category.keys())
+		self.SLIDE_ANNOTATIONS = slide_annotations # Dictionary mapping slide names to both patient names and outcome
 		self.TRAIN_TFRECORDS = train_tfrecords
 		self.VALIDATION_TFRECORDS = validation_tfrecords
 		self.MODEL_TYPE = model_type
+		self.SLIDES = list(slide_annotations.keys())
+		outcomes = [slide_annotations[slide]['outcome'] for slide in self.SLIDES]
+
 		if model_type == 'categorical':
-			self.NUM_CLASSES = len(list(set(slide_to_category.values())))
+			self.NUM_CLASSES = len(list(set(outcomes)))
 		elif model_type == 'linear':
 			self.NUM_CLASSES = 1
 
 		with tf.device('/cpu'):
-			slide_to_category_keys = list(slide_to_category.keys())
-			slide_to_category_values = [slide_to_category[key] for key in slide_to_category_keys]
 			self.ANNOTATIONS_TABLE = tf.lookup.StaticHashTable(
-				tf.lookup.KeyValueTensorInitializer(slide_to_category_keys, slide_to_category_values), -1
+				tf.lookup.KeyValueTensorInitializer(self.SLIDES, outcomes), -1
 			)
 
 		if not os.path.exists(self.DATA_DIR):
@@ -172,20 +174,20 @@ class SlideflowModel:
 		if train_tfrecords or validation_tfrecords:
 			with open(os.path.join(self.DATA_DIR, 'slide_manifest.log'), 'w') as slide_manifest:
 				writer = csv.writer(slide_manifest)
-				header = ['slide', 'dataset', 'category']
+				header = ['slide', 'dataset', 'outcome']
 				writer.writerow(header)
 				if train_tfrecords:
 					for tfrecord in train_tfrecords:
 						slide = tfrecord.split('/')[-1][:-10]
 						if slide in self.SLIDES:
-							category = slide_to_category[slide]
-							writer.writerow([slide, 'training', category])
+							outcome = slide_annotations[slide]['outcome']
+							writer.writerow([slide, 'training', outcome])
 				if validation_tfrecords:
 					for tfrecord in validation_tfrecords:
 						slide = tfrecord.split('/')[-1][:-10]
 						if slide in self.SLIDES:
-							category = slide_to_category[slide]
-							writer.writerow([slide, 'validation', category])
+							outcome = slide_annotations[slide]['outcome']
+							writer.writerow([slide, 'validation', outcome])
 
 	def _process_image(self, image_string, augment):
 		image = tf.image.decode_jpeg(image_string, channels = 3)
@@ -207,30 +209,30 @@ class SlideflowModel:
 
 	def _parse_tfrecord_function(self, record):
 		features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
-		case = features['case']
-		label = self.ANNOTATIONS_TABLE.lookup(case)
+		slide = features['slide']
+		label = self.ANNOTATIONS_TABLE.lookup(slide)
 		image_string = features['image_raw']
 		image = self._process_image(image_string, self.AUGMENT)
 		return image, label
 
-	def _parse_tfrecord_with_casenames_function(self, record):
+	def _parse_tfrecord_with_slidenames_function(self, record):
 		features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
-		case = features['case']
-		label = self.ANNOTATIONS_TABLE.lookup(case)
+		slide = features['slide']
+		label = self.ANNOTATIONS_TABLE.lookup(slide)
 		image_string = features['image_raw']
 		image = self._process_image(image_string, self.AUGMENT)
-		return image, label, case
+		return image, label, slide
 
-	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, include_casenames=False):
+	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, include_slidenames=False):
 		'''Generates an interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to balancing if provided.
-		Requires self.MANIFEST. Assumes TFRecord files are named by case.
+		Requires self.MANIFEST. Assumes TFRecord files are named by slide.
 
 		Args:
 			tfrecords	Array of paths to TFRecord files
 			batch_size	Batch size
 			balance		Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,
-							BALANCE_BY_CASE, and NO_BALANCE. If finite option is used, will drop
+							BALANCE_BY_PATIENT, and NO_BALANCE. If finite option is used, will drop
 							tiles in order to maintain proportions across the interleaved dataset.
 			augment		Whether to use data augmentation (random flip/rotate)
 			finite		Whether create finite or infinite datasets. WARNING: If finite option is 
@@ -255,7 +257,9 @@ class SlideflowModel:
 			if slide_name not in self.SLIDES:
 				continue
 			
-			category = self.SLIDE_TO_CATEGORY[slide_name]
+			# Assign category by outcome if this is a categorical model.
+			# Otherwise, consider all slides from the same category (effectively skipping balancing); appropriate for linear models.
+			category = self.SLIDE_ANNOTATIONS[slide_name]['outcome'] if self.MODEL_TYPE == 'categorical' else 1
 			dataset_to_add = tf.data.TFRecordDataset(filename) if finite else tf.data.TFRecordDataset(filename).repeat()
 			datasets += [dataset_to_add]
 			datasets_categories += [category]
@@ -265,22 +269,22 @@ class SlideflowModel:
 				log.error(f"Manifest not finished, unable to find {sfutil.green(filename)}", 1)
 				sys.exit()
 			if category not in categories.keys():
-				categories.update({category: {'num_cases': 1,
+				categories.update({category: {'num_slides': 1,
 											  'num_tiles': tiles}})
 			else:
-				categories[category]['num_cases'] += 1
+				categories[category]['num_slides'] += 1
 				categories[category]['num_tiles'] += tiles
 			num_tiles += [tiles]
 		for category in categories:
-			lowest_category_case_count = min([categories[i]['num_cases'] for i in categories])
+			lowest_category_slide_count = min([categories[i]['num_slides'] for i in categories])
 			lowest_category_tile_count = min([categories[i]['num_tiles'] for i in categories])
-			categories_prob[category] = lowest_category_case_count / categories[category]['num_cases']
+			categories_prob[category] = lowest_category_slide_count / categories[category]['num_slides']
 			categories_tile_fraction[category] = lowest_category_tile_count / categories[category]['num_tiles']
 		if balance == NO_BALANCE:
 			log.empty(f"Not balancing input", 2)
 			prob_weights = [i/sum(num_tiles) for i in num_tiles]
-		if balance == BALANCE_BY_CASE:
-			log.empty(f"Balancing input across cases", 2)
+		if balance == BALANCE_BY_PATIENT:
+			log.empty(f"Balancing input across slides", 2)
 			prob_weights = None
 			if finite:
 				# Only take as many tiles as the number of tiles in the smallest dataset
@@ -300,7 +304,7 @@ class SlideflowModel:
 					global_num_tiles += num_to_take
 				log.empty(f"Global num tiles: {global_num_tiles}", 2)
 		
-		# Remove empty cases
+		# Remove empty slides
 		for i in sorted(range(len(prob_weights)), reverse=True):
 			if num_tiles[i] == 0:
 				del(num_tiles[i])
@@ -315,27 +319,27 @@ class SlideflowModel:
 		except IndexError:
 			log.error(f"No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder", 1)
 			sys.exit()
-		if include_casenames:
-			dataset_with_casenames = dataset.map(self._parse_tfrecord_with_casenames_function, num_parallel_calls = 8)
-			dataset_with_casenames = dataset_with_casenames.batch(batch_size)
+		if include_slidenames:
+			dataset_with_slidenames = dataset.map(self._parse_tfrecord_with_slidenames_function, num_parallel_calls = 8)
+			dataset_with_slidenames = dataset_with_slidenames.batch(batch_size)
 		else:
-			dataset_with_casenames = None
+			dataset_with_slidenames = None
 		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
 		
-		return dataset, dataset_with_casenames, global_num_tiles
+		return dataset, dataset_with_slidenames, global_num_tiles
 
-	def build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, include_casenames=False):
+	def build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, include_slidenames=False):
 		'''Assembles dataset inputs from tfrecords.
 		
 		Args:
-			folders:		Array of directories in which to search for cases (subfolders) containing tfrecords
-			balance:		Whether to use input balancing; options are BALANCE_BY_CASE, BALANCE_BY_CATEGORY, NO_BALANCE
-								 (only available if TFRECORDS_BY_CASE=True)'''
+			folders:		Array of directories in which to search for slides (subfolders) containing tfrecords
+			balance:		Whether to use input balancing; options are BALANCE_BY_PATIENT, BALANCE_BY_CATEGORY, NO_BALANCE
+								 (only available if TFRECORDS_BY_PATIENT=True)'''
 		self.AUGMENT = augment
 		with tf.name_scope('input'):
-			dataset, dataset_with_casenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, include_casenames)
-		return dataset, dataset_with_casenames, num_tiles
+			dataset, dataset_with_slidenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, include_slidenames)
+		return dataset, dataset_with_slidenames, num_tiles
 
 	def build_model(self, hp, pretrain=None, checkpoint=None):
 		# Assemble base model, using pretraining (imagenet) or the base layers of a supplied model
@@ -379,17 +383,18 @@ class SlideflowModel:
 			sys.exit()
 		batch_size = batch_size if not hp else hp.batch_size
 		augment = False if not hp else hp.augment
-		dataset, dataset_with_casenames, num_tiles = self.build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment, finite=True, include_casenames=True)
+		dataset, dataset_with_slidenames, num_tiles = self.build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment, finite=True, include_slidenames=True)
 		if model:
 			self.model = tf.keras.models.load_model(model)
 		elif checkpoint:
 			self.model = self.build_model(hp)
 			self.model.load_weights(checkpoint)
 
-		tile_auc, slide_auc, r_squared = statistics.generate_performance_metrics(self.model, dataset_with_casenames, model_type, self.DATA_DIR, label="eval")
+		tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, dataset_with_slidenames, self.SLIDE_ANNOTATIONS, model_type, self.DATA_DIR, label="eval")
 
 		log.info(f"Tile AUC: {tile_auc}", 1)
 		log.info(f"Slide AUC: {slide_auc}", 1)
+		log.info(f"Patient AUC: {patient_auc}", 1)
 		log.info(f"R-squared: {r_squared}", 1)
 
 		log.info("Calculating performance metrics...", 1)
@@ -423,9 +428,9 @@ class SlideflowModel:
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 
 		# Build inputs
-		train_data, _, num_tiles = self.build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, include_casenames=False)
+		train_data, _, num_tiles = self.build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, include_slidenames=False)
 		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
-			validation_data, validation_data_with_casenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, include_casenames=True)
+			validation_data, validation_data_with_slidenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, include_slidenames=True)
 			validation_data_for_training = validation_data.repeat()
 		else:
 			validation_data_for_training = None
@@ -464,7 +469,7 @@ class SlideflowModel:
 
 		with open(results_log, "w") as results_file:
 			writer = csv.writer(results_file)
-			writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc', 'tile_auc', 'slide_auc'])
+			writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc'])
 		parent = self
 
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
@@ -478,7 +483,7 @@ class SlideflowModel:
 							train_acc = logs['accuracy']
 						else:
 							train_acc = logs[hp.loss]
-						tile_auc, slide_auc, r_squared = statistics.generate_performance_metrics(self.model, validation_data_with_casenames, hp.model_type(), parent.DATA_DIR, label=epoch_label)
+						tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, validation_data_with_slidenames, parent.SLIDE_ANNOTATIONS, hp.model_type(), parent.DATA_DIR, label=epoch_label)
 						if verbose: log.info("Beginning validation testing", 1)
 						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
@@ -490,11 +495,13 @@ class SlideflowModel:
 							results[f'epoch{epoch+1}'][f'tile_auc{i}'] = auc
 						for i, auc in enumerate(slide_auc):
 							results[f'epoch{epoch+1}'][f'slide_auc{i}'] = auc
+						for i, auc in enumerate(patient_auc):
+							results[f'epoch{epoch+1}'][f'patient_auc{i}'] = auc
 						results[f'epoch{epoch+1}']['r_squared'] = r_squared
 
 						with open(results_log, "a") as results_file:
 							writer = csv.writer(results_file)
-							writer.writerow([epoch_label, np.amax(train_acc), val_loss, val_acc, tile_auc, slide_auc])
+							writer.writerow([epoch_label, np.amax(train_acc), val_loss, val_acc, tile_auc, slide_auc, patient_auc])
 
 		callbacks = [history_callback, PredictionAndEvaluationCallback()]
 		if hp.early_stop:
@@ -521,7 +528,7 @@ class SlideflowModel:
 					optimizer=initialized_optimizer,
 					metrics=metrics)
 
-		finetune_model = self.model.fit(train_data.repeat(),
+		self.model.fit(train_data.repeat(),
 			steps_per_epoch=steps_per_epoch,
 			epochs=total_epochs,
 			verbose=verbose,
@@ -531,22 +538,6 @@ class SlideflowModel:
 			callbacks=callbacks)
 
 		self.model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
-		if hp.model_type() != 'linear':
-			train_acc = finetune_model.history['accuracy']
-		else:
-			train_acc = finetune_model.history[hp.loss]
-
-		# Final validation testing, getting both overall accuracy/loss and predictions for ROCs
-		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
-			if verbose: log.info("Beginning final validation testing", 1)
-			val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
-		else:
-			val_loss, val_acc = 0,0
-
-		results['final'] = {}
-		results['final']['train_acc'] = np.amax(train_acc)
-		results['final']['val_loss'] = val_loss
-		results['final']['val_acc'] = val_acc
 
 		return results
 		

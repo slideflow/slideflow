@@ -2,6 +2,7 @@ import shutil
 
 from os import listdir, makedirs
 from os.path import isfile, isdir, join, exists
+import sys
 from random import shuffle
 import argparse
 import slideflow.util as sfutil
@@ -34,17 +35,17 @@ def split_tiles(folder, fraction, names):
 		sys.exit()
 
 	# Setup directories
-	cases = [_dir for _dir in listdir(folder) if isdir(join(folder, _dir))]
+	slides = [_dir for _dir in listdir(folder) if isdir(join(folder, _dir))]
 	num_moved = [0] * len(names)
 
-	for case in cases:
-		case_directory = join(folder, case)
-		case_files = [f for f in listdir(case_directory) 
-						if (isfile(join(case_directory, f))) and
-						(f.split('.')[-1] == 'jpg')]
+	for slide in slides:
+		slide_directory = join(folder, slide)
+		slide_files = [f for f in listdir(slide_directory) 
+						if (isfile(join(slide_directory, f))) and
+						(sfutil.path_to_ext(f) == 'jpg')]
 
-		shuffle(case_files)
-		num_files = len(case_files)
+		shuffle(slide_files)
+		num_files = len(slide_files)
 		num_to_move = [0] * len(fraction)
 
 		# First, calculate number to move for the explicitly specified fractions
@@ -71,20 +72,20 @@ def split_tiles(folder, fraction, names):
 
 		# Split tiles by subfolder
 		for n, name in enumerate(names):
-			case_subfolder_directory = join(folder, name, case)
-			make_dir(case_subfolder_directory)
+			slide_subfolder_directory = join(folder, name, slide)
+			make_dir(slide_subfolder_directory)
 
 			num = num_to_move[n]
-			files_to_move = case_files[0:num]
-			case_files = case_files[num:]
+			files_to_move = slide_files[0:num]
+			slide_files = slide_files[num:]
 
 			for f in files_to_move:
-				shutil.move(join(case_directory, f), join(case_subfolder_directory, f))
+				shutil.move(join(slide_directory, f), join(slide_subfolder_directory, f))
 			num_moved[n] += num
-			log.empty(f"Moved {num} tiles for case {sfutil.green(case)} into subfolder {name}", 1)
+			log.empty(f"Moved {num} tiles for slide {sfutil.green(slide)} into subfolder {name}", 1)
 
 		# Remove the empty directory
-		shutil.rmtree(case_directory)
+		shutil.rmtree(slide_directory)
 
 	# Print results
 	for n, name in enumerate(names):
@@ -93,32 +94,32 @@ def split_tiles(folder, fraction, names):
 def build_validation(train_dir, eval_dir, fraction = 0.1):
 	total_moved = 0
 	make_dir(eval_dir)
-	case_dirs = [_dir for _dir in listdir(train_dir) if isdir(join(train_dir, _dir))]
-	for case_dir in case_dirs:
-		make_dir(join(eval_dir, case_dir))
-		files = [file for file in listdir(join(train_dir, case_dir)) 
-					if (isfile(join(train_dir, case_dir, file))) and
-						(file.split('.')[-1] == "jpg")]
+	slide_dirs = [_dir for _dir in listdir(train_dir) if isdir(join(train_dir, _dir))]
+	for slide_dir in slide_dirs:
+		make_dir(join(eval_dir, slide_dir))
+		files = [_file for _file in listdir(join(train_dir, slide_dir)) 
+					if (isfile(join(train_dir, slide_dir, _file))) and
+						(sfutil.path_to_ext(_file) == "jpg")]
 		shuffle(files)
 		num_to_move = int(len(files)*fraction)
 		total_moved += num_to_move
 		for file in files[0:num_to_move]:
-			shutil.move(join(train_dir, case_dir, file), join(eval_dir, case_dir, file))
-		log.empty(f"Set aside {num_to_move} tiles for case {sfutil.green(case_dir)} for validation dataset", 1)
+			shutil.move(join(train_dir, slide_dir, file), join(eval_dir, slide_dir, file))
+		log.empty(f"Set aside {num_to_move} tiles for slide {sfutil.green(slide_dir)} for validation dataset", 1)
 	log.complete(f"Set aside {sfutil.bold(total_moved)} tiles for validation dataset", 1)
 
 def merge_validation(train_dir, eval_dir):
 	cat_dirs = [_dir for _dir in listdir(eval_dir) if isdir(join(eval_dir, _dir))]
 	for cat_dir in cat_dirs:
 		print(f"Category {cat_dir}:")
-		case_dirs = [_dir for _dir in listdir(join(eval_dir, cat_dir)) if isdir(join(eval_dir, cat_dir, _dir))]
-		for case_dir in case_dirs:
-			files = [file for file in listdir(join(eval_dir, cat_dir, case_dir)) 
-						if (isfile(join(eval_dir, cat_dir, case_dir, file))) and
-						   (file.split('.')[-1] == "jpg")]
+		slide_dirs = [_dir for _dir in listdir(join(eval_dir, cat_dir)) if isdir(join(eval_dir, cat_dir, _dir))]
+		for slide_dir in slide_dirs:
+			files = [_file for _file in listdir(join(eval_dir, cat_dir, slide_dir)) 
+						if (isfile(join(eval_dir, cat_dir, slide_dir, _file))) and
+						   (sfutil.path_to_ext(_file) == "jpg")]
 			for file in files:
-				shutil.move(join(eval_dir, cat_dir, case_dir, file), join(train_dir, cat_dir, case_dir, file))
-			print(f"  Merged {len(files)} files for case {case_dir}")
+				shutil.move(join(eval_dir, cat_dir, slide_dir, file), join(train_dir, cat_dir, slide_dir, file))
+			print(f"  Merged {len(files)} files for slide {slide_dir}")
 
 if __name__==('__main__'):
 	parser = argparse.ArgumentParser(description = 'Tool to build and re-merge a validation dataset from an existing training dataset. Training dataset must be in a folder called "train_data".')
