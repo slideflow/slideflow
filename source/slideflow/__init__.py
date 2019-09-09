@@ -155,7 +155,7 @@ class SlideFlowProject:
 		for subfolder in subfolders:
 			log.info(f"Updating TFRecords in {sfutil.green(subfolder)}...")
 			num_updated += tfrecords.update_tfrecord_dir(subfolder, slide='case', image_raw='image_raw')
-		log.complete(f"Updated {sfutil.bold(num_updated)} records")
+		log.complete(f"Updated {sfutil.bold(num_updated)} TFRecords files")
 
 	def delete_tiles(self, subfolder=None):
 		'''Deletes all contents in the tiles directory (to be executed after TFRecords are generated).'''
