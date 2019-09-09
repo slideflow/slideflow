@@ -527,8 +527,8 @@ def verify_annotations_slides(slides_dir=None):
 				log.warn(f"Unable to locate slide {slide}", 1, print_func)
 				skip_warn = True
 				num_warned += 1
-		if num_warned >= warn_threshold:
-			log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)
+	if num_warned >= warn_threshold:
+		log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)
 
 def get_relative_tfrecord_paths(root, directory=""):
 	tfrecords = [join(directory, f) for f in os.listdir(join(root, directory)) if (not isdir(join(root, directory, f)) and len(f) > 10 and f[-10:] == ".tfrecords")]
