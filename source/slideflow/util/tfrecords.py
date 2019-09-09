@@ -48,7 +48,7 @@ def image_example(slide, image_string):
 	
 def _get_images_by_dir(directory):
 	files = [f for f in listdir(directory) if (isfile(join(directory, f))) and
-				(f.split('.')[-1] == "jpg")]
+				(sfutil.path_to_ext(f) == "jpg")]
 	return files
 
 def _parse_tfrecord_function(record):
@@ -399,8 +399,8 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 			sys.exit()
 
 		# Return list of tfrecords
-		validation_tfrecords = [tfr for tfr in tfrecord_dir_list if tfr.split('/')[-1].split('.')[0] in validation_slides]
-		training_tfrecords = [tfr for tfr in tfrecord_dir_list if tfr.split('/')[-1].split('.')[0] in training_slides]
+		validation_tfrecords = [tfr for tfr in tfrecord_dir_list if sfutil.path_to_name(tfr) in validation_slides]
+		training_tfrecords = [tfr for tfr in tfrecord_dir_list if sfutil.path_to_name(tfr) in training_slides]
 	else:
 		log.error(f"Invalid validation strategy '{validation_target}' detected; must be either 'per-tile' or 'per-patient'.", 1)
 		sys.exit()

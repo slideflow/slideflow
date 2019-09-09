@@ -198,7 +198,7 @@ def file_input(prompt, default=None, filetype=None, verify=True):
 		if verify and not os.path.exists(response):
 			print(f'Unable to locate file "{response}"')
 			continue
-		extension = response.split('.')[-1]
+		extension = path_to_ext(response)
 		if filetype and (extension != filetype):
 			print(f'Incorrect filetype; provided file of type "{extension}", need type "{filetype}"')
 			continue
@@ -621,3 +621,17 @@ def contains_nested_subdirs(directory):
 			if isdir(join(directory, subdir, c)):
 				return True
 	return False
+
+def path_to_name(path):
+	_file = path.split('/')[-1]
+	if len(_file.split('.')) == 1:
+		return _file
+	else:
+		return '.'.join(_file.split('.')[:-1])
+
+def path_to_ext(path):
+	_file = path.split('/')[-1]
+	if len(_file.split('.')) == 1:
+		return ''
+	else:
+		return _file.split('.')[-1]

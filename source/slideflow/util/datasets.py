@@ -42,7 +42,7 @@ def split_tiles(folder, fraction, names):
 		slide_directory = join(folder, slide)
 		slide_files = [f for f in listdir(slide_directory) 
 						if (isfile(join(slide_directory, f))) and
-						(f.split('.')[-1] == 'jpg')]
+						(sfutil.path_to_ext(f) == 'jpg')]
 
 		shuffle(slide_files)
 		num_files = len(slide_files)
@@ -97,9 +97,9 @@ def build_validation(train_dir, eval_dir, fraction = 0.1):
 	slide_dirs = [_dir for _dir in listdir(train_dir) if isdir(join(train_dir, _dir))]
 	for slide_dir in slide_dirs:
 		make_dir(join(eval_dir, slide_dir))
-		files = [file for file in listdir(join(train_dir, slide_dir)) 
-					if (isfile(join(train_dir, slide_dir, file))) and
-						(file.split('.')[-1] == "jpg")]
+		files = [_file for _file in listdir(join(train_dir, slide_dir)) 
+					if (isfile(join(train_dir, slide_dir, _file))) and
+						(sfutil.path_to_ext(_file) == "jpg")]
 		shuffle(files)
 		num_to_move = int(len(files)*fraction)
 		total_moved += num_to_move
@@ -114,9 +114,9 @@ def merge_validation(train_dir, eval_dir):
 		print(f"Category {cat_dir}:")
 		slide_dirs = [_dir for _dir in listdir(join(eval_dir, cat_dir)) if isdir(join(eval_dir, cat_dir, _dir))]
 		for slide_dir in slide_dirs:
-			files = [file for file in listdir(join(eval_dir, cat_dir, slide_dir)) 
-						if (isfile(join(eval_dir, cat_dir, slide_dir, file))) and
-						   (file.split('.')[-1] == "jpg")]
+			files = [_file for _file in listdir(join(eval_dir, cat_dir, slide_dir)) 
+						if (isfile(join(eval_dir, cat_dir, slide_dir, _file))) and
+						   (sfutil.path_to_ext(_file) == "jpg")]
 			for file in files:
 				shutil.move(join(eval_dir, cat_dir, slide_dir, file), join(train_dir, cat_dir, slide_dir, file))
 			print(f"  Merged {len(files)} files for slide {slide_dir}")

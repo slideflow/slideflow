@@ -32,7 +32,7 @@ while True:
 	# Select GPU
 	sf.autoselect_gpu(NUM_GPU)
 	# Refresh queue
-	actions_queue = [py for py in glob(os.path.join(args.queue, "*")) if py.split('/')[-1].split('.')[-1] == "py"]
+	actions_queue = [py for py in glob(os.path.join(args.queue, "*")) if sf.util.path_to_ext(py) == "py"]
 	# Exit if queue empty
 	if len(actions_queue) == 0:
 		print("Queue empty; exiting...")
