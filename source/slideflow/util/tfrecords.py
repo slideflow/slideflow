@@ -20,6 +20,10 @@ FEATURE_TYPES = (tf.int64, tf.string, tf.string)
 FEATURE_DESCRIPTION =  {'slide':    tf.io.FixedLenFeature([], tf.string),
 						'image_raw':tf.io.FixedLenFeature([], tf.string)}
 
+OLD_FEATURE_DESCRIPTION = {'category': tf.io.FixedLenFeature([], tf.int64),
+						   'case':     tf.io.FixedLenFeature([], tf.string),
+						   'image_raw':tf.io.FixedLenFeature([], tf.string)}
+
 def _parse_function(example_proto):
 	return tf.io.parse_single_example(example_proto, FEATURE_DESCRIPTION)
 
@@ -402,3 +406,24 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 		sys.exit()
 	log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation", 1)
 	return training_tfrecords, validation_tfrecords
+
+def update_tfrecord_dir(directory, old_feature_description=OLD_FEATURE_DESCRIPTION, slide='slide', image_raw='image_raw'):
+	if not exists(directory):
+		log.error(f"Directory {directory} does not exist; unable to update tfrecords.")
+	else:
+		tfrecord_files = glob(join(directory, "*.tfrecords"))
+		for tfr in tfrecord_files:
+			update_tfrecord(tfr, old_feature_description, slide, image_raw)
+		return len(tfrecord_files)
+
+def update_tfrecord(tfrecord_file, old_feature_description=OLD_FEATURE_DESCRIPTION, slide='slide', image_raw='image_raw'):
+	shutil.move(tfrecord_file, tfrecord_file+".old")
+	dataset = tf.data.TFRecordDataset(tfrecord_file+".old")
+	writer = tf.io.TFRecordWriter(tfrecord_file)
+	for record in dataset:
+		features = tf.io.parse_single_example(record, old_feature_description)
+		slide = features[slide].numpy()
+		image_raw = features[image_raw].numpy()
+		tf_example = image_example(slide=slide, image_string=image_raw)
+		writer.write(tf_example.SerializeToString())
+	writer.close()
