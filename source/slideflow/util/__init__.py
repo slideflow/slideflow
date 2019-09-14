@@ -77,7 +77,7 @@ def underline(text):
 	return UNDERLINE + str(text) + ENDC
 
 class LOGGING_LEVEL:
-	INFO = 0
+	INFO = 3
 	WARN = 3
 	ERROR = 3
 	COMPLETE = 3
@@ -286,12 +286,13 @@ def get_slides_from_annotations(filters=None):
 	global ANNOTATIONS
 	result = []
 	if not len(ANNOTATIONS):
-		log.error("No annotations loaded; will exit.")
-		sys.exit()
+		log.error("No annotations loaded; is the annotations file empty?")
 	for ann in ANNOTATIONS:
 		if TCGA.slide not in ann.keys():
 			log.error(f"{TCGA.slide} not found in annotations file.")
 			sys.exit()
+		if ann[TCGA.slide] == '':
+			continue
 		if filters:
 			skip_annotation = False
 			for filter_key in filters.keys():
@@ -395,55 +396,67 @@ def update_annotations_with_slidenames(annotations_file, slides_dir):
 	slides_to_skip = [slide for slide in slide_list if num_occurrences[_shortname(slide)] > 1]
 
 	# Next, search through the slides folder for all SVS/JPG files
-	skip_missing = False
+	num_warned = 0
+	warn_threshold = 1
 	for slide_filename in slide_list:
 		slide_name = slide_filename.split('/')[-1].split(".")[0]
+		print_func = print if num_warned < warn_threshold else None
 		# First, skip this slide due to ambiguity if needed
 		if slide_name in slides_to_skip:
-			if not skip_missing:
-				if not yes_no_input(f"Unable to associate slide {slide_name} due to ambiguity; multiple slides match to patient id {_shortname(slide_name)}. Skip slide? [Y/n] ", default='yes'):
-					sys.exit()
-				else:
-					skip_missing = True
-			else:
-				log.warn(f"Unable to associate slide {slide_name} due to ambiguity; multiple slides match to patient id {_shortname(slide_name)}; skipping.", 1)
+			log.warn(f"Unable to associate slide {slide_name} due to ambiguity; multiple slides match to patient id {_shortname(slide_name)}; skipping.", 1)
+			num_warned += 1
 		# Then, make sure the shortname and long name aren't both in the annotation file
 		if (slide_name != _shortname(slide_name)) and (slide_name in patients) and (_shortname(slide_name) in patients):
-			if not skip_missing:
-				if not yes_no_input(f"Unable to associate slide {slide_name} due to ambiguity; both {slide_name} and {_shortname(slide_name)} are patients in annotation file. Skip slide? [Y/n] ", default='yes'):
-					sys.exit()
-				else:
-					skip_missing = True
-			else:
-				log.warn(f"Unable to associate slide {slide_name} due to ambiguity; both {slide_name} and {_shortname(slide_name)} are patients in annotation file; skipping.", 1)
+			log.warn(f"Unable to associate slide {slide_name} due to ambiguity; both {slide_name} and {_shortname(slide_name)} are patients in annotation file; skipping.", 1)
+			num_warned += 1
 
 		# Check if either the slide name or the shortened version are in the annotation file
 		if any(x in patients for x in [slide_name, _shortname(slide_name)]):
 			slide = slide_name if slide_name in patients else _shortname(slide_name)
 			patient_slide_dict.update({slide: slide_name})
-		elif not skip_missing:
-			if not yes_no_input(f" + [{warn('WARN')}] Slide '{slide_name}' not found in annotation file, skip this slide? [Y/n] ", default='yes'):
-				sys.exit()
-			else:
-				skip_missing = True
 		else:
-			log.warn(f"Slide '{slide_name}' not found in annotation file, skipping.", 1)
+			log.warn(f"Slide '{slide_name}' not found in annotations file, skipping.", 1, print_func)
+			num_warned += 1
+	if num_warned >= warn_threshold:
+		log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)
 
 	# Now, write the assocations
+	num_updated_annotations = 0
+	num_missing = 0
 	with open(annotations_file) as csv_file:
 		csv_reader = csv.reader(csv_file, delimiter=',')
 		header = next(csv_reader, None)
 		with open('temp.csv', 'w') as csv_outfile:
 			csv_writer = csv.writer(csv_outfile, delimiter=',')
-			header.extend([TCGA.slide])
-			csv_writer.writerow(header)
-			for row in csv_reader:
-				patient = row[patient_index]
-				if patient in patient_slide_dict:
-					row.extend([patient_slide_dict[patient]])
-				else:
-					row.extend([""])
-				csv_writer.writerow(row)
+
+			# Write to existing "slide" column in the annotations file if it exists, 
+			# otherwise create new column
+			try:
+				slide_index = header.index(TCGA.slide)
+				csv_writer.writerow(header)
+				for row in csv_reader:
+					patient = row[patient_index]
+					if patient in patient_slide_dict:
+						row[slide_index] = patient_slide_dict[patient]
+						num_updated_annotations += 1
+					else:
+						row[slide_index] = ''
+						num_missing += 1
+					csv_writer.writerow(row)
+			except:
+				header.extend([TCGA.slide])
+				csv_writer.writerow(header)
+				for row in csv_reader:
+					patient = row[patient_index]
+					if patient in patient_slide_dict:
+						row.extend([patient_slide_dict[patient]])
+						num_updated_annotations += 1
+					else:
+						row.extend([""])
+						num_missing += 1
+					csv_writer.writerow(row)
+	log.info(f"Successfully associated slides with {num_updated_annotations} annotation entries. Slides not found for {num_missing} annotations.", 1)
+
 	# Finally, backup the old annotation file and overwrite existing with the new data
 	backup_file = f"{annotations_file}.backup"
 	if exists(backup_file):
@@ -514,19 +527,17 @@ def verify_annotations_slides(slides_dir=None):
 		sys.exit()
 
 	# Verify all SVS files in the annotation column are valid
-	skip_warn = False
 	num_warned = 0
 	warn_threshold = 3
 	for annotation in ANNOTATIONS:
+		print_func = print if num_warned < warn_threshold else None
 		slide = annotation[TCGA.slide]
-		if not slide in [s.split('/')[-1].split(".")[0] for s in slide_list]:
-			if not skip_warn and yes_no_input(f" + [{warn('WARN')}] Unable to locate slide {slide}. Quit? [y/N] ", default='no'):
-				sys.exit()
-			else:
-				print_func = print if num_warned < warn_threshold else None
-				log.warn(f"Unable to locate slide {slide}", 1, print_func)
-				skip_warn = True
-				num_warned += 1
+		if slide == '':
+			log.warn(f"Patient {green(annotation[TCGA.patient])} has no slide assigned.", 1, print_func)
+			num_warned += 1
+		elif not slide in [s.split('/')[-1].split(".")[0] for s in slide_list]:
+			log.warn(f"Unable to locate slide {slide}", 1, print_func)
+			num_warned += 1
 	if num_warned >= warn_threshold:
 		log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)
 
@@ -604,12 +615,15 @@ def update_tfrecord_manifest(directory, force_update=False):
 		num_warned = 0
 		warn_threshold = 3
 		for annotation in ANNOTATIONS:
-			if annotation[TCGA.slide] not in slide_list:
-				print_func = print if num_warned < warn_threshold else None
-				log.warn(f"Slide {green(annotation[TCGA.slide])} in annotation file has no image tiles", 2, print_func)
+			print_func = print if num_warned < warn_threshold else None
+			if annotation[TCGA.slide] == '':
+				log.warn(f"Patient {green(annotation[TCGA.patient])} has no slide assigned.", 1, print_func)
+				num_warned += 1
+			elif annotation[TCGA.slide] not in slide_list:
+				log.warn(f"Slide {green(annotation[TCGA.slide])} in annotation file has no image tiles.", 1, print_func)
 				num_warned += 1
 		if num_warned >= warn_threshold:
-			log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 2)
+			log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)
 
 	return manifest
 	
