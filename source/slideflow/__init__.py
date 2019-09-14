@@ -24,7 +24,7 @@ import slideflow.util as sfutil
 from slideflow.util import datasets, tfrecords, TCGA, log
 from slideflow.mosaic import Mosaic
 
-__version__ = "1.0.1d"
+__version__ = "1.0.2"
 
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
@@ -67,7 +67,7 @@ def release_gpu():
 	
 atexit.register(release_gpu)
 
-class SlideFlowProject:
+class SlideflowProject:
 	MANIFEST = None
 
 	def __init__(self, project_folder):
@@ -92,7 +92,7 @@ class SlideFlowProject:
 		
 	def extract_tiles(self, filters=None, subfolder=None, skip_validation=False):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
-		validation target is 'per-slide'; and generate TFRecord files from the raw images.'''
+		validation target is 'per-patient'; and generate TFRecord files from the raw images.'''
 		import slideflow.convoluter as convoluter
 
 		log.header("Extracting image tiles...")
@@ -323,7 +323,7 @@ class SlideFlowProject:
 			supervised			(optional) Whether to use verbose output and save training progress to Tensorboard
 			batch_file			(optional) Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.
 			model_type			(optional) Type of output variable, either categorical (default) or linear.
-			validation_target 	(optional) Whether to select validation data on a 'per-slide' or 'per-tile' basis. If not specified, will use project default.
+			validation_target 	(optional) Whether to select validation data on a 'per-patient' or 'per-tile' basis. If not specified, will use project default.
 			validation_strategy	(optional) Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.
 			validation_fraction	(optional) Fraction of data to use for validation testing. If not specified, will use project default.
 			validation_k_fold 	(optional) K, if using k-fold validation. If not specified, will use project default.
@@ -586,7 +586,8 @@ class SlideFlowProject:
 
 	def associate_slide_names(self):
 		'''Experimental function used to automatically associated patient names with slide filenames in the annotations file.'''
-		sfutil.verify_annotations_slides(self.PROJECT['slides_dir'])
+		sfutil.update_annotations_with_slidenames(self.PROJECT['annotations'], self.PROJECT['slides_dir'])
+		sfutil.load_annotations(self.PROJECT['annotations'])
 
 	def update_manifest(self, force_update=False):
 		'''Updates manifest file in the TFRecord directory, used to track number of records and verify annotations.
@@ -617,6 +618,11 @@ class SlideFlowProject:
 			sfutil.verify_annotations_slides(slides_dir=self.PROJECT['slides_dir'])
 			log.header("Verifying TFRecord manifest...")
 			self.update_manifest()
+	
+	def reload(self):
+		'''Reloads project configuration and annotations.'''
+		log.empty("Reloading project configuration and annotations...")
+		self.load_project(self.PROJECT['root'])
 
 	def save_project(self):
 		'''Saves current project configuration as "settings.json".'''
@@ -665,9 +671,9 @@ class SlideFlowProject:
 		
 		# Validation strategy
 		project['validation_fraction'] = sfutil.float_input("What fraction of training data should be used for validation testing? [0.2] ", valid_range=[0,1], default=0.2)
-		project['validation_target'] = sfutil.choice_input("How should validation data be selected by default, per-tile or per-slide? [per-slide] ", valid_choices=['per-tile', 'per-slide'], default='per-slide')
-		if project['validation_target'] == 'per-slide':
-			project['validation_strategy'] = sfutil.choice_input("Which validation strategy should be used by default, k-fold, bootstrap, or fixed? ", valid_choices=['k-fold', 'bootstrap', 'fixed', 'none'])
+		project['validation_target'] = sfutil.choice_input("How should validation data be selected by default, per-tile or per-patient? [per-patient] ", valid_choices=['per-tile', 'per-patient'], default='per-patient')
+		if project['validation_target'] == 'per-patient':
+			project['validation_strategy'] = sfutil.choice_input("Which validation strategy should be used by default, k-fold, bootstrap, or fixed? [k-fold]", valid_choices=['k-fold', 'bootstrap', 'fixed', 'none'], default='k-fold')
 		else:
 			project['validation_strategy'] = sfutil.choice_input("Which validation strategy should be used by default, k-fold or fixed? ", valid_choices=['k-fold', 'fixed', 'none'])
 		if project['validation_strategy'] == 'k-fold':
@@ -687,4 +693,4 @@ class SlideFlowProject:
 				actions_file.write(sample_actions)
 
 		print("\nProject configuration saved.\n")
-		sys.exit()
+		self.load_project(sfutil.PROJECT_DIR)
