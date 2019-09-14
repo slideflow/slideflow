@@ -36,7 +36,7 @@ Begin training
 
 Once your hyperparameter settings have been chosen and saved to your batch_train CSV file, you may begin training using the ``train`` function. Documentation of the function is given below:
 
-.. autofunction:: slideflow.SlideFlowProject.train
+.. autofunction:: slideflow.SlideflowProject.train
    :noindex:
 
 Your outcome variable is specified with the ``category_header`` argument. You may filter slides for training using the ``filter_header`` and ``filter_values`` arguments, as previously described. 
@@ -50,8 +50,7 @@ For example, to train using only slides labeled as "train" in the "dataset" colu
 .. code-block:: python
 
 	SFP.train(category_header="category",
-		  filter_header=["dataset"],
-		  filter_values=["train"])
+		  filters={"dataset": ["train"]})
 
 Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the ``results.log`` file in the project directory. Additional analytic data, including ROCs and scatter plots, are saved in the model directories.
 

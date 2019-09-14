@@ -1,7 +1,7 @@
 Setting up a Project
 ====================
 
-The easiest way to get the ``slideflow`` pipeline up and running is to use the bundled project management class, ``SlideFlowProject``. In this section, we will examine how to set up a new project and then use the project to execute each of the pipeline steps. 
+The easiest way to get the ``slideflow`` pipeline up and running is to use the bundled project management class, ``SlideflowProject``. In this section, we will examine how to set up a new project and then use the project to execute each of the pipeline steps. 
 
 Before we start, make sure you have each of the following:
 
@@ -47,7 +47,7 @@ Upon first executing the script, you will be asked a series of questions regardi
 |				| Default is 20%.					|
 +-------------------------------+-------------------------------------------------------+
 | **Validation target**		| How to select validation data; by tile or by slide.	|
-|				| Default is 'per-slide'				|
+|				| Default is 'per-patient'				|
 +-------------------------------+-------------------------------------------------------+
 | **Validation strategy**	| Type of validation testing (K-fold, fixed plan, none)	|
 |				| Default is 'k-fold'					|
@@ -91,22 +91,22 @@ After the project has been setup, open the ``actions.py`` file located in the pr
 .. code-block:: python
 
 	def main(SFP):
-		#SFP.extract_tiles(filter_header=['dataset'], filter_values=['train'])
-			   
+		#SFP.extract_tiles(filters = {'to_extract': 'yes'}, subfolder='all')
+			
 		#SFP.create_hyperparameter_sweep(finetune_epochs=[5], toplayer_epochs=0, model=['Xception'], pooling=['avg'], loss='sparse_categorical_crossentropy', 
-		#				learning_rate=[0.00001, 0.001], batch_size=64, hidden_layers=[1], optimizer='Adam', early_stop=True, early_stop_patience=15, balanced_training=['BALANCE_BY_CATEGORY'],
-		#				balanced_validation='NO_BALANCE', augment=True, filename=None)
-
-		#SFP.train(subfolder='train1-per-slide',
-		#	  category_header="submitter_id",
-		#	  filter_header=["dataset"],
-		#	  filter_values=["train1"],
-		#	  model_type='linear')
+		#								learning_rate=[0.00001, 0.001], batch_size=64, hidden_layers=[1], optimizer='Adam', early_stop=True, early_stop_patience=15, balanced_training=['BALANCE_BY_CATEGORY'],
+		#								balanced_validation='NO_BALANCE', augment=True, filename=None)
+		#SFP.train(subfolder='all',
+		#	  category_header="category",
+		#	  filters = {
+		#		  'dataset': 'train',
+		#		  'category': ['negative', 'positive']
+		#	  },
 		#	  batch_file='batch_train.tsv')
 
-		#SFP.evaluate(model='HPSweep0', subfolder='train_data', category_header="description", filter_header='description', filter_values=['FTC'])
-		#SFP.generate_heatmaps('HPSweep0', filter_header='slide', filter_values=['234801'])
-		#SFP.generate_mosaic(model="HPSweep0", subfolder="train")
+		#SFP.evaluate(model='HPSweep0-kfold3', subfolder='all', category_header="category", filters = {'dataset': 'eval'})
+		#SFP.generate_heatmaps('HPSweep0')
+		#SFP.generate_mosaic('HPSweep0')
 		pass
 
 The ``main()`` function contains several example commands, commented out with "#". These serve as examples to help remind you of arguments you can use when executing project functions.

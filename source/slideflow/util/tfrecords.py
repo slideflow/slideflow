@@ -324,6 +324,9 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 			log.info(f"Using boostrap validation: selecting {sfutil.bold(num_val)} patients at random to use for validation testing", 1)
 			validation_patients = patients[0:num_val]
 			training_patients = patients[num_val:]
+			if not len(validation_patients) or not len(training_patients):
+				log.error("Insufficient number of patients to generate validation dataset.", 1)
+				sys.exit()
 			validation_slides = np.concatenate([patients_dict[patient]['slides'] for patient in validation_patients]).tolist()
 			training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in training_patients]).tolist()
 		else:
@@ -358,12 +361,19 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 					num_val = int(validation_fraction * len(patients))
 					validation_patients = patients[0:num_val]
 					training_patients = patients[num_val:]
+					if not len(validation_patients) or not len(training_patients):
+						log.error("Insufficient number of patients to generate validation dataset.", 1)
+						sys.exit()
 					validation_slides = np.concatenate([patients_dict[patient]['slides'] for patient in validation_patients]).tolist()
 					training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in training_patients]).tolist()
 					new_plan['tfrecords']['validation'] = validation_slides
 					new_plan['tfrecords']['training'] = training_slides
 				elif validation_strategy == 'k-fold':
 					k_fold_patients = split_patients_list(patients_dict, k_fold, balance=('outcome' if model_type == 'categorical' else None))
+					# Verify at least one patient is in each k_fold group
+					if not min([len(patients) for patients in k_fold_patients]):
+						log.error("Insufficient number of patients to generate validation dataset.", 1)
+						sys.exit()
 					training_patients = []
 					for k in range(k_fold):
 						new_plan['tfrecords'][f'k-fold-{k+1}'] = np.concatenate([patients_dict[patient]['slides'] for patient in k_fold_patients[k]]).tolist()

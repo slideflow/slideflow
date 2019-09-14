@@ -22,7 +22,7 @@ Configuring a validation plan
 
 There are several ways you can plan to validate your data. The project configuration options in slideflow are the following:
 
-- **validation_target**:  *'per-slide'* or *'per-tile'*
+- **validation_target**:  *'per-patient'* or *'per-tile'*
 - **validation_strategy**:  *'bootstrap'*, *'k-fold'*, *'fixed'*, *'none'*
 - **validation_fraction**:  (float between 0-1)
 - **validation_k_fold**:  int
