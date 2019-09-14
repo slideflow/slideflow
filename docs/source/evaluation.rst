@@ -9,8 +9,7 @@ For example, to evaluate performance of model "HPSweep0" on slides labeled as "e
 
 	SFP.evaluate(model="HPSweep0",
 		  category_header="category",
-		  filter_header=["dataset"],
-		  filter_values=["evaluation"])
+		  filters={"dataset": ["evaluation"]})
 
 Generate heatmaps
 *****************
@@ -20,8 +19,7 @@ If you would like to generate a predictive heatmap for a set of slides, use the 
 .. code-block:: python
 
 	SFP.generate_heatmaps(model="HPSweep0",
-		  filter_header=["dataset"],
-		  filter_values=["evaluation"])
+		  filters={"dataset": ["evaluation"]})
 
 Heatmaps will be saved in your project directory.
 
@@ -33,7 +31,6 @@ You can also generate mosaic maps using similar syntax to the above. In addition
 .. code-block:: python
 
 	SFP.generate_mosaic(model="/path/to/saved/model.h5",
-		  filter_header=["dataset"],
-		  filter_values=["evaluation"])
+		  filters={"dataset": ["evaluation"]})
 
 As with heatmaps, generated mosaic maps will be saved to your project directory.

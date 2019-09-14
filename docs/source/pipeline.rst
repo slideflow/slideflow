@@ -1,6 +1,8 @@
 Pipeline Overview
 =================
 
+.. image:: pipeline_overview.png
+
 The overall pipeline is separated into two phases and 6 steps. 
 
 The first phase - **Model Creation** - involves three steps: 1) labeling slides with regions of interest (ROIs), 2) tessellating and preparing image tiles from the slides, and 3) training a neural network model. 
@@ -19,11 +21,17 @@ Step 1: Create ROIs
 Step 2: Data Preparation
 ************************
 
+.. image:: tile_extraction.png
+
 2) **Extract tiles**. Once ROIs have been created, tiles will need to be extracted from the ROIs across all of your slides. Tiles will be extracted at a given magnification size in microns, and saved at a given resolution in pixels. The optimal extraction size in both microns and pixels will depend on your dataset and model architecture.
 
-3) **Create validation set**. After tiles have been extracted, a certain percentage of tiles should be set aside for validation testing during training; slideflow will default to setting aside 10% of your tiles for validation.
+.. image:: saving_tfrecords.png
 
-4) **Create TFRecords**. Tiles should then be collected and stored as TFRecords, a binary file format used to improve dataset reading performance during training. Each slide should have its own TFRecord file containing its extracted tiles. 
+3) **Create TFRecords**. Tiles should then be collected and stored as TFRecords, a binary file format used to improve dataset reading performance during training. Each slide should have its own TFRecord file containing its extracted tiles. 
+
+.. image:: dataset_assembly.png
+
+4) **Create validation set**. After TFrecords have been saved, a certain number of slides should be set aside for validation testing during training; slideflow will default to setting aside 20% of your slides for validation.
 
 Step 3: Model Training
 **********************

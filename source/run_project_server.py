@@ -46,7 +46,7 @@ while True:
 	actions_name = actions_file.split('/')[-1].replace('.py', '')
 	actions = __import__(actions_name)
 	# Create project
-	SFP = sf.SlideFlowProject(actions.project)
+	SFP = sf.SlideflowProject(actions.project)
 	# Execute actions
 	actions.main(SFP)
 	# Move actions file into finished category
