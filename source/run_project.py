@@ -15,7 +15,7 @@ if not args.project:
 	print("You must specify a project directory using the -p flag.")
 	sys.exit()
 
-SFP = sf.SlideFlowProject(args.project)
+SFP = sf.SlideflowProject(args.project)
 
 sys.path.insert(0, args.project)
 try:

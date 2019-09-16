@@ -53,7 +53,7 @@ def gen_umap(array):
 
 class Mosaic:
 	SVS = None
-	BATCH_SIZE = 64
+	BATCH_SIZE = 16
 	SLIDES = {}
 	GRID = []
 	stride_div = 1
@@ -100,8 +100,8 @@ class Mosaic:
 	def load_slides(self, slides_array, category="None"):
 		log.info(f"Loading SVS slides ...", 1)
 		for slide in slides_array:
-			name = slide.split(".")[0]
-			filetype = slide.split(".")[-1]
+			name = sfutil.path_to_name(slide)
+			filetype = sfutil.path_to_ext(slide)
 			path = slide
 
 			try:
@@ -211,8 +211,21 @@ class Mosaic:
 			indices_all = indices_arr if indices_all == [] else np.concatenate([indices_all, indices_arr])
 			tfrecord_all = tfrecord_arr if tfrecord_all == [] else np.concatenate([tfrecord_all, tfrecord_arr])\
 
+		# Save final layer weights to CSV file
+		header = ["Slide"] + [f"Logits{l}" for l in range(logits_all.shape[1])] + [f"FLNode{f}" for f in range(fl_weights_all.shape[1])]
+		flweights_file = join(self.save_dir, "final_layer_weights.csv")
+		with open(flweights_file, 'w') as outfile:
+			csvwriter = csv.writer(outfile)
+			csvwriter.writerow(header)
+			for i in range(len(slides_all)):
+				slide = [slides_all[i].decode('utf-8')]
+				logits = logits_all[i].tolist()
+				flweights = fl_weights_all[i].tolist()
+				row = slide + logits + flweights
+				csvwriter.writerow(row)
+
 		# Returns a 2D array, with each element containing FL weights, logits, slide name, tfrecord name, and tfrecord indices
-		return fl_weights_all, logits_all, slides_all, images_all, indices_all, tfrecord_all           
+		return fl_weights_all, logits_all, slides_all, images_all, indices_all, tfrecord_all	
 
 	def generate_from_tfrecords(self, tfrecord_array, model, image_size, focus=None):
 		fl_weights, logits, slides, images, indices, tfrecords = self.generate_final_layer_from_tfrecords(tfrecord_array, model, image_size)
