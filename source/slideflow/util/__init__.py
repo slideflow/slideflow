@@ -272,7 +272,7 @@ def get_slide_paths(slides_dir):
 def get_filtered_slide_paths(slides_dir, filters):
 	slide_list = get_slide_paths(slides_dir)
 	filtered_slide_names = get_slides_from_annotations(filters=filters)
-	filtered_slide_list = [slide for slide in slide_list if slide.split('/')[-1].split(".")[0] in filtered_slide_names]
+	filtered_slide_list = [slide for slide in slide_list if path_to_name(slide) in filtered_slide_names]
 	return filtered_slide_list
 
 def get_filtered_tfrecords_paths(tfrecords_dir, filters):
@@ -399,7 +399,7 @@ def update_annotations_with_slidenames(annotations_file, slides_dir):
 	num_warned = 0
 	warn_threshold = 1
 	for slide_filename in slide_list:
-		slide_name = slide_filename.split('/')[-1].split(".")[0]
+		slide_name = path_to_name(slide_filename)
 		print_func = print if num_warned < warn_threshold else None
 		# First, skip this slide due to ambiguity if needed
 		if slide_name in slides_to_skip:
@@ -521,8 +521,8 @@ def verify_annotations_slides(slides_dir=None):
 	slide_list = get_slide_paths(slides_dir)
 
 	# Verify no duplicate slide names are found
-	slide_list = get_slides_from_annotations()
-	if len(slide_list) != len(list(set(slide_list))):
+	slide_list_from_annotations = get_slides_from_annotations()
+	if len(slide_list_from_annotations) != len(list(set(slide_list_from_annotations))):
 		log.error("Duplicate slide names detected in the annotation file.")
 		sys.exit()
 
@@ -535,11 +535,13 @@ def verify_annotations_slides(slides_dir=None):
 		if slide == '':
 			log.warn(f"Patient {green(annotation[TCGA.patient])} has no slide assigned.", 1, print_func)
 			num_warned += 1
-		elif not slide in [s.split('/')[-1].split(".")[0] for s in slide_list]:
+		elif not slide in [path_to_name(s) for s in slide_list]:
 			log.warn(f"Unable to locate slide {slide}", 1, print_func)
 			num_warned += 1
 	if num_warned >= warn_threshold:
 		log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)
+	if not num_warned:
+		log.info(f"Slides successfully verified, no errors found.", 1)
 
 def get_relative_tfrecord_paths(root, directory=""):
 	tfrecords = [join(directory, f) for f in os.listdir(join(root, directory)) if (not isdir(join(root, directory, f)) and len(f) > 10 and f[-10:] == ".tfrecords")]
