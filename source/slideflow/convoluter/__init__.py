@@ -133,8 +133,8 @@ class SlideReader:
 		if roi_dir and exists(join(roi_dir, self.name + ".csv")):
 			num_rois = self.load_csv_roi(join(roi_dir, self.name + ".csv"))
 		# Else try loading ROI from same folder as SVS
-		elif exists(path.split(".")[0] + ".csv"):
-			num_rois = self.load_csv_roi(path.split(".")[0] + ".csv")
+		elif exists(sfutil.path_to_name(path) + ".csv"):
+			num_rois = self.load_csv_roi(sfutil.path_to_name(path) + ".csv")
 		else:
 			if SKIP_MISSING_ROI:
 				log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.print)
@@ -342,8 +342,8 @@ class Convoluter:
 
 	def load_slides(self, slides_array, category="None"):
 		for slide_path in slides_array:
-			name = slide_path.split('/')[-1].split(".")[0]
-			filetype = slide_path.split('/')[-1].split(".")[-1]
+			name = sfutil.path_to_name(slide_path)
+			filetype = sfutil.path_to_ext(slide_path)
 			self.SLIDES.update({name: { "name": name,
 										"path": slide_path,
 										"type": filetype,
