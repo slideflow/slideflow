@@ -401,7 +401,7 @@ class Convoluter:
 			category = slide['category']
 
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
-			log.empty(f"Working on slide {sfutil.green(slide)}", 1, pb.print)
+			log.empty(f"Working on slide {sfutil.green(slide['name'])}", 1, pb.print)
 
 			# Load the slide
 			whole_slide = SlideReader(slide['path'], slide['name'], slide['type'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
@@ -412,6 +412,10 @@ class Convoluter:
 			logits, final_layer, final_layer_labels, logits_flat = self.calculate_logits(whole_slide, export_tiles=export_tiles, 
 																									final_layer=save_final_layer, 
 																									pb=pb)
+			if not logits:
+				log.error(f"Unable to create heatmap for slide {sfutil.green(slide['name'])}", 1)
+				return
+
 			# Save the results
 			if save_heatmaps:
 				self.gen_heatmaps(slide, whole_slide.thumb, logits, self.SIZE_PX, slide_name, save=True)
@@ -447,6 +451,10 @@ class Convoluter:
 
 		# Create tile coordinate generator
 		gen_slice, x_size, y_size, stride_px, roi_area_fraction = whole_slide.build_generator(export=export_tiles)
+
+		if not gen_slice:
+			log.error(f"No tiles extracted from slide {sfutil.green(slide_name)}", 1)
+			return False, False, False, False
 
 		# Generate dataset from the generator
 		with tf.name_scope('dataset_input'):
