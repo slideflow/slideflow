@@ -160,7 +160,7 @@ class Mosaic:
 		
 
 		results = []
-		fl_weights_all, logits_all, slides_all, indices_all, images_all, tfrecord_all = [], [], [], [], [], []
+		fl_weights_all, logits_all, slides_all, indices_all, , tile_indices_all, images_all, tfrecord_all = [], [], [], [], [], [], []
 
 		def _parse_function(record):
 			features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
@@ -182,13 +182,17 @@ class Mosaic:
 			self.tfrecord_paths += [tfrecord]
 			tfrecord_index = self.tfrecord_paths.index(tfrecord)
 
-			fl_weights_arr, logits_arr, slides_arr, indices_arr, images_arr = [], [], [], [], []
+			fl_weights_arr, logits_arr, slides_arr, indices_arr, tile_indices_arr, images_arr = [], [], [], [], [], []
 			for i, data in enumerate(dataset):
 				batch_processed_images, batch_raw_images, batch_slides = data
 				batch_raw_images_np = batch_raw_images.numpy()
 				sys.stdout.write(f"\r - Working on batch {i}")
 				sys.stdout.flush()
-				indices = list(range(len(indices_arr), len(indices_arr) + len(batch_processed_images)))
+
+				# Calculate global and tfrecord-specific indices
+				indices = list(range(len(indices_arr), len(indices_arr) + len(batch_slides)))
+				tile_indices = list(range(i * len(batch_slides), len(batch_slides)))
+
 				if not complete_model:
 					fl_weights, logits = loaded_model.predict([batch_processed_images, batch_processed_images])
 				else:
@@ -197,8 +201,10 @@ class Mosaic:
 				fl_weights_arr = fl_weights if fl_weights_arr == [] else np.concatenate([fl_weights_arr, fl_weights])
 				logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
 				slides_arr = batch_slides if slides_arr == [] else np.concatenate([slides_arr, batch_slides])
-				images_arr = batch_raw_images_np if images_arr == [] else np.concatenate([images_arr, batch_raw_images_np])
+				#images_arr = batch_raw_images_np if images_arr == [] else np.concatenate([images_arr, batch_raw_images_np])
 				indices_arr = indices if indices_arr == [] else np.concatenate([indices_arr, indices])
+				tile_indices_arr = tile_indices if tile_indices_arr == [] else np.concatenate([tile_indices_arr, tile_indices])
+
 			sys.stdout.write("\r\033[K")
 			sys.stdout.flush()
 
@@ -207,9 +213,10 @@ class Mosaic:
 			fl_weights_all = fl_weights_arr if fl_weights_all == [] else np.concatenate([fl_weights_all, fl_weights_arr])
 			logits_all = logits_arr if logits_all == [] else np.concatenate([logits_all, logits_arr])
 			slides_all = slides_arr if slides_all == [] else np.concatenate([slides_all, slides_arr])
-			images_all = images_arr if images_all == [] else np.concatenate([images_all, images_arr])
+			images_all = [] #images_arr if images_all == [] else np.concatenate([images_all, images_arr])
 			indices_all = indices_arr if indices_all == [] else np.concatenate([indices_all, indices_arr])
-			tfrecord_all = tfrecord_arr if tfrecord_all == [] else np.concatenate([tfrecord_all, tfrecord_arr])\
+			tile_indices_all = tile_indices_arr if tile_indices_all == [] else np.concatenate([tile_indices_all, tile_indices_arr])
+			tfrecord_all = tfrecord_arr if tfrecord_all == [] else np.concatenate([tfrecord_all, tfrecord_arr])
 
 		# Save final layer weights to CSV file
 		header = ["Slide"] + [f"Logits{l}" for l in range(logits_all.shape[1])] + [f"FLNode{f}" for f in range(fl_weights_all.shape[1])]
@@ -225,13 +232,13 @@ class Mosaic:
 				csvwriter.writerow(row)
 
 		# Returns a 2D array, with each element containing FL weights, logits, slide name, tfrecord name, and tfrecord indices
-		return fl_weights_all, logits_all, slides_all, images_all, indices_all, tfrecord_all	
+		return fl_weights_all, logits_all, slides_all, images_all, indices_all, tile_indices_all, tfrecord_all	
 
 	def generate_from_tfrecords(self, tfrecord_array, model, image_size, focus=None):
-		fl_weights, logits, slides, images, indices, tfrecords = self.generate_final_layer_from_tfrecords(tfrecord_array, model, image_size)
+		fl_weights, logits, slides, images, indices, tile_indices, tfrecords = self.generate_final_layer_from_tfrecords(tfrecord_array, model, image_size)
 		
 		dl_coord = gen_umap(fl_weights)
-		self.load_coordinates(dl_coord, [slides, tfrecords, indices, images])
+		self.load_coordinates(dl_coord, [slides, tfrecords, indices, tile_indices, images])
 		self.place_tile_outlines()
 		#if len(self.SLIDES):
 		#	self.generate_hover_events()
@@ -248,25 +255,22 @@ class Mosaic:
 		points_x = []
 		points_y = []
 		point_index = 0
-		slides, tfrecords, indices, images = meta
+		slides, tfrecords, indices, tile_indices, images = meta
 		for i, p in enumerate(coord):
-			slide = slides[i]
-			tfrecord = self.tfrecord_paths[tfrecords[i]]
-			tfrecord_index = indices[i]
-			category = 'none'
 			points_x.append(p[0])
 			points_y.append(p[1])
 			self.points.append({'x':p[0],
 								'y':p[1],
 								'index':point_index,
 								'neighbors':[],
-								'category':category,
-								'slide':slide,
-								'tfrecord':tfrecord,
-								'tfrecord_index':tfrecord_index,
-								'paired_tile':None,
-								'image_path':None,
-								'image_data':images[i]})
+								'category':'none',
+								'slide':slides[i],
+								'tfrecord':self.tfrecord_paths[tfrecords[i]],
+								'tfrecord_index':indices[i],
+								'tile_index':tile_indices[i],
+								'paired_tile':None }()
+								#'image_path':None,
+								#'image_data':images[i]})
 			point_index += 1
 		x_points = [p['x'] for p in self.points]
 		y_points = [p['y'] for p in self.points]
@@ -443,7 +447,8 @@ class Mosaic:
 				closest_point = tile['distances'][0][0]
 				point = self.points[closest_point]
 				#tile_image = plt.imread(point['image_path'])
-				tile_image = point['image_data']
+				#tile_image = point['image_data']
+				_, tile_image = tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tile_index'])
 				tile_alpha, num_slide, num_other = 1, 0, 0
 				if self.SVS and len(tile['points']):
 					for point_index in tile['points']:
@@ -472,7 +477,8 @@ class Mosaic:
 					tile['paired_point'] = True
 
 					#tile_image = plt.imread(point['image_path'])
-					tile_image = point['image_data']
+					#tile_image = point['image_data']
+					_, tile_image = tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tile_index'])
 					if not self.export:
 						tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
 					image = self.ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-self.tile_size/2, 
