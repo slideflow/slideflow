@@ -160,7 +160,7 @@ class Mosaic:
 		
 
 		results = []
-		fl_weights_all, logits_all, slides_all, indices_all, , tile_indices_all, images_all, tfrecord_all = [], [], [], [], [], [], []
+		fl_weights_all, logits_all, slides_all, indices_all, tile_indices_all, images_all, tfrecord_all = [], [], [], [], [], [], []
 
 		def _parse_function(record):
 			features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
@@ -191,13 +191,14 @@ class Mosaic:
 
 				# Calculate global and tfrecord-specific indices
 				indices = list(range(len(indices_arr), len(indices_arr) + len(batch_slides)))
-				tile_indices = list(range(i * len(batch_slides), len(batch_slides)))
+				tile_indices = list(range(i * len(batch_slides), i * len(batch_slides) + len(batch_slides)))
 
 				if not complete_model:
 					fl_weights, logits = loaded_model.predict([batch_processed_images, batch_processed_images])
 				else:
 					fl_weights = loaded_model.predict([batch_processed_images])
-					logits = [-1] * self.BATCH_SIZE
+					logits = [[-1]] * self.BATCH_SIZE
+
 				fl_weights_arr = fl_weights if fl_weights_arr == [] else np.concatenate([fl_weights_arr, fl_weights])
 				logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
 				slides_arr = batch_slides if slides_arr == [] else np.concatenate([slides_arr, batch_slides])
@@ -268,7 +269,7 @@ class Mosaic:
 								'tfrecord':self.tfrecord_paths[tfrecords[i]],
 								'tfrecord_index':indices[i],
 								'tile_index':tile_indices[i],
-								'paired_tile':None }()
+								'paired_tile':None })
 								#'image_path':None,
 								#'image_data':images[i]})
 			point_index += 1
