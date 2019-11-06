@@ -197,8 +197,11 @@ class SlideflowProject:
 		for folder in folders_to_search:
 			tfrecords += glob(os.path.join(folder, "*.tfrecords"))
 
+		# Filter out slides that are blank in the outcome category
+		filter_blank = [category_header] if type(category_header) != list else category_header
+
 		# Set up model for evaluation
-		outcomes = sfutil.get_outcomes_from_annotations(category_header, filters=filters, use_float=(model_type=='linear'))
+		outcomes = sfutil.get_outcomes_from_annotations(category_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
 		SFM = self.initialize_model(f"eval-{model_name}", None, None, outcomes, model_type=model_type)
 		log.info(f"Evaluating {sfutil.bold(len(SFM.SLIDES))} tfrecords", 1)
 		model_dir = join(self.PROJECT['models_dir'], model, "trained_model.h5") if model[-3:] != ".h5" else model
@@ -343,18 +346,17 @@ class SlideflowProject:
 		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and type(k_fold_iter) != list) else k_fold_iter
 		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
 		valid_k = [] if not k_fold else [kf for kf in range(k_fold) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
-																						
-		# Quickly scan for errors (duplicate model names) and prepare models to train
-		models_to_train = self._get_valid_models(batch_train_file, models)
-		log.header(f"Training {len(models_to_train)} models...")
+		category_header = [category_header] if type(category_header) != list else category_header
 
-		# Next, prepare the multiprocessing manager (needed to free VRAM after training)
+		# Quickly scan for errors (duplicate model names in batch training file) and prepare models to train
+		hp_models_to_train = self._get_valid_models(batch_train_file, models)	
+		log.header(f"Performing hyperparameter sweep ({len(hp_models_to_train)} models) for each of {len(category_header)} outcome variables:")
+		for cat in category_header:
+			log.info(cat, 1)
+
+		# Next, prepare the multiprocessing manager (needed to free VRAM after training and keep track of results)
 		manager = multiprocessing.Manager()
 		results_dict = manager.dict()
-
-		# Load outcomes from annotations file
-		outcomes = sfutil.get_outcomes_from_annotations(category_header, filters=filters, use_float=(model_type == 'linear'))
-		print()
 
 		# Create a worker that can execute one round of training
 		def trainer(results_dict, model_name, hp, k_fold_i=None):
@@ -389,6 +391,7 @@ class SlideflowProject:
 				hp_text += f"Tile micron size: {self.PROJECT['tile_um']}\n"
 				hp_text += f"Model type: {model_type}\n"
 				hp_text += f"TFRecord directory: {tfrecord_dir}\n"
+				hp_text += f"Annotations file: {self.PROJECT['annotations']}\n"
 				hp_text += f"Validation target: {validation_target}\n"
 				hp_text += f"Validation strategy: {validation_strategy}\n"
 				hp_text += f"Validation fraction: {validation_fraction}\n"
@@ -423,52 +426,65 @@ class SlideflowProject:
 				del(SFM)
 				return
 
-		# Assembling list of models and hyperparameters from batch_train.tsv file
-		batch_train_rows = []
-		with open(batch_train_file) as csv_file:
-			reader = csv.reader(csv_file, delimiter='\t')
-			header = next(reader)
-			for row in reader:
-				batch_train_rows += [row]
-			
-		for row in batch_train_rows:
-			# Read hyperparameters
-			hp, model_name = self._get_hp(row, header)
-			if model_name not in models_to_train: continue
-			model_iterations = [model_name] if not k_fold else [f"{model_name}-kfold{k+1}" for k in valid_k]
+		# For each outcome category provided, perform full hyperparameter sweep
+		for cat in category_header:	
+			# Clear the multiprocessing dictionary (may contain results from old runs)
+			results_dict.clear()
 
-			# Perform training
-			if k_fold:
-				for k in valid_k:
+			# Load outcomes from annotations file
+			outcomes = sfutil.get_outcomes_from_annotations(cat, filters=filters, filter_blank=[cat], use_float=(model_type == 'linear'))
+			print()
+
+			# Assembling list of models and hyperparameters from batch_train.tsv file
+			batch_train_rows = []
+			with open(batch_train_file) as csv_file:
+				reader = csv.reader(csv_file, delimiter='\t')
+				header = next(reader)
+				for row in reader:
+					batch_train_rows += [row]
+				
+			for row in batch_train_rows:
+				# Read hyperparameters
+				hp, hp_model_name = self._get_hp(row, header)
+				if hp_model_name not in hp_models_to_train: continue
+
+				# Add outcome category to model_name
+				model_name = f"{cat}-{hp_model_name}"
+
+				model_iterations = [model_name] if not k_fold else [f"{model_name}-kfold{k+1}" for k in valid_k]
+
+				# Perform training
+				if k_fold:
+					for k in valid_k:
+						if DEBUGGING:
+							trainer(results_dict, model_name, hp, k+1)
+						else:
+							process = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp, k+1))
+							process.start()
+							process.join()
+				else:
 					if DEBUGGING:
-						trainer(results_dict, model_name, hp, k+1)
+						trainer(results_dict, model_name, hp)
 					else:
-						process = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp, k+1))
+						process = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp))
 						process.start()
 						process.join()
-			else:
-				if DEBUGGING:
-					trainer(results_dict, model_name, hp)
-				else:
-					process = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp))
-					process.start()
-					process.join()
 
-			# Record results
-			for mi in model_iterations:
-				if mi not in results_dict:
-					log.error(f"Training failed for model {model_name} for an unknown reason")
-				else:
-					self._update_results_log(results_log_path, mi, results_dict[mi])
-			log.complete(f"Training complete for model {model_name}, results saved to {sfutil.green(results_log_path)}")
-		
-		# Print summary of all models
-		log.complete("Training complete; validation accuracies:", 0)
-		for model in results_dict:
-			last_epoch = max([int(e.split('epoch')[-1]) for e in results_dict[model].keys() if 'epoch' in e ])
-			final_metrics = results_dict[model][f'epoch{last_epoch}']
-			print(f" - {sfutil.green(model)}: Train_Acc={str(final_metrics['train_acc'])}, " +
-				f"Val_loss={final_metrics['val_loss']}, Val_Acc={final_metrics['val_acc']}" )
+				# Record results
+				for mi in model_iterations:
+					if mi not in results_dict:
+						log.error(f"Training failed for model {model_name} for an unknown reason")
+					else:
+						self._update_results_log(results_log_path, mi, results_dict[mi])
+				log.complete(f"Training complete for model {model_name}, results saved to {sfutil.green(results_log_path)}")
+			
+			# Print summary of all models
+			log.complete("Training complete; validation accuracies:", 0)
+			for model in results_dict:
+				last_epoch = max([int(e.split('epoch')[-1]) for e in results_dict[model].keys() if 'epoch' in e ])
+				final_metrics = results_dict[model][f'epoch{last_epoch}']
+				print(f" - {sfutil.green(model)}: Train_Acc={str(final_metrics['train_acc'])}, " +
+					f"Val_loss={final_metrics['val_loss']}, Val_Acc={final_metrics['val_acc']}" )
 
 	def generate_heatmaps(self, model_name, filters=None, resolution='medium'):
 		'''Creates predictive heatmap overlays on a set of slides. 
