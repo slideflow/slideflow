@@ -346,7 +346,7 @@ class SlideflowProject:
 		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and type(k_fold_iter) != list) else k_fold_iter
 		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
 		valid_k = [] if not k_fold else [kf for kf in range(k_fold) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
-		category_header = [category_header] if type(category_header) != list
+		category_header = [category_header] if type(category_header) != list else category_header
 
 		# Quickly scan for errors (duplicate model names in batch training file) and prepare models to train
 		hp_models_to_train = self._get_valid_models(batch_train_file, models)	
