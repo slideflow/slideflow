@@ -391,6 +391,7 @@ class SlideflowProject:
 				hp_text += f"Tile micron size: {self.PROJECT['tile_um']}\n"
 				hp_text += f"Model type: {model_type}\n"
 				hp_text += f"TFRecord directory: {tfrecord_dir}\n"
+				hp_text += f"Annotations file: {self.PROJECT['annotations']}\n"
 				hp_text += f"Validation target: {validation_target}\n"
 				hp_text += f"Validation strategy: {validation_strategy}\n"
 				hp_text += f"Validation fraction: {validation_fraction}\n"
