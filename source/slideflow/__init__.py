@@ -197,8 +197,11 @@ class SlideflowProject:
 		for folder in folders_to_search:
 			tfrecords += glob(os.path.join(folder, "*.tfrecords"))
 
+		# Filter out slides that are blank in the outcome category
+		filter_blank = [category_header] if type(category_header) != list else category_header
+
 		# Set up model for evaluation
-		outcomes = sfutil.get_outcomes_from_annotations(category_header, filters=filters, use_float=(model_type=='linear'))
+		outcomes = sfutil.get_outcomes_from_annotations(category_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
 		SFM = self.initialize_model(f"eval-{model_name}", None, None, outcomes, model_type=model_type)
 		log.info(f"Evaluating {sfutil.bold(len(SFM.SLIDES))} tfrecords", 1)
 		model_dir = join(self.PROJECT['models_dir'], model, "trained_model.h5") if model[-3:] != ".h5" else model
@@ -428,7 +431,7 @@ class SlideflowProject:
 			results_dict.clear()
 
 			# Load outcomes from annotations file
-			outcomes = sfutil.get_outcomes_from_annotations(cat, filters=filters, use_float=(model_type == 'linear'))
+			outcomes = sfutil.get_outcomes_from_annotations(cat, filters=filters, filter_blank=[cat], use_float=(model_type == 'linear'))
 			print()
 
 			# Assembling list of models and hyperparameters from batch_train.tsv file
