@@ -52,7 +52,7 @@ from slideflow.util.fastim import FastImshow
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 4
-DEFAULT_JPG_MPP = 0.2494
+DEFAULT_JPG_MPP = 0.5
 SKIP_MISSING_ROI = True
 
 # BatchNormFix
@@ -78,21 +78,32 @@ class ROIObject:
 class JPGSlide:
 	'''Object that provides cross-compatibility with certain OpenSlide methods when using JPG slides.'''
 	def __init__(self, path, mpp):
-		self.loaded_image = imageio.imread(path)
-		self.dimensions = (self.loaded_image.shape[1], self.loaded_image.shape[0])
+		self.loaded_image = Image.open(path)
+		self.dimensions = (self.loaded_image.size[1], self.loaded_image.size[0])
+		# ImageIO version
+		#self.loaded_image = imageio.imread(path)
+		#self.dimensions = (self.loaded_image.shape[1], self.loaded_image.shape[0])
 		self.properties = {ops.PROPERTY_NAME_MPP_X: mpp}
 		self.level_dimensions = [self.dimensions]
 		self.level_count = 1
 		self.level_downsamples = [1.0]
 
 	def get_thumbnail(self, dimensions):
-		return cv2.resize(self.loaded_image, dsize=dimensions, interpolation=cv2.INTER_CUBIC)
+		width = self.dimensions[1]
+		height = self.dimensions[0]
+		return self.loaded_image.resize([width, height], resample=Image.BICUBIC)
+		# ImageIO version
+		#return cv2.resize(self.loaded_image, dsize=dimensions, interpolation=cv2.INTER_CUBIC)
 
 	def read_region(self, topleft, level, window):
 		# Arg "level" required for code compatibility with SVS reader but is not used
 		# Window = [y, x] pixels (note: this is reverse compared to SVS files in [x,y] format)
-		return self.loaded_image[topleft[1]:topleft[1] + window[1], 
-								 topleft[0]:topleft[0] + window[0],]
+
+		return self.loaded_image.crop([topleft[0], topleft[1], topleft[0]+window[0], topleft[1]+window[1]])
+
+		# ImageIO version
+		#return self.loaded_image[topleft[1]:topleft[1] + window[1], 
+		#						 topleft[0]:topleft[0] + window[0],]
 
 	def get_best_level_for_downsample(self, downsample_desired):
 		return 0
