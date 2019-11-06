@@ -437,3 +437,25 @@ def update_tfrecord(tfrecord_file, old_feature_description=OLD_FEATURE_DESCRIPTI
 		tf_example = image_example(slide=slidename, image_string=image_raw_data)
 		writer.write(tf_example.SerializeToString())
 	writer.close()
+
+def get_tfrecord_by_index(tfrecord, index):
+	'''Reads and returns an individual record from a tfrecord by index, including slide name and JPEG-processed image data.
+
+	WARNING: this operation is slow, as tfrecord files are not indexed and each access requires reading through
+	the entire TFRecrod file!'''
+
+	def _decode(record):
+		features = _parse_tfrecord_function(record)
+		slide = features['slide']
+		image_string = features['image_raw']
+		raw_image = tf.image.decode_jpeg(image_string, channels=3)
+		return slide, raw_image
+
+	dataset = tf.data.TFRecordDataset(tfrecord)
+	for i, data in enumerate(dataset):
+		if i == index:
+			return _decode(data)
+		else: continue
+
+	log.error(f"Unable to find record at index {index} in {sfutil.green(tfrecord)}", 1)
+	return False, False
