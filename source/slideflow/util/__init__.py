@@ -269,32 +269,32 @@ def get_slide_paths(slides_dir):
 	slide_list.extend(glob(join(slides_dir, '*.tiff')))
 	return slide_list
 
-def get_filtered_slide_paths(slides_dir, filters):
+def get_filtered_slide_paths(slides_dir, filters, filter_blank=[]):
 	slide_list = get_slide_paths(slides_dir)
-	filtered_slide_names = get_slides_from_annotations(filters=filters)
+	filtered_slide_names = get_slides_from_annotations(filters=filters, filter_blank=filter_blank)
 	filtered_slide_list = [slide for slide in slide_list if path_to_name(slide) in filtered_slide_names]
 	return filtered_slide_list
 
-def get_filtered_tfrecords_paths(tfrecords_dir, filters):
+def get_filtered_tfrecords_paths(tfrecords_dir, filters, filter_blank=[]):
 	tfrecord_list = glob(join(tfrecords_dir, "*.tfrecords"))
-	filtered_slide_names = get_slides_from_annotations(filters=filters)
+	filtered_slide_names = get_slides_from_annotations(filters=filters, filter_blank=filter_blank)
 	filtered_tfrecord_list = [tfrecord for tfrecord in tfrecord_list if tfrecord.split('/')[-1][:-10] in filtered_slide_names]
 	return filtered_tfrecord_list
 
-def get_slides_from_annotations(filters=None):
+def get_slides_from_annotations(filters=None, filter_blank=[]):
 	'''Returns a list of slide names from the annotations file using a given set of filters.'''
 	global ANNOTATIONS
 	result = []
 	if not len(ANNOTATIONS):
 		log.error("No annotations loaded; is the annotations file empty?")
 	for ann in ANNOTATIONS:
+		skip_annotation = False
 		if TCGA.slide not in ann.keys():
 			log.error(f"{TCGA.slide} not found in annotations file.")
 			sys.exit()
 		if ann[TCGA.slide] == '':
 			continue
 		if filters:
-			skip_annotation = False
 			for filter_key in filters.keys():
 				if filter_key not in ann.keys():
 					log.error(f"Filter header {filter_key} not found in annotations file.")
@@ -303,11 +303,19 @@ def get_slides_from_annotations(filters=None):
 					or (type(filters[filter_key]) != list and filters[filter_key] != ann[filter_key])):
 					skip_annotation = True
 					break
-			if skip_annotation: continue
+		if filter_blank:
+			for fb in filter_blank:
+				if fb not in ann.keys():
+					log.error(f"Unable to filter blank slides from header {fb}; this header was not found in the annotations file.")
+					sys.exit()
+				if not ann[fb] or ann[fb] == '':
+					skip_annotation = True
+					break
+		if skip_annotation: continue
 		result += [ann[TCGA.slide]]
 	return result
 
-def get_outcomes_from_annotations(outcome, filters=None, use_float=False):
+def get_outcomes_from_annotations(outcome, filters=None, filter_blank=[], use_float=False):
 	'''Returns a dictionary of slide names mapping to patient id and an outcome variable.
 	Args:
 		outcome			annotation header that specifies outcome variable
@@ -315,7 +323,7 @@ def get_outcomes_from_annotations(outcome, filters=None, use_float=False):
 		use_float		If true, will try to convert data into float
 	'''
 	global ANNOTATIONS
-	slides = get_slides_from_annotations(filters)
+	slides = get_slides_from_annotations(filters, filter_blank)
 	filtered_annotations = [a for a in ANNOTATIONS if a[TCGA.slide] in slides]
 	results = {}
 
