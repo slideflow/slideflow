@@ -439,6 +439,12 @@ def update_tfrecord(tfrecord_file, old_feature_description=OLD_FEATURE_DESCRIPTI
 	writer.close()
 
 def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None):
+	log.empty(f"Transforming tiles in tfrecord {sfutil.green(origin)}, saving to {sfutil.green(target)}", 1)
+	if assign_slide:
+		log.info(f"Assigning slide name {assign_slide}", 2)
+	if hue_shift:
+		log.info(f"Shifting hue by {sfutil.green(str(hue_shift))}", 2)
+
 	dataset = tf.data.TFRecordDataset(origin)
 	writer = tf.io.TFRecordWriter(target)
 
@@ -453,8 +459,8 @@ def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None):
 
 	for record in dataset:
 		features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
-		slidename = features[slide].numpy() if not assign_slide else assign_slide
-		image_raw_data = features[image_raw].numpy()
+		slidename = features['slide'].numpy() if not assign_slide else assign_slide
+		image_raw_data = features['image_raw'].numpy()
 		image_processed_data = process_image(image_raw_data)
 		tf_example = image_example(slide=slidename, image_string=image_processed_data)
 		writer.write(tf_example.SerializeToString())
