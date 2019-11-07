@@ -453,7 +453,7 @@ def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None):
 		if hue_shift:
 			decoded_image = tf.image.decode_jpeg(image_string, channels=3)
 			adjusted_image = tf.image.adjust_hue(decoded_image, hue_shift)
-			encoded_image = tf.io.encode_jpeg(adjusted_image)
+			encoded_image = tf.io.encode_jpeg(adjusted_image, quality=80)
 			return encoded_image.numpy()
 		else:
 			return image_string
