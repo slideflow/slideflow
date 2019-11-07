@@ -39,11 +39,12 @@ DEBUGGING = True
 def set_logging_level(level):
 	sfutil.LOGGING_LEVEL.INFO = level
 
-def autoselect_gpu(number_available):
+def autoselect_gpu(number_available, reverse=True):
 	global GPU_LOCK
 	'''Automatically claims a free GPU and creates a lock file to prevent 
 	other instances of slideflow from using the same GPU.'''
-	for n in range(number_available):
+	gpus = range(number_available) if not reverse else reversed(range(number_available))
+	for n in gpus:
 		if not exists(join(SOURCE_DIR, f"gpu{n}.lock")):
 			print(f"Requesting GPU #{n}")
 			os.environ["CUDA_VISIBLE_DEVICES"]=str(n)
