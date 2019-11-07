@@ -438,6 +438,28 @@ def update_tfrecord(tfrecord_file, old_feature_description=OLD_FEATURE_DESCRIPTI
 		writer.write(tf_example.SerializeToString())
 	writer.close()
 
+def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None):
+	dataset = tf.data.TFRecordDataset(origin)
+	writer = tf.io.TFRecordWriter(target)
+
+	def process_image(image_string):
+		if hue_shift:
+			decoded_image = tf.image.decode_jpeg(image_string, channels=3)
+			adjusted_image = tf.image.adjust_hue(decoded_image, hue_shift)
+			encoded_image = tf.io.encode_jpeg(adjusted_image)
+			return encoded_image
+		else:
+			return image_string
+
+	for record in dataset:
+		features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
+		slidename = features[slide].numpy() if not assign_slide else assign_slide
+		image_raw_data = features[image_raw].numpy()
+		image_processed_data = process_image(image_raw_data)
+		tf_example = image_example(slide=slidename, image_string=image_processed_data)
+		writer.write(tf_example.SerializeToString())
+	writer.close()
+
 def get_tfrecord_by_index(tfrecord, index):
 	'''Reads and returns an individual record from a tfrecord by index, including slide name and JPEG-processed image data.
 
