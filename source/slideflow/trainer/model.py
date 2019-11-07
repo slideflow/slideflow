@@ -307,7 +307,7 @@ class SlideflowModel:
 			prob_weights = [i/sum(num_tiles) for i in num_tiles]
 		if balance == BALANCE_BY_PATIENT:
 			log.empty(f"Balancing input across slides", 2)
-			prob_weights = None
+			prob_weights = [1.0] * len(datasets)
 			if finite:
 				# Only take as many tiles as the number of tiles in the smallest dataset
 				for i in range(len(datasets)):
