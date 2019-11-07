@@ -315,63 +315,78 @@ def get_slides_from_annotations(filters=None, filter_blank=[]):
 		result += [ann[TCGA.slide]]
 	return result
 
-def get_outcomes_from_annotations(outcome, filters=None, filter_blank=[], use_float=False):
-	'''Returns a dictionary of slide names mapping to patient id and an outcome variable.
+def get_outcomes_from_annotations(headers, filters=None, filter_blank=[], use_float=False):
+	'''Returns a dictionary of slide names mapping to patient id and [an] outcome variable(s).
+
 	Args:
-		outcome			annotation header that specifies outcome variable
+		headers			annotation header(s) that specifies outcome variable. May be a list.
 		filters			dictionary of filters to use when selecting slides from annotations file
+		filter_blank	will filter out slides that are blank in the specified column(s)
 		use_float		If true, will try to convert data into float
+
+	Returns:
+		Dictionary with slides as keys and dictionaries as values. The value dictionaries contain the following keys/values:
+			TCGA.patient	patient name
+			outcome			if only one header is supplied, this is a single value containing the processed outcome for this slide
+								if multiple headers were supplied, this is a list of processed outcomes, one for each header
+								if use_float is specified, the value will always be a list
 	'''
 	global ANNOTATIONS
 	slides = get_slides_from_annotations(filters, filter_blank)
 	filtered_annotations = [a for a in ANNOTATIONS if a[TCGA.slide] in slides]
 	results = {}
-
-	try:
-		filtered_outcomes = [a[outcome] for a in filtered_annotations]
-	except KeyError:
-		log.error(f"Unable to find column {outcome} in annotation file.", 1)
-		sys.exit()
-
-	# Ensure outcomes can be converted to desired type
-	if use_float:
+	headers = [headers] if type(headers) != list else headers
+	for header in headers:
 		try:
-			filtered_outcomes = [float(o) for o in filtered_outcomes]
-		except ValueError:
-			log.error(f"Unable to convert outcome {outcome} into type 'float'.", 1)
+			filtered_outcomes = [a[header] for a in filtered_annotations]
+		except KeyError:
+			log.error(f"Unable to find column {header} in annotation file.", 1)
 			sys.exit()
-	else:
-		log.info(f'Assigning outcome descriptors in column "{outcome}" to numerical values', 1)
-		unique_outcomes = list(set(filtered_outcomes))
-		unique_outcomes.sort()
-		for i, uo in enumerate(unique_outcomes):
-			num_matching_slides_filtered = sum(o == uo for o in filtered_outcomes)
-			log.empty(f"{outcome} '{info(uo)}' assigned to value '{i}' [{bold(str(num_matching_slides_filtered))} slides]", 2)
 
-	# Create function to process/convert outcome
-	def _process_outcome(o):
+		# Ensure outcomes can be converted to desired type
 		if use_float:
-			return o
+			try:
+				filtered_outcomes = [float(o) for o in filtered_outcomes]
+			except ValueError:
+				log.error(f"Unable to convert outcome {header} into type 'float'.", 1)
+				sys.exit()
 		else:
-			return unique_outcomes.index(o)
+			log.info(f'Assigning outcome descriptors in column "{header}" to numerical values', 1)
+			unique_outcomes = list(set(filtered_outcomes))
+			unique_outcomes.sort()
+			for i, uo in enumerate(unique_outcomes):
+				num_matching_slides_filtered = sum(o == uo for o in filtered_outcomes)
+				log.empty(f"{header} '{info(uo)}' assigned to value '{i}' [{bold(str(num_matching_slides_filtered))} slides]", 2)
+		
+		# Create function to process/convert outcome
+		def _process_outcome(o):
+			if use_float:
+				return float(o)
+			else:
+				return unique_outcomes.index(o)
 
-	# Assemble results dictionary
-	patient_outcomes = {}
-	for annotation in filtered_annotations:
-		slide = annotation[TCGA.slide]
-		patient = annotation[TCGA.patient]
-		annotation_outcome = _process_outcome(annotation[outcome])
+		# Assemble results dictionary
+		patient_outcomes = {}
+		for annotation in filtered_annotations:
+			slide = annotation[TCGA.slide]
+			patient = annotation[TCGA.patient]
+			annotation_outcome = _process_outcome(annotation[header])
 
-		# Ensure patients do not have multiple outcomes
-		if patient not in patient_outcomes:
-			patient_outcomes[patient] = annotation_outcome
-		elif patient_outcomes[patient] != annotation_outcome:
-			log.error(f"Multiple outcomes in header {outcome} found for patient {patient} ({patient_outcomes[patient]}, {annotation_outcome})", 1)
-			sys.exit()
+			# Ensure patients do not have multiple outcomes
+			if patient not in patient_outcomes:
+				patient_outcomes[patient] = annotation_outcome
+			elif patient_outcomes[patient] != annotation_outcome:
+				log.error(f"Multiple different outcomes in header {header} found for patient {patient} ({patient_outcomes[patient]}, {annotation_outcome})", 1)
+				sys.exit()
 
-		if slide in slides:
-			results[slide] = {'outcome': annotation_outcome}
-			results[slide][TCGA.patient] = patient
+			if slide in slides:
+				if slide in results:
+					so = results[slide]['outcome']
+					results[slide]['outcome'] = [so] if type(so) != list else so
+					results[slide]['outcome'] += [annotation_outcome]
+				else:
+					results[slide] = {'outcome': annotation_outcome if not use_float else [annotation_outcome]}
+					results[slide][TCGA.patient] = patient
 	return results
 
 def update_annotations_with_slidenames(annotations_file, slides_dir):
