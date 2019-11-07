@@ -90,26 +90,28 @@ class SlideflowProject:
 		else:
 			self.create_project()
 		
-	def extract_tiles(self, filters=None, subfolder=None, skip_validation=False):
+	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, subfolder=None, skip_validation=False):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.'''
 		import slideflow.convoluter as convoluter
 
 		log.header("Extracting image tiles...")
 		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
+		tile_um = self.PROJECT['tile_um'] if not tile_um else tile_um
+		tile_px = self.PROJECT['tile_px'] if not tile_px else tile_px
 		convoluter.NUM_THREADS = NUM_THREADS
 		slide_list = sfutil.get_filtered_slide_paths(self.PROJECT['slides_dir'], filters=filters)
-		log.info(f"Extracting tiles from {len(slide_list)} slides", 1)
-
+		log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 1)
+		
 		save_folder = join(self.PROJECT['tiles_dir'], subfolder)
 		if not os.path.exists(save_folder):
 			os.makedirs(save_folder)
 
-		c = convoluter.Convoluter(self.PROJECT['tile_px'], self.PROJECT['tile_um'], batch_size=None,
-																					use_fp16=self.PROJECT['use_fp16'], 
-																					stride_div=2,
-																					save_folder=save_folder, 
-																					roi_dir=self.PROJECT['roi_dir'])
+		c = convoluter.Convoluter(tile_px, tile_um, batch_size=None,
+													use_fp16=self.PROJECT['use_fp16'], 
+													stride_div=2,
+													save_folder=save_folder, 
+													roi_dir=self.PROJECT['roi_dir'])
 		c.load_slides(slide_list)
 		c.convolute_slides(export_tiles=True)
 
