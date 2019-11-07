@@ -498,7 +498,7 @@ def extract_tiles(tfrecord, destination):
 	dataset = tf.data.TFRecordDataset(tfrecord)
 	for i, record in enumerate(dataset):
 		features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
-		slidename = features['slide'].numpy()
+		slidename = features['slide'].numpy().decode('utf-8')
 		image_raw_data = features['image_raw'].numpy()
 		dest_folder = join(destination, slidename)
 		if not exists(dest_folder):
