@@ -439,7 +439,8 @@ def update_tfrecord(tfrecord_file, old_feature_description=OLD_FEATURE_DESCRIPTI
 	writer.close()
 
 def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None):
-	log.empty(f"Transforming tiles in tfrecord {sfutil.green(origin)}, saving to {sfutil.green(target)}", 1)
+	log.empty(f"Transforming tiles in tfrecord {sfutil.green(origin)}", 1)
+	log.info(f"Saving to new tfrecord at {sfutil.green(target)}", 2)
 	if assign_slide:
 		log.info(f"Assigning slide name {sfutil.bold(assign_slide)}", 2)
 	if hue_shift:
@@ -453,7 +454,7 @@ def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None):
 			decoded_image = tf.image.decode_jpeg(image_string, channels=3)
 			adjusted_image = tf.image.adjust_hue(decoded_image, hue_shift)
 			encoded_image = tf.io.encode_jpeg(adjusted_image)
-			return encoded_image
+			return encoded_image.numpy()
 		else:
 			return image_string
 
@@ -461,7 +462,7 @@ def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None):
 		features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
 		slidename = features['slide'].numpy() if not assign_slide else bytes(assign_slide, 'utf-8')
 		image_raw_data = features['image_raw'].numpy()
-		image_processed_data = process_image(image_raw_data)
+		image_processed_data = process_image(image_raw_data).numpy()
 		tf_example = image_example(slide=slidename, image_string=image_processed_data)
 		writer.write(tf_example.SerializeToString())
 	writer.close()
@@ -487,3 +488,23 @@ def get_tfrecord_by_index(tfrecord, index):
 
 	log.error(f"Unable to find record at index {index} in {sfutil.green(tfrecord)}", 1)
 	return False, False
+
+def extract_tiles(tfrecord, destination):
+	if not exists(destination):
+		os.makedirs(destination)
+	log.empty(f"Extracting tiles from tfrecord {sfutil.green(tfrecord)}", 1)
+	log.info(f"Saving tiles to directory {sfutil.green(destination)}", 2)
+
+	dataset = tf.data.TFRecordDataset(tfrecord)
+	for i, record in enumerate(dataset):
+		features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
+		slidename = features['slide'].numpy()
+		image_raw_data = features['image_raw'].numpy()
+		dest_folder = join(destination, slidename)
+		if not exists(dest_folder):
+			os.makedirs(dest_folder)
+		tile_filename = f"tile{i}"
+		image_string = open(join(dest_folder, tile_filename), 'rb')
+		image_string.write(image_raw_data)
+		image_string.close()
+		
