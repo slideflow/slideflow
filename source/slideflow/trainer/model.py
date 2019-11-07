@@ -452,7 +452,7 @@ class SlideflowModel:
 		# Build inputs
 		train_data, _, num_tiles = self.build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, include_slidenames=False)
 		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
-			validation_data, validation_data_with_slidenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, include_slidenames=True)
+			validation_data, validation_data_with_slidenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, hp.augment, finite=True, include_slidenames=True)
 			validation_data_for_training = validation_data.repeat()
 		else:
 			validation_data_for_training = None
@@ -474,7 +474,7 @@ class SlideflowModel:
 		verbose = 1 if supervised else 0
 		val_steps = 200
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
-		metrics = ['accuracy'] if hp.model_type() != 'linear' else []
+		metrics = ['accuracy'] if hp.model_type() != 'linear' else [hp.loss]
 
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
