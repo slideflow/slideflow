@@ -164,15 +164,24 @@ class SlideflowModel:
 				log.error("Unable to use multiple outcome variables with categorical model type.")
 				sys.exit()
 			with tf.device('/cpu'):
-				self.ANNOTATIONS_TABLE = tf.lookup.StaticHashTable(
+				self.ANNOTATIONS_TABLES = [tf.lookup.StaticHashTable(
 					tf.lookup.KeyValueTensorInitializer(self.SLIDES, outcomes), -1
-				)
+				)]
 		elif model_type == 'linear':
-			self.NUM_CLASSES = len(outcomes[0])
+			try:
+				self.NUM_CLASSES = len(outcomes[0])
+			except TypeError:
+				log.error("Incorrect formatting of outcomes for a linear model; must be formatted as an array.")
+				sys.exit()
 			with tf.device('/cpu'):
-				self.ANNOTATIONS_TABLE = tf.lookup.StaticHashTable(
-					tf.lookup.KeyValueTensorInitializer(self.SLIDES, [1, 1]), -1
-				)
+				self.ANNOTATIONS_TABLES = []
+				for oi in range(self.NUM_CLASSES):
+					self.ANNOTATIONS_TABLES += [tf.lookup.StaticHashTable(
+						tf.lookup.KeyValueTensorInitializer(self.SLIDES, [o[oi] for o in outcomes]), -1
+					)]
+		else:
+			log.error(f"Unknown model type {model_type}")
+			sys.exit()
 
 		if not os.path.exists(self.DATA_DIR):
 			os.makedirs(self.DATA_DIR)
@@ -218,9 +227,9 @@ class SlideflowModel:
 		features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
 		slide = features['slide']
 		if self.MODEL_TYPE == 'linear':
-			label = [self.ANNOTATIONS_TABLE.lookup(slide), self.ANNOTATIONS_TABLE.lookup(slide)]
+			label = [self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(self.NUM_CLASSES)]
 		else:
-			label = self.ANNOTATIONS_TABLE.lookup(slide)
+			label = self.ANNOTATIONS_TABLES[0].lookup(slide)
 		image_string = features['image_raw']
 		image = self._process_image(image_string, self.AUGMENT)
 		return image, label
@@ -229,10 +238,9 @@ class SlideflowModel:
 		features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
 		slide = features['slide']
 		if self.MODEL_TYPE == 'linear':
-			label = [self.ANNOTATIONS_TABLE.lookup(slide), self.ANNOTATIONS_TABLE.lookup(slide)]
-			#label = tf.constant([1, 1], dtype=self.DTYPE)
+			label = [self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(self.NUM_CLASSES)]
 		else:
-			label = self.ANNOTATIONS_TABLE.lookup(slide)
+			label = self.ANNOTATIONS_TABLES.lookup(slide)
 		image_string = features['image_raw']
 		image = self._process_image(image_string, self.AUGMENT)
 		return image, label, slide
