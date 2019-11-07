@@ -158,14 +158,21 @@ class SlideflowModel:
 		outcomes = [slide_annotations[slide]['outcome'] for slide in self.SLIDES]
 
 		if model_type == 'categorical':
-			self.NUM_CLASSES = len(list(set(outcomes)))
+			try:
+				self.NUM_CLASSES = len(list(set(outcomes)))
+			except TypeError:
+				log.error("Unable to use multiple outcome variables with categorical model type.")
+				sys.exit()
+			with tf.device('/cpu'):
+				self.ANNOTATIONS_TABLE = tf.lookup.StaticHashTable(
+					tf.lookup.KeyValueTensorInitializer(self.SLIDES, outcomes), -1
+				)
 		elif model_type == 'linear':
-			self.NUM_CLASSES = 1
-
-		with tf.device('/cpu'):
-			self.ANNOTATIONS_TABLE = tf.lookup.StaticHashTable(
-				tf.lookup.KeyValueTensorInitializer(self.SLIDES, outcomes), -1
-			)
+			self.NUM_CLASSES = len(outcomes[0])
+			with tf.device('/cpu'):
+				self.ANNOTATIONS_TABLE = tf.lookup.StaticHashTable(
+					tf.lookup.KeyValueTensorInitializer(self.SLIDES, [1, 1]), -1
+				)
 
 		if not os.path.exists(self.DATA_DIR):
 			os.makedirs(self.DATA_DIR)
@@ -210,7 +217,10 @@ class SlideflowModel:
 	def _parse_tfrecord_function(self, record):
 		features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
 		slide = features['slide']
-		label = self.ANNOTATIONS_TABLE.lookup(slide)
+		if self.MODEL_TYPE == 'linear':
+			label = [self.ANNOTATIONS_TABLE.lookup(slide), self.ANNOTATIONS_TABLE.lookup(slide)]
+		else:
+			label = self.ANNOTATIONS_TABLE.lookup(slide)
 		image_string = features['image_raw']
 		image = self._process_image(image_string, self.AUGMENT)
 		return image, label
@@ -218,7 +228,11 @@ class SlideflowModel:
 	def _parse_tfrecord_with_slidenames_function(self, record):
 		features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
 		slide = features['slide']
-		label = self.ANNOTATIONS_TABLE.lookup(slide)
+		if self.MODEL_TYPE == 'linear':
+			label = [self.ANNOTATIONS_TABLE.lookup(slide), self.ANNOTATIONS_TABLE.lookup(slide)]
+			#label = tf.constant([1, 1], dtype=self.DTYPE)
+		else:
+			label = self.ANNOTATIONS_TABLE.lookup(slide)
 		image_string = features['image_raw']
 		image = self._process_image(image_string, self.AUGMENT)
 		return image, label, slide
@@ -452,7 +466,7 @@ class SlideflowModel:
 		verbose = 1 if supervised else 0
 		val_steps = 200
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
-		metrics = ['accuracy'] if hp.model_type() != 'linear' else [hp.loss]
+		metrics = ['accuracy'] if hp.model_type() != 'linear' else []
 
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
