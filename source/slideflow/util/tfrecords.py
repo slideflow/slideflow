@@ -462,7 +462,7 @@ def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None):
 		features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
 		slidename = features['slide'].numpy() if not assign_slide else bytes(assign_slide, 'utf-8')
 		image_raw_data = features['image_raw'].numpy()
-		image_processed_data = process_image(image_raw_data).numpy()
+		image_processed_data = process_image(image_raw_data)
 		tf_example = image_example(slide=slidename, image_string=image_processed_data)
 		writer.write(tf_example.SerializeToString())
 	writer.close()
