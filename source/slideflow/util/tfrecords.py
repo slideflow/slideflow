@@ -503,8 +503,8 @@ def extract_tiles(tfrecord, destination):
 		dest_folder = join(destination, slidename)
 		if not exists(dest_folder):
 			os.makedirs(dest_folder)
-		tile_filename = f"tile{i}"
-		image_string = open(join(dest_folder, tile_filename), 'rb')
+		tile_filename = f"tile{i}.jpg"
+		image_string = open(join(destination, tile_filename), 'rb')
 		image_string.write(image_raw_data)
 		image_string.close()
 		
