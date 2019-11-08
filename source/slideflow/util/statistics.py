@@ -83,7 +83,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	'''
 	
 	# Get predictions and performance metrics
-	log.info("Generating predictions...", 1)
+	log.empty("Generating predictions...", 1)
 	label_end = "" if not label else f"_{label}"
 	label_start = "" if not label else f"{label}_"
 	y_true, y_pred, tile_to_slides = [], [], []
@@ -224,7 +224,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		header = ['slide'] + [f"y_true{i}" for i in range(num_cat)] + [f"y_pred{j}" for j in range(num_cat)]
 		writer.writerow(header)
 		for i in range(len(y_true)):
-			row = np.concatenate([[tile_to_slides[i]], y_true[i], y_pred[i]])
+			row = np.concatenate([[tile_to_slides[i]], str(y_true[i]), str(y_pred[i]]))
 			writer.writerow(row)
 
 	log.complete(f"Predictions saved to {sfutil.green(data_dir)}", 1)
