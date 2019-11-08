@@ -359,13 +359,14 @@ class SlideflowProject:
 			sys.exit()
 
 		# Quickly scan for errors (duplicate model names in batch training file) and prepare models to train
+		log.header("Performing hyperparameter sweep...")
 		hp_models_to_train = self._get_valid_models(batch_train_file, models)
 		if multi_outcome:
-			log.header(f"Performing hyperparameter sweep ({len(hp_models_to_train)} models) using {len(outcome_header)} variables as simultaneous input:")
+			log.info(f"Training ({len(hp_models_to_train)} models) using {len(outcome_header)} variables as simultaneous input:", 1)
 		else:
-			log.header(f"Performing hyperparameter sweep ({len(hp_models_to_train)} models) for each of {len(outcome_header)} outcome variables:")
+			log.header(f"Training ({len(hp_models_to_train)} models) for each of {len(outcome_header)} outcome variables:", 1)
 		for outcome in outcome_header:
-			log.empty(outcome, 1)
+			log.empty(outcome, 2)
 		print()
 
 		# Next, prepare the multiprocessing manager (needed to free VRAM after training and keep track of results)

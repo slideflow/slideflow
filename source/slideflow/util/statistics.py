@@ -48,7 +48,7 @@ def generate_roc(y_true, y_pred, data_dir, name='ROC'):
 def generate_scatter(y_true, y_pred, data_dir, name='_plot'):
 	# Error checking
 	if y_true.shape != y_pred.shape:
-		log.error("Y_true and y_pred must have the same shape in order to generate a scatter plot")
+		log.error(f"Y_true (shape: {y_true.shape}) and y_pred (shape: {y_pred.shape}) must have the same shape to generate a scatter plot")
 		return
 	
 	# Perform scatter for each outcome variable
@@ -63,9 +63,9 @@ def generate_scatter(y_true, y_pred, data_dir, name='_plot'):
 			return stats.pearsonr(x, y)[0] ** 2
 
 		# Plot
-		p = sns.jointplot(y_true, y_pred, kind="reg", stat_func=r2)
+		p = sns.jointplot(y_true[:,i], y_pred[:,i], kind="reg", stat_func=r2)
 		p.set_axis_labels('y_true', 'y_pred')
-		plt.savefig(os.path.join(data_dir, f'Scatter{name}.png'))
+		plt.savefig(os.path.join(data_dir, f'Scatter{name}-{i}.png'))
 
 	return r_squared
 
@@ -106,9 +106,9 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	r_squared = None
 
 	if model_type == 'linear':
-		y_true = np.array([[i] for i in y_true])
+		#y_true = np.array([[i] for i in y_true])
 		num_cat = len(y_pred[0])
-		r_squared = generate_scatter(y_true, y_pred, label_end, data_dir)
+		r_squared = generate_scatter(y_true, y_pred, data_dir, label_end)
 			
 	if model_type == 'categorical':
 		# Convert y_true to one_hot encoding
@@ -224,7 +224,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		header = ['slide'] + [f"y_true{i}" for i in range(num_cat)] + [f"y_pred{j}" for j in range(num_cat)]
 		writer.writerow(header)
 		for i in range(len(y_true)):
-			row = np.concatenate([[tile_to_slides[i]], y_true[i], y_pred[i]])
+			row = np.concatenate([[tile_to_slides[i]], [str(y_true[i])], [str(y_pred[i])]])
 			writer.writerow(row)
 
 	log.complete(f"Predictions saved to {sfutil.green(data_dir)}", 1)
