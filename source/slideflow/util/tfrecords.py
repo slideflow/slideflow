@@ -194,9 +194,10 @@ def checkpoint_to_h5(models_dir, model_name):
 		# Not sure why this happens, something to do with the optimizer?
 		pass
 
-def split_patients_list(patients_dict, n, balance=None):
+def split_patients_list(patients_dict, n, balance=None, shuffle=True):
 	'''Splits a dictionary of patients into n groups, balancing according to key "balance" if provided.'''
 	patient_list = list(patients_dict.keys())
+	shuffle(patient_list)
 
 	def flatten(l):
 		'''Flattens a list'''
@@ -230,8 +231,8 @@ def split_patients_list(patients_dict, n, balance=None):
 def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, validation_target, validation_strategy, 
 											validation_fraction, validation_k_fold=None, k_fold_iter=None):
 	'''From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
-	If a validation plan has already been prepared (e.g. K-fold iterations were already determined), will use the previously generated plan.
-	Otherwise, creates a new plan and logs the result in the TFRecord directory so future models may use the same plan for consistency.
+	If a validation plan has already been prepared (e.g. K-fold iterations were already determined), the previously generated plan will be used.
+	Otherwise, create a new plan and log the result in the TFRecord directory so future models may use the same plan for consistency.
 
 	Returns:
 		Two arrays: an array of full paths to training tfrecords, and an array of paths to validation tfrecords.''' 
@@ -369,7 +370,7 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 					new_plan['tfrecords']['validation'] = validation_slides
 					new_plan['tfrecords']['training'] = training_slides
 				elif validation_strategy == 'k-fold':
-					k_fold_patients = split_patients_list(patients_dict, k_fold, balance=('outcome' if model_type == 'categorical' else None))
+					k_fold_patients = split_patients_list(patients_dict, k_fold, balance=('outcome' if model_type == 'categorical' else None), shuffle=True)
 					# Verify at least one patient is in each k_fold group
 					if not min([len(patients) for patients in k_fold_patients]):
 						log.error("Insufficient number of patients to generate validation dataset.", 1)
