@@ -24,7 +24,7 @@ import slideflow.util as sfutil
 from slideflow.util import datasets, tfrecords, TCGA, log
 from slideflow.mosaic import Mosaic
 
-__version__ = "1.0.2"
+__version__ = "1.1.0"
 
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
@@ -39,11 +39,12 @@ DEBUGGING = True
 def set_logging_level(level):
 	sfutil.LOGGING_LEVEL.INFO = level
 
-def autoselect_gpu(number_available):
+def autoselect_gpu(number_available, reverse=True):
 	global GPU_LOCK
 	'''Automatically claims a free GPU and creates a lock file to prevent 
 	other instances of slideflow from using the same GPU.'''
-	for n in range(number_available):
+	gpus = range(number_available) if not reverse else reversed(range(number_available))
+	for n in gpus:
 		if not exists(join(SOURCE_DIR, f"gpu{n}.lock")):
 			print(f"Requesting GPU #{n}")
 			os.environ["CUDA_VISIBLE_DEVICES"]=str(n)
@@ -90,26 +91,28 @@ class SlideflowProject:
 		else:
 			self.create_project()
 		
-	def extract_tiles(self, filters=None, subfolder=None, skip_validation=False):
+	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, subfolder=None, skip_validation=False):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.'''
 		import slideflow.convoluter as convoluter
 
 		log.header("Extracting image tiles...")
 		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
+		tile_um = self.PROJECT['tile_um'] if not tile_um else tile_um
+		tile_px = self.PROJECT['tile_px'] if not tile_px else tile_px
 		convoluter.NUM_THREADS = NUM_THREADS
 		slide_list = sfutil.get_filtered_slide_paths(self.PROJECT['slides_dir'], filters=filters)
-		log.info(f"Extracting tiles from {len(slide_list)} slides", 1)
-
+		log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 1)
+		
 		save_folder = join(self.PROJECT['tiles_dir'], subfolder)
 		if not os.path.exists(save_folder):
 			os.makedirs(save_folder)
 
-		c = convoluter.Convoluter(self.PROJECT['tile_px'], self.PROJECT['tile_um'], batch_size=None,
-																					use_fp16=self.PROJECT['use_fp16'], 
-																					stride_div=2,
-																					save_folder=save_folder, 
-																					roi_dir=self.PROJECT['roi_dir'])
+		c = convoluter.Convoluter(tile_px, tile_um, batch_size=None,
+													use_fp16=self.PROJECT['use_fp16'], 
+													stride_div=2,
+													save_folder=save_folder, 
+													roi_dir=self.PROJECT['roi_dir'])
 		c.load_slides(slide_list)
 		c.convolute_slides(export_tiles=True)
 
@@ -164,7 +167,7 @@ class SlideflowProject:
 		log.info(f"Deleted tiles in folder {sfutil.green(delete_folder)}", 1)
 
 	def initialize_model(self, model_name, train_tfrecords, validation_tfrecords, outcomes, model_type='categorical'):
-		'''Prepares a Slideflow model using the provided outcome variable (category_header) 
+		'''Prepares a Slideflow model using the provided outcome variable (outcome_header) 
 		and a given set of training and validation tfrecords.'''
 		# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
 		model_dir = join(self.PROJECT['models_dir'], model_name)
@@ -176,7 +179,7 @@ class SlideflowProject:
 																				model_type=model_type)
 		return SFM
 
-	def evaluate(self, model, category_header, model_type='categorical', filters=None, subfolder=None, checkpoint=None):
+	def evaluate(self, model, outcome_header, model_type='categorical', filters=None, subfolder=None, checkpoint=None):
 		'''Evaluates a saved model on a given set of tfrecords.'''
 		log.header(f"Evaluating model {sfutil.bold(model)}...")
 		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
@@ -198,10 +201,10 @@ class SlideflowProject:
 			tfrecords += glob(os.path.join(folder, "*.tfrecords"))
 
 		# Filter out slides that are blank in the outcome category
-		filter_blank = [category_header] if type(category_header) != list else category_header
+		filter_blank = [outcome_header] if type(outcome_header) != list else outcome_header
 
 		# Set up model for evaluation
-		outcomes = sfutil.get_outcomes_from_annotations(category_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
+		outcomes = sfutil.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
 		SFM = self.initialize_model(f"eval-{model_name}", None, None, outcomes, model_type=model_type)
 		log.info(f"Evaluating {sfutil.bold(len(SFM.SLIDES))} tfrecords", 1)
 		model_dir = join(self.PROJECT['models_dir'], model, "trained_model.h5") if model[-3:] != ".h5" else model
@@ -309,7 +312,7 @@ class SlideflowProject:
 		if exists(f"{results_log_path}.temp"):
 			os.remove(f"{results_log_path}.temp")
 
-	def train(self, models=None, subfolder=NO_LABEL, category_header='category', filters=None, resume_training=None, 
+	def train(self, models=None, subfolder=NO_LABEL, outcome_header='category', multi_outcome=False, filters=None, resume_training=None, 
 				checkpoint=None, pretrain='imagenet', supervised=True, batch_file=None, model_type='categorical',
 				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
 		'''Train model(s) given configurations found in batch_train.tsv.
@@ -319,7 +322,10 @@ class SlideflowProject:
 									Will train models with these names in the batch_train.tsv config file.
 									Defaults to None, which will train all models in the batch_train.tsv config file.
 			subfolder			(optional) Which dataset to pull tfrecord files from (subdirectory in tfrecord_dir); defaults to 'no_label'
-			category_header		(optional) Which header in the annotation file to use for the output category. Defaults to 'category'
+			outcome_header		(optional) String or list. Specifies which header(s) in the annotation file to use for the output category. 
+									Defaults to 'category'.	If a list is provided, will loop through all outcomes and perform HP sweep on each.
+			multi_outcome		(optional) If True, will train to multiple outcomes simultaneously instead of looping through the
+									list of outcomes in "outcome_header". Defaults to False.
 			filters				(optional) Dictionary of column names mapping to column values by which to filter slides using the annotation file.
 			resume_training		(optional) Path to .h5 model to continue training
 			checkpoint			(optional) Path to cp.ckpt from which to load weights
@@ -346,20 +352,29 @@ class SlideflowProject:
 		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and type(k_fold_iter) != list) else k_fold_iter
 		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
 		valid_k = [] if not k_fold else [kf for kf in range(k_fold) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
-		category_header = [category_header] if type(category_header) != list else category_header
+		outcome_header = [outcome_header] if type(outcome_header) != list else outcome_header
+
+		if multi_outcome and model_type != "linear":
+			log.error("Multiple outcome variables only supported for linear outcome variables.")
+			sys.exit()
 
 		# Quickly scan for errors (duplicate model names in batch training file) and prepare models to train
-		hp_models_to_train = self._get_valid_models(batch_train_file, models)	
-		log.header(f"Performing hyperparameter sweep ({len(hp_models_to_train)} models) for each of {len(category_header)} outcome variables:")
-		for cat in category_header:
-			log.info(cat, 1)
+		log.header("Performing hyperparameter sweep...")
+		hp_models_to_train = self._get_valid_models(batch_train_file, models)
+		if multi_outcome:
+			log.info(f"Training ({len(hp_models_to_train)} models) using {len(outcome_header)} variables as simultaneous input:", 1)
+		else:
+			log.header(f"Training ({len(hp_models_to_train)} models) for each of {len(outcome_header)} outcome variables:", 1)
+		for outcome in outcome_header:
+			log.empty(outcome, 2)
+		print()
 
 		# Next, prepare the multiprocessing manager (needed to free VRAM after training and keep track of results)
 		manager = multiprocessing.Manager()
 		results_dict = manager.dict()
 
 		# Create a worker that can execute one round of training
-		def trainer(results_dict, model_name, hp, k_fold_i=None):
+		def trainer(results_dict, outcomes, model_name, hp, k_fold_i=None):
 			if supervised:
 				k_fold_msg = "" if not k_fold_i else f" ({validation_strategy} iteration #{k_fold_i})"
 				log.empty(f"Training model {sfutil.bold(model_name)}{k_fold_msg}...", 1)
@@ -426,13 +441,9 @@ class SlideflowProject:
 				del(SFM)
 				return
 
-		# For each outcome category provided, perform full hyperparameter sweep
-		for cat in category_header:	
-			# Clear the multiprocessing dictionary (may contain results from old runs)
-			results_dict.clear()
-
+		if multi_outcome:
 			# Load outcomes from annotations file
-			outcomes = sfutil.get_outcomes_from_annotations(cat, filters=filters, filter_blank=[cat], use_float=(model_type == 'linear'))
+			outcomes = sfutil.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=[outcome], use_float=(model_type == 'linear'))
 			print()
 
 			# Assembling list of models and hyperparameters from batch_train.tsv file
@@ -449,7 +460,7 @@ class SlideflowProject:
 				if hp_model_name not in hp_models_to_train: continue
 
 				# Add outcome category to model_name
-				model_name = f"{cat}-{hp_model_name}"
+				model_name = f"{outcome}-{hp_model_name}"
 
 				model_iterations = [model_name] if not k_fold else [f"{model_name}-kfold{k+1}" for k in valid_k]
 
@@ -457,16 +468,16 @@ class SlideflowProject:
 				if k_fold:
 					for k in valid_k:
 						if DEBUGGING:
-							trainer(results_dict, model_name, hp, k+1)
+							trainer(results_dict, outcomes, model_name, hp, k+1)
 						else:
-							process = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp, k+1))
+							process = multiprocessing.Process(target=trainer, args=(results_dict, outcomes, model_name, hp, k+1))
 							process.start()
 							process.join()
 				else:
 					if DEBUGGING:
-						trainer(results_dict, model_name, hp)
+						trainer(results_dict, outcomes, model_name, hp)
 					else:
-						process = multiprocessing.Process(target=trainer, args=(results_dict, model_name, hp))
+						process = multiprocessing.Process(target=trainer, args=(results_dict, outcomes, model_name, hp))
 						process.start()
 						process.join()
 
@@ -485,6 +496,68 @@ class SlideflowProject:
 				final_metrics = results_dict[model][f'epoch{last_epoch}']
 				print(f" - {sfutil.green(model)}: Train_Acc={str(final_metrics['train_acc'])}, " +
 					f"Val_loss={final_metrics['val_loss']}, Val_Acc={final_metrics['val_acc']}" )
+
+		# If not training to multiple outcome, perform full hyperparameter sweep
+		#  for each outcome category specified
+		else:
+			for outcome in outcome_header:	
+				# Clear the multiprocessing dictionary (may contain results from old runs)
+				results_dict.clear()
+
+				# Load outcomes from annotations file
+				outcomes = sfutil.get_outcomes_from_annotations(outcome, filters=filters, filter_blank=[outcome], use_float=(model_type == 'linear'))
+				print()
+
+				# Assembling list of models and hyperparameters from batch_train.tsv file
+				batch_train_rows = []
+				with open(batch_train_file) as csv_file:
+					reader = csv.reader(csv_file, delimiter='\t')
+					header = next(reader)
+					for row in reader:
+						batch_train_rows += [row]
+					
+				for row in batch_train_rows:
+					# Read hyperparameters
+					hp, hp_model_name = self._get_hp(row, header)
+					if hp_model_name not in hp_models_to_train: continue
+
+					# Add outcome category to model_name
+					model_name = f"{outcome}-{hp_model_name}"
+
+					model_iterations = [model_name] if not k_fold else [f"{model_name}-kfold{k+1}" for k in valid_k]
+
+					# Perform training
+					if k_fold:
+						for k in valid_k:
+							if DEBUGGING:
+								trainer(results_dict, outcomes, model_name, hp, k+1)
+							else:
+								process = multiprocessing.Process(target=trainer, args=(results_dict, outcomes, model_name, hp, k+1))
+								process.start()
+								process.join()
+					else:
+						if DEBUGGING:
+							trainer(results_dict, outcomes, model_name, hp)
+						else:
+							process = multiprocessing.Process(target=trainer, args=(results_dict, outcomes, model_name, hp))
+							process.start()
+							process.join()
+
+					# Record results
+					for mi in model_iterations:
+						if mi not in results_dict:
+							log.error(f"Training failed for model {model_name} for an unknown reason")
+						else:
+							self._update_results_log(results_log_path, mi, results_dict[mi])
+					log.complete(f"Training complete for model {model_name}, results saved to {sfutil.green(results_log_path)}")
+				
+				# Print summary of all models
+				log.complete("Training complete; validation accuracies:", 0)
+				for model in results_dict:
+					last_epoch = max([int(e.split('epoch')[-1]) for e in results_dict[model].keys() if 'epoch' in e ])
+					final_metrics = results_dict[model][f'epoch{last_epoch}']
+					print(f" - {sfutil.green(model)}: Train_Acc={str(final_metrics['train_acc'])}, " +
+						f"Val_loss={final_metrics['val_loss']}, Val_Acc={final_metrics['val_acc']}" )
 
 	def generate_heatmaps(self, model_name, filters=None, resolution='medium'):
 		'''Creates predictive heatmap overlays on a set of slides. 
