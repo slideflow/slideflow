@@ -194,7 +194,7 @@ def checkpoint_to_h5(models_dir, model_name):
 		# Not sure why this happens, something to do with the optimizer?
 		pass
 
-def split_patients_list(patients_dict, n, balance=None, shuffle=True):
+def split_patients_list(patients_dict, n, balance=None, randomize=True):
 	'''Splits a dictionary of patients into n groups, balancing according to key "balance" if provided.'''
 	patient_list = list(patients_dict.keys())
 	shuffle(patient_list)
@@ -370,7 +370,7 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 					new_plan['tfrecords']['validation'] = validation_slides
 					new_plan['tfrecords']['training'] = training_slides
 				elif validation_strategy == 'k-fold':
-					k_fold_patients = split_patients_list(patients_dict, k_fold, balance=('outcome' if model_type == 'categorical' else None), shuffle=True)
+					k_fold_patients = split_patients_list(patients_dict, k_fold, balance=('outcome' if model_type == 'categorical' else None), randomize=True)
 					# Verify at least one patient is in each k_fold group
 					if not min([len(patients) for patients in k_fold_patients]):
 						log.error("Insufficient number of patients to generate validation dataset.", 1)
