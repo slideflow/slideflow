@@ -194,9 +194,10 @@ def checkpoint_to_h5(models_dir, model_name):
 		# Not sure why this happens, something to do with the optimizer?
 		pass
 
-def split_patients_list(patients_dict, n, balance=None):
+def split_patients_list(patients_dict, n, balance=None, randomize=True):
 	'''Splits a dictionary of patients into n groups, balancing according to key "balance" if provided.'''
 	patient_list = list(patients_dict.keys())
+	shuffle(patient_list)
 
 	def flatten(l):
 		'''Flattens a list'''
@@ -230,8 +231,8 @@ def split_patients_list(patients_dict, n, balance=None):
 def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, validation_target, validation_strategy, 
 											validation_fraction, validation_k_fold=None, k_fold_iter=None):
 	'''From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
-	If a validation plan has already been prepared (e.g. K-fold iterations were already determined), will use the previously generated plan.
-	Otherwise, creates a new plan and logs the result in the TFRecord directory so future models may use the same plan for consistency.
+	If a validation plan has already been prepared (e.g. K-fold iterations were already determined), the previously generated plan will be used.
+	Otherwise, create a new plan and log the result in the TFRecord directory so future models may use the same plan for consistency.
 
 	Returns:
 		Two arrays: an array of full paths to training tfrecords, and an array of paths to validation tfrecords.''' 
@@ -369,7 +370,7 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 					new_plan['tfrecords']['validation'] = validation_slides
 					new_plan['tfrecords']['training'] = training_slides
 				elif validation_strategy == 'k-fold':
-					k_fold_patients = split_patients_list(patients_dict, k_fold, balance=('outcome' if model_type == 'categorical' else None))
+					k_fold_patients = split_patients_list(patients_dict, k_fold, balance=('outcome' if model_type == 'categorical' else None), randomize=True)
 					# Verify at least one patient is in each k_fold group
 					if not min([len(patients) for patients in k_fold_patients]):
 						log.error("Insufficient number of patients to generate validation dataset.", 1)
@@ -438,6 +439,35 @@ def update_tfrecord(tfrecord_file, old_feature_description=OLD_FEATURE_DESCRIPTI
 		writer.write(tf_example.SerializeToString())
 	writer.close()
 
+def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None):
+	log.empty(f"Transforming tiles in tfrecord {sfutil.green(origin)}", 1)
+	log.info(f"Saving to new tfrecord at {sfutil.green(target)}", 2)
+	if assign_slide:
+		log.info(f"Assigning slide name {sfutil.bold(assign_slide)}", 2)
+	if hue_shift:
+		log.info(f"Shifting hue by {sfutil.bold(str(hue_shift))}", 2)
+
+	dataset = tf.data.TFRecordDataset(origin)
+	writer = tf.io.TFRecordWriter(target)
+
+	def process_image(image_string):
+		if hue_shift:
+			decoded_image = tf.image.decode_jpeg(image_string, channels=3)
+			adjusted_image = tf.image.adjust_hue(decoded_image, hue_shift)
+			encoded_image = tf.io.encode_jpeg(adjusted_image, quality=80)
+			return encoded_image.numpy()
+		else:
+			return image_string
+
+	for record in dataset:
+		features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
+		slidename = features['slide'].numpy() if not assign_slide else bytes(assign_slide, 'utf-8')
+		image_raw_data = features['image_raw'].numpy()
+		image_processed_data = process_image(image_raw_data)
+		tf_example = image_example(slide=slidename, image_string=image_processed_data)
+		writer.write(tf_example.SerializeToString())
+	writer.close()
+
 def get_tfrecord_by_index(tfrecord, index):
 	'''Reads and returns an individual record from a tfrecord by index, including slide name and JPEG-processed image data.
 
@@ -459,3 +489,23 @@ def get_tfrecord_by_index(tfrecord, index):
 
 	log.error(f"Unable to find record at index {index} in {sfutil.green(tfrecord)}", 1)
 	return False, False
+
+def extract_tiles(tfrecord, destination):
+	if not exists(destination):
+		os.makedirs(destination)
+	log.empty(f"Extracting tiles from tfrecord {sfutil.green(tfrecord)}", 1)
+	log.info(f"Saving tiles to directory {sfutil.green(destination)}", 2)
+
+	dataset = tf.data.TFRecordDataset(tfrecord)
+	for i, record in enumerate(dataset):
+		features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
+		slidename = features['slide'].numpy().decode('utf-8')
+		image_raw_data = features['image_raw'].numpy()
+		dest_folder = join(destination, slidename)
+		if not exists(dest_folder):
+			os.makedirs(dest_folder)
+		tile_filename = f"tile{i}.jpg"
+		image_string = open(join(dest_folder, tile_filename), 'wb')
+		image_string.write(image_raw_data)
+		image_string.close()
+		
