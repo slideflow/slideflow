@@ -158,14 +158,30 @@ class SlideflowModel:
 		outcomes = [slide_annotations[slide]['outcome'] for slide in self.SLIDES]
 
 		if model_type == 'categorical':
-			self.NUM_CLASSES = len(list(set(outcomes)))
+			try:
+				self.NUM_CLASSES = len(list(set(outcomes)))
+			except TypeError:
+				log.error("Unable to use multiple outcome variables with categorical model type.")
+				sys.exit()
+			with tf.device('/cpu'):
+				self.ANNOTATIONS_TABLES = [tf.lookup.StaticHashTable(
+					tf.lookup.KeyValueTensorInitializer(self.SLIDES, outcomes), -1
+				)]
 		elif model_type == 'linear':
-			self.NUM_CLASSES = 1
-
-		with tf.device('/cpu'):
-			self.ANNOTATIONS_TABLE = tf.lookup.StaticHashTable(
-				tf.lookup.KeyValueTensorInitializer(self.SLIDES, outcomes), -1
-			)
+			try:
+				self.NUM_CLASSES = len(outcomes[0])
+			except TypeError:
+				log.error("Incorrect formatting of outcomes for a linear model; must be formatted as an array.")
+				sys.exit()
+			with tf.device('/cpu'):
+				self.ANNOTATIONS_TABLES = []
+				for oi in range(self.NUM_CLASSES):
+					self.ANNOTATIONS_TABLES += [tf.lookup.StaticHashTable(
+						tf.lookup.KeyValueTensorInitializer(self.SLIDES, [o[oi] for o in outcomes]), -1
+					)]
+		else:
+			log.error(f"Unknown model type {model_type}")
+			sys.exit()
 
 		if not os.path.exists(self.DATA_DIR):
 			os.makedirs(self.DATA_DIR)
@@ -210,7 +226,10 @@ class SlideflowModel:
 	def _parse_tfrecord_function(self, record):
 		features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
 		slide = features['slide']
-		label = self.ANNOTATIONS_TABLE.lookup(slide)
+		if self.MODEL_TYPE == 'linear':
+			label = [self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(self.NUM_CLASSES)]
+		else:
+			label = self.ANNOTATIONS_TABLES[0].lookup(slide)
 		image_string = features['image_raw']
 		image = self._process_image(image_string, self.AUGMENT)
 		return image, label
@@ -218,7 +237,10 @@ class SlideflowModel:
 	def _parse_tfrecord_with_slidenames_function(self, record):
 		features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
 		slide = features['slide']
-		label = self.ANNOTATIONS_TABLE.lookup(slide)
+		if self.MODEL_TYPE == 'linear':
+			label = [self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(self.NUM_CLASSES)]
+		else:
+			label = self.ANNOTATIONS_TABLES.lookup(slide)
 		image_string = features['image_raw']
 		image = self._process_image(image_string, self.AUGMENT)
 		return image, label, slide
@@ -285,7 +307,7 @@ class SlideflowModel:
 			prob_weights = [i/sum(num_tiles) for i in num_tiles]
 		if balance == BALANCE_BY_PATIENT:
 			log.empty(f"Balancing input across slides", 2)
-			prob_weights = None
+			prob_weights = [1.0] * len(datasets)
 			if finite:
 				# Only take as many tiles as the number of tiles in the smallest dataset
 				for i in range(len(datasets)):
@@ -430,7 +452,7 @@ class SlideflowModel:
 		# Build inputs
 		train_data, _, num_tiles = self.build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, include_slidenames=False)
 		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
-			validation_data, validation_data_with_slidenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, hp.augment, finite=supervised, include_slidenames=True)
+			validation_data, validation_data_with_slidenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, hp.augment, finite=True, include_slidenames=True)
 			validation_data_for_training = validation_data.repeat()
 		else:
 			validation_data_for_training = None
