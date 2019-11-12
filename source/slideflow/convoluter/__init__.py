@@ -110,7 +110,7 @@ class JPGSlide:
 
 class SlideReader:
 	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
-	def __init__(self, path, name, filetype, size_px, size_um, stride_div, export_folder=None, roi_dir=None, pb=None):
+	def __init__(self, path, name, filetype, size_px, size_um, stride_div, export_folder=None, roi_dir=None, roi_list=None, pb=None):
 		self.load_error = False
 		self.print = print if not pb else pb.print
 		self.rois = []
@@ -146,6 +146,15 @@ class SlideReader:
 		# Else try loading ROI from same folder as SVS
 		elif exists(sfutil.path_to_name(path) + ".csv"):
 			num_rois = self.load_csv_roi(sfutil.path_to_name(path) + ".csv")
+		elif roi_list and self.name in [sfutil.path_to_name(r) for r in roi_list]:
+			matching_rois = []
+			for i, rp in enumerate(roi_list):
+				rn = sfutil.path_to_name(rp)
+				if rn == self.name:
+					matching_rois += [rp]
+			if len(matching_rois) > 1:
+				log.warn(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}")
+			num_rois = self.load_csv_roi(matching_rois[0])
 		else:
 			if SKIP_MISSING_ROI:
 				log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.print)
@@ -333,10 +342,11 @@ class Convoluter:
 	 - logit predictions from saved Tensorflow model (logits may then be either saved or visualized with heatmaps)
 	 - final layer weight calculation (saved into a CSV file)
 	'''
-	def __init__(self, size_px, size_um, batch_size, use_fp16, stride_div=2, save_folder='', roi_dir=None, augment=False):
+	def __init__(self, size_px, size_um, batch_size, use_fp16, stride_div=2, save_folder='', roi_dir=None, roi_list=None, augment=False):
 		self.SLIDES = {}
 		self.MODEL_DIR = None
 		self.ROI_DIR = roi_dir
+		self.ROI_LIST = roi_list
 		self.SIZE_PX = size_px
 		self.SIZE_UM = size_um
 		self.BATCH_SIZE = batch_size
