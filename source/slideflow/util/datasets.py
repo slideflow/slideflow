@@ -125,9 +125,10 @@ class Dataset:
 	def __init__(self, config_file, sources):
 		config = sfutil.load_json(config_file)
 		try:
-			self.datasets = [config[d] for d in sources]
+			self.datasets = {k:v for (k,v) in config.items() if k in sources}
 		except KeyError:
-			log.error(f"Unable to find datasets named {sfutil.bold(", ".join(sources))} in config file {sfutil.green(config_file)}", 1)
+			sources_list = ", ".join(sources)
+			log.error(f"Unable to find datasets named {sfutil.bold(sources_list)} in config file {sfutil.green(config_file)}", 1)
 			sys.exit()
 
 	def get_tfrecords(self, ask_to_merge_subdirs=False):
@@ -181,7 +182,10 @@ class Dataset:
 		return sfutil.get_slide_paths(self.datasets[name]['slides'])
 
 	def get_slide_paths(self):
-		return [sfutil.get_slide_paths(self.datasets[d]['slides']) for d in self.datasets]
+		paths = []
+		for d in self.datasets:
+			paths += sfutil.get_slide_paths(self.datasets[d]['slides'])
+		return paths
 
 	def get_manifest(self):
 		combined_manifest = {}
