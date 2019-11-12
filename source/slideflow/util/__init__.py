@@ -230,14 +230,20 @@ def float_input(prompt, default=None, valid_range=None):
 			print(f"Please supply a valid numer in the range {valid_range[0]} to {valid_range[1]}")
 		return float_response
 
-def choice_input(prompt, valid_choices, default=None):
+def choice_input(prompt, valid_choices, default=None, multi_choice=False):
 	while True:
 		response = input(f"{prompt}")
 		if not response and default:
 			return default
-		if response not in valid_choices:
+		if not multi_choice and response not in valid_choices:
 			print("Invalid option.")
 			continue
+		elif multi_choice:
+			response = response.replace(" ", "").split(',')
+			invalid = [r not in valid_choices for r in response]
+			if any(invalid):
+				print('Invalid selection.')
+				continue
 		return response
 
 def load_json(filename):
@@ -269,17 +275,15 @@ def get_slide_paths(slides_dir):
 	slide_list.extend(glob(join(slides_dir, '*.tiff')))
 	return slide_list
 
-def get_filtered_slide_paths(slides_dir, filters, filter_blank=[]):
-	slide_list = get_slide_paths(slides_dir)
+def filter_slide_paths(slide_list, filters, filter_blank=[]):
 	filtered_slide_names = get_slides_from_annotations(filters=filters, filter_blank=filter_blank)
 	filtered_slide_list = [slide for slide in slide_list if path_to_name(slide) in filtered_slide_names]
 	return filtered_slide_list
 
-def get_filtered_tfrecords_paths(tfrecords_dir, filters, filter_blank=[]):
-	tfrecord_list = glob(join(tfrecords_dir, "*.tfrecords"))
+def filter_tfrecords_paths(tfrecords_list, filters, filter_blank=[]):
 	filtered_slide_names = get_slides_from_annotations(filters=filters, filter_blank=filter_blank)
-	filtered_tfrecord_list = [tfrecord for tfrecord in tfrecord_list if tfrecord.split('/')[-1][:-10] in filtered_slide_names]
-	return filtered_tfrecord_list
+	filtered_tfrecords_list = [tfrecord for tfrecord in tfrecords_list if tfrecord.split('/')[-1][:-10] in filtered_slide_names]
+	return filtered_tfrecords_list
 
 def get_slides_from_annotations(filters=None, filter_blank=[]):
 	'''Returns a list of slide names from the annotations file using a given set of filters.'''
@@ -389,10 +393,10 @@ def get_outcomes_from_annotations(headers, filters=None, filter_blank=[], use_fl
 					results[slide][TCGA.patient] = patient
 	return results
 
-def update_annotations_with_slidenames(annotations_file, slides_dir):
+def update_annotations_with_slidenames(annotations_file, dataset):
 	'''Attempts to automatically associate slide names from a directory with patients in a given annotations file.'''
 	header, _ = read_annotations(annotations_file)
-	slide_list = get_slide_paths(slides_dir)
+	slide_list = dataset.get_slide_paths()
 
 	# First, load all patient names from the annotations file
 	try:
@@ -506,7 +510,7 @@ def read_annotations(annotations_file):
 			results += [row_dict]
 	return header, results
 			
-def load_annotations(annotations_file, slides_dir=None):
+def load_annotations(annotations_file, dataset):
 	global ANNOTATIONS
 	# Verify annotations file exists
 	if not os.path.exists(annotations_file):
@@ -532,16 +536,16 @@ def load_annotations(annotations_file, slides_dir=None):
 		slide_index = header.index(TCGA.slide)
 	except:
 		log.error(f"Header column '{TCGA.slide}' not found.", 1)
-		if slides_dir and yes_no_input('\nSearch slides directory and automatically associate patients with slides? [Y/n] ', default='yes'):
-			update_annotations_with_slidenames(annotations_file, slides_dir)
+		if dataset and yes_no_input('\nSearch slides directory and automatically associate patients with slides? [Y/n] ', default='yes'):
+			update_annotations_with_slidenames(annotations_file, dataset)
 			header, current_annotations = read_annotations(annotations_file)
 		else:
 			sys.exit()
 	ANNOTATIONS = current_annotations
 
-def verify_annotations_slides(slides_dir=None):
+def verify_annotations_slides(dataset):
 	global ANNOTATIONS
-	slide_list = get_slide_paths(slides_dir)
+	slide_list = dataset.get_slide_paths()
 
 	# Verify no duplicate slide names are found
 	slide_list_from_annotations = get_slides_from_annotations()
