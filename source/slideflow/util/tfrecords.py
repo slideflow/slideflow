@@ -242,9 +242,9 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 	subdirs = []
 	for folder in tfr_folders:
 		try:
-			detected_subdirs = [sd for sd in os.listdir(tfr_folders) if isdir(join(tfr_folders, sd))]
+			detected_subdirs = [sd for sd in os.listdir(folder) if isdir(join(folder, sd))]
 		except:
-			log.error(f"Unable to find TFRecord location {sfutil.green(tfr_folders)}")
+			log.error(f"Unable to find TFRecord location {sfutil.green(folder)}")
 			sys.exit()
 		subdirs = detected_subdirs if not subdirs else subdirs
 		if detected_subdirs != subdirs:
