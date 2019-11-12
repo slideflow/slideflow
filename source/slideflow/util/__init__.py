@@ -242,7 +242,7 @@ def choice_input(prompt, valid_choices, default=None, multi_choice=False):
 			response = response.replace(" ", "").split(',')
 			invalid = [r not in valid_choices for r in response]
 			if any(invalid):
-				print('Invalid selection.')
+				print(f'Invalid selection (response: {response})')
 				continue
 		return response
 
@@ -599,7 +599,11 @@ def update_tfrecord_manifest(directory, force_update=False):
 	slide_list = []
 	manifest_path = join(directory, "manifest.json")
 	manifest = {} if not exists(manifest_path) else load_json(manifest_path)
-	relative_tfrecord_paths = get_relative_tfrecord_paths(directory)
+	try:
+		relative_tfrecord_paths = get_relative_tfrecord_paths(directory)
+	except FileNotFoundError:
+		log.warn(f"Unable to find TFRecords in the directory {directory}")
+		return
 	slide_names_from_annotations = get_slides_from_annotations()
 
 	slide_list_errors = []
