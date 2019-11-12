@@ -758,21 +758,26 @@ class SlideflowProject:
 
 		project['datasets'] = []
 		while not project['datasets']:
-			datasets_data = sfutil.load_json(project['dataset_config'])
-			datasets_names = datasets_data.keys()
-			datasets_names.sort()
-
+			try:
+				datasets_data = sfutil.load_json(project['dataset_config'])
+				datasets_names = list(datasets_data.keys())
+				datasets_names.sort()
+			except FileNotFoundError:
+				datasets_data = {}
+				datasets_names = []
+			
 			print(sfutil.bold("Detected datasets:"))
 			if not len(datasets_names):
 				print(" [None]")
 			else:
 				for i, name in enumerate(datasets_names):
 					print(f" {i+1}. {name}")
-				print(f" {len(datasets_names)}. ADD NEW")
-				dataset_selection = sfutil.choice_input(f"Which datasets should be used? (choose {len(datasets_names)} to add a new dataset) ", valid_choices=list(range(1, len(datasets_names+2))), multi_choice=True)
+				print(f" {len(datasets_names)+1}. ADD NEW")
+				dataset_selection = sfutil.choice_input(f"Which datasets should be used? (choose {len(datasets_names)+1} to add a new dataset) ", valid_choices=[str(l) for l in list(range(1, len(datasets_names)+2))], multi_choice=True)
 
-			if not len(datasets_names) or len(datasets_names)+1 in dataset_selection:
+			if not len(datasets_names) or str(len(datasets_names)+1) in dataset_selection:
 				# Create new dataset
+				print(f"{sfutil.bold('Creating new dataset')}")
 				dataset_name = input("What is the dataset name? ")
 				dataset_slides = sfutil.dir_input("Where are the SVS slides stored? [./slides] ",
 										default='./slides', create_on_invalid=True)
@@ -795,7 +800,7 @@ class SlideflowProject:
 				try:
 					project['datasets'] = [datasets_names[int(j)-1] for j in dataset_selection]
 				except TypeError:
-					print('Invalid selection')
+					print(f'Invalid selection: {dataset_selection}')
 					continue
 
 		# Other tessellation
