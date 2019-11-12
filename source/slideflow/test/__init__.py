@@ -35,8 +35,8 @@ class TestSuite:
         tile_px = self.SFP.PROJECT['tile_px']
         outcomes = sf.util.get_outcomes_from_annotations(outcome, filters=filters, filter_blank=[outcome], use_float=(model_type=='linear'))
         subfolder = sf.NO_LABEL if (not subfolder or subfolder=='') else subfolder
-        train_tfrecords = glob(join(self.SFP.PROJECT['tfrecord_dir'], subfolder, "*.tfrecords"))
-        SFM = sf.trainer.model.SlideflowModel(models_dir, tile_px, outcomes, train_tfrecords, None)
+        #train_tfrecords = glob(join(self.SFP.PROJECT['tfrecord_dir'], subfolder, "*.tfrecords"))
+        #SFM = sf.trainer.model.SlideflowModel(models_dir, tile_px, outcomes, train_tfrecords, None)
 
     def test_convolution(self):
         self.SFP.extract_tiles()
