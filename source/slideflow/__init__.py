@@ -347,6 +347,7 @@ class SlideflowProject:
 		validation_strategy = self.PROJECT['validation_strategy'] if not validation_strategy else validation_strategy
 		validation_fraction = self.PROJECT['validation_fraction'] if not validation_fraction else validation_fraction
 		validation_k_fold = self.PROJECT['validation_k_fold'] if not validation_k_fold else validation_k_fold
+		validation_log = join(self.PROJECT['root'], "validation_plans.json")
 		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
 		results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
 		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and type(k_fold_iter) != list) else k_fold_iter
@@ -390,7 +391,7 @@ class SlideflowProject:
 					experiment.log_other('k_fold_iter', k_fold_i)
 
 			# Get TFRecords for training and validation
-			training_tfrecords, validation_tfrecords = tfrecords.get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type,
+			training_tfrecords, validation_tfrecords = tfrecords.get_training_and_validation_tfrecords(tfrecord_dir, validation_log, outcomes, model_type,
 																										validation_target=validation_target,
 																										validation_strategy=validation_strategy,
 																										validation_fraction=validation_fraction,
