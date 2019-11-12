@@ -21,7 +21,8 @@ import slideflow.trainer.model as sfmodel
 import itertools
 import multiprocessing
 import slideflow.util as sfutil
-from slideflow.util import datasets, tfrecords, TCGA, log
+from slideflow.util import TCGA, log
+from slideflow.util.datasets import Dataset
 from slideflow.mosaic import Mosaic
 
 __version__ = "1.1.0"
@@ -91,121 +92,121 @@ class SlideflowProject:
 		else:
 			self.create_project()
 		
-	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, subfolder=None, skip_validation=False):
+	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, skip_validation=False):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.'''
 		import slideflow.convoluter as convoluter
 
 		log.header("Extracting image tiles...")
-		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
 		tile_um = self.PROJECT['tile_um'] if not tile_um else tile_um
 		tile_px = self.PROJECT['tile_px'] if not tile_px else tile_px
 		convoluter.NUM_THREADS = NUM_THREADS
-		slide_list = sfutil.get_filtered_slide_paths(self.PROJECT['slides_dir'], filters=filters)
-		log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 1)
-		
-		save_folder = join(self.PROJECT['tiles_dir'], subfolder)
-		if not os.path.exists(save_folder):
-			os.makedirs(save_folder)
 
-		c = convoluter.Convoluter(tile_px, tile_um, batch_size=None,
-													use_fp16=self.PROJECT['use_fp16'], 
-													stride_div=2,
-													save_folder=save_folder, 
-													roi_dir=self.PROJECT['roi_dir'])
-		c.load_slides(slide_list)
-		c.convolute_slides(export_tiles=True)
+		# Load dataset for evaluation
+		extracting_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
 
-		if not skip_validation and self.PROJECT['validation_target'] == 'per-tile':
-			if self.PROJECT['validation_target'] == 'per-tile':
-				if self.PROJECT['validation_strategy'] == 'boostrap':
-					log.warn("Validation bootstrapping is not supported when the validation target is per-tile; will generate random fixed validation target", 1)
-				if self.PROJECT['validation_strategy'] in ('bootstrap', 'fixed'):
-					# Split the extracted tiles into two groups
-					datasets.split_tiles(save_folder, fraction=[-1, self.PROJECT['validation_fraction']], names=['training', 'validation'])
-				if self.PROJECT['validation_strategy'] == 'k-fold':
-					datasets.split_tiles(save_folder, fraction=[-1] * self.PROJECT['validation_k_fold'], names=[f'kfold-{i}' for i in range(self.PROJECT['validation_k_fold'])])
+		for dataset_name in self.PROJECT['datasets']:
+			log.empty(f"Working on dataset {dataset_name}", 1)
+			unfiltered_slide_list = extracting_dataset.get_slides_by_dataset(dataset_name)
+			slide_list = sfutil.filter_slide_paths(unfiltered_slide_list, filters=filters)
+			log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 1)
+			
+			save_folder = join(extracting_dataset.datasets[dataset_name]['tiles'], extracting_dataset.datasets[dataset_name]['label'])
+			roi_dir = extracting_dataset.datasets[dataset_name]['roi']
 
-		self.generate_tfrecord(subfolder)
+			if not os.path.exists(save_folder):
+				os.makedirs(save_folder)
 
-	def generate_tfrecord(self, subfolder=None):
+			c = convoluter.Convoluter(tile_px, tile_um, batch_size=None,
+														use_fp16=self.PROJECT['use_fp16'], 
+														stride_div=2,
+														save_folder=save_folder, 
+														roi_dir=roi_dir)
+			c.load_slides(slide_list)
+			c.convolute_slides(export_tiles=True)
+
+			if not skip_validation and self.PROJECT['validation_target'] == 'per-tile':
+				if self.PROJECT['validation_target'] == 'per-tile':
+					if self.PROJECT['validation_strategy'] == 'boostrap':
+						log.warn("Validation bootstrapping is not supported when the validation target is per-tile; will generate random fixed validation target", 1)
+					if self.PROJECT['validation_strategy'] in ('bootstrap', 'fixed'):
+						# Split the extracted tiles into two groups
+						sfutil.datasets.split_tiles(save_folder, fraction=[-1, self.PROJECT['validation_fraction']], names=['training', 'validation'])
+					if self.PROJECT['validation_strategy'] == 'k-fold':
+						sfutil.datasets.split_tiles(save_folder, fraction=[-1] * self.PROJECT['validation_k_fold'], names=[f'kfold-{i}' for i in range(self.PROJECT['validation_k_fold'])])
+
+		self.generate_tfrecord()
+
+	def generate_tfrecord(self):
 		'''Create tfrecord files from a collection of raw images'''
 		log.header('Writing TFRecord files...')
-		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
-		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
-		tiles_dir = join(self.PROJECT['tiles_dir'], subfolder)
 
-		# Check to see if subdirectories in the target folders are slide directories (contain images)
-		#  or are further subdirectories (e.g. validation and training)
-		log.info('Scanning tile directory structure...', 1)
-		if sfutil.contains_nested_subdirs(tiles_dir):
-			subdirs = [_dir for _dir in os.listdir(tiles_dir) if isdir(join(tiles_dir, _dir))]
-			for subdir in subdirs:
-				tfrecord_subdir = join(tfrecord_dir, subdir)
-				tfrecords.write_tfrecords_multi(join(tiles_dir, subdir), tfrecord_subdir)
-		else:
-			tfrecords.write_tfrecords_multi(tiles_dir, tfrecord_dir)
+		# Load dataset for evaluation
+		working_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		
+		for d in working_dataset.datasets:
+			log.empty(f"Working on dataset {d}", 1)
+			config = working_dataset.datasets[d]
+			tfrecord_dir = join(config["tfrecords"], config["label"])
+			tiles_dir = join(config["tiles"], config["label"])
 
-		self.update_manifest()
+			# Check to see if subdirectories in the target folders are slide directories (contain images)
+			#  or are further subdirectories (e.g. validation and training)
+			log.info('Scanning tile directory structure...', 2)
+			if sfutil.contains_nested_subdirs(tiles_dir):
+				subdirs = [_dir for _dir in os.listdir(tiles_dir) if isdir(join(tiles_dir, _dir))]
+				for subdir in subdirs:
+					tfrecord_subdir = join(tfrecord_dir, subdir)
+					sfutil.tfrecords.write_tfrecords_multi(join(tiles_dir, subdir), tfrecord_subdir)
+			else:
+				sfutil.tfrecords.write_tfrecords_multi(tiles_dir, tfrecord_dir)
 
-		if self.PROJECT['delete_tiles']:
-			shutil.rmtree(tiles_dir)
+			self.update_manifest()
+
+			if self.PROJECT['delete_tiles']:
+				shutil.rmtree(tiles_dir)
 
 	def update_tfrecords(self):
 		log.header('Updating TFRecords...')
-		subfolders = [join(self.PROJECT['tfrecord_dir'], _dir) for _dir in os.listdir(self.PROJECT['tfrecord_dir']) if isdir(join(self.PROJECT['tfrecord_dir'], _dir))]
-		num_updated = 0
-		for subfolder in subfolders:
-			log.info(f"Updating TFRecords in {sfutil.green(subfolder)}...")
-			num_updated += tfrecords.update_tfrecord_dir(subfolder, slide='case', image_raw='image_raw')
+		working_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+
+		for d in working_dataset.datasets:
+			config = working_dataset.datasets[d]
+			tfrecord_folder = join(config["tfrecords"], config["label"])
+			num_updated = 0
+			log.info(f"Updating TFRecords in {sfutil.green(tfrecord_folder)}...")
+			num_updated += sfutil.tfrecords.update_tfrecord_dir(tfrecord_folder, slide='case', image_raw='image_raw')
 		log.complete(f"Updated {sfutil.bold(num_updated)} TFRecords files")
 
-	def delete_tiles(self, subfolder=None):
-		'''Deletes all contents in the tiles directory (to be executed after TFRecords are generated).'''
-		delete_folder = self.PROJECT['tiles_dir'] if not subfolder else join(self.PROJECT['tiles_dir'], subfolder)
-		shutil.rmtree(delete_folder)
-		log.info(f"Deleted tiles in folder {sfutil.green(delete_folder)}", 1)
-
-	def initialize_model(self, model_name, train_tfrecords, validation_tfrecords, outcomes, model_type='categorical'):
+	def initialize_model(self, model_name, dataset, train_tfrecords, validation_tfrecords, outcomes, model_type='categorical'):
 		'''Prepares a Slideflow model using the provided outcome variable (outcome_header) 
 		and a given set of training and validation tfrecords.'''
+
 		# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
 		model_dir = join(self.PROJECT['models_dir'], model_name)
 
 		# Build a model using the slide list as input and the annotations dictionary as output labels
 		SFM = sfmodel.SlideflowModel(model_dir, self.PROJECT['tile_px'], outcomes, train_tfrecords, validation_tfrecords,
-																				manifest=sfutil.get_global_manifest(self.PROJECT['tfrecord_dir']),
+																				manifest=dataset.get_manifest(),
 																				use_fp16=self.PROJECT['use_fp16'],
 																				model_type=model_type)
 		return SFM
 
-	def evaluate(self, model, outcome_header, model_type='categorical', filters=None, subfolder=None, checkpoint=None):
+	def evaluate(self, model, outcome_header, model_type='categorical', filters=None, checkpoint=None):
 		'''Evaluates a saved model on a given set of tfrecords.'''
 		log.header(f"Evaluating model {sfutil.bold(model)}...")
-		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
 		model_name = model.split('/')[-1]
-		tfrecord_path = join(self.PROJECT['tfrecord_dir'], subfolder)
-		tfrecords = []
 
-		# Check if given subfolder contains split data (tiles split into multiple TFRecords, likely for validation testing)
-		# If true, can merge inputs and evaluate all data.
-		subdirs = [sd for sd in os.listdir(tfrecord_path) if isdir(join(tfrecord_path, sd))]
-		if len(subdirs):
-			if sfutil.yes_no_input(f"Warning: TFRecord directory {sfutil.green(subfolder)} contains data split into sub-directories ({', '.join([sfutil.green(s) for s in subdirs])}); merge for evaluation? [y/N] ", default='no'):
-				folders_to_search = [join(tfrecord_path, subdir) for subdir in subdirs]
-			else:
-				return
-		else:
-			folders_to_search = [tfrecord_path]
-		for folder in folders_to_search:
-			tfrecords += glob(os.path.join(folder, "*.tfrecords"))
+		# Load dataset for evaluation
+		eval_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		tfrecords = eval_dataset.get_tfrecords(ask_to_merge_subdirs=True)
 
 		# Filter out slides that are blank in the outcome category
 		filter_blank = [outcome_header] if type(outcome_header) != list else outcome_header
 
 		# Set up model for evaluation
 		outcomes = sfutil.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
-		SFM = self.initialize_model(f"eval-{model_name}", None, None, outcomes, model_type=model_type)
+		SFM = self.initialize_model(f"eval-{model_name}", eval_dataset, None, None, outcomes, model_type=model_type)
 		log.info(f"Evaluating {sfutil.bold(len(SFM.SLIDES))} tfrecords", 1)
 		model_dir = join(self.PROJECT['models_dir'], model, "trained_model.h5") if model[-3:] != ".h5" else model
 		results = SFM.evaluate(tfrecords=tfrecords, hp=None, model=model_dir, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
@@ -312,7 +313,7 @@ class SlideflowProject:
 		if exists(f"{results_log_path}.temp"):
 			os.remove(f"{results_log_path}.temp")
 
-	def train(self, models=None, subfolder=NO_LABEL, outcome_header='category', multi_outcome=False, filters=None, resume_training=None, 
+	def train(self, models=None, outcome_header='category', multi_outcome=False, filters=None, resume_training=None, 
 				checkpoint=None, pretrain='imagenet', supervised=True, batch_file=None, model_type='categorical',
 				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
 		'''Train model(s) given configurations found in batch_train.tsv.
@@ -321,7 +322,6 @@ class SlideflowProject:
 			models				(optional) Either string representing a model name or an array of strings containing model names. 
 									Will train models with these names in the batch_train.tsv config file.
 									Defaults to None, which will train all models in the batch_train.tsv config file.
-			subfolder			(optional) Which dataset to pull tfrecord files from (subdirectory in tfrecord_dir); defaults to 'no_label'
 			outcome_header		(optional) String or list. Specifies which header(s) in the annotation file to use for the output category. 
 									Defaults to 'category'.	If a list is provided, will loop through all outcomes and perform HP sweep on each.
 			multi_outcome		(optional) If True, will train to multiple outcomes simultaneously instead of looping through the
@@ -348,7 +348,6 @@ class SlideflowProject:
 		validation_fraction = self.PROJECT['validation_fraction'] if not validation_fraction else validation_fraction
 		validation_k_fold = self.PROJECT['validation_k_fold'] if not validation_k_fold else validation_k_fold
 		validation_log = join(self.PROJECT['root'], "validation_plans.json")
-		tfrecord_dir = join(self.PROJECT['tfrecord_dir'], subfolder)
 		results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
 		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and type(k_fold_iter) != list) else k_fold_iter
 		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
@@ -358,6 +357,9 @@ class SlideflowProject:
 		if multi_outcome and model_type != "linear":
 			log.error("Multiple outcome variables only supported for linear outcome variables.")
 			sys.exit()
+
+		# Load dataset for training
+		training_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
 
 		# Quickly scan for errors (duplicate model names in batch training file) and prepare models to train
 		log.header("Performing hyperparameter sweep...")
@@ -391,14 +393,14 @@ class SlideflowProject:
 					experiment.log_other('k_fold_iter', k_fold_i)
 
 			# Get TFRecords for training and validation
-			training_tfrecords, validation_tfrecords = tfrecords.get_training_and_validation_tfrecords(tfrecord_dir, validation_log, outcomes, model_type,
+			training_tfrecords, validation_tfrecords = sfutil.tfrecords.get_training_and_validation_tfrecords(training_dataset, validation_log, outcomes, model_type,
 																										validation_target=validation_target,
 																										validation_strategy=validation_strategy,
 																										validation_fraction=validation_fraction,
 																										validation_k_fold=validation_k_fold,
 																										k_fold_iter=k_fold_i)
 			# Initialize model
-			SFM = self.initialize_model(full_model_name, training_tfrecords, validation_tfrecords, outcomes, model_type=model_type)
+			SFM = self.initialize_model(full_model_name, training_dataset, training_tfrecords, validation_tfrecords, outcomes, model_type=model_type)
 
 			# Log model settings and hyperparameters
 			with open(os.path.join(self.PROJECT['models_dir'], full_model_name, 'hyperparameters.log'), 'w') as hp_file:
@@ -406,7 +408,8 @@ class SlideflowProject:
 				hp_text += f"Tile pixel size: {self.PROJECT['tile_px']}\n"
 				hp_text += f"Tile micron size: {self.PROJECT['tile_um']}\n"
 				hp_text += f"Model type: {model_type}\n"
-				hp_text += f"TFRecord directory: {tfrecord_dir}\n"
+				hp_text += f"Dataset configuration: {self.PROJECT['dataset_config']}\n"
+				hp_text += f"Datasets used: {self.PROJECT['datasets']}\n"
 				hp_text += f"Annotations file: {self.PROJECT['annotations']}\n"
 				hp_text += f"Validation target: {validation_target}\n"
 				hp_text += f"Validation strategy: {validation_strategy}\n"
@@ -581,7 +584,12 @@ class SlideflowProject:
 		except KeyError:
 			log.error(f"Invalid resolution '{resolution}': must be either 'low', 'medium', or 'high'.")
 			return
-		slide_list = sfutil.get_filtered_slide_paths(self.PROJECT['slides_dir'], filters=filters)
+
+		# Load dataset for evaluation
+		heatmaps_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		unfiltered_slide_list = heatmaps_dataset.get_slides_paths()
+		slide_list = sfutil.filter_slide_paths(unfiltered_slide_list, filters=filters)
+		roi_list = heatmaps_dataset.get_rois()
 		heatmaps_folder = os.path.join(self.PROJECT['root'], 'heatmaps')
 		if not os.path.exists(heatmaps_folder): os.makedirs(heatmaps_folder)
 		model_path = model_name if model_name[-3:] == ".h5" else join(self.PROJECT['models_dir'], model_name, 'trained_model.h5')
@@ -590,20 +598,24 @@ class SlideflowProject:
 																					use_fp16=self.PROJECT['use_fp16'],
 																					stride_div=stride_div,
 																					save_folder=heatmaps_folder,
-																					roi_dir=self.PROJECT['roi_dir'])
+																					roi_list=roi_list)
 		c.load_slides(slide_list)
 		c.build_model(model_path)
 		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
-	def generate_mosaic(self, model=None, filters=None, focus_header=None, focus_values=None, subfolder=None, resolution="medium"):
+	def generate_mosaic(self, model=None, filters=None, focus_filters=None, resolution="medium"):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer weights. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.'''
 		
 		log.header("Generating mosaic map...")
-		subfolder = NO_LABEL if (not subfolder or subfolder=='') else subfolder
-		slide_list = sfutil.get_filtered_tfrecords_paths(join(self.PROJECT['tfrecord_dir'], subfolder), filters=filters)
-		if focus_header and focus_values:
-			focus_list = sfutil.get_filtered_tfrecords_paths(join(self.PROJECT['tfrecord_dir'], subfolder), filters=filters)
+
+		# Load dataset for evaluation
+		mosaic_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		mosaic_tfrecords = mosaic_dataset.get_tfrecords(ask_to_merge_subdirs=True)
+
+		slide_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=filters)
+		if focus_filters:
+			focus_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=focus_filters)
 		else:
 			focus_list = None
 		mosaic = Mosaic(save_dir=self.PROJECT['root'], resolution=resolution)
@@ -662,13 +674,10 @@ class SlideflowProject:
 				writer.writerow(row)
 		log.complete(f"Wrote {len(sweep)} combinations for sweep to {sfutil.green(filename)}")
 
-	def create_blank_annotations_file(self, outfile=None, slides_dir=None):
+	def create_blank_annotations_file(self, outfile=None):
 		'''Creates an example blank annotations file.'''
 		if not outfile: 
 			outfile = self.PROJECT['annotations']
-		if not slides_dir:
-			slides_dir = self.PROJECT['slides_dir']
-
 		with open(outfile, 'w') as csv_outfile:
 			csv_writer = csv.writer(csv_outfile, delimiter=',')
 			header = [TCGA.patient, 'dataset', 'category']
@@ -676,8 +685,11 @@ class SlideflowProject:
 
 	def associate_slide_names(self):
 		'''Experimental function used to automatically associated patient names with slide filenames in the annotations file.'''
-		sfutil.update_annotations_with_slidenames(self.PROJECT['annotations'], self.PROJECT['slides_dir'])
-		sfutil.load_annotations(self.PROJECT['annotations'])
+		# Load dataset
+		dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+
+		sfutil.update_annotations_with_slidenames(self.PROJECT['annotations'], dataset)
+		sfutil.load_annotations(self.PROJECT['annotations'], dataset)
 
 	def update_manifest(self, force_update=False):
 		'''Updates manifest file in the TFRecord directory, used to track number of records and verify annotations.
@@ -686,8 +698,10 @@ class SlideflowProject:
 			force_update	If True, will re-validate contents of all TFRecords. If False, will only validate
 								contents of TFRecords not yet in the manifest
 		'''
-		sfutil.update_tfrecord_manifest(directory=self.PROJECT['tfrecord_dir'], 
-										force_update=force_update)
+		tfrecords_folders = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets']).get_tfrecords_folders()
+		for tfr_folder in tfrecords_folders:
+			sfutil.update_tfrecord_manifest(directory=tfr_folder, 
+											force_update=force_update)
 
 	def load_project(self, directory):
 		'''Loads a saved and pre-configured project.'''
@@ -700,12 +714,15 @@ class SlideflowProject:
 		# Enable logging
 		log.logfile = sfutil.global_path("log.log")
 
+		# Load dataset for evaluation
+		dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+
 		# Load annotations
-		sfutil.load_annotations(self.PROJECT['annotations'], self.PROJECT['slides_dir'])
+		sfutil.load_annotations(self.PROJECT['annotations'], dataset)
 
 		if not SKIP_VERIFICATION:
 			log.header("Verifying Annotations...")
-			sfutil.verify_annotations_slides(slides_dir=self.PROJECT['slides_dir'])
+			sfutil.verify_annotations_slides(dataset)
 			log.header("Verifying TFRecord manifest...")
 			self.update_manifest()
 	
@@ -723,29 +740,67 @@ class SlideflowProject:
 		# General setup and slide configuration
 		project = {'root': sfutil.PROJECT_DIR}
 		project['name'] = input("What is the project name? ")
-		project['slides_dir'] = sfutil.dir_input("Where are the SVS slides stored? [./slides] ",
-									default='./slides', create_on_invalid=True)
-		project['roi_dir'] = sfutil.dir_input("Where are the ROI files (CSV) stored? [./slides] ",
-									default='./slides', create_on_invalid=True)
 		
 		# Ask for annotations file location; if one has not been made, offer to create a blank template and then exit
 		if not sfutil.yes_no_input("Has an annotations (CSV) file already been created? [y/N] ", default='no'):
 			if sfutil.yes_no_input("Create a blank annotations file? [Y/n] ", default='yes'):
 				project['annotations'] = sfutil.file_input("Where will the annotation file be located? [./annotations.csv] ", 
 									default='./annotations.csv', filetype="csv", verify=False)
-				self.create_blank_annotations_file(project['annotations'], project['slides_dir'])
+				self.create_blank_annotations_file(project['annotations'])
 		else:
 			project['annotations'] = sfutil.file_input("Where is the project annotations (CSV) file located? [./annotations.csv] ", 
 									default='./annotations.csv', filetype="csv")
 
-		# Slide tessellation
-		project['tiles_dir'] = sfutil.dir_input("Where will the tessellated image tiles be stored? (recommend SSD) [./tiles] ",
-									default='./tiles', create_on_invalid=True)
-		project['use_tfrecord'] = sfutil.yes_no_input("Store tiles in TFRecord format? (required for training) [Y/n] ", default='yes')
-		if project['use_tfrecord']:
-			project['delete_tiles'] = sfutil.yes_no_input("Should raw tile images be deleted after TFRecord storage? [Y/n] ", default='yes')
-			project['tfrecord_dir'] = sfutil.dir_input("Where should the TFRecord files be stored? (recommend HDD) [./tfrecord] ",
-									default='./tfrecord', create_on_invalid=True)
+		# Dataset configuration
+		project['dataset_config'] = sfutil.file_input("Where is the dataset configuration file located? [./datasets.json] ",
+													default='./datasets.json', filetype='json', verify=False)
+
+
+		project['datasets'] = []
+		while not project['datasets']:
+			datasets_data = sfutil.load_json(project['dataset_config'])
+			datasets_names = datasets_data.keys()
+			datasets_names.sort()
+
+			print(sfutil.bold("Detected datasets:"))
+			if not len(datasets_names):
+				print(" [None]")
+			else:
+				for i, name in enumerate(datasets_names):
+					print(f" {i+1}. {name}")
+				print(f" {len(datasets_names)}. ADD NEW")
+				dataset_selection = sfutil.choice_input(f"Which datasets should be used? (choose {len(datasets_names)} to add a new dataset) ", valid_choices=list(range(1, len(datasets_names+2))), multi_choice=True)
+
+			if not len(datasets_names) or len(datasets_names)+1 in dataset_selection:
+				# Create new dataset
+				dataset_name = input("What is the dataset name? ")
+				dataset_slides = sfutil.dir_input("Where are the SVS slides stored? [./slides] ",
+										default='./slides', create_on_invalid=True)
+				dataset_roi = sfutil.dir_input("Where are the ROI files (CSV) stored? [./slides] ",
+										default='./slides', create_on_invalid=True)
+				dataset_tiles = sfutil.dir_input("Where will the tessellated image tiles be stored? (recommend SSD) [./tiles] ",
+										default='./tiles', create_on_invalid=True)
+				dataset_tfrecords = sfutil.dir_input("Where should the TFRecord files be stored? (recommend HDD) [./tfrecord] ",
+										default='./tfrecord', create_on_invalid=True)
+				datasets_data.update({dataset_name: {
+					'slides': dataset_slides,
+					'roi': dataset_roi,
+					'tiles': dataset_tiles,
+					'tfrecords': dataset_tfrecords,
+					'label': NO_LABEL
+				}})
+				sfutil.write_json(datasets_data, project['dataset_config'])
+				print("Updated dataset configuration file.")
+			else:
+				try:
+					project['datasets'] = [datasets_names[int(j)-1] for j in dataset_selection]
+				except TypeError:
+					print('Invalid selection')
+					continue
+
+		# Other tessellation
+		project['delete_tiles'] = sfutil.yes_no_input("Should raw tile images be deleted after TFRecord storage? [Y/n] ", default='yes')
+
 		# Training
 		project['models_dir'] = sfutil.dir_input("Where should the saved models be stored? [./models] ",
 									default='./models', create_on_invalid=True)
