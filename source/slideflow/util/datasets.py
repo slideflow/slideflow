@@ -6,6 +6,7 @@ import sys
 from random import shuffle
 import argparse
 import slideflow.util as sfutil
+from glob import glob
 from slideflow.util import log
 
 def make_dir(_dir):
