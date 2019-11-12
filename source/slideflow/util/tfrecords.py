@@ -228,7 +228,7 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True):
 	else:
 		return list(split(patient_list, n))
 
-def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, validation_target, validation_strategy, 
+def get_training_and_validation_tfrecords(tfrecord_dir, validation_log, outcomes, model_type, validation_target, validation_strategy, 
 											validation_fraction, validation_k_fold=None, k_fold_iter=None):
 	'''From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
 	If a validation plan has already been prepared (e.g. K-fold iterations were already determined), the previously generated plan will be used.
@@ -332,7 +332,6 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 			training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in training_patients]).tolist()
 		else:
 			# Try to load validation plan
-			validation_log = join(tfrecord_dir, "validation_plans.json")
 			validation_plans = [] if not exists(validation_log) else sfutil.load_json(validation_log)
 			for plan in validation_plans:
 				# First, see if plan type is the same
