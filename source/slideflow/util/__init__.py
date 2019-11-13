@@ -340,6 +340,7 @@ def get_outcomes_from_annotations(headers, filters=None, filter_blank=[], use_fl
 	filtered_annotations = [a for a in ANNOTATIONS if a[TCGA.slide] in slides]
 	results = {}
 	headers = [headers] if type(headers) != list else headers
+	filter_blank = [filter_blank] if type(filter_blank) != list else filter_blank
 	for header in headers:
 		try:
 			filtered_outcomes = [a[header] for a in filtered_annotations]

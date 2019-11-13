@@ -25,7 +25,7 @@ from slideflow.util import TCGA, log
 from slideflow.util.datasets import Dataset
 from slideflow.mosaic import Mosaic
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
@@ -214,6 +214,7 @@ class SlideflowProject:
 		eval_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
 		# If using a specific k-fold, load validation plan
 		if eval_k_fold:
+			log.info(f"Using {sfutil.bold('k-fold iteration ' + str(eval_k_fold))}", 1)
 			validation_log = join(self.PROJECT['root'], "validation_plans.json")
 			_, eval_tfrecords = sfutil.tfrecords.get_training_and_validation_tfrecords(eval_dataset, validation_log, outcomes, model_type,
 																										validation_target=hp_data['validation_target'],
@@ -227,7 +228,7 @@ class SlideflowProject:
 
 		# Set up model for evaluation
 		SFM = self.initialize_model(f"eval-{model_name}", eval_dataset, None, None, outcomes, model_type=model_type)
-		log.info(f"Evaluating {sfutil.bold(len(SFM.SLIDES))} tfrecords", 1)
+		log.info(f"Evaluating {sfutil.bold(len(eval_tfrecords))} tfrecords", 1)
 		results = SFM.evaluate(tfrecords=eval_tfrecords, hp=hp, model=model_fullpath, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
 		print(results)
 		return results
@@ -457,9 +458,10 @@ class SlideflowProject:
 				del(SFM)
 				return
 
-		if multi_outcome:
-			# Load outcomes from annotations file
-			outcomes = sfutil.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=[outcome], use_float=(model_type == 'linear'))
+		def train_to_outcome(selected_outcome_headers):
+			outcomes = sfutil.get_outcomes_from_annotations(selected_outcome_headers, filters=filters, 
+																					  filter_blank=selected_outcome_headers,
+																					  use_float=(model_type == 'linear'))
 			print()
 
 			# Assembling list of models and hyperparameters from batch_train.tsv file
@@ -475,9 +477,9 @@ class SlideflowProject:
 				hp, hp_model_name = self._get_hp(row, header)
 				if hp_model_name not in hp_models_to_train: continue
 
-				# Add outcome category to model_name
-				model_name = f"{outcome}-{hp_model_name}"
-
+				# Generate model name
+				outcome_string = "-".join(selected_outcome_headers) if type(selected_outcome_headers) == list else selected_outcome_headers
+				model_name = f"{outcome_string}-{hp_model_name}"
 				model_iterations = [model_name] if not k_fold else [f"{model_name}-kfold{k+1}" for k in valid_k]
 
 				# Perform training
@@ -513,68 +515,17 @@ class SlideflowProject:
 				print(f" - {sfutil.green(model)}: Train_Acc={str(final_metrics['train_acc'])}, " +
 					f"Val_loss={final_metrics['val_loss']}, Val_Acc={final_metrics['val_acc']}" )
 
+		# If using multiple outcomes, initiate hyperparameter sweep
+		if multi_outcome:
+			train_to_outcome(outcome_header)
+
 		# If not training to multiple outcome, perform full hyperparameter sweep
-		#  for each outcome category specified
+		# for each outcome category specified
 		else:
-			for outcome in outcome_header:	
-				# Clear the multiprocessing dictionary (may contain results from old runs)
+			for out in outcome_header:
 				results_dict.clear()
-
-				# Load outcomes from annotations file
-				outcomes = sfutil.get_outcomes_from_annotations(outcome, filters=filters, filter_blank=[outcome], use_float=(model_type == 'linear'))
-				print()
-
-				# Assembling list of models and hyperparameters from batch_train.tsv file
-				batch_train_rows = []
-				with open(batch_train_file) as csv_file:
-					reader = csv.reader(csv_file, delimiter='\t')
-					header = next(reader)
-					for row in reader:
-						batch_train_rows += [row]
-					
-				for row in batch_train_rows:
-					# Read hyperparameters
-					hp, hp_model_name = self._get_hp(row, header)
-					if hp_model_name not in hp_models_to_train: continue
-
-					# Add outcome category to model_name
-					model_name = f"{outcome}-{hp_model_name}"
-
-					model_iterations = [model_name] if not k_fold else [f"{model_name}-kfold{k+1}" for k in valid_k]
-
-					# Perform training
-					if k_fold:
-						for k in valid_k:
-							if DEBUGGING:
-								trainer(results_dict, outcomes, model_name, hp, k+1)
-							else:
-								process = multiprocessing.Process(target=trainer, args=(results_dict, outcomes, model_name, hp, k+1))
-								process.start()
-								process.join()
-					else:
-						if DEBUGGING:
-							trainer(results_dict, outcomes, model_name, hp)
-						else:
-							process = multiprocessing.Process(target=trainer, args=(results_dict, outcomes, model_name, hp))
-							process.start()
-							process.join()
-
-					# Record results
-					for mi in model_iterations:
-						if mi not in results_dict:
-							log.error(f"Training failed for model {model_name} for an unknown reason")
-						else:
-							self._update_results_log(results_log_path, mi, results_dict[mi])
-					log.complete(f"Training complete for model {model_name}, results saved to {sfutil.green(results_log_path)}")
-				
-				# Print summary of all models
-				log.complete("Training complete; validation accuracies:", 0)
-				for model in results_dict:
-					last_epoch = max([int(e.split('epoch')[-1]) for e in results_dict[model].keys() if 'epoch' in e ])
-					final_metrics = results_dict[model][f'epoch{last_epoch}']
-					print(f" - {sfutil.green(model)}: Train_Acc={str(final_metrics['train_acc'])}, " +
-						f"Val_loss={final_metrics['val_loss']}, Val_Acc={final_metrics['val_acc']}" )
-
+				train_to_outcome(out)
+		
 	def generate_heatmaps(self, model_name, filters=None, resolution='medium'):
 		'''Creates predictive heatmap overlays on a set of slides. 
 
@@ -737,11 +688,6 @@ class SlideflowProject:
 			sfutil.verify_annotations_slides(dataset)
 			log.header("Verifying TFRecord manifest...")
 			self.update_manifest()
-	
-	def reload(self):
-		'''Reloads project configuration and annotations.'''
-		log.empty("Reloading project configuration and annotations...")
-		self.load_project(self.PROJECT['root'])
 
 	def save_project(self):
 		'''Saves current project configuration as "settings.json".'''
