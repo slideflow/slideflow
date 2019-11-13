@@ -192,10 +192,11 @@ class SlideflowProject:
 																				model_type=model_type)
 		return SFM
 
-	def evaluate(self, model, outcome_header, model_type='categorical', filters=None, checkpoint=None):
+	def evaluate(self, model_name, outcome_header, model_type='categorical', model_file="trained_model.h5", filters=None, checkpoint=None):
 		'''Evaluates a saved model on a given set of tfrecords.'''
 		log.header(f"Evaluating model {sfutil.bold(model)}...")
-		model_name = model.split('/')[-1]
+		model_root = join(self.PROJECT['models_dir'], model_name)
+		model_fullpath = join(model_root, model_file)
 
 		# Load dataset for evaluation
 		eval_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
@@ -204,12 +205,16 @@ class SlideflowProject:
 		# Filter out slides that are blank in the outcome category
 		filter_blank = [outcome_header] if type(outcome_header) != list else outcome_header
 
+		# Load hyperparameters from saved model
+		hp_file = join(model_root, 'hyperparameters.json')
+		hp = sfmodel.HyperParameters()
+		hp._load_dict(sfutil.load_json(hp_file)['hp'])
+
 		# Set up model for evaluation
 		outcomes = sfutil.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
-		SFM = self.initialize_model(f"eval-{model_name}", eval_dataset, None, None, outcomes, model_type=model_type)
+		SFM = self.initialize_model(f"eval-{model}", eval_dataset, None, None, outcomes, model_type=model_type)
 		log.info(f"Evaluating {sfutil.bold(len(SFM.SLIDES))} tfrecords", 1)
-		model_dir = join(self.PROJECT['models_dir'], model, "trained_model.h5") if model[-3:] != ".h5" else model
-		results = SFM.evaluate(tfrecords=tfrecords, hp=None, model=model_dir, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
+		results = SFM.evaluate(tfrecords=tfrecords, hp=hp, model=model_fullpath, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
 		print(results)
 		return results
 
@@ -403,28 +408,26 @@ class SlideflowProject:
 			SFM = self.initialize_model(full_model_name, training_dataset, training_tfrecords, validation_tfrecords, outcomes, model_type=model_type)
 
 			# Log model settings and hyperparameters
-			with open(os.path.join(self.PROJECT['models_dir'], full_model_name, 'hyperparameters.log'), 'w') as hp_file:
-				hp_text = f"Model name: {model_name}\n"
-				hp_text += f"Tile pixel size: {self.PROJECT['tile_px']}\n"
-				hp_text += f"Tile micron size: {self.PROJECT['tile_um']}\n"
-				hp_text += f"Model type: {model_type}\n"
-				hp_text += f"Dataset configuration: {self.PROJECT['dataset_config']}\n"
-				hp_text += f"Datasets used: {self.PROJECT['datasets']}\n"
-				hp_text += f"Annotations file: {self.PROJECT['annotations']}\n"
-				hp_text += f"Validation target: {validation_target}\n"
-				hp_text += f"Validation strategy: {validation_strategy}\n"
-				hp_text += f"Validation fraction: {validation_fraction}\n"
-				if validation_strategy == 'k-fold':
-					hp_text += f"Validation k-fold: {validation_k_fold}\n"
-					hp_text += f"Validation k-fold iteration: {k_fold_i}\n"
-				hp_text += f"Filters:\n"
-				if filters:
-					for filter_name in filters:
-						f_vals = ", ".join(filters[filter_name])
-						hp_text += f"   {filter_name}: {f_vals}\n"
-				else:
-					hp_text += "No filters\n"
-				hp_text += str(hp)
+			hp_file = join(self.PROJECT['models_dir'], full_model_name, 'hyperparameters.json')
+			hp_data = {
+				"model_name": model_name,
+				"tile_px": self.PROJECT['tile_px'],
+				"tile_um": self.PROJECT['tile_um'],
+				"model_type": model_type,
+				"dataset_config": self.PROJECT['dataset_config'],
+				"datasets": self.PROJECT['datasets'],
+				"annotations": self.PROJECT['annotations'],
+				"validation_target": validation_target,
+				"validation_strategy": validation_strategy,
+				"validation_fraction": validation_fraction,
+				"validation_k_fold": validation_k_fold,
+				"k_fold_i": k_fold_i,
+				"filters": filters,
+				"hp": hp._get_dict()
+			}
+			sfutil.write_json(hp_data, hp_file)
+
+			with open(, 'w') as hp_file:
 				for s in sfutil.FORMATTING_OPTIONS:
 					hp_text = hp_text.replace(s, "")
 				hp_file.write(hp_text)
