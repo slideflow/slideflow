@@ -203,6 +203,9 @@ class SlideflowProject:
 		hp_data = sfutil.load_json(hp_file)
 		hp = sfmodel.HyperParameters()
 		hp._load_dict(hp_data['hp'])
+		
+		# Filter out slides that are blank in the outcome category
+		filter_blank = [outcome_header] if type(outcome_header) != list else outcome_header
 
 		# Load annotations / outcomes
 		outcomes = sfutil.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
@@ -221,9 +224,6 @@ class SlideflowProject:
 		# Otherwise use all TFRecords
 		else:
 			eval_tfrecords = eval_dataset.get_tfrecords(ask_to_merge_subdirs=True)
-
-		# Filter out slides that are blank in the outcome category
-		filter_blank = [outcome_header] if type(outcome_header) != list else outcome_header
 
 		# Set up model for evaluation
 		SFM = self.initialize_model(f"eval-{model_name}", eval_dataset, None, None, outcomes, model_type=model_type)
