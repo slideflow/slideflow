@@ -80,7 +80,7 @@ class SlideflowProject:
 		log.header("Loading project...")
 		if project_folder and not os.path.exists(project_folder):
 			if sfutil.yes_no_input(f'Directory "{project_folder}" does not exist. Create directory and set as project root? [Y/n] ', default='yes'):
-				os.mkdir(project_folder)
+				os.makedirs(project_folder)
 			else:
 				project_folder = sfutil.dir_input("Where is the project root directory? ", create_on_invalid=True, absolute=True)
 		if not project_folder:

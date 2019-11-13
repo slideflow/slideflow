@@ -181,7 +181,7 @@ def dir_input(prompt, default=None, create_on_invalid=False, absolute=False):
 			response = global_path(default)
 		if not os.path.exists(response) and create_on_invalid:
 			if yes_no_input(f'Directory "{response}" does not exist. Create directory? [Y/n] ', default='yes'):
-				os.mkdir(response)
+				os.makedirs(response)
 				return response
 			else:
 				continue
