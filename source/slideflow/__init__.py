@@ -194,7 +194,7 @@ class SlideflowProject:
 
 	def evaluate(self, model_name, outcome_header, model_type='categorical', model_file="trained_model.h5", filters=None, checkpoint=None):
 		'''Evaluates a saved model on a given set of tfrecords.'''
-		log.header(f"Evaluating model {sfutil.bold(model)}...")
+		log.header(f"Evaluating model {sfutil.bold(model_name)}...")
 		model_root = join(self.PROJECT['models_dir'], model_name)
 		model_fullpath = join(model_root, model_file)
 
@@ -212,7 +212,7 @@ class SlideflowProject:
 
 		# Set up model for evaluation
 		outcomes = sfutil.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
-		SFM = self.initialize_model(f"eval-{model}", eval_dataset, None, None, outcomes, model_type=model_type)
+		SFM = self.initialize_model(f"eval-{model_name}", eval_dataset, None, None, outcomes, model_type=model_type)
 		log.info(f"Evaluating {sfutil.bold(len(SFM.SLIDES))} tfrecords", 1)
 		results = SFM.evaluate(tfrecords=tfrecords, hp=hp, model=model_fullpath, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
 		print(results)
