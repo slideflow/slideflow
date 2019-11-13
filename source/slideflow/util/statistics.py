@@ -120,20 +120,20 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		y_true = np.array([to_onehot(i) for i in y_true])
 
 		# Create dictionary mapping slides to one_hot category encoding
-		slide_onehot = {}
-		patient_onehot = {}
+		y_true_slide = {}
+		y_true_patient = {}
 		for i in range(len(tile_to_slides)):
 			slidename = tile_to_slides[i]
 			patient = annotations[slidename][sfutil.TCGA.patient]
-			if slidename not in slide_onehot:
-				slide_onehot.update({slidename: y_true[i]})
+			if slidename not in y_true_slide:
+				y_true_slide.update({slidename: y_true[i]})
 			# Now check for data integrity problems (slide assigned to multiple different outcomes)
-			elif not np.array_equal(slide_onehot[slidename], y_true[i]):
+			elif not np.array_equal(y_true_slide[slidename], y_true[i]):
 				log.error("Data integrity failure when generating ROCs; slide assigned to multiple different one-hot outcomes", 1)
 				sys.exit()
-			if patient not in patient_onehot:
-				patient_onehot.update({patient: y_true[i]})
-			elif not np.array_equal(patient_onehot[patient], y_true[i]):
+			if patient not in y_true_patient:
+				y_true_patient.update({patient: y_true[i]})
+			elif not np.array_equal(y_true_patient[patient], y_true[i]):
 				log.error("Data integrity failure when generating ROCs; patient assigned to multiple slides with different outcomes", 1)
 				sys.exit()
 
@@ -172,7 +172,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 
 		for i in range(num_cat):
 			slide_y_pred = percent_calls_by_slide[:, i]
-			slide_y_true = [slide_onehot[slide][i] for slide in unique_slides]
+			slide_y_true = [y_true_slide[slide][i] for slide in unique_slides]
 			auc = generate_roc(slide_y_true, slide_y_pred, data_dir, f'{label_start}slide_ROC{i}')
 			slide_auc += [auc]
 			log.info(f"Slide-level AUC (cat #{i}): {auc}", 1)
@@ -184,8 +184,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 			header = ['slide'] + [f"y_true{i}" for i in range(num_cat)] + [f"percent_tiles_positive{j}" for j in range(num_cat)]
 			writer.writerow(header)
 			for i, slide in enumerate(unique_slides):
-				slide_y_true_onehot = slide_onehot[slide]
-				row = np.concatenate([ [slide], slide_y_true_onehot, percent_calls_by_slide[i] ])
+				row = np.concatenate([ [slide], y_true_slide[slide], percent_calls_by_slide[i] ])
 				writer.writerow(row)
 
 		# Generate patient-level ROC
@@ -201,7 +200,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 
 		for i in range(num_cat):
 			patient_y_pred = percent_calls_by_patient[:, i]
-			patient_y_true = [patient_onehot[patient][i] for patient in patients]
+			patient_y_true = [y_true_patient[patient][i] for patient in patients]
 			auc = generate_roc(patient_y_true, patient_y_pred, data_dir, f'{label_start}patient_ROC{i}')
 			patient_auc += [auc]
 			log.info(f"Patient-level AUC (cat #{i}): {auc}", 1)
@@ -213,8 +212,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 			header = ['patient'] + [f"y_true{i}" for i in range(num_cat)] + [f"percent_tiles_positive{j}" for j in range(num_cat)]
 			writer.writerow(header)
 			for i, patient in enumerate(patients):
-				patient_y_true_onehot = patient_onehot[patient]
-				row = np.concatenate([ [patient], patient_y_true_onehot, percent_calls_by_patient[i] ])
+				row = np.concatenate([ [patient], y_true_patient[patient], percent_calls_by_patient[i] ])
 				writer.writerow(row)
 	
 	# Save tile-level predictions
