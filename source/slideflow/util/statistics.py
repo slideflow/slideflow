@@ -224,7 +224,10 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		header = ['slide'] + [f"y_true{i}" for i in range(num_cat)] + [f"y_pred{j}" for j in range(num_cat)]
 		writer.writerow(header)
 		for i in range(len(y_true)):
-			row = np.concatenate([[tile_to_slides[i]], [str(y_true[i])], [str(y_pred[i])]])
+			y_true_str_list = [str(yti) for yti in y_true[i]]
+			y_pred_str_list = [str(ypi) for ypi in y_pred[i]]
+			#row = np.concatenate([[tile_to_slides[i]], [str(y_true[i])], [str(y_pred[i])]])
+			row = np.concatenate([[tile_to_slides[i]], y_true_str_list, y_pred_str_list])
 			writer.writerow(row)
 
 	log.complete(f"Predictions saved to {sfutil.green(data_dir)}", 1)
