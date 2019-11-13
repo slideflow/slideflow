@@ -427,11 +427,6 @@ class SlideflowProject:
 			}
 			sfutil.write_json(hp_data, hp_file)
 
-			with open(, 'w') as hp_file:
-				for s in sfutil.FORMATTING_OPTIONS:
-					hp_text = hp_text.replace(s, "")
-				hp_file.write(hp_text)
-
 			# Execute training
 			try:
 				results = SFM.train(hp, pretrain=pretrain, 
