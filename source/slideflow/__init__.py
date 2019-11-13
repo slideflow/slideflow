@@ -192,29 +192,43 @@ class SlideflowProject:
 																				model_type=model_type)
 		return SFM
 
-	def evaluate(self, model_name, outcome_header, model_type='categorical', model_file="trained_model.h5", filters=None, checkpoint=None):
+	def evaluate(self, model_name, outcome_header, model_type='categorical', model_file="trained_model.h5", filters=None, checkpoint=None, eval_k_fold=None):
 		'''Evaluates a saved model on a given set of tfrecords.'''
 		log.header(f"Evaluating model {sfutil.bold(model_name)}...")
 		model_root = join(self.PROJECT['models_dir'], model_name)
 		model_fullpath = join(model_root, model_file)
 
+		# Load hyperparameters from saved model
+		hp_file = join(model_root, 'hyperparameters.json')
+		hp_data = sfutil.load_json(hp_file)
+		hp = sfmodel.HyperParameters()
+		hp._load_dict(hp_data['hp'])
+
+		# Load annotations / outcomes
+		outcomes = sfutil.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
+
 		# Load dataset for evaluation
 		eval_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
-		tfrecords = eval_dataset.get_tfrecords(ask_to_merge_subdirs=True)
+		# If using a specific k-fold, load validation plan
+		if eval_k_fold:
+			validation_log = join(self.PROJECT['root'], "validation_plans.json")
+			_, eval_tfrecords = sfutil.tfrecords.get_training_and_validation_tfrecords(eval_dataset, validation_log, outcomes, model_type,
+																										validation_target=hp_data['validation_target'],
+																										validation_strategy=hp_data['validation_strategy'],
+																										validation_fraction=hp_data['validation_fraction'],
+																										validation_k_fold=hp_data['validation_k_fold'],
+																										k_fold_iter=eval_k_fold)
+		# Otherwise use all TFRecords
+		else:
+			eval_tfrecords = eval_dataset.get_tfrecords(ask_to_merge_subdirs=True)
 
 		# Filter out slides that are blank in the outcome category
 		filter_blank = [outcome_header] if type(outcome_header) != list else outcome_header
 
-		# Load hyperparameters from saved model
-		hp_file = join(model_root, 'hyperparameters.json')
-		hp = sfmodel.HyperParameters()
-		hp._load_dict(sfutil.load_json(hp_file)['hp'])
-
 		# Set up model for evaluation
-		outcomes = sfutil.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
 		SFM = self.initialize_model(f"eval-{model_name}", eval_dataset, None, None, outcomes, model_type=model_type)
 		log.info(f"Evaluating {sfutil.bold(len(SFM.SLIDES))} tfrecords", 1)
-		results = SFM.evaluate(tfrecords=tfrecords, hp=hp, model=model_fullpath, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
+		results = SFM.evaluate(tfrecords=eval_tfrecords, hp=hp, model=model_fullpath, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
 		print(results)
 		return results
 
