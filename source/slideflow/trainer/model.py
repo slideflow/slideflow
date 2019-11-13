@@ -132,6 +132,13 @@ class HyperParameters:
 			d.update({arg: getattr(self, arg)})
 		return d
 
+	def _load_dict(self, hp_dict):
+		for key, value in hp_dict.items():
+			try:
+				setattr(self, key, value)
+			except:
+				log.error(f"Unrecognized hyperparameter {key}; unable to load")
+
 	def __str__(self):
 		output = "Hyperparameters:\n"
 			
