@@ -550,7 +550,7 @@ class SlideflowProject:
 
 		# Load dataset for evaluation
 		heatmaps_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
-		unfiltered_slide_list = heatmaps_dataset.get_slides_paths()
+		unfiltered_slide_list = heatmaps_dataset.get_slide_paths()
 		slide_list = sfutil.filter_slide_paths(unfiltered_slide_list, filters=filters)
 		roi_list = heatmaps_dataset.get_rois()
 		heatmaps_folder = os.path.join(self.PROJECT['root'], 'heatmaps')
