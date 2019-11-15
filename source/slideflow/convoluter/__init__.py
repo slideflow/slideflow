@@ -54,6 +54,7 @@ Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 4
 DEFAULT_JPG_MPP = 0.5
 SKIP_MISSING_ROI = True
+SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif']
 
 # BatchNormFix
 tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
@@ -96,8 +97,8 @@ class JPGSlide:
 		#return cv2.resize(self.loaded_image, dsize=dimensions, interpolation=cv2.INTER_CUBIC)
 
 	def read_region(self, topleft, level, window):
-		# Arg "level" required for code compatibility with SVS reader but is not used
-		# Window = [y, x] pixels (note: this is reverse compared to SVS files in [x,y] format)
+		# Arg "level" required for code compatibility with slide reader but is not used
+		# Window = [y, x] pixels (note: this is reverse compared to slide/SVS files in [x,y] format)
 
 		return self.loaded_image.crop([topleft[0], topleft[1], topleft[0]+window[0], topleft[1]+window[1]])
 
@@ -122,19 +123,17 @@ class SlideReader:
 		self.size_px = size_px
 		self.tiles_path = None if not export_folder else join(self.export_folder, self.name) # previously self.shortname
 
-		# Initiate SVS or JPG slide reader
-		if filetype == "svs":
+		# Initiate supported slide (SVS, TIF) or JPG slide reader
+		if filetype.lower() in SUPPORTED_FORMATS:
 			try:
 				self.slide = ops.OpenSlide(path)
 			except ops.lowlevel.OpenSlideUnsupportedFormatError:
-				log.warn(f" Unable to read SVS file from {path} , skipping", 1, self.print)
+				log.warn(f" Unable to read slide from {path} , skipping", 1, self.print)
 				self.shape = None
 				self.load_error = True
 				return
 		elif filetype == "jpg":
 			self.slide = JPGSlide(path, mpp=DEFAULT_JPG_MPP)
-		elif filetype == "tiff":
-			self.slide = ops.OpenSlide(path)
 		else:
 			log.error(f"Unsupported file type '{filetype}' for slide {self.name}.", 1, self.print)
 			self.load_error = True
@@ -143,7 +142,7 @@ class SlideReader:
 		# Load ROI from roi_dir if available
 		if roi_dir and exists(join(roi_dir, self.name + ".csv")):
 			num_rois = self.load_csv_roi(join(roi_dir, self.name + ".csv"))
-		# Else try loading ROI from same folder as SVS
+		# Else try loading ROI from same folder as slide
 		elif exists(sfutil.path_to_name(path) + ".csv"):
 			num_rois = self.load_csv_roi(sfutil.path_to_name(path) + ".csv")
 		elif roi_list and self.name in [sfutil.path_to_name(r) for r in roi_list]:
