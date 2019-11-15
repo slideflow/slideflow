@@ -52,13 +52,12 @@ def gen_umap(array):
 #    return normalize_layout(layout)
 
 class Mosaic:
-	SVS = None
+	FOCUS_SLIDE = None
 	BATCH_SIZE = 16
 	SLIDES = {}
 	GRID = []
 	stride_div = 1
 	ax_thumbnail = None
-	svs_background = None
 	metadata, points, tiles = [], [], []
 	tfrecord_paths = []
 	tile_point_distances = []
@@ -97,8 +96,8 @@ class Mosaic:
 		self.ax.set_xticklabels([])
 		self.ax.set_yticklabels([])
 
-	def load_slides(self, slides_array, category="None"):
-		log.info(f"Loading SVS slides ...", 1)
+'''	def load_slides(self, slides_array, category="None"):
+		log.info(f"Loading slides ...", 1)
 		for slide in slides_array:
 			name = sfutil.path_to_name(slide)
 			filetype = sfutil.path_to_ext(slide)
@@ -139,7 +138,7 @@ class Mosaic:
 										"tile_extr_px": int(self.tile_um / MPP),
 										"tile_size": int(self.tile_um / MPP) * thumb_ratio,
 										'coords':coords} })
-			self.SVS = name
+			self.FOCUS_SLIDE = name'''
 
 	def generate_final_layer_from_tfrecords(self, tfrecord_array, model, image_size):
 		log.info(f"Calculating final layer weights from model {sfutil.green(model)}", 1)
@@ -340,68 +339,6 @@ class Mosaic:
 			grid_tile['neighbors'] = []
 			grid_tile['paired_point'] = None
 
-	'''def generate_hover_events(self):
-		def hover(event):
-			# Check if mouse hovering over scatter plot
-			prior_tile = None
-			empty = True
-			if self.ax.contains(event)[0]:
-				for tile in self.GRID:
-					if tile['rectangle'].contains(event)[0]:
-						if prior_tile == tile: return
-						if prior_tile:
-							prior_tile['active'] = False
-						tile['active'] = True
-						prior_tile = tile
-						empty = False
-
-						if self.svs_background: self.fig.canvas.restore_region(self.svs_background)
-						for index in tile['points']:
-							point = self.points[index]
-							slide = point['slide']
-							if slide in self.SLIDES:
-								slide = self.SLIDES[slide]
-								size = slide['tile_size']
-								origin_x, origin_y = slide['coords'][point['tile_num']]
-								origin_x *= slide['ratio']
-								origin_y *= slide['ratio']
-								tile_outline = Rectangle((origin_x,# - size/2, 
-														origin_y),# - size/2), 
-														size, 
-														size, 
-														fill=None, alpha=1, color='green',
-														zorder=100)
-								self.ax_thumbnail.add_artist(tile_outline)
-								self.ax_thumbnail.draw_artist(tile_outline)
-						self.fig.canvas.blit(self.ax_thumbnail.bbox)
-						return
-			if not empty:
-				self.fig.canvas.restore_region(self.svs_background)
-				self.fig.canvas.blit(self.ax_thumbnail.bbox)
-				empty = True
-				
-		def resize(event):
-			#for rect in list(self.rectangles):
-			#	self.rectangles[rect].remove()
-			self.fig.canvas.restore_region(self.svs_background)
-			self.fig.canvas.draw()
-			self.svs_background = self.fig.canvas.copy_from_bbox(self.ax_thumbnail.bbox)
-
-		self.fig.canvas.mpl_connect('motion_notify_event', hover)
-		self.fig.canvas.mpl_connect('resize_event', resize)'''
-
-	'''def draw_slides(self):
-		log.info("Drawing slides...", 1)
-		self.ax_thumbnail = self.fig.add_subplot(122)
-		self.ax_thumbnail.set_xticklabels([])
-		self.ax_thumbnail.set_yticklabels([])
-		name = list(self.SLIDES)[0]
-		self.ax_thumbnail.imshow(self.SLIDES[name]['thumb'])
-		self.fig.canvas.draw()
-		self.svs_background = self.fig.canvas.copy_from_bbox(self.ax_thumbnail.bbox)
-		self.SLIDES[name]['plot'] = self.ax_thumbnail
-		#self.highlight_slide_on_mosaic(name)'''
-
 	def calculate_distances(self):
 		log.empty("Calculating tile-point distances...", 1)
 		pb = progress_bar.ProgressBar()
@@ -451,15 +388,15 @@ class Mosaic:
 				#tile_image = point['image_data']
 				_, tile_image = tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tile_index'])
 				tile_alpha, num_slide, num_other = 1, 0, 0
-				if self.SVS and len(tile['points']):
+				if self.FOCUS_SLIDE and len(tile['points']):
 					for point_index in tile['points']:
 						point = self.points[point_index]
-						if point['slide'] == self.SVS:
+						if point['slide'] == self.FOCUS_SLIDE:
 							num_slide += 1
 						else:
 							num_other += 1
-					fraction_svs = num_slide / (num_other + num_slide)
-					tile_alpha = fraction_svs
+					fraction_slide = num_slide / (num_other + num_slide)
+					tile_alpha = fraction_slide
 				if not self.export:
 					tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
 				image = self.ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-tile['size']/2, 
