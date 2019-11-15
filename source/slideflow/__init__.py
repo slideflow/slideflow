@@ -737,7 +737,7 @@ class SlideflowProject:
 				# Create new dataset
 				print(f"{sfutil.bold('Creating new dataset')}")
 				dataset_name = input("What is the dataset name? ")
-				dataset_slides = sfutil.dir_input("Where are the SVS slides stored? [./slides] ",
+				dataset_slides = sfutil.dir_input("Where are the slides stored? [./slides] ",
 										default='./slides', create_on_invalid=True)
 				dataset_roi = sfutil.dir_input("Where are the ROI files (CSV) stored? [./slides] ",
 										default='./slides', create_on_invalid=True)
