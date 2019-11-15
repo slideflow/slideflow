@@ -240,7 +240,7 @@ class SlideflowModel:
 		if self.MODEL_TYPE == 'linear':
 			label = [self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(self.NUM_CLASSES)]
 		else:
-			label = self.ANNOTATIONS_TABLES.lookup(slide)
+			label = self.ANNOTATIONS_TABLES[0].lookup(slide)
 		image_string = features['image_raw']
 		image = self._process_image(image_string, self.AUGMENT)
 		return image, label, slide
