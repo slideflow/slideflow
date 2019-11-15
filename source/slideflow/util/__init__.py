@@ -11,6 +11,8 @@ import datetime, time
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
+from slideflow.convoluter import SUPPORTED_FORMATS
+
 # Enable color sequences on Windows
 try:
 	import ctypes
@@ -153,7 +155,7 @@ class TCGA:
 
 def _shortname(string):
 	if len(string) == 60:
-		# May be TCGA SVS file with long name; convert to patient name by returning first 12 characters
+		# May be TCGA slide with long name; convert to patient name by returning first 12 characters
 		return string[:12]
 	else:
 		return string
@@ -261,18 +263,15 @@ def _parse_function(example_proto):
 
 def get_slide_paths(slides_dir):
 	num_dir = len(slides_dir.split('/'))
-	slide_list = [i for i in glob(join(slides_dir, '**/*.svs'))
+	slide_list = [i for i in glob(join(slides_dir, '**/*.jpg'))
 					if i.split('/')[num_dir] != 'thumbs']
+	
+	for filetype in SUPPORTED_FORMATS:
+		slide_list.extend( [i for i in glob(join(slides_dir, f'**/*.{filetype}'))
+							if i.split('/')[num_dir] != 'thumbs'] )
 
-	slide_list.extend( [i for i in glob(join(slides_dir, '**/*.jpg'))
-						if i.split('/')[num_dir] != 'thumbs'] )
+		slide_list.extend(glob(join(slides_dir, f'*.{filetype}')))
 
-	slide_list.extend( [i for i in glob(join(slides_dir, '**/*.tiff'))
-						if i.split('/')[num_dir] != 'thumbs'] )
-
-	slide_list.extend(glob(join(slides_dir, '*.svs')))
-	slide_list.extend(glob(join(slides_dir, '*.jpg')))
-	slide_list.extend(glob(join(slides_dir, '*.tiff')))
 	return slide_list
 
 def filter_slide_paths(slide_list, filters, filter_blank=[]):
