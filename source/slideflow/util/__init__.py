@@ -11,8 +11,6 @@ import datetime, time
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
-from slideflow.convoluter import SUPPORTED_FORMATS
-
 # Enable color sequences on Windows
 try:
 	import ctypes
@@ -24,6 +22,7 @@ except:
 
 PROJECT_DIR = None
 ANNOTATIONS = []
+SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif']
 
 HEADER = '\033[95m'
 BLUE = '\033[94m'
@@ -288,6 +287,7 @@ def get_slides_from_annotations(filters=None, filter_blank=[]):
 	'''Returns a list of slide names from the annotations file using a given set of filters.'''
 	global ANNOTATIONS
 	result = []
+	filter_blank = [filter_blank] if type(filter_blank) != list else filter_blank
 	if not len(ANNOTATIONS):
 		log.error("No annotations loaded; is the annotations file empty?")
 	for ann in ANNOTATIONS:
