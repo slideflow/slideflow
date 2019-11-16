@@ -54,7 +54,6 @@ Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 4
 DEFAULT_JPG_MPP = 0.5
 SKIP_MISSING_ROI = True
-SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif']
 
 # BatchNormFix
 tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
@@ -124,7 +123,7 @@ class SlideReader:
 		self.tiles_path = None if not export_folder else join(self.export_folder, self.name) # previously self.shortname
 
 		# Initiate supported slide (SVS, TIF) or JPG slide reader
-		if filetype.lower() in SUPPORTED_FORMATS:
+		if filetype.lower() in sfutil.SUPPORTED_FORMATS:
 			try:
 				self.slide = ops.OpenSlide(path)
 			except ops.lowlevel.OpenSlideUnsupportedFormatError:
