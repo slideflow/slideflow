@@ -96,7 +96,7 @@ class Mosaic:
 		self.ax.set_xticklabels([])
 		self.ax.set_yticklabels([])
 
-'''	def load_slides(self, slides_array, category="None"):
+	'''	def load_slides(self, slides_array, category="None"):
 		log.info(f"Loading slides ...", 1)
 		for slide in slides_array:
 			name = sfutil.path_to_name(slide)
