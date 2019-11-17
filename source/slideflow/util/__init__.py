@@ -98,14 +98,14 @@ class Logger:
 	def warn(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES_WARN[l]}[{warn('WARN')}] {text}"
-		if print_func and l <= LOGGING_LEVEL.WARN and not LOGGING_LEVEL.SILENT:
+		if print_func and l <= LOGGING_LEVEL.WARN:
 			print_func(message)
 		self.log(message)
 		return message
 	def error(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES_WARN[l]}[{fail('ERROR')}] {text}"
-		if print_func and l <= LOGGING_LEVEL.ERROR and not LOGGING_LEVEL.SILENT:
+		if print_func and l <= LOGGING_LEVEL.ERROR:
 			print_func(message)
 		self.log(message)
 		return message
