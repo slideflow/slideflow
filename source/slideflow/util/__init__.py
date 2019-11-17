@@ -22,6 +22,7 @@ except:
 
 PROJECT_DIR = None
 ANNOTATIONS = []
+SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif']
 
 HEADER = '\033[95m'
 BLUE = '\033[94m'
@@ -81,6 +82,7 @@ class LOGGING_LEVEL:
 	WARN = 3
 	ERROR = 3
 	COMPLETE = 3
+	SILENT = False
 
 class Logger:
 	logfile = None
@@ -89,49 +91,49 @@ class Logger:
 	def info(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{info('INFO')}] {text}"
-		if print_func and l <= LOGGING_LEVEL.INFO:
+		if print_func and l <= LOGGING_LEVEL.INFO and not LOGGING_LEVEL.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def warn(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES_WARN[l]}[{warn('WARN')}] {text}"
-		if print_func and l <= LOGGING_LEVEL.WARN:
+		if print_func and l <= LOGGING_LEVEL.WARN and not LOGGING_LEVEL.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def error(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES_WARN[l]}[{fail('ERROR')}] {text}"
-		if print_func and l <= LOGGING_LEVEL.ERROR:
+		if print_func and l <= LOGGING_LEVEL.ERROR and not LOGGING_LEVEL.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def complete(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{header('Complete')}] {text}"
-		if print_func and l <= LOGGING_LEVEL.COMPLETE:
+		if print_func and l <= LOGGING_LEVEL.COMPLETE and not LOGGING_LEVEL.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def label(self, label, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{green(label)}] {text}"
-		if print_func and l <= LOGGING_LEVEL.INFO:
+		if print_func and l <= LOGGING_LEVEL.INFO and not LOGGING_LEVEL.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def empty(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}{text}"
-		if print_func and l <= LOGGING_LEVEL.INFO:
+		if print_func and l <= LOGGING_LEVEL.INFO and not LOGGING_LEVEL.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def header(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"\n{LOGGING_PREFIXES_EMPTY[l]}{bold(text)}"
-		if print_func:
+		if print_func and not LOGGING_LEVEL.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
@@ -153,7 +155,7 @@ class TCGA:
 
 def _shortname(string):
 	if len(string) == 60:
-		# May be TCGA SVS file with long name; convert to patient name by returning first 12 characters
+		# May be TCGA slide with long name; convert to patient name by returning first 12 characters
 		return string[:12]
 	else:
 		return string
@@ -181,7 +183,7 @@ def dir_input(prompt, default=None, create_on_invalid=False, absolute=False):
 			response = global_path(default)
 		if not os.path.exists(response) and create_on_invalid:
 			if yes_no_input(f'Directory "{response}" does not exist. Create directory? [Y/n] ', default='yes'):
-				os.mkdir(response)
+				os.makedirs(response)
 				return response
 			else:
 				continue
@@ -230,14 +232,20 @@ def float_input(prompt, default=None, valid_range=None):
 			print(f"Please supply a valid numer in the range {valid_range[0]} to {valid_range[1]}")
 		return float_response
 
-def choice_input(prompt, valid_choices, default=None):
+def choice_input(prompt, valid_choices, default=None, multi_choice=False):
 	while True:
 		response = input(f"{prompt}")
 		if not response and default:
 			return default
-		if response not in valid_choices:
+		if not multi_choice and response not in valid_choices:
 			print("Invalid option.")
 			continue
+		elif multi_choice:
+			response = response.replace(" ", "").split(',')
+			invalid = [r not in valid_choices for r in response]
+			if any(invalid):
+				print(f'Invalid selection (response: {response})')
+				continue
 		return response
 
 def load_json(filename):
@@ -255,36 +263,32 @@ def _parse_function(example_proto):
 
 def get_slide_paths(slides_dir):
 	num_dir = len(slides_dir.split('/'))
-	slide_list = [i for i in glob(join(slides_dir, '**/*.svs'))
+	slide_list = [i for i in glob(join(slides_dir, '**/*.jpg'))
 					if i.split('/')[num_dir] != 'thumbs']
+	
+	for filetype in SUPPORTED_FORMATS:
+		slide_list.extend( [i for i in glob(join(slides_dir, f'**/*.{filetype}'))
+							if i.split('/')[num_dir] != 'thumbs'] )
 
-	slide_list.extend( [i for i in glob(join(slides_dir, '**/*.jpg'))
-						if i.split('/')[num_dir] != 'thumbs'] )
+		slide_list.extend(glob(join(slides_dir, f'*.{filetype}')))
 
-	slide_list.extend( [i for i in glob(join(slides_dir, '**/*.tiff'))
-						if i.split('/')[num_dir] != 'thumbs'] )
-
-	slide_list.extend(glob(join(slides_dir, '*.svs')))
-	slide_list.extend(glob(join(slides_dir, '*.jpg')))
-	slide_list.extend(glob(join(slides_dir, '*.tiff')))
 	return slide_list
 
-def get_filtered_slide_paths(slides_dir, filters, filter_blank=[]):
-	slide_list = get_slide_paths(slides_dir)
+def filter_slide_paths(slide_list, filters, filter_blank=[]):
 	filtered_slide_names = get_slides_from_annotations(filters=filters, filter_blank=filter_blank)
 	filtered_slide_list = [slide for slide in slide_list if path_to_name(slide) in filtered_slide_names]
 	return filtered_slide_list
 
-def get_filtered_tfrecords_paths(tfrecords_dir, filters, filter_blank=[]):
-	tfrecord_list = glob(join(tfrecords_dir, "*.tfrecords"))
+def filter_tfrecords_paths(tfrecords_list, filters, filter_blank=[]):
 	filtered_slide_names = get_slides_from_annotations(filters=filters, filter_blank=filter_blank)
-	filtered_tfrecord_list = [tfrecord for tfrecord in tfrecord_list if tfrecord.split('/')[-1][:-10] in filtered_slide_names]
-	return filtered_tfrecord_list
+	filtered_tfrecords_list = [tfrecord for tfrecord in tfrecords_list if tfrecord.split('/')[-1][:-10] in filtered_slide_names]
+	return filtered_tfrecords_list
 
 def get_slides_from_annotations(filters=None, filter_blank=[]):
 	'''Returns a list of slide names from the annotations file using a given set of filters.'''
 	global ANNOTATIONS
 	result = []
+	filter_blank = [filter_blank] if type(filter_blank) != list else filter_blank
 	if not len(ANNOTATIONS):
 		log.error("No annotations loaded; is the annotations file empty?")
 	for ann in ANNOTATIONS:
@@ -336,6 +340,7 @@ def get_outcomes_from_annotations(headers, filters=None, filter_blank=[], use_fl
 	filtered_annotations = [a for a in ANNOTATIONS if a[TCGA.slide] in slides]
 	results = {}
 	headers = [headers] if type(headers) != list else headers
+	filter_blank = [filter_blank] if type(filter_blank) != list else filter_blank
 	for header in headers:
 		try:
 			filtered_outcomes = [a[header] for a in filtered_annotations]
@@ -389,10 +394,10 @@ def get_outcomes_from_annotations(headers, filters=None, filter_blank=[], use_fl
 					results[slide][TCGA.patient] = patient
 	return results
 
-def update_annotations_with_slidenames(annotations_file, slides_dir):
+def update_annotations_with_slidenames(annotations_file, dataset):
 	'''Attempts to automatically associate slide names from a directory with patients in a given annotations file.'''
 	header, _ = read_annotations(annotations_file)
-	slide_list = get_slide_paths(slides_dir)
+	slide_list = dataset.get_slide_paths()
 
 	# First, load all patient names from the annotations file
 	try:
@@ -506,7 +511,7 @@ def read_annotations(annotations_file):
 			results += [row_dict]
 	return header, results
 			
-def load_annotations(annotations_file, slides_dir=None):
+def load_annotations(annotations_file, dataset):
 	global ANNOTATIONS
 	# Verify annotations file exists
 	if not os.path.exists(annotations_file):
@@ -532,16 +537,16 @@ def load_annotations(annotations_file, slides_dir=None):
 		slide_index = header.index(TCGA.slide)
 	except:
 		log.error(f"Header column '{TCGA.slide}' not found.", 1)
-		if slides_dir and yes_no_input('\nSearch slides directory and automatically associate patients with slides? [Y/n] ', default='yes'):
-			update_annotations_with_slidenames(annotations_file, slides_dir)
+		if dataset and yes_no_input('\nSearch slides directory and automatically associate patients with slides? [Y/n] ', default='yes'):
+			update_annotations_with_slidenames(annotations_file, dataset)
 			header, current_annotations = read_annotations(annotations_file)
 		else:
 			sys.exit()
 	ANNOTATIONS = current_annotations
 
-def verify_annotations_slides(slides_dir=None):
+def verify_annotations_slides(dataset):
 	global ANNOTATIONS
-	slide_list = get_slide_paths(slides_dir)
+	slide_list = dataset.get_slide_paths()
 
 	# Verify no duplicate slide names are found
 	slide_list_from_annotations = get_slides_from_annotations()
@@ -595,7 +600,11 @@ def update_tfrecord_manifest(directory, force_update=False):
 	slide_list = []
 	manifest_path = join(directory, "manifest.json")
 	manifest = {} if not exists(manifest_path) else load_json(manifest_path)
-	relative_tfrecord_paths = get_relative_tfrecord_paths(directory)
+	try:
+		relative_tfrecord_paths = get_relative_tfrecord_paths(directory)
+	except FileNotFoundError:
+		log.warn(f"Unable to find TFRecords in the directory {directory}")
+		return
 	slide_names_from_annotations = get_slides_from_annotations()
 
 	slide_list_errors = []

@@ -6,6 +6,7 @@ import sys
 from random import shuffle
 import argparse
 import slideflow.util as sfutil
+from glob import glob
 from slideflow.util import log
 
 def make_dir(_dir):
@@ -121,20 +122,78 @@ def merge_validation(train_dir, eval_dir):
 				shutil.move(join(eval_dir, cat_dir, slide_dir, file), join(train_dir, cat_dir, slide_dir, file))
 			print(f"  Merged {len(files)} files for slide {slide_dir}")
 
-if __name__==('__main__'):
-	parser = argparse.ArgumentParser(description = 'Tool to build and re-merge a validation dataset from an existing training dataset. Training dataset must be in a folder called "train_data".')
-	parser.add_argument('-d', '--dir', help='Path to root directory containing "train_data".')
-	parser.add_argument('-f', '--fraction', type=float, default = 0.1, help='Fraction of training dataset to use for validation (default = 0.1).')
-	parser.add_argument('--build', action="store_true", help='Build a new validation dataset by extraction a certain percentage of images from the training dataset.')
-	parser.add_argument('--merge', action="store_true", help='Merge an existing validation dataset ("eval_data" directory) into an existing "train_data" directory.')
-	args = parser.parse_args()
+class Dataset:
+	def __init__(self, config_file, sources):
+		config = sfutil.load_json(config_file)
+		try:
+			self.datasets = {k:v for (k,v) in config.items() if k in sources}
+		except KeyError:
+			sources_list = ", ".join(sources)
+			log.error(f"Unable to find datasets named {sfutil.bold(sources_list)} in config file {sfutil.green(config_file)}", 1)
+			sys.exit()
 
-	train_dir = join(args.dir, "train_data")
-	eval_dir = join(args.dir, "eval_data")
+	def get_tfrecords(self, ask_to_merge_subdirs=False):
+		tfrecords_list = []
+		folders_to_search = []
+		for d in self.datasets:
+			tfrecords = self.datasets[d]['tfrecords']
+			label = self.datasets[d]['label']
+			tfrecord_path = join(tfrecords, label)
+			subdirs = [sd for sd in listdir(tfrecord_path) if isdir(join(tfrecord_path, sd))]
 
-	if args.build:
-		build_validation(train_dir, eval_dir, fraction = args.fraction)
-	elif args.merge:
-		merge_validation(train_dir, eval_dir)
-	else:
-		print("Error: you must specify either a '--build' or '--merge' flag.")
+			# Check if given subfolder contains split data (tiles split into multiple TFRecords, likely for validation testing)
+			# If true, can merge inputs and to use all data, likely for evaluation
+			if len(subdirs) and ask_to_merge_subdirs:
+				if sfutil.yes_no_input(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} contains data split into sub-directories ({', '.join([sfutil.green(s) for s in subdirs])}); merge and use? [y/N] ", default='no'):
+					folders_to_search += [join(tfrecord_path, subdir) for subdir in subdirs]
+				else:
+					sys.exit()
+			else:
+				if len(subdirs):
+					log.warn(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} contains data split into sub-directories; ignoring sub-directories", 1)
+				folders_to_search += [tfrecord_path]
+		for folder in folders_to_search:
+			tfrecords_list += glob(join(folder, "*.tfrecords"))
+		return tfrecords_list
+
+	def get_rois(self):
+		rois_list = []
+		for d in self.datasets:
+			rois_list += glob(join(self.datasets[d]['roi'], "*.csv"))
+		return rois_list
+
+	def get_tfrecords_by_subfolder(self, subfolder):
+		tfrecords_list = []
+		folders_to_search = []
+		for d in self.datasets:
+			base_dir = join(self.datasets[d]['tfrecords'], self.datasets[d]['label'])
+			tfrecord_path = join(base_dir, subfolder)
+			if not exists(tfrecord_path):
+				log.error(f"Unable to find subfolder {sfutil.bold(subfolder)} in dataset {sfutil.bold(d)}, tfrecord directory: {sfutil.green(base_dir)}")
+				sys.exit()
+			folders_to_search += [tfrecord_path]
+		for folder in folders_to_search:
+			tfrecords_list += glob(join(folder, "*.tfrecords"))
+		return tfrecords_list
+
+	def get_slides_by_dataset(self, name):
+		if name not in self.datasets.keys():
+			log.error(f"Dataset {name} not found.")
+			sys.exit()
+		return sfutil.get_slide_paths(self.datasets[name]['slides'])
+
+	def get_slide_paths(self):
+		paths = []
+		for d in self.datasets:
+			paths += sfutil.get_slide_paths(self.datasets[d]['slides'])
+		return paths
+
+	def get_manifest(self):
+		combined_manifest = {}
+		for d in self.datasets:
+			tfrecord_dir = self.datasets[d]['tfrecords']
+			combined_manifest.update(sfutil.get_global_manifest(tfrecord_dir))
+		return combined_manifest
+
+	def get_tfrecords_folders(self):
+		return [join(self.datasets[d]['tfrecords'], self.datasets[d]['label']) for d in self.datasets]
