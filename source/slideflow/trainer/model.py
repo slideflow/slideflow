@@ -132,6 +132,13 @@ class HyperParameters:
 			d.update({arg: getattr(self, arg)})
 		return d
 
+	def _load_dict(self, hp_dict):
+		for key, value in hp_dict.items():
+			try:
+				setattr(self, key, value)
+			except:
+				log.error(f"Unrecognized hyperparameter {key}; unable to load")
+
 	def __str__(self):
 		output = "Hyperparameters:\n"
 			
@@ -421,7 +428,6 @@ class SlideflowModel:
 
 		log.info("Calculating performance metrics...", 1)
 		results = self.model.evaluate(dataset)
-
 		return results
 
 	def retrain_top_layers(self, model, hp, train_data, validation_data, steps_per_epoch, callbacks=None, epochs=1, verbose=1):
