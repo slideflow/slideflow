@@ -96,8 +96,8 @@ class JPGSlide:
 		#return cv2.resize(self.loaded_image, dsize=dimensions, interpolation=cv2.INTER_CUBIC)
 
 	def read_region(self, topleft, level, window):
-		# Arg "level" required for code compatibility with SVS reader but is not used
-		# Window = [y, x] pixels (note: this is reverse compared to SVS files in [x,y] format)
+		# Arg "level" required for code compatibility with slide reader but is not used
+		# Window = [y, x] pixels (note: this is reverse compared to slide/SVS files in [x,y] format)
 
 		return self.loaded_image.crop([topleft[0], topleft[1], topleft[0]+window[0], topleft[1]+window[1]])
 
@@ -110,7 +110,7 @@ class JPGSlide:
 
 class SlideReader:
 	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
-	def __init__(self, path, name, filetype, size_px, size_um, stride_div, export_folder=None, roi_dir=None, pb=None):
+	def __init__(self, path, name, filetype, size_px, size_um, stride_div, export_folder=None, roi_dir=None, roi_list=None, pb=None):
 		self.load_error = False
 		self.print = print if not pb else pb.print
 		self.rois = []
@@ -122,19 +122,17 @@ class SlideReader:
 		self.size_px = size_px
 		self.tiles_path = None if not export_folder else join(self.export_folder, self.name) # previously self.shortname
 
-		# Initiate SVS or JPG slide reader
-		if filetype == "svs":
+		# Initiate supported slide (SVS, TIF) or JPG slide reader
+		if filetype.lower() in sfutil.SUPPORTED_FORMATS:
 			try:
 				self.slide = ops.OpenSlide(path)
 			except ops.lowlevel.OpenSlideUnsupportedFormatError:
-				log.warn(f" Unable to read SVS file from {path} , skipping", 1, self.print)
+				log.warn(f" Unable to read slide from {path} , skipping", 1, self.print)
 				self.shape = None
 				self.load_error = True
 				return
 		elif filetype == "jpg":
 			self.slide = JPGSlide(path, mpp=DEFAULT_JPG_MPP)
-		elif filetype == "tiff":
-			self.slide = ops.OpenSlide(path)
 		else:
 			log.error(f"Unsupported file type '{filetype}' for slide {self.name}.", 1, self.print)
 			self.load_error = True
@@ -143,9 +141,18 @@ class SlideReader:
 		# Load ROI from roi_dir if available
 		if roi_dir and exists(join(roi_dir, self.name + ".csv")):
 			num_rois = self.load_csv_roi(join(roi_dir, self.name + ".csv"))
-		# Else try loading ROI from same folder as SVS
+		# Else try loading ROI from same folder as slide
 		elif exists(sfutil.path_to_name(path) + ".csv"):
 			num_rois = self.load_csv_roi(sfutil.path_to_name(path) + ".csv")
+		elif roi_list and self.name in [sfutil.path_to_name(r) for r in roi_list]:
+			matching_rois = []
+			for i, rp in enumerate(roi_list):
+				rn = sfutil.path_to_name(rp)
+				if rn == self.name:
+					matching_rois += [rp]
+			if len(matching_rois) > 1:
+				log.warn(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}")
+			num_rois = self.load_csv_roi(matching_rois[0])
 		else:
 			if SKIP_MISSING_ROI:
 				log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.print)
@@ -333,10 +340,11 @@ class Convoluter:
 	 - logit predictions from saved Tensorflow model (logits may then be either saved or visualized with heatmaps)
 	 - final layer weight calculation (saved into a CSV file)
 	'''
-	def __init__(self, size_px, size_um, batch_size, use_fp16, stride_div=2, save_folder='', roi_dir=None, augment=False):
+	def __init__(self, size_px, size_um, batch_size, use_fp16, stride_div=2, save_folder='', roi_dir=None, roi_list=None, augment=False):
 		self.SLIDES = {}
 		self.MODEL_DIR = None
 		self.ROI_DIR = roi_dir
+		self.ROI_LIST = roi_list
 		self.SIZE_PX = size_px
 		self.SIZE_UM = size_um
 		self.BATCH_SIZE = batch_size
@@ -415,7 +423,7 @@ class Convoluter:
 			log.empty(f"Working on slide {sfutil.green(slide['name'])}", 1, pb.print)
 
 			# Load the slide
-			whole_slide = SlideReader(slide['path'], slide['name'], slide['type'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
+			whole_slide = SlideReader(slide['path'], slide['name'], slide['type'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, self.ROI_LIST, pb=pb)
 			if not whole_slide.loaded_correctly():
 				continue
 
@@ -442,7 +450,7 @@ class Convoluter:
 		log.empty(f"Exporting tiles for slide {slide_name}", 1, pb.print)
 		
 		# Load the slide	
-		whole_slide = SlideReader(path, slide_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
+		whole_slide = SlideReader(path, slide_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, self.ROI_LIST, pb=pb)
 		if not whole_slide.loaded_correctly():
 			return False
 		
@@ -489,10 +497,10 @@ class Convoluter:
 			count = min(count, total_logits_count)
 			prelogits, logits = self.model.predict([batch_images, batch_images])
 			count += len(batch_images)
-			prelogits_arr = prelogits.numpy() if prelogits_arr == [] else np.concatenate([prelogits_arr, prelogits])
-			logits_arr = logits.numpy() if logits_arr == [] else np.concatenate([logits_arr, logits])
-			labels_arr = batch_labels.numpy() if labels_arr == [] else np.concatenate([labels_arr, batch_labels])
-			unique_arr = batch_unique.numpy() if unique_arr == [] else np.concatenate([unique_arr, batch_unique])
+			prelogits_arr = prelogits if prelogits_arr == [] else np.concatenate([prelogits_arr, prelogits])
+			logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
+			labels_arr = batch_labels if labels_arr == [] else np.concatenate([labels_arr, batch_labels])
+			unique_arr = batch_unique if unique_arr == [] else np.concatenate([unique_arr, batch_unique])
 		if pb: pb.end()
 
 		# Sort the output (may be shuffled due to multithreading)

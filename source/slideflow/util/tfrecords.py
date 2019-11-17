@@ -228,7 +228,7 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True):
 	else:
 		return list(split(patient_list, n))
 
-def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, validation_target, validation_strategy, 
+def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, model_type, validation_target, validation_strategy, 
 											validation_fraction, validation_k_fold=None, k_fold_iter=None):
 	'''From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
 	If a validation plan has already been prepared (e.g. K-fold iterations were already determined), the previously generated plan will be used.
@@ -237,11 +237,20 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 	Returns:
 		Two arrays: an array of full paths to training tfrecords, and an array of paths to validation tfrecords.''' 
 
-	try:
-		subdirs = [sd for sd in os.listdir(tfrecord_dir) if isdir(join(tfrecord_dir, sd))]
-	except:
-		log.error(f"Unable to find TFRecord location {sfutil.green(tfrecord_dir)}")
-		sys.exit()
+	# Prepare dataset
+	tfr_folders = dataset.get_tfrecords_folders()
+	subdirs = []
+	for folder in tfr_folders:
+		try:
+			detected_subdirs = [sd for sd in os.listdir(folder) if isdir(join(folder, sd))]
+		except:
+			log.error(f"Unable to find TFRecord location {sfutil.green(folder)}")
+			sys.exit()
+		subdirs = detected_subdirs if not subdirs else subdirs
+		if detected_subdirs != subdirs:
+			log.error(f"Unable to combine TFRecords from datasets; TFRecord subdirectory structures do not match.")
+			sys.exit()
+
 	if k_fold_iter: 
 		k_fold_index = int(k_fold_iter)-1
 	k_fold = validation_k_fold
@@ -249,7 +258,7 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 	validation_tfrecords = []
 	accepted_plan = None
 	slide_list = list(outcomes.keys())
-	tfrecord_dir_list = glob(join(tfrecord_dir, "*.tfrecords"))
+	tfrecord_dir_list = dataset.get_tfrecords()
 	tfrecord_dir_list_names = [tfr.split('/')[-1][:-10] for tfr in tfrecord_dir_list]
 
 	# Assemble dictionary of patients linking to list of slides and outcome
@@ -278,7 +287,7 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 
 	# If validation is done per-tile, use pre-separated TFRecord files (validation separation done at time of TFRecord creation)
 	if validation_target == 'per-tile':
-		log.info(f"Loading pre-separated TFRecords in {sfutil.green(tfrecord_dir)}", 1)
+		log.info(f"Attempting to load pre-separated TFRecords", 1)
 		if validation_strategy == 'bootstrap':
 			log.warn("Validation bootstrapping is not supported when the validation target is per-tile; using tfrecords in 'training' and 'validation' subdirectories", 1)
 		if validation_strategy in ('bootstrap', 'fixed'):
@@ -286,8 +295,8 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 			if ('validation' not in subdirs) or ('training' not in subdirs):
 				log.error(f"{sfutil.bold(validation_strategy)} selected as validation strategy but tfrecords are not organized as such (unable to find 'training' or 'validation' subdirectories)")
 				sys.exit()
-			training_tfrecords += glob(join(tfrecord_dir, 'training', "*.tfrecords"))
-			validation_tfrecords += glob(join(tfrecord_dir, 'validation', "*.tfrecords"))
+			training_tfrecords += dataset.get_tfrecords_by_subfolder("training")
+			validation_tfrecords += dataset.get_tfrecords_by_subfolder("validation")
 		elif validation_strategy == 'k-fold':
 			if not k_fold_iter:
 				log.warn("No k-fold iteration specified; assuming iteration #1", 1)
@@ -296,13 +305,10 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 				log.error(f"K-fold iteration supplied ({k_fold_iter}) exceeds the project K-fold setting ({k_fold})", 1)
 				sys.exit()
 			for k in range(k_fold):
-				if not exists(join(tfrecord_dir, f'kfold-{k}')):
-					log.error(f"Unable to find kfold-{k} in {sfutil.green(tfrecord_dir)}", 1)
-					sys.exit()
 				if k == k_fold_index:
-					validation_tfrecords += glob(join(tfrecord_dir, f'kfold-{k}', "*.tfrecords"))
+					validation_tfrecords += dataset.get_tfrecords_by_subfolder(f'kfold-{k}')
 				else:
-					training_tfrecords += glob(join(tfrecord_dir, f'kfold-{k}', "*.tfrecords"))
+					training_tfrecords += dataset.get_tfrecords_by_subfolder(f'kfold-{k}')
 		elif validation_strategy == 'none':
 			if len(subdirs):
 				log.error(f"Validation strategy set as 'none' but the TFRecord directory has been configured for validation (contains subfolders {', '.join(subdirs)})", 1)
@@ -332,7 +338,6 @@ def get_training_and_validation_tfrecords(tfrecord_dir, outcomes, model_type, va
 			training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in training_patients]).tolist()
 		else:
 			# Try to load validation plan
-			validation_log = join(tfrecord_dir, "validation_plans.json")
 			validation_plans = [] if not exists(validation_log) else sfutil.load_json(validation_log)
 			for plan in validation_plans:
 				# First, see if plan type is the same
