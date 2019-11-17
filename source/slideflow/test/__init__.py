@@ -68,12 +68,12 @@ ANNOTATIONS = [
 
 class TestSuite:
 	'''Class to supervise standardized testing of slideflow pipeline.'''
-	def __init__(self):
+	def __init__(self, reset=True):
 		'''Initialize testing models.'''
 		sf.set_logging_level(sf.SILENT)
 
 		# Reset test progress
-		self.reset()
+		if reset: self.reset()
 
 		# Intiailize project
 		self.SFP = sf.SlideflowProject(PROJECT_CONFIG['root'], interactive=False)
@@ -178,8 +178,8 @@ class TestSuite:
 	def test_training(self, categorical=True, linear=True):
 		if categorical:
 			# Test categorical outcome
-			print("Testing single categorical outcome training...")
 			self.setup_hp('categorical')
+			print("Testing single categorical outcome training...")
 			self.SFP.train(outcome_header='category1')
 			print("\t...OK")
 			print("Testing multiple sequential categorical outcome training...")
@@ -188,8 +188,8 @@ class TestSuite:
 			print("\t...OK")
 		if linear:
 			# Test single linear outcome
-			print("Testing single linear outcome training...")
 			self.setup_hp('linear')
+			print("Testing single linear outcome training...")
 			self.SFP.train(outcome_header='linear1', model_type='linear')
 			print("\t...OK")
 			# Test multiple linear outcome

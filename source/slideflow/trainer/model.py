@@ -435,10 +435,11 @@ class SlideflowModel:
 		# Freeze the base layer
 		model.layers[0].trainable = False
 		val_steps = 100 if validation_data else None
+		metrics = ['acc'] if hp.model_type() != 'linear' else [hp.loss]
 
 		model.compile(optimizer=tf.keras.optimizers.Adam(lr=hp.learning_rate),
 					  loss=hp.loss,
-					  metrics=['accuracy'])
+					  metrics=metrics)
 
 		toplayer_model = model.fit(train_data,
 				  epochs=epochs,
@@ -480,7 +481,7 @@ class SlideflowModel:
 		verbose = 1 if supervised else 0
 		val_steps = 200
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
-		metrics = ['accuracy'] if hp.model_type() != 'linear' else [hp.loss]
+		metrics = ['acc'] if hp.model_type() != 'linear' else [hp.loss]
 
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
@@ -503,12 +504,11 @@ class SlideflowModel:
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
 			def on_epoch_end(self, epoch, logs=None):
 				if epoch+1 in hp.finetune_epochs:
-					print('')
 					self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5"))
 					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
 						epoch_label = f"val_epoch{epoch+1}"
 						if hp.model_type() != 'linear':
-							train_acc = logs['accuracy']
+							train_acc = logs['acc']
 						else:
 							train_acc = logs[hp.loss]
 						tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, validation_data_with_slidenames, parent.SLIDE_ANNOTATIONS, hp.model_type(), parent.DATA_DIR, label=epoch_label)
