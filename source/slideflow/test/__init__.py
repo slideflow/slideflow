@@ -8,9 +8,7 @@ from slideflow.util import TCGA, log
 from glob import glob
 from os.path import join
 
-''' Functions which will need to have testing: 
-
-SlideReader
+''' Todo:
 - JPG, TIFF, SVS
 - Verify properties: dimensions, properties (dict), level_dimensions, level_count, level_downsamples
 - Verify ROI (area, coordinates)
@@ -18,10 +16,6 @@ SlideReader
 - Verify extracted tiles at different pixels and microns
 - Verify logits and prelogits based on saved model
 - Verify heatmaps
-
-SlideflowProject
-- Project creation
-- TEST dataset
 '''
 
 # --- TEST suite configuration --------------------------------------------------------
@@ -76,7 +70,7 @@ class TestSuite:
 	'''Class to supervise standardized testing of slideflow pipeline.'''
 	def __init__(self):
 		'''Initialize testing models.'''
-		sf.set_logging_level(1)
+		sf.set_logging_level(sf.SILENT)
 
 		# Reset test progress
 		self.reset()
@@ -93,6 +87,7 @@ class TestSuite:
 		self.setup_hp("categorical")
 
 	def reset(self):
+		print("Resetting test project...")
 		try:
 			os.remove(PROJECT_CONFIG['dataset_config'])
 		except:
@@ -110,29 +105,37 @@ class TestSuite:
 				shutil.rmtree(TEST_DATASETS[dataset_name]['tfrecords'])
 			except:
 				pass
+		print("\t...DONE")
 
 	def configure_project(self):
+		print("Setting up initial project configuration...")
 		self.SFP.PROJECT = PROJECT_CONFIG
 		self.SFP.save_project()
+		print("\t...DONE")
 
 	def configure_datasets(self):
+		print("Setting up test dataset configuration...")
 		for dataset_name in TEST_DATASETS.keys():
 			self.SFP.add_dataset(PROJECT_CONFIG['dataset_config'], dataset_name, slides=TEST_DATASETS[dataset_name]['slides'],
 																				 roi=TEST_DATASETS[dataset_name]['roi'],
 																				 tiles=TEST_DATASETS[dataset_name]['tiles'],
 																				 tfrecords=TEST_DATASETS[dataset_name]['tfrecords'],
 																				 label=TEST_DATASETS[dataset_name]['label'])
+		print("\t...DONE")
 
 	def configure_annotations(self):
+		print("Testing annotation configuration and slide name associations...")
 		outfile = PROJECT_CONFIG['annotations']
 		with open(outfile, 'w') as csv_outfile:
 			csv_writer = csv.writer(csv_outfile, delimiter=',')
 			for an in ANNOTATIONS:
 				csv_writer.writerow(an)
 		self.SFP.associate_slide_names()
+		print("\t...OK")
 
 	def setup_hp(self, model_type):
 		# Remove old batch train file
+		print("Setting up hyperparameter setup...")
 		try:
 			os.remove(PROJECT_CONFIG['batch_train_config'])
 		except:
@@ -158,10 +161,13 @@ class TestSuite:
 											 balanced_validation=["NO_BALANCE"],
 											 augment=[True],
 											 filename=PROJECT_CONFIG["batch_train_config"])
+		print("\t...DONE")
 
 	def test_convolution(self):
 		# Test tile extraction, default parameters
+		print("Testing convolution...")
 		self.SFP.extract_tiles()
+		print("\t...OK")
 
 	def test_input_stream(self, outcome, balancing, batch_size=16, augment=True, subfolder=None, filters=None, model_type='categorical'):
 		dataset, dataset_with_slidenames, num_tiles = SFM.build_dataset_inputs(SFM.TRAIN_TFRECORDS, batch_size=batch_size, 
@@ -172,22 +178,35 @@ class TestSuite:
 	def test_training(self, categorical=True, linear=True):
 		if categorical:
 			# Test categorical outcome
+			print("Testing single categorical outcome training...")
 			self.setup_hp('categorical')
 			self.SFP.train(outcome_header='category1')
+			print("\t...OK")
+			print("Testing multiple sequential categorical outcome training...")
 			# Test multiple sequential categorical outcome models
 			self.SFP.train(outcome_header=['category1', 'category2'])
+			print("\t...OK")
 		if linear:
 			# Test single linear outcome
+			print("Testing single linear outcome training...")
 			self.setup_hp('linear')
 			self.SFP.train(outcome_header='linear1', model_type='linear')
+			print("\t...OK")
 			# Test multiple linear outcome
+			print("Testing multiple linear outcome training...")
 			self.SFP.train(outcome_header=['linear1', 'linear2'], multi_outcome=True, model_type='linear')
+			print("\t...OK")
+		print("\t...OK")
 
 	def test_heatmap(self):
+		print("Testing heatmap generation...")
 		self.SFP.generate_heatmaps('category1-HPSweep0-kfold1')
+		print("\t...OK")
 
 	def test_mosaic(self):
+		print("Testing mosaic generation...")
 		self.SFP.generate_mosaic('category1-HPSweep0-kfold1')
+		print("\t...OK")
 
 	def test(self):
 		'''Perform and report results of all available testing.'''

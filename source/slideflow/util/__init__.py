@@ -82,6 +82,7 @@ class LOGGING_LEVEL:
 	WARN = 3
 	ERROR = 3
 	COMPLETE = 3
+	SILENT = False
 
 class Logger:
 	logfile = None
@@ -90,49 +91,49 @@ class Logger:
 	def info(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{info('INFO')}] {text}"
-		if print_func and l <= LOGGING_LEVEL.INFO:
+		if print_func and l <= LOGGING_LEVEL.INFO and not LOGGING_LEVEL.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def warn(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES_WARN[l]}[{warn('WARN')}] {text}"
-		if print_func and l <= LOGGING_LEVEL.WARN:
+		if print_func and l <= LOGGING_LEVEL.WARN and not LOGGING_LEVEL.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def error(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES_WARN[l]}[{fail('ERROR')}] {text}"
-		if print_func and l <= LOGGING_LEVEL.ERROR:
+		if print_func and l <= LOGGING_LEVEL.ERROR and not LOGGING_LEVEL.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def complete(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{header('Complete')}] {text}"
-		if print_func and l <= LOGGING_LEVEL.COMPLETE:
+		if print_func and l <= LOGGING_LEVEL.COMPLETE and not LOGGING_LEVEL.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def label(self, label, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{green(label)}] {text}"
-		if print_func and l <= LOGGING_LEVEL.INFO:
+		if print_func and l <= LOGGING_LEVEL.INFO and not LOGGING_LEVEL.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def empty(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}{text}"
-		if print_func and l <= LOGGING_LEVEL.INFO:
+		if print_func and l <= LOGGING_LEVEL.INFO and not LOGGING_LEVEL.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def header(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"\n{LOGGING_PREFIXES_EMPTY[l]}{bold(text)}"
-		if print_func:
+		if print_func and not LOGGING_LEVEL.SILENT:
 			print_func(message)
 		self.log(message)
 		return message

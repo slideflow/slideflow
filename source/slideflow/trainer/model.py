@@ -428,7 +428,6 @@ class SlideflowModel:
 
 		log.info("Calculating performance metrics...", 1)
 		results = self.model.evaluate(dataset)
-
 		return results
 
 	def retrain_top_layers(self, model, hp, train_data, validation_data, steps_per_epoch, callbacks=None, epochs=1, verbose=1):
