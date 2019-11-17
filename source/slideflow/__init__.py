@@ -33,13 +33,17 @@ NUM_THREADS = 4
 EVAL_BATCH_SIZE = 64
 GPU_LOCK = None
 NO_LABEL = 'no_label'
+SILENT = 'SILENT'
 SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
 VALIDATION_ID = ''.join(choice(ascii_lowercase) for i in range(10))
 COMET_API_KEY = "A3VWRcPaHgqc4H5K0FoCtRXbp"
 DEBUGGING = True
 
 def set_logging_level(level):
-	sfutil.LOGGING_LEVEL.INFO = level
+	if level == SILENT:
+		sfutil.LOGGING_LEVEL.SILENT = True
+	else:
+		sfutil.LOGGING_LEVEL.INFO = level
 
 def autoselect_gpu(number_available, reverse=True):
 	global GPU_LOCK
@@ -48,7 +52,7 @@ def autoselect_gpu(number_available, reverse=True):
 	gpus = range(number_available) if not reverse else reversed(range(number_available))
 	for n in gpus:
 		if not exists(join(SOURCE_DIR, f"gpu{n}.lock")):
-			print(f"Requesting GPU #{n}")
+			log.empty(f"Requesting GPU #{n}")
 			os.environ["CUDA_VISIBLE_DEVICES"]=str(n)
 			open(join(SOURCE_DIR, f"gpu{n}.lock"), 'a').close()
 			GPU_LOCK = n
@@ -57,15 +61,15 @@ def autoselect_gpu(number_available, reverse=True):
 
 def select_gpu(number):
 	global GPU_LOCK
-	print(f"Requesting GPU #{number}")
+	log.empty(f"Requesting GPU #{number}")
 	GPU_LOCK = number
 	os.environ["CUDA_VISIBLE_DEVICES"]=str(number)
 
 def release_gpu():
 	global GPU_LOCK
-	print("Cleaning up...")
+	log.empty("Cleaning up...")
 	if GPU_LOCK != None and exists(join(SOURCE_DIR, f"gpu{GPU_LOCK}.lock")):
-		print(f"Freeing GPU {GPU_LOCK}...")
+		log.empty(f"Freeing GPU {GPU_LOCK}...")
 		os.remove(join(SOURCE_DIR, f"gpu{GPU_LOCK}.lock"))
 	
 atexit.register(release_gpu)
@@ -235,7 +239,6 @@ class SlideflowProject:
 		SFM = self.initialize_model(f"eval-{model_name}", eval_dataset, None, None, outcomes, model_type=model_type)
 		log.info(f"Evaluating {sfutil.bold(len(eval_tfrecords))} tfrecords", 1)
 		results = SFM.evaluate(tfrecords=eval_tfrecords, hp=hp, model=model_fullpath, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
-		print(results)
 		return results
 
 	def _get_hp(self, row, header):
@@ -517,7 +520,7 @@ class SlideflowProject:
 			for model in results_dict:
 				last_epoch = max([int(e.split('epoch')[-1]) for e in results_dict[model].keys() if 'epoch' in e ])
 				final_metrics = results_dict[model][f'epoch{last_epoch}']
-				print(f" - {sfutil.green(model)}: Train_Acc={str(final_metrics['train_acc'])}, " +
+				log.empty(f" - {sfutil.green(model)}: Train_Acc={str(final_metrics['train_acc'])}, " +
 					f"Val_loss={final_metrics['val_loss']}, Val_Acc={final_metrics['val_acc']}" )
 
 		# If using multiple outcomes, initiate hyperparameter sweep
