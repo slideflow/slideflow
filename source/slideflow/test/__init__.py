@@ -76,6 +76,7 @@ class TestSuite:
 	'''Class to supervise standardized testing of slideflow pipeline.'''
 	def __init__(self):
 		'''Initialize testing models.'''
+		sf.set_logging_level(1)
 
 		# Reset test progress
 		self.reset()
@@ -87,6 +88,9 @@ class TestSuite:
 		# Configure datasets (input)
 		self.configure_datasets()
 		self.configure_annotations()
+
+		# Prepare batch training
+		self.setup_hp("categorical")
 
 	def reset(self):
 		try:
@@ -127,6 +131,34 @@ class TestSuite:
 				csv_writer.writerow(an)
 		self.SFP.associate_slide_names()
 
+	def setup_hp(self, model_type):
+		# Remove old batch train file
+		try:
+			os.remove(PROJECT_CONFIG['batch_train_config'])
+		except:
+			pass
+		# Setup loss function
+		if model_type == 'categorical':
+			loss = 'sparse_categorical_crossentropy'
+		elif model_type == 'linear':
+			loss = 'mean_squared_error'
+		# Create batch train file
+		self.SFP.create_hyperparameter_sweep(finetune_epochs=[1],
+											 toplayer_epochs=[0],
+											 model=["Xception"],
+											 pooling=["max"],
+											 loss=[loss],
+											 learning_rate=[0.001],
+											 batch_size=[16],
+											 hidden_layers=[0],
+											 optimizer=["Adam"],
+											 early_stop=[False],
+											 early_stop_patience=[15],
+											 balanced_training=["BALANCE_BY_PATIENT"],
+											 balanced_validation=["NO_BALANCE"],
+											 augment=[True],
+											 filename=PROJECT_CONFIG["batch_train_config"])
+
 	def test_convolution(self):
 		# Test tile extraction, default parameters
 		self.SFP.extract_tiles()
@@ -137,11 +169,30 @@ class TestSuite:
 																									augment=augment,
 																									finite=False,
 																									include_slidenames=False)
-	def test_training(self):
-		pass	
-	
+	def test_training(self, categorical=True, linear=True):
+		if categorical:
+			# Test categorical outcome
+			self.setup_hp('categorical')
+			self.SFP.train(outcome_header='category1')
+			# Test multiple sequential categorical outcome models
+			self.SFP.train(outcome_header=['category1', 'category2'])
+		if linear:
+			# Test single linear outcome
+			self.setup_hp('linear')
+			self.SFP.train(outcome_header='linear1', model_type='linear')
+			# Test multiple linear outcome
+			self.SFP.train(outcome_header=['linear1', 'linear2'], multi_outcome=True, model_type='linear')
+
+	def test_heatmap(self):
+		self.SFP.generate_heatmaps('category1-HPSweep0-kfold1')
+
+	def test_mosaic(self):
+		self.SFP.generate_mosaic('category1-HPSweep0-kfold1')
+
 	def test(self):
 		'''Perform and report results of all available testing.'''
 		self.test_convolution()
 		self.test_training()
+		self.test_heatmap()
+		self.test_mosaic()
 		#self.test_input_stream()
