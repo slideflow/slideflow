@@ -17,9 +17,10 @@ import csv
 import gc
 import atexit
 import subprocess
-import slideflow.trainer.model as sfmodel
 import itertools
 import multiprocessing
+
+import slideflow.trainer.model as sfmodel
 import slideflow.util as sfutil
 from slideflow.util import TCGA, log
 from slideflow.util.datasets import Dataset
@@ -72,24 +73,28 @@ atexit.register(release_gpu)
 class SlideflowProject:
 	MANIFEST = None
 
-	def __init__(self, project_folder):
+	def __init__(self, project_folder, interactive=True):
 		'''Initializes project by creating project folder, prompting user for project settings, and project
 		settings to "settings.json" within the project directory.'''
 		os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 		log.header(f"Slideflow v{__version__}\n================")
 		log.header("Loading project...")
 		if project_folder and not os.path.exists(project_folder):
-			if sfutil.yes_no_input(f'Directory "{project_folder}" does not exist. Create directory and set as project root? [Y/n] ', default='yes'):
-				os.makedirs(project_folder)
+			if interactive:
+				if sfutil.yes_no_input(f'Directory "{project_folder}" does not exist. Create directory and set as project root? [Y/n] ', default='yes'):
+					os.makedirs(project_folder)
+				else:
+					project_folder = sfutil.dir_input("Where is the project root directory? ", create_on_invalid=True, absolute=True)
 			else:
-				project_folder = sfutil.dir_input("Where is the project root directory? ", create_on_invalid=True, absolute=True)
+				log.info(f"Project directory {project_folder} not found; will create.")
+				os.makedirs(project_folder)
 		if not project_folder:
 			project_folder = sfutil.dir_input("Where is the project root directory? ", create_on_invalid=True, absolute=True)
 		sfutil.PROJECT_DIR = project_folder
 
 		if exists(join(project_folder, "settings.json")):
 			self.load_project(project_folder)
-		else:
+		elif interactive:
 			self.create_project()
 		
 	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, skip_validation=False):
@@ -106,7 +111,7 @@ class SlideflowProject:
 		extracting_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
 
 		for dataset_name in self.PROJECT['datasets']:
-			log.empty(f"Working on dataset {dataset_name}", 1)
+			log.empty(f"Working on dataset {sfutil.bold(dataset_name)}", 1)
 			unfiltered_slide_list = extracting_dataset.get_slides_by_dataset(dataset_name)
 			slide_list = sfutil.filter_slide_paths(unfiltered_slide_list, filters=filters)
 			log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 1)
@@ -678,16 +683,43 @@ class SlideflowProject:
 		log.logfile = sfutil.global_path("log.log")
 
 		# Load dataset for evaluation
-		dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		try:
+			dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+			# Load annotations
+			sfutil.load_annotations(self.PROJECT['annotations'], dataset)
 
-		# Load annotations
-		sfutil.load_annotations(self.PROJECT['annotations'], dataset)
+			if not SKIP_VERIFICATION:
+				log.header("Verifying Annotations...")
+				sfutil.verify_annotations_slides(dataset)
+				log.header("Verifying TFRecord manifest...")
+				self.update_manifest()
+		except FileNotFoundError:
+			log.warn("No datasets configured.")
 
-		if not SKIP_VERIFICATION:
-			log.header("Verifying Annotations...")
-			sfutil.verify_annotations_slides(dataset)
-			log.header("Verifying TFRecord manifest...")
-			self.update_manifest()
+	def load_datasets(self, path):
+		try:
+			datasets_data = sfutil.load_json(path)
+			datasets_names = list(datasets_data.keys())
+			datasets_names.sort()
+		except FileNotFoundError:
+			datasets_data = {}
+			datasets_names = []
+		return datasets_data, datasets_names
+
+	def add_dataset(self, path, name, slides, roi, tiles, tfrecords, label):
+		try:
+			datasets_data = sfutil.load_json(path)
+		except FileNotFoundError:
+			datasets_data = {}
+		datasets_data.update({name: {
+			'slides': slides,
+			'roi': roi,
+			'tiles': tiles,
+			'tfrecords': tfrecords,
+			'label': label
+		}})
+		sfutil.write_json(datasets_data, path)
+		log.info(f"Saved dataset {name} to {path}")
 
 	def save_project(self):
 		'''Saves current project configuration as "settings.json".'''
@@ -713,17 +745,10 @@ class SlideflowProject:
 		project['dataset_config'] = sfutil.file_input("Where is the dataset configuration file located? [./datasets.json] ",
 													default='./datasets.json', filetype='json', verify=False)
 
-
 		project['datasets'] = []
 		while not project['datasets']:
-			try:
-				datasets_data = sfutil.load_json(project['dataset_config'])
-				datasets_names = list(datasets_data.keys())
-				datasets_names.sort()
-			except FileNotFoundError:
-				datasets_data = {}
-				datasets_names = []
-			
+			datasets_data, datasets_names = self.load_datasets(project['dataset_config'])
+
 			print(sfutil.bold("Detected datasets:"))
 			if not len(datasets_names):
 				print(" [None]")
@@ -745,14 +770,14 @@ class SlideflowProject:
 										default='./tiles', create_on_invalid=True)
 				dataset_tfrecords = sfutil.dir_input("Where should the TFRecord files be stored? (recommend HDD) [./tfrecord] ",
 										default='./tfrecord', create_on_invalid=True)
-				datasets_data.update({dataset_name: {
-					'slides': dataset_slides,
-					'roi': dataset_roi,
-					'tiles': dataset_tiles,
-					'tfrecords': dataset_tfrecords,
-					'label': NO_LABEL
-				}})
-				sfutil.write_json(datasets_data, project['dataset_config'])
+
+				self.add_dataset(path=project['dataset_config'], name=dataset_name,
+																 slides=dataset_slides,
+																 roi=dataset_roi,
+																 tiles=dataset_tiles,
+																 tfrecords=dataset_tfrecords,
+																 label=NO_LABEL)
+
 				print("Updated dataset configuration file.")
 			else:
 				try:
