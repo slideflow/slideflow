@@ -423,7 +423,7 @@ class Convoluter:
 			log.empty(f"Working on slide {sfutil.green(slide['name'])}", 1, pb.print)
 
 			# Load the slide
-			whole_slide = SlideReader(slide['path'], slide['name'], slide['type'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
+			whole_slide = SlideReader(slide['path'], slide['name'], slide['type'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, self.ROI_LIST, pb=pb)
 			if not whole_slide.loaded_correctly():
 				continue
 
@@ -450,7 +450,7 @@ class Convoluter:
 		log.empty(f"Exporting tiles for slide {slide_name}", 1, pb.print)
 		
 		# Load the slide	
-		whole_slide = SlideReader(path, slide_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, pb=pb)
+		whole_slide = SlideReader(path, slide_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, self.ROI_LIST, pb=pb)
 		if not whole_slide.loaded_correctly():
 			return False
 		
@@ -497,10 +497,10 @@ class Convoluter:
 			count = min(count, total_logits_count)
 			prelogits, logits = self.model.predict([batch_images, batch_images])
 			count += len(batch_images)
-			prelogits_arr = prelogits.numpy() if prelogits_arr == [] else np.concatenate([prelogits_arr, prelogits])
-			logits_arr = logits.numpy() if logits_arr == [] else np.concatenate([logits_arr, logits])
-			labels_arr = batch_labels.numpy() if labels_arr == [] else np.concatenate([labels_arr, batch_labels])
-			unique_arr = batch_unique.numpy() if unique_arr == [] else np.concatenate([unique_arr, batch_unique])
+			prelogits_arr = prelogits if prelogits_arr == [] else np.concatenate([prelogits_arr, prelogits])
+			logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
+			labels_arr = batch_labels if labels_arr == [] else np.concatenate([labels_arr, batch_labels])
+			unique_arr = batch_unique if unique_arr == [] else np.concatenate([unique_arr, batch_unique])
 		if pb: pb.end()
 
 		# Sort the output (may be shuffled due to multithreading)

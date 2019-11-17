@@ -571,7 +571,7 @@ class SlideflowProject:
 		c.build_model(model_path)
 		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
-	def generate_mosaic(self, model=None, filters=None, focus_filters=None, resolution="medium"):
+	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="medium"):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer weights. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.'''
 		
@@ -580,6 +580,7 @@ class SlideflowProject:
 		# Load dataset for evaluation
 		mosaic_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
 		mosaic_tfrecords = mosaic_dataset.get_tfrecords(ask_to_merge_subdirs=True)
+		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
 
 		slide_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=filters)
 		if focus_filters:
@@ -587,7 +588,7 @@ class SlideflowProject:
 		else:
 			focus_list = None
 		mosaic = Mosaic(save_dir=self.PROJECT['root'], resolution=resolution)
-		mosaic.generate_from_tfrecords(slide_list, model=model, image_size=self.PROJECT['tile_px'], focus=focus_list)
+		mosaic.generate_from_tfrecords(slide_list, model=model_path, image_size=self.PROJECT['tile_px'], focus=focus_list)
 
 	def create_blank_train_config(self, filename=None):
 		'''Creates a CSV file with the batch training structure.'''
