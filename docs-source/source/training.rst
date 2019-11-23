@@ -49,7 +49,7 @@ For example, to train using only slides labeled as "train" in the "dataset" colu
 
 .. code-block:: python
 
-	SFP.train(category_header="category",
+	SFP.train(outcome_header="category",
 		  filters={"dataset": ["train"]})
 
 Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the ``results.log`` file in the project directory. Additional analytic data, including ROCs and scatter plots, are saved in the model directories.
