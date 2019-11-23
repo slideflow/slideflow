@@ -5,4 +5,4 @@ Introduction
 
 The ``slideflow`` package includes a ``SlideflowProject`` class to help coordinate project organization and supervise execution of the pipeline.  In this documentation, we will review a high-level overview of the pipeline and examine how to execute each component of the pipeline using the ``SlideflowProject`` class. We will end by describing some of the source code components in more detail and provide examples for how you may further customize this pipeline according to your needs.
 
-The current implementation has been developed in Python 3.7 using Tensorflow 2.0 (beta), and tested in Ubuntu 18.04, Windows 10, and CentOS 7.
+The current implementation has been developed in Python 3.7 using Tensorflow 2.0 and tested in Ubuntu 18.04, Windows 10, and CentOS 7.

@@ -14,7 +14,7 @@ For example, to evaluate performance of model "HPSweep0" on slides labeled as "e
 Generate heatmaps
 *****************
 
-If you would like to generate a predictive heatmap for a set of slides, use the ``generate_heatmaps`` function as below:
+If you would like to generate a predictive heatmap for a set of slides, use the ``generate_heatmaps()`` function as below:
 
 .. code-block:: python
 
