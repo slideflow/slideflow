@@ -39,7 +39,7 @@ Once your hyperparameter settings have been chosen and saved to your batch_train
 .. autofunction:: slideflow.SlideflowProject.train
    :noindex:
 
-Your outcome variable is specified with the ``category_header`` argument. You may filter slides for training using the ``filter_header`` and ``filter_values`` arguments, as previously described. 
+Your outcome variable is specified with the ``outcome_header`` argument. You may filter slides for training using the ``filter`` argument, as previously described. 
 
 The ``train()`` function will automatically train across all hyperparameters listed in the batch file, and will use the validation plan supplied in project settings. If you would like to use a different plan than described in ``settings.json``, you many manually choose your validation strategy by passing the relevant variables as arguments (e.g. ``validation_strategy``, ``validation_fraction``, and ``validation_k_fold``).
 
