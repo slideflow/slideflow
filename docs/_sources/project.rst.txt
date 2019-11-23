@@ -28,7 +28,7 @@ Upon first executing the script, you will be asked a series of questions regardi
 | **Name**                      | Project name.                                         |
 +-------------------------------+-------------------------------------------------------+
 | **Annotations file**          | Path to CSV containing annotations.                   |
-|                               | Each line represents a unique patient and slide.      |
+|                               | Each line is a unique patient and slide.              |
 +-------------------------------+-------------------------------------------------------+
 | **Dataset config**            | Path to JSON file containing dataset configuration.   |
 +-------------------------------+-------------------------------------------------------+
