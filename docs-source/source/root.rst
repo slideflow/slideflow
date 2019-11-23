@@ -18,7 +18,6 @@ Slideflow Documentation
    training
    evaluation
    appendix
-   modules
 
 Indices and tables
 ==================
