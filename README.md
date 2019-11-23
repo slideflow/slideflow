@@ -28,6 +28,17 @@ SFP = slideflow.SlideflowProject("/path/to/project/directory")
 
 You will be taken through a set of questions to configure your new project. Slideflow projects require an annotations file (CSV) associating patient names to outcome categories and slide names. If desired, a blank file will be created for you when you first setup a new project. Once the project is created, add rows to the annotations file with patient names and outcome categories. 
 
+Next, you will be taken through a set of questions to configure your first dataset. Alternatively, you may manually add a dataset by calling:
+
+```python
+SFP.add_dataset( name="NAME",
+                 slides="/slides/directory",
+                 roi="/roi/directory",
+                 tiles="/tiles/directory",
+                 tfrecords="/tfrecords/directory",
+                 label="LABEL" )
+```
+
 If your patient names and slide names follow standard naming conventions as used in [The Cancer Genome Atlas](https://portal.gdc.cancer.gov/), you can have slideflow search through your slides directory and attempt to match patients in your annotations files with their corresponding slides with the following function:
 
 ```python
@@ -46,4 +57,4 @@ Following tile extraction, you can begin model training:
 SFP.train()
 ```
 
-Complete documentation of all functions and options can be found at [jmd172.bitbucket.io](https://jmd172.bitbucket.io/).
+Complete documentation of all functions and options can be found at [slideflow.dev](https://www.slideflow.dev/).
