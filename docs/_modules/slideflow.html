@@ -867,7 +867,9 @@
 			<span class="n">datasets_names</span> <span class="o">=</span> <span class="p">[]</span>
 		<span class="k">return</span> <span class="n">datasets_data</span><span class="p">,</span> <span class="n">datasets_names</span></div>
 
-<div class="viewcode-block" id="SlideflowProject.add_dataset"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideflowProject.add_dataset">[docs]</a>	<span class="k">def</span> <span class="nf">add_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">slides</span><span class="p">,</span> <span class="n">roi</span><span class="p">,</span> <span class="n">tiles</span><span class="p">,</span> <span class="n">tfrecords</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+<div class="viewcode-block" id="SlideflowProject.add_dataset"><a class="viewcode-back" href="../slideflow.html#slideflow.SlideflowProject.add_dataset">[docs]</a>	<span class="k">def</span> <span class="nf">add_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">slides</span><span class="p">,</span> <span class="n">roi</span><span class="p">,</span> <span class="n">tiles</span><span class="p">,</span> <span class="n">tfrecords</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
+			<span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;dataset_config&#39;</span><span class="p">]</span>
 		<span class="k">try</span><span class="p">:</span>
 			<span class="n">datasets_data</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">load_json</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
 		<span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
@@ -932,12 +934,13 @@
 				<span class="n">dataset_tfrecords</span> <span class="o">=</span> <span class="n">sfutil</span><span class="o">.</span><span class="n">dir_input</span><span class="p">(</span><span class="s2">&quot;Where should the TFRecord files be stored? (recommend HDD) [./tfrecord] &quot;</span><span class="p">,</span>
 										<span class="n">default</span><span class="o">=</span><span class="s1">&#39;./tfrecord&#39;</span><span class="p">,</span> <span class="n">create_on_invalid</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-				<span class="bp">self</span><span class="o">.</span><span class="n">add_dataset</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">project</span><span class="p">[</span><span class="s1">&#39;dataset_config&#39;</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="n">dataset_name</span><span class="p">,</span>
-																 <span class="n">slides</span><span class="o">=</span><span class="n">dataset_slides</span><span class="p">,</span>
-																 <span class="n">roi</span><span class="o">=</span><span class="n">dataset_roi</span><span class="p">,</span>
-																 <span class="n">tiles</span><span class="o">=</span><span class="n">dataset_tiles</span><span class="p">,</span>
-																 <span class="n">tfrecords</span><span class="o">=</span><span class="n">dataset_tfrecords</span><span class="p">,</span>
-																 <span class="n">label</span><span class="o">=</span><span class="n">NO_LABEL</span><span class="p">)</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">add_dataset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">dataset_name</span><span class="p">,</span>
+								 <span class="n">slides</span><span class="o">=</span><span class="n">dataset_slides</span><span class="p">,</span>
+								 <span class="n">roi</span><span class="o">=</span><span class="n">dataset_roi</span><span class="p">,</span>
+								 <span class="n">tiles</span><span class="o">=</span><span class="n">dataset_tiles</span><span class="p">,</span>
+								 <span class="n">tfrecords</span><span class="o">=</span><span class="n">dataset_tfrecords</span><span class="p">,</span>
+								 <span class="n">label</span><span class="o">=</span><span class="n">NO_LABEL</span><span class="p">,</span>
+								 <span class="n">path</span><span class="o">=</span><span class="n">project</span><span class="p">[</span><span class="s1">&#39;dataset_config&#39;</span><span class="p">])</span>
 
 				<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Updated dataset configuration file.&quot;</span><span class="p">)</span>
 			<span class="k">else</span><span class="p">:</span>
