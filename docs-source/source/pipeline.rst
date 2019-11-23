@@ -44,13 +44,13 @@ Step 4: Analytics
 *****************
 Validation testing is performed both during training - at specified intervals, or epochs - and after training has completed. Validation testing is used to assess model performance and anticipated generalizability. Various metrics are recorded in the project directory at these intervals to assist with model performance assessment, including:
 
-- **Training accuracy** (for categorical outcomes)
-- **Validation accuracy** (for categorical outcomes)
 - **Training loss**
 - **Validation loss**
-- **Tile-level ROC and AUC** (for categorical outcomes)
-- **Slide-level ROC and AUC** (for categorical outcomes)
-- **Scatter plot and R-squared** (for continuous outcomes)
+- **Training accuracy** (for categorical outcomes)
+- **Validation accuracy** (for categorical outcomes)
+- **Tile-level, slide-level, and patient-level ROC and AUC** (for categorical outcomes)
+- **Tile-level, slide-level, and patient-level scatter plots with R-squared** (for continuous outcomes)
+- **Histograms of predictions** (for continuous outcomes)
 
 Step 5: Visualizing Results with Heatmaps
 *****************************************

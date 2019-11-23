@@ -504,24 +504,24 @@
 		<span class="sd">&#39;&#39;&#39;Train model(s) given configurations found in batch_train.tsv.</span>
 
 <span class="sd">		Args:</span>
-<span class="sd">			models				(optional) Either string representing a model name or an array of strings containing model names. </span>
+<span class="sd">			models				(optional): Either string representing a model name or an array of strings containing model names. </span>
 <span class="sd">									Will train models with these names in the batch_train.tsv config file.</span>
 <span class="sd">									Defaults to None, which will train all models in the batch_train.tsv config file.</span>
-<span class="sd">			outcome_header		(optional) String or list. Specifies which header(s) in the annotation file to use for the output category. </span>
+<span class="sd">			outcome_header		(optional): String or list. Specifies which header(s) in the annotation file to use for the output category. </span>
 <span class="sd">									Defaults to &#39;category&#39;.	If a list is provided, will loop through all outcomes and perform HP sweep on each.</span>
-<span class="sd">			multi_outcome		(optional) If True, will train to multiple outcomes simultaneously instead of looping through the</span>
+<span class="sd">			multi_outcome		(optional): If True, will train to multiple outcomes simultaneously instead of looping through the</span>
 <span class="sd">									list of outcomes in &quot;outcome_header&quot;. Defaults to False.</span>
-<span class="sd">			filters				(optional) Dictionary of column names mapping to column values by which to filter slides using the annotation file.</span>
-<span class="sd">			resume_training		(optional) Path to .h5 model to continue training</span>
-<span class="sd">			checkpoint			(optional) Path to cp.ckpt from which to load weights</span>
-<span class="sd">			supervised			(optional) Whether to use verbose output and save training progress to Tensorboard</span>
-<span class="sd">			batch_file			(optional) Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.</span>
-<span class="sd">			model_type			(optional) Type of output variable, either categorical (default) or linear.</span>
-<span class="sd">			validation_target 	(optional) Whether to select validation data on a &#39;per-patient&#39; or &#39;per-tile&#39; basis. If not specified, will use project default.</span>
-<span class="sd">			validation_strategy	(optional) Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.</span>
-<span class="sd">			validation_fraction	(optional) Fraction of data to use for validation testing. If not specified, will use project default.</span>
-<span class="sd">			validation_k_fold 	(optional) K, if using k-fold validation. If not specified, will use project default.</span>
-<span class="sd">			k_fold_iter			(optional) Which iteration to train if using k-fold validation. Defaults to training all iterations.</span>
+<span class="sd">			filters				(optional): Dictionary of column names mapping to column values by which to filter slides using the annotation file.</span>
+<span class="sd">			resume_training		(optional): Path to .h5 model to continue training</span>
+<span class="sd">			checkpoint			(optional): Path to cp.ckpt from which to load weights</span>
+<span class="sd">			supervised			(optional): Whether to use verbose output and save training progress to Tensorboard</span>
+<span class="sd">			batch_file			(optional): Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.</span>
+<span class="sd">			model_type			(optional): Type of output variable, either categorical (default) or linear.</span>
+<span class="sd">			validation_target 	(optional): Whether to select validation data on a &#39;per-patient&#39; or &#39;per-tile&#39; basis. If not specified, will use project default.</span>
+<span class="sd">			validation_strategy	(optional): Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.</span>
+<span class="sd">			validation_fraction	(optional): Fraction of data to use for validation testing. If not specified, will use project default.</span>
+<span class="sd">			validation_k_fold 	(optional): K, if using k-fold validation. If not specified, will use project default.</span>
+<span class="sd">			k_fold_iter			(optional): Which iteration to train if using k-fold validation. Defaults to training all iterations.</span>
 
 <span class="sd">		Returns:</span>
 <span class="sd">			A dictionary containing model names mapped to train_acc, val_loss, and val_acc</span>
@@ -695,10 +695,10 @@
 		<span class="sd">&#39;&#39;&#39;Creates predictive heatmap overlays on a set of slides. </span>
 
 <span class="sd">		Args:</span>
-<span class="sd">			model_name		Which model to use for generating predictions</span>
-<span class="sd">			filter_header	Column name for filtering input slides based on the project annotations file. </span>
-<span class="sd">			filter_values	List of values to include when filtering slides according to filter_header.</span>
-<span class="sd">			resolution		Heatmap resolution (determines stride of tile predictions). </span>
+<span class="sd">			model_name:		Which model to use for generating predictions</span>
+<span class="sd">			filter_header:	Column name for filtering input slides based on the project annotations file. </span>
+<span class="sd">			filter_values:	List of values to include when filtering slides according to filter_header.</span>
+<span class="sd">			resolution:		Heatmap resolution (determines stride of tile predictions). </span>
 <span class="sd">								&quot;low&quot; uses a stride equal to tile width.</span>
 <span class="sd">								&quot;medium&quot; uses a stride equal 1/2 tile width.</span>
 <span class="sd">								&quot;high&quot; uses a stride equal to 1/4 tile width.</span>
@@ -824,7 +824,7 @@
 		<span class="sd">&#39;&#39;&#39;Updates manifest file in the TFRecord directory, used to track number of records and verify annotations.</span>
 <span class="sd">		</span>
 <span class="sd">		Args:</span>
-<span class="sd">			force_update	If True, will re-validate contents of all TFRecords. If False, will only validate</span>
+<span class="sd">			force_update:	If True, will re-validate contents of all TFRecords. If False, will only validate</span>
 <span class="sd">								contents of TFRecords not yet in the manifest</span>
 <span class="sd">		&#39;&#39;&#39;</span>
 		<span class="n">tfrecords_folders</span> <span class="o">=</span> <span class="n">Dataset</span><span class="p">(</span><span class="n">config_file</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;dataset_config&#39;</span><span class="p">],</span> <span class="n">sources</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">[</span><span class="s1">&#39;datasets&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">get_tfrecords_folders</span><span class="p">()</span>

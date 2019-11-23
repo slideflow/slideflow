@@ -5,15 +5,15 @@ The easiest way to get the ``slideflow`` pipeline up and running is to use the b
 
 Before we start, make sure you have each of the following:
 
-1.	A collection of slides in SVS format.
-2.	A collection of ROIs in CSV format, generated using QuPath.
-3.	A plan for which slides will be used for training and which will be used for final testing.
+1.    A collection of slides in SVS format.
+2.    A collection of ROIs in CSV format, generated using QuPath.
+3.    A plan for which slides will be used for training and which will be used for final testing.
 
 We will use the ``run_project.py`` script in the slideflow directory to both create and manage our project. To create a new project (or run commands on an existing project), use the following syntax:
 
 .. code-block:: console
 
-	james@example:~/slideflow/source$ python3 run_project.py -p /path/to/project/directory
+    james@example:~/slideflow/source$ python3 run_project.py -p /path/to/project/directory
 
 ...where the -p flag is used to designate the path to your project directory.
 
@@ -23,37 +23,61 @@ Project Configuration
 Upon first executing the script, you will be asked a series of questions regarding your project. Default answers are given in brackets (if the question is a yes/no question, the default answer is the letter which is capitalized); if you press enter without typing anything, the default will be chosen. You can always change your answers later by editing ``settings.json`` in your project folder. Below is an overview of what you’ll be asked for.
 
 +-------------------------------+-------------------------------------------------------+
-| **Slides directory** 		| Path to folder containing SVS slides. 		|
+| **Root**                      | Root project directory.                               |
 +-------------------------------+-------------------------------------------------------+
-| **ROI directory**		| Path to folder with ROI CSV files. 			|
+| **Name**                      | Project name.                                         |
 +-------------------------------+-------------------------------------------------------+
-| **Annotations file**		| Path to CSV containing annotations.   		|
-|				| Each line represents a unique patient and slide.	|
+| **Annotations file**          | Path to CSV containing annotations.                   |
+|                               | Each line represents a unique patient and slide.      |
 +-------------------------------+-------------------------------------------------------+
-| **Tiles directory**		| Folder in which to store extracted tiles.		|
+| **Dataset config**            | Path to JSON file containing dataset configuration.   |
 +-------------------------------+-------------------------------------------------------+
-| **TFRecord directory**	| Folder in which to store TFRecords.			|
+| **Datasets**                  | Which dataset(s) to use as input.                     |
 +-------------------------------+-------------------------------------------------------+
-| **Models directory**		| Folder in which to store trained models.		|
+| **Delete tiles**              | Whether tiles should be deleted after extraction.     |
 +-------------------------------+-------------------------------------------------------+
-| **Pretraining directory**	| Whether to use pretraining. 'imagenet' is default, 	|
-|				| but able to use any saved .h5 model.			|
+| **Models directory**          | Path to where model files and results should be saved.|
 +-------------------------------+-------------------------------------------------------+
-| **Tile microns**		| Size of extracted tiles, in microns.			|
+| **Tile microns**              | Size of extracted tiles, in microns.                  |
 +-------------------------------+-------------------------------------------------------+
-| **Tile pixels**		| Size of extracted tiles, in pixels.			|
+| **Tile pixels**               | Size of extracted tiles, in pixels.                   |
 +-------------------------------+-------------------------------------------------------+
-| **Validation fraction**	| Fraction of data to save for validation testing.	|
-|				| Default is 20%.					|
+| **Use FP16**                  | Whether models should be trained using                |
+|                               | 16-bit (vs. 32-bit) precision.                        |
 +-------------------------------+-------------------------------------------------------+
-| **Validation target**		| How to select validation data; by tile or by slide.	|
-|				| Default is 'per-patient'				|
+| **Validation fraction**       | Fraction of data to save for validation testing.      |
+|                               | Default is 20%.                                       |
 +-------------------------------+-------------------------------------------------------+
-| **Validation strategy**	| Type of validation testing (K-fold, fixed plan, none)	|
-|				| Default is 'k-fold'					|
+| **Validation target**         | How to select validation data; by tile or by slide.   |
+|                               | Default is 'per-patient'                              |
++-------------------------------+-------------------------------------------------------+
+| **Validation strategy**       | Type of validation testing (K-fold, fixed plan, none) |
+|                               | Default is 'k-fold'                                   |
++-------------------------------+-------------------------------------------------------+
+| **Validation K-fold**         | If k-fold validation, how many folds should be used.  |
 +-------------------------------+-------------------------------------------------------+
 
 For more information about setting up a validation plan, see :ref:`validation_planning`.
+
+Configuring Datasets
+********************
+
+Once initial project settings are established, you will then need to either create or load a dataset configuration, which will specify directory locations for slides, ROIs, tiles, and TFRecords for each group of slides. Each dataset has a name (e.g. BRCA) and may have an associated label (e.g. 604um).
+
+Dataset configurations are saved in a JSON file with the below syntax. Dataset configuration files can be shared and used across multiple projects, or saved locally within a project directory. 
+
+.. code-block:: json
+
+    { 
+        "DATASET_NAME": 
+        {
+            "slides": "./directory",
+            "roi": "./directory",
+            "tiles": "./directory",
+            "tfrecords": "./directory",
+            "label": "DATASET_LABEL"
+        } 
+    }
 
 Setting up annotations
 **********************
@@ -70,15 +94,15 @@ The annotations file may contain as many columns as you would like, but it must 
 An example annotations file is given below:
 
 +-----------------------+---------------+-----------+-----------------------------------+
-| *submitter_id*	| *category*	| *dataset* | *slide*				|
+| *submitter_id*        | *category*    | *dataset* | *slide*                           |
 +-----------------------+---------------+-----------+-----------------------------------+
-| TCGA-EL-A23A		| EGFR-mutant	| train	    | TCGA-EL-A3CO-01Z-00-DX1-7BF5F	|
+| TCGA-EL-A23A          | EGFR-mutant   | train     | TCGA-EL-A3CO-01Z-00-DX1-7BF5F     |
 +-----------------------+---------------+-----------+-----------------------------------+
-| TCGA-EL-A35B		| EGFR-mutant	| eval	    | TCGA-EL-A35B-01Z-00-DX1-89FCD	|
+| TCGA-EL-A35B          | EGFR-mutant   | eval      | TCGA-EL-A35B-01Z-00-DX1-89FCD     |
 +-----------------------+---------------+-----------+-----------------------------------+
-| TCGA-EL-A26X		| non-mutant	| train	    | TCGA-EL-A26X-01Z-00-DX1-4HA2C	|
+| TCGA-EL-A26X          | non-mutant    | train     | TCGA-EL-A26X-01Z-00-DX1-4HA2C     |
 +-----------------------+---------------+-----------+-----------------------------------+
-| TCGA-EL-B83L		| non-mutant	| eval	    | TCGA-EL-B83L-01Z-00-DX1-6BC5L	|
+| TCGA-EL-B83L          | non-mutant    | eval      | TCGA-EL-B83L-01Z-00-DX1-6BC5L     |
 +-----------------------+---------------+-----------+-----------------------------------+
 
 .. _execute:
@@ -90,24 +114,24 @@ After the project has been setup, open the ``actions.py`` file located in the pr
 
 .. code-block:: python
 
-	def main(SFP):
-		#SFP.extract_tiles(filters = {'to_extract': 'yes'}, subfolder='all')
-			
-		#SFP.create_hyperparameter_sweep(finetune_epochs=[5], toplayer_epochs=0, model=['Xception'], pooling=['avg'], loss='sparse_categorical_crossentropy', 
-		#								learning_rate=[0.00001, 0.001], batch_size=64, hidden_layers=[1], optimizer='Adam', early_stop=True, early_stop_patience=15, balanced_training=['BALANCE_BY_CATEGORY'],
-		#								balanced_validation='NO_BALANCE', augment=True, filename=None)
-		#SFP.train(subfolder='all',
-		#	  category_header="category",
-		#	  filters = {
-		#		  'dataset': 'train',
-		#		  'category': ['negative', 'positive']
-		#	  },
-		#	  batch_file='batch_train.tsv')
+    def main(SFP):
+        #SFP.extract_tiles(filters = {'to_extract': 'yes'})
+            
+        #SFP.create_hyperparameter_sweep(finetune_epochs=[5], toplayer_epochs=0, model=['Xception'], pooling=['avg'], loss='sparse_categorical_crossentropy', 
+        #                                learning_rate=[0.00001, 0.001], batch_size=64, hidden_layers=[1], optimizer='Adam', early_stop=True, early_stop_patience=15, balanced_training=['BALANCE_BY_CATEGORY'],
+        #                                balanced_validation='NO_BALANCE', augment=True, filename=None)
+        #SFP.train(
+        #      outcome_header="category",
+        #      filters = {
+        #          'dataset': 'train',
+        #          'category': ['negative', 'positive']
+        #      },
+        #      batch_file='batch_train.tsv')
 
-		#SFP.evaluate(model='HPSweep0-kfold3', subfolder='all', category_header="category", filters = {'dataset': 'eval'})
-		#SFP.generate_heatmaps('HPSweep0')
-		#SFP.generate_mosaic('HPSweep0')
-		pass
+        #SFP.evaluate(model='HPSweep0-kfold3', outcome_header="category", filters = {'dataset': 'eval'})
+        #SFP.generate_heatmaps('HPSweep0')
+        #SFP.generate_mosaic('HPSweep0')
+        pass
 
 The ``main()`` function contains several example commands, commented out with "#". These serve as examples to help remind you of arguments you can use when executing project functions.
 
@@ -117,4 +141,4 @@ To execute the commands you have prepared, save the ``actions.py`` file and go t
 
 .. code-block:: console
 
-	james@example:~/slideflow/source$ python3 run_project.py -p /path/to/project/directory
+    james@example:~/slideflow/source$ python3 run_project.py -p /path/to/project/directory

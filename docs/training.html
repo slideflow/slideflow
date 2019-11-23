@@ -202,21 +202,24 @@
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>models</strong> (<em>optional</em>) – Will train models with these names in the batch_train.tsv config file.
+<li><p><strong>models</strong> (<em>optional</em>) – Either string representing a model name or an array of strings containing model names.
+Will train models with these names in the batch_train.tsv config file.
 Defaults to None, which will train all models in the batch_train.tsv config file.</p></li>
-<li><p><strong>outcome_header</strong> (<em>optional</em><em>) </em><em>String</em><em> or </em><em>list. Specifies which header</em><em>(</em><em>s</em>) – Defaults to ‘category’. If a list is provided, will loop through all outcomes and perform HP sweep on each.</p></li>
-<li><p><strong>multi_outcome</strong> (<em>optional</em>) – list of outcomes in “outcome_header”. Defaults to False.</p></li>
-<li><p><strong>filters</strong> (<em>optional</em>) – </p></li>
-<li><p><strong>resume_training</strong> (<em>optional</em>) – </p></li>
-<li><p><strong>checkpoint</strong> (<em>optional</em>) – </p></li>
-<li><p><strong>supervised</strong> (<em>optional</em>) – </p></li>
-<li><p><strong>batch_file</strong> (<em>optional</em>) – </p></li>
-<li><p><strong>model_type</strong> (<em>optional</em><em>) </em><em>Type of output variable</em><em>, </em><em>either categorical</em><em> (</em><em>default</em>) – </p></li>
-<li><p><strong>validation_target</strong> (<em>optional</em>) – </p></li>
-<li><p><strong>validation_strategy</strong> (<em>optional</em><em>) </em><em>Validation dataset selection strategy</em><em> (</em><em>bootstrap</em><em>, </em><em>k-fold</em><em>, </em><em>fixed</em><em>, </em><em>none</em>) – </p></li>
-<li><p><strong>validation_fraction</strong> (<em>optional</em>) – </p></li>
-<li><p><strong>validation_k_fold</strong> (<em>optional</em>) – </p></li>
-<li><p><strong>k_fold_iter</strong> (<em>optional</em>) – </p></li>
+<li><p><strong>outcome_header</strong> (<em>optional</em>) – String or list. Specifies which header(s) in the annotation file to use for the output category.
+Defaults to ‘category’. If a list is provided, will loop through all outcomes and perform HP sweep on each.</p></li>
+<li><p><strong>multi_outcome</strong> (<em>optional</em>) – If True, will train to multiple outcomes simultaneously instead of looping through the
+list of outcomes in “outcome_header”. Defaults to False.</p></li>
+<li><p><strong>filters</strong> (<em>optional</em>) – Dictionary of column names mapping to column values by which to filter slides using the annotation file.</p></li>
+<li><p><strong>resume_training</strong> (<em>optional</em>) – Path to .h5 model to continue training</p></li>
+<li><p><strong>checkpoint</strong> (<em>optional</em>) – Path to cp.ckpt from which to load weights</p></li>
+<li><p><strong>supervised</strong> (<em>optional</em>) – Whether to use verbose output and save training progress to Tensorboard</p></li>
+<li><p><strong>batch_file</strong> (<em>optional</em>) – Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.</p></li>
+<li><p><strong>model_type</strong> (<em>optional</em>) – Type of output variable, either categorical (default) or linear.</p></li>
+<li><p><strong>validation_target</strong> (<em>optional</em>) – Whether to select validation data on a ‘per-patient’ or ‘per-tile’ basis. If not specified, will use project default.</p></li>
+<li><p><strong>validation_strategy</strong> (<em>optional</em>) – Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.</p></li>
+<li><p><strong>validation_fraction</strong> (<em>optional</em>) – Fraction of data to use for validation testing. If not specified, will use project default.</p></li>
+<li><p><strong>validation_k_fold</strong> (<em>optional</em>) – K, if using k-fold validation. If not specified, will use project default.</p></li>
+<li><p><strong>k_fold_iter</strong> (<em>optional</em>) – Which iteration to train if using k-fold validation. Defaults to training all iterations.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
