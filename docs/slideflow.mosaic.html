@@ -1,0 +1,330 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.mosaic &mdash; slideflow 1.0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="root.html" class="icon icon-home"> slideflow
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="index.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project.html">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="root.html">slideflow</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="root.html">Docs</a> &raquo;</li>
+        
+      <li>slideflow.mosaic</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/slideflow.mosaic.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-slideflow.mosaic">
+<span id="slideflow-mosaic"></span><h1>slideflow.mosaic<a class="headerlink" href="#module-slideflow.mosaic" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="slideflow.mosaic.Mosaic">
+<em class="property">class </em><code class="sig-prename descclassname">slideflow.mosaic.</code><code class="sig-name descname">Mosaic</code><span class="sig-paren">(</span><em class="sig-param">leniency=1.5</em>, <em class="sig-param">expanded=True</em>, <em class="sig-param">tile_zoom=15</em>, <em class="sig-param">num_tiles_x=50</em>, <em class="sig-param">resolution='high'</em>, <em class="sig-param">export=True</em>, <em class="sig-param">tile_um=None</em>, <em class="sig-param">use_fp16=True</em>, <em class="sig-param">save_dir=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/mosaic.html#Mosaic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.mosaic.Mosaic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="attribute">
+<dt id="slideflow.mosaic.Mosaic.BATCH_SIZE">
+<code class="sig-name descname">BATCH_SIZE</code><em class="property"> = 16</em><a class="headerlink" href="#slideflow.mosaic.Mosaic.BATCH_SIZE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.mosaic.Mosaic.FOCUS_SLIDE">
+<code class="sig-name descname">FOCUS_SLIDE</code><em class="property"> = None</em><a class="headerlink" href="#slideflow.mosaic.Mosaic.FOCUS_SLIDE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.mosaic.Mosaic.GRID">
+<code class="sig-name descname">GRID</code><em class="property"> = []</em><a class="headerlink" href="#slideflow.mosaic.Mosaic.GRID" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.mosaic.Mosaic.SLIDES">
+<code class="sig-name descname">SLIDES</code><em class="property"> = {}</em><a class="headerlink" href="#slideflow.mosaic.Mosaic.SLIDES" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.mosaic.Mosaic.ax_thumbnail">
+<code class="sig-name descname">ax_thumbnail</code><em class="property"> = None</em><a class="headerlink" href="#slideflow.mosaic.Mosaic.ax_thumbnail" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.mosaic.Mosaic.calculate_distances">
+<code class="sig-name descname">calculate_distances</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/mosaic.html#Mosaic.calculate_distances"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.mosaic.Mosaic.calculate_distances" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.mosaic.Mosaic.final_layer_weights">
+<code class="sig-name descname">final_layer_weights</code><em class="property"> = {}</em><a class="headerlink" href="#slideflow.mosaic.Mosaic.final_layer_weights" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.mosaic.Mosaic.finish_mosaic">
+<code class="sig-name descname">finish_mosaic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/mosaic.html#Mosaic.finish_mosaic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.mosaic.Mosaic.finish_mosaic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.mosaic.Mosaic.focus_tfrecords">
+<code class="sig-name descname">focus_tfrecords</code><span class="sig-paren">(</span><em class="sig-param">tfrecord_list</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/mosaic.html#Mosaic.focus_tfrecords"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.mosaic.Mosaic.focus_tfrecords" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.mosaic.Mosaic.generate_final_layer_from_tfrecords">
+<code class="sig-name descname">generate_final_layer_from_tfrecords</code><span class="sig-paren">(</span><em class="sig-param">tfrecord_array</em>, <em class="sig-param">model</em>, <em class="sig-param">image_size</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/mosaic.html#Mosaic.generate_final_layer_from_tfrecords"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.mosaic.Mosaic.generate_final_layer_from_tfrecords" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.mosaic.Mosaic.generate_from_tfrecords">
+<code class="sig-name descname">generate_from_tfrecords</code><span class="sig-paren">(</span><em class="sig-param">tfrecord_array</em>, <em class="sig-param">model</em>, <em class="sig-param">image_size</em>, <em class="sig-param">focus=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/mosaic.html#Mosaic.generate_from_tfrecords"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.mosaic.Mosaic.generate_from_tfrecords" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.mosaic.Mosaic.load_coordinates">
+<code class="sig-name descname">load_coordinates</code><span class="sig-paren">(</span><em class="sig-param">coord</em>, <em class="sig-param">meta</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/mosaic.html#Mosaic.load_coordinates"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.mosaic.Mosaic.load_coordinates" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.mosaic.Mosaic.logits">
+<code class="sig-name descname">logits</code><em class="property"> = {}</em><a class="headerlink" href="#slideflow.mosaic.Mosaic.logits" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.mosaic.Mosaic.metadata">
+<code class="sig-name descname">metadata</code><em class="property"> = []</em><a class="headerlink" href="#slideflow.mosaic.Mosaic.metadata" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.mosaic.Mosaic.pair_tiles_and_points">
+<code class="sig-name descname">pair_tiles_and_points</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/mosaic.html#Mosaic.pair_tiles_and_points"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.mosaic.Mosaic.pair_tiles_and_points" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.mosaic.Mosaic.place_tile_outlines">
+<code class="sig-name descname">place_tile_outlines</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/mosaic.html#Mosaic.place_tile_outlines"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.mosaic.Mosaic.place_tile_outlines" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.mosaic.Mosaic.points">
+<code class="sig-name descname">points</code><em class="property"> = []</em><a class="headerlink" href="#slideflow.mosaic.Mosaic.points" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.mosaic.Mosaic.rectangles">
+<code class="sig-name descname">rectangles</code><em class="property"> = {}</em><a class="headerlink" href="#slideflow.mosaic.Mosaic.rectangles" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.mosaic.Mosaic.stride_div">
+<code class="sig-name descname">stride_div</code><em class="property"> = 1</em><a class="headerlink" href="#slideflow.mosaic.Mosaic.stride_div" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.mosaic.Mosaic.tfrecord_paths">
+<code class="sig-name descname">tfrecord_paths</code><em class="property"> = []</em><a class="headerlink" href="#slideflow.mosaic.Mosaic.tfrecord_paths" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.mosaic.Mosaic.tile_point_distances">
+<code class="sig-name descname">tile_point_distances</code><em class="property"> = []</em><a class="headerlink" href="#slideflow.mosaic.Mosaic.tile_point_distances" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="slideflow.mosaic.Mosaic.tiles">
+<code class="sig-name descname">tiles</code><em class="property"> = []</em><a class="headerlink" href="#slideflow.mosaic.Mosaic.tiles" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="slideflow.mosaic.gen_umap">
+<code class="sig-prename descclassname">slideflow.mosaic.</code><code class="sig-name descname">gen_umap</code><span class="sig-paren">(</span><em class="sig-param">array</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/mosaic.html#gen_umap"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.mosaic.gen_umap" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.mosaic.normalize_layout">
+<code class="sig-prename descclassname">slideflow.mosaic.</code><code class="sig-name descname">normalize_layout</code><span class="sig-paren">(</span><em class="sig-param">layout</em>, <em class="sig-param">min_percentile=1</em>, <em class="sig-param">max_percentile=99</em>, <em class="sig-param">relative_margin=0.1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/mosaic.html#normalize_layout"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.mosaic.normalize_layout" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes outliers and scales layout to between [0,1].</p>
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, James M Dolezal
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
