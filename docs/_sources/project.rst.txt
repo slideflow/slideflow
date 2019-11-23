@@ -28,7 +28,7 @@ Upon first executing the script, you will be asked a series of questions regardi
 | **Name**                      | Project name.                                         |
 +-------------------------------+-------------------------------------------------------+
 | **Annotations file**          | Path to CSV containing annotations.                   |
-|                               | Each line is a unique patient and slide.              |
+|                               | Each line is a unique slide.                          |
 +-------------------------------+-------------------------------------------------------+
 | **Dataset config**            | Path to JSON file containing dataset configuration.   |
 +-------------------------------+-------------------------------------------------------+
@@ -79,11 +79,22 @@ Dataset configurations are saved in a JSON file with the below syntax. Dataset c
         } 
     }
 
+Datasets are configured either interactively at the time of project initialization, or may be added by calling `SlideflowProject.add_dataset()`:
+
+.. code-block:: python
+
+    SFP.add_dataset( name="NAME",
+                     slides="/slides/directory",
+                     roi="/roi/directory",
+                     tiles="/tiles/directory",
+                     tfrecords="/tfrecords/directory",
+                     label="LABEL" )
+
 Setting up annotations
 **********************
 
 Your annotations CSV file is used to label patients and slides with clinical data and/or other outcome variables that will be used for training.
-Each line in the annotations file should correspond to a unique patient/slide (*Note: v0.9.9 of slideflow currently supports only one slide per patient*).
+Each line in the annotations file should correspond to a unique slide.
 
 The annotations file may contain as many columns as you would like, but it must contain the following headers at minimum:
 

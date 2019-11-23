@@ -195,7 +195,7 @@
 </tr>
 <tr class="row-odd"><td><p><strong>Annotations file</strong></p></td>
 <td><p>Path to CSV containing annotations.
-Each line is a unique patient and slide.</p></td>
+Each line is a unique slide.</p></td>
 </tr>
 <tr class="row-even"><td><p><strong>Dataset config</strong></p></td>
 <td><p>Path to JSON file containing dataset configuration.</p></td>
@@ -254,11 +254,20 @@ Default is ‘k-fold’</p></td>
 <span class="p">}</span>
 </pre></div>
 </div>
+<p>Datasets are configured either interactively at the time of project initialization, or may be added by calling <cite>SlideflowProject.add_dataset()</cite>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">add_dataset</span><span class="p">(</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;NAME&quot;</span><span class="p">,</span>
+                 <span class="n">slides</span><span class="o">=</span><span class="s2">&quot;/slides/directory&quot;</span><span class="p">,</span>
+                 <span class="n">roi</span><span class="o">=</span><span class="s2">&quot;/roi/directory&quot;</span><span class="p">,</span>
+                 <span class="n">tiles</span><span class="o">=</span><span class="s2">&quot;/tiles/directory&quot;</span><span class="p">,</span>
+                 <span class="n">tfrecords</span><span class="o">=</span><span class="s2">&quot;/tfrecords/directory&quot;</span><span class="p">,</span>
+                 <span class="n">label</span><span class="o">=</span><span class="s2">&quot;LABEL&quot;</span> <span class="p">)</span>
+</pre></div>
+</div>
 </div>
 <div class="section" id="setting-up-annotations">
 <h2>Setting up annotations<a class="headerlink" href="#setting-up-annotations" title="Permalink to this headline">¶</a></h2>
 <p>Your annotations CSV file is used to label patients and slides with clinical data and/or other outcome variables that will be used for training.
-Each line in the annotations file should correspond to a unique patient/slide (<em>Note: v0.9.9 of slideflow currently supports only one slide per patient</em>).</p>
+Each line in the annotations file should correspond to a unique slide.</p>
 <p>The annotations file may contain as many columns as you would like, but it must contain the following headers at minimum:</p>
 <ul class="simple">
 <li><p><strong>submitter_id</strong>: patient identifier</p></li>
