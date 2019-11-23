@@ -1,0 +1,383 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow &mdash; slideflow 1.0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="root.html" class="icon icon-home"> slideflow
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="index.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project.html">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="root.html">slideflow</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="root.html">Docs</a> &raquo;</li>
+        
+      <li>slideflow</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/slideflow.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-slideflow">
+<span id="slideflow"></span><h1>slideflow<a class="headerlink" href="#module-slideflow" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="slideflow.SlideflowProject">
+<em class="property">class </em><code class="sig-prename descclassname">slideflow.</code><code class="sig-name descname">SlideflowProject</code><span class="sig-paren">(</span><em class="sig-param">project_folder</em>, <em class="sig-param">interactive=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="attribute">
+<dt id="slideflow.SlideflowProject.MANIFEST">
+<code class="sig-name descname">MANIFEST</code><em class="property"> = None</em><a class="headerlink" href="#slideflow.SlideflowProject.MANIFEST" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.add_dataset">
+<code class="sig-name descname">add_dataset</code><span class="sig-paren">(</span><em class="sig-param">path</em>, <em class="sig-param">name</em>, <em class="sig-param">slides</em>, <em class="sig-param">roi</em>, <em class="sig-param">tiles</em>, <em class="sig-param">tfrecords</em>, <em class="sig-param">label</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.add_dataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.add_dataset" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.associate_slide_names">
+<code class="sig-name descname">associate_slide_names</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.associate_slide_names"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.associate_slide_names" title="Permalink to this definition">¶</a></dt>
+<dd><p>Experimental function used to automatically associated patient names with slide filenames in the annotations file.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.create_blank_annotations_file">
+<code class="sig-name descname">create_blank_annotations_file</code><span class="sig-paren">(</span><em class="sig-param">outfile=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.create_blank_annotations_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.create_blank_annotations_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates an example blank annotations file.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.create_blank_train_config">
+<code class="sig-name descname">create_blank_train_config</code><span class="sig-paren">(</span><em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.create_blank_train_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.create_blank_train_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a CSV file with the batch training structure.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.create_hyperparameter_sweep">
+<code class="sig-name descname">create_hyperparameter_sweep</code><span class="sig-paren">(</span><em class="sig-param">finetune_epochs</em>, <em class="sig-param">toplayer_epochs</em>, <em class="sig-param">model</em>, <em class="sig-param">pooling</em>, <em class="sig-param">loss</em>, <em class="sig-param">learning_rate</em>, <em class="sig-param">batch_size</em>, <em class="sig-param">hidden_layers</em>, <em class="sig-param">optimizer</em>, <em class="sig-param">early_stop</em>, <em class="sig-param">early_stop_patience</em>, <em class="sig-param">balanced_training</em>, <em class="sig-param">balanced_validation</em>, <em class="sig-param">augment</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.create_hyperparameter_sweep"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.create_hyperparameter_sweep" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepares a hyperparameter sweep using the batch train config file.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.create_project">
+<code class="sig-name descname">create_project</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.create_project"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.create_project" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prompts user to provide all relevant project configuration and saves configuration to “settings.json”.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.evaluate">
+<code class="sig-name descname">evaluate</code><span class="sig-paren">(</span><em class="sig-param">model_name</em>, <em class="sig-param">outcome_header</em>, <em class="sig-param">model_type='categorical'</em>, <em class="sig-param">model_file='trained_model.h5'</em>, <em class="sig-param">filters=None</em>, <em class="sig-param">checkpoint=None</em>, <em class="sig-param">eval_k_fold=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.evaluate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.evaluate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluates a saved model on a given set of tfrecords.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.extract_tiles">
+<code class="sig-name descname">extract_tiles</code><span class="sig-paren">(</span><em class="sig-param">tile_um=None</em>, <em class="sig-param">tile_px=None</em>, <em class="sig-param">filters=None</em>, <em class="sig-param">skip_validation=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.extract_tiles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.extract_tiles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract tiles from a group of slides; save a percentage of tiles for validation testing if the
+validation target is ‘per-patient’; and generate TFRecord files from the raw images.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.generate_heatmaps">
+<code class="sig-name descname">generate_heatmaps</code><span class="sig-paren">(</span><em class="sig-param">model_name</em>, <em class="sig-param">filters=None</em>, <em class="sig-param">resolution='medium'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.generate_heatmaps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.generate_heatmaps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates predictive heatmap overlays on a set of slides.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Which model to use for generating predictions</strong> (<em>model_name</em>) – </p></li>
+<li><p><strong>Column name for filtering input slides based on the project annotations file.</strong> (<em>filter_header</em>) – </p></li>
+<li><p><strong>List of values to include when filtering slides according to filter_header.</strong> (<em>filter_values</em>) – </p></li>
+<li><p><strong>Heatmap resolution</strong> (<em>resolution</em>) – “low” uses a stride equal to tile width.
+“medium” uses a stride equal 1/2 tile width.
+“high” uses a stride equal to 1/4 tile width.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.generate_mosaic">
+<code class="sig-name descname">generate_mosaic</code><span class="sig-paren">(</span><em class="sig-param">model</em>, <em class="sig-param">filters=None</em>, <em class="sig-param">focus_filters=None</em>, <em class="sig-param">resolution='medium'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.generate_mosaic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.generate_mosaic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates a mosaic map with dimensionality reduction on penultimate layer weights. Tile data is extracted from the provided
+set of TFRecords and predictions are calculated using the specified model.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.generate_tfrecord">
+<code class="sig-name descname">generate_tfrecord</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.generate_tfrecord"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.generate_tfrecord" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create tfrecord files from a collection of raw images</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.initialize_model">
+<code class="sig-name descname">initialize_model</code><span class="sig-paren">(</span><em class="sig-param">model_name</em>, <em class="sig-param">dataset</em>, <em class="sig-param">train_tfrecords</em>, <em class="sig-param">validation_tfrecords</em>, <em class="sig-param">outcomes</em>, <em class="sig-param">model_type='categorical'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.initialize_model"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.initialize_model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepares a Slideflow model using the provided outcome variable (outcome_header)
+and a given set of training and validation tfrecords.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.load_datasets">
+<code class="sig-name descname">load_datasets</code><span class="sig-paren">(</span><em class="sig-param">path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.load_datasets"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.load_datasets" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.load_project">
+<code class="sig-name descname">load_project</code><span class="sig-paren">(</span><em class="sig-param">directory</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.load_project"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.load_project" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads a saved and pre-configured project.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.save_project">
+<code class="sig-name descname">save_project</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.save_project"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.save_project" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves current project configuration as “settings.json”.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.train">
+<code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param">models=None</em>, <em class="sig-param">outcome_header='category'</em>, <em class="sig-param">multi_outcome=False</em>, <em class="sig-param">filters=None</em>, <em class="sig-param">resume_training=None</em>, <em class="sig-param">checkpoint=None</em>, <em class="sig-param">pretrain='imagenet'</em>, <em class="sig-param">supervised=True</em>, <em class="sig-param">batch_file=None</em>, <em class="sig-param">model_type='categorical'</em>, <em class="sig-param">validation_target=None</em>, <em class="sig-param">validation_strategy=None</em>, <em class="sig-param">validation_fraction=None</em>, <em class="sig-param">validation_k_fold=None</em>, <em class="sig-param">k_fold_iter=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.train"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.train" title="Permalink to this definition">¶</a></dt>
+<dd><p>Train model(s) given configurations found in batch_train.tsv.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>models</strong> (<em>optional</em>) – Will train models with these names in the batch_train.tsv config file.
+Defaults to None, which will train all models in the batch_train.tsv config file.</p></li>
+<li><p><strong>outcome_header</strong> (<em>optional</em><em>) </em><em>String</em><em> or </em><em>list. Specifies which header</em><em>(</em><em>s</em>) – Defaults to ‘category’. If a list is provided, will loop through all outcomes and perform HP sweep on each.</p></li>
+<li><p><strong>multi_outcome</strong> (<em>optional</em>) – list of outcomes in “outcome_header”. Defaults to False.</p></li>
+<li><p><strong>filters</strong> (<em>optional</em>) – </p></li>
+<li><p><strong>resume_training</strong> (<em>optional</em>) – </p></li>
+<li><p><strong>checkpoint</strong> (<em>optional</em>) – </p></li>
+<li><p><strong>supervised</strong> (<em>optional</em>) – </p></li>
+<li><p><strong>batch_file</strong> (<em>optional</em>) – </p></li>
+<li><p><strong>model_type</strong> (<em>optional</em><em>) </em><em>Type of output variable</em><em>, </em><em>either categorical</em><em> (</em><em>default</em>) – </p></li>
+<li><p><strong>validation_target</strong> (<em>optional</em>) – </p></li>
+<li><p><strong>validation_strategy</strong> (<em>optional</em><em>) </em><em>Validation dataset selection strategy</em><em> (</em><em>bootstrap</em><em>, </em><em>k-fold</em><em>, </em><em>fixed</em><em>, </em><em>none</em>) – </p></li>
+<li><p><strong>validation_fraction</strong> (<em>optional</em>) – </p></li>
+<li><p><strong>validation_k_fold</strong> (<em>optional</em>) – </p></li>
+<li><p><strong>k_fold_iter</strong> (<em>optional</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A dictionary containing model names mapped to train_acc, val_loss, and val_acc</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.update_manifest">
+<code class="sig-name descname">update_manifest</code><span class="sig-paren">(</span><em class="sig-param">force_update=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.update_manifest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.update_manifest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates manifest file in the TFRecord directory, used to track number of records and verify annotations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>If True</strong><strong>, </strong><strong>will re-validate contents of all TFRecords. If False</strong><strong>, </strong><strong>will only validate</strong> (<em>force_update</em>) – contents of TFRecords not yet in the manifest</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="slideflow.SlideflowProject.update_tfrecords">
+<code class="sig-name descname">update_tfrecords</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#SlideflowProject.update_tfrecords"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.SlideflowProject.update_tfrecords" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="slideflow.autoselect_gpu">
+<code class="sig-prename descclassname">slideflow.</code><code class="sig-name descname">autoselect_gpu</code><span class="sig-paren">(</span><em class="sig-param">number_available</em>, <em class="sig-param">reverse=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#autoselect_gpu"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.autoselect_gpu" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.release_gpu">
+<code class="sig-prename descclassname">slideflow.</code><code class="sig-name descname">release_gpu</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#release_gpu"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.release_gpu" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.select_gpu">
+<code class="sig-prename descclassname">slideflow.</code><code class="sig-name descname">select_gpu</code><span class="sig-paren">(</span><em class="sig-param">number</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#select_gpu"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.select_gpu" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="slideflow.set_logging_level">
+<code class="sig-prename descclassname">slideflow.</code><code class="sig-name descname">set_logging_level</code><span class="sig-paren">(</span><em class="sig-param">level</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow.html#set_logging_level"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#slideflow.set_logging_level" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, James M Dolezal
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
