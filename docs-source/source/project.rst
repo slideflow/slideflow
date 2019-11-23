@@ -79,7 +79,7 @@ Dataset configurations are saved in a JSON file with the below syntax. Dataset c
         } 
     }
 
-Datasets are configured either interactively at the time of project initialization, or may be added by calling `SlideflowProject.add_dataset()`:
+Datasets are configured either interactively at the time of project initialization, or may be added by calling ``SlideflowProject.add_dataset()``:
 
 .. code-block:: python
 
