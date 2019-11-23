@@ -347,24 +347,24 @@ class SlideflowProject:
 		'''Train model(s) given configurations found in batch_train.tsv.
 
 		Args:
-			models				(optional) Either string representing a model name or an array of strings containing model names. 
+			models				(optional): Either string representing a model name or an array of strings containing model names. 
 									Will train models with these names in the batch_train.tsv config file.
 									Defaults to None, which will train all models in the batch_train.tsv config file.
-			outcome_header		(optional) String or list. Specifies which header(s) in the annotation file to use for the output category. 
+			outcome_header		(optional): String or list. Specifies which header(s) in the annotation file to use for the output category. 
 									Defaults to 'category'.	If a list is provided, will loop through all outcomes and perform HP sweep on each.
-			multi_outcome		(optional) If True, will train to multiple outcomes simultaneously instead of looping through the
+			multi_outcome		(optional): If True, will train to multiple outcomes simultaneously instead of looping through the
 									list of outcomes in "outcome_header". Defaults to False.
-			filters				(optional) Dictionary of column names mapping to column values by which to filter slides using the annotation file.
-			resume_training		(optional) Path to .h5 model to continue training
-			checkpoint			(optional) Path to cp.ckpt from which to load weights
-			supervised			(optional) Whether to use verbose output and save training progress to Tensorboard
-			batch_file			(optional) Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.
-			model_type			(optional) Type of output variable, either categorical (default) or linear.
-			validation_target 	(optional) Whether to select validation data on a 'per-patient' or 'per-tile' basis. If not specified, will use project default.
-			validation_strategy	(optional) Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.
-			validation_fraction	(optional) Fraction of data to use for validation testing. If not specified, will use project default.
-			validation_k_fold 	(optional) K, if using k-fold validation. If not specified, will use project default.
-			k_fold_iter			(optional) Which iteration to train if using k-fold validation. Defaults to training all iterations.
+			filters				(optional): Dictionary of column names mapping to column values by which to filter slides using the annotation file.
+			resume_training		(optional): Path to .h5 model to continue training
+			checkpoint			(optional): Path to cp.ckpt from which to load weights
+			supervised			(optional): Whether to use verbose output and save training progress to Tensorboard
+			batch_file			(optional): Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.
+			model_type			(optional): Type of output variable, either categorical (default) or linear.
+			validation_target 	(optional): Whether to select validation data on a 'per-patient' or 'per-tile' basis. If not specified, will use project default.
+			validation_strategy	(optional): Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.
+			validation_fraction	(optional): Fraction of data to use for validation testing. If not specified, will use project default.
+			validation_k_fold 	(optional): K, if using k-fold validation. If not specified, will use project default.
+			k_fold_iter			(optional): Which iteration to train if using k-fold validation. Defaults to training all iterations.
 
 		Returns:
 			A dictionary containing model names mapped to train_acc, val_loss, and val_acc
@@ -538,10 +538,10 @@ class SlideflowProject:
 		'''Creates predictive heatmap overlays on a set of slides. 
 
 		Args:
-			model_name		Which model to use for generating predictions
-			filter_header	Column name for filtering input slides based on the project annotations file. 
-			filter_values	List of values to include when filtering slides according to filter_header.
-			resolution		Heatmap resolution (determines stride of tile predictions). 
+			model_name:		Which model to use for generating predictions
+			filter_header:	Column name for filtering input slides based on the project annotations file. 
+			filter_values:	List of values to include when filtering slides according to filter_header.
+			resolution:		Heatmap resolution (determines stride of tile predictions). 
 								"low" uses a stride equal to tile width.
 								"medium" uses a stride equal 1/2 tile width.
 								"high" uses a stride equal to 1/4 tile width.
@@ -667,7 +667,7 @@ class SlideflowProject:
 		'''Updates manifest file in the TFRecord directory, used to track number of records and verify annotations.
 		
 		Args:
-			force_update	If True, will re-validate contents of all TFRecords. If False, will only validate
+			force_update:	If True, will re-validate contents of all TFRecords. If False, will only validate
 								contents of TFRecords not yet in the manifest
 		'''
 		tfrecords_folders = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets']).get_tfrecords_folders()
@@ -710,7 +710,9 @@ class SlideflowProject:
 			datasets_names = []
 		return datasets_data, datasets_names
 
-	def add_dataset(self, path, name, slides, roi, tiles, tfrecords, label):
+	def add_dataset(self, name, slides, roi, tiles, tfrecords, label, path=None):
+		if not path:
+			path = self.PROJECT['dataset_config']
 		try:
 			datasets_data = sfutil.load_json(path)
 		except FileNotFoundError:
@@ -775,12 +777,13 @@ class SlideflowProject:
 				dataset_tfrecords = sfutil.dir_input("Where should the TFRecord files be stored? (recommend HDD) [./tfrecord] ",
 										default='./tfrecord', create_on_invalid=True)
 
-				self.add_dataset(path=project['dataset_config'], name=dataset_name,
-																 slides=dataset_slides,
-																 roi=dataset_roi,
-																 tiles=dataset_tiles,
-																 tfrecords=dataset_tfrecords,
-																 label=NO_LABEL)
+				self.add_dataset(name=dataset_name,
+								 slides=dataset_slides,
+								 roi=dataset_roi,
+								 tiles=dataset_tiles,
+								 tfrecords=dataset_tfrecords,
+								 label=NO_LABEL,
+								 path=project['dataset_config'])
 
 				print("Updated dataset configuration file.")
 			else:
