@@ -72,12 +72,9 @@ class TestSuite:
 	def __init__(self, reset=True):
 		'''Initialize testing models.'''
 		sf.set_logging_level(sf.SILENT)
-<<<<<<< HEAD
-=======
 
 		# Force slideflow into testing mode
 		sfmodel.TEST_MODE = True
->>>>>>> ff8f63f... Fixes #29
 
 		# Reset test progress
 		if reset: self.reset()
