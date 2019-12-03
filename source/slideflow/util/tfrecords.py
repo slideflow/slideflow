@@ -209,8 +209,11 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True):
 		return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
 
 	if balance:
+		# Get patient outcomes
+		patient_outcomes = [patients_dict[p][balance] for p in patients_dict]
+
 		# Get unique outcomes
-		unique_outcomes = list(set([patients_dict[p][balance] for p in patients_dict]))
+		unique_outcomes = list(set(patient_outcomes))
 
 		# Now, split patient_list according to outcomes
 		patients_split_by_outcomes = [[p for p in patient_list if patients_dict[p][balance] == uo] for uo in unique_outcomes]
