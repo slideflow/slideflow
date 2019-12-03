@@ -3,6 +3,7 @@ import slideflow as sf
 import os
 import csv
 
+from slideflow.trainer import model as sfmodel
 from slideflow.util import TCGA, log
 
 from glob import glob
@@ -70,7 +71,10 @@ class TestSuite:
 	'''Class to supervise standardized testing of slideflow pipeline.'''
 	def __init__(self, reset=True):
 		'''Initialize testing models.'''
-		sf.set_logging_level(sf.SILENT)
+		#sf.set_logging_level(sf.SILENT)
+
+		# Force slideflow into testing mode
+		sfmodel.TEST_MODE = True
 
 		# Reset test progress
 		if reset: self.reset()
@@ -116,11 +120,12 @@ class TestSuite:
 	def configure_datasets(self):
 		print("Setting up test dataset configuration...")
 		for dataset_name in TEST_DATASETS.keys():
-			self.SFP.add_dataset(PROJECT_CONFIG['dataset_config'], dataset_name, slides=TEST_DATASETS[dataset_name]['slides'],
-																				 roi=TEST_DATASETS[dataset_name]['roi'],
-																				 tiles=TEST_DATASETS[dataset_name]['tiles'],
-																				 tfrecords=TEST_DATASETS[dataset_name]['tfrecords'],
-																				 label=TEST_DATASETS[dataset_name]['label'])
+			self.SFP.add_dataset(dataset_name, slides=TEST_DATASETS[dataset_name]['slides'],
+											   roi=TEST_DATASETS[dataset_name]['roi'],
+											   tiles=TEST_DATASETS[dataset_name]['tiles'],
+											   tfrecords=TEST_DATASETS[dataset_name]['tfrecords'],
+											   label=TEST_DATASETS[dataset_name]['label'],
+											   path=PROJECT_CONFIG['dataset_config'])
 		print("\t...DONE")
 
 	def configure_annotations(self):
@@ -169,12 +174,12 @@ class TestSuite:
 		self.SFP.extract_tiles()
 		print("\t...OK")
 
-	def test_input_stream(self, outcome, balancing, batch_size=16, augment=True, filters=None, model_type='categorical'):
+	'''def test_input_stream(self, outcome, balancing, batch_size=16, augment=True, filters=None, model_type='categorical'):
 		dataset, dataset_with_slidenames, num_tiles = SFM.build_dataset_inputs(SFM.TRAIN_TFRECORDS, batch_size=batch_size, 
 																									balance=balancing,
 																									augment=augment,
 																									finite=False,
-																									include_slidenames=False)
+																									include_slidenames=False)'''
 	def test_training(self, categorical=True, linear=True):
 		if categorical:
 			# Test categorical outcome
