@@ -341,7 +341,9 @@ def get_outcomes_from_annotations(headers, filters=None, filter_blank=[], use_fl
 	results = {}
 	headers = [headers] if type(headers) != list else headers
 	filter_blank = [filter_blank] if type(filter_blank) != list else filter_blank
+	assigned_headers = {}
 	for header in headers:
+		assigned_headers[header] = {}
 		try:
 			filtered_outcomes = [a[header] for a in filtered_annotations]
 		except KeyError:
@@ -377,12 +379,17 @@ def get_outcomes_from_annotations(headers, filters=None, filter_blank=[], use_fl
 			patient = annotation[TCGA.patient]
 			annotation_outcome = _process_outcome(annotation[header])
 
+			# Mark this slide as having been already assigned an outcome with his header
+			assigned_headers[header][slide] = True
+
 			# Ensure patients do not have multiple outcomes
 			if patient not in patient_outcomes:
 				patient_outcomes[patient] = annotation_outcome
 			elif patient_outcomes[patient] != annotation_outcome:
 				log.error(f"Multiple different outcomes in header {header} found for patient {patient} ({patient_outcomes[patient]}, {annotation_outcome})", 1)
 				sys.exit()
+			elif (slide in slides) and (slide in results) and (slide in assigned_headers[header]):
+				continue
 
 			if slide in slides:
 				if slide in results:
