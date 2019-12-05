@@ -270,6 +270,13 @@ class SlideflowProject:
 				log.error(f"Unknown argument '{arg}' found in training config file.", 0)
 		return hp, model_name
 
+	def _valid_hp(self, hp):
+		if (hp.model_type != 'categorical' and ((hp.balanced_training == sfmodel.BALANCE_BY_CATEGORY) or 
+											    (hp.balanced_validation == sfmodel.BALANCE_BY_CATEGORY))):
+			log.error(f'Invalid hyperparameter combination: balancing type "{sfmodel.BALANCE_BY_CATEGORY}" and model type "{hp.model_type}".', 1)
+			return False
+		return True
+
 	def _get_valid_models(self, batch_train_file, models):
 		'''Internal function used to scan a batch_train file for valid, trainable models.'''
 		models_to_train = []
@@ -485,6 +492,10 @@ class SlideflowProject:
 				hp, hp_model_name = self._get_hp(row, header)
 				if hp_model_name not in hp_models_to_train: continue
 
+				# Verify HP combinations are valid
+				if not self._valid_hp(hp):
+					return
+
 				# Generate model name
 				outcome_string = "-".join(selected_outcome_headers) if type(selected_outcome_headers) == list else selected_outcome_headers
 				model_name = f"{outcome_string}-{hp_model_name}"
@@ -575,7 +586,7 @@ class SlideflowProject:
 		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
 	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="medium"):
-		'''Generates a mosaic map with dimensionality reduction on penultimate layer weights. Tile data is extracted from the provided
+		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.'''
 		
 		log.header("Generating mosaic map...")
