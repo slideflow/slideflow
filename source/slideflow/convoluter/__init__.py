@@ -164,7 +164,12 @@ class SlideReader:
 				num_rois = 0
 
 		# Collect basic slide information
-		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
+		try:
+			self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
+		except KeyError:
+			log.error(f"Corrupted SVS ({sfutil.green(self.name)}), skipping slide", 1, self.print)
+			self.load_error = True
+			return
 		self.full_shape = self.slide.dimensions
 		self.full_extract_px = int(size_um / self.MPP)
 		log.label(self.shortname, f"Loaded {filetype.upper()}: {self.MPP} um/px | {num_rois} ROI(s) | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
