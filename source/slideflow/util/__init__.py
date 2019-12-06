@@ -24,6 +24,8 @@ PROJECT_DIR = None
 ANNOTATIONS = []
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif']
 
+SLIDE_ANNOTATIONS_TO_IGNORE = ['', 'na', 'n/a', 'none', 'missing']
+
 HEADER = '\033[95m'
 BLUE = '\033[94m'
 GREEN = '\033[92m'
@@ -289,6 +291,7 @@ def get_slides_from_annotations(filters=None, filter_blank=[]):
 	global ANNOTATIONS
 	result = []
 	filter_blank = [filter_blank] if type(filter_blank) != list else filter_blank
+	patient_slide_dict = {}
 	if not len(ANNOTATIONS):
 		log.error("No annotations loaded; is the annotations file empty?")
 	for ann in ANNOTATIONS:
@@ -296,8 +299,19 @@ def get_slides_from_annotations(filters=None, filter_blank=[]):
 		if TCGA.slide not in ann.keys():
 			log.error(f"{TCGA.slide} not found in annotations file.")
 			sys.exit()
-		if ann[TCGA.slide] == '':
+
+		# Skip missing or blank slides
+		if ann[TCGA.slide] in SLIDE_ANNOTATIONS_TO_IGNORE:
 			continue
+
+		# Ensure slides are only assigned to a single patient
+		if ann[TCGA.patient] not in patient_slide_dict:
+			patient_slide_dict.update({ann[TCGA.patient]: ann[TCGA.slide]})
+		elif patient_slide_dict[ann[TCGA.patient]] != ann[TCGA.slide]:
+			log.error(f"Multiple patients assigned to slide {green(ann[TCGA.slide])}.")
+			sys.exit()
+
+		# Only return slides with annotation values specified in "filters"
 		if filters:
 			for filter_key in filters.keys():
 				if filter_key not in ann.keys():
@@ -307,6 +321,8 @@ def get_slides_from_annotations(filters=None, filter_blank=[]):
 					or (type(filters[filter_key]) != list and filters[filter_key] != ann[filter_key])):
 					skip_annotation = True
 					break
+
+		# Filter out slides that are blank in a given annotation column ("filter_blank")
 		if filter_blank:
 			for fb in filter_blank:
 				if fb not in ann.keys():
