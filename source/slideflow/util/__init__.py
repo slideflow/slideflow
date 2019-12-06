@@ -291,7 +291,7 @@ def get_slides_from_annotations(filters=None, filter_blank=[]):
 	global ANNOTATIONS
 	result = []
 	filter_blank = [filter_blank] if type(filter_blank) != list else filter_blank
-	patient_slide_dict = {}
+	slide_patient_dict = {}
 	if not len(ANNOTATIONS):
 		log.error("No annotations loaded; is the annotations file empty?")
 	for ann in ANNOTATIONS:
@@ -305,9 +305,9 @@ def get_slides_from_annotations(filters=None, filter_blank=[]):
 			continue
 
 		# Ensure slides are only assigned to a single patient
-		if ann[TCGA.patient] not in patient_slide_dict:
-			patient_slide_dict.update({ann[TCGA.patient]: ann[TCGA.slide]})
-		elif patient_slide_dict[ann[TCGA.patient]] != ann[TCGA.slide]:
+		if ann[TCGA.slide] not in slide_patient_dict:
+			slide_patient_dict.update({ann[TCGA.slide]: ann[TCGA.patient]})
+		elif slide_patient_dict[ann[TCGA.slide]] != ann[TCGA.patient]:
 			log.error(f"Multiple patients assigned to slide {green(ann[TCGA.slide])}.")
 			sys.exit()
 
@@ -466,8 +466,9 @@ def update_annotations_with_slidenames(annotations_file, dataset):
 			slide = slide_name if slide_name in patients else _shortname(slide_name)
 			patient_slide_dict.update({slide: slide_name})
 		else:
-			log.warn(f"Slide '{slide_name}' not found in annotations file, skipping.", 1, print_func)
-			num_warned += 1
+			#log.warn(f"Slide '{slide_name}' not found in annotations file, skipping.", 1, print_func)
+			#num_warned += 1
+			pass
 	if num_warned >= warn_threshold:
 		log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)
 
@@ -646,17 +647,25 @@ def update_tfrecord_manifest(directory, force_update=False):
 			example = tf.train.Example()
 			example.ParseFromString(raw_record.numpy())
 			slide = example.features.feature['slide'].bytes_list.value[0].decode('utf-8')
-			slide_list.extend([slide])
-			slide_list = list(set(slide_list))
 			if slide not in manifest[rel_tfr]:
 				manifest[rel_tfr][slide] = 1
 			else:
 				manifest[rel_tfr][slide] += 1
-			if slide not in slide_names_from_annotations:
-				slide_list_errors.extend([slide])
-				slide_list_errors = list(set(slide_list_errors))
 			total += 1
 		manifest[rel_tfr]['total'] = total
+
+	# Find slides that have TFRecords
+	for man_rel_tfr in manifest:
+		try:
+			for slide_key in manifest[man_rel_tfr]:
+				if slide_key != 'total':
+					slide_list.extend([slide_key])
+					slide_list = list(set(slide_list))
+				if slide_key not in slide_names_from_annotations:
+					slide_list_errors.extend([slide])
+					slide_list_errors = list(set(slide_list_errors))
+		except:
+			continue
 
 	for slide in slide_list_errors:
 		log.error(f"Failed TFRecord integrity check: annotation not found for slide {green(slide)}", 1)
@@ -667,7 +676,7 @@ def update_tfrecord_manifest(directory, force_update=False):
 	# Write manifest file
 	write_json(manifest, manifest_path)
 
-	# Now, check to see if all annotations have a corresponding set of tiles
+	'''# Now, check to see if all annotations have a corresponding set of tiles
 	if len(ANNOTATIONS):
 		num_warned = 0
 		warn_threshold = 3
@@ -678,9 +687,10 @@ def update_tfrecord_manifest(directory, force_update=False):
 				num_warned += 1
 			elif annotation[TCGA.slide] not in slide_list:
 				log.warn(f"Slide {green(annotation[TCGA.slide])} in annotation file has no image tiles.", 1, print_func)
+				print(slide_list)
 				num_warned += 1
 		if num_warned >= warn_threshold:
-			log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)
+			log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)'''
 
 	return manifest
 	
