@@ -51,6 +51,7 @@ warnings.filterwarnings('ignore')
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
 NO_BALANCE = 'NO_BALANCE'
+TEST_MODE = False
 
 class HyperParameters:
 	_OptDict = {
@@ -465,8 +466,9 @@ class SlideflowModel:
 			validation_data_for_training = None
 
 		#testing overide
-		#num_tiles = 100
-		#hp.finetune_epochs = 3
+		if TEST_MODE:
+			num_tiles = 100
+			hp.finetune_epochs = 2
 
 		# Prepare results
 		results = {}
