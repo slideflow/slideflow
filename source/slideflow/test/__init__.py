@@ -1,6 +1,7 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 import slideflow as sf
-import os
 import csv
 
 from slideflow import util as sfutil
@@ -30,8 +31,8 @@ TEST_DATASETS = {
 		'label': sf.NO_LABEL
 	},
 	'TEST2': {
-		'slides': '/media/Backup/Other_files/Thyroid/SVS/PTC-follicular',
-		'roi': '/media/Backup/Other_files/Thyroid/SVS/PTC-follicular',
+		'slides': '/media/Backup/Other_files/Thyroid/SVS',
+		'roi': '/media/Backup/Other_files/Thyroid/SVS',
 		'tiles': '/home/shawarma/data/test_project/tiles/TEST2',
 		'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST2',
 		'label': sf.NO_LABEL
@@ -64,7 +65,6 @@ ANNOTATIONS = [
 	['235551', 'TEST1', 'cat1a', 'cat2a', '0.9', '2.2', ''],
 	['235552', 'TEST1', 'cat1b', 'cat2b', '5.1', '0.2', '235552'],
 	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', '235553'],
-	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', '235553'],
 	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', '235554'],
 ]
 
@@ -78,9 +78,6 @@ class TestSuite:
 		'''Initialize testing models.'''
 		if silent:
 			sf.set_logging_level(sf.SILENT)
-
-		# Force slideflow into testing mode
-		sfmodel.TEST_MODE = True
 
 		# Force slideflow into testing mode
 		sfmodel.TEST_MODE = True

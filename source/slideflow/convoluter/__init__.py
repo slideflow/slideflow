@@ -496,6 +496,8 @@ class Convoluter:
 		for batch_images, batch_labels, batch_unique in tile_dataset:
 			count = min(count, total_logits_count)
 			prelogits, logits = self.model.predict([batch_images, batch_images])
+			batch_labels = batch_labels.numpy()
+			batch_unique = batch_unique.numpy()
 			count += len(batch_images)
 			prelogits_arr = prelogits if prelogits_arr == [] else np.concatenate([prelogits_arr, prelogits])
 			logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
