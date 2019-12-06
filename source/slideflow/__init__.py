@@ -26,7 +26,7 @@ from slideflow.util import TCGA, log
 from slideflow.util.datasets import Dataset
 from slideflow.mosaic import Mosaic
 
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
@@ -585,8 +585,9 @@ class SlideflowProject:
 		c.build_model(model_path)
 		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
-	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="medium"):
+	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="medium", num_tiles_x=50):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
+
 		set of TFRecords and predictions are calculated using the specified model.'''
 		
 		log.header("Generating mosaic map...")
@@ -601,7 +602,8 @@ class SlideflowProject:
 			focus_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=focus_filters)
 		else:
 			focus_list = None
-		mosaic = Mosaic(save_dir=self.PROJECT['root'], resolution=resolution)
+		mosaic = Mosaic(save_dir=self.PROJECT['root'], num_tiles_x=num_tiles_x,
+													   resolution=resolution)
 		mosaic.generate_from_tfrecords(slide_list, model=model_path, image_size=self.PROJECT['tile_px'], focus=focus_list)
 
 	def create_blank_train_config(self, filename=None):

@@ -291,6 +291,7 @@ def get_slides_from_annotations(filters=None, filter_blank=[]):
 	global ANNOTATIONS
 	result = []
 	filter_blank = [filter_blank] if type(filter_blank) != list else filter_blank
+	patient_slide_dict = {}
 	if not len(ANNOTATIONS):
 		log.error("No annotations loaded; is the annotations file empty?")
 	for ann in ANNOTATIONS:
@@ -298,9 +299,18 @@ def get_slides_from_annotations(filters=None, filter_blank=[]):
 		if TCGA.slide not in ann.keys():
 			log.error(f"{TCGA.slide} not found in annotations file.")
 			sys.exit()
+
 		# Skip missing or blank slides
 		if ann[TCGA.slide] in SLIDE_ANNOTATIONS_TO_IGNORE:
 			continue
+
+		# Ensure slides are only assigned to a single patient
+		if ann[TCGA.patient] not in patient_slide_dict:
+			patient_slide_dict.update({ann[TCGA.patient]: ann[TCGA.slide]})
+		elif patient_slide_dict[ann[TCGA.patient]] != ann[TCGA.slide]:
+			log.error(f"Multiple patients assigned to slide {green(ann[TCGA.slide])}.")
+			sys.exit()
+
 		# Only return slides with annotation values specified in "filters"
 		if filters:
 			for filter_key in filters.keys():
@@ -311,6 +321,7 @@ def get_slides_from_annotations(filters=None, filter_blank=[]):
 					or (type(filters[filter_key]) != list and filters[filter_key] != ann[filter_key])):
 					skip_annotation = True
 					break
+
 		# Filter out slides that are blank in a given annotation column ("filter_blank")
 		if filter_blank:
 			for fb in filter_blank:
@@ -476,11 +487,11 @@ def update_annotations_with_slidenames(annotations_file, dataset):
 				csv_writer.writerow(header)
 				for row in csv_reader:
 					patient = row[patient_index]
-					if patient in patient_slide_dict:
+					# Only write column if no slide is documented in the annotation
+					if (patient in patient_slide_dict) and (row[slide_index] == ''):
 						row[slide_index] = patient_slide_dict[patient]
 						num_updated_annotations += 1
-					else:
-						row[slide_index] = ''
+					elif (patient not in patient_slide_dict) and (row[slide_index] == ''):
 						num_missing += 1
 					csv_writer.writerow(row)
 			except:
