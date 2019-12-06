@@ -487,11 +487,11 @@ def update_annotations_with_slidenames(annotations_file, dataset):
 				csv_writer.writerow(header)
 				for row in csv_reader:
 					patient = row[patient_index]
-					if patient in patient_slide_dict:
+					# Only write column if no slide is documented in the annotation
+					if (patient in patient_slide_dict) and (row[slide_index] == ''):
 						row[slide_index] = patient_slide_dict[patient]
 						num_updated_annotations += 1
-					else:
-						row[slide_index] = ''
+					elif (patient not in patient_slide_dict) and (row[slide_index] == ''):
 						num_missing += 1
 					csv_writer.writerow(row)
 			except:
