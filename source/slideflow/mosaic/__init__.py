@@ -137,6 +137,7 @@ class Mosaic:
   
 			for i, data in enumerate(dataset):
 				batch_processed_images, batch_slides = data
+				batch_slides = batch_slides.numpy()
 				sys.stdout.write(f"\r - Working on batch {i}")
 				sys.stdout.flush()
 
@@ -152,7 +153,7 @@ class Mosaic:
 
 				fl_activations_arr = fl_activations if fl_activations_arr == [] else np.concatenate([fl_activations_arr, fl_activations])
 				logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
-				slides_arr = batch_slides.numpy() if slides_arr == [] else np.concatenate([slides_arr, batch_slides])
+				slides_arr = batch_slides if slides_arr == [] else np.concatenate([slides_arr, batch_slides])
 				indices_arr = indices if indices_arr == [] else np.concatenate([indices_arr, indices])
 				tile_indices_arr = tile_indices if tile_indices_arr == [] else np.concatenate([tile_indices_arr, tile_indices])
 
