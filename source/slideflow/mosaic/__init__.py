@@ -96,50 +96,6 @@ class Mosaic:
 		self.ax.set_xticklabels([])
 		self.ax.set_yticklabels([])
 
-	'''	def load_slides(self, slides_array, category="None"):
-		log.info(f"Loading slides ...", 1)
-		for slide in slides_array:
-			name = sfutil.path_to_name(slide)
-			filetype = sfutil.path_to_ext(slide)
-			path = slide
-
-			try:
-				slide = ops.OpenSlide(path)
-			except ops.lowlevel.OpenSlideUnsupportedFormatError:
-				log.warn(f"Unable to read file from {path} , skipping", 1)
-				return None
-	
-			shape = slide.dimensions
-			goal_thumb_area = 400*400
-			y_x_ratio = shape[1] / shape[0]
-			thumb_x = math.sqrt(goal_thumb_area / y_x_ratio)
-			thumb_y = thumb_x * y_x_ratio
-			thumb_ratio = thumb_x / shape[0]
-			thumb = slide.get_thumbnail((int(thumb_x), int(thumb_y)))
-			MPP = float(slide.properties[ops.PROPERTY_NAME_MPP_X]) # Microns per pixel
-
-			# Calculate tile index -> cooordinates dictionary
-			coords = []
-			extract_px = int(self.tile_um / MPP)
-			stride = int(extract_px / self.stride_div)
-			for y in range(0, (shape[1]+1) - extract_px, stride):
-				for x in range(0, (shape[0]+1) - extract_px, stride):
-					if ((y % extract_px == 0) and (x % extract_px == 0)):
-						# Indicates unique (non-overlapping tile)
-						coords.append([x, y])
-
-			self.SLIDES.update({name: { "name": name,
-										"path": path,
-										"type": filetype,
-										"category": category,
-										"thumb": thumb,
-										"ratio": thumb_ratio,
-										"MPP": MPP,
-										"tile_extr_px": int(self.tile_um / MPP),
-										"tile_size": int(self.tile_um / MPP) * thumb_ratio,
-										'coords':coords} })
-			self.FOCUS_SLIDE = name'''
-
 	def generate_final_layer_from_tfrecords(self, tfrecord_array, model, image_size):
 		log.info(f"Calculating final layer activations from model {sfutil.green(model)}", 1)
 
@@ -149,17 +105,13 @@ class Mosaic:
 		try:
 			loaded_model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
 												outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
-			num_classes = _model.layers[-1].output_shape[-1]
 		except AttributeError:
 			# Provides support for complete models that were not generated using Slideflow
 			complete_model=True
 			loaded_model = tf.keras.models.Model(inputs=[_model.input],
 												 outputs=[_model.layers[-2].output])
-			num_classes = 1
 		
-
-		results = []
-		fl_activations_all, logits_all, slides_all, indices_all, tile_indices_all, images_all, tfrecord_all = [], [], [], [], [], [], []
+		fl_activations_all, logits_all, slides_all, indices_all, tile_indices_all, tfrecord_all = [], [], [], [], [], []
 
 		def _parse_function(record):
 			features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
@@ -169,7 +121,7 @@ class Mosaic:
 			processed_image = tf.image.per_image_standardization(raw_image)
 			processed_image = tf.image.convert_image_dtype(processed_image, self.DTYPE)
 			processed_image.set_shape([image_size, image_size, 3])
-			return processed_image, raw_image, slide
+			return processed_image, slide
 
 		# Calculate final layer activations for each tfrecord
 		for tfrecord in tfrecord_array:
@@ -181,10 +133,10 @@ class Mosaic:
 			self.tfrecord_paths += [tfrecord]
 			tfrecord_index = self.tfrecord_paths.index(tfrecord)
 
-			fl_activations_arr, logits_arr, slides_arr, indices_arr, tile_indices_arr, images_arr = [], [], [], [], [], []
+			fl_activations_arr, logits_arr, slides_arr, indices_arr, tile_indices_arr = [], [], [], [], []
+  
 			for i, data in enumerate(dataset):
-				batch_processed_images, batch_raw_images, batch_slides = data
-				batch_raw_images_np = batch_raw_images.numpy()
+				batch_processed_images, batch_slides = data
 				sys.stdout.write(f"\r - Working on batch {i}")
 				sys.stdout.flush()
 
@@ -200,8 +152,7 @@ class Mosaic:
 
 				fl_activations_arr = fl_activations if fl_activations_arr == [] else np.concatenate([fl_activations_arr, fl_activations])
 				logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
-				slides_arr = batch_slides if slides_arr == [] else np.concatenate([slides_arr, batch_slides])
-				#images_arr = batch_raw_images_np if images_arr == [] else np.concatenate([images_arr, batch_raw_images_np])
+				slides_arr = batch_slides.numpy() if slides_arr == [] else np.concatenate([slides_arr, batch_slides])
 				indices_arr = indices if indices_arr == [] else np.concatenate([indices_arr, indices])
 				tile_indices_arr = tile_indices if tile_indices_arr == [] else np.concatenate([tile_indices_arr, tile_indices])
 
@@ -213,7 +164,6 @@ class Mosaic:
 			fl_activations_all = fl_activations_arr if fl_activations_all == [] else np.concatenate([fl_activations_all, fl_activations_arr])
 			logits_all = logits_arr if logits_all == [] else np.concatenate([logits_all, logits_arr])
 			slides_all = slides_arr if slides_all == [] else np.concatenate([slides_all, slides_arr])
-			images_all = [] #images_arr if images_all == [] else np.concatenate([images_all, images_arr])
 			indices_all = indices_arr if indices_all == [] else np.concatenate([indices_all, indices_arr])
 			tile_indices_all = tile_indices_arr if tile_indices_all == [] else np.concatenate([tile_indices_all, tile_indices_arr])
 			tfrecord_all = tfrecord_arr if tfrecord_all == [] else np.concatenate([tfrecord_all, tfrecord_arr])
@@ -232,20 +182,17 @@ class Mosaic:
 				csvwriter.writerow(row)
 
 		# Returns a 2D array, with each element containing FL activations, logits, slide name, tfrecord name, and tfrecord indices
-		return fl_activations_all, logits_all, slides_all, images_all, indices_all, tile_indices_all, tfrecord_all	
+		return fl_activations_all, logits_all, slides_all, indices_all, tile_indices_all, tfrecord_all	
 
 	def generate_from_tfrecords(self, tfrecord_array, model, image_size, focus=None):
-		fl_activations, logits, slides, images, indices, tile_indices, tfrecords = self.generate_final_layer_from_tfrecords(tfrecord_array, model, image_size)
+		fl_activations, logits, slides, indices, tile_indices, tfrecords = self.generate_final_layer_from_tfrecords(tfrecord_array, model, image_size)
 		
 		dl_coord = gen_umap(fl_activations)
-		self.load_coordinates(dl_coord, [slides, tfrecords, indices, tile_indices, images])
+		self.load_coordinates(dl_coord, [slides, tfrecords, indices, tile_indices])
+
 		self.place_tile_outlines()
-		#if len(self.SLIDES):
-		#	self.generate_hover_events()
 		self.calculate_distances()
 		self.pair_tiles_and_points()
-		#if len(self.SLIDES):
-		#	self.draw_slides()
 		if focus:
 			self.focus_tfrecords(focus)
 		self.finish_mosaic()
@@ -255,7 +202,7 @@ class Mosaic:
 		points_x = []
 		points_y = []
 		point_index = 0
-		slides, tfrecords, indices, tile_indices, images = meta
+		slides, tfrecords, indices, tile_indices = meta
 		for i, p in enumerate(coord):
 			points_x.append(p[0])
 			points_y.append(p[1])
@@ -269,8 +216,6 @@ class Mosaic:
 								'tfrecord_index':indices[i],
 								'tile_index':tile_indices[i],
 								'paired_tile':None })
-								#'image_path':None,
-								#'image_data':images[i]})
 			point_index += 1
 		x_points = [p['x'] for p in self.points]
 		y_points = [p['y'] for p in self.points]
