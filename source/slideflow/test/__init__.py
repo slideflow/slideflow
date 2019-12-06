@@ -3,6 +3,8 @@ import slideflow as sf
 import os
 import csv
 
+from slideflow import util as sfutil
+from slideflow.trainer import model as sfmodel
 from slideflow.util import TCGA, log
 
 from glob import glob
@@ -55,23 +57,30 @@ PROJECT_CONFIG = {
 
 ANNOTATIONS = [
 	[TCGA.patient, 'dataset', 'category1', 'category2', 'linear1', 'linear2', 'slide'],
-	['234839', 'TEST2', 'cat1a', 'cat2a', '1.1', '1.2', ''],
-	['234834', 'TEST2', 'cat1b', 'cat2a', '2.1', '2.2', ''],
+	['234839', 'TEST2', 'cat1a', 'cat2a', '1.1', '1.2', '234839'],
+	['234834', 'TEST2', 'cat1b', 'cat2a', '2.1', '2.2', '234834'],
 	['234832', 'TEST2', 'cat1a', 'cat2b', '4.3', '3.2', ''],
-	['234840', 'TEST2', 'cat1b', 'cat2b', '2.8', '4.2', ''],
+	['234840', 'TEST2', 'cat1b', 'cat2b', '2.8', '4.2', '234840'],
 	['235551', 'TEST1', 'cat1a', 'cat2a', '0.9', '2.2', ''],
-	['235552', 'TEST1', 'cat1b', 'cat2b', '5.1', '0.2', ''],
-	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', ''],
-	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', ''],
+	['235552', 'TEST1', 'cat1b', 'cat2b', '5.1', '0.2', '235552'],
+	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', '235553'],
+	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', '235553'],
+	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', '235554'],
 ]
+
+SLIDES_TO_VERIFY = ['234832', '235551', '235554']
 
 # --------------------------------------------------------------------------------------
 
 class TestSuite:
 	'''Class to supervise standardized testing of slideflow pipeline.'''
-	def __init__(self, reset=True):
+	def __init__(self, reset=True, silent=True):
 		'''Initialize testing models.'''
-		sf.set_logging_level(sf.SILENT)
+		if silent:
+			sf.set_logging_level(sf.SILENT)
+
+		# Force slideflow into testing mode
+		sfmodel.TEST_MODE = True
 
 		# Force slideflow into testing mode
 		sfmodel.TEST_MODE = True
@@ -120,11 +129,12 @@ class TestSuite:
 	def configure_datasets(self):
 		print("Setting up test dataset configuration...")
 		for dataset_name in TEST_DATASETS.keys():
-			self.SFP.add_dataset(PROJECT_CONFIG['dataset_config'], dataset_name, slides=TEST_DATASETS[dataset_name]['slides'],
-																				 roi=TEST_DATASETS[dataset_name]['roi'],
-																				 tiles=TEST_DATASETS[dataset_name]['tiles'],
-																				 tfrecords=TEST_DATASETS[dataset_name]['tfrecords'],
-																				 label=TEST_DATASETS[dataset_name]['label'])
+			self.SFP.add_dataset(dataset_name, slides=TEST_DATASETS[dataset_name]['slides'],
+											   roi=TEST_DATASETS[dataset_name]['roi'],
+											   tiles=TEST_DATASETS[dataset_name]['tiles'],
+											   tfrecords=TEST_DATASETS[dataset_name]['tfrecords'],
+											   label=TEST_DATASETS[dataset_name]['label'],
+											   path=PROJECT_CONFIG['dataset_config'])
 		print("\t...DONE")
 
 	def configure_annotations(self):
@@ -135,6 +145,15 @@ class TestSuite:
 			for an in ANNOTATIONS:
 				csv_writer.writerow(an)
 		self.SFP.associate_slide_names()
+		loaded_slides = sfutil.get_slides_from_annotations()
+		for slide in SLIDES_TO_VERIFY:
+			if slide not in loaded_slides:
+				log.error("Failed to correctly associate slide names; please see annotations file below.")
+				with open(outfile, 'r') as ann_read:
+					print()
+					print(ann_read.read())
+				print("\t...FAILED")
+				return
 		print("\t...OK")
 
 	def setup_hp(self, model_type):
@@ -173,12 +192,12 @@ class TestSuite:
 		self.SFP.extract_tiles()
 		print("\t...OK")
 
-	def test_input_stream(self, outcome, balancing, batch_size=16, augment=True, filters=None, model_type='categorical'):
+	'''def test_input_stream(self, outcome, balancing, batch_size=16, augment=True, filters=None, model_type='categorical'):
 		dataset, dataset_with_slidenames, num_tiles = SFM.build_dataset_inputs(SFM.TRAIN_TFRECORDS, batch_size=batch_size, 
 																									balance=balancing,
 																									augment=augment,
 																									finite=False,
-																									include_slidenames=False)
+																									include_slidenames=False)'''
 	def test_training(self, categorical=True, linear=True):
 		if categorical:
 			# Test categorical outcome
