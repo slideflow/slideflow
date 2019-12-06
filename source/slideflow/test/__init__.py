@@ -82,6 +82,9 @@ class TestSuite:
 		# Force slideflow into testing mode
 		sfmodel.TEST_MODE = True
 
+		# Force slideflow into testing mode
+		sfmodel.TEST_MODE = True
+
 		# Reset test progress
 		if reset: self.reset()
 
