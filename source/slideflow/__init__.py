@@ -26,7 +26,7 @@ from slideflow.util import TCGA, log
 from slideflow.util.datasets import Dataset
 from slideflow.mosaic import Mosaic
 
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
