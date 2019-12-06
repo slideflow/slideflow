@@ -472,7 +472,7 @@ class Convoluter:
 		gen_slice, x_size, y_size, stride_px, roi_area_fraction = whole_slide.build_generator(export=export_tiles)
 
 		if not gen_slice:
-			log.error(f"No tiles extracted from slide {sfutil.green(slide_name)}", 1)
+			log.error(f"No tiles extracted from slide {sfutil.green(whole_slide.name)}", 1)
 			return False, False, False, False
 
 		# Generate dataset from the generator
