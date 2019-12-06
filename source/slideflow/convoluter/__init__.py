@@ -338,7 +338,7 @@ class Convoluter:
 	
 	 - image export (for generating a tile dataset, with or	without augmentation)
 	 - logit predictions from saved Tensorflow model (logits may then be either saved or visualized with heatmaps)
-	 - final layer weight calculation (saved into a CSV file)
+	 - final layer activations calculation (saved into a CSV file)
 	'''
 	def __init__(self, size_px, size_um, batch_size, use_fp16, stride_div=2, save_folder='', roi_dir=None, roi_list=None, augment=False):
 		self.SLIDES = {}
@@ -374,7 +374,7 @@ class Convoluter:
 		# First, load the designated model
 		_model = tf.keras.models.load_model(self.MODEL_DIR)
 
-		# Now, construct a new model that outputs both predictions and final layer weights
+		# Now, construct a new model that outputs both predictions and final layer activations
 		self.model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
 										   outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
 
@@ -387,7 +387,7 @@ class Convoluter:
 		Args:
 			save_heatmaps: 				Bool, if true will save heatmap overlays as PNG files
 			display_heatmaps:			Bool, if true will display interactive heatmap for each whole-slide image
-			save_final_layer: 			Bool, if true will calculate and save final layer weights in CSV file
+			save_final_layer: 			Bool, if true will calculate and save final layer activations in CSV file
 			export_tiles:				Bool, if true will save tessellated image tiles to subdirectory "tiles"
 
 		Returns:
@@ -427,7 +427,7 @@ class Convoluter:
 			if not whole_slide.loaded_correctly():
 				continue
 
-			# Calculate the final layer weights and logits/predictions
+			# Calculate the final layer activations and logits/predictions
 			logits, final_layer, final_layer_labels, logits_flat = self.calculate_logits(whole_slide, export_tiles=export_tiles, 
 																									final_layer=save_final_layer, 
 																									pb=pb)
@@ -439,7 +439,7 @@ class Convoluter:
 			if save_heatmaps:
 				self.gen_heatmaps(slide, whole_slide.thumb, logits, self.SIZE_PX, slide_name, save=True)
 			if save_final_layer:
-				self.export_weights(final_layer, final_layer_labels, logits_flat, slide_name, category)
+				self.export_activations(final_layer, final_layer_labels, logits_flat, slide_name, category)
 			if display_heatmaps:
 				self.gen_heatmaps(slide, whole_slide.thumb, logits, self.SIZE_PX, slide_name, save=False)
 
@@ -466,7 +466,7 @@ class Convoluter:
 			pass
 
 	def calculate_logits(self, whole_slide, export_tiles=False, final_layer=False, pb=None):
-		'''Convolutes across a whole slide, returning logits and final layer weights for tessellated image tiles'''
+		'''Convolutes across a whole slide, returning logits and final layer activations for tessellated image tiles'''
 
 		# Create tile coordinate generator
 		gen_slice, x_size, y_size, stride_px, roi_area_fraction = whole_slide.build_generator(export=export_tiles)
@@ -488,11 +488,11 @@ class Convoluter:
 		total_logits_count = int((x_logits_len * y_logits_len) * roi_area_fraction)
 
 		count = 0
-		prelogits_arr = [] # Final layer weights 
+		prelogits_arr = [] # Final layer activations 
 		logits_arr = []	# Logits (predictions) 
 		unique_arr = []	# Boolean array indicating whether tile is unique (non-overlapping) 
 
-		# Iterate through generator to calculate logits +/- final layer weights for all tiles
+		# Iterate through generator to calculate logits +/- final layer activations for all tiles
 		for batch_images, batch_labels, batch_unique in tile_dataset:
 			count = min(count, total_logits_count)
 			prelogits, logits = self.model.predict([batch_images, batch_images])
@@ -512,12 +512,12 @@ class Convoluter:
 		logits_arr = logits_arr[sorted_indices]
 		labels_arr = labels_arr[sorted_indices]
 		
-		# Perform same functions on final layer weights
+		# Perform same functions on final layer activations
 		flat_unique_logits = None
 		if final_layer:
 			prelogits_arr = prelogits_arr[sorted_indices]
 			unique_arr = unique_arr[sorted_indices]
-			# Find logits from non-overlapping tiles (will be used for metadata for saved final layer weights CSV)
+			# Find logits from non-overlapping tiles (will be used for metadata for saved final layer activations CSV)
 			flat_unique_logits = [logits_arr[l] for l in range(len(logits_arr)) if unique_arr[l]]
 			prelogits_out = [prelogits_arr[p] for p in range(len(prelogits_arr)) if unique_arr[p]]
 			prelogits_labels = [labels_arr[l] for l in range(len(labels_arr)) if unique_arr[l]]
@@ -542,12 +542,12 @@ class Convoluter:
 		logits_out = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.NUM_CLASSES])
 		return logits_out, prelogits_out, prelogits_labels, flat_unique_logits
 
-	def export_weights(self, output, labels, logits, name, category):
-		'''Exports final layer weights (and logits) for non-overlapping tiles into a CSV file.'''
+	def export_activations(self, output, labels, logits, name, category):
+		'''Exports final layer activations (and logits) for non-overlapping tiles into a CSV file.'''
 		log.empty("Writing csv...", 1)
-		csv_started = os.path.exists(join(self.SAVE_FOLDER, 'final_layer_weights.csv'))
+		csv_started = os.path.exists(join(self.SAVE_FOLDER, 'final_layer_activations.csv'))
 		write_mode = 'a' if csv_started else 'w'
-		with open(join(self.SAVE_FOLDER, 'final_layer_weights.csv'), write_mode) as csv_file:
+		with open(join(self.SAVE_FOLDER, 'final_layer_activations.csv'), write_mode) as csv_file:
 			csv_writer = csv.writer(csv_file, delimiter = ',')
 			if not csv_started:
 				csv_writer.writerow(["Tile_num", "Slide", "Category"] + [f"Logits{l}" for l in range(len(logits[0]))] + [f"Node{n}" for n in range(len(output[0]))])
