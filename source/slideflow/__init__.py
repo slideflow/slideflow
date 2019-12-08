@@ -26,7 +26,7 @@ from slideflow.util import TCGA, log
 from slideflow.util.datasets import Dataset
 from slideflow.mosaic import Mosaic, ActivationsVisualizer
 
-__version__ = "1.3.2"
+__version__ = "1.3.3"
 
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
@@ -587,9 +587,7 @@ class SlideflowProject:
 
 	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="medium", num_tiles_x=50):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
-
 		set of TFRecords and predictions are calculated using the specified model.'''
-		
 		log.header("Generating mosaic map...")
 
 		# Load dataset for evaluation
@@ -606,23 +604,16 @@ class SlideflowProject:
 													   resolution=resolution)
 		mosaic.generate_from_tfrecords(slide_list, model=model_path, image_size=self.PROJECT['tile_px'], focus=focus_list)
 
-	def generate_activations_analytics(self, outcome_header, focus_nodes=[], exclusion_node=None):
+	def generate_activations_analytics(self, outcome_header, filters=None, focus_nodes=[], node_exclusion=False):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.'''
 		log.header("Generating final layer activation analytics...")
 		activations_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
-		AV = ActivationsVisualizer(self.PROJECT['annotations'], outcome_header, activations_dataset.get_tfrecords(), self.PROJECT['root'], focus_nodes=focus_nodes)
-		
-		# Calculate patient-level activations, statistics, and box plots
-		AV.generate_box_plots()
+		activations_tfrecords = activations_dataset.get_tfrecords()
+		tfrecords_list = sfutil.filter_tfrecords_paths(activations_tfrecords, filters=filters)
 
-		# Generate UMAPs
-		umap_x, umap_y, _, _, umap_details = AV.plot_2D_and_3D_exclusion_umap(exclusion_node)
+		AV = ActivationsVisualizer(self.PROJECT['annotations'], outcome_header, tfrecords_list, self.PROJECT['root'], focus_nodes=focus_nodes)
 
-		# See example tiles
-		#filter_criteria = AV.filter_tiles_by_umap(umap_x, umap_y, umap_details, x_upper = 0.2)
-		#AV.save_example_tiles_gradient(tile_filter=filter_criteria)
-		#AV.save_example_tiles_high_low(['234854', '234795', '234812'])
-
+		return AV
 
 	def create_blank_train_config(self, filename=None):
 		'''Creates a CSV file with the batch training structure.'''
@@ -676,6 +667,17 @@ class SlideflowProject:
 					row += [getattr(hp, arg)]
 				writer.writerow(row)
 		log.complete(f"Wrote {len(sweep)} combinations for sweep to {sfutil.green(filename)}")
+
+	def resize_tfrecords(self, size, filters=None):
+		log.header(f"Resizing TFRecord tiles to ({size}, {size})")
+		resize_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		resize_tfrecords = resize_dataset.get_tfrecords()
+		tfrecords_list = sfutil.filter_tfrecords_paths(resize_tfrecords, filters=filters)
+
+		log.info(f"Resizing {len(tfrecords_list)} tfrecords", 1)
+
+		for tfr in tfrecords_list:
+			sfutil.tfrecords.transform_tfrecord(tfr, tfr+".transformed", resize=size)
 
 	def create_blank_annotations_file(self, outfile=None):
 		'''Creates an example blank annotations file.'''
