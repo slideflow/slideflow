@@ -27,6 +27,8 @@ import slideflow.util as sfutil
 import slideflow.util.statistics as sfstats
 from slideflow.util import log, progress_bar, tfrecords, TCGA
 
+# TODO: merge Mosaic class into ActivationsVisualizer
+
 class Mosaic:
 	FOCUS_SLIDE = None
 	BATCH_SIZE = 16
@@ -48,9 +50,10 @@ class Mosaic:
 		self.mapping_method = 'expanded' if expanded else 'strict'
 		self.tile_zoom_factor = tile_zoom
 		self.export = export
-		self.DTYPE = tf.float16 if use_fp16 else tf.float32
 		self.num_tiles_x = num_tiles_x
 		self.save_dir = save_dir
+		self.DTYPE = tf.float16 if use_fp16 else tf.float32
+		self.PT_NODE_DICT_PKL = join(save_dir, "stats", "activation_node_dict.pkl")
 
 		# Variables used only when loading from slides
 		self.tile_um = tile_um
@@ -88,6 +91,7 @@ class Mosaic:
 												 outputs=[_model.layers[-2].output])
 		
 		fl_activations_all, logits_all, slides_all, indices_all, tile_indices_all, tfrecord_all = [], [], [], [], [], []
+		unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in tfrecord_array]))
 
 		def _parse_function(record):
 			features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
@@ -146,8 +150,21 @@ class Mosaic:
 			tfrecord_all = tfrecord_arr if tfrecord_all == [] else np.concatenate([tfrecord_all, tfrecord_arr])
 
 		# Save final layer activations to CSV file
-		header = ["Slide"] + [f"Logits{l}" for l in range(logits_all.shape[1])] + [f"FLNode{f}" for f in range(fl_activations_all.shape[1])]
+		# and export PKL
+		nodes = [f"FLNode{f}" for f in range(fl_activations_all.shape[1])]
+		logits = [f"Logits{l}" for l in range(logits_all.shape[1])]
+		header = ["Slide"] + logits + nodes
 		flactivations_file = join(self.save_dir, "final_layer_activations.csv")
+
+		# Prepare PKL export dictionary
+		slide_node_dict = {}
+		for slide in unique_slides:
+			slide_node_dict.update({slide: {}})
+		for node in nodes:
+			for slide in unique_slides:
+				slide_node_dict[slide].update({node: []})
+
+		# Export to CSV
 		with open(flactivations_file, 'w') as outfile:
 			csvwriter = csv.writer(outfile)
 			csvwriter.writerow(header)
@@ -157,6 +174,16 @@ class Mosaic:
 				flactivations = fl_activations_all[i].tolist()
 				row = slide + logits + flactivations
 				csvwriter.writerow(row)
+
+				# Export to PKL dictionary
+				for node in nodes:
+					node_i = header.index(node)
+					val = row[node_i]
+					slide_node_dict[slide][node] += [val]
+
+		# Dump PKL dictionary to file
+		with open(self.PT_NODE_DICT_PKL, 'wb') as pt_pkl_file:
+			pickle.dump(slide_node_dict, pt_pkl_file)
 
 		# Returns a 2D array, with each element containing FL activations, logits, slide name, tfrecord name, and tfrecord indices
 		return fl_activations_all, logits_all, slides_all, indices_all, tile_indices_all, tfrecord_all	
@@ -381,16 +408,19 @@ class Mosaic:
 class ActivationsVisualizer:
 	missing_slides = []
 	used_categories = []
+	umaps = []
 
 	def __init__(self, annotations, category_header, tfrecords, root_dir, focus_nodes=[]):
 		self.focus_nodes = focus_nodes
 		self.CATEGORY_HEADER = category_header
 		self.ANNOTATIONS = annotations
 		self.TFRECORDS = np.array(tfrecords)
+		self.slides_to_include = [sfutil.path_to_name(tfr) for tfr in self.TFRECORDS]
 
-		self.FLW = join(root_dir, "stats", "final_layer_weights_full.csv")
+		self.FLA = join(root_dir, "stats", "final_layer_activations.csv")
 		self.STATS_CSV_FILE = join(root_dir, "stats", "slide_level_summary.csv")
 		self.PT_NODE_DICT_PKL = join(root_dir, "stats", "activation_node_dict.pkl")
+		self.UMAP_CACHE = join(root_dir, "stats", "umap_cache.pkl")
 		self.EXAMPLE_TILES_DIR = join(root_dir, "stats", "example_tiles")
 		self.SORTED_DIR = join(root_dir, "stats", "sorted_tiles")
 		if not exists(join(root_dir, "stats")):
@@ -411,6 +441,7 @@ class ActivationsVisualizer:
 			for row in ann_reader:
 				slide = row[slide_i]
 				category = row[category_i]
+				if slide not in self.slides_to_include: continue
 				self.slide_category_dict.update({slide:category})
 
 		self.categories = list(set(self.slide_category_dict.values()))
@@ -433,31 +464,32 @@ class ActivationsVisualizer:
 			self.slide_node_dict = {}
 			for slide in self.slides:
 				self.slide_node_dict.update({slide: {}})
-			with open(self.FLW, 'r') as flw_file:
-				log.empty("Reading final layer activations...", 1)
-				fl_reader = csv.reader(flw_file)
+			with open(self.FLA, 'r') as fl_file:
+				log.empty(f"Reading final layer activations from {sfutil.green(self.FLA)}...", 1)
+				fl_reader = csv.reader(fl_file)
 				header = next(fl_reader)
 				self.nodes = [h for h in header if h[:6] == "FLNode"]
 				slide_i = header.index("Slide")
 
 				for node in self.nodes:
-					empty_category_dict = {}
-					for category in self.categories:
-						empty_category_dict.update({category: []})
 					for slide in self.slides:
 						self.slide_node_dict[slide].update({node: []})
 
 				for i, row in enumerate(fl_reader):
-					print(f"Working on FLW tile {i}...", end="\r")
+					print(f"Reading activations for tile {i}...", end="\r")
 					slide = row[slide_i]
-					category = self.slide_category_dict[slide]
-
 					for node in self.nodes:
 						node_i = header.index(node)
 						val = float(row[node_i])
 						self.slide_node_dict[slide][node] += [val]
 			print()
 			self.write_pkl()
+
+		# Now delete slides not included in our filtered TFRecord list
+		loaded_slides = list(self.slide_node_dict.keys())
+		for loaded_slide in loaded_slides:
+			if loaded_slide not in self.slides_to_include:
+				del self.slide_node_dict[loaded_slide]
 
 		# Now screen for missing slides in activations
 		for slide in self.slides:
@@ -470,7 +502,7 @@ class ActivationsVisualizer:
 			except KeyError:
 				log.warn(f"Skipping unknown slide {slide}", 1)
 				self.missing_slides += [slide]
-		log.info(f"Missing slides: {len(self.missing_slides)}/{len(self.slides)}", 1)
+		log.info(f"Loaded activations from {(len(self.slides)-len(self.missing_slides))}/{len(self.slides)} slides ({len(self.missing_slides)} missing)", 1)
 		log.info(f"Observed categories (total: {len(self.used_categories)}):", 1)
 		for c in self.used_categories:
 			log.empty(f"\t{c}", 2)
@@ -481,6 +513,20 @@ class ActivationsVisualizer:
 			nodelist = [self.slide_node_dict[pt][node] for pt in self.slides if (pt not in self.missing_slides and self.slide_category_dict[pt] == c)]
 			tile_node_activations_by_category += [[nodeval for nl in nodelist for nodeval in nl]]
 		return tile_node_activations_by_category
+
+	def get_top_nodes_by_slide(self):
+		# First ensure basic stats have been calculated
+		if not hasattr(self, 'nodes_avg_pt'):
+			self.calculate_activation_averages_and_stats()
+		
+		return self.nodes_avg_pt
+
+	def get_top_nodes_by_tile(self):
+		# First ensure basic stats have been calculated
+		if not hasattr(self, 'nodes_avg_pt'):
+			self.calculate_activation_averages_and_stats()
+		
+		return self.nodes
 
 	def calculate_activation_averages_and_stats(self):
 		empty_category_dict = {}
@@ -521,14 +567,18 @@ class ActivationsVisualizer:
 			log.warn("No stats calculated; unable to sort nodes.", 1)
 			self.nodes_avg_pt = self.nodes
 			
-		for node in self.nodes:
-			if node not in self.focus_nodes: continue
+		for i, node in enumerate(self.nodes):
+			if self.focus_nodes and (node not in self.focus_nodes): continue
 			try:
 				log.info(f"Tile-level P-value ({node}): {node_stats[node]['p']}", 1)
 				log.info(f"Patient-level P-value: ({node}): {node_stats_avg_pt[node]['p']}", 1)
 			except:
 				log.warn(f"No stats calculated for node {node}", 1)
-		self.save_to_csv(self.nodes_avg_pt)
+			if (not self.focus_nodes) and i>9: break
+		if not exists(self.STATS_CSV_FILE):
+			self.save_to_csv(self.nodes_avg_pt, tile_stats=node_stats, slide_stats=node_stats_avg_pt)
+		else:
+			log.info(f"Stats file already generated at {sfutil.green(self.STATS_CSV_FILE)}; not regenerating", 1)
 
 	def generate_box_plots(self):
 		# First ensure basic stats have been calculated
@@ -536,25 +586,27 @@ class ActivationsVisualizer:
 			self.calculate_activation_averages_and_stats()
 
 		# Display tile-level box plots & stats
-		log.empty("Generating box plots...", 1)
-		for node in self.nodes:
-			if node not in self.focus_nodes: continue
+		log.empty("Generating box plots...")
+		for i, node in enumerate(self.nodes):
+			if self.focus_nodes and (node not in self.focus_nodes): continue
 			snsbox = sns.boxplot(data=self.get_tile_node_activations_by_category(node))
 			snsbox.set_title(f"{node} (tile-level)")
 			snsbox.set(xlabel="Category", ylabel="Activation")
 			plt.xticks(plt.xticks()[0], self.used_categories)
 			plt.show()
+			if (not self.focus_nodes) and i>4: break
 
 		# Print slide_level box plots & stats
-		for node in self.nodes_avg_pt:
-			if node not in self.focus_nodes: continue
+		for i, node in enumerate(self.nodes_avg_pt):
+			if self.focus_nodes and (node not in self.focus_nodes): continue
 			snsbox = sns.boxplot(data=[self.node_dict_avg_pt[node][c] for c in self.used_categories])
 			snsbox.set_title(f"{node} (slide-level)")
 			snsbox.set(xlabel="Category",ylabel="Average tile activation")
 			plt.xticks(plt.xticks()[0], self.used_categories)
 			plt.show()
+			if (not self.focus_nodes) and i>4: break
 	
-	def save_to_csv(self, nodes_avg_pt):
+	def save_to_csv(self, nodes_avg_pt, tile_stats=None, slide_stats=None):
 		# Save results to CSV
 		log.empty(f"Writing results to {sfutil.green(self.STATS_CSV_FILE)}...", 1)
 		with open(self.STATS_CSV_FILE, 'w') as outfile:
@@ -566,74 +618,137 @@ class ActivationsVisualizer:
 				category = self.slide_category_dict[slide]
 				row = [slide, category] + [mean(self.slide_node_dict[slide][n]) for n in nodes_avg_pt]
 				csv_writer.writerow(row)
+			if tile_stats:
+				csv_writer.writerow(['Tile-level statistic', 'ANOVA P-value'] + [tile_stats[n]['p'] for n in nodes_avg_pt])
+				csv_writer.writerow(['Tile-level statistic', 'ANOVA F-value'] + [tile_stats[n]['f'] for n in nodes_avg_pt])
+			if slide_stats:
+				csv_writer.writerow(['Slide-level statistic', 'ANOVA P-value'] + [slide_stats[n]['p'] for n in nodes_avg_pt])
+				csv_writer.writerow(['Slide-level statistic', 'ANOVA F-value'] + [slide_stats[n]['f'] for n in nodes_avg_pt])
 
-	def calculate_umap(self, excluded_node=None):
-		# Tile-level UMAP excluding a single node
-		log.empty("Calculating UMAP...", 1)
-		node_activations = []
-		umap_details = []
-		nodes_to_include = [n for n in self.nodes if n != excluded_node]
-		for slide in self.slides:
-			if slide in self.missing_slides: continue
-			first_node = list(self.slide_node_dict[slide].keys())[0]
-			num_vals = len(self.slide_node_dict[slide][first_node])
-			for i in range(num_vals):
-				node_activations += [[self.slide_node_dict[slide][n][i] for n in nodes_to_include]]
-				umap_details += [{
-					'slide': slide,
-					'index': i,
-					'excluded': None if not excluded_node else self.slide_node_dict[slide][excluded_node][i]
-				}]
-		coordinates = sfstats.gen_umap(np.array(node_activations))
-		umap_x = np.array([c[0] for c in coordinates])
-		umap_y = np.array([c[1] for c in coordinates])
-		umap_categories = np.array([self.slide_category_dict[a['slide']] for a in umap_details])
-		umap_excluded_node = None if not excluded_node else np.array([a['excluded'] for a in umap_details])
-		return umap_x, umap_y, umap_categories, umap_excluded_node, umap_details
+	def load_umap_cache(self):
+		try:
+			with open(self.UMAP_CACHE, 'rb') as umap_file:
+				self.umaps = pickle.load(umap_file)
+				log.info(f"Loaded UMAP cache from {sfutil.green(self.UMAP_CACHE)}", 1)
+				return True
+		except:
+			log.info(f"No UMAP cache found at {sfutil.green(self.UMAP_CACHE)}", 1)
+			return False
 
-	def plot_2D_umap(self, excluded_node=None):
-		umap_x, umap_y, categories, umap_excluded_node, umap_details = self.calculate_umap(excluded_node=excluded_node)
+	def check_if_umap_calculated(self, nodes):
+		slides = [slide for slide in self.slides if slide not in self.missing_slides]
+		for um in self.umaps:
+			# Check to see if this has already been cached
+			if (sorted(um['nodes']) == sorted(nodes)) and (sorted(um['slides']) == sorted(slides)):
+				return um
+		return False
 
-		# Matplotlib plotting
+	def cache_umap(self, umap_x, umap_y, umap_meta, nodes):
+		slides = [slide for slide in self.slides if slide not in self.missing_slides]
+		umap = {
+			'nodes': nodes,
+			'slides': slides,
+			'umap_x': umap_x,
+			'umap_y': umap_y,
+			'umap_meta': umap_meta
+		}
+		self.umaps += [umap]
+		with open(self.UMAP_CACHE, 'wb') as umap_file:
+			pickle.dump(self.umaps, umap_file)
+			log.info(f"Wrote UMAP cache to {sfutil.green(self.UMAP_CACHE)}", 1)
+		return umap
+
+	def calculate_umap(self, exclude_node=None):
+		nodes_to_include = [n for n in self.nodes if n != exclude_node]
+		# Check if UMAP has already been cached in self.umap and presumably stored
+		# Otherwise, calculate and cache a new UMAP
+		self.load_umap_cache()
+		umap_check = self.check_if_umap_calculated(nodes_to_include)
+		if umap_check:
+			log.info("UMAP results already calculated and cached", 1)
+			return umap_check
+		else:
+			log.info("No compatible UMAP results found in cache; recalculating", 1)
+			node_activations = []
+			umap_meta = []
+			log.empty("Calculating UMAP...", 1)
+			for slide in self.slides:
+				if slide in self.missing_slides: continue
+				first_node = list(self.slide_node_dict[slide].keys())[0]
+				num_vals = len(self.slide_node_dict[slide][first_node])
+				for i in range(num_vals):
+					node_activations += [[self.slide_node_dict[slide][n][i] for n in nodes_to_include]]
+					umap_meta += [{
+						'slide': slide,
+						'index': i,
+					}]
+			coordinates = sfstats.gen_umap(np.array(node_activations))
+			umap_x = np.array([c[0] for c in coordinates])
+			umap_y = np.array([c[1] for c in coordinates])
+			umap = self.cache_umap(umap_x, umap_y, umap_meta, nodes_to_include)
+			return umap
+
+	def plot_2D_umap(self, node=None, exclusion=False, subsample=None):
+		umap = self.calculate_umap(exclude_node=node if exclusion else None)
+		categories = np.array([self.slide_category_dict[m['slide']] for m in umap['umap_meta']])
+		
+		# Subsampling
+		if subsample:
+			ri = sample(range(len(umap['umap_x'])), subsample)
+		else:
+			ri = list(range(len(umap['umap_x'])))
+
+		unique_categories = list(set(categories[ri]))
+
+		# Prepare pandas dataframe
 		df = pd.DataFrame()
-		df['umap_x'] = umap_x
-		df['umap_y'] = umap_y
-		df['category'] = pd.Series(categories, dtype='category')
+		df['umap_x'] = umap['umap_x'][ri]
+		df['umap_y'] = umap['umap_y'][ri]
+		df['category'] = pd.Series(categories[ri], dtype='category')
 
 		# Make plot
-		sns.scatterplot(x='umap_x',y='umap_y',data=df, hue='category', palette=sns.color_palette('Set1', 4))
+		log.info("Displaying 2D UMAP...", 1)
+		sns.scatterplot(x=umap['umap_x'][ri], y=umap['umap_y'][ri], data=df, hue='category', palette=sns.color_palette('Set1', len(unique_categories)))
 		plt.show()
-		return umap_x, umap_y, categories, umap_excluded_node, umap_details
+		return umap
 
-	def plot_3D_exclusion_umap(self, excluded_node, umap_x=None, umap_y=None, z=None, subsample=1000):
-		if umap_x is None or umap_y is None or z is None:
-			umap_x, umap_y, categories, z, umap_details = self.calculate_umap(excluded_node=excluded_node)
+	def plot_3D_umap(self, node, exclusion=False, subsample=1000):
+		umap = self.calculate_umap(exclude_node=node if exclusion else None)
 
 		# Subsampling
-		ri = sample(range(len(umap_x)), subsample)
+		if subsample:
+			ri = sample(range(len(umap['umap_x'])), subsample)
+		else:
+			ri = list(range(len(umap['umap_x'])))
+
+		umap_x = umap['umap_x'][ri]
+		umap_y = umap['umap_y'][ri]
+
+		node_vals = np.array([self.slide_node_dict[m['slide']][node][m['index']] for m in umap['umap_meta']])
+		z = node_vals[ri]
 
 		# Plot tiles on a 3D coordinate space with 2 coordinates from UMAP & 3rd from the value of the excluded node
+		log.info("Displaying 3D UMAP...", 1)
 		ax = plt.axes(projection='3d')
-		ax.scatter(umap_x[ri], umap_y[ri], z[ri], c=z[ri],
-												  cmap='viridis',
-												  linewidth=0.5,
-												  edgecolor="black")
-		ax.set_title(f"UMAP with node {excluded_node} focus")
+		ax.scatter(umap_x, umap_y, z, c=z,
+									  cmap='viridis',
+									  linewidth=0.5,
+									  edgecolor="black")
+		ax.set_title(f"UMAP with node {node} focus")
 		plt.show()
+		return umap
 
-	def plot_2D_and_3D_exclusion_umap(self, excluded_node, subsample=1000):
-		umap_x, umap_y, categories, umap_excluded_node, umap_details = self.plot_2D_umap(excluded_node=excluded_node)
-		self.plot_3D_exclusion_umap(excluded_node, umap_x, umap_y, z=umap_excluded_node, subsample=subsample)
-		return umap_x, umap_y, categories, umap_excluded_node, umap_details
-
-	def filter_tiles_by_umap(self, umap_x, umap_y, umap_details, x_lower=-999, x_upper=999, y_lower=-999, y_upper=999):
+	def filter_tiles_by_umap(self, umap, x_lower=-999, x_upper=999, y_lower=-999, y_upper=999):
 		# Find tiles that meet UMAP location criteria
+		umap_x = umap['umap_x']
+		umap_y = umap['umap_y']
+		umap_meta = umap['umap_meta']
 		filter_criteria = {}
 		num_selected = 0
-		for i in range(len(umap_details)):
+		for i in range(len(umap_meta)):
 			if (x_lower < umap_x[i] < x_upper) and (y_lower < umap_y[i] < y_upper):
-				slide = umap_details[i]['slide']
-				tile_index = umap_details[i]['index']
+				slide = umap_meta[i]['slide']
+				tile_index = umap_meta[i]['index']
 				if slide not in filter_criteria:
 					filter_criteria.update({slide: [tile_index]})
 				else:

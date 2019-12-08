@@ -447,13 +447,15 @@ def update_tfrecord(tfrecord_file, old_feature_description=OLD_FEATURE_DESCRIPTI
 		writer.write(tf_example.SerializeToString())
 	writer.close()
 
-def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None):
+def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None, resize=None):
 	log.empty(f"Transforming tiles in tfrecord {sfutil.green(origin)}", 1)
 	log.info(f"Saving to new tfrecord at {sfutil.green(target)}", 2)
 	if assign_slide:
 		log.info(f"Assigning slide name {sfutil.bold(assign_slide)}", 2)
 	if hue_shift:
 		log.info(f"Shifting hue by {sfutil.bold(str(hue_shift))}", 2)
+	if resize:
+		log.info(f"Resizing records to ({resize}, {resize})", 2)
 
 	dataset = tf.data.TFRecordDataset(origin)
 	writer = tf.io.TFRecordWriter(target)
@@ -463,6 +465,11 @@ def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None):
 			decoded_image = tf.image.decode_jpeg(image_string, channels=3)
 			adjusted_image = tf.image.adjust_hue(decoded_image, hue_shift)
 			encoded_image = tf.io.encode_jpeg(adjusted_image, quality=80)
+			return encoded_image.numpy()
+		elif resize:
+			decoded_image = tf.image.decode_jpeg(image_string, channels=3)
+			resized_image = tf.image.resize(decoded_image, (resize, resize), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+			encoded_image = tf.io.encode_jpeg(resized_image, quality=80)
 			return encoded_image.numpy()
 		else:
 			return image_string
