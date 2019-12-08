@@ -476,7 +476,7 @@ def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None):
 		writer.write(tf_example.SerializeToString())
 	writer.close()
 
-def get_tfrecord_by_index(tfrecord, index):
+def get_tfrecord_by_index(tfrecord, index, decode=True):
 	'''Reads and returns an individual record from a tfrecord by index, including slide name and JPEG-processed image data.
 
 	WARNING: this operation is slow, as tfrecord files are not indexed and each access requires reading through
@@ -486,8 +486,11 @@ def get_tfrecord_by_index(tfrecord, index):
 		features = _parse_tfrecord_function(record)
 		slide = features['slide']
 		image_string = features['image_raw']
-		raw_image = tf.image.decode_jpeg(image_string, channels=3)
-		return slide, raw_image
+		if not decode:
+			return slide, image_string
+		else:
+			raw_image = tf.image.decode_jpeg(image_string, channels=3)
+			return slide, raw_image
 
 	dataset = tf.data.TFRecordDataset(tfrecord)
 	for i, data in enumerate(dataset):
