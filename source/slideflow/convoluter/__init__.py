@@ -146,7 +146,7 @@ class SlideReader:
 			num_rois = self.load_csv_roi(sfutil.path_to_name(path) + ".csv")
 		elif roi_list and self.name in [sfutil.path_to_name(r) for r in roi_list]:
 			matching_rois = []
-			for i, rp in enumerate(roi_list):
+			for rp in roi_list:
 				rn = sfutil.path_to_name(rp)
 				if rn == self.name:
 					matching_rois += [rp]
@@ -162,6 +162,11 @@ class SlideReader:
 			else:
 				log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
 				num_rois = 0
+
+		# Abort if errors were raised during ROI loading
+		if self.load_error:
+			log.error(f'Skipping slide {sfutil.green(self.name)} due to slide image or ROI loading error', 1, self.print)
+			return
 
 		# Collect basic slide information
 		try:
@@ -240,7 +245,7 @@ class SlideReader:
 
 		total_logits_count = int(len(coord) * roi_area_fraction)
 		if total_logits_count == 0:
-			log.warn(f"No tiles were able to be extracted at the given micron size for slide {sfutil.green(self.name)}", 1)
+			log.warn(f"No tiles were able to be extracted at the given micron size for slide {sfutil.green(self.name)}", 1, self.print)
 			return None, None, None, None, None
 		# Create mask for indicating whether tile was extracted
 		tile_mask = np.asarray([0 for i in range(len(coord))])
@@ -299,20 +304,14 @@ class SlideReader:
 			reader = csv.reader(csvfile, delimiter=',')
 			try:
 				headers = next(reader, None)
+				headers = [h.lower() for h in headers]
+				index_name = headers.index("roi_name")
+				index_x = headers.index("x_base")
+				index_y = headers.index("y_base")
 			except:
-				log.error(f"Unable to read CSV ROI file {sfutil.green(path)}, please check file integrity and ensure it is not empty.", 1)
-				sys.exit()
-			try:
-				index_name = headers.index("ROI_name")
-				index_x = headers.index("X_base")
-				index_y = headers.index("Y_base")
-			except:
-				try:
-					index_name = headers.index("ROI_Name")
-					index_x = headers.index("X_base")
-					index_y = headers.index("Y_base")
-				except:
-					raise IndexError('Unable to find "ROI_name", "X_base", and "Y_base" columns in CSV file.')
+				log.error(f'Unable to read CSV ROI file {sfutil.green(path)}, please check file integrity and ensure headers contain "ROI_name", "X_base", and "Y_base".', 1, self.print)
+				self.load_error = True
+				return
 			for row in reader:
 				roi_name = row[index_name]
 				x_coord = int(float(row[index_x]))
