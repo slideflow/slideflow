@@ -5,64 +5,40 @@ import os
 import math
 import csv
 import cv2
-import umap
+import pickle
 
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import seaborn as sns
+import pandas as pd
+import tensorflow as tf
+import scipy.stats as stats
+
 from matplotlib.patches import Rectangle
 from os.path import join, isfile, exists
-from random import shuffle
-
-import tensorflow as tf
+from random import shuffle, sample
+from mpl_toolkits import mplot3d
+from statistics import mean
+from math import isnan
+from copy import deepcopy
 
 import slideflow.util as sfutil
-from slideflow.util import log, progress_bar, tfrecords
-
-def normalize_layout(layout, min_percentile=1, max_percentile=99, relative_margin=0.1):
-	"""Removes outliers and scales layout to between [0,1]."""
-
-	# compute percentiles
-	mins = np.percentile(layout, min_percentile, axis=(0))
-	maxs = np.percentile(layout, max_percentile, axis=(0))
-
-	# add margins
-	mins -= relative_margin * (maxs - mins)
-	maxs += relative_margin * (maxs - mins)
-
-	# `clip` broadcasts, `[None]`s added only for readability
-	clipped = np.clip(layout, mins, maxs)
-
-	# embed within [0,1] along both axes
-	clipped -= clipped.min(axis=0)
-	clipped /= clipped.max(axis=0)
-
-	return clipped
-
-def gen_umap(array):
-	try:
-		layout = umap.UMAP(n_components=2, verbose=True, n_neighbors=20, min_dist=0.01, metric="cosine").fit_transform(array)
-	except ValueError:
-		log.error("Error performing UMAP. Please make sure you are supplying a non-empty TFRecord array and that the TFRecords are not empty.")
-		sys.exit()
-	return normalize_layout(layout)
-	
-#def gen_tsne_array(array):
-#    layout = TSNE(n_components=2, verbose=True, metric="cosine", learning_rate=10, perplexity=50).fit_transform(array)
-#    return normalize_layout(layout)
+import slideflow.util.statistics as sfstats
+from slideflow.util import log, progress_bar, tfrecords, TCGA
 
 class Mosaic:
 	FOCUS_SLIDE = None
 	BATCH_SIZE = 16
 	SLIDES = {}
 	GRID = []
+
 	stride_div = 1
 	ax_thumbnail = None
 	metadata, points, tiles = [], [], []
 	tfrecord_paths = []
 	tile_point_distances = []
 	rectangles = {}
-	final_layer_activations = {}
 	logits = {}
 
 	def __init__(self, leniency=1.5, expanded=True, tile_zoom=15, num_tiles_x=50, resolution='high', 
@@ -188,7 +164,7 @@ class Mosaic:
 	def generate_from_tfrecords(self, tfrecord_array, model, image_size, focus=None):
 		fl_activations, logits, slides, indices, tile_indices, tfrecords = self.generate_final_layer_from_tfrecords(tfrecord_array, model, image_size)
 		
-		dl_coord = gen_umap(fl_activations)
+		dl_coord = sfstats.gen_umap(fl_activations)
 		self.load_coordinates(dl_coord, [slides, tfrecords, indices, tile_indices])
 
 		self.place_tile_outlines()
@@ -402,6 +378,333 @@ class Mosaic:
 					continue
 				break
 
-# TODO
-# - use pkl
-# - use automatic TFRecord image reading to reduce RAM usage    
+class ActivationsVisualizer:
+	missing_slides = []
+	used_categories = []
+
+	def __init__(self, annotations, category_header, tfrecords, root_dir, focus_nodes=[]):
+		self.focus_nodes = focus_nodes
+		self.CATEGORY_HEADER = category_header
+		self.ANNOTATIONS = annotations
+		self.TFRECORDS = np.array(tfrecords)
+
+		self.FLW = join(root_dir, "stats", "final_layer_weights_full.csv")
+		self.STATS_CSV_FILE = join(root_dir, "stats", "slide_level_summary.csv")
+		self.PT_NODE_DICT_PKL = join(root_dir, "stats", "activation_node_dict.pkl")
+		self.EXAMPLE_TILES_DIR = join(root_dir, "stats", "example_tiles")
+		self.SORTED_DIR = join(root_dir, "stats", "sorted_tiles")
+		if not exists(join(root_dir, "stats")):
+			os.makedirs(join(root_dir, "stats"))
+
+		# Initial loading and preparation
+		self.load_annotations()
+		self.load_activations()
+
+	def load_annotations(self):
+		self.slide_category_dict = {}
+		with open(self.ANNOTATIONS, 'r') as ann_file:
+			log.empty("Reading annotations...", 1)
+			ann_reader = csv.reader(ann_file)
+			header = next(ann_reader)
+			slide_i = header.index(TCGA.slide)
+			category_i = header.index(self.CATEGORY_HEADER)
+			for row in ann_reader:
+				slide = row[slide_i]
+				category = row[category_i]
+				self.slide_category_dict.update({slide:category})
+
+		self.categories = list(set(self.slide_category_dict.values()))
+		self.slides = list(self.slide_category_dict.keys())
+
+	def load_pkl(self):
+		log.empty("Loading pre-calculated activations from pickled files...", 1)
+		with open(self.PT_NODE_DICT_PKL, 'rb') as pt_pkl_file:
+			self.slide_node_dict = pickle.load(pt_pkl_file)
+			self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
+
+	def write_pkl(self):
+		with open(self.PT_NODE_DICT_PKL, 'wb') as pt_pkl_file:
+			pickle.dump(self.slide_node_dict, pt_pkl_file)
+
+	def load_activations(self):
+		if exists(self.PT_NODE_DICT_PKL): 
+			self.load_pkl()
+		else:
+			self.slide_node_dict = {}
+			for slide in self.slides:
+				self.slide_node_dict.update({slide: {}})
+			with open(self.FLW, 'r') as flw_file:
+				log.empty("Reading final layer activations...", 1)
+				fl_reader = csv.reader(flw_file)
+				header = next(fl_reader)
+				self.nodes = [h for h in header if h[:6] == "FLNode"]
+				slide_i = header.index("Slide")
+
+				for node in self.nodes:
+					empty_category_dict = {}
+					for category in self.categories:
+						empty_category_dict.update({category: []})
+					for slide in self.slides:
+						self.slide_node_dict[slide].update({node: []})
+
+				for i, row in enumerate(fl_reader):
+					print(f"Working on FLW tile {i}...", end="\r")
+					slide = row[slide_i]
+					category = self.slide_category_dict[slide]
+
+					for node in self.nodes:
+						node_i = header.index(node)
+						val = float(row[node_i])
+						self.slide_node_dict[slide][node] += [val]
+			print()
+			self.write_pkl()
+
+		# Now screen for missing slides in activations
+		for slide in self.slides:
+			try:
+				if self.slide_node_dict[slide]['FLNode0'] == []:
+					self.missing_slides += [slide]
+				else:
+					self.used_categories = list(set(self.used_categories + [self.slide_category_dict[slide]]))
+					self.used_categories.sort()
+			except KeyError:
+				log.warn(f"Skipping unknown slide {slide}", 1)
+				self.missing_slides += [slide]
+		log.info(f"Missing slides: {len(self.missing_slides)}/{len(self.slides)}", 1)
+		log.info(f"Observed categories (total: {len(self.used_categories)}):", 1)
+		for c in self.used_categories:
+			log.empty(f"\t{c}", 2)
+
+	def get_tile_node_activations_by_category(self, node):
+		tile_node_activations_by_category = []
+		for c in self.used_categories:
+			nodelist = [self.slide_node_dict[pt][node] for pt in self.slides if (pt not in self.missing_slides and self.slide_category_dict[pt] == c)]
+			tile_node_activations_by_category += [[nodeval for nl in nodelist for nodeval in nl]]
+		return tile_node_activations_by_category
+
+	def calculate_activation_averages_and_stats(self):
+		empty_category_dict = {}
+		self.node_dict_avg_pt = {}
+		node_stats = {}
+		node_stats_avg_pt = {}
+		for category in self.categories:
+			empty_category_dict.update({category: []})
+		for node in self.nodes:
+			self.node_dict_avg_pt.update({node: deepcopy(empty_category_dict)})
+
+		for node in self.nodes:
+			# For each node, calculate average across tiles found in a slide
+			print(f"Calculating activation averages & stats for node {node}...", end="\r")
+			for slide in self.slides:
+				if slide in self.missing_slides: continue
+				pt_cat = self.slide_category_dict[slide]
+				avg = mean(self.slide_node_dict[slide][node])
+				self.node_dict_avg_pt[node][pt_cat] += [avg]
+			
+			# Tile-level ANOVA
+			fvalue, pvalue = stats.f_oneway(*self.get_tile_node_activations_by_category(node))
+			if not isnan(fvalue) and not isnan(pvalue): 
+				node_stats.update({node: {'f': fvalue,
+										  'p': pvalue} })
+
+			# Patient-level ANOVA
+			fvalue, pvalue = stats.f_oneway(*[self.node_dict_avg_pt[node][c] for c in self.used_categories])
+			if not isnan(fvalue) and not isnan(pvalue): 
+				node_stats_avg_pt.update({node: {'f': fvalue,
+												 'p': pvalue} })
+		print()
+
+		try:
+			self.nodes = sorted(self.nodes, key=lambda n: node_stats[n]['p'])
+			self.nodes_avg_pt = sorted(self.nodes, key=lambda n: node_stats_avg_pt[n]['p'])
+		except:
+			log.warn("No stats calculated; unable to sort nodes.", 1)
+			self.nodes_avg_pt = self.nodes
+			
+		for node in self.nodes:
+			if node not in self.focus_nodes: continue
+			try:
+				log.info(f"Tile-level P-value ({node}): {node_stats[node]['p']}", 1)
+				log.info(f"Patient-level P-value: ({node}): {node_stats_avg_pt[node]['p']}", 1)
+			except:
+				log.warn(f"No stats calculated for node {node}", 1)
+		self.save_to_csv(self.nodes_avg_pt)
+
+	def generate_box_plots(self):
+		# First ensure basic stats have been calculated
+		if not hasattr(self, 'nodes_avg_pt'):
+			self.calculate_activation_averages_and_stats()
+
+		# Display tile-level box plots & stats
+		log.empty("Generating box plots...", 1)
+		for node in self.nodes:
+			if node not in self.focus_nodes: continue
+			snsbox = sns.boxplot(data=self.get_tile_node_activations_by_category(node))
+			snsbox.set_title(f"{node} (tile-level)")
+			snsbox.set(xlabel="Category", ylabel="Activation")
+			plt.xticks(plt.xticks()[0], self.used_categories)
+			plt.show()
+
+		# Print slide_level box plots & stats
+		for node in self.nodes_avg_pt:
+			if node not in self.focus_nodes: continue
+			snsbox = sns.boxplot(data=[self.node_dict_avg_pt[node][c] for c in self.used_categories])
+			snsbox.set_title(f"{node} (slide-level)")
+			snsbox.set(xlabel="Category",ylabel="Average tile activation")
+			plt.xticks(plt.xticks()[0], self.used_categories)
+			plt.show()
+	
+	def save_to_csv(self, nodes_avg_pt):
+		# Save results to CSV
+		log.empty(f"Writing results to {sfutil.green(self.STATS_CSV_FILE)}...", 1)
+		with open(self.STATS_CSV_FILE, 'w') as outfile:
+			csv_writer = csv.writer(outfile)
+			header = ['slide', 'category'] + nodes_avg_pt
+			csv_writer.writerow(header)
+			for slide in self.slides:
+				if slide in self.missing_slides: continue
+				category = self.slide_category_dict[slide]
+				row = [slide, category] + [mean(self.slide_node_dict[slide][n]) for n in nodes_avg_pt]
+				csv_writer.writerow(row)
+
+	def calculate_umap(self, excluded_node=None):
+		# Tile-level UMAP excluding a single node
+		log.empty("Calculating UMAP...", 1)
+		node_activations = []
+		umap_details = []
+		nodes_to_include = [n for n in self.nodes if n != excluded_node]
+		for slide in self.slides:
+			if slide in self.missing_slides: continue
+			first_node = list(self.slide_node_dict[slide].keys())[0]
+			num_vals = len(self.slide_node_dict[slide][first_node])
+			for i in range(num_vals):
+				node_activations += [[self.slide_node_dict[slide][n][i] for n in nodes_to_include]]
+				umap_details += [{
+					'slide': slide,
+					'index': i,
+					'excluded': None if not excluded_node else self.slide_node_dict[slide][excluded_node][i]
+				}]
+		coordinates = sfstats.gen_umap(np.array(node_activations))
+		umap_x = np.array([c[0] for c in coordinates])
+		umap_y = np.array([c[1] for c in coordinates])
+		umap_categories = np.array([self.slide_category_dict[a['slide']] for a in umap_details])
+		umap_excluded_node = None if not excluded_node else np.array([a['excluded'] for a in umap_details])
+		return umap_x, umap_y, umap_categories, umap_excluded_node, umap_details
+
+	def plot_2D_umap(self, excluded_node=None):
+		umap_x, umap_y, categories, umap_excluded_node, umap_details = self.calculate_umap(excluded_node=excluded_node)
+
+		# Matplotlib plotting
+		df = pd.DataFrame()
+		df['umap_x'] = umap_x
+		df['umap_y'] = umap_y
+		df['category'] = pd.Series(categories, dtype='category')
+
+		# Make plot
+		sns.scatterplot(x='umap_x',y='umap_y',data=df, hue='category', palette=sns.color_palette('Set1', 4))
+		plt.show()
+		return umap_x, umap_y, categories, umap_excluded_node, umap_details
+
+	def plot_3D_exclusion_umap(self, excluded_node, umap_x=None, umap_y=None, z=None, subsample=1000):
+		if umap_x is None or umap_y is None or z is None:
+			umap_x, umap_y, categories, z, umap_details = self.calculate_umap(excluded_node=excluded_node)
+
+		# Subsampling
+		ri = sample(range(len(umap_x)), subsample)
+
+		# Plot tiles on a 3D coordinate space with 2 coordinates from UMAP & 3rd from the value of the excluded node
+		ax = plt.axes(projection='3d')
+		ax.scatter(umap_x[ri], umap_y[ri], z[ri], c=z[ri],
+												  cmap='viridis',
+												  linewidth=0.5,
+												  edgecolor="black")
+		ax.set_title(f"UMAP with node {excluded_node} focus")
+		plt.show()
+
+	def plot_2D_and_3D_exclusion_umap(self, excluded_node, subsample=1000):
+		umap_x, umap_y, categories, umap_excluded_node, umap_details = self.plot_2D_umap(excluded_node=excluded_node)
+		self.plot_3D_exclusion_umap(excluded_node, umap_x, umap_y, z=umap_excluded_node, subsample=subsample)
+		return umap_x, umap_y, categories, umap_excluded_node, umap_details
+
+	def filter_tiles_by_umap(self, umap_x, umap_y, umap_details, x_lower=-999, x_upper=999, y_lower=-999, y_upper=999):
+		# Find tiles that meet UMAP location criteria
+		filter_criteria = {}
+		num_selected = 0
+		for i in range(len(umap_details)):
+			if (x_lower < umap_x[i] < x_upper) and (y_lower < umap_y[i] < y_upper):
+				slide = umap_details[i]['slide']
+				tile_index = umap_details[i]['index']
+				if slide not in filter_criteria:
+					filter_criteria.update({slide: [tile_index]})
+				else:
+					filter_criteria[slide] += [tile_index]
+				num_selected += 1
+		log.info(f"Selected {num_selected} tiles by filter criteria.", 1)
+		return filter_criteria
+
+	def save_example_tiles_gradient(self, nodes=None, tile_filter=None):
+		if not nodes:
+			nodes = self.focus_nodes
+		for node in nodes:
+			if not exists(join(self.SORTED_DIR, node)):
+				os.makedirs(join(self.SORTED_DIR, node))
+			
+			gradient = []
+			for slide in self.slides:
+				if slide in self.missing_slides: continue
+				for i, tile in enumerate(self.slide_node_dict[slide][node]):
+					if tile_filter and (slide not in tile_filter) or (i not in tile_filter[slide]):
+						continue
+					gradient += [{
+									'val': tile,
+									'slide': slide,
+									'index': i
+					}]
+			gradient = sorted(gradient, key=lambda k: k['val'])
+			for i, g in enumerate(gradient):
+				print(f"Extracting tile {i} of {len(gradient)} for node {node}...", end="\r")
+				for tfr in self.TFRECORDS:
+					if sfutil.path_to_name(tfr) == g['slide']:
+						tfr_dir = tfr
+				if not tfr_dir:
+					log.warn(f"TFRecord location not found for slide {g['slide']}", 1)
+				slide, image = tfrecords.get_tfrecord_by_index(tfr_dir, g['index'], decode=False)
+				slide = slide.numpy()
+				image = image.numpy()
+				tile_filename = f"{i}-tfrecord{g['slide']}-{g['index']}-{g['val']:.2f}.jpg"
+				image_string = open(join(self.SORTED_DIR, node, tile_filename), 'wb')
+				image_string.write(image)
+				image_string.close()
+			print()
+
+	def save_example_tiles_high_low(self, focus_slides):
+		# Extract samples of tiles with highest and lowest values in a particular node
+		# for a subset of slides
+		for fn in self.focus_nodes:
+			for slide in focus_slides:
+				sorted_index = np.argsort(self.slide_node_dict[slide][fn])
+				lowest = sorted_index[:10]
+				highest = sorted_index[-10:]
+				lowest_dir = join(self.EXAMPLE_TILES_DIR, fn, slide, 'lowest')
+				highest_dir = join(self.EXAMPLE_TILES_DIR, fn, slide, 'highest')
+				if not exists(lowest_dir): os.makedirs(lowest_dir)
+				if not exists(highest_dir): os.makedirs(highest_dir)
+
+				for tfr in self.TFRECORDS:
+					if sfutil.path_to_name(tfr) == slide:
+						tfr_dir = tfr
+				if not tfr_dir:
+					log.warn(f"TFRecord location not found for slide {slide}", 1)
+
+				def extract_by_index(indices, directory):
+					for index in indices:
+						slide, image = tfrecords.get_tfrecord_by_index(tfr_dir, index, decode=False)
+						slide = slide.numpy()
+						image = image.numpy()
+						tile_filename = f"tfrecord{slide}-tile{index}.jpg"
+						image_string = open(join(directory, tile_filename), 'wb')
+						image_string.write(image)
+						image_string.close()
+
+				extract_by_index(lowest, lowest_dir)
+				extract_by_index(highest, highest_dir)

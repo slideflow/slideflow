@@ -1,6 +1,7 @@
 import os
 import sys
 import csv
+import umap
 
 import seaborn as sns
 import numpy as np
@@ -14,7 +15,33 @@ from matplotlib import pyplot as plt
 
 import slideflow.util as sfutil
 
-DATA_DIR = ""
+def normalize_layout(layout, min_percentile=1, max_percentile=99, relative_margin=0.1):
+	"""Removes outliers and scales layout to between [0,1]."""
+
+	# compute percentiles
+	mins = np.percentile(layout, min_percentile, axis=(0))
+	maxs = np.percentile(layout, max_percentile, axis=(0))
+
+	# add margins
+	mins -= relative_margin * (maxs - mins)
+	maxs += relative_margin * (maxs - mins)
+
+	# `clip` broadcasts, `[None]`s added only for readability
+	clipped = np.clip(layout, mins, maxs)
+
+	# embed within [0,1] along both axes
+	clipped -= clipped.min(axis=0)
+	clipped /= clipped.max(axis=0)
+
+	return clipped
+
+def gen_umap(array):
+	try:
+		layout = umap.UMAP(n_components=2, verbose=True, n_neighbors=20, min_dist=0.01, metric="cosine").fit_transform(array)
+	except ValueError:
+		log.error("Error performing UMAP. Please make sure you are supplying a non-empty TFRecord array and that the TFRecords are not empty.")
+		sys.exit()
+	return normalize_layout(layout)
 
 def generate_histogram(y_true, y_pred, data_dir, name='histogram'):
 	'''Generates histogram of y_pred, labeled by y_true'''

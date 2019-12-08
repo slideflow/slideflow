@@ -24,9 +24,9 @@ import slideflow.trainer.model as sfmodel
 import slideflow.util as sfutil
 from slideflow.util import TCGA, log
 from slideflow.util.datasets import Dataset
-from slideflow.mosaic import Mosaic
+from slideflow.mosaic import Mosaic, ActivationsVisualizer
 
-__version__ = "1.3.1"
+__version__ = "1.3.2"
 
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
@@ -605,6 +605,24 @@ class SlideflowProject:
 		mosaic = Mosaic(save_dir=self.PROJECT['root'], num_tiles_x=num_tiles_x,
 													   resolution=resolution)
 		mosaic.generate_from_tfrecords(slide_list, model=model_path, image_size=self.PROJECT['tile_px'], focus=focus_list)
+
+	def generate_activations_analytics(self, outcome_header, focus_nodes=[], exclusion_node=None):
+		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.'''
+		log.header("Generating final layer activation analytics...")
+		activations_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		AV = ActivationsVisualizer(self.PROJECT['annotations'], outcome_header, activations_dataset.get_tfrecords(), self.PROJECT['root'], focus_nodes=focus_nodes)
+		
+		# Calculate patient-level activations, statistics, and box plots
+		AV.generate_box_plots()
+
+		# Generate UMAPs
+		umap_x, umap_y, _, _, umap_details = AV.plot_2D_and_3D_exclusion_umap(exclusion_node)
+
+		# See example tiles
+		#filter_criteria = AV.filter_tiles_by_umap(umap_x, umap_y, umap_details, x_upper = 0.2)
+		#AV.save_example_tiles_gradient(tile_filter=filter_criteria)
+		#AV.save_example_tiles_high_low(['234854', '234795', '234812'])
+
 
 	def create_blank_train_config(self, filename=None):
 		'''Creates a CSV file with the batch training structure.'''
