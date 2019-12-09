@@ -433,8 +433,8 @@ class Convoluter:
 
 			# Calculate the final layer activations and logits/predictions
 			logits, final_layer, final_layer_labels, logits_flat = self.calculate_logits(whole_slide, export_tiles=export_tiles, 
-																									final_layer=save_final_layer, 
-																									pb=pb)
+																									  final_layer=save_final_layer, 
+																									  pb=pb)
 			if (type(logits) == bool) and (not logits):
 				log.error(f"Unable to create heatmap for slide {sfutil.green(slide['name'])}", 1)
 				return
