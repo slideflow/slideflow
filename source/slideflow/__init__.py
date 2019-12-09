@@ -614,21 +614,20 @@ class SlideflowProject:
 
 		AV = ActivationsVisualizer(self.PROJECT['annotations'], outcome_header, tfrecords_list, self.PROJECT['root'], focus_nodes=focus_nodes)
 
-		model_loc = '/home/shawarma/data/slideflow_projects/TCGA_HNSC_HPV_598px_604um/external_models/TCGA_HNSC_HPV_598px_604um/trained_model_epoch5.h5'
-		loc = "/home/shawarma/data/slideflow_projects/TCGA_HNSC_HPV_598px_604um/stats/sorted_tiles/FLNode1903"
-		tiles = os.listdir(loc)
+		return AV
+
+	def visualize_tiles(self, model, directory, node, num_to_visualize=20):
+		tiles = [o for o in os.listdir(directory) if not isdir(join(directory, o))]
 		tiles.sort(key=lambda x: int(x.split('-')[0]))
 		tiles.reverse()
 
-		TV = TileVisualizer(model=model_loc, 
-							node=1903,
+		TV = TileVisualizer(model=model, 
+							node=node,
 							shape=[self.PROJECT['tile_px'], self.PROJECT['tile_px'], 3])
 
-		for tile in tiles[:10]:
-			tile_loc = join(loc, tile)
-			TV.visualize_tile(tile_loc, save_dir=loc)
-
-		return AV
+		for tile in tiles[:20]:
+			tile_loc = join(directory, tile)
+			TV.visualize_tile(tile_loc, save_dir=directory)
 
 	def create_blank_train_config(self, filename=None):
 		'''Creates a CSV file with the batch training structure.'''
