@@ -10,12 +10,13 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import matplotlib.patches as patches
+import matplotlib.colors as mcol
 import seaborn as sns
 import pandas as pd
 import tensorflow as tf
 import scipy.stats as stats
 
-from matplotlib.patches import Rectangle
 from os.path import join, isfile, exists
 from random import shuffle, sample
 from mpl_toolkits import mplot3d
@@ -26,8 +27,21 @@ from copy import deepcopy
 import slideflow.util as sfutil
 import slideflow.util.statistics as sfstats
 from slideflow.util import log, progress_bar, tfrecords, TCGA
+from PIL import Image
 
 # TODO: merge Mosaic class into ActivationsVisualizer
+
+def create_bool_mask(x, y, w, sx, sy):
+	l = max(0,  int(x-(w/2.)))
+	r = min(sx, int(x+(w/2.)))
+	t = max(0,  int(y-(w/2.)))
+	b = min(sy, int(y+(w/2.)))
+	m = np.array([[[True]*3]*sx]*sy)
+	for yi in range(m.shape[1]):
+		for xi in range(m.shape[0]):
+			if (t < yi < b) and (l < xi < r):
+				m[yi][xi] = [False, False, False]
+	return m
 
 class Mosaic:
 	FOCUS_SLIDE = None
@@ -276,11 +290,11 @@ class Mosaic:
 		for grid_tile in self.GRID:
 			rect_size = min((len(grid_tile['points']) / max_grid_density) * self.tile_zoom_factor, 1) * self.tile_size
 
-			tile = Rectangle((grid_tile['x'] - rect_size/2, 
-							  grid_tile['y'] - rect_size/2), 
-							  rect_size, 
-							  rect_size, 
-							  fill=True, alpha=1, facecolor='white', edgecolor="#cccccc")
+			tile = patches.Rectangle((grid_tile['x'] - rect_size/2, 
+							  		  grid_tile['y'] - rect_size/2), 
+									  rect_size, 
+							  		  rect_size, 
+									  fill=True, alpha=1, facecolor='white', edgecolor="#cccccc")
 			self.ax.add_patch(tile)
 
 			grid_tile['size'] = rect_size
@@ -823,3 +837,117 @@ class ActivationsVisualizer:
 
 				extract_by_index(lowest, lowest_dir)
 				extract_by_index(highest, highest_dir)
+
+class TileVisualizer:
+	def __init__(self, model, node, shape, tile_width=100, interactive=False):
+		self.NODE = node
+		self.IMAGE_SHAPE = shape
+		self.TILE_WIDTH = 100
+		self.interactive = interactive
+		log.info("Initializing tile visualizer", 1)
+		log.info(f"Node: {sfutil.bold(str(node))} | Shape: ({shape[0]}, {shape[1]}, {shape[2]})", 1)
+		log.info(f"Loading Tensorflow model at {sfutil.green(model)}...", 1)
+		_model = tf.keras.models.load_model(model)
+		self.loaded_model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
+												  outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
+
+	def visualize_tile(self, tile, save_dir=None):
+		log.info(f"Processing tile at {sfutil.green(tile)}...", 1)
+		tilename = sfutil.path_to_name(tile)
+		# First, open tile image
+		self.tile_image = Image.open(tile)
+		image_file = open(tile, 'rb')
+		self.tf_raw_image = image_file.read()
+
+		# Next, process image with Tensorflow
+		tf_decoded_image = tf.image.decode_jpeg(self.tf_raw_image, channels=3)
+		self.tf_processed_image = tf.image.per_image_standardization(tf_decoded_image)
+		self.tf_processed_image = tf.image.convert_image_dtype(self.tf_processed_image, tf.float16)
+		self.tf_processed_image.set_shape(self.IMAGE_SHAPE)
+		image_batch = np.array([self.tf_processed_image.numpy()])
+
+		# Calculate baseline activations/predictions
+		base_activations, base_logits = self.loaded_model.predict([image_batch, image_batch])
+
+		# Now create the figure
+		self.fig = plt.figure()
+		self.ax = self.fig.add_subplot(111)
+		self.implot = plt.imshow(self.tile_image)
+
+		if self.interactive:
+			self.rect = patches.Rectangle((0, 0), self.TILE_WIDTH, self.TILE_WIDTH, facecolor='white', zorder=20)
+			self.ax.add_patch(self.rect)
+
+		activation_map = self.calculate_activation_map()
+		self.generate_figure(tilename, activation_map, save_dir=save_dir)
+
+	def predict_masked(self, x, y, index):
+		mask = create_bool_mask(x, y, self.TILE_WIDTH, self.IMAGE_SHAPE[0], self.IMAGE_SHAPE[1])
+		masked = self.tf_processed_image.numpy() * mask
+		act, _ = self.loaded_model.predict([np.array([masked]), np.array([masked])])
+		return act[0][index]	
+
+	def calculate_activation_map(self, stride_div=4):
+		sx = self.IMAGE_SHAPE[0]
+		sy = self.IMAGE_SHAPE[1]
+		w  = self.TILE_WIDTH
+		stride = int(self.TILE_WIDTH / stride_div)
+		min_x  = int(w/2)
+		max_x  = int(sx - w/2)
+		min_y  = int(w/2)
+		max_y  = int(sy - w/2)
+
+		act_array = []
+		for yi in range(min_y, max_y, stride):
+			for xi in range(min_x, max_x, stride):
+				mask = create_bool_mask(xi, yi, w, sx, sy)
+				masked = self.tf_processed_image.numpy() * mask
+				act, _ = self.loaded_model.predict([np.array([masked]), np.array([masked])])
+				act_array += [act[0][self.NODE]]
+				print(f"Calculating activations at x:{xi}, y:{yi}; act={act[0][self.NODE]}", end='\033[K\r')
+		print()
+		return np.reshape(np.array(act_array), [len(range(min_x, max_x, stride)), 
+												len(range(min_y, max_y, stride))])
+
+	def generate_figure(self, name, activation_map=None, save_dir=None):
+		# Create hover and click events
+		def hover(event):
+			if event.xdata:
+				self.rect.set_xy((event.xdata-self.TILE_WIDTH/2, event.ydata-self.TILE_WIDTH/2))
+				print(self.predict_masked(event.xdata, event.ydata, index=self.NODE), end='\r')
+				self.fig.canvas.draw_idle()
+
+		def click(event):
+			if event.button == 1:
+				self.TILE_WIDTH = min(min(self.IMAGE_SHAPE[0], self.IMAGE_SHAPE[1]), self.TILE_WIDTH + 25)
+				self.rect.set_width(self.TILE_WIDTH)
+				self.rect.set_height(self.TILE_WIDTH)
+			else:
+				self.TILE_WIDTH = max(0, self.TILE_WIDTH - 25)
+				self.rect.set_width(self.TILE_WIDTH)
+				self.rect.set_height(self.TILE_WIDTH)
+			self.fig.canvas.draw_idle()	
+
+		if self.interactive:
+			self.fig.canvas.mpl_connect('motion_notify_event', hover)
+			self.fig.canvas.mpl_connect('button_press_event', click)
+		
+		if activation_map is not None:
+			# Define color map
+			jetMap = np.flip(np.linspace(0.45, 0.95, 255))
+			cmMap = cm.nipy_spectral(jetMap)
+			newMap = mcol.ListedColormap(cmMap)
+			
+			# Heatmap
+			self.ax.imshow(activation_map, extent=self.implot.get_extent(),
+										   cmap=newMap,
+										   alpha=0.6 if not self.interactive else 0.0,
+										   interpolation='bicubic',
+										   zorder=10)
+		if save_dir:
+			heatmap_loc = join(save_dir, f'{name}-heatmap.png')
+			plt.savefig(heatmap_loc, bbox_inches='tight')
+			log.complete(f"Heatmap saved to {heatmap_loc}", 1)
+		if self.interactive:
+			print()
+			plt.show()
