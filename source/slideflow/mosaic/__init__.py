@@ -839,19 +839,19 @@ class ActivationsVisualizer:
 				extract_by_index(highest, highest_dir)
 
 class TileVisualizer:
-	def __init__(self, model, node, shape, tile_width=100, interactive=False):
+	def __init__(self, model, node, shape, tile_width=None, interactive=False):
 		self.NODE = node
 		self.IMAGE_SHAPE = shape
-		self.TILE_WIDTH = 100
+		self.TILE_WIDTH = tile_width if tile_width else int(self.IMAGE_SHAPE[0]/6)
 		self.interactive = interactive
 		log.info("Initializing tile visualizer", 1)
-		log.info(f"Node: {sfutil.bold(str(node))} | Shape: ({shape[0]}, {shape[1]}, {shape[2]})", 1)
+		log.info(f"Node: {sfutil.bold(str(node))} | Shape: ({shape[0]}, {shape[1]}, {shape[2]}) | Window size: {self.TILE_WIDTH}", 1)
 		log.info(f"Loading Tensorflow model at {sfutil.green(model)}...", 1)
 		_model = tf.keras.models.load_model(model)
 		self.loaded_model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
 												  outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
 
-	def visualize_tile(self, tile, save_dir=None, zoomed=False):
+	def visualize_tile(self, tile, save_dir=None, zoomed=True):
 		log.info(f"Processing tile at {sfutil.green(tile)}...", 1)
 		tilename = sfutil.path_to_name(tile)
 		# First, open tile image
