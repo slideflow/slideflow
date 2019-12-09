@@ -851,7 +851,7 @@ class TileVisualizer:
 		self.loaded_model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
 												  outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
 
-	def visualize_tile(self, tile, save_dir=None):
+	def visualize_tile(self, tile, save_dir=None, zoomed=False):
 		log.info(f"Processing tile at {sfutil.green(tile)}...", 1)
 		tilename = sfutil.path_to_name(tile)
 		# First, open tile image
@@ -878,8 +878,12 @@ class TileVisualizer:
 			self.rect = patches.Rectangle((0, 0), self.TILE_WIDTH, self.TILE_WIDTH, facecolor='white', zorder=20)
 			self.ax.add_patch(self.rect)
 
-		activation_map = self.calculate_activation_map()
-		self.generate_figure(tilename, activation_map, save_dir=save_dir)
+		activation_map, max_center_x, max_center_y = self.calculate_activation_map()
+
+		self.generate_figure(tilename, activation_map, max_x=max_center_x,
+													   max_y=max_center_y,
+													   save_dir=save_dir,
+													   zoomed_extent=zoomed)
 
 	def predict_masked(self, x, y, index):
 		mask = create_bool_mask(x, y, self.TILE_WIDTH, self.IMAGE_SHAPE[0], self.IMAGE_SHAPE[1])
@@ -905,11 +909,15 @@ class TileVisualizer:
 				act, _ = self.loaded_model.predict([np.array([masked]), np.array([masked])])
 				act_array += [act[0][self.NODE]]
 				print(f"Calculating activations at x:{xi}, y:{yi}; act={act[0][self.NODE]}", end='\033[K\r')
+		max_center_x = max(range(min_x, max_x, stride))
+		max_center_y = max(range(min_y, max_y, stride))
+		reshaped_array = np.reshape(np.array(act_array), [len(range(min_x, max_x, stride)), 
+														  len(range(min_y, max_y, stride))])
 		print()
-		return np.reshape(np.array(act_array), [len(range(min_x, max_x, stride)), 
-												len(range(min_y, max_y, stride))])
 
-	def generate_figure(self, name, activation_map=None, save_dir=None):
+		return reshaped_array, max_center_x, max_center_y
+
+	def generate_figure(self, name, activation_map=None, max_x=None, max_y=None, save_dir=None, zoomed_extent=False):
 		# Create hover and click events
 		def hover(event):
 			if event.xdata:
@@ -937,9 +945,16 @@ class TileVisualizer:
 			jetMap = np.flip(np.linspace(0.45, 0.95, 255))
 			cmMap = cm.nipy_spectral(jetMap)
 			newMap = mcol.ListedColormap(cmMap)
+
+			# Calculate boundaries of heatmap
+			hw = int(self.TILE_WIDTH/2)
+			if zoomed_extent:
+				extent = (hw, max_x, max_y, hw)
+			else:
+				extent = (0, max_x+hw, max_y+hw, 0)
 			
 			# Heatmap
-			self.ax.imshow(activation_map, extent=self.implot.get_extent(),
+			self.ax.imshow(activation_map, extent=extent,
 										   cmap=newMap,
 										   alpha=0.6 if not self.interactive else 0.0,
 										   interpolation='bicubic',
