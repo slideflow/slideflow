@@ -4,6 +4,7 @@ import sys
 import shutil
 import logging
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from comet_ml import Experiment
 import tensorflow as tf
 
@@ -24,9 +25,9 @@ import slideflow.trainer.model as sfmodel
 import slideflow.util as sfutil
 from slideflow.util import TCGA, log
 from slideflow.util.datasets import Dataset
-from slideflow.mosaic import Mosaic, ActivationsVisualizer
+from slideflow.mosaic import Mosaic, ActivationsVisualizer, TileVisualizer
 
-__version__ = "1.3.3"
+__version__ = "1.3.4"
 
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
@@ -612,6 +613,20 @@ class SlideflowProject:
 		tfrecords_list = sfutil.filter_tfrecords_paths(activations_tfrecords, filters=filters)
 
 		AV = ActivationsVisualizer(self.PROJECT['annotations'], outcome_header, tfrecords_list, self.PROJECT['root'], focus_nodes=focus_nodes)
+
+		model_loc = '/home/shawarma/data/slideflow_projects/TCGA_HNSC_HPV_598px_604um/external_models/TCGA_HNSC_HPV_598px_604um/trained_model_epoch5.h5'
+		loc = "/home/shawarma/data/slideflow_projects/TCGA_HNSC_HPV_598px_604um/stats/sorted_tiles/FLNode1903"
+		tiles = os.listdir(loc)
+		tiles.sort(key=lambda x: int(x.split('-')[0]))
+		tiles.reverse()
+
+		TV = TileVisualizer(model=model_loc, 
+							node=1903,
+							shape=[self.PROJECT['tile_px'], self.PROJECT['tile_px'], 3])
+
+		for tile in tiles[:10]:
+			tile_loc = join(loc, tile)
+			TV.visualize_tile(tile_loc, save_dir=loc)
 
 		return AV
 
