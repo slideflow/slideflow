@@ -272,9 +272,9 @@ class SlideflowProject:
 		return hp, model_name
 
 	def _valid_hp(self, hp):
-		if (hp.model_type != 'categorical' and ((hp.balanced_training == sfmodel.BALANCE_BY_CATEGORY) or 
+		if (hp.model_type() != 'categorical' and ((hp.balanced_training == sfmodel.BALANCE_BY_CATEGORY) or 
 											    (hp.balanced_validation == sfmodel.BALANCE_BY_CATEGORY))):
-			log.error(f'Invalid hyperparameter combination: balancing type "{sfmodel.BALANCE_BY_CATEGORY}" and model type "{hp.model_type}".', 1)
+			log.error(f'Invalid hyperparameter combination: balancing type "{sfmodel.BALANCE_BY_CATEGORY}" and model type "{hp.model_type()}".', 1)
 			return False
 		return True
 
@@ -616,14 +616,15 @@ class SlideflowProject:
 
 		return AV
 
-	def visualize_tiles(self, model, directory, node, num_to_visualize=20):
+	def visualize_tiles(self, model, directory, node, num_to_visualize=20, window=None):
 		tiles = [o for o in os.listdir(directory) if not isdir(join(directory, o))]
 		tiles.sort(key=lambda x: int(x.split('-')[0]))
 		tiles.reverse()
 
 		TV = TileVisualizer(model=model, 
 							node=node,
-							shape=[self.PROJECT['tile_px'], self.PROJECT['tile_px'], 3])
+							shape=[self.PROJECT['tile_px'], self.PROJECT['tile_px'], 3],
+							tile_width=window)
 
 		for tile in tiles[:20]:
 			tile_loc = join(directory, tile)
