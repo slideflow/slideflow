@@ -68,6 +68,8 @@ class Mosaic:
 		self.save_dir = save_dir
 		self.DTYPE = tf.float16 if use_fp16 else tf.float32
 		self.PT_NODE_DICT_PKL = join(save_dir, "stats", "activation_node_dict.pkl")
+		if not exists(self.PT_NODE_DICT_PKL):
+			os.makedirs(join(save_dir, "stats"))
 
 		# Variables used only when loading from slides
 		self.tile_um = tile_um
@@ -179,6 +181,7 @@ class Mosaic:
 				slide_node_dict[slide].update({node: []})
 
 		# Export to CSV
+		log.info("Writing final layer activations to CSV and PKL cache...", 1)
 		with open(flactivations_file, 'w') as outfile:
 			csvwriter = csv.writer(outfile)
 			csvwriter.writerow(header)
