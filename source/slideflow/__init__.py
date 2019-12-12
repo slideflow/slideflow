@@ -27,6 +27,8 @@ from slideflow.util import TCGA, log
 from slideflow.util.datasets import Dataset
 from slideflow.mosaic import Mosaic, ActivationsVisualizer, TileVisualizer
 
+# TODO: allow datasets to have filters (would address evaluate() function)
+
 __version__ = "1.3.4"
 
 SKIP_VERIFICATION = False
@@ -202,14 +204,17 @@ class SlideflowProject:
 																				model_type=model_type)
 		return SFM
 
-	def evaluate(self, model_name, outcome_header, model_type='categorical', model_file="trained_model.h5", filters=None, checkpoint=None, eval_k_fold=None):
+	def evaluate(self, model_name, outcome_header, model_type='categorical', model_file="trained_model.h5", hyperparameters=None, filters=None, checkpoint=None, eval_k_fold=None):
 		'''Evaluates a saved model on a given set of tfrecords.'''
 		log.header(f"Evaluating model {sfutil.bold(model_name)}...")
 		model_root = join(self.PROJECT['models_dir'], model_name)
-		model_fullpath = join(model_root, model_file)
+		if sfutil.path_to_name(model_file) != model_file:
+			model_fullpath = join(model_root, model_file)
+		else:
+			model_fullpath= model_file
 
 		# Load hyperparameters from saved model
-		hp_file = join(model_root, 'hyperparameters.json')
+		hp_file = hyperparameters if hyperparameters else join(model_root, 'hyperparameters.json')
 		hp_data = sfutil.load_json(hp_file)
 		hp = sfmodel.HyperParameters()
 		hp._load_dict(hp_data['hp'])
@@ -234,7 +239,8 @@ class SlideflowProject:
 																										k_fold_iter=eval_k_fold)
 		# Otherwise use all TFRecords
 		else:
-			eval_tfrecords = eval_dataset.get_tfrecords(ask_to_merge_subdirs=True)
+			unfiltered_eval_tfrecords = eval_dataset.get_tfrecords(ask_to_merge_subdirs=True)
+			eval_tfrecords = sfutil.filter_tfrecords_paths(unfiltered_eval_tfrecords, filters=filters)
 
 		# Set up model for evaluation
 		SFM = self.initialize_model(f"eval-{model_name}", eval_dataset, None, None, outcomes, model_type=model_type)
@@ -601,6 +607,8 @@ class SlideflowProject:
 			focus_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=focus_filters)
 		else:
 			focus_list = None
+		log.info(f"Generating mosaic from {len(slide_list)} slides, with focus on {0 if not focus_list else len(focus_list)} slides.", 1)
+		
 		mosaic = Mosaic(save_dir=self.PROJECT['root'], num_tiles_x=num_tiles_x,
 													   resolution=resolution)
 		mosaic.generate_from_tfrecords(slide_list, model=model_path, image_size=self.PROJECT['tile_px'], focus=focus_list)
