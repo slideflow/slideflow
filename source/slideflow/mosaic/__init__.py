@@ -183,10 +183,10 @@ class Mosaic:
 			csvwriter = csv.writer(outfile)
 			csvwriter.writerow(header)
 			for i in range(len(slides_all)):
-				slide = [slides_all[i].decode('utf-8')]
+				slide = slides_all[i].decode('utf-8')
 				logits = logits_all[i].tolist()
 				flactivations = fl_activations_all[i].tolist()
-				row = slide + logits + flactivations
+				row = [slide] + logits + flactivations
 				csvwriter.writerow(row)
 
 				# Export to PKL dictionary
