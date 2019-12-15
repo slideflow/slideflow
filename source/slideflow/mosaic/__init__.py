@@ -6,6 +6,7 @@ import math
 import csv
 import cv2
 import pickle
+import time
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -29,9 +30,8 @@ import slideflow.util.statistics as sfstats
 from slideflow.util import log, progress_bar, tfrecords, TCGA
 from PIL import Image
 
-# TODO: merge Mosaic class into ActivationsVisualizer
-# TODO: make Mosaic umap cache compatible with AV PKL cache
-# TODO: use consistent node reference (string "FLNode[X]" vs. integer X)
+# TODO: add check that cached PKL corresponds to current and correct model & slides
+# TODO: re-calculate new activations if some slides not present in cache
 
 def create_bool_mask(x, y, w, sx, sy):
 	l = max(0,  int(x-(w/2.)))
@@ -45,398 +45,24 @@ def create_bool_mask(x, y, w, sx, sy):
 				m[yi][xi] = [False, False, False]
 	return m
 
-class Mosaic:
-	FOCUS_SLIDE = None
-	BATCH_SIZE = 16
-	SLIDES = {}
-	GRID = []
-
-	stride_div = 1
-	ax_thumbnail = None
-	metadata, points, tiles = [], [], []
-	tfrecord_paths = []
-	tile_point_distances = []
-	rectangles = {}
-	logits = {}
-
-	def __init__(self, leniency=1.5, expanded=True, tile_zoom=15, num_tiles_x=50, resolution='high', 
-					export=True, tile_um=None, use_fp16=True, save_dir=None):
-		# Global variables
-		self.max_distance_factor = leniency
-		self.mapping_method = 'expanded' if expanded else 'strict'
-		self.tile_zoom_factor = tile_zoom
-		self.export = export
-		self.num_tiles_x = num_tiles_x
-		self.save_dir = save_dir
-		self.DTYPE = tf.float16 if use_fp16 else tf.float32
-		self.PT_NODE_DICT_PKL = join(save_dir, "stats", "activation_node_dict.pkl")
-		if not exists(join(save_dir, 'stats')):
-			os.makedirs(join(save_dir, "stats"))
-
-		# Variables used only when loading from slides
-		self.tile_um = tile_um
-		
-		# Initialize figure
-		log.info("Initializing figure...", 1)
-		if resolution not in ('high', 'low'):
-			log.warn(f"Unknown resolution option '{resolution}', defaulting to low resolution", 1)
-		if resolution == 'high':
-			self.fig = plt.figure(figsize=(200,200))
-			self.ax = self.fig.add_subplot(111, aspect='equal')
-		else:
-			self.fig = plt.figure(figsize=(24,18))
-			self.ax = self.fig.add_subplot(121, aspect='equal')
-		self.ax.set_facecolor("#dfdfdf")
-		self.fig.tight_layout()
-		plt.subplots_adjust(left=0.02, bottom=0, right=0.98, top=1, wspace=0.1, hspace=0)
-		self.ax.set_aspect('equal', 'box')
-		self.ax.set_xticklabels([])
-		self.ax.set_yticklabels([])
-
-	def generate_final_layer_from_tfrecords(self, tfrecord_array, model, image_size):
-		log.info(f"Calculating final layer activations from model {sfutil.green(model)}", 1)
-
-		# Load model
-		_model = tf.keras.models.load_model(model)
-		complete_model=False
-		try:
-			loaded_model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
-												outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
-		except AttributeError:
-			# Provides support for complete models that were not generated using Slideflow
-			complete_model=True
-			loaded_model = tf.keras.models.Model(inputs=[_model.input],
-												 outputs=[_model.layers[-2].output])
-		
-		fl_activations_all, logits_all, slides_all, indices_all, tile_indices_all, tfrecord_all = [], [], [], [], [], []
-		unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in tfrecord_array]))
-
-		def _parse_function(record):
-			features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
-			slide = features['slide']
-			image_string = features['image_raw']
-			raw_image = tf.image.decode_jpeg(image_string, channels=3)
-			processed_image = tf.image.per_image_standardization(raw_image)
-			processed_image = tf.image.convert_image_dtype(processed_image, self.DTYPE)
-			processed_image.set_shape([image_size, image_size, 3])
-			return processed_image, slide
-
-		# Calculate final layer activations for each tfrecord
-		for tfrecord in tfrecord_array:
-			log.info(f"Calculating activations from {sfutil.green(tfrecord)}", 2)
-			dataset = tf.data.TFRecordDataset(tfrecord)
-
-			dataset = dataset.map(_parse_function, num_parallel_calls=8)
-			dataset = dataset.batch(self.BATCH_SIZE, drop_remainder=False)
-			self.tfrecord_paths += [tfrecord]
-			tfrecord_index = self.tfrecord_paths.index(tfrecord)
-
-			fl_activations_arr, logits_arr, slides_arr, indices_arr, tile_indices_arr = [], [], [], [], []
-  
-			for i, data in enumerate(dataset):
-				batch_processed_images, batch_slides = data
-				batch_slides = batch_slides.numpy()
-				sys.stdout.write(f"\r - Working on batch {i}")
-				sys.stdout.flush()
-
-				# Calculate global and tfrecord-specific indices
-				indices = list(range(len(indices_arr), len(indices_arr) + len(batch_slides)))
-				tile_indices = list(range(i * len(batch_slides), i * len(batch_slides) + len(batch_slides)))
-
-				if not complete_model:
-					fl_activations, logits = loaded_model.predict([batch_processed_images, batch_processed_images])
-				else:
-					fl_activations = loaded_model.predict([batch_processed_images])
-					logits = [[-1]] * self.BATCH_SIZE
-
-				fl_activations_arr = fl_activations if fl_activations_arr == [] else np.concatenate([fl_activations_arr, fl_activations])
-				logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
-				slides_arr = batch_slides if slides_arr == [] else np.concatenate([slides_arr, batch_slides])
-				indices_arr = indices if indices_arr == [] else np.concatenate([indices_arr, indices])
-				tile_indices_arr = tile_indices if tile_indices_arr == [] else np.concatenate([tile_indices_arr, tile_indices])
-
-			sys.stdout.write("\r\033[K")
-			sys.stdout.flush()
-
-			tfrecord_arr = np.array([tfrecord_index] * len(slides_arr))
-
-			fl_activations_all = fl_activations_arr if fl_activations_all == [] else np.concatenate([fl_activations_all, fl_activations_arr])
-			logits_all = logits_arr if logits_all == [] else np.concatenate([logits_all, logits_arr])
-			slides_all = slides_arr if slides_all == [] else np.concatenate([slides_all, slides_arr])
-			indices_all = indices_arr if indices_all == [] else np.concatenate([indices_all, indices_arr])
-			tile_indices_all = tile_indices_arr if tile_indices_all == [] else np.concatenate([tile_indices_all, tile_indices_arr])
-			tfrecord_all = tfrecord_arr if tfrecord_all == [] else np.concatenate([tfrecord_all, tfrecord_arr])
-
-		# Save final layer activations to CSV file
-		# and export PKL
-		nodes = [f"FLNode{f}" for f in range(fl_activations_all.shape[1])]
-		logits = [f"Logits{l}" for l in range(logits_all.shape[1])]
-		header = ["Slide"] + logits + nodes
-		flactivations_file = join(self.save_dir, "final_layer_activations.csv")
-
-		# Prepare PKL export dictionary
-		slide_node_dict = {}
-		for slide in unique_slides:
-			slide_node_dict.update({slide: {}})
-		for node in nodes:
-			for slide in unique_slides:
-				slide_node_dict[slide].update({node: []})
-
-		# Export to CSV
-		log.info("Writing final layer activations to CSV and PKL cache...", 1)
-		with open(flactivations_file, 'w') as outfile:
-			csvwriter = csv.writer(outfile)
-			csvwriter.writerow(header)
-			for i in range(len(slides_all)):
-				slide = slides_all[i].decode('utf-8')
-				logits = logits_all[i].tolist()
-				flactivations = fl_activations_all[i].tolist()
-				row = [slide] + logits + flactivations
-				csvwriter.writerow(row)
-
-				# Export to PKL dictionary
-				for node in nodes:
-					node_i = header.index(node)
-					val = row[node_i]
-					slide_node_dict[slide][node] += [val]
-		log.complete(f"Final layer activations saved to {sfutil.green(flactivations_file)}", 1)
-
-		# Dump PKL dictionary to file
-		with open(self.PT_NODE_DICT_PKL, 'wb') as pt_pkl_file:
-			pickle.dump(slide_node_dict, pt_pkl_file)
-		log.complete(f"Final layer activations cached to {sfutil.green(self.PT_NODE_DICT_PKL)}", 1)
-
-		# Returns a 2D array, with each element containing FL activations, logits, slide name, tfrecord name, and tfrecord indices
-		return fl_activations_all, logits_all, slides_all, indices_all, tile_indices_all, tfrecord_all	
-
-	def generate_from_tfrecords(self, tfrecord_array, model, image_size, focus=None):
-		fl_activations, logits, slides, indices, tile_indices, tfrecords = self.generate_final_layer_from_tfrecords(tfrecord_array, model, image_size)
-		
-		dl_coord = sfstats.gen_umap(fl_activations)
-		self.load_coordinates(dl_coord, [slides, tfrecords, indices, tile_indices])
-
-		self.place_tile_outlines()
-		self.calculate_distances()
-		self.pair_tiles_and_points()
-		if focus:
-			self.focus_tfrecords(focus)
-		self.finish_mosaic()
-
-	def load_coordinates(self, coord, meta):
-		log.empty("Loading dimensionality reduction coordinates and plotting points...", 1)
-		points_x = []
-		points_y = []
-		point_index = 0
-		slides, tfrecords, indices, tile_indices = meta
-		for i, p in enumerate(coord):
-			points_x.append(p[0])
-			points_y.append(p[1])
-			self.points.append({'x':p[0],
-								'y':p[1],
-								'index':point_index,
-								'neighbors':[],
-								'category':'none',
-								'slide':slides[i],
-								'tfrecord':self.tfrecord_paths[tfrecords[i]],
-								'tfrecord_index':indices[i],
-								'tile_index':tile_indices[i],
-								'paired_tile':None })
-			point_index += 1
-		x_points = [p['x'] for p in self.points]
-		y_points = [p['y'] for p in self.points]
-		_x_width = max(x_points) - min(x_points)
-		_y_width = max(y_points) - min(y_points)
-		buffer = (_x_width + _y_width)/2 * 0.05
-		max_x = max(x_points) + buffer
-		min_x = min(x_points) - buffer
-		max_y = max(y_points) + buffer
-		min_y = min(y_points) - buffer
-
-		log.info(f"Loaded {len(self.points)} points.", 2)
-
-		#self.tsne_plot = self.ax.scatter(points_x, points_y, s=1000, facecolors='none', edgecolors='green', alpha=0)# markersize = 5
-		self.tile_size = (max_x - min_x) / self.num_tiles_x
-		self.num_tiles_y = int((max_y - min_y) / self.tile_size)
-		self.max_distance = math.sqrt(2*((self.tile_size/2)**2)) * self.max_distance_factor
-		self.tile_coord_x = [(i*self.tile_size)+min_x for i in range(self.num_tiles_x)]
-		self.tile_coord_y = [(j*self.tile_size)+min_y for j in range(self.num_tiles_y)]
-
-		# Initialize grid
-		for j in range(self.num_tiles_y):
-			for i in range(self.num_tiles_x):
-				self.GRID.append({'x': ((self.tile_size/2) + min_x) + (self.tile_size * i),
-									'y': ((self.tile_size/2) + min_y) + (self.tile_size * j),
-									'x_index': i,
-									'y_index': j,
-									'index': len(self.GRID),
-									'size': self.tile_size,
-									'points':[],
-									'distances':[],
-									'active': False,
-									'image': None})
-
-		# Add point indices to grid
-		points_added = 0
-		for point in self.points:
-			x_index = int((point['x'] - min_x) / self.tile_size)
-			y_index = int((point['y'] - min_y) / self.tile_size)
-			for g in self.GRID:
-				if g['x_index'] == x_index and g['y_index'] == y_index:
-					g['points'].append(point['index'])
-					points_added += 1
-		for g in self.GRID:
-			shuffle(g['points'])
-		log.info(f"{points_added} points added to grid", 2)
-
-	def place_tile_outlines(self):
-		log.empty("Placing tile outlines...", 1)
-		# Find max GRID density
-		max_grid_density = 1
-		for g in self.GRID:
-			max_grid_density = max(max_grid_density, len(g['points']))
-		for grid_tile in self.GRID:
-			rect_size = min((len(grid_tile['points']) / max_grid_density) * self.tile_zoom_factor, 1) * self.tile_size
-
-			tile = patches.Rectangle((grid_tile['x'] - rect_size/2, 
-							  		  grid_tile['y'] - rect_size/2), 
-									  rect_size, 
-							  		  rect_size, 
-									  fill=True, alpha=1, facecolor='white', edgecolor="#cccccc")
-			self.ax.add_patch(tile)
-
-			grid_tile['size'] = rect_size
-			grid_tile['rectangle'] = tile
-			grid_tile['neighbors'] = []
-			grid_tile['paired_point'] = None
-
-	def calculate_distances(self):
-		log.empty("Calculating tile-point distances...", 1)
-		pb = progress_bar.ProgressBar()
-		pb_id = pb.add_bar(0, len(self.GRID))
-		for i, tile in enumerate(self.GRID):
-			pb.update(pb_id, i)
-			if self.mapping_method == 'strict':
-				# Calculate distance for each point from center
-				distances = []
-				for point_index in tile['points']:
-					point = self.points[point_index]
-					distance = math.sqrt((point['x']-tile['x'])**2 + (point['y']-tile['y'])**2)
-					distances.append([point['index'], distance])
-				distances.sort(key=lambda d: d[1])
-				tile['distances'] = distances
-			elif self.mapping_method == 'expanded':
-				# Calculate distance for each point from center
-				distances = []
-				for point in self.points:
-					distance = math.sqrt((point['x']-tile['x'])**2 + (point['y']-tile['y'])**2)
-					distances.append([point['index'], distance])
-				distances.sort(key=lambda d: d[1])
-				for d in distances:
-					if d[1] <= self.max_distance:
-						tile['neighbors'].append(d)
-						self.points[d[0]]['neighbors'].append([tile['index'], d[1]])
-						self.tile_point_distances.append({'distance': d[1],
-													'tile_index':tile['index'],
-													'point_index':d[0]})
-					else:
-						break
-			else:
-				raise TypeError("Unknown mapping method")
-		pb.end()
-		if self.mapping_method == 'expanded':
-			self.tile_point_distances.sort(key=lambda d: d['distance'])
-
-	def pair_tiles_and_points(self):
-		log.empty("Placing image tiles...", 1)
-		num_placed = 0
-		if self.mapping_method == 'strict':
-			for tile in self.GRID:
-				if not len(tile['distances']): continue
-				closest_point = tile['distances'][0][0]
-				point = self.points[closest_point]
-				#tile_image = plt.imread(point['image_path'])
-				#tile_image = point['image_data']
-				_, tile_image = tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tile_index'])
-				tile_alpha, num_slide, num_other = 1, 0, 0
-				if self.FOCUS_SLIDE and len(tile['points']):
-					for point_index in tile['points']:
-						point = self.points[point_index]
-						if point['slide'] == self.FOCUS_SLIDE:
-							num_slide += 1
-						else:
-							num_other += 1
-					fraction_slide = num_slide / (num_other + num_slide)
-					tile_alpha = fraction_slide
-				if not self.export:
-					tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
-				image = self.ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-tile['size']/2, 
-																						tile['x']+tile['size']/2,
-																						tile['y']-tile['size']/2,
-																						tile['y']+tile['size']/2], zorder=99, alpha=tile_alpha)
-				tile['image'] = image
-				num_placed += 1
-		elif self.mapping_method == 'expanded':
-			for distance_pair in self.tile_point_distances:
-				# Attempt to place pair, skipping if unable (due to other prior pair)
-				point = self.points[distance_pair['point_index']]
-				tile = self.GRID[distance_pair['tile_index']]
-				if not (point['paired_tile'] or tile['paired_point']):
-					point['paired_tile'] = True
-					tile['paired_point'] = True
-
-					#tile_image = plt.imread(point['image_path'])
-					#tile_image = point['image_data']
-					_, tile_image = tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tile_index'])
-					if not self.export:
-						tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
-					image = self.ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-self.tile_size/2, 
-																					tile['x']+self.tile_size/2,
-																					tile['y']-self.tile_size/2,
-																					tile['y']+self.tile_size/2], zorder=99)		
-					tile['image'] = image
-					num_placed += 1
-		log.info(f"Num placed: {num_placed}", 2)
-
-	def focus_tfrecords(self, tfrecord_list):
-		for tile in self.GRID:
-			if not len(tile['points']): continue
-			num_cat, num_other = 0, 0
-			for point_index in tile['points']:
-				point = self.points[point_index]
-				if point['tfrecord'] in tfrecord_list:
-					num_cat += 1
-				else:
-					num_other += 1
-			alpha = num_cat / (num_other + num_cat)
-			tile['image'].set_alpha(alpha)
-
-	def finish_mosaic(self):
-		log.empty("Displaying/exporting figure...", 1)
-		self.ax.autoscale(enable=True, tight=None)
-		if self.export:
-			save_path = join(self.save_dir, f'Mosaic-{self.num_tiles_x}.png')
-			plt.savefig(save_path, bbox_inches='tight')
-			log.complete(f"Saved figure to {sfutil.green(save_path)}", 1)
-			plt.close()
-		else:
-			while True:
-				try:
-					plt.show()
-				except UnicodeDecodeError:
-					continue
-				break
-
 class ActivationsVisualizer:
 	missing_slides = []
 	used_categories = []
 	umaps = []
+	tfrecords_paths = []
+	slides = []				# List of slide names (without extension or path)
 
-	def __init__(self, annotations, category_header, tfrecords, root_dir, focus_nodes=[]):
+	def __init__(self, model, annotations, category_header, tfrecords, root_dir, image_size, 
+					focus_nodes=[], use_fp16=True, batch_size=16):
+		'''Loads annotations, saved layer activations, and prepares output saving directories.
+		Will also read/write processed activations to a PKL cache file to save time in future iterations.'''
+
 		self.focus_nodes = focus_nodes
 		self.CATEGORY_HEADER = category_header
 		self.ANNOTATIONS = annotations
-		self.TFRECORDS = np.array(tfrecords)
-		self.slides_to_include = [sfutil.path_to_name(tfr) for tfr in self.TFRECORDS]
+		self.IMAGE_SIZE = image_size
+		self.tfrecords_paths = np.array(tfrecords)
+		self.slides_to_include = [sfutil.path_to_name(tfr) for tfr in self.tfrecords_paths]
 
 		self.FLA = join(root_dir, "stats", "final_layer_activations.csv")
 		self.STATS_CSV_FILE = join(root_dir, "stats", "slide_level_summary.csv")
@@ -448,14 +74,10 @@ class ActivationsVisualizer:
 		if not exists(join(root_dir, "stats")):
 			os.makedirs(join(root_dir, "stats"))
 
-		# Initial loading and preparation
-		self.load_annotations()
-		self.load_activations()
-
-	def load_annotations(self):
+		# Load annotations
 		self.slide_category_dict = {}
 		with open(self.ANNOTATIONS, 'r') as ann_file:
-			log.empty("Reading annotations...", 1)
+			log.info("Reading annotations...", 1)
 			ann_reader = csv.reader(ann_file)
 			header = next(ann_reader)
 			slide_i = header.index(TCGA.slide)
@@ -469,43 +91,56 @@ class ActivationsVisualizer:
 		self.categories = list(set(self.slide_category_dict.values()))
 		self.slides = list(self.slide_category_dict.keys())
 
-	def load_pkl(self):
-		log.empty("Loading pre-calculated activations from pickled files...", 1)
-		with open(self.PT_NODE_DICT_PKL, 'rb') as pt_pkl_file:
-			self.slide_node_dict = pickle.load(pt_pkl_file)
-			self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
-
-	def write_pkl(self):
-		with open(self.PT_NODE_DICT_PKL, 'wb') as pt_pkl_file:
-			pickle.dump(self.slide_node_dict, pt_pkl_file)
-
-	def load_activations(self):
+		# Load activations
+		# Load from PKL (cache) if present
 		if exists(self.PT_NODE_DICT_PKL): 
-			self.load_pkl()
-		else:
+			# Load saved PKL cache
+			log.info("Loading pre-calculated activations from pickled files...", 1)
+			with open(self.PT_NODE_DICT_PKL, 'rb') as pt_pkl_file:
+				self.slide_node_dict = pickle.load(pt_pkl_file)
+				self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
+		# Otherwise try loading from CSV if present
+		elif exists(self.FLA):
 			self.slide_node_dict = {}
 			for slide in self.slides:
 				self.slide_node_dict.update({slide: {}})
 			with open(self.FLA, 'r') as fl_file:
-				log.empty(f"Reading final layer activations from {sfutil.green(self.FLA)}...", 1)
+				log.info(f"Reading final layer activations from {sfutil.green(self.FLA)}...", 1)
 				fl_reader = csv.reader(fl_file)
 				header = next(fl_reader)
-				self.nodes = [h for h in header if h[:6] == "FLNode"]
-				slide_i = header.index("Slide")
+				csv_node_names = [h for h in header if h[:6] == "FLNode"]
+				try:
+					slide_i = header.index("Slide")
+				except:
+					log.error(f"Unable to load activations from CSV at {sfutil.green(self.FLA)}; format incorrect", 1)
+					return
 
-				for node in self.nodes:
+				for node in csv_node_names:
+					node_num = int(node.strip("FLNode"))
 					for slide in self.slides:
-						self.slide_node_dict[slide].update({node: []})
+						self.slide_node_dict[slide].update({node_num: []})
+
+				self.nodes = list(range(len(csv_node_names)))
+				if self.nodes != [int(n.strip("FLNode")) for n in csv_node_names]:
+					log.error(f'Unable to load activations CSV at {sfutil.green(self.FLA)}: incorrect header format.')
+					return
 
 				for i, row in enumerate(fl_reader):
 					print(f"Reading activations for tile {i}...", end="\r")
 					slide = row[slide_i]
-					for node in self.nodes:
+					for node in csv_node_names:
 						node_i = header.index(node)
+						node_num = int(node.strip("FLNode"))
 						val = float(row[node_i])
-						self.slide_node_dict[slide][node] += [val]
+						self.slide_node_dict[slide][node_num] += [val]
 			print()
-			self.write_pkl()
+			# Write PKL cache
+			with open(self.PT_NODE_DICT_PKL, 'wb') as pt_pkl_file:
+				pickle.dump(self.slide_node_dict, pt_pkl_file)
+		# Otherwise will need to generate new activations from a given model
+		else:
+			self.generate_activations_from_model(model, use_fp16=use_fp16, batch_size=16)
+			self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
 
 		# Now delete slides not included in our filtered TFRecord list
 		loaded_slides = list(self.slide_node_dict.keys())
@@ -516,12 +151,13 @@ class ActivationsVisualizer:
 		# Now screen for missing slides in activations
 		for slide in self.slides:
 			try:
-				if self.slide_node_dict[slide]['FLNode0'] == []:
+				if self.slide_node_dict[slide][0] == []:
 					self.missing_slides += [slide]
 				else:
 					self.used_categories = list(set(self.used_categories + [self.slide_category_dict[slide]]))
 					self.used_categories.sort()
 			except KeyError:
+				print(self.slide_node_dict[slide].keys())
 				log.warn(f"Skipping unknown slide {slide}", 1)
 				self.missing_slides += [slide]
 		log.info(f"Loaded activations from {(len(self.slides)-len(self.missing_slides))}/{len(self.slides)} slides ({len(self.missing_slides)} missing)", 1)
@@ -549,6 +185,115 @@ class ActivationsVisualizer:
 			self.calculate_activation_averages_and_stats()
 		
 		return self.nodes
+
+	def get_tfrecords_path(self, slide):
+		for tfr in self.tfrecords_paths:
+			if sfutil.path_to_name(tfr) == slide:
+				return tfr
+		log.error(f"Unable to find TFRecord path for slide {sfutil.green(slide)}", 1)
+		sys.exit()
+
+	def generate_activations_from_model(self, model, use_fp16=True, batch_size=16):
+		# Rename tfrecord_array to tfrecords
+		log.info(f"Calculating final layer activations from model {sfutil.green(model)}", 1)
+
+		# Load model
+		_model = tf.keras.models.load_model(model)
+		#complete_model = False
+		#try:
+		loaded_model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
+											 outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
+		#except AttributeError:
+		#	# DANGEROUS: UNKNOWN RESULTS MAY OCCUR; WILL NOT IMPLEMENT FOR NOW
+		#	# Provides support for complete models that were not generated using Slideflow
+		#	complete_model = True
+		#	loaded_model = tf.keras.models.Model(inputs=[_model.input],
+		#										 outputs=[_model.layers[-2].output])
+		
+		fl_activations_all, logits_all, slides_all, indices_all, tile_indices_all, tfrecord_all = [], [], [], [], [], []
+		unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in self.tfrecords_paths]))
+
+		# Prepare PKL export dictionary
+		self.slide_node_dict = {}
+		for slide in unique_slides:
+			self.slide_node_dict.update({slide: {}})
+
+		def _parse_function(record):
+			features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
+			slide = features['slide']
+			image_string = features['image_raw']
+			raw_image = tf.image.decode_jpeg(image_string, channels=3)
+			processed_image = tf.image.per_image_standardization(raw_image)
+			processed_image = tf.image.convert_image_dtype(processed_image, tf.float16 if use_fp16 else tf.float32)
+			processed_image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
+			return processed_image, slide
+
+		# Calculate final layer activations for each tfrecord
+		fla_start_time = time.time()
+		nodes_names, logits_names = [], []
+		with open(self.FLA, 'w') as outfile:
+			csvwriter = csv.writer(outfile)
+			for tfrecord_index, tfrecord in enumerate(self.tfrecords_paths):
+				log.info(f"Calculating activations from {sfutil.green(tfrecord)}", 2)
+				dataset = tf.data.TFRecordDataset(tfrecord)
+
+				dataset = dataset.map(_parse_function, num_parallel_calls=8)
+				dataset = dataset.batch(batch_size, drop_remainder=False)
+				
+				fl_activations_combined, logits_combined, slides_combined = [], [], []
+
+				for i, data in enumerate(dataset):
+					batch_processed_images, batch_slides = data
+					batch_slides = batch_slides.numpy()
+					sys.stdout.write(f"\r - Working on batch {i}")
+					sys.stdout.flush()
+
+					# Calculate global and tfrecord-specific indices
+					#indices = list(range(len(indices_arr), len(indices_arr) + len(batch_slides)))
+					#tile_indices = list(range(i * len(batch_slides), i * len(batch_slides) + len(batch_slides)))
+
+					#if not complete_model:
+					fl_activations, logits = loaded_model.predict([batch_processed_images, batch_processed_images])
+					#else:
+					#	fl_activations = loaded_model.predict([batch_processed_images])
+					#	logits = [[-1]] * batch_size
+					fl_activations_combined = fl_activations if fl_activations_combined == [] else np.concatenate([fl_activations_combined, fl_activations])
+					logits_combined = logits if logits_combined == [] else np.concatenate([logits_combined, logits])
+					slides_combined = batch_slides if slides_combined == [] else np.concatenate([slides_combined, batch_slides])
+
+				if not nodes_names and not logits_names:
+					nodes_names = [f"FLNode{f}" for f in range(fl_activations_combined.shape[1])]
+					logits_names = [f"Logits{l}" for l in range(logits_combined.shape[1])]
+					header = ["Slide"] + logits_names + nodes_names
+					csvwriter.writerow(header)
+					for n in range(len(nodes_names)):
+						for slide in unique_slides:
+							self.slide_node_dict[slide].update({n: []})
+
+				# Export to PKL and CSV
+				for i, act in enumerate(fl_activations_combined):
+					slide = slides_combined[i].decode('utf-8')
+					activations_vals = fl_activations_combined[i].tolist()
+					logits_vals = logits_combined[i].tolist()
+					# Write to CSV
+					row = [slide] + logits_vals + activations_vals
+					csvwriter.writerow(row)
+					# Write to PKL
+					for n, node in enumerate(nodes_names):
+						val = activations_vals[n]
+						self.slide_node_dict[slide][node] += [val]
+
+				sys.stdout.write("\r\033[K")
+				sys.stdout.flush()
+
+		fla_calc_time = time.time()
+		log.info(f"Activation calculation time: {fla_calc_time-fla_start_time:.0f} sec", 1)
+		log.complete(f"Final layer activations saved to {sfutil.green(self.FLA)}", 1)
+		
+		# Dump PKL dictionary to file
+		with open(self.PT_NODE_DICT_PKL, 'wb') as pt_pkl_file:
+			pickle.dump(self.slide_node_dict, pt_pkl_file)
+		log.complete(f"Final layer activations cached to {sfutil.green(self.PT_NODE_DICT_PKL)}", 1)
 
 	def calculate_activation_averages_and_stats(self):
 		empty_category_dict = {}
@@ -598,7 +343,7 @@ class ActivationsVisualizer:
 				log.warn(f"No stats calculated for node {node}", 1)
 			if (not self.focus_nodes) and i>9: break
 		if not exists(self.STATS_CSV_FILE):
-			self.save_to_csv(self.nodes_avg_pt, tile_stats=node_stats, slide_stats=node_stats_avg_pt)
+			self.save_node_statistics_to_csv(self.nodes_avg_pt, tile_stats=node_stats, slide_stats=node_stats_avg_pt)
 		else:
 			log.info(f"Stats file already generated at {sfutil.green(self.STATS_CSV_FILE)}; not regenerating", 1)
 
@@ -638,12 +383,12 @@ class ActivationsVisualizer:
 			plt.savefig(boxplot_filename, bbox_inches='tight')
 			if (not self.focus_nodes) and i>4: break
 	
-	def save_to_csv(self, nodes_avg_pt, tile_stats=None, slide_stats=None):
+	def save_node_statistics_to_csv(self, nodes_avg_pt, tile_stats=None, slide_stats=None):
 		# Save results to CSV
 		log.empty(f"Writing results to {sfutil.green(self.STATS_CSV_FILE)}...", 1)
 		with open(self.STATS_CSV_FILE, 'w') as outfile:
 			csv_writer = csv.writer(outfile)
-			header = ['slide', 'category'] + nodes_avg_pt
+			header = ['slide', 'category'] + [f"FLNode{n}" for n in nodes_avg_pt]
 			csv_writer.writerow(header)
 			for slide in self.slides:
 				if slide in self.missing_slides: continue
@@ -657,28 +402,46 @@ class ActivationsVisualizer:
 				csv_writer.writerow(['Slide-level statistic', 'ANOVA P-value'] + [slide_stats[n]['p'] for n in nodes_avg_pt])
 				csv_writer.writerow(['Slide-level statistic', 'ANOVA F-value'] + [slide_stats[n]['f'] for n in nodes_avg_pt])
 
-	def load_umap_cache(self):
+	def calculate_umap(self, exclude_node=None):
+		# First, try to load prior umap cache
 		try:
 			with open(self.UMAP_CACHE, 'rb') as umap_file:
 				self.umaps = pickle.load(umap_file)
 				log.info(f"Loaded UMAP cache from {sfutil.green(self.UMAP_CACHE)}", 1)
-				return True
 		except:
 			log.info(f"No UMAP cache found at {sfutil.green(self.UMAP_CACHE)}", 1)
-			return False
 
-	def check_if_umap_calculated(self, nodes):
+		# Check if UMAP cache has already been calculated; if so, return
 		slides = [slide for slide in self.slides if slide not in self.missing_slides]
+		nodes_to_include = [n for n in self.nodes if n != exclude_node]
 		for um in self.umaps:
 			# Check to see if this has already been cached
-			if (sorted(um['nodes']) == sorted(nodes)) and (sorted(um['slides']) == sorted(slides)):
+			if (sorted(um['nodes']) == sorted(nodes_to_include)) and (sorted(um['slides']) == sorted(slides)):
+				log.info("UMAP results already calculated and cached", 1)
 				return um
-		return False
 
-	def cache_umap(self, umap_x, umap_y, umap_meta, nodes):
-		slides = [slide for slide in self.slides if slide not in self.missing_slides]
+		# Otherwise, generate a new umap
+		log.info("No compatible UMAP results found in cache; recalculating", 1)
+		node_activations = []
+		umap_meta = []
+		log.empty("Calculating UMAP...", 1)
+		for slide in self.slides:
+			if slide in self.missing_slides: continue
+			first_node = list(self.slide_node_dict[slide].keys())[0]
+			num_vals = len(self.slide_node_dict[slide][first_node])
+			for i in range(num_vals):
+				node_activations += [[self.slide_node_dict[slide][n][i] for n in nodes_to_include]]
+				umap_meta += [{
+					'slide': slide,
+					'index': i,
+				}]
+		coordinates = sfstats.gen_umap(np.array(node_activations))
+		umap_x = np.array([c[0] for c in coordinates])
+		umap_y = np.array([c[1] for c in coordinates])
+
+		# Cache new umap
 		umap = {
-			'nodes': nodes,
+			'nodes': nodes_to_include,
 			'slides': slides,
 			'umap_x': umap_x,
 			'umap_y': umap_y,
@@ -688,37 +451,240 @@ class ActivationsVisualizer:
 		with open(self.UMAP_CACHE, 'wb') as umap_file:
 			pickle.dump(self.umaps, umap_file)
 			log.info(f"Wrote UMAP cache to {sfutil.green(self.UMAP_CACHE)}", 1)
+
 		return umap
 
-	def calculate_umap(self, exclude_node=None):
-		nodes_to_include = [n for n in self.nodes if n != exclude_node]
-		# Check if UMAP has already been cached in self.umap and presumably stored
-		# Otherwise, calculate and cache a new UMAP
-		self.load_umap_cache()
-		umap_check = self.check_if_umap_calculated(nodes_to_include)
-		if umap_check:
-			log.info("UMAP results already calculated and cached", 1)
-			return umap_check
+	def generate_mosaic(self, umap, focus=None, leniency=1.5, expanded=True, tile_zoom=15, num_tiles_x=50, resolution='high', 
+					export=True, tile_um=None, use_fp16=True, save_dir=None):
+		
+		FOCUS_SLIDE = None
+		GRID = []
+		points= []
+		tile_point_distances = []	
+
+		max_distance_factor = leniency
+		mapping_method = 'expanded' if expanded else 'strict'
+		tile_zoom_factor = tile_zoom
+		export = export
+		num_tiles_x = num_tiles_x
+		save_dir = self.STATS_ROOT if not save_dir else save_dir
+
+		# Variables used only when loading from slides
+		tile_um = tile_um
+		
+		# Initialize figure
+		log.info("Initializing figure...", 1)
+		if resolution not in ('high', 'low'):
+			log.warn(f"Unknown resolution option '{resolution}', defaulting to low resolution", 1)
+		if resolution == 'high':
+			fig = plt.figure(figsize=(200,200))
+			ax = fig.add_subplot(111, aspect='equal')
 		else:
-			log.info("No compatible UMAP results found in cache; recalculating", 1)
-			node_activations = []
-			umap_meta = []
-			log.empty("Calculating UMAP...", 1)
-			for slide in self.slides:
-				if slide in self.missing_slides: continue
-				first_node = list(self.slide_node_dict[slide].keys())[0]
-				num_vals = len(self.slide_node_dict[slide][first_node])
-				for i in range(num_vals):
-					node_activations += [[self.slide_node_dict[slide][n][i] for n in nodes_to_include]]
-					umap_meta += [{
-						'slide': slide,
-						'index': i,
-					}]
-			coordinates = sfstats.gen_umap(np.array(node_activations))
-			umap_x = np.array([c[0] for c in coordinates])
-			umap_y = np.array([c[1] for c in coordinates])
-			umap = self.cache_umap(umap_x, umap_y, umap_meta, nodes_to_include)
-			return umap
+			fig = plt.figure(figsize=(24,18))
+			ax = fig.add_subplot(121, aspect='equal')
+		ax.set_facecolor("#dfdfdf")
+		fig.tight_layout()
+		plt.subplots_adjust(left=0.02, bottom=0, right=0.98, top=1, wspace=0.1, hspace=0)
+		ax.set_aspect('equal', 'box')
+		ax.set_xticklabels([])
+		ax.set_yticklabels([])
+
+		# First, load UMAP coordinates	
+		log.empty("Loading dimensionality reduction coordinates and plotting points...", 1)
+		for i in range(len(umap['umap_x'])):
+			slide = umap['umap_meta'][i]['slide']
+			points.append({'x':umap['umap_x'][i],
+								'y':umap['umap_y'][i],
+								'global_index': i,
+								'neighbors':[],
+								'category':'none',
+								'slide':slide,
+								'tfrecord':self.get_tfrecords_path(slide),
+								'tfrecord_index':umap['umap_meta'][i]['index'],
+								'paired_tile':None })
+		x_points = [p['x'] for p in points]
+		y_points = [p['y'] for p in points]
+		_x_width = max(x_points) - min(x_points)
+		_y_width = max(y_points) - min(y_points)
+		buffer = (_x_width + _y_width)/2 * 0.05
+		max_x = max(x_points) + buffer
+		min_x = min(x_points) - buffer
+		max_y = max(y_points) + buffer
+		min_y = min(y_points) - buffer
+
+		log.info(f"Loaded {len(points)} points.", 2)
+
+		tile_size = (max_x - min_x) / num_tiles_x
+		num_tiles_y = int((max_y - min_y) / tile_size)
+		max_distance = math.sqrt(2*((tile_size/2)**2)) * max_distance_factor
+		#tile_coord_x = [(i*tile_size)+min_x for i in range(num_tiles_x)]
+		#tile_coord_y = [(j*tile_size)+min_y for j in range(num_tiles_y)]
+
+		# Initialize grid
+		for j in range(num_tiles_y):
+			for i in range(num_tiles_x):
+				GRID.append({'x': ((tile_size/2) + min_x) + (tile_size * i),
+									'y': ((tile_size/2) + min_y) + (tile_size * j),
+									'x_index': i,
+									'y_index': j,
+									'grid_index': len(GRID),
+									'size': tile_size,
+									'points':[],
+									'distances':[],
+									'active': False,
+									'image': None})
+
+		# Add point indices to grid
+		points_added = 0
+		for point in points:
+			x_index = int((point['x'] - min_x) / tile_size)
+			y_index = int((point['y'] - min_y) / tile_size)
+			for g in GRID:
+				if g['x_index'] == x_index and g['y_index'] == y_index:
+					g['points'].append(point['global_index'])
+					points_added += 1
+		for g in GRID:
+			shuffle(g['points'])
+		log.info(f"{points_added} points added to grid", 2)
+
+		# Next, prepare mosaic grid by placing tile outlines
+		log.empty("Placing tile outlines...", 1)
+		# Find max GRID density
+		max_grid_density = 1
+		for g in GRID:
+			max_grid_density = max(max_grid_density, len(g['points']))
+		for grid_tile in GRID:
+			rect_size = min((len(grid_tile['points']) / max_grid_density) * tile_zoom_factor, 1) * tile_size
+
+			tile = patches.Rectangle((grid_tile['x'] - rect_size/2, 
+							  		  grid_tile['y'] - rect_size/2), 
+									  rect_size, 
+							  		  rect_size, 
+									  fill=True, alpha=1, facecolor='white', edgecolor="#cccccc")
+			ax.add_patch(tile)
+
+			grid_tile['size'] = rect_size
+			grid_tile['rectangle'] = tile
+			grid_tile['neighbors'] = []
+			grid_tile['paired_point'] = None
+
+		# Then, calculate distances from each point to each spot on the grid
+		log.empty("Calculating tile-point distances...", 1)
+		pb = progress_bar.ProgressBar()
+		pb_id = pb.add_bar(0, len(GRID))
+		for i, tile in enumerate(GRID):
+			pb.update(pb_id, i)
+			if mapping_method == 'strict':
+				# Calculate distance for each point from center
+				distances = []
+				for point_index in tile['points']:
+					point = points[point_index]
+					distance = math.sqrt((point['x']-tile['x'])**2 + (point['y']-tile['y'])**2)
+					distances.append([point['global_index'], distance])
+				distances.sort(key=lambda d: d[1])
+				tile['distances'] = distances
+			elif mapping_method == 'expanded':
+				# Calculate distance for each point from center
+				distances = []
+				for point in points:
+					distance = math.sqrt((point['x']-tile['x'])**2 + (point['y']-tile['y'])**2)
+					distances.append([point['global_index'], distance])
+				distances.sort(key=lambda d: d[1])
+				for d in distances:
+					if d[1] <= max_distance:
+						tile['neighbors'].append(d)
+						points[d[0]]['neighbors'].append([tile['grid_index'], d[1]])
+						tile_point_distances.append({'distance': d[1],
+													'grid_index':tile['grid_index'],
+													'point_index':d[0]})
+					else:
+						break
+			else:
+				raise TypeError("Unknown mapping method")
+		pb.end()
+		if mapping_method == 'expanded':
+			tile_point_distances.sort(key=lambda d: d['distance'])
+
+		# Then, pair grid tiles and points according to their distances
+		log.empty("Placing image tiles...", 1)
+		num_placed = 0
+		if mapping_method == 'strict':
+			for tile in GRID:
+				if not len(tile['distances']): continue
+				closest_point = tile['distances'][0][0]
+				point = points[closest_point]
+				#tile_image = plt.imread(point['image_path'])
+				#tile_image = point['image_data']
+				_, tile_image = tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'])
+				tile_alpha, num_slide, num_other = 1, 0, 0
+				if FOCUS_SLIDE and len(tile['points']):
+					for point_index in tile['points']:
+						point = points[point_index]
+						if point['slide'] == FOCUS_SLIDE:
+							num_slide += 1
+						else:
+							num_other += 1
+					fraction_slide = num_slide / (num_other + num_slide)
+					tile_alpha = fraction_slide
+				if not export:
+					tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
+				image = ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-tile['size']/2, 
+																						tile['x']+tile['size']/2,
+																						tile['y']-tile['size']/2,
+																						tile['y']+tile['size']/2], zorder=99, alpha=tile_alpha)
+				tile['image'] = image
+				num_placed += 1
+		elif mapping_method == 'expanded':
+			for distance_pair in tile_point_distances:
+				# Attempt to place pair, skipping if unable (due to other prior pair)
+				point = points[distance_pair['point_index']]
+				tile = GRID[distance_pair['grid_index']]
+				if not (point['paired_tile'] or tile['paired_point']):
+					point['paired_tile'] = True
+					tile['paired_point'] = True
+
+					#tile_image = plt.imread(point['image_path'])
+					#tile_image = point['image_data']
+					_, tile_image = tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'])
+					if not export:
+						tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
+					image = ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-tile_size/2,
+																					tile['x']+tile_size/2,
+																					tile['y']-tile_size/2,
+																					tile['y']+tile_size/2], zorder=99)
+					tile['image'] = image
+					num_placed += 1
+		log.info(f"Num placed: {num_placed}", 2)
+
+		# If desired, highlight certain tiles according to a focus list
+		if focus:
+			for tile in GRID:
+				if not len(tile['points']): continue
+				num_cat, num_other = 0, 0
+				for point_index in tile['points']:
+					point = points[point_index]
+					if point['tfrecord'] in focus:
+						num_cat += 1
+					else:
+						num_other += 1
+				alpha = num_cat / (num_other + num_cat)
+				tile['image'].set_alpha(alpha)
+
+		# Finally, finish the mosaic figure
+		log.empty("Displaying/exporting figure...", 1)
+		ax.autoscale(enable=True, tight=None)
+		if export:
+			save_path = join(save_dir, f'Mosaic-{num_tiles_x}.png')
+			plt.savefig(save_path, bbox_inches='tight')
+			log.complete(f"Saved figure to {sfutil.green(save_path)}", 1)
+			plt.close()
+		else:
+			while True:
+				try:
+					plt.show()
+				except UnicodeDecodeError:
+					continue
+				break
 
 	def plot_2D_umap(self, node=None, exclusion=False, subsample=None, interactive=False, filename=None):
 		umap = self.calculate_umap(exclude_node=node if exclusion else None)
@@ -787,19 +753,19 @@ class ActivationsVisualizer:
 		umap_x = umap['umap_x']
 		umap_y = umap['umap_y']
 		umap_meta = umap['umap_meta']
-		filter_criteria = {}
+		filtered_tiles = {}
 		num_selected = 0
 		for i in range(len(umap_meta)):
 			if (x_lower < umap_x[i] < x_upper) and (y_lower < umap_y[i] < y_upper):
 				slide = umap_meta[i]['slide']
 				tile_index = umap_meta[i]['index']
-				if slide not in filter_criteria:
-					filter_criteria.update({slide: [tile_index]})
+				if slide not in filtered_tiles:
+					filtered_tiles.update({slide: [tile_index]})
 				else:
-					filter_criteria[slide] += [tile_index]
+					filtered_tiles[slide] += [tile_index]
 				num_selected += 1
 		log.info(f"Selected {num_selected} tiles by filter criteria.", 1)
-		return filter_criteria
+		return filtered_tiles
 
 	def save_example_tiles_gradient(self, nodes=None, tile_filter=None):
 		if not nodes:
@@ -822,7 +788,7 @@ class ActivationsVisualizer:
 			gradient = sorted(gradient, key=lambda k: k['val'])
 			for i, g in enumerate(gradient):
 				print(f"Extracting tile {i} of {len(gradient)} for node {node}...", end="\r")
-				for tfr in self.TFRECORDS:
+				for tfr in self.tfrecords_paths:
 					if sfutil.path_to_name(tfr) == g['slide']:
 						tfr_dir = tfr
 				if not tfr_dir:
@@ -849,7 +815,7 @@ class ActivationsVisualizer:
 				if not exists(lowest_dir): os.makedirs(lowest_dir)
 				if not exists(highest_dir): os.makedirs(highest_dir)
 
-				for tfr in self.TFRECORDS:
+				for tfr in self.tfrecords_paths:
 					if sfutil.path_to_name(tfr) == slide:
 						tfr_dir = tfr
 				if not tfr_dir:
