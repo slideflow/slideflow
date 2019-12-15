@@ -104,7 +104,7 @@ class SlideflowProject:
 		elif interactive:
 			self.create_project()
 		
-	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, skip_validation=False):
+	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, skip_validation=False, generate_tfrecords=True):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.'''
 		import slideflow.convoluter as convoluter
@@ -147,7 +147,8 @@ class SlideflowProject:
 					if self.PROJECT['validation_strategy'] == 'k-fold':
 						sfutil.datasets.split_tiles(save_folder, fraction=[-1] * self.PROJECT['validation_k_fold'], names=[f'kfold-{i}' for i in range(self.PROJECT['validation_k_fold'])])
 
-		self.generate_tfrecord()
+		if generate_tfrecords:
+			self.generate_tfrecord()
 
 	def generate_tfrecord(self):
 		'''Create tfrecord files from a collection of raw images'''
