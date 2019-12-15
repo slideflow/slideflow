@@ -593,7 +593,7 @@ class SlideflowProject:
 		c.build_model(model_path)
 		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
-	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="medium", num_tiles_x=50):
+	def generate_mosaic(self, model, outcome_header, filters=None, focus_filters=None, resolution="medium", num_tiles_x=50):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.'''
 		log.header("Generating mosaic map...")
@@ -604,15 +604,32 @@ class SlideflowProject:
 		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
 
 		slide_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=filters)
+		tfrecords_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=filters)
 		if focus_filters:
 			focus_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=focus_filters)
 		else:
 			focus_list = None
 		log.info(f"Generating mosaic from {len(slide_list)} slides, with focus on {0 if not focus_list else len(focus_list)} slides.", 1)
-		
-		mosaic = Mosaic(save_dir=self.PROJECT['root'], num_tiles_x=num_tiles_x,
-													   resolution=resolution)
-		mosaic.generate_from_tfrecords(slide_list, model=model_path, image_size=self.PROJECT['tile_px'], focus=focus_list)
+
+		AV = ActivationsVisualizer(annotations=self.PROJECT['annotations'], 
+								   category_header=outcome_header, 
+								   tfrecords=tfrecords_list, 
+								   root_dir=self.PROJECT['root'],
+								   focus_nodes=focus_list)
+
+		AV.generate_activations_from_model(model=model_path,
+										   image_size=self.PROJECT['tile_px'],
+										   use_fp16=self.PROJECT['use_fp16'])
+		umap = AV.calculate_umap()
+
+		AV.generate_mosaic(umap=umap,
+						   focus=focus_list,
+						   num_tiles_x=num_tiles_x,
+						   resolution=resolution)
+
+		#mosaic = Mosaic(save_dir=self.PROJECT['root'], num_tiles_x=num_tiles_x,
+		#											   resolution=resolution)
+		#mosaic.generate_from_tfrecords(slide_list, model=model_path, image_size=self.PROJECT['tile_px'], focus=focus_list)
 
 	def generate_activations_analytics(self, outcome_header, filters=None, focus_nodes=[], node_exclusion=False):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.'''
