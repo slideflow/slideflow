@@ -29,12 +29,10 @@ import slideflow.util.statistics as sfstats
 from slideflow.util import log, progress_bar, tfrecords, TCGA
 from PIL import Image
 
-# TODO: merge Mosaic class into ActivationsVisualizer
-# - Better would probably be to keep Mosaic class separate, but have all
-# -  activations calculations/loading/caching happen in ActivationsVisualizer
-# TODO: make Mosaic umap cache compatible with AV PKL cache
+# TODO: clean up final layer weight activation calculations (removing legacy code)
 # TODO: use consistent node reference (string "FLNode[X]" vs. integer X)
 # TODO: add check that cached PKL corresponds to current and correct model & slides
+# TODO: re-calculate new activations if some slides not present in cache
 
 def create_bool_mask(x, y, w, sx, sy):
 	l = max(0,  int(x-(w/2.)))
@@ -55,13 +53,15 @@ class ActivationsVisualizer:
 	tfrecords_paths = []
 	slides = []				# List of slide names (without extension or path)
 
-	def __init__(self, annotations, category_header, tfrecords, root_dir, focus_nodes=[]):
+	def __init__(self, model, annotations, category_header, tfrecords, root_dir, image_size, 
+					focus_nodes=[], use_fp16=True, batch_size=16):
 		'''Loads annotations, saved layer activations, and prepares output saving directories.
 		Will also read/write processed activations to a PKL cache file to save time in future iterations.'''
 
 		self.focus_nodes = focus_nodes
 		self.CATEGORY_HEADER = category_header
 		self.ANNOTATIONS = annotations
+		self.IMAGE_SIZE = image_size
 		self.tfrecords_paths = np.array(tfrecords)
 		self.slides_to_include = [sfutil.path_to_name(tfr) for tfr in self.tfrecords_paths]
 
@@ -78,7 +78,7 @@ class ActivationsVisualizer:
 		# Load annotations
 		self.slide_category_dict = {}
 		with open(self.ANNOTATIONS, 'r') as ann_file:
-			log.empty("Reading annotations...", 1)
+			log.info("Reading annotations...", 1)
 			ann_reader = csv.reader(ann_file)
 			header = next(ann_reader)
 			slide_i = header.index(TCGA.slide)
@@ -96,7 +96,7 @@ class ActivationsVisualizer:
 		# Load from PKL (cache) if present
 		if exists(self.PT_NODE_DICT_PKL): 
 			# Load saved PKL cache
-			log.empty("Loading pre-calculated activations from pickled files...", 1)
+			log.info("Loading pre-calculated activations from pickled files...", 1)
 			with open(self.PT_NODE_DICT_PKL, 'rb') as pt_pkl_file:
 				self.slide_node_dict = pickle.load(pt_pkl_file)
 				self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
@@ -106,7 +106,7 @@ class ActivationsVisualizer:
 			for slide in self.slides:
 				self.slide_node_dict.update({slide: {}})
 			with open(self.FLA, 'r') as fl_file:
-				log.empty(f"Reading final layer activations from {sfutil.green(self.FLA)}...", 1)
+				log.info(f"Reading final layer activations from {sfutil.green(self.FLA)}...", 1)
 				fl_reader = csv.reader(fl_file)
 				header = next(fl_reader)
 				self.nodes = [h for h in header if h[:6] == "FLNode"]
@@ -129,8 +129,8 @@ class ActivationsVisualizer:
 				pickle.dump(self.slide_node_dict, pt_pkl_file)
 		# Otherwise will need to generate new activations from a given model
 		else:
-			log.error("No activations generated; please use generate_activations_from_model(model, image_size) to generate", 1)
-			return
+			self.generate_activations_from_model(model, use_fp16=use_fp16, batch_size=16)
+			self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
 
 		# Now delete slides not included in our filtered TFRecord list
 		loaded_slides = list(self.slide_node_dict.keys())
@@ -182,7 +182,7 @@ class ActivationsVisualizer:
 		log.error(f"Unable to find TFRecord path for slide {sfutil.green(slide)}", 1)
 		sys.exit()
 
-	def generate_activations_from_model(self, model, image_size, use_fp16=True, batch_size=16):
+	def generate_activations_from_model(self, model, use_fp16=True, batch_size=16):
 		# Rename tfrecord_array to tfrecords
 		log.info(f"Calculating final layer activations from model {sfutil.green(model)}", 1)
 
@@ -209,7 +209,7 @@ class ActivationsVisualizer:
 			raw_image = tf.image.decode_jpeg(image_string, channels=3)
 			processed_image = tf.image.per_image_standardization(raw_image)
 			processed_image = tf.image.convert_image_dtype(processed_image, tf.float16 if use_fp16 else tf.float32)
-			processed_image.set_shape([image_size, image_size, 3])
+			processed_image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
 			return processed_image, slide
 
 		# Calculate final layer activations for each tfrecord
@@ -263,12 +263,12 @@ class ActivationsVisualizer:
 		header = ["Slide"] + logits + nodes		
 
 		# Prepare PKL export dictionary
-		slide_node_dict = {}
+		self.slide_node_dict = {}
 		for slide in unique_slides:
-			slide_node_dict.update({slide: {}})
+			self.slide_node_dict.update({slide: {}})
 		for node in nodes:
 			for slide in unique_slides:
-				slide_node_dict[slide].update({node: []})
+				self.slide_node_dict[slide].update({node: []})
 
 		# Export to CSV
 		log.info("Writing final layer activations to CSV and PKL cache...", 1)
@@ -286,12 +286,12 @@ class ActivationsVisualizer:
 				for node in nodes:
 					node_i = header.index(node)
 					val = row[node_i]
-					slide_node_dict[slide][node] += [val]
+					self.slide_node_dict[slide][node] += [val]
 		log.complete(f"Final layer activations saved to {sfutil.green(self.FLA)}", 1)
 
 		# Dump PKL dictionary to file
 		with open(self.PT_NODE_DICT_PKL, 'wb') as pt_pkl_file:
-			pickle.dump(slide_node_dict, pt_pkl_file)
+			pickle.dump(self.slide_node_dict, pt_pkl_file)
 		log.complete(f"Final layer activations cached to {sfutil.green(self.PT_NODE_DICT_PKL)}", 1)
 
 		# Returns a 2D array, with each element containing FL activations, logits, slide name, tfrecord name, and tfrecord indices
@@ -469,9 +469,7 @@ class ActivationsVisualizer:
 		tile_zoom_factor = tile_zoom
 		export = export
 		num_tiles_x = num_tiles_x
-		save_dir = save_dir
-		if not exists(join(save_dir, 'stats')):
-			os.makedirs(join(save_dir, "stats"))
+		save_dir = self.STATS_ROOT if not save_dir else save_dir
 
 		# Variables used only when loading from slides
 		tile_um = tile_um
