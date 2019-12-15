@@ -30,7 +30,6 @@ import slideflow.util.statistics as sfstats
 from slideflow.util import log, progress_bar, tfrecords, TCGA
 from PIL import Image
 
-# TODO: use consistent node reference (string "FLNode[X]" vs. integer X)
 # TODO: add check that cached PKL corresponds to current and correct model & slides
 # TODO: re-calculate new activations if some slides not present in cache
 
@@ -109,24 +108,29 @@ class ActivationsVisualizer:
 				log.info(f"Reading final layer activations from {sfutil.green(self.FLA)}...", 1)
 				fl_reader = csv.reader(fl_file)
 				header = next(fl_reader)
-				self.nodes = [h for h in header if h[:6] == "FLNode"]
+				csv_node_names = [h for h in header if h[:6] == "FLNode"]
 				try:
 					slide_i = header.index("Slide")
 				except:
 					log.error(f"Unable to load activations from CSV at {sfutil.green(self.FLA)}; format incorrect", 1)
 					return
 
-				for node in self.nodes:
+				for node in csv_node_names:
+					try:
+						node_num = int(node.strip("FLNode"))
+					except:
+						log.error(f'Unable to load CSV at {sfutil.green(self.FLA)}: incorrect header format "{node}"')
 					for slide in self.slides:
-						self.slide_node_dict[slide].update({node: []})
+						self.slide_node_dict[slide].update({node_num: []})
 
 				for i, row in enumerate(fl_reader):
 					print(f"Reading activations for tile {i}...", end="\r")
 					slide = row[slide_i]
-					for node in self.nodes:
+					for node in csv_node_names:
 						node_i = header.index(node)
+						node_num = int(node.strip("FLNode"))
 						val = float(row[node_i])
-						self.slide_node_dict[slide][node] += [val]
+						self.slide_node_dict[slide][node_num] += [val]
 			print()
 			# Write PKL cache
 			with open(self.PT_NODE_DICT_PKL, 'wb') as pt_pkl_file:
@@ -145,7 +149,7 @@ class ActivationsVisualizer:
 		# Now screen for missing slides in activations
 		for slide in self.slides:
 			try:
-				if self.slide_node_dict[slide]['FLNode0'] == []:
+				if self.slide_node_dict[slide][0] == []:
 					self.missing_slides += [slide]
 				else:
 					self.used_categories = list(set(self.used_categories + [self.slide_category_dict[slide]]))
