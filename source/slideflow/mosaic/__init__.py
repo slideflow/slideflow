@@ -6,6 +6,7 @@ import math
 import csv
 import cv2
 import pickle
+import time
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -213,6 +214,7 @@ class ActivationsVisualizer:
 			return processed_image, slide
 
 		# Calculate final layer activations for each tfrecord
+		fla_start_time = time.time()
 		for tfrecord_index, tfrecord in enumerate(self.tfrecords_paths):
 			log.info(f"Calculating activations from {sfutil.green(tfrecord)}", 2)
 			dataset = tf.data.TFRecordDataset(tfrecord)
@@ -256,6 +258,8 @@ class ActivationsVisualizer:
 			tile_indices_all = tile_indices_arr if tile_indices_all == [] else np.concatenate([tile_indices_all, tile_indices_arr])
 			tfrecord_all = tfrecord_arr if tfrecord_all == [] else np.concatenate([tfrecord_all, tfrecord_arr])
 
+		fla_calc_time = time.time()
+
 		# Save final layer activations to CSV file
 		# and export PKL
 		nodes = [f"FLNode{f}" for f in range(fl_activations_all.shape[1])]
@@ -287,7 +291,9 @@ class ActivationsVisualizer:
 					node_i = header.index(node)
 					val = row[node_i]
 					self.slide_node_dict[slide][node] += [val]
+		fla_write_time = time.time()
 		log.complete(f"Final layer activations saved to {sfutil.green(self.FLA)}", 1)
+		log.info(f"Time elapsed: {fla_write_time-fla_start_time:.0f} sec (Calc: {fla_calc_time-fla_start_time:.0f} | Write: {fla_write_time-fla_calc_time:.0f})", 1)
 
 		# Dump PKL dictionary to file
 		with open(self.PT_NODE_DICT_PKL, 'wb') as pt_pkl_file:
