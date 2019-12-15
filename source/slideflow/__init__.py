@@ -603,13 +603,12 @@ class SlideflowProject:
 		mosaic_tfrecords = mosaic_dataset.get_tfrecords(ask_to_merge_subdirs=True)
 		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
 
-		slide_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=filters)
 		tfrecords_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=filters)
 		if focus_filters:
 			focus_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=focus_filters)
 		else:
 			focus_list = None
-		log.info(f"Generating mosaic from {len(slide_list)} slides, with focus on {0 if not focus_list else len(focus_list)} slides.", 1)
+		log.info(f"Generating mosaic from {len(tfrecords_list)} slides, with focus on {0 if not focus_list else len(focus_list)} slides.", 1)
 
 		AV = ActivationsVisualizer(model=model_path,
 								   annotations=self.PROJECT['annotations'], 
@@ -617,7 +616,7 @@ class SlideflowProject:
 								   tfrecords=tfrecords_list, 
 								   root_dir=self.PROJECT['root'],
 								   image_size=self.PROJECT['tile_px'],
-								   focus_nodes=focus_list,
+								   focus_nodes=None,
 								   use_fp16=self.PROJECT['use_fp16'])
 
 		umap = AV.calculate_umap()
@@ -627,18 +626,28 @@ class SlideflowProject:
 						   num_tiles_x=num_tiles_x,
 						   resolution=resolution)
 
-		#mosaic = Mosaic(save_dir=self.PROJECT['root'], num_tiles_x=num_tiles_x,
-		#											   resolution=resolution)
-		#mosaic.generate_from_tfrecords(slide_list, model=model_path, image_size=self.PROJECT['tile_px'], focus=focus_list)
+		return AV
 
-	def generate_activations_analytics(self, outcome_header, filters=None, focus_nodes=[], node_exclusion=False):
+	def generate_activations_analytics(self, model, outcome_header, filters=None, focus_nodes=[], node_exclusion=False):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.'''
 		log.header("Generating final layer activation analytics...")
-		activations_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
-		activations_tfrecords = activations_dataset.get_tfrecords()
-		tfrecords_list = sfutil.filter_tfrecords_paths(activations_tfrecords, filters=filters)
 
-		AV = ActivationsVisualizer(self.PROJECT['annotations'], outcome_header, tfrecords_list, self.PROJECT['root'], focus_nodes=focus_nodes)
+		# Load dataset for evaluation
+		activations_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		activations_tfrecords = activations_dataset.get_tfrecords(ask_to_merge_subdirs=True)
+		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
+
+		tfrecords_list = sfutil.filter_tfrecords_paths(activations_tfrecords, filters=filters)
+		log.info(f"Visualizing activations from {len(tfrecords_list)} slides", 1)
+
+		AV = ActivationsVisualizer(model=model_path,
+								   annotations=self.PROJECT['annotations'],
+								   category_header=outcome_header,
+								   tfrecords=tfrecords_list,
+								   root_dir=self.PROJECT['root'],
+								   image_size=self.PROJECT['tile_px'],
+								   focus_nodes=focus_nodes,
+								   use_fp16=self.PROJECT['use_fp16'])
 
 		return AV
 
