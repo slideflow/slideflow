@@ -30,6 +30,8 @@ from slideflow.util import log, progress_bar, tfrecords, TCGA
 from PIL import Image
 
 # TODO: merge Mosaic class into ActivationsVisualizer
+# TODO: make Mosaic umap cache compatible with AV PKL cache
+# TODO: use consistent node reference (string "FLNode[X]" vs. integer X)
 
 def create_bool_mask(x, y, w, sx, sy):
 	l = max(0,  int(x-(w/2.)))
@@ -68,7 +70,7 @@ class Mosaic:
 		self.save_dir = save_dir
 		self.DTYPE = tf.float16 if use_fp16 else tf.float32
 		self.PT_NODE_DICT_PKL = join(save_dir, "stats", "activation_node_dict.pkl")
-		if not exists(self.PT_NODE_DICT_PKL):
+		if not exists(join(save_dir, 'stats')):
 			os.makedirs(join(save_dir, "stats"))
 
 		# Variables used only when loading from slides
@@ -197,10 +199,12 @@ class Mosaic:
 					node_i = header.index(node)
 					val = row[node_i]
 					slide_node_dict[slide][node] += [val]
+		log.complete(f"Final layer activations saved to {sfutil.green(flactivations_file)}", 1)
 
 		# Dump PKL dictionary to file
 		with open(self.PT_NODE_DICT_PKL, 'wb') as pt_pkl_file:
 			pickle.dump(slide_node_dict, pt_pkl_file)
+		log.complete(f"Final layer activations cached to {sfutil.green(self.PT_NODE_DICT_PKL)}", 1)
 
 		# Returns a 2D array, with each element containing FL activations, logits, slide name, tfrecord name, and tfrecord indices
 		return fl_activations_all, logits_all, slides_all, indices_all, tile_indices_all, tfrecord_all	
@@ -440,6 +444,7 @@ class ActivationsVisualizer:
 		self.UMAP_CACHE = join(root_dir, "stats", "umap_cache.pkl")
 		self.EXAMPLE_TILES_DIR = join(root_dir, "stats", "example_tiles")
 		self.SORTED_DIR = join(root_dir, "stats", "sorted_tiles")
+		self.STATS_ROOT = join(root_dir, "stats")
 		if not exists(join(root_dir, "stats")):
 			os.makedirs(join(root_dir, "stats"))
 
@@ -597,7 +602,7 @@ class ActivationsVisualizer:
 		else:
 			log.info(f"Stats file already generated at {sfutil.green(self.STATS_CSV_FILE)}; not regenerating", 1)
 
-	def generate_box_plots(self):
+	def generate_box_plots(self, interactive=False):
 		# First ensure basic stats have been calculated
 		if not hasattr(self, 'nodes_avg_pt'):
 			self.calculate_activation_averages_and_stats()
@@ -606,21 +611,31 @@ class ActivationsVisualizer:
 		log.empty("Generating box plots...")
 		for i, node in enumerate(self.nodes):
 			if self.focus_nodes and (node not in self.focus_nodes): continue
+			plt.clf()
 			snsbox = sns.boxplot(data=self.get_tile_node_activations_by_category(node))
-			snsbox.set_title(f"{node} (tile-level)")
+			title = f"{node} (tile-level)"
+			snsbox.set_title(title)
 			snsbox.set(xlabel="Category", ylabel="Activation")
 			plt.xticks(plt.xticks()[0], self.used_categories)
-			plt.show()
+			if interactive:
+				plt.show()
+			boxplot_filename = join(self.STATS_ROOT, f"boxplot_{title}.png")
+			plt.savefig(boxplot_filename, bbox_inches='tight')
 			if (not self.focus_nodes) and i>4: break
 
 		# Print slide_level box plots & stats
 		for i, node in enumerate(self.nodes_avg_pt):
 			if self.focus_nodes and (node not in self.focus_nodes): continue
+			plt.clf()
 			snsbox = sns.boxplot(data=[self.node_dict_avg_pt[node][c] for c in self.used_categories])
-			snsbox.set_title(f"{node} (slide-level)")
+			title = f"{node} (slide-level)"
+			snsbox.set_title(title)
 			snsbox.set(xlabel="Category",ylabel="Average tile activation")
 			plt.xticks(plt.xticks()[0], self.used_categories)
-			plt.show()
+			if interactive:
+				plt.show()
+			boxplot_filename = join(self.STATS_ROOT, f"boxplot_{title}.png")
+			plt.savefig(boxplot_filename, bbox_inches='tight')
 			if (not self.focus_nodes) and i>4: break
 	
 	def save_to_csv(self, nodes_avg_pt, tile_stats=None, slide_stats=None):
@@ -705,10 +720,11 @@ class ActivationsVisualizer:
 			umap = self.cache_umap(umap_x, umap_y, umap_meta, nodes_to_include)
 			return umap
 
-	def plot_2D_umap(self, node=None, exclusion=False, subsample=None):
+	def plot_2D_umap(self, node=None, exclusion=False, subsample=None, interactive=False, filename=None):
 		umap = self.calculate_umap(exclude_node=node if exclusion else None)
 		categories = np.array([self.slide_category_dict[m['slide']] for m in umap['umap_meta']])
-		
+		umap_save_dir = join(self.STATS_ROOT, "2d_umap.png") if not filename else filename
+
 		# Subsampling
 		if subsample:
 			ri = sample(range(len(umap['umap_x'])), subsample)
@@ -724,13 +740,20 @@ class ActivationsVisualizer:
 		df['category'] = pd.Series(categories[ri], dtype='category')
 
 		# Make plot
-		log.info("Displaying 2D UMAP...", 1)
+		plt.clf()
 		sns.scatterplot(x=umap['umap_x'][ri], y=umap['umap_y'][ri], data=df, hue='category', palette=sns.color_palette('Set1', len(unique_categories)))
-		plt.show()
+		if interactive:
+			log.info("Displaying 2D UMAP...", 1)
+			plt.show()
+
+		log.info(f"Saving 2D UMAP to {sfutil.green(umap_save_dir)}...", 1)
+		plt.savefig(umap_save_dir, bbox_inches='tight')
 		return umap
 
-	def plot_3D_umap(self, node, exclusion=False, subsample=1000):
+	def plot_3D_umap(self, node, exclusion=False, subsample=1000, interactive=False, filename=None):
 		umap = self.calculate_umap(exclude_node=node if exclusion else None)
+		umap_name = "3d_umap.png" if not node else f"3d_umap_{node}.png"
+		umap_save_dir = join(self.STATS_ROOT, umap_name) if not filename else filename
 
 		# Subsampling
 		if subsample:
@@ -745,14 +768,18 @@ class ActivationsVisualizer:
 		z = node_vals[ri]
 
 		# Plot tiles on a 3D coordinate space with 2 coordinates from UMAP & 3rd from the value of the excluded node
-		log.info("Displaying 3D UMAP...", 1)
 		ax = plt.axes(projection='3d')
 		ax.scatter(umap_x, umap_y, z, c=z,
 									  cmap='viridis',
 									  linewidth=0.5,
 									  edgecolor="black")
 		ax.set_title(f"UMAP with node {node} focus")
-		plt.show()
+		if interactive:
+			log.info("Displaying 3D UMAP...", 1)
+			plt.show()
+		log.info(f"Saving 3D UMAP to {sfutil.green(umap_save_dir)}...", 1)
+		plt.savefig(umap_save_dir, bbox_inches='tight')
+		
 		return umap
 
 	def filter_tiles_by_umap(self, umap, x_lower=-999, x_upper=999, y_lower=-999, y_upper=999):
