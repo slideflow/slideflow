@@ -30,7 +30,6 @@ import slideflow.util.statistics as sfstats
 from slideflow.util import log, progress_bar, tfrecords, TCGA
 from PIL import Image
 
-# TODO: clean up final layer weight activation calculations (removing legacy code)
 # TODO: use consistent node reference (string "FLNode[X]" vs. integer X)
 # TODO: add check that cached PKL corresponds to current and correct model & slides
 # TODO: re-calculate new activations if some slides not present in cache
@@ -111,7 +110,11 @@ class ActivationsVisualizer:
 				fl_reader = csv.reader(fl_file)
 				header = next(fl_reader)
 				self.nodes = [h for h in header if h[:6] == "FLNode"]
-				slide_i = header.index("Slide")
+				try:
+					slide_i = header.index("Slide")
+				except:
+					log.error(f"Unable to load activations from CSV at {sfutil.green(self.FLA)}; format incorrect", 1)
+					return
 
 				for node in self.nodes:
 					for slide in self.slides:
@@ -203,6 +206,11 @@ class ActivationsVisualizer:
 		fl_activations_all, logits_all, slides_all, indices_all, tile_indices_all, tfrecord_all = [], [], [], [], [], []
 		unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in self.tfrecords_paths]))
 
+		# Prepare PKL export dictionary
+		self.slide_node_dict = {}
+		for slide in unique_slides:
+			self.slide_node_dict.update({slide: {}})
+
 		def _parse_function(record):
 			features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
 			slide = features['slide']
@@ -215,93 +223,70 @@ class ActivationsVisualizer:
 
 		# Calculate final layer activations for each tfrecord
 		fla_start_time = time.time()
-		for tfrecord_index, tfrecord in enumerate(self.tfrecords_paths):
-			log.info(f"Calculating activations from {sfutil.green(tfrecord)}", 2)
-			dataset = tf.data.TFRecordDataset(tfrecord)
-
-			dataset = dataset.map(_parse_function, num_parallel_calls=8)
-			dataset = dataset.batch(batch_size, drop_remainder=False)
-
-			fl_activations_arr, logits_arr, slides_arr, indices_arr, tile_indices_arr = [], [], [], [], []
-  
-			for i, data in enumerate(dataset):
-				batch_processed_images, batch_slides = data
-				batch_slides = batch_slides.numpy()
-				sys.stdout.write(f"\r - Working on batch {i}")
-				sys.stdout.flush()
-
-				# Calculate global and tfrecord-specific indices
-				indices = list(range(len(indices_arr), len(indices_arr) + len(batch_slides)))
-				tile_indices = list(range(i * len(batch_slides), i * len(batch_slides) + len(batch_slides)))
-
-				#if not complete_model:
-				fl_activations, logits = loaded_model.predict([batch_processed_images, batch_processed_images])
-				#else:
-				#	fl_activations = loaded_model.predict([batch_processed_images])
-				#	logits = [[-1]] * batch_size
-
-				fl_activations_arr = fl_activations if fl_activations_arr == [] else np.concatenate([fl_activations_arr, fl_activations])
-				logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
-				slides_arr = batch_slides if slides_arr == [] else np.concatenate([slides_arr, batch_slides])
-				indices_arr = indices if indices_arr == [] else np.concatenate([indices_arr, indices])
-				tile_indices_arr = tile_indices if tile_indices_arr == [] else np.concatenate([tile_indices_arr, tile_indices])
-
-			sys.stdout.write("\r\033[K")
-			sys.stdout.flush()
-
-			tfrecord_arr = np.array([tfrecord_index] * len(slides_arr))
-
-			fl_activations_all = fl_activations_arr if fl_activations_all == [] else np.concatenate([fl_activations_all, fl_activations_arr])
-			logits_all = logits_arr if logits_all == [] else np.concatenate([logits_all, logits_arr])
-			slides_all = slides_arr if slides_all == [] else np.concatenate([slides_all, slides_arr])
-			indices_all = indices_arr if indices_all == [] else np.concatenate([indices_all, indices_arr])
-			tile_indices_all = tile_indices_arr if tile_indices_all == [] else np.concatenate([tile_indices_all, tile_indices_arr])
-			tfrecord_all = tfrecord_arr if tfrecord_all == [] else np.concatenate([tfrecord_all, tfrecord_arr])
-
-		fla_calc_time = time.time()
-
-		# Save final layer activations to CSV file
-		# and export PKL
-		nodes = [f"FLNode{f}" for f in range(fl_activations_all.shape[1])]
-		logits = [f"Logits{l}" for l in range(logits_all.shape[1])]
-		header = ["Slide"] + logits + nodes		
-
-		# Prepare PKL export dictionary
-		self.slide_node_dict = {}
-		for slide in unique_slides:
-			self.slide_node_dict.update({slide: {}})
-		for node in nodes:
-			for slide in unique_slides:
-				self.slide_node_dict[slide].update({node: []})
-
-		# Export to CSV
-		log.info("Writing final layer activations to CSV and PKL cache...", 1)
+		nodes_names, logits_names = [], []
 		with open(self.FLA, 'w') as outfile:
 			csvwriter = csv.writer(outfile)
-			csvwriter.writerow(header)
-			for i in range(len(slides_all)):
-				slide = slides_all[i].decode('utf-8')
-				logits = logits_all[i].tolist()
-				flactivations = fl_activations_all[i].tolist()
-				row = [slide] + logits + flactivations
-				csvwriter.writerow(row)
+			for tfrecord_index, tfrecord in enumerate(self.tfrecords_paths):
+				log.info(f"Calculating activations from {sfutil.green(tfrecord)}", 2)
+				dataset = tf.data.TFRecordDataset(tfrecord)
 
-				# Export to PKL dictionary
-				for node in nodes:
-					node_i = header.index(node)
-					val = row[node_i]
-					self.slide_node_dict[slide][node] += [val]
-		fla_write_time = time.time()
+				dataset = dataset.map(_parse_function, num_parallel_calls=8)
+				dataset = dataset.batch(batch_size, drop_remainder=False)
+				
+				fl_activations_combined, logits_combined, slides_combined = [], [], []
+
+				for i, data in enumerate(dataset):
+					batch_processed_images, batch_slides = data
+					batch_slides = batch_slides.numpy()
+					sys.stdout.write(f"\r - Working on batch {i}")
+					sys.stdout.flush()
+
+					# Calculate global and tfrecord-specific indices
+					#indices = list(range(len(indices_arr), len(indices_arr) + len(batch_slides)))
+					#tile_indices = list(range(i * len(batch_slides), i * len(batch_slides) + len(batch_slides)))
+
+					#if not complete_model:
+					fl_activations, logits = loaded_model.predict([batch_processed_images, batch_processed_images])
+					#else:
+					#	fl_activations = loaded_model.predict([batch_processed_images])
+					#	logits = [[-1]] * batch_size
+					fl_activations_combined = fl_activations if fl_activations_combined == [] else np.concatenate([fl_activations_combined, fl_activations])
+					logits_combined = logits if logits_combined == [] else np.concatenate([logits_combined, logits])
+					slides_combined = batch_slides if slides_combined == [] else np.concatenate([slides_combined, batch_slides])
+
+				if not nodes_names and not logits_names:
+					nodes_names = [f"FLNode{f}" for f in range(fl_activations_combined.shape[1])]
+					logits_names = [f"Logits{l}" for l in range(logits_combined.shape[1])]
+					header = ["Slide"] + logits_names + nodes_names
+					csvwriter.writerow(header)
+					for node in nodes_names:
+						for slide in unique_slides:
+							self.slide_node_dict[slide].update({node: []})
+
+				# Export to PKL and CSV
+				for i, act in enumerate(fl_activations_combined):
+					slide = slides_combined[i].decode('utf-8')
+					activations_vals = fl_activations_combined[i].tolist()
+					logits_vals = logits_combined[i].tolist()
+					# Write to CSV
+					row = [slide] + logits_vals + activations_vals
+					csvwriter.writerow(row)
+					# Write to PKL
+					for n, node in enumerate(nodes_names):
+						val = activations_vals[n]
+						self.slide_node_dict[slide][node] += [val]
+
+				sys.stdout.write("\r\033[K")
+				sys.stdout.flush()
+
+		fla_calc_time = time.time()
+		log.info(f"Activation calculation time: {fla_calc_time-fla_start_time:.0f} sec", 1)
 		log.complete(f"Final layer activations saved to {sfutil.green(self.FLA)}", 1)
-		log.info(f"Time elapsed: {fla_write_time-fla_start_time:.0f} sec (Calc: {fla_calc_time-fla_start_time:.0f} | Write: {fla_write_time-fla_calc_time:.0f})", 1)
-
+		
 		# Dump PKL dictionary to file
 		with open(self.PT_NODE_DICT_PKL, 'wb') as pt_pkl_file:
 			pickle.dump(self.slide_node_dict, pt_pkl_file)
 		log.complete(f"Final layer activations cached to {sfutil.green(self.PT_NODE_DICT_PKL)}", 1)
-
-		# Returns a 2D array, with each element containing FL activations, logits, slide name, tfrecord name, and tfrecord indices
-		return fl_activations_all, logits_all, slides_all, indices_all, tile_indices_all, tfrecord_all
 
 	def calculate_activation_averages_and_stats(self):
 		empty_category_dict = {}
