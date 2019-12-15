@@ -27,14 +27,16 @@ TEST_DATASETS = {
 		'slides': '/home/shawarma/data/HNSC/train_slides',
 		'roi': '/home/shawarma/data/HNSC/train_slides',
 		'tiles': '/home/shawarma/data/test_project/tiles/TEST1',
-		'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST1',
+		#'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST1',
+		'tfrecords': '/mnt/tfrecord',
 		'label': sf.NO_LABEL
 	},
 	'TEST2': {
 		'slides': '/media/Backup/Other_files/Thyroid/SVS',
 		'roi': '/media/Backup/Other_files/Thyroid/SVS',
 		'tiles': '/home/shawarma/data/test_project/tiles/TEST2',
-		'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST2',
+		#'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST2',
+		'tfrecords': '/mnt/tfrecord',
 		'label': sf.NO_LABEL
 	}
 }
@@ -62,6 +64,15 @@ ANNOTATIONS = [
 	['234834', 'TEST2', 'cat1b', 'cat2a', '2.1', '2.2', '234834'],
 	['234832', 'TEST2', 'cat1a', 'cat2b', '4.3', '3.2', ''],
 	['234840', 'TEST2', 'cat1b', 'cat2b', '2.8', '4.2', '234840'],
+
+	['234794', 'TEST2', 'cat1b', 'cat2a', '2.8', '4.8', ''],
+	['234795', 'TEST2', 'cat1b', 'cat2b', '2.8', '4.7', ''],
+	['234796', 'TEST2', 'cat1b', 'cat2a', '3.8', '4.6', ''],
+	['234797', 'TEST2', 'cat1a', 'cat2b', '4.8', '4.5', ''],
+	['234798', 'TEST2', 'cat1a', 'cat2a', '5.8', '4.4', ''],
+	['234799', 'TEST2', 'cat1a', 'cat2b', '6.8', '4.2', ''],
+	['234800', 'TEST2', 'cat1a', 'cat2a', '7.8', '4.1', ''],
+
 	['235551', 'TEST1', 'cat1a', 'cat2a', '0.9', '2.2', ''],
 	['235552', 'TEST1', 'cat1b', 'cat2b', '5.1', '0.2', '235552'],
 	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', '235553'],
@@ -80,7 +91,7 @@ class TestSuite:
 			sf.set_logging_level(sf.SILENT)
 
 		# Force slideflow into testing mode
-		sfmodel.TEST_MODE = True
+		#sfmodel.TEST_MODE = True
 
 		# Reset test progress
 		if reset: self.reset()
@@ -228,10 +239,16 @@ class TestSuite:
 		self.SFP.generate_mosaic('category1-HPSweep0-kfold1')
 		print("\t...OK")
 
+	def test_activations(self):
+		print("Testing activations analytics...")
+		self.SFP.generate_activations_analytics('category1', focus_nodes=['FLNode0'], exclusion_node='FLNode0')
+		print("\t...OK")
+
 	def test(self):
 		'''Perform and report results of all available testing.'''
 		self.test_convolution()
 		self.test_training()
 		self.test_heatmap()
 		self.test_mosaic()
+		self.test_activations()
 		#self.test_input_stream()
