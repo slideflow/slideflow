@@ -116,12 +116,14 @@ class ActivationsVisualizer:
 					return
 
 				for node in csv_node_names:
-					try:
-						node_num = int(node.strip("FLNode"))
-					except:
-						log.error(f'Unable to load CSV at {sfutil.green(self.FLA)}: incorrect header format "{node}"')
+					node_num = int(node.strip("FLNode"))
 					for slide in self.slides:
 						self.slide_node_dict[slide].update({node_num: []})
+
+				self.nodes = list(range(len(csv_node_names)))
+				if self.nodes != [int(n.strip("FLNode")) for n in csv_node_names]:
+					log.error(f'Unable to load activations CSV at {sfutil.green(self.FLA)}: incorrect header format.')
+					return
 
 				for i, row in enumerate(fl_reader):
 					print(f"Reading activations for tile {i}...", end="\r")
@@ -155,6 +157,7 @@ class ActivationsVisualizer:
 					self.used_categories = list(set(self.used_categories + [self.slide_category_dict[slide]]))
 					self.used_categories.sort()
 			except KeyError:
+				print(self.slide_node_dict[slide].keys())
 				log.warn(f"Skipping unknown slide {slide}", 1)
 				self.missing_slides += [slide]
 		log.info(f"Loaded activations from {(len(self.slides)-len(self.missing_slides))}/{len(self.slides)} slides ({len(self.missing_slides)} missing)", 1)
@@ -263,9 +266,9 @@ class ActivationsVisualizer:
 					logits_names = [f"Logits{l}" for l in range(logits_combined.shape[1])]
 					header = ["Slide"] + logits_names + nodes_names
 					csvwriter.writerow(header)
-					for node in nodes_names:
+					for n in range(len(nodes_names)):
 						for slide in unique_slides:
-							self.slide_node_dict[slide].update({node: []})
+							self.slide_node_dict[slide].update({n: []})
 
 				# Export to PKL and CSV
 				for i, act in enumerate(fl_activations_combined):
@@ -385,7 +388,7 @@ class ActivationsVisualizer:
 		log.empty(f"Writing results to {sfutil.green(self.STATS_CSV_FILE)}...", 1)
 		with open(self.STATS_CSV_FILE, 'w') as outfile:
 			csv_writer = csv.writer(outfile)
-			header = ['slide', 'category'] + nodes_avg_pt
+			header = ['slide', 'category'] + [f"FLNode{n}" for n in nodes_avg_pt]
 			csv_writer.writerow(header)
 			for slide in self.slides:
 				if slide in self.missing_slides: continue
