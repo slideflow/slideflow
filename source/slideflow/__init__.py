@@ -25,7 +25,7 @@ import slideflow.trainer.model as sfmodel
 import slideflow.util as sfutil
 from slideflow.util import TCGA, log
 from slideflow.util.datasets import Dataset
-from slideflow.mosaic import Mosaic, ActivationsVisualizer, TileVisualizer
+from slideflow.mosaic import ActivationsVisualizer, TileVisualizer
 
 # TODO: allow datasets to have filters (would address evaluate() function)
 
@@ -611,15 +611,15 @@ class SlideflowProject:
 			focus_list = None
 		log.info(f"Generating mosaic from {len(slide_list)} slides, with focus on {0 if not focus_list else len(focus_list)} slides.", 1)
 
-		AV = ActivationsVisualizer(annotations=self.PROJECT['annotations'], 
+		AV = ActivationsVisualizer(model=model_path,
+								   annotations=self.PROJECT['annotations'], 
 								   category_header=outcome_header, 
 								   tfrecords=tfrecords_list, 
 								   root_dir=self.PROJECT['root'],
-								   focus_nodes=focus_list)
+								   image_size=self.PROJECT['tile_px'],
+								   focus_nodes=focus_list,
+								   use_fp16=self.PROJECT['use_fp16'])
 
-		AV.generate_activations_from_model(model=model_path,
-										   image_size=self.PROJECT['tile_px'],
-										   use_fp16=self.PROJECT['use_fp16'])
 		umap = AV.calculate_umap()
 
 		AV.generate_mosaic(umap=umap,
