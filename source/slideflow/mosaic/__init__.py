@@ -47,19 +47,19 @@ def create_bool_mask(x, y, w, sx, sy):
 
 class ActivationsVisualizer:
 	missing_slides = []
-	used_categories = []
 	umaps = []
 	tfrecords_paths = []
 	slides = []				# List of slide names (without extension or path)
+	slide_category_dict = {}
+	categories = []
+	used_categories = []
 
-	def __init__(self, model, annotations, category_header, tfrecords, root_dir, image_size, 
+	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, category_header=None, 
 					focus_nodes=[], use_fp16=True, batch_size=16, export_csv=False):
 		'''Loads annotations, saved layer activations, and prepares output saving directories.
 		Will also read/write processed activations to a PKL cache file to save time in future iterations.'''
 
 		self.focus_nodes = focus_nodes
-		self.CATEGORY_HEADER = category_header
-		self.ANNOTATIONS = annotations
 		self.IMAGE_SIZE = image_size
 		self.tfrecords_paths = np.array(tfrecords)
 		self.slides_to_include = [sfutil.path_to_name(tfr) for tfr in self.tfrecords_paths]
@@ -74,22 +74,9 @@ class ActivationsVisualizer:
 		if not exists(join(root_dir, "stats")):
 			os.makedirs(join(root_dir, "stats"))
 
-		# Load annotations
-		self.slide_category_dict = {}
-		with open(self.ANNOTATIONS, 'r') as ann_file:
-			log.info("Reading annotations...", 1)
-			ann_reader = csv.reader(ann_file)
-			header = next(ann_reader)
-			slide_i = header.index(TCGA.slide)
-			category_i = header.index(self.CATEGORY_HEADER)
-			for row in ann_reader:
-				slide = row[slide_i]
-				category = row[category_i]
-				if slide not in self.slides_to_include: continue
-				self.slide_category_dict.update({slide:category})
-
-		self.categories = list(set(self.slide_category_dict.values()))
-		self.slides = list(self.slide_category_dict.keys())
+		# Load annotations if provided
+		if annotations and category_header:
+			self.load_annotations(annotations, category_header)
 
 		# Load activations
 		# Load from PKL (cache) if present
@@ -102,7 +89,7 @@ class ActivationsVisualizer:
 		# Otherwise try loading from CSV if present
 		elif exists(self.FLA):
 			self.slide_node_dict = {}
-			for slide in self.slides:
+			for slide in self.slides_to_include:
 				self.slide_node_dict.update({slide: {}})
 			with open(self.FLA, 'r') as fl_file:
 				log.info(f"Reading final layer activations from {sfutil.green(self.FLA)}...", 1)
@@ -117,7 +104,7 @@ class ActivationsVisualizer:
 
 				for node in csv_node_names:
 					node_num = int(node.strip("FLNode"))
-					for slide in self.slides:
+					for slide in self.slides_to_include:
 						self.slide_node_dict[slide].update({node_num: []})
 
 				self.nodes = list(range(len(csv_node_names)))
@@ -149,26 +136,50 @@ class ActivationsVisualizer:
 				del self.slide_node_dict[loaded_slide]
 
 		# Now screen for missing slides in activations
-		for slide in self.slides:
+		for slide in self.slides_to_include:
 			try:
 				if self.slide_node_dict[slide][0] == []:
 					self.missing_slides += [slide]
-				else:
+			except KeyError:
+				log.warn(f"Skipping unknown slide {slide}", 1)
+				self.missing_slides += [slide]
+		log.info(f"Loaded activations from {(len(self.slides_to_include)-len(self.missing_slides))}/{len(self.slides_to_include)} slides ({len(self.missing_slides)} missing)", 1)
+
+	def load_annotations(self, annotations, category_header):
+		with open(annotations, 'r') as ann_file:
+			log.info("Reading annotations...", 1)
+			ann_reader = csv.reader(ann_file)
+			header = next(ann_reader)
+			slide_i = header.index(TCGA.slide)
+			category_i = header.index(category_header)
+			for row in ann_reader:
+				slide = row[slide_i]
+				category = row[category_i]
+				if slide not in self.slides_to_include: continue
+				self.slide_category_dict.update({slide:category})
+
+		self.categories = list(set(self.slide_category_dict.values()))
+
+		# Make note of observed categories in given header
+		for slide in self.slides_to_include:
+			try:
+				if self.slide_node_dict[slide][0] != []:
 					self.used_categories = list(set(self.used_categories + [self.slide_category_dict[slide]]))
 					self.used_categories.sort()
 			except KeyError:
-				print(self.slide_node_dict[slide].keys())
-				log.warn(f"Skipping unknown slide {slide}", 1)
-				self.missing_slides += [slide]
-		log.info(f"Loaded activations from {(len(self.slides)-len(self.missing_slides))}/{len(self.slides)} slides ({len(self.missing_slides)} missing)", 1)
+				# Skip unknown slide
+				pass
 		log.info(f"Observed categories (total: {len(self.used_categories)}):", 1)
 		for c in self.used_categories:
 			log.empty(f"\t{c}", 2)
 
 	def get_tile_node_activations_by_category(self, node):
+		if not self.categories: 
+			log.warn("Unable to calculate node activations by category; annotations not loaded. Please load with load_annotations()")
+			return
 		tile_node_activations_by_category = []
 		for c in self.used_categories:
-			nodelist = [self.slide_node_dict[pt][node] for pt in self.slides if (pt not in self.missing_slides and self.slide_category_dict[pt] == c)]
+			nodelist = [self.slide_node_dict[pt][node] for pt in self.slides_to_include if (pt not in self.missing_slides and self.slide_category_dict[pt] == c)]
 			tile_node_activations_by_category += [[nodeval for nl in nodelist for nodeval in nl]]
 		return tile_node_activations_by_category
 
@@ -315,7 +326,12 @@ class ActivationsVisualizer:
 					row += [self.slide_node_dict[slide][n]]
 				csvwriter.writewrow(row)
 
-	def calculate_activation_averages_and_stats(self):
+	def calculate_activation_averages_and_stats(self, annotations=None, category_header=None):
+		if not self.categories and (annotations and category_header):
+			self.load_annotations(annotations, category_header)
+		elif not self.categories:
+			log.warn("Unable to calculate activations statistics; annotations not loaded. Please load with load_annotations() or provide 'annotations' and 'category_header'")
+			return
 		empty_category_dict = {}
 		self.node_dict_avg_pt = {}
 		node_stats = {}
@@ -328,7 +344,7 @@ class ActivationsVisualizer:
 		for node in self.nodes:
 			# For each node, calculate average across tiles found in a slide
 			print(f"Calculating activation averages & stats for node {node}...", end="\r")
-			for slide in self.slides:
+			for slide in self.slides_to_include:
 				if slide in self.missing_slides: continue
 				pt_cat = self.slide_category_dict[slide]
 				avg = mean(self.slide_node_dict[slide][node])
@@ -367,7 +383,13 @@ class ActivationsVisualizer:
 		else:
 			log.info(f"Stats file already generated at {sfutil.green(self.STATS_CSV_FILE)}; not regenerating", 1)
 
-	def generate_box_plots(self, interactive=False):
+	def generate_box_plots(self, annotations=None, category_header=None, interactive=False):
+		if not self.categories and (annotations and category_header):
+			self.load_annotations(annotations, category_header)
+		elif not self.categories:
+			log.warn("Unable to generate box plots; annotations not loaded. Please load with load_annotations() or provide 'annotations' and 'category_header'")
+			return
+
 		# First ensure basic stats have been calculated
 		if not hasattr(self, 'nodes_avg_pt'):
 			self.calculate_activation_averages_and_stats()
@@ -410,7 +432,7 @@ class ActivationsVisualizer:
 			csv_writer = csv.writer(outfile)
 			header = ['slide', 'category'] + [f"FLNode{n}" for n in nodes_avg_pt]
 			csv_writer.writerow(header)
-			for slide in self.slides:
+			for slide in self.slides_to_include:
 				if slide in self.missing_slides: continue
 				category = self.slide_category_dict[slide]
 				row = [slide, category] + [mean(self.slide_node_dict[slide][n]) for n in nodes_avg_pt]
@@ -432,7 +454,7 @@ class ActivationsVisualizer:
 			log.info(f"No UMAP cache found at {sfutil.green(self.UMAP_CACHE)}", 1)
 
 		# Check if UMAP cache has already been calculated; if so, return
-		slides = [slide for slide in self.slides if slide not in self.missing_slides]
+		slides = [slide for slide in self.slides_to_include if slide not in self.missing_slides]
 		nodes_to_include = [n for n in self.nodes if n != exclude_node]
 		for um in self.umaps:
 			# Check to see if this has already been cached
@@ -445,7 +467,7 @@ class ActivationsVisualizer:
 		node_activations = []
 		umap_meta = []
 		log.empty("Calculating UMAP...", 1)
-		for slide in self.slides:
+		for slide in self.slides_to_include:
 			if slide in self.missing_slides: continue
 			first_node = list(self.slide_node_dict[slide].keys())[0]
 			num_vals = len(self.slide_node_dict[slide][first_node])
@@ -474,7 +496,7 @@ class ActivationsVisualizer:
 
 		return umap
 
-	def generate_mosaic(self, umap, focus=None, leniency=1.5, expanded=True, tile_zoom=15, num_tiles_x=50, resolution='high', 
+	def generate_mosaic(self, umap=None, focus=None, leniency=1.5, expanded=True, tile_zoom=15, num_tiles_x=50, resolution='high', 
 					export=True, tile_um=None, use_fp16=True, save_dir=None):
 		
 		FOCUS_SLIDE = None
@@ -488,6 +510,9 @@ class ActivationsVisualizer:
 		export = export
 		num_tiles_x = num_tiles_x
 		save_dir = self.STATS_ROOT if not save_dir else save_dir
+
+		if not umap:
+			map = self.calculate_umap()
 
 		# Variables used only when loading from slides
 		tile_um = tile_um
@@ -708,8 +733,11 @@ class ActivationsVisualizer:
 
 	def plot_2D_umap(self, node=None, exclusion=False, subsample=None, interactive=False, filename=None):
 		umap = self.calculate_umap(exclude_node=node if exclusion else None)
-		categories = np.array([self.slide_category_dict[m['slide']] for m in umap['umap_meta']])
 		umap_save_dir = join(self.STATS_ROOT, "2d_umap.png") if not filename else filename
+		if self.slide_category_dict:
+			categories = np.array([self.slide_category_dict[m['slide']] for m in umap['umap_meta']])
+		else:
+			categories = ["None" for m in umap['umap_meta']]
 
 		# Subsampling
 		if subsample:
@@ -795,7 +823,7 @@ class ActivationsVisualizer:
 				os.makedirs(join(self.SORTED_DIR, node))
 			
 			gradient = []
-			for slide in self.slides:
+			for slide in self.slides_to_include:
 				if slide in self.missing_slides: continue
 				for i, tile in enumerate(self.slide_node_dict[slide][node]):
 					if tile_filter and (slide not in tile_filter) or (i not in tile_filter[slide]):
