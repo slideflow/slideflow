@@ -53,6 +53,7 @@ class ActivationsVisualizer:
 	slide_category_dict = {}
 	categories = []
 	used_categories = []
+	slide_node_dict = {}
 
 	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, category_header=None, 
 					focus_nodes=[], use_fp16=True, batch_size=16, export_csv=False):
@@ -140,10 +141,16 @@ class ActivationsVisualizer:
 			try:
 				if self.slide_node_dict[slide][0] == []:
 					self.missing_slides += [slide]
+				elif self.categories:
+					self.used_categories = list(set(self.used_categories + [self.slide_category_dict[slide]]))
+					self.used_categories.sort()
 			except KeyError:
 				log.warn(f"Skipping unknown slide {slide}", 1)
 				self.missing_slides += [slide]
 		log.info(f"Loaded activations from {(len(self.slides_to_include)-len(self.missing_slides))}/{len(self.slides_to_include)} slides ({len(self.missing_slides)} missing)", 1)
+		log.info(f"Observed categories (total: {len(self.used_categories)}):", 1)
+		for c in self.used_categories:
+			log.empty(f"\t{c}", 2)
 
 	def load_annotations(self, annotations, category_header):
 		with open(annotations, 'r') as ann_file:
@@ -160,18 +167,19 @@ class ActivationsVisualizer:
 
 		self.categories = list(set(self.slide_category_dict.values()))
 
-		# Make note of observed categories in given header
-		for slide in self.slides_to_include:
-			try:
-				if self.slide_node_dict[slide][0] != []:
-					self.used_categories = list(set(self.used_categories + [self.slide_category_dict[slide]]))
-					self.used_categories.sort()
-			except KeyError:
-				# Skip unknown slide
-				pass
-		log.info(f"Observed categories (total: {len(self.used_categories)}):", 1)
-		for c in self.used_categories:
-			log.empty(f"\t{c}", 2)
+		if self.slide_node_dict:		
+			# If initial loading has been completed already, make note of observed categories in given header
+			for slide in self.slides_to_include:
+				try:
+					if self.slide_node_dict[slide][0] != []:
+						self.used_categories = list(set(self.used_categories + [self.slide_category_dict[slide]]))
+						self.used_categories.sort()
+				except KeyError:
+					# Skip unknown slide
+					pass
+			log.info(f"Observed categories (total: {len(self.used_categories)}):", 1)
+			for c in self.used_categories:
+				log.empty(f"\t{c}", 2)
 
 	def get_tile_node_activations_by_category(self, node):
 		if not self.categories: 
