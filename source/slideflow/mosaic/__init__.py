@@ -570,8 +570,6 @@ class ActivationsVisualizer:
 		tile_size = (max_x - min_x) / num_tiles_x
 		num_tiles_y = int((max_y - min_y) / tile_size)
 		max_distance = math.sqrt(2*((tile_size/2)**2)) * max_distance_factor
-		#tile_coord_x = [(i*tile_size)+min_x for i in range(num_tiles_x)]
-		#tile_coord_y = [(j*tile_size)+min_y for j in range(num_tiles_y)]
 
 		# Initialize grid
 		for j in range(num_tiles_y):
@@ -602,7 +600,6 @@ class ActivationsVisualizer:
 
 		# Next, prepare mosaic grid by placing tile outlines
 		log.empty("Placing tile outlines...", 1)
-		# Find max GRID density
 		max_grid_density = 1
 		for g in GRID:
 			max_grid_density = max(max_grid_density, len(g['points']))
@@ -622,7 +619,11 @@ class ActivationsVisualizer:
 			grid_tile['paired_point'] = None
 
 		# Then, calculate distances from each point to each spot on the grid
+		if mapping_method not in ('strict', 'expanded'):
+			raise TypeError("Unknown mapping method")
+
 		log.empty("Calculating tile-point distances...", 1)
+		tile_point_start = time.time()
 		pb = progress_bar.ProgressBar()
 		pb_id = pb.add_bar(0, len(GRID))
 		for i, tile in enumerate(GRID):
@@ -652,9 +653,10 @@ class ActivationsVisualizer:
 													'point_index':d[0]})
 					else:
 						break
-			else:
-				raise TypeError("Unknown mapping method")
 		pb.end()
+		tile_point_end = time.time()
+		log.info(f"Calculations complete ({tile_point_end-tile_point_start:.0f} sec)", 1)
+
 		if mapping_method == 'expanded':
 			tile_point_distances.sort(key=lambda d: d['distance'])
 
@@ -666,8 +668,6 @@ class ActivationsVisualizer:
 				if not len(tile['distances']): continue
 				closest_point = tile['distances'][0][0]
 				point = points[closest_point]
-				#tile_image = plt.imread(point['image_path'])
-				#tile_image = point['image_data']
 				_, tile_image = tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'])
 				tile_alpha, num_slide, num_other = 1, 0, 0
 				if FOCUS_SLIDE and len(tile['points']):
@@ -695,9 +695,6 @@ class ActivationsVisualizer:
 				if not (point['paired_tile'] or tile['paired_point']):
 					point['paired_tile'] = True
 					tile['paired_point'] = True
-
-					#tile_image = plt.imread(point['image_path'])
-					#tile_image = point['image_data']
 					_, tile_image = tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'])
 					if not export:
 						tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)

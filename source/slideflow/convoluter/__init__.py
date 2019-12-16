@@ -35,7 +35,7 @@ import json
 import time
 from math import sqrt
 
-from multiprocessing.dummy import Pool, Manager
+from multiprocessing.dummy import Pool
 import multiprocessing
 from queue import Queue
 
