@@ -593,7 +593,7 @@ class SlideflowProject:
 		c.build_model(model_path)
 		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
-	def generate_mosaic(self, model, outcome_header, filters=None, focus_filters=None, resolution="medium", num_tiles_x=50):
+	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="medium", num_tiles_x=50):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.'''
 		log.header("Generating mosaic map...")
@@ -611,18 +611,13 @@ class SlideflowProject:
 		log.info(f"Generating mosaic from {len(tfrecords_list)} slides, with focus on {0 if not focus_list else len(focus_list)} slides.", 1)
 
 		AV = ActivationsVisualizer(model=model_path,
-								   annotations=self.PROJECT['annotations'], 
-								   category_header=outcome_header, 
 								   tfrecords=tfrecords_list, 
 								   root_dir=self.PROJECT['root'],
 								   image_size=self.PROJECT['tile_px'],
 								   focus_nodes=None,
 								   use_fp16=self.PROJECT['use_fp16'])
 
-		umap = AV.calculate_umap()
-
-		AV.generate_mosaic(umap=umap,
-						   focus=focus_list,
+		AV.generate_mosaic(focus=focus_list,
 						   num_tiles_x=num_tiles_x,
 						   resolution=resolution)
 
@@ -641,11 +636,11 @@ class SlideflowProject:
 		log.info(f"Visualizing activations from {len(tfrecords_list)} slides", 1)
 
 		AV = ActivationsVisualizer(model=model_path,
-								   annotations=self.PROJECT['annotations'],
-								   category_header=outcome_header,
 								   tfrecords=tfrecords_list,
 								   root_dir=self.PROJECT['root'],
 								   image_size=self.PROJECT['tile_px'],
+								   annotations=self.PROJECT['annotations'],
+								   category_header=outcome_header,
 								   focus_nodes=focus_nodes,
 								   use_fp16=self.PROJECT['use_fp16'])
 
