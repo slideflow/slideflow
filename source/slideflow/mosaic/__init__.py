@@ -512,7 +512,7 @@ class ActivationsVisualizer:
 		save_dir = self.STATS_ROOT if not save_dir else save_dir
 
 		if not umap:
-			map = self.calculate_umap()
+			umap = self.calculate_umap()
 
 		# Variables used only when loading from slides
 		tile_um = tile_um
