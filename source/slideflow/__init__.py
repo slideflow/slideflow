@@ -356,8 +356,8 @@ class SlideflowProject:
 		if exists(f"{results_log_path}.temp"):
 			os.remove(f"{results_log_path}.temp")
 
-	def train(self, models=None, outcome_header='category', multi_outcome=False, filters=None, resume_training=None, 
-				checkpoint=None, pretrain='imagenet', supervised=True, batch_file=None, model_type='categorical',
+	def train(self, models=None, outcome_header='category', multi_outcome=False, filters=None, resume_training=None, checkpoint=None, 
+				pretrain='imagenet', supervised=True, batch_file=None, hyperparameters=None, model_label=None, model_type='categorical',
 				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
 		'''Train model(s) given configurations found in batch_train.tsv.
 
@@ -374,6 +374,8 @@ class SlideflowProject:
 			checkpoint			(optional): Path to cp.ckpt from which to load weights
 			supervised			(optional): Whether to use verbose output and save training progress to Tensorboard
 			batch_file			(optional): Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.
+			hyperparameters		(optional): Manually specify hyperparameter combination to use for training. If specified, will ignore batch training file.
+			model_label			(optional): Name/label of model. Must be supplied if hyperparameters are provided.
 			model_type			(optional): Type of output variable, either categorical (default) or linear.
 			validation_target 	(optional): Whether to select validation data on a 'per-patient' or 'per-tile' basis. If not specified, will use project default.
 			validation_strategy	(optional): Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.
@@ -401,12 +403,20 @@ class SlideflowProject:
 			log.error("Multiple outcome variables only supported for linear outcome variables.")
 			sys.exit()
 
+		if hyperparameters and not model_label:
+			log.error("If specifying hyperparameters, 'model_label' must be supplied. ", 1)
+			return
+
 		# Load dataset for training
 		training_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
 
 		# Quickly scan for errors (duplicate model names in batch training file) and prepare models to train
 		log.header("Performing hyperparameter sweep...")
-		hp_models_to_train = self._get_valid_models(batch_train_file, models)
+		if not hyperparameters:
+			hp_models_to_train = self._get_valid_models(batch_train_file, models)
+		else:
+			hp_models_to_train = [model_label]
+
 		if multi_outcome:
 			log.info(f"Training ({len(hp_models_to_train)} models) using {len(outcome_header)} variables as simultaneous input:", 1)
 		else:
@@ -467,43 +477,57 @@ class SlideflowProject:
 
 			# Execute training
 			try:
-				results = SFM.train(hp, pretrain=pretrain, 
-										resume_training=resume_training, 
-										checkpoint=checkpoint,
-										supervised=supervised)
+				results, keras = SFM.train(hp, pretrain=pretrain, 
+													   resume_training=resume_training, 
+													   checkpoint=checkpoint,
+													   supervised=supervised)
 				results_dict.update({full_model_name: results})
-				logged_epochs = [int(e[5:]) for e in results.keys() if e[:5] == 'epoch']
+				logged_epochs = [int(e[5:]) for e in results['epochs'].keys() if e[:5] == 'epoch']
 				
-				if not DEBUGGING: experiment.log_metrics(results[f'epoch{max(logged_epochs)}'])
+				if not DEBUGGING: experiment.log_metrics(results['epochs'][f'epoch{max(logged_epochs)}'])
 				del(SFM)
+				return keras
 			except tf.errors.ResourceExhaustedError:
 				log.error(f"Training failed for {sfutil.bold(model_name)}, GPU memory exceeded.", 0)
 				del(SFM)
-				return
+				return None
 
 		def train_to_outcome(selected_outcome_headers):
 			outcomes = sfutil.get_outcomes_from_annotations(selected_outcome_headers, filters=filters, 
 																					  filter_blank=selected_outcome_headers,
 																					  use_float=(model_type == 'linear'))
 			print()
+			
+			# First, prepare hyperparameters and model names
+			hyperparameter_list = []	
+			if not hyperparameters:
+				# Assembling list of models and hyperparameters from batch_train.tsv file
+				batch_train_rows = []
+				with open(batch_train_file) as csv_file:
+					reader = csv.reader(csv_file, delimiter='\t')
+					header = next(reader)
+					for row in reader:
+						batch_train_rows += [row]
+					
+				for row in batch_train_rows:
+					# Read hyperparameters
+					hp, hp_model_name = self._get_hp(row, header)
+					if hp_model_name not in hp_models_to_train: continue
 
-			# Assembling list of models and hyperparameters from batch_train.tsv file
-			batch_train_rows = []
-			with open(batch_train_file) as csv_file:
-				reader = csv.reader(csv_file, delimiter='\t')
-				header = next(reader)
-				for row in reader:
-					batch_train_rows += [row]
-				
-			for row in batch_train_rows:
-				# Read hyperparameters
-				hp, hp_model_name = self._get_hp(row, header)
-				if hp_model_name not in hp_models_to_train: continue
+					# Verify HP combinations are valid
+					if not self._valid_hp(hp):
+						return
 
-				# Verify HP combinations are valid
-				if not self._valid_hp(hp):
+					hyperparameter_list += [[hp, hp_model_name]]
+			else:
+				if not self._valid_hp(hyperparameters):
 					return
+				hyperparameter_list = [[hyperparameters, model_label]]
+			
+			single_model = (len(hyperparameter_list) == 1) and (not k_fold or (k_fold and len(valid_k) == 1))
+			keras_results = None
 
+			for hp, hp_model_name in hyperparameter_list:
 				# Generate model name
 				outcome_string = "-".join(selected_outcome_headers) if type(selected_outcome_headers) == list else selected_outcome_headers
 				model_name = f"{outcome_string}-{hp_model_name}"
@@ -512,15 +536,15 @@ class SlideflowProject:
 				# Perform training
 				if k_fold:
 					for k in valid_k:
-						if DEBUGGING:
-							trainer(results_dict, outcomes, model_name, hp, k+1)
+						if DEBUGGING or single_model:
+							keras_results = trainer(results_dict, outcomes, model_name, hp, k+1)
 						else:
 							process = multiprocessing.Process(target=trainer, args=(results_dict, outcomes, model_name, hp, k+1))
 							process.start()
 							process.join()
 				else:
-					if DEBUGGING:
-						trainer(results_dict, outcomes, model_name, hp)
+					if DEBUGGING or single_model:
+						keras_results = trainer(results_dict, outcomes, model_name, hp)
 					else:
 						process = multiprocessing.Process(target=trainer, args=(results_dict, outcomes, model_name, hp))
 						process.start()
@@ -531,27 +555,30 @@ class SlideflowProject:
 					if mi not in results_dict:
 						log.error(f"Training failed for model {model_name} for an unknown reason")
 					else:
-						self._update_results_log(results_log_path, mi, results_dict[mi])
+						self._update_results_log(results_log_path, mi, results_dict[mi]['epochs'])
 				log.complete(f"Training complete for model {model_name}, results saved to {sfutil.green(results_log_path)}")
-			
+
 			# Print summary of all models
 			log.complete("Training complete; validation accuracies:", 0)
 			for model in results_dict:
-				last_epoch = max([int(e.split('epoch')[-1]) for e in results_dict[model].keys() if 'epoch' in e ])
-				final_metrics = results_dict[model][f'epoch{last_epoch}']
+				last_epoch = max([int(e.split('epoch')[-1]) for e in results_dict[model]['epochs'].keys() if 'epoch' in e ])
+				final_metrics = results_dict[model]['epochs'][f'epoch{last_epoch}']
 				log.empty(f" - {sfutil.green(model)}: Train_Acc={str(final_metrics['train_acc'])}, " +
 					f"Val_loss={final_metrics['val_loss']}, Val_Acc={final_metrics['val_acc']}" )
+			return keras_results
 
 		# If using multiple outcomes, initiate hyperparameter sweep
 		if multi_outcome:
-			train_to_outcome(outcome_header)
+			keras_results = train_to_outcome(outcome_header)
+			return results_dict, keras_results
 
 		# If not training to multiple outcome, perform full hyperparameter sweep
 		# for each outcome category specified
 		else:
 			for out in outcome_header:
-				results_dict.clear()
-				train_to_outcome(out)
+				#results_dict.clear() # This is no longer needed since each outcome header will correspond to a different model name
+				keras_results = train_to_outcome(out)
+			return results_dict, keras_results
 		
 	def generate_heatmaps(self, model_name, filters=None, resolution='medium'):
 		'''Creates predictive heatmap overlays on a set of slides. 
@@ -659,7 +686,7 @@ class SlideflowProject:
 		for tile in tiles[:20]:
 			tile_loc = join(directory, tile)
 			TV.visualize_tile(tile_loc, save_dir=directory)
-
+ 
 	def create_blank_train_config(self, filename=None):
 		'''Creates a CSV file with the batch training structure.'''
 		if not filename:
