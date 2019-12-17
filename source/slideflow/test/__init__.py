@@ -91,7 +91,7 @@ class TestSuite:
 			sf.set_logging_level(sf.SILENT)
 
 		# Force slideflow into testing mode
-		#sfmodel.TEST_MODE = True
+		sfmodel.TEST_MODE = True
 
 		# Reset test progress
 		if reset: self.reset()
@@ -239,7 +239,7 @@ class TestSuite:
 
 	def test_heatmap(self):
 		print("Testing heatmap generation...")
-		self.SFP.generate_heatmaps('category1-HPSweep0-kfold1')
+		self.SFP.generate_heatmaps('category1-HPSweep0-kfold1', filters={TCGA.patient: ['234839']})
 		print("\t...OK")
 
 	def test_mosaic(self):
@@ -249,7 +249,14 @@ class TestSuite:
 
 	def test_activations(self):
 		print("Testing activations analytics...")
-		self.SFP.generate_activations_analytics('category1', focus_nodes=['FLNode0'], exclusion_node='FLNode0')
+		AV = self.SFP.generate_activations_analytics(model='category1-HPSweep0-kfold1', 
+													outcome_header='category1', 
+													focus_nodes=[0])
+		AV.generate_box_plots()
+		AV.plot_2D_umap()
+		top_nodes = AV.get_top_nodes_by_slide()
+		for node in top_nodes[:5]:
+			AV.plot_3D_umap(node)
 		print("\t...OK")
 
 	def test(self):
