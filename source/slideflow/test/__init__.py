@@ -211,7 +211,13 @@ class TestSuite:
 			# Test categorical outcome
 			hp = self.setup_hp('categorical')
 			print("Training to single categorical outcome from specified hyperparameters...")
-			self.SFP.train(outcome_header='category1', hyperparameters=hp, model_label='manual_hp')
+			results_dict, keras = self.SFP.train(outcome_header='category1', hyperparameters=hp, model_label='manual_hp', k_fold_iter=1)
+
+			if not keras:
+				print("\tFAIL: Keras results object not received from training")
+			else:
+				print("\t...OK")
+
 			print("Training to single categorical outcome from batch train file...")
 			self.SFP.train(outcome_header='category1')
 			print("\t...OK")
