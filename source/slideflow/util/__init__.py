@@ -640,8 +640,7 @@ def update_tfrecord_manifest(directory, force_update=False):
 
 		manifest.update({rel_tfr: {}})
 		raw_dataset = tf.data.TFRecordDataset(tfr)
-		sys.stdout.write(f"\r + Verifying tiles in {green(rel_tfr)}...")
-		sys.stdout.flush()
+		print(f" + Verifying tiles in {green(rel_tfr)}...", end="\r\033[K")
 		total = 0
 		for raw_record in raw_dataset:
 			example = tf.train.Example()
@@ -653,6 +652,7 @@ def update_tfrecord_manifest(directory, force_update=False):
 				manifest[rel_tfr][slide] += 1
 			total += 1
 		manifest[rel_tfr]['total'] = total
+	print()
 
 	# Find slides that have TFRecords
 	for man_rel_tfr in manifest:
@@ -661,9 +661,9 @@ def update_tfrecord_manifest(directory, force_update=False):
 				if slide_key != 'total':
 					slide_list.extend([slide_key])
 					slide_list = list(set(slide_list))
-				if slide_key not in slide_names_from_annotations:
-					slide_list_errors.extend([slide])
-					slide_list_errors = list(set(slide_list_errors))
+					if slide_key not in slide_names_from_annotations:
+						slide_list_errors.extend([slide_key])
+						slide_list_errors = list(set(slide_list_errors))
 		except:
 			continue
 
