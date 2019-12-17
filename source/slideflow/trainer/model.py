@@ -473,7 +473,9 @@ class SlideflowModel:
 			hp.finetune_epochs = 2
 
 		# Prepare results
-		results = {}
+		results = {
+			'epochs': {}
+		}
 
 		# Calculate parameters
 		if type(hp.finetune_epochs) != list:
@@ -518,17 +520,17 @@ class SlideflowModel:
 						if verbose: log.info("Beginning validation testing", 1)
 						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
-						results[f'epoch{epoch+1}'] = {}
-						results[f'epoch{epoch+1}']['train_acc'] = np.amax(train_acc)
-						results[f'epoch{epoch+1}']['val_loss'] = val_loss
-						results[f'epoch{epoch+1}']['val_acc'] = val_acc
+						results['epochs'][f'epoch{epoch+1}'] = {}
+						results['epochs'][f'epoch{epoch+1}']['train_acc'] = np.amax(train_acc)
+						results['epochs'][f'epoch{epoch+1}']['val_loss'] = val_loss
+						results['epochs'][f'epoch{epoch+1}']['val_acc'] = val_acc
 						for i, auc in enumerate(tile_auc):
-							results[f'epoch{epoch+1}'][f'tile_auc{i}'] = auc
+							results['epochs'][f'epoch{epoch+1}'][f'tile_auc{i}'] = auc
 						for i, auc in enumerate(slide_auc):
-							results[f'epoch{epoch+1}'][f'slide_auc{i}'] = auc
+							results['epochs'][f'epoch{epoch+1}'][f'slide_auc{i}'] = auc
 						for i, auc in enumerate(patient_auc):
-							results[f'epoch{epoch+1}'][f'patient_auc{i}'] = auc
-						results[f'epoch{epoch+1}']['r_squared'] = r_squared
+							results['epochs'][f'epoch{epoch+1}'][f'patient_auc{i}'] = auc
+						results['epochs'][f'epoch{epoch+1}']['r_squared'] = r_squared
 
 						with open(results_log, "a") as results_file:
 							writer = csv.writer(results_file)
@@ -556,19 +558,19 @@ class SlideflowModel:
 		if verbose:	log.info("Beginning fine-tuning", 1)
 
 		self.model.compile(loss=hp.loss,
-					optimizer=initialized_optimizer,
-					metrics=metrics)
+						   optimizer=initialized_optimizer,
+						   metrics=metrics)
 
-		self.model.fit(train_data.repeat(),
-			steps_per_epoch=steps_per_epoch,
-			epochs=total_epochs,
-			verbose=verbose,
-			initial_epoch=hp.toplayer_epochs,
-			validation_data=validation_data_for_training,
-			validation_steps=val_steps,
-			callbacks=callbacks)
+		keras_results = self.model.fit(train_data.repeat(),
+										steps_per_epoch=steps_per_epoch,
+										epochs=total_epochs,
+										verbose=verbose,
+										initial_epoch=hp.toplayer_epochs,
+										validation_data=validation_data_for_training,
+										validation_steps=val_steps,
+										callbacks=callbacks)
 
 		self.model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
 
-		return results
+		return results, keras_results
 		
