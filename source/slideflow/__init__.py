@@ -40,7 +40,8 @@ SILENT = 'SILENT'
 SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
 VALIDATION_ID = ''.join(choice(ascii_lowercase) for i in range(10))
 COMET_API_KEY = "A3VWRcPaHgqc4H5K0FoCtRXbp"
-DEBUGGING = True
+USE_COMET = False
+DEBUGGING = False
 
 def set_logging_level(level):
 	if level == SILENT:
@@ -438,7 +439,7 @@ class SlideflowProject:
 			full_model_name = model_name if not k_fold_i else model_name+f"-kfold{k_fold_i}"
 
 			# Initialize Comet experiment
-			if not DEBUGGING:
+			if USE_COMET:
 				experiment = Experiment(COMET_API_KEY, project_name=self.PROJECT['name'])
 				experiment.log_parameters(hp._get_dict())
 				experiment.log_other('model_name', model_name)
@@ -484,7 +485,7 @@ class SlideflowProject:
 				results_dict.update({full_model_name: results})
 				logged_epochs = [int(e[5:]) for e in results['epochs'].keys() if e[:5] == 'epoch']
 				
-				if not DEBUGGING: experiment.log_metrics(results['epochs'][f'epoch{max(logged_epochs)}'])
+				if USE_COMET: experiment.log_metrics(results['epochs'][f'epoch{max(logged_epochs)}'])
 				del(SFM)
 				return keras
 			except tf.errors.ResourceExhaustedError:
@@ -519,12 +520,23 @@ class SlideflowProject:
 						return
 
 					hyperparameter_list += [[hp, hp_model_name]]
+			elif (type(hyperparameters) == list) and (type(model_label) == list):
+				if len(model_label) != len(hyperparameters):
+					log.error(f"Unable to iterate through hyperparameters provided; length of hyperparameters ({len(hyperparameters)}) much match length of model_label ({len(model_label)})", 1)
+					return
+				for i in range(len(model_label)):
+					if not self._valid_hp(hyperparameters[i]):
+						return
+					hyperparameter_list += [[hyperparameters[i], model_label[i]]]
 			else:
 				if not self._valid_hp(hyperparameters):
 					return
 				hyperparameter_list = [[hyperparameters, model_label]]
 			
-			single_model = (len(hyperparameter_list) == 1) and (not k_fold or (k_fold and len(valid_k) == 1))
+			single_model = ((len(hyperparameter_list) == 1) and 
+							(type(hyperparameters) != list or len(hyperparameters) == 1) and 
+							(not k_fold or (k_fold and len(valid_k) == 1)))
+
 			keras_results = None
 
 			for hp, hp_model_name in hyperparameter_list:
@@ -539,6 +551,8 @@ class SlideflowProject:
 						if DEBUGGING or single_model:
 							keras_results = trainer(results_dict, outcomes, model_name, hp, k+1)
 						else:
+							# Using a separate process when setting up a Keras model ensures the model is destroyed
+							#  and memory is freed once training has completed
 							process = multiprocessing.Process(target=trainer, args=(results_dict, outcomes, model_name, hp, k+1))
 							process.start()
 							process.join()
@@ -546,6 +560,7 @@ class SlideflowProject:
 					if DEBUGGING or single_model:
 						keras_results = trainer(results_dict, outcomes, model_name, hp)
 					else:
+						# See above comment regarding the utility of multiprocessing due to memory release
 						process = multiprocessing.Process(target=trainer, args=(results_dict, outcomes, model_name, hp))
 						process.start()
 						process.join()
