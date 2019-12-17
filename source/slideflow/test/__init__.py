@@ -3,10 +3,12 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 import slideflow as sf
 import csv
+import shutil
 
 from slideflow import util as sfutil
 from slideflow.trainer import model as sfmodel
 from slideflow.util import TCGA, log
+from slideflow.trainer.model import HyperParameters
 
 from glob import glob
 from os.path import join
@@ -27,16 +29,14 @@ TEST_DATASETS = {
 		'slides': '/home/shawarma/data/HNSC/train_slides',
 		'roi': '/home/shawarma/data/HNSC/train_slides',
 		'tiles': '/home/shawarma/data/test_project/tiles/TEST1',
-		#'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST1',
-		'tfrecords': '/mnt/tfrecord',
+		'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST1',
 		'label': sf.NO_LABEL
 	},
 	'TEST2': {
 		'slides': '/media/Backup/Other_files/Thyroid/SVS',
 		'roi': '/media/Backup/Other_files/Thyroid/SVS',
 		'tiles': '/home/shawarma/data/test_project/tiles/TEST2',
-		#'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST2',
-		'tfrecords': '/mnt/tfrecord',
+		'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST2',
 		'label': sf.NO_LABEL
 	}
 }
@@ -45,7 +45,7 @@ PROJECT_CONFIG = {
 	'name': 'TEST_PROJECT',
 	'annotations': '/home/shawarma/data/test_project/annotations.csv',
 	'dataset_config': '/home/shawarma/data/test_datasets.json',
-	'datasets': ['TEST1', 'TEST2'],
+	'datasets': ['TEST2'],
 	'delete_tiles': False,
 	'models_dir': '/home/shawarma/data/test_project/models',
 	'tile_um': 302,
@@ -73,13 +73,13 @@ ANNOTATIONS = [
 	['234799', 'TEST2', 'cat1a', 'cat2b', '6.8', '4.2', ''],
 	['234800', 'TEST2', 'cat1a', 'cat2a', '7.8', '4.1', ''],
 
-	['235551', 'TEST1', 'cat1a', 'cat2a', '0.9', '2.2', ''],
-	['235552', 'TEST1', 'cat1b', 'cat2b', '5.1', '0.2', '235552'],
-	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', '235553'],
-	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', '235554'],
+#	['235551', 'TEST1', 'cat1a', 'cat2a', '0.9', '2.2', ''],
+#	['235552', 'TEST1', 'cat1b', 'cat2b', '5.1', '0.2', '235552'],
+#	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', '235553'],
+#	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', '235554'],
 ]
 
-SLIDES_TO_VERIFY = ['234832', '235551', '235554']
+SLIDES_TO_VERIFY = ['234832']#, '235551', '235554']
 
 # --------------------------------------------------------------------------------------
 
@@ -109,23 +109,16 @@ class TestSuite:
 
 	def reset(self):
 		print("Resetting test project...")
-		try:
+		if os.path.exists(PROJECT_CONFIG['dataset_config']):
 			os.remove(PROJECT_CONFIG['dataset_config'])
-		except:
-			pass
-		try:
-			os.remove(PROJECT_CONFIG['root'])
-		except:
-			pass
+		if os.path.exists(PROJECT_CONFIG['root']):
+			shutil.rmtree(PROJECT_CONFIG['root'])
 		for dataset_name in TEST_DATASETS.keys():
-			try:
+			if os.path.exists(TEST_DATASETS[dataset_name]['tiles']):
 				shutil.rmtree(TEST_DATASETS[dataset_name]['tiles'])
-			except:
-				pass
-			try:
+			if os.path.exists(TEST_DATASETS[dataset_name]['tfrecords']):
+				print(f"Removing {TEST_DATASETS[dataset_name]['tfrecords']}")
 				shutil.rmtree(TEST_DATASETS[dataset_name]['tfrecords'])
-			except:
-				pass
 		print("\t...DONE")
 
 	def configure_project(self):
@@ -184,7 +177,7 @@ class TestSuite:
 											 loss=[loss],
 											 learning_rate=[0.001],
 											 batch_size=[16],
-											 hidden_layers=[0],
+											 hidden_layers=[0,1],
 											 optimizer=["Adam"],
 											 early_stop=[False],
 											 early_stop_patience=[15],
@@ -192,7 +185,14 @@ class TestSuite:
 											 balanced_validation=["NO_BALANCE"],
 											 augment=[True],
 											 filename=PROJECT_CONFIG["batch_train_config"])
+
+		# Create single hyperparameter combination
+		hp = HyperParameters(finetune_epochs=2, toplayer_epochs=0, model='InceptionV3', pooling='max', loss=loss,
+				learning_rate=0.001, batch_size=16, hidden_layers=1, optimizer='Adam', early_stop=False, 
+				early_stop_patience=0, balanced_training='BALANCE_BY_CATEGORY', balanced_validation='NO_BALANCE', 
+				augment=True)
 		print("\t...DONE")
+		return hp
 
 	def test_convolution(self):
 		# Test tile extraction, default parameters
@@ -209,22 +209,24 @@ class TestSuite:
 	def test_training(self, categorical=True, linear=True):
 		if categorical:
 			# Test categorical outcome
-			self.setup_hp('categorical')
-			print("Testing single categorical outcome training...")
+			hp = self.setup_hp('categorical')
+			print("Training to single categorical outcome from specified hyperparameters...")
+			self.SFP.train(outcome_header='category1', hyperparameters=hp, model_label='manual_hp')
+			print("Training to single categorical outcome from batch train file...")
 			self.SFP.train(outcome_header='category1')
 			print("\t...OK")
-			print("Testing multiple sequential categorical outcome training...")
+			print("Training to multiple sequential categorical outcomes...")
 			# Test multiple sequential categorical outcome models
 			self.SFP.train(outcome_header=['category1', 'category2'])
 			print("\t...OK")
 		if linear:
 			# Test single linear outcome
-			self.setup_hp('linear')
-			print("Testing single linear outcome training...")
+			hp = self.setup_hp('linear')
+			print("Training to single linear outcome...")
 			self.SFP.train(outcome_header='linear1', model_type='linear')
 			print("\t...OK")
 			# Test multiple linear outcome
-			print("Testing multiple linear outcome training...")
+			print("Training to multiple linear outcomes...")
 			self.SFP.train(outcome_header=['linear1', 'linear2'], multi_outcome=True, model_type='linear')
 			print("\t...OK")
 		print("\t...OK")
