@@ -607,7 +607,7 @@ def get_global_manifest(directory):
 	absolute/global path and file names.'''
 	manifest_path = join(directory, "manifest.json")
 	if not exists(manifest_path):
-		log.warn(f"No manifest file detected in {directory}; will create now")
+		log.info(f"No manifest file detected in {directory}; will create now", 1)
 		update_tfrecord_manifest(directory)
 	relative_manifest = load_json(manifest_path)
 	global_manifest = {}
