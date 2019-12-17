@@ -363,12 +363,18 @@ class ActivationsVisualizer:
 			if not isnan(fvalue) and not isnan(pvalue): 
 				node_stats.update({node: {'f': fvalue,
 										  'p': pvalue} })
+			else:
+				node_stats.update({node: {'f': -1,
+										  'p': 1} })
 
 			# Patient-level ANOVA
 			fvalue, pvalue = stats.f_oneway(*[self.node_dict_avg_pt[node][c] for c in self.used_categories])
 			if not isnan(fvalue) and not isnan(pvalue): 
 				node_stats_avg_pt.update({node: {'f': fvalue,
 												 'p': pvalue} })
+			else:
+				node_stats_avg_pt.update({node: {'f': -1,
+										  		 'p': 1} })
 		print()
 
 		try:
