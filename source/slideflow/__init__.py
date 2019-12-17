@@ -29,7 +29,7 @@ from slideflow.mosaic import ActivationsVisualizer, TileVisualizer
 
 # TODO: allow datasets to have filters (would address evaluate() function)
 
-__version__ = "1.3.4"
+__version__ = "1.4.0"
 
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
