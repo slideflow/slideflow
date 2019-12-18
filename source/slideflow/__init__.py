@@ -198,13 +198,11 @@ def evaluator(outcome_header, model_name, model_type, model_file, project_config
 	# Filter out slides that are blank in the outcome category
 	filter_blank = [outcome_header] if type(outcome_header) != list else outcome_header
 
-
-	# Load annotations / outcomes
+	# Load dataset and annotations for evaluation
+	eval_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
+	sfutil.load_annotations(project_config['annotations'], eval_dataset)
 	outcomes = sfutil.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
 
-
-	# Load dataset for evaluation
-	eval_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
 	# If using a specific k-fold, load validation plan
 	if eval_k_fold:
 		log.info(f"Using {sfutil.bold('k-fold iteration ' + str(eval_k_fold))}", 1)
@@ -237,11 +235,67 @@ def evaluator(outcome_header, model_name, model_type, model_file, project_config
 	results_dict['results'] = results
 	return results_dict
 
-def mosaic_generator():
-	pass
+def heatmap_generator(model_name, filters, resolution, project_config, log_level=3):
+	import slideflow.convoluter as convoluter
 
-def activations_generator():
-	pass
+	if log_level == SILENT:
+		sfutil.LOGGING_LEVEL.SILENT = True
+	else:
+		sfutil.LOGGING_LEVEL.INFO = log_level
+
+	resolutions = {'low': 1, 'medium': 2, 'high': 4}
+	try:
+		stride_div = resolutions[resolution]
+	except KeyError:
+		log.error(f"Invalid resolution '{resolution}': must be either 'low', 'medium', or 'high'.")
+		return
+
+	heatmaps_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
+	sfutil.load_annotations(project_config['annotations'], heatmaps_dataset)
+	unfiltered_slide_list = heatmaps_dataset.get_slide_paths()
+	slide_list = sfutil.filter_slide_paths(unfiltered_slide_list, filters=filters)
+	roi_list = heatmaps_dataset.get_rois()
+	heatmaps_folder = os.path.join(project_config['root'], 'heatmaps')
+	if not os.path.exists(heatmaps_folder): os.makedirs(heatmaps_folder)
+	model_path = model_name if model_name[-3:] == ".h5" else join(project_config['models_dir'], model_name, 'trained_model.h5')
+
+	c = convoluter.Convoluter(project_config['tile_px'], project_config['tile_um'], batch_size=64,
+																					use_fp16=project_config['use_fp16'],
+																					stride_div=stride_div,
+																					save_folder=heatmaps_folder,
+																					roi_list=roi_list)
+	c.load_slides(slide_list)
+	c.build_model(model_path)
+	c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
+
+def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, project_config, log_level=3):
+	if log_level == SILENT:
+		sfutil.LOGGING_LEVEL.SILENT = True
+	else:
+		sfutil.LOGGING_LEVEL.INFO = log_level
+
+	mosaic_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
+	sfutil.load_annotations(project_config['annotations'], mosaic_dataset)
+	mosaic_tfrecords = mosaic_dataset.get_tfrecords(ask_to_merge_subdirs=True)
+	model_path = model if model[-3:] == ".h5" else join(project_config['models_dir'], model, 'trained_model.h5')
+
+	tfrecords_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=filters)
+	if focus_filters:
+		focus_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=focus_filters)
+	else:
+		focus_list = None
+	log.info(f"Generating mosaic from {len(tfrecords_list)} slides, with focus on {0 if not focus_list else len(focus_list)} slides.", 1)
+
+	AV = ActivationsVisualizer(model=model_path,
+								tfrecords=tfrecords_list, 
+								root_dir=project_config['root'],
+								image_size=project_config['tile_px'],
+								focus_nodes=None,
+								use_fp16=project_config['use_fp16'])
+
+	AV.generate_mosaic(focus=focus_list,
+						num_tiles_x=num_tiles_x,
+						resolution=resolution)
 
 atexit.register(release_gpu)
 
@@ -560,7 +614,7 @@ class SlideflowProject:
 		validation_target = self.PROJECT['validation_target'] if not validation_target else validation_target
 		validation_fraction = self.PROJECT['validation_fraction'] if not validation_fraction else validation_fraction
 		validation_k_fold = self.PROJECT['validation_k_fold'] if not validation_k_fold else validation_k_fold
-		validation_log = join(self.PROJECT['root'], "validation_plans.json"),
+		validation_log = join(self.PROJECT['root'], "validation_plans.json")
 		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
 		# Quickly scan for errors (duplicate model names in batch training file) and prepare models to train
@@ -660,66 +714,29 @@ class SlideflowProject:
 								"medium" uses a stride equal 1/2 tile width.
 								"high" uses a stride equal to 1/4 tile width.
 		'''
-		import slideflow.convoluter as convoluter
-		
 		log.header("Generating heatmaps...")
-		resolutions = {'low': 1, 'medium': 2, 'high': 4}
-		try:
-			stride_div = resolutions[resolution]
-		except KeyError:
-			log.error(f"Invalid resolution '{resolution}': must be either 'low', 'medium', or 'high'.")
-			return
+		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
-		# Load dataset for evaluation
-		heatmaps_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
-		unfiltered_slide_list = heatmaps_dataset.get_slide_paths()
-		slide_list = sfutil.filter_slide_paths(unfiltered_slide_list, filters=filters)
-		roi_list = heatmaps_dataset.get_rois()
-		heatmaps_folder = os.path.join(self.PROJECT['root'], 'heatmaps')
-		if not os.path.exists(heatmaps_folder): os.makedirs(heatmaps_folder)
-		model_path = model_name if model_name[-3:] == ".h5" else join(self.PROJECT['models_dir'], model_name, 'trained_model.h5')
-
-		c = convoluter.Convoluter(self.PROJECT['tile_px'], self.PROJECT['tile_um'], batch_size=64,
-																					use_fp16=self.PROJECT['use_fp16'],
-																					stride_div=stride_div,
-																					save_folder=heatmaps_folder,
-																					roi_list=roi_list)
-		c.load_slides(slide_list)
-		c.build_model(model_path)
-		c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
+		process = multiprocessing.Process(target=heatmap_generator, args=(model_name, filters, resolution, self.PROJECT, log_level))
+		process.start()
+		log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
+		process.join()
 
 	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="medium", num_tiles_x=50):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.'''
 		log.header("Generating mosaic map...")
+		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
-		# Load dataset for evaluation
-		mosaic_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
-		mosaic_tfrecords = mosaic_dataset.get_tfrecords(ask_to_merge_subdirs=True)
-		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
-
-		tfrecords_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=filters)
-		if focus_filters:
-			focus_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=focus_filters)
-		else:
-			focus_list = None
-		log.info(f"Generating mosaic from {len(tfrecords_list)} slides, with focus on {0 if not focus_list else len(focus_list)} slides.", 1)
-
-		AV = ActivationsVisualizer(model=model_path,
-								   tfrecords=tfrecords_list, 
-								   root_dir=self.PROJECT['root'],
-								   image_size=self.PROJECT['tile_px'],
-								   focus_nodes=None,
-								   use_fp16=self.PROJECT['use_fp16'])
-
-		AV.generate_mosaic(focus=focus_list,
-						   num_tiles_x=num_tiles_x,
-						   resolution=resolution)
-
-		return AV
+		process = multiprocessing.Process(target=mosaic_generator, args=(model, filters, focus_filters, resolution, num_tiles_x, self.PROJECT, log_level))
+		process.start()
+		log.info(f"Spawning mosaic process (PID: {process.pid})", 1)
+		process.join()
 
 	def generate_activations_analytics(self, model, outcome_header, filters=None, focus_nodes=[], node_exclusion=False):
-		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.'''
+		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.
+		
+		Note: GPU memory will remain in use, as the Keras model associated with the visualizer is active.'''
 		log.header("Generating final layer activation analytics...")
 
 		# Load dataset for evaluation

@@ -51,7 +51,7 @@ warnings.filterwarnings('ignore')
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
 NO_BALANCE = 'NO_BALANCE'
-TEST_MODE = True
+TEST_MODE = False
 
 class HyperParameters:
 	_OptDict = {
