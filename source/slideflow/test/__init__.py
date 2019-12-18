@@ -247,7 +247,7 @@ class TestSuite:
 
 	def test_mosaic(self):
 		print("Testing mosaic generation...")
-		self.SFP.generate_mosaic('category1-HPSweep0-kfold1')
+		self.SFP.generate_mosaic('category1-HPSweep0-kfold1', export_activations=True)
 		print("\t...OK")
 
 	def test_activations(self):
