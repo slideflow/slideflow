@@ -158,7 +158,7 @@ def heatmap_generator(model_name, filters, resolution, project_config, log_level
 	c.build_model(model_path)
 	c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
-def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, project_config, log_level=3):
+def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, project_config, export_activations=False, log_level=3):
 	if log_level == SILENT:
 		sfutil.LOGGING_LEVEL.SILENT = True
 	else:
@@ -181,7 +181,8 @@ def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, pro
 								root_dir=project_config['root'],
 								image_size=project_config['tile_px'],
 								focus_nodes=None,
-								use_fp16=project_config['use_fp16'])
+								use_fp16=project_config['use_fp16'],
+								export_csv=export_activations)
 
 	AV.generate_mosaic(focus=focus_list,
 						num_tiles_x=num_tiles_x,
@@ -730,13 +731,13 @@ class SlideflowProject:
 		log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
 		process.join()
 
-	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="medium", num_tiles_x=50):
+	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="medium", num_tiles_x=50, export_activations=False):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.'''
 		log.header("Generating mosaic map...")
 		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
-		process = multiprocessing.Process(target=mosaic_generator, args=(model, filters, focus_filters, resolution, num_tiles_x, self.PROJECT, log_level))
+		process = multiprocessing.Process(target=mosaic_generator, args=(model, filters, focus_filters, resolution, num_tiles_x, self.PROJECT, export_activations, log_level))
 		process.start()
 		log.info(f"Spawning mosaic process (PID: {process.pid})", 1)
 		process.join()
