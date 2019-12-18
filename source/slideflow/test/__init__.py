@@ -1,7 +1,7 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import tensorflow as tf
 import slideflow as sf
+import tensorflow as tf
 import csv
 import shutil
 
@@ -60,26 +60,25 @@ PROJECT_CONFIG = {
 
 ANNOTATIONS = [
 	[TCGA.patient, 'dataset', 'category1', 'category2', 'linear1', 'linear2', 'slide'],
-	['234839', 'TEST2', 'cat1a', 'cat2a', '1.1', '1.2', '234839'],
-	['234834', 'TEST2', 'cat1b', 'cat2a', '2.1', '2.2', '234834'],
-	['234832', 'TEST2', 'cat1a', 'cat2b', '4.3', '3.2', ''],
-	['234840', 'TEST2', 'cat1b', 'cat2b', '2.8', '4.2', '234840'],
+	['234839', 'TEST2', 'PTC-follicular', 'BRAF', '1.1', '1.2', '234839'],
+	['234834', 'TEST2', 'PTC-follicular', 'BRAF', '2.1', '2.2', '234834'],
+	['234809', 'TEST2', 'PTC-follicular', 'BRAF', '2.2', '1.2', ''],
+	['234840', 'TEST2', 'PTC-follicular', 'BRAF', '2.8', '4.2', '234840'],
+	['234832', 'TEST2', 'PTC-follicular', 'Non-mutant', '4.3', '3.2', ''],
+	['234803', 'TEST2', 'PTC-follicular', 'Non-mutant', '2.2', '1.2', ''],
+	['234823', 'TEST2', 'PTC-follicular', 'Non-mutant', '0.2', '1.1', ''],
+	['234833', 'TEST2', 'PTC-follicular', 'Non-mutant', '7.2', '4.2', ''],
 
-	['234794', 'TEST2', 'cat1b', 'cat2a', '2.8', '4.8', ''],
-	['234795', 'TEST2', 'cat1b', 'cat2b', '2.8', '4.7', ''],
-	['234796', 'TEST2', 'cat1b', 'cat2a', '3.8', '4.6', ''],
-	['234797', 'TEST2', 'cat1a', 'cat2b', '4.8', '4.5', ''],
-	['234798', 'TEST2', 'cat1a', 'cat2a', '5.8', '4.4', ''],
-	['234799', 'TEST2', 'cat1a', 'cat2b', '6.8', '4.2', ''],
-	['234800', 'TEST2', 'cat1a', 'cat2a', '7.8', '4.1', ''],
-
-#	['235551', 'TEST1', 'cat1a', 'cat2a', '0.9', '2.2', ''],
-#	['235552', 'TEST1', 'cat1b', 'cat2b', '5.1', '0.2', '235552'],
-#	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', '235553'],
-#	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', '235554'],
+	['234798', 'TEST2', 'NIFTP', 'cat2a', '2.8', '4.8', ''],
+	['234808', 'TEST2', 'NIFTP', 'cat2b', '2.8', '4.7', ''],
+	['234810', 'TEST2', 'NIFTP', 'cat2a', '3.8', '4.6', ''],
+	['234829', 'TEST2', 'NIFTP', 'cat2b', '4.8', '4.5', ''],
+	['234843', 'TEST2', 'NIFTP', 'cat2a', '5.8', '4.4', ''],
+	['234851', 'TEST2', 'NIFTP', 'cat2b', '6.8', '4.2', ''],
+	['234867', 'TEST2', 'NIFTP', 'cat2a', '7.8', '4.1', ''],
 ]
 
-SLIDES_TO_VERIFY = ['234832']#, '235551', '235554']
+SLIDES_TO_VERIFY = ['234798', '234840']
 
 # --------------------------------------------------------------------------------------
 
@@ -89,9 +88,11 @@ class TestSuite:
 		'''Initialize testing models.'''
 		if silent:
 			sf.set_logging_level(sf.SILENT)
+		else:
+			sf.set_logging_level(3)
 
 		# Force slideflow into testing mode
-		sfmodel.TEST_MODE = True
+		#sfmodel.TEST_MODE = True
 
 		# Reset test progress
 		if reset: self.reset()
@@ -170,13 +171,13 @@ class TestSuite:
 		elif model_type == 'linear':
 			loss = 'mean_squared_error'
 		# Create batch train file
-		self.SFP.create_hyperparameter_sweep(finetune_epochs=[1],
+		self.SFP.create_hyperparameter_sweep(finetune_epochs=[2],
 											 toplayer_epochs=[0],
-											 model=["Xception"],
+											 model=["InceptionV3"],
 											 pooling=["max"],
 											 loss=[loss],
 											 learning_rate=[0.001],
-											 batch_size=[16],
+											 batch_size=[64],
 											 hidden_layers=[0,1],
 											 optimizer=["Adam"],
 											 early_stop=[False],
@@ -188,8 +189,8 @@ class TestSuite:
 
 		# Create single hyperparameter combination
 		hp = HyperParameters(finetune_epochs=2, toplayer_epochs=0, model='InceptionV3', pooling='max', loss=loss,
-				learning_rate=0.001, batch_size=16, hidden_layers=1, optimizer='Adam', early_stop=False, 
-				early_stop_patience=0, balanced_training='BALANCE_BY_CATEGORY', balanced_validation='NO_BALANCE', 
+				learning_rate=0.001, batch_size=64, hidden_layers=1, optimizer='Adam', early_stop=False, 
+				early_stop_patience=0, balanced_training='BALANCE_BY_PATIENT', balanced_validation='NO_BALANCE', 
 				augment=True)
 		print("\t...DONE")
 		return hp
@@ -211,31 +212,38 @@ class TestSuite:
 			# Test categorical outcome
 			hp = self.setup_hp('categorical')
 			print("Training to single categorical outcome from specified hyperparameters...")
-			results_dict, keras = self.SFP.train(outcome_header='category1', hyperparameters=hp, model_label='manual_hp', k_fold_iter=1)
+			results_dict = self.SFP.train(outcome_header='category1', hyperparameters=hp, model_label='manual_hp', k_fold_iter=1)
 
-			if not keras:
+			if not results_dict or 'history' not in results_dict[results_dict.keys()[0]]:
 				print("\tFAIL: Keras results object not received from training")
 			else:
 				print("\t...OK")
 
-			print("Training to single categorical outcome from batch train file...")
-			self.SFP.train(outcome_header='category1')
-			print("\t...OK")
-			print("Training to multiple sequential categorical outcomes...")
+			print("Training to multiple sequential categorical outcomes from batch train file...")
 			# Test multiple sequential categorical outcome models
 			self.SFP.train(outcome_header=['category1', 'category2'])
 			print("\t...OK")
 		if linear:
 			# Test single linear outcome
 			hp = self.setup_hp('linear')
-			print("Training to single linear outcome...")
-			self.SFP.train(outcome_header='linear1', model_type='linear')
-			print("\t...OK")
 			# Test multiple linear outcome
 			print("Training to multiple linear outcomes...")
-			self.SFP.train(outcome_header=['linear1', 'linear2'], multi_outcome=True, model_type='linear')
+			self.SFP.train(outcome_header=['linear1', 'linear2'], multi_outcome=True, model_type='linear', k_fold_iter=1)
 			print("\t...OK")
 		print("\t...OK")
+
+	def test_training_performance(self):
+		sfmodel.TEST_MODE = False
+		hp = self.setup_hp('categorical')
+		print("Testing performance of training (single categorical outcome)...")
+		results_dict = self.SFP.train(outcome_header='category1', hyperparameters=hp, model_label='performance', k_fold_iter=1)
+		sfmodel.TEST_MODE = True
+
+	def test_evaluation(self, model_name='category1-HPSweep0-kfold1'):
+		print("Testing evaluation of a saved model...")
+		results = self.SFP.evaluate(model_name, outcome_header='category1')
+		print(results)
+		print('\t...OK')
 
 	def test_heatmap(self):
 		print("Testing heatmap generation...")
@@ -263,6 +271,8 @@ class TestSuite:
 		'''Perform and report results of all available testing.'''
 		self.test_convolution()
 		self.test_training()
+		self.test_training_performance()
+		self.test_evaluation()
 		self.test_heatmap()
 		self.test_mosaic()
 		self.test_activations()

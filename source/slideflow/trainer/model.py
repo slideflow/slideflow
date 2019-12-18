@@ -51,7 +51,7 @@ warnings.filterwarnings('ignore')
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
 NO_BALANCE = 'NO_BALANCE'
-TEST_MODE = False
+TEST_MODE = True
 
 class HyperParameters:
 	_OptDict = {
@@ -561,7 +561,7 @@ class SlideflowModel:
 						   optimizer=initialized_optimizer,
 						   metrics=metrics)
 
-		keras_results = self.model.fit(train_data.repeat(),
+		history = self.model.fit(train_data.repeat(),
 										steps_per_epoch=steps_per_epoch,
 										epochs=total_epochs,
 										verbose=verbose,
@@ -572,5 +572,5 @@ class SlideflowModel:
 
 		self.model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
 
-		return results, keras_results
+		return results, history.history
 		

@@ -54,7 +54,7 @@ def generate_histogram(y_true, y_pred, data_dir, name='histogram'):
 		sns.distplot( cat_false , color="skyblue", label="Negative")
 		sns.distplot( cat_true , color="red", label="Positive")
 	except np.linalg.LinAlgError:
-		log.error("Unable to generate histogram, insufficient data", 1)
+		log.warn("Unable to generate histogram, insufficient data", 1)
 	plt.legend()
 	plt.savefig(os.path.join(data_dir, f'{name}.png'))
 
