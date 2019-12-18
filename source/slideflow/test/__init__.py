@@ -91,9 +91,6 @@ class TestSuite:
 		else:
 			sf.set_logging_level(3)
 
-		# Force slideflow into testing mode
-		#sfmodel.TEST_MODE = True
-
 		# Reset test progress
 		if reset: self.reset()
 
@@ -171,7 +168,7 @@ class TestSuite:
 		elif model_type == 'linear':
 			loss = 'mean_squared_error'
 		# Create batch train file
-		self.SFP.create_hyperparameter_sweep(finetune_epochs=[2],
+		self.SFP.create_hyperparameter_sweep(finetune_epochs=[1],
 											 toplayer_epochs=[0],
 											 model=["InceptionV3"],
 											 pooling=["max"],
@@ -188,7 +185,7 @@ class TestSuite:
 											 filename=PROJECT_CONFIG["batch_train_config"])
 
 		# Create single hyperparameter combination
-		hp = HyperParameters(finetune_epochs=2, toplayer_epochs=0, model='InceptionV3', pooling='max', loss=loss,
+		hp = HyperParameters(finetune_epochs=1, toplayer_epochs=0, model='InceptionV3', pooling='max', loss=loss,
 				learning_rate=0.001, batch_size=64, hidden_layers=1, optimizer='Adam', early_stop=False, 
 				early_stop_patience=0, balanced_training='BALANCE_BY_PATIENT', balanced_validation='NO_BALANCE', 
 				augment=True)
@@ -212,7 +209,7 @@ class TestSuite:
 			# Test categorical outcome
 			hp = self.setup_hp('categorical')
 			print("Training to single categorical outcome from specified hyperparameters...")
-			results_dict = self.SFP.train(outcome_header='category1', hyperparameters=hp, model_label='manual_hp', k_fold_iter=1)
+			results_dict = self.SFP.train(models = 'manual_hp', outcome_header='category1', hyperparameters=hp, k_fold_iter=1)
 
 			if not results_dict or 'history' not in results_dict[results_dict.keys()[0]]:
 				print("\tFAIL: Keras results object not received from training")
@@ -233,16 +230,14 @@ class TestSuite:
 		print("\t...OK")
 
 	def test_training_performance(self):
-		sfmodel.TEST_MODE = False
 		hp = self.setup_hp('categorical')
+		hp.finetune_epochs = [1,3]
 		print("Testing performance of training (single categorical outcome)...")
-		results_dict = self.SFP.train(outcome_header='category1', hyperparameters=hp, model_label='performance', k_fold_iter=1)
-		sfmodel.TEST_MODE = True
+		results_dict = self.SFP.train(models='performance', outcome_header='category1', hyperparameters=hp, k_fold_iter=1)
 
 	def test_evaluation(self, model_name='category1-HPSweep0-kfold1'):
 		print("Testing evaluation of a saved model...")
 		results = self.SFP.evaluate(model_name, outcome_header='category1')
-		print(results)
 		print('\t...OK')
 
 	def test_heatmap(self):
