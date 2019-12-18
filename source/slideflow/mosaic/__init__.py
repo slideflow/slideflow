@@ -255,7 +255,7 @@ class ActivationsVisualizer:
 			csvwriter = csv.writer(outfile)
 
 		for tfrecord_index, tfrecord in enumerate(self.tfrecords_paths):
-			log.info(f"Calculating activations from {sfutil.green(tfrecord)}", 2)
+			log.empty(f"Calculating activations from {sfutil.green(tfrecord)}", 2)
 			dataset = tf.data.TFRecordDataset(tfrecord)
 
 			dataset = dataset.map(_parse_function, num_parallel_calls=8)
