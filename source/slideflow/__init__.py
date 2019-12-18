@@ -5,8 +5,6 @@ import shutil
 import logging
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-from comet_ml import Experiment
-
 import multiprocessing
 
 try:
@@ -28,12 +26,12 @@ import atexit
 import subprocess
 import itertools
 
-
 import slideflow.trainer.model as sfmodel
 import slideflow.util as sfutil
 from slideflow.util import TCGA, log
 from slideflow.util.datasets import Dataset
 from slideflow.mosaic import ActivationsVisualizer, TileVisualizer
+from comet_ml import Experiment
 
 # TODO: allow datasets to have filters (would address evaluate() function)
 
@@ -49,14 +47,12 @@ SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
 VALIDATION_ID = ''.join(choice(ascii_lowercase) for i in range(10))
 COMET_API_KEY = "A3VWRcPaHgqc4H5K0FoCtRXbp"
 USE_COMET = False
-MULTIPROCESSING = True
 
 physical_devices = tf.config.experimental.list_physical_devices('GPU')
 assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
 tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 def set_logging_level(level):
-	LOGGING_LEVEL = level
 	if level == SILENT:
 		sfutil.LOGGING_LEVEL.SILENT = True
 	else:
@@ -88,21 +84,11 @@ def release_gpu():
 	if GPU_LOCK != None and exists(join(SOURCE_DIR, f"gpu{GPU_LOCK}.lock")):
 		log.empty(f"Freeing GPU {GPU_LOCK}...")
 		os.remove(join(SOURCE_DIR, f"gpu{GPU_LOCK}.lock"))
-	
-def trainer(results_dict, outcomes, model_name, hp, options, k_fold_i=None):
-	supervised = options['supervised']
-	validation_strategy = options['validation_strategy']
-	validation_target = options['validation_target']
-	validation_fraction = options['validation_fraction']
-	validation_k_fold = options['validation_k_fold']
-	validation_log = options['validation_log']
-	model_type = options['model_type']
-	filters = options['filters']
-	pretrain = options['pretrain']
-	resume_training = options['resume_training']
-	checkpoint = options['checkpoint']
-	PROJECT = options['PROJECT']
-	log_level = options['log_level']
+
+def trainer(outcome_headers, model_name, model_type, project_config, results_dict, hp, validation_strategy, 
+			validation_target, validation_fraction, validation_k_fold, validation_log, k_fold_i=None, filters=None, 
+			pretrain=None, resume_training=None, checkpoint=None, log_level=3, supervised=True):
+
 	if log_level == SILENT:
 		sfutil.LOGGING_LEVEL.SILENT = True
 	else:
@@ -120,15 +106,20 @@ def trainer(results_dict, outcomes, model_name, hp, options, k_fold_i=None):
 
 	# Initialize Comet experiment
 	if USE_COMET:
-		experiment = Experiment(COMET_API_KEY, project_name=PROJECT['name'])
+		experiment = Experiment(COMET_API_KEY, project_name=project_config['name'])
 		experiment.log_parameters(hp._get_dict())
 		experiment.log_other('model_name', model_name)
 		if k_fold_i:
 			experiment.log_other('k_fold_iter', k_fold_i)
 
 	# Load dataset and annotations for training
-	training_dataset = Dataset(config_file=PROJECT['dataset_config'], sources=PROJECT['datasets'])
-	sfutil.load_annotations(PROJECT['annotations'], training_dataset)
+	training_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
+	sfutil.load_annotations(project_config['annotations'], training_dataset)
+
+	# Load outcomes
+	outcomes = sfutil.get_outcomes_from_annotations(outcome_headers, filters=filters, 
+																			  filter_blank=outcome_headers,
+																			  use_float=(model_type == 'linear'))
 
 	# Get TFRecords for training and validation
 	training_tfrecords, validation_tfrecords = sfutil.tfrecords.get_training_and_validation_tfrecords(training_dataset, validation_log, outcomes, model_type,
@@ -139,24 +130,24 @@ def trainer(results_dict, outcomes, model_name, hp, options, k_fold_i=None):
 																								k_fold_iter=k_fold_i)
 	# Initialize model
 	# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
-	model_dir = join(PROJECT['models_dir'], full_model_name)
+	model_dir = join(project_config['models_dir'], full_model_name)
 
 	# Build a model using the slide list as input and the annotations dictionary as output labels
-	SFM = sfmodel.SlideflowModel(model_dir, PROJECT['tile_px'], outcomes, training_tfrecords, validation_tfrecords,
+	SFM = sfmodel.SlideflowModel(model_dir, project_config['tile_px'], outcomes, training_tfrecords, validation_tfrecords,
 																			manifest=training_dataset.get_manifest(),
-																			use_fp16=PROJECT['use_fp16'],
+																			use_fp16=project_config['use_fp16'],
 																			model_type=model_type)
 
 	# Log model settings and hyperparameters
-	hp_file = join(PROJECT['models_dir'], full_model_name, 'hyperparameters.json')
+	hp_file = join(project_config['models_dir'], full_model_name, 'hyperparameters.json')
 	hp_data = {
 		"model_name": model_name,
-		"tile_px": PROJECT['tile_px'],
-		"tile_um": PROJECT['tile_um'],
+		"tile_px": project_config['tile_px'],
+		"tile_um": project_config['tile_um'],
 		"model_type": model_type,
-		"dataset_config": PROJECT['dataset_config'],
-		"datasets": PROJECT['datasets'],
-		"annotations": PROJECT['annotations'],
+		"dataset_config": project_config['dataset_config'],
+		"datasets": project_config['datasets'],
+		"annotations": project_config['annotations'],
 		"validation_target": validation_target,
 		"validation_strategy": validation_strategy,
 		"validation_fraction": validation_fraction,
@@ -185,22 +176,14 @@ def trainer(results_dict, outcomes, model_name, hp, options, k_fold_i=None):
 		del(SFM)
 		return None
 
-def evaluator(results_dict, options):
-	eval_k_fold = options['eval_k_fold']
-	checkpoint = options['checkpoint']
-	filters = options['filters']
-	model_file = options['model_file']
-	model_type = options['model_type']
-	model_name = options['model_name']
-	outcome_header = options['outcome_header']
-	PROJECT = options['PROJECT']
-	log_level = options['log_level']
+def evaluator(outcome_header, model_name, model_type, model_file, project_config, results_dict,
+				filters=None, hyperparameters=None, checkpoint=None, eval_k_fold=None, log_level=3):
 	if log_level == SILENT:
 		sfutil.LOGGING_LEVEL.SILENT = True
 	else:
 		sfutil.LOGGING_LEVEL.INFO = log_level
 
-	model_root = join(PROJECT['models_dir'], model_name)
+	model_root = join(project_config['models_dir'], model_name)
 	if sfutil.path_to_name(model_file) != model_file:
 		model_fullpath = join(model_root, model_file)
 	else:
@@ -221,11 +204,11 @@ def evaluator(results_dict, options):
 
 
 	# Load dataset for evaluation
-	eval_dataset = Dataset(config_file=PROJECT['dataset_config'], sources=PROJECT['datasets'])
+	eval_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
 	# If using a specific k-fold, load validation plan
 	if eval_k_fold:
 		log.info(f"Using {sfutil.bold('k-fold iteration ' + str(eval_k_fold))}", 1)
-		validation_log = join(PROJECT['root'], "validation_plans.json")
+		validation_log = join(project_config['root'], "validation_plans.json")
 		_, eval_tfrecords = sfutil.tfrecords.get_training_and_validation_tfrecords(eval_dataset, validation_log, outcomes, model_type,
 																									validation_target=hp_data['validation_target'],
 																									validation_strategy=hp_data['validation_strategy'],
@@ -239,12 +222,12 @@ def evaluator(results_dict, options):
 
 	# Set up model for evaluation
 	# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
-	model_dir = join(PROJECT['models_dir'], f"eval-{model_name}")
+	model_dir = join(project_config['models_dir'], f"eval-{model_name}")
 
 	# Build a model using the slide list as input and the annotations dictionary as output labels
-	SFM = sfmodel.SlideflowModel(model_dir, PROJECT['tile_px'], outcomes, None, None,
+	SFM = sfmodel.SlideflowModel(model_dir, project_config['tile_px'], outcomes, None, None,
 																			manifest=eval_dataset.get_manifest(),
-																			use_fp16=PROJECT['use_fp16'],
+																			use_fp16=project_config['use_fp16'],
 																			model_type=model_type)
 
 	log.info(f"Evaluating {sfutil.bold(len(eval_tfrecords))} tfrecords", 1)
@@ -379,24 +362,14 @@ class SlideflowProject:
 	def evaluate(self, model_name, outcome_header, model_type='categorical', model_file="trained_model.h5", hyperparameters=None, filters=None, checkpoint=None, eval_k_fold=None):
 		'''Evaluates a saved model on a given set of tfrecords.'''
 		log.header(f"Evaluating model {sfutil.bold(model_name)}...")
-
-		# Create a worker that can execute one round of training
-		options = {
-			'eval_k_fold': eval_k_fold,
-			'checkpoint': checkpoint,
-			'filters': filters,
-			'model_file': model_file,
-			'model_type': model_type,
-			'model_name': model_name,
-			'outcome_header': outcome_header,
-			'PROJECT': self.PROJECT,
-			'log_level': sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
-		}
+		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
 		manager = multiprocessing.Manager()
 		results_dict = manager.dict()
-
-		process = multiprocessing.Process(target=evaluator, args=(results_dict, options))
+		
+		process = multiprocessing.Process(target=evaluator, args=(outcome_header, model_name, model_type, model_file, 
+																	self.PROJECT, results_dict, filters, hyperparameters, 
+																	checkpoint, eval_k_fold, log_level))
 		process.start()
 		log.info(f"Spawning evaluation process (PID: {process.pid})", 1)
 		process.join()
@@ -510,8 +483,50 @@ class SlideflowProject:
 		if exists(f"{results_log_path}.temp"):
 			os.remove(f"{results_log_path}.temp")
 
+	def get_hyperparameter_combinations(self, hyperparameters, models, batch_train_file):
+		'''Returns list of hyperparameters ojects and associated models names, either from specified hyperparameters or from a batch_train file
+		if hyperparameters is None.'''
+		if not hyperparameters:
+			hp_models_to_train = self._get_valid_models(batch_train_file, models)
+		else:
+			hp_models_to_train = [models]
+
+		hyperparameter_list = []	
+		if not hyperparameters:
+			# Assembling list of models and hyperparameters from batch_train.tsv file
+			batch_train_rows = []
+			with open(batch_train_file) as csv_file:
+				reader = csv.reader(csv_file, delimiter='\t')
+				header = next(reader)
+				for row in reader:
+					batch_train_rows += [row]
+				
+			for row in batch_train_rows:
+				# Read hyperparameters
+				hp, hp_model_name = self._get_hp(row, header)
+				if hp_model_name not in hp_models_to_train: continue
+
+				# Verify HP combinations are valid
+				if not self._valid_hp(hp):
+					return
+
+				hyperparameter_list += [[hp, hp_model_name]]
+		elif (type(hyperparameters) == list) and (type(models) == list):
+			if len(models) != len(hyperparameters):
+				log.error(f"Unable to iterate through hyperparameters provided; length of hyperparameters ({len(hyperparameters)}) much match length of models ({len(models)})", 1)
+				return
+			for i in range(len(models)):
+				if not self._valid_hp(hyperparameters[i]):
+					return
+				hyperparameter_list += [[hyperparameters[i], models[i]]]
+		else:
+			if not self._valid_hp(hyperparameters):
+				return
+			hyperparameter_list = [[hyperparameters, models]]
+		return hyperparameter_list
+
 	def train(self, models=None, outcome_header='category', multi_outcome=False, filters=None, resume_training=None, checkpoint=None, 
-				pretrain='imagenet', supervised=True, batch_file=None, hyperparameters=None, model_label=None, model_type='categorical',
+				pretrain='imagenet', supervised=True, batch_file=None, hyperparameters=None, model_type='categorical',
 				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
 		'''Train model(s) given configurations found in batch_train.tsv.
 
@@ -529,7 +544,6 @@ class SlideflowProject:
 			supervised			(optional): Whether to use verbose output and save training progress to Tensorboard
 			batch_file			(optional): Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.
 			hyperparameters		(optional): Manually specify hyperparameter combination to use for training. If specified, will ignore batch training file.
-			model_label			(optional): Name/label of model. Must be supplied if hyperparameters are provided.
 			model_type			(optional): Type of output variable, either categorical (default) or linear.
 			validation_target 	(optional): Whether to select validation data on a 'per-patient' or 'per-tile' basis. If not specified, will use project default.
 			validation_strategy	(optional): Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.
@@ -540,109 +554,52 @@ class SlideflowProject:
 		Returns:
 			A dictionary containing model names mapped to train_acc, val_loss, and val_acc
 		'''
-		# Get list of slides for training and establish validation plan
+		# Reconcile provided arguments with project defaults
 		batch_train_file = self.PROJECT['batch_train_config'] if not batch_file else sfutil.global_path(batch_file)
-		validation_target = self.PROJECT['validation_target'] if not validation_target else validation_target
 		validation_strategy = self.PROJECT['validation_strategy'] if not validation_strategy else validation_strategy
+		validation_target = self.PROJECT['validation_target'] if not validation_target else validation_target
 		validation_fraction = self.PROJECT['validation_fraction'] if not validation_fraction else validation_fraction
 		validation_k_fold = self.PROJECT['validation_k_fold'] if not validation_k_fold else validation_k_fold
-		validation_log = join(self.PROJECT['root'], "validation_plans.json")
-		results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
-		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and type(k_fold_iter) != list) else k_fold_iter
-		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
-		valid_k = [] if not k_fold else [kf for kf in range(k_fold) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
-		outcome_header = [outcome_header] if type(outcome_header) != list else outcome_header
+		validation_log = join(self.PROJECT['root'], "validation_plans.json"),
+		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
+		# Quickly scan for errors (duplicate model names in batch training file) and prepare models to train
 		if multi_outcome and model_type != "linear":
 			log.error("Multiple outcome variables only supported for linear outcome variables.")
 			sys.exit()
 
-		if hyperparameters and not model_label:
-			log.error("If specifying hyperparameters, 'model_label' must be supplied. ", 1)
+		if hyperparameters and not models:
+			log.error("If specifying hyperparameters, 'models' must be supplied. ", 1)
 			return
 
-		# Quickly scan for errors (duplicate model names in batch training file) and prepare models to train
+		# Prepare hyperparameters
 		log.header("Performing hyperparameter sweep...")
-		if not hyperparameters:
-			hp_models_to_train = self._get_valid_models(batch_train_file, models)
-		else:
-			hp_models_to_train = [model_label]
+		
+		hyperparameter_list = self.get_hyperparameter_combinations(hyperparameters, models, batch_train_file)
 
+		outcome_header = [outcome_header] if type(outcome_header) != list else outcome_header
 		if multi_outcome:
-			log.info(f"Training ({len(hp_models_to_train)} models) using {len(outcome_header)} variables as simultaneous input:", 1)
+			log.info(f"Training ({len(hyperparameter_list)} models) using {len(outcome_header)} variables as simultaneous input:", 1)
 		else:
-			log.header(f"Training ({len(hp_models_to_train)} models) for each of {len(outcome_header)} outcome variables:", 1)
+			log.header(f"Training ({len(hyperparameter_list)} models) for each of {len(outcome_header)} outcome variables:", 1)
 		for outcome in outcome_header:
 			log.empty(outcome, 2)
-		print()
+		outcome_header = [outcome_header] if multi_outcome else outcome_header
+
+		# Prepare k-fold validation configuration
+		results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
+		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and type(k_fold_iter) != list) else k_fold_iter
+		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
+		valid_k = [] if not k_fold else [kf for kf in range(k_fold) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
 
 		# Next, prepare the multiprocessing manager (needed to free VRAM after training and keep track of results)
 		manager = multiprocessing.Manager()
 		results_dict = manager.dict()
 
-		# Create a worker that can execute one round of training
-		options = {
-			'supervised': supervised,
-			'validation_strategy': validation_strategy,
-			'validation_target': validation_target,
-			'validation_fraction': validation_fraction,
-			'validation_k_fold': validation_k_fold,
-			'validation_log': validation_log,
-			'model_type': model_type,
-			'filters': filters,
-			'pretrain': pretrain,
-			'resume_training': resume_training,
-			'checkpoint': checkpoint,
-			'PROJECT': self.PROJECT,
-			'log_level': sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
-		}
-
-		def train_to_outcome(selected_outcome_headers):
-			outcomes = sfutil.get_outcomes_from_annotations(selected_outcome_headers, filters=filters, 
-																					  filter_blank=selected_outcome_headers,
-																					  use_float=(model_type == 'linear'))
-			print()
-			
-			# First, prepare hyperparameters and model names
-			hyperparameter_list = []	
-			if not hyperparameters:
-				# Assembling list of models and hyperparameters from batch_train.tsv file
-				batch_train_rows = []
-				with open(batch_train_file) as csv_file:
-					reader = csv.reader(csv_file, delimiter='\t')
-					header = next(reader)
-					for row in reader:
-						batch_train_rows += [row]
-					
-				for row in batch_train_rows:
-					# Read hyperparameters
-					hp, hp_model_name = self._get_hp(row, header)
-					if hp_model_name not in hp_models_to_train: continue
-
-					# Verify HP combinations are valid
-					if not self._valid_hp(hp):
-						return
-
-					hyperparameter_list += [[hp, hp_model_name]]
-			elif (type(hyperparameters) == list) and (type(model_label) == list):
-				if len(model_label) != len(hyperparameters):
-					log.error(f"Unable to iterate through hyperparameters provided; length of hyperparameters ({len(hyperparameters)}) much match length of model_label ({len(model_label)})", 1)
-					return
-				for i in range(len(model_label)):
-					if not self._valid_hp(hyperparameters[i]):
-						return
-					hyperparameter_list += [[hyperparameters[i], model_label[i]]]
-			else:
-				if not self._valid_hp(hyperparameters):
-					return
-				hyperparameter_list = [[hyperparameters, model_label]]
-			
-			single_model = ((len(hyperparameter_list) == 1) and 
-							(type(hyperparameters) != list or len(hyperparameters) == 1) and 
-							(not k_fold or (k_fold and len(valid_k) == 1)))
-
-			keras_results = None
-
+		# If using multiple outcomes, initiate hyperparameter sweep for each outcome category specified
+		# If not training to multiple outcome, perform full hyperparameter sweep of the combined outcomes
+		for selected_outcome_headers in outcome_header:
+			# For each hyperparameter combination, perform training
 			for hp, hp_model_name in hyperparameter_list:
 				# Generate model name
 				outcome_string = "-".join(selected_outcome_headers) if type(selected_outcome_headers) == list else selected_outcome_headers
@@ -652,24 +609,26 @@ class SlideflowProject:
 				# Perform training
 				if k_fold:
 					for k in valid_k:
-						if (not MULTIPROCESSING):# or single_model:
-							trainer(results_dict, outcomes, model_name, hp, options, k+1)
-						else:
-							# Using a separate process when setting up a Keras model ensures the model is destroyed
-							#  and memory is freed once training has completed
-							process = multiprocessing.Process(target=trainer, args=(results_dict, outcomes, model_name, hp, options, k+1))
-							process.start()
-							log.info(f"Spawning training process (PID: {process.pid})", 1)
-							process.join()
-				else:
-					if (not MULTIPROCESSING):# or single_model:
-						trainer(results_dict, outcomes, model_name, hp, options)
-					else:
-						# See above comment regarding the utility of multiprocessing due to memory release
-						process = multiprocessing.Process(target=trainer, args=(results_dict, outcomes, model_name, hp, options))
+						# Using a separate process ensures memory is freed once training has completed
+
+						process = multiprocessing.Process(target=trainer, args=(selected_outcome_headers, model_name, model_type, 
+																				self.PROJECT, results_dict, hp, validation_strategy, 
+																				validation_target, validation_fraction, validation_k_fold, 
+																				validation_log, k+1, filters, pretrain, resume_training, 
+																				checkpoint, log_level, supervised))
 						process.start()
 						log.info(f"Spawning training process (PID: {process.pid})", 1)
 						process.join()
+				else:
+					# Using a separate process ensures memory is freed once training has completed
+					process = multiprocessing.Process(target=trainer, args=(selected_outcome_headers, model_name, model_type, 
+																				self.PROJECT, results_dict, hp, validation_strategy, 
+																				validation_target, validation_fraction, validation_k_fold, 
+																				validation_log, None, filters, pretrain, resume_training, 
+																				checkpoint, log_level, supervised))
+					process.start()
+					log.info(f"Spawning training process (PID: {process.pid})", 1)
+					process.join()
 
 				# Record results
 				for mi in model_iterations:
@@ -686,17 +645,6 @@ class SlideflowProject:
 				final_metrics = results_dict[model]['epochs'][f'epoch{last_epoch}']
 				log.empty(f" - {sfutil.green(model)}: Train_Acc={str(final_metrics['train_acc'])}, " +
 					f"Val_loss={final_metrics['val_loss']}, Val_Acc={final_metrics['val_acc']}" )
-
-		# If using multiple outcomes, initiate hyperparameter sweep
-		if multi_outcome:
-			train_to_outcome(outcome_header)
-
-		# If not training to multiple outcome, perform full hyperparameter sweep
-		# for each outcome category specified
-		else:
-			for out in outcome_header:
-				#results_dict.clear() # This is no longer needed since each outcome header will correspond to a different model name
-				train_to_outcome(out)
 
 		return results_dict
 		
