@@ -8,7 +8,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import multiprocessing
 
 try:
-    multiprocessing.set_start_method('spawn')
+    multiprocessing.set_start_method('forkserver')
 except RuntimeError:
     pass
 
