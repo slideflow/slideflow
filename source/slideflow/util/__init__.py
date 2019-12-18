@@ -22,8 +22,8 @@ except:
 
 PROJECT_DIR = None
 ANNOTATIONS = []
-SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif']
 
+SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif']
 SLIDE_ANNOTATIONS_TO_IGNORE = ['', 'na', 'n/a', 'none', 'missing']
 
 HEADER = '\033[95m'
@@ -675,22 +675,6 @@ def update_tfrecord_manifest(directory, force_update=False):
 
 	# Write manifest file
 	write_json(manifest, manifest_path)
-
-	'''# Now, check to see if all annotations have a corresponding set of tiles
-	if len(ANNOTATIONS):
-		num_warned = 0
-		warn_threshold = 3
-		for annotation in ANNOTATIONS:
-			print_func = print if num_warned < warn_threshold else None
-			if annotation[TCGA.slide] == '':
-				log.warn(f"Patient {green(annotation[TCGA.patient])} has no slide assigned.", 1, print_func)
-				num_warned += 1
-			elif annotation[TCGA.slide] not in slide_list:
-				log.warn(f"Slide {green(annotation[TCGA.slide])} in annotation file has no image tiles.", 1, print_func)
-				print(slide_list)
-				num_warned += 1
-		if num_warned >= warn_threshold:
-			log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)'''
 
 	return manifest
 	
