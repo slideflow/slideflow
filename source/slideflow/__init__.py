@@ -734,7 +734,7 @@ class SlideflowProject:
 		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
 		ctx = multiprocessing.get_context('spawn')
-		process = multiprocessing.Process(target=mosaic_generator, args=(model, filters, focus_filters, resolution, num_tiles_x, self.PROJECT, export_activations, log_level))
+		process = ctx.Process(target=mosaic_generator, args=(model, filters, focus_filters, resolution, num_tiles_x, self.PROJECT, export_activations, log_level))
 		process.start()
 		log.info(f"Spawning mosaic process (PID: {process.pid})", 1)
 		process.join()
