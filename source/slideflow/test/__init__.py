@@ -198,12 +198,6 @@ class TestSuite:
 		self.SFP.extract_tiles()
 		print("\t...OK")
 
-	'''def test_input_stream(self, outcome, balancing, batch_size=16, augment=True, filters=None, model_type='categorical'):
-		dataset, dataset_with_slidenames, num_tiles = SFM.build_dataset_inputs(SFM.TRAIN_TFRECORDS, batch_size=batch_size, 
-																									balance=balancing,
-																									augment=augment,
-																									finite=False,
-																									include_slidenames=False)'''
 	def test_training(self, categorical=True, linear=True):
 		if categorical:
 			# Test categorical outcome

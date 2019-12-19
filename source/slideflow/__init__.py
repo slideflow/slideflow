@@ -6,12 +6,6 @@ import logging
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import multiprocessing
-
-try:
-    multiprocessing.set_start_method('forkserver')
-except RuntimeError:
-    pass
-
 import tensorflow as tf
 
 from os.path import join, isfile, exists, isdir
@@ -630,8 +624,9 @@ class SlideflowProject:
 
 		manager = multiprocessing.Manager()
 		results_dict = manager.dict()
+		ctx = multiprocessing.get_context('spawn')
 		
-		process = multiprocessing.Process(target=evaluator, args=(outcome_header, model_name, model_type, model_file, 
+		process = ctx.Process(target=evaluator, args=(outcome_header, model_name, model_type, model_file, 
 																	self.PROJECT, results_dict, filters, hyperparameters, 
 																	checkpoint, eval_k_fold, log_level))
 		process.start()
@@ -684,7 +679,7 @@ class SlideflowProject:
 						sfutil.datasets.split_tiles(save_folder, fraction=[-1] * self.PROJECT['validation_k_fold'], names=[f'kfold-{i}' for i in range(self.PROJECT['validation_k_fold'])])
 
 		if generate_tfrecords:
-			self.generate_tfrecord()
+			self.generate_tfrecords_from_tiles()
 
 	def generate_activations_analytics(self, model, outcome_header, filters=None, focus_nodes=[], node_exclusion=False):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.
@@ -726,7 +721,8 @@ class SlideflowProject:
 		log.header("Generating heatmaps...")
 		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
-		process = multiprocessing.Process(target=heatmap_generator, args=(model_name, filters, resolution, self.PROJECT, log_level))
+		ctx = multiprocessing.get_context('spawn')
+		process = ctx.Process(target=heatmap_generator, args=(model_name, filters, resolution, self.PROJECT, log_level))
 		process.start()
 		log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
 		process.join()
@@ -737,12 +733,13 @@ class SlideflowProject:
 		log.header("Generating mosaic map...")
 		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
+		ctx = multiprocessing.get_context('spawn')
 		process = multiprocessing.Process(target=mosaic_generator, args=(model, filters, focus_filters, resolution, num_tiles_x, self.PROJECT, export_activations, log_level))
 		process.start()
 		log.info(f"Spawning mosaic process (PID: {process.pid})", 1)
 		process.join()
 
-	def generate_tfrecord(self):
+	def generate_tfrecords_from_tiles(self):
 		'''Create tfrecord files from a collection of raw images'''
 		log.header('Writing TFRecord files...')
 
@@ -933,6 +930,7 @@ class SlideflowProject:
 		# Next, prepare the multiprocessing manager (needed to free VRAM after training and keep track of results)
 		manager = multiprocessing.Manager()
 		results_dict = manager.dict()
+		ctx = multiprocessing.get_context('spawn')
 
 		# If using multiple outcomes, initiate hyperparameter sweep for each outcome category specified
 		# If not training to multiple outcome, perform full hyperparameter sweep of the combined outcomes
@@ -949,7 +947,7 @@ class SlideflowProject:
 					for k in valid_k:
 						# Using a separate process ensures memory is freed once training has completed
 
-						process = multiprocessing.Process(target=trainer, args=(selected_outcome_headers, model_name, model_type, 
+						process = ctx.Process(target=trainer, args=(selected_outcome_headers, model_name, model_type, 
 																				self.PROJECT, results_dict, hp, validation_strategy, 
 																				validation_target, validation_fraction, validation_k_fold, 
 																				validation_log, k+1, filters, pretrain, resume_training, 
@@ -959,7 +957,7 @@ class SlideflowProject:
 						process.join()
 				else:
 					# Using a separate process ensures memory is freed once training has completed
-					process = multiprocessing.Process(target=trainer, args=(selected_outcome_headers, model_name, model_type, 
+					process = ctx.Process(target=trainer, args=(selected_outcome_headers, model_name, model_type, 
 																				self.PROJECT, results_dict, hp, validation_strategy, 
 																				validation_target, validation_fraction, validation_k_fold, 
 																				validation_log, None, filters, pretrain, resume_training, 
