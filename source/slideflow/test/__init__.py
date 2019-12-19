@@ -1,12 +1,14 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import tensorflow as tf
 import slideflow as sf
+import tensorflow as tf
 import csv
+import shutil
 
 from slideflow import util as sfutil
 from slideflow.trainer import model as sfmodel
 from slideflow.util import TCGA, log
+from slideflow.trainer.model import HyperParameters
 
 from glob import glob
 from os.path import join
@@ -43,7 +45,7 @@ PROJECT_CONFIG = {
 	'name': 'TEST_PROJECT',
 	'annotations': '/home/shawarma/data/test_project/annotations.csv',
 	'dataset_config': '/home/shawarma/data/test_datasets.json',
-	'datasets': ['TEST1', 'TEST2'],
+	'datasets': ['TEST2'],
 	'delete_tiles': False,
 	'models_dir': '/home/shawarma/data/test_project/models',
 	'tile_um': 302,
@@ -58,17 +60,25 @@ PROJECT_CONFIG = {
 
 ANNOTATIONS = [
 	[TCGA.patient, 'dataset', 'category1', 'category2', 'linear1', 'linear2', 'slide'],
-	['234839', 'TEST2', 'cat1a', 'cat2a', '1.1', '1.2', '234839'],
-	['234834', 'TEST2', 'cat1b', 'cat2a', '2.1', '2.2', '234834'],
-	['234832', 'TEST2', 'cat1a', 'cat2b', '4.3', '3.2', ''],
-	['234840', 'TEST2', 'cat1b', 'cat2b', '2.8', '4.2', '234840'],
-	['235551', 'TEST1', 'cat1a', 'cat2a', '0.9', '2.2', ''],
-	['235552', 'TEST1', 'cat1b', 'cat2b', '5.1', '0.2', '235552'],
-	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', '235553'],
-	['235553', 'TEST1', 'cat1a', 'cat2b', '3.1', '8.7', '235554'],
+	['234839', 'TEST2', 'PTC-follicular', 'BRAF', '1.1', '1.2', '234839'],
+	['234834', 'TEST2', 'PTC-follicular', 'BRAF', '2.1', '2.2', '234834'],
+	['234809', 'TEST2', 'PTC-follicular', 'BRAF', '2.2', '1.2', ''],
+	['234840', 'TEST2', 'PTC-follicular', 'BRAF', '2.8', '4.2', '234840'],
+	['234832', 'TEST2', 'PTC-follicular', 'Non-mutant', '4.3', '3.2', ''],
+	['234803', 'TEST2', 'PTC-follicular', 'Non-mutant', '2.2', '1.2', ''],
+	['234823', 'TEST2', 'PTC-follicular', 'Non-mutant', '0.2', '1.1', ''],
+	['234833', 'TEST2', 'PTC-follicular', 'Non-mutant', '7.2', '4.2', ''],
+
+	['234798', 'TEST2', 'NIFTP', 'cat2a', '2.8', '4.8', ''],
+	['234808', 'TEST2', 'NIFTP', 'cat2b', '2.8', '4.7', ''],
+	['234810', 'TEST2', 'NIFTP', 'cat2a', '3.8', '4.6', ''],
+	['234829', 'TEST2', 'NIFTP', 'cat2b', '4.8', '4.5', ''],
+	['234843', 'TEST2', 'NIFTP', 'cat2a', '5.8', '4.4', ''],
+	['234851', 'TEST2', 'NIFTP', 'cat2b', '6.8', '4.2', ''],
+	['234867', 'TEST2', 'NIFTP', 'cat2a', '7.8', '4.1', ''],
 ]
 
-SLIDES_TO_VERIFY = ['234832', '235551', '235554']
+SLIDES_TO_VERIFY = ['234798', '234840']
 
 # --------------------------------------------------------------------------------------
 
@@ -78,9 +88,8 @@ class TestSuite:
 		'''Initialize testing models.'''
 		if silent:
 			sf.set_logging_level(sf.SILENT)
-
-		# Force slideflow into testing mode
-		sfmodel.TEST_MODE = True
+		else:
+			sf.set_logging_level(3)
 
 		# Reset test progress
 		if reset: self.reset()
@@ -98,23 +107,16 @@ class TestSuite:
 
 	def reset(self):
 		print("Resetting test project...")
-		try:
+		if os.path.exists(PROJECT_CONFIG['dataset_config']):
 			os.remove(PROJECT_CONFIG['dataset_config'])
-		except:
-			pass
-		try:
-			os.remove(PROJECT_CONFIG['root'])
-		except:
-			pass
+		if os.path.exists(PROJECT_CONFIG['root']):
+			shutil.rmtree(PROJECT_CONFIG['root'])
 		for dataset_name in TEST_DATASETS.keys():
-			try:
+			if os.path.exists(TEST_DATASETS[dataset_name]['tiles']):
 				shutil.rmtree(TEST_DATASETS[dataset_name]['tiles'])
-			except:
-				pass
-			try:
+			if os.path.exists(TEST_DATASETS[dataset_name]['tfrecords']):
+				print(f"Removing {TEST_DATASETS[dataset_name]['tfrecords']}")
 				shutil.rmtree(TEST_DATASETS[dataset_name]['tfrecords'])
-			except:
-				pass
 		print("\t...DONE")
 
 	def configure_project(self):
@@ -168,12 +170,12 @@ class TestSuite:
 		# Create batch train file
 		self.SFP.create_hyperparameter_sweep(finetune_epochs=[1],
 											 toplayer_epochs=[0],
-											 model=["Xception"],
+											 model=["InceptionV3"],
 											 pooling=["max"],
 											 loss=[loss],
 											 learning_rate=[0.001],
-											 batch_size=[16],
-											 hidden_layers=[0],
+											 batch_size=[64],
+											 hidden_layers=[0,1],
 											 optimizer=["Adam"],
 											 early_stop=[False],
 											 early_stop_patience=[15],
@@ -181,7 +183,14 @@ class TestSuite:
 											 balanced_validation=["NO_BALANCE"],
 											 augment=[True],
 											 filename=PROJECT_CONFIG["batch_train_config"])
+
+		# Create single hyperparameter combination
+		hp = HyperParameters(finetune_epochs=1, toplayer_epochs=0, model='InceptionV3', pooling='max', loss=loss,
+				learning_rate=0.001, batch_size=64, hidden_layers=1, optimizer='Adam', early_stop=False, 
+				early_stop_patience=0, balanced_training='BALANCE_BY_PATIENT', balanced_validation='NO_BALANCE', 
+				augment=True)
 		print("\t...DONE")
+		return hp
 
 	def test_convolution(self):
 		# Test tile extraction, default parameters
@@ -189,49 +198,71 @@ class TestSuite:
 		self.SFP.extract_tiles()
 		print("\t...OK")
 
-	'''def test_input_stream(self, outcome, balancing, batch_size=16, augment=True, filters=None, model_type='categorical'):
-		dataset, dataset_with_slidenames, num_tiles = SFM.build_dataset_inputs(SFM.TRAIN_TFRECORDS, batch_size=batch_size, 
-																									balance=balancing,
-																									augment=augment,
-																									finite=False,
-																									include_slidenames=False)'''
 	def test_training(self, categorical=True, linear=True):
 		if categorical:
 			# Test categorical outcome
-			self.setup_hp('categorical')
-			print("Testing single categorical outcome training...")
-			self.SFP.train(outcome_header='category1')
-			print("\t...OK")
-			print("Testing multiple sequential categorical outcome training...")
+			hp = self.setup_hp('categorical')
+			print("Training to single categorical outcome from specified hyperparameters...")
+			results_dict = self.SFP.train(models = 'manual_hp', outcome_header='category1', hyperparameters=hp, k_fold_iter=1)
+
+			if not results_dict or 'history' not in results_dict[results_dict.keys()[0]]:
+				print("\tFAIL: Keras results object not received from training")
+			else:
+				print("\t...OK")
+
+			print("Training to multiple sequential categorical outcomes from batch train file...")
 			# Test multiple sequential categorical outcome models
 			self.SFP.train(outcome_header=['category1', 'category2'])
 			print("\t...OK")
 		if linear:
 			# Test single linear outcome
-			self.setup_hp('linear')
-			print("Testing single linear outcome training...")
-			self.SFP.train(outcome_header='linear1', model_type='linear')
-			print("\t...OK")
+			hp = self.setup_hp('linear')
 			# Test multiple linear outcome
-			print("Testing multiple linear outcome training...")
-			self.SFP.train(outcome_header=['linear1', 'linear2'], multi_outcome=True, model_type='linear')
+			print("Training to multiple linear outcomes...")
+			self.SFP.train(outcome_header=['linear1', 'linear2'], multi_outcome=True, model_type='linear', k_fold_iter=1)
 			print("\t...OK")
 		print("\t...OK")
 
+	def test_training_performance(self):
+		hp = self.setup_hp('categorical')
+		hp.finetune_epochs = [1,3]
+		print("Testing performance of training (single categorical outcome)...")
+		results_dict = self.SFP.train(models='performance', outcome_header='category1', hyperparameters=hp, k_fold_iter=1)
+
+	def test_evaluation(self, model_name='category1-HPSweep0-kfold1'):
+		print("Testing evaluation of a saved model...")
+		results = self.SFP.evaluate(model_name, outcome_header='category1')
+		print('\t...OK')
+
 	def test_heatmap(self):
 		print("Testing heatmap generation...")
-		self.SFP.generate_heatmaps('category1-HPSweep0-kfold1')
+		self.SFP.generate_heatmaps('category1-HPSweep0-kfold1', filters={TCGA.patient: ['234839']})
 		print("\t...OK")
 
 	def test_mosaic(self):
 		print("Testing mosaic generation...")
-		self.SFP.generate_mosaic('category1-HPSweep0-kfold1')
+		self.SFP.generate_mosaic('category1-HPSweep0-kfold1', export_activations=True)
+		print("\t...OK")
+
+	def test_activations(self):
+		print("Testing activations analytics...")
+		AV = self.SFP.generate_activations_analytics(model='category1-HPSweep0-kfold1', 
+													outcome_header='category1', 
+													focus_nodes=[0])
+		AV.generate_box_plots()
+		AV.plot_2D_umap()
+		top_nodes = AV.get_top_nodes_by_slide()
+		for node in top_nodes[:5]:
+			AV.plot_3D_umap(node)
 		print("\t...OK")
 
 	def test(self):
 		'''Perform and report results of all available testing.'''
 		self.test_convolution()
 		self.test_training()
+		self.test_training_performance()
+		self.test_evaluation()
 		self.test_heatmap()
 		self.test_mosaic()
+		self.test_activations()
 		#self.test_input_stream()

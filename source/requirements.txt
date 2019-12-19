@@ -10,3 +10,4 @@ shapely
 umap-learn
 seaborn
 comet-ml
+pandas

@@ -22,8 +22,8 @@ except:
 
 PROJECT_DIR = None
 ANNOTATIONS = []
-SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif']
 
+SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif']
 SLIDE_ANNOTATIONS_TO_IGNORE = ['', 'na', 'n/a', 'none', 'missing']
 
 HEADER = '\033[95m'
@@ -607,7 +607,7 @@ def get_global_manifest(directory):
 	absolute/global path and file names.'''
 	manifest_path = join(directory, "manifest.json")
 	if not exists(manifest_path):
-		log.error(f"No manifest file detected in {directory}; will create now")
+		log.info(f"No manifest file detected in {directory}; will create now", 1)
 		update_tfrecord_manifest(directory)
 	relative_manifest = load_json(manifest_path)
 	global_manifest = {}
@@ -640,8 +640,7 @@ def update_tfrecord_manifest(directory, force_update=False):
 
 		manifest.update({rel_tfr: {}})
 		raw_dataset = tf.data.TFRecordDataset(tfr)
-		sys.stdout.write(f"\r + Verifying tiles in {green(rel_tfr)}...")
-		sys.stdout.flush()
+		print(f" + Verifying tiles in {green(rel_tfr)}...", end="\r\033[K")
 		total = 0
 		for raw_record in raw_dataset:
 			example = tf.train.Example()
@@ -653,6 +652,7 @@ def update_tfrecord_manifest(directory, force_update=False):
 				manifest[rel_tfr][slide] += 1
 			total += 1
 		manifest[rel_tfr]['total'] = total
+	print()
 
 	# Find slides that have TFRecords
 	for man_rel_tfr in manifest:
@@ -661,9 +661,9 @@ def update_tfrecord_manifest(directory, force_update=False):
 				if slide_key != 'total':
 					slide_list.extend([slide_key])
 					slide_list = list(set(slide_list))
-				if slide_key not in slide_names_from_annotations:
-					slide_list_errors.extend([slide])
-					slide_list_errors = list(set(slide_list_errors))
+					if slide_key not in slide_names_from_annotations:
+						slide_list_errors.extend([slide_key])
+						slide_list_errors = list(set(slide_list_errors))
 		except:
 			continue
 
@@ -675,22 +675,6 @@ def update_tfrecord_manifest(directory, force_update=False):
 
 	# Write manifest file
 	write_json(manifest, manifest_path)
-
-	'''# Now, check to see if all annotations have a corresponding set of tiles
-	if len(ANNOTATIONS):
-		num_warned = 0
-		warn_threshold = 3
-		for annotation in ANNOTATIONS:
-			print_func = print if num_warned < warn_threshold else None
-			if annotation[TCGA.slide] == '':
-				log.warn(f"Patient {green(annotation[TCGA.patient])} has no slide assigned.", 1, print_func)
-				num_warned += 1
-			elif annotation[TCGA.slide] not in slide_list:
-				log.warn(f"Slide {green(annotation[TCGA.slide])} in annotation file has no image tiles.", 1, print_func)
-				print(slide_list)
-				num_warned += 1
-		if num_warned >= warn_threshold:
-			log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)'''
 
 	return manifest
 	

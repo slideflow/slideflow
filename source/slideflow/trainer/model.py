@@ -462,8 +462,10 @@ class SlideflowModel:
 		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
 			validation_data, validation_data_with_slidenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, hp.augment, finite=True, include_slidenames=True)
 			validation_data_for_training = validation_data.repeat()
+			val_steps = 200
 		else:
 			validation_data_for_training = None
+			val_steps = 0
 
 		#testing overide
 		if TEST_MODE:
@@ -471,7 +473,9 @@ class SlideflowModel:
 			hp.finetune_epochs = 2
 
 		# Prepare results
-		results = {}
+		results = {
+			'epochs': {}
+		}
 
 		# Calculate parameters
 		if type(hp.finetune_epochs) != list:
@@ -481,7 +485,6 @@ class SlideflowModel:
 		steps_per_epoch = round(num_tiles/hp.batch_size)
 		tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
 		verbose = 1 if supervised else 0
-		val_steps = 200
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
 		metrics = ['acc'] if hp.model_type() != 'linear' else [hp.loss]
 
@@ -517,17 +520,17 @@ class SlideflowModel:
 						if verbose: log.info("Beginning validation testing", 1)
 						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
-						results[f'epoch{epoch+1}'] = {}
-						results[f'epoch{epoch+1}']['train_acc'] = np.amax(train_acc)
-						results[f'epoch{epoch+1}']['val_loss'] = val_loss
-						results[f'epoch{epoch+1}']['val_acc'] = val_acc
+						results['epochs'][f'epoch{epoch+1}'] = {}
+						results['epochs'][f'epoch{epoch+1}']['train_acc'] = np.amax(train_acc)
+						results['epochs'][f'epoch{epoch+1}']['val_loss'] = val_loss
+						results['epochs'][f'epoch{epoch+1}']['val_acc'] = val_acc
 						for i, auc in enumerate(tile_auc):
-							results[f'epoch{epoch+1}'][f'tile_auc{i}'] = auc
+							results['epochs'][f'epoch{epoch+1}'][f'tile_auc{i}'] = auc
 						for i, auc in enumerate(slide_auc):
-							results[f'epoch{epoch+1}'][f'slide_auc{i}'] = auc
+							results['epochs'][f'epoch{epoch+1}'][f'slide_auc{i}'] = auc
 						for i, auc in enumerate(patient_auc):
-							results[f'epoch{epoch+1}'][f'patient_auc{i}'] = auc
-						results[f'epoch{epoch+1}']['r_squared'] = r_squared
+							results['epochs'][f'epoch{epoch+1}'][f'patient_auc{i}'] = auc
+						results['epochs'][f'epoch{epoch+1}']['r_squared'] = r_squared
 
 						with open(results_log, "a") as results_file:
 							writer = csv.writer(results_file)
@@ -555,19 +558,19 @@ class SlideflowModel:
 		if verbose:	log.info("Beginning fine-tuning", 1)
 
 		self.model.compile(loss=hp.loss,
-					optimizer=initialized_optimizer,
-					metrics=metrics)
+						   optimizer=initialized_optimizer,
+						   metrics=metrics)
 
-		self.model.fit(train_data.repeat(),
-			steps_per_epoch=steps_per_epoch,
-			epochs=total_epochs,
-			verbose=verbose,
-			initial_epoch=hp.toplayer_epochs,
-			validation_data=validation_data_for_training,
-			validation_steps=val_steps,
-			callbacks=callbacks)
+		history = self.model.fit(train_data.repeat(),
+										steps_per_epoch=steps_per_epoch,
+										epochs=total_epochs,
+										verbose=verbose,
+										initial_epoch=hp.toplayer_epochs,
+										validation_data=validation_data_for_training,
+										validation_steps=val_steps,
+										callbacks=callbacks)
 
 		self.model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
 
-		return results
+		return results, history.history
 		
