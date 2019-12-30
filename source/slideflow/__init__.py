@@ -66,6 +66,8 @@ def evaluator(outcome_header, model_name, model_type, model_file, project_config
 		sfutil.LOGGING_LEVEL.SILENT = True
 	else:
 		sfutil.LOGGING_LEVEL.INFO = log_level
+	sfutil.PROJECT_DIR = project_config['root']
+	log.logfile = sfutil.global_path("log.log")
 
 	model_root = join(project_config['models_dir'], model_name)
 	if sfutil.path_to_name(model_file) != model_file:
@@ -126,6 +128,8 @@ def heatmap_generator(model_name, filters, resolution, project_config, log_level
 		sfutil.LOGGING_LEVEL.SILENT = True
 	else:
 		sfutil.LOGGING_LEVEL.INFO = log_level
+	sfutil.PROJECT_DIR = project_config['root']
+	log.logfile = sfutil.global_path("log.log")
 
 	resolutions = {'low': 1, 'medium': 2, 'high': 4}
 	try:
@@ -157,6 +161,8 @@ def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, pro
 		sfutil.LOGGING_LEVEL.SILENT = True
 	else:
 		sfutil.LOGGING_LEVEL.INFO = log_level
+	sfutil.PROJECT_DIR = project_config['root']
+	log.logfile = sfutil.global_path("log.log")
 
 	mosaic_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
 	sfutil.load_annotations(project_config['annotations'], mosaic_dataset)
@@ -209,6 +215,8 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		sfutil.LOGGING_LEVEL.SILENT = True
 	else:
 		sfutil.LOGGING_LEVEL.INFO = log_level
+	sfutil.PROJECT_DIR = project_config['root']
+	log.logfile = sfutil.global_path("log.log")
 
 	# First, clear prior Tensorflow graph to free memory
 	tf.keras.backend.clear_session()
