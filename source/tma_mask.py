@@ -15,13 +15,16 @@ def PolyArea(x,y):
 
 class TMA:
 	DOWNSCALE = 100
-	WIDTH_MIN = 20
 	HEIGHT_MIN = 20
+	WIDTH_MIN = 20
+	
+
 	BLACK = (0,0,0)
-	GREEN = (75,220,75)
 	BLUE = (255, 100, 100)
+	GREEN = (75,220,75)
 	LIGHTBLUE = (255, 180, 180)
 	RED = (100, 100, 200)
+	WHITE = (255,255,255)
 
 	def __init__(self, tma, save_dir):
 		log.empty(f"Loading TMA at {sfutil.green(tma)}", 1)
@@ -34,7 +37,7 @@ class TMA:
 		log.info(f"Full slide microns-per-pixel: {self.MPP}", 2)
 		log.info(f"Full slide dimensions: {self.DIM}", 2)
 
-	def extract_tiles(self):
+	def extract_tiles(self, subtile_size=None):
 		tiles_directory = join(self.save_dir, "tiles")
 		log.empty(f"Extracting tiles from TMA, saving to {sfutil.green(tiles_directory)}", 1)
 		img_orig = np.array(self.slide.get_thumbnail((self.DIM[0]/self.DOWNSCALE, self.DIM[1]/self.DOWNSCALE)))
@@ -71,7 +74,7 @@ class TMA:
 				box_areas += [area]
 				cv2.drawContours(img_annotated, [box], 0, self.BLUE, 2)
 				num_filtered += 1   
-				cv2.putText(img_annotated, f'{num_filtered}', (cX+10, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, self.BLACK, 2)
+				#cv2.putText(img_annotated, f'{num_filtered}', (cX+10, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, self.BLACK, 2)
 			elif heir[3] < 0:
 				box = cv2.boxPoints(rect)
 				box = np.int0(box)
@@ -90,16 +93,55 @@ class TMA:
 			width = rect[1][0]
 			height = rect[1][1]
 			if width > self.WIDTH_MIN and height > self.HEIGHT_MIN and heir[3] < 0:
-				print(f"Working on tile {tile_id+1} of {num_filtered}...", end="\033[K\r")
-				img_crop = self.getSubImage(rect)
 				tile_id += 1
-				cv2.imwrite(join(tiles_directory, f"tile{tile_id}.jpg"), img_crop)
+				print(f"Working on tile {tile_id} of {num_filtered}...", end="\033[K\r")
 
-		log.empty("Summary of box areas:", 1)
+				cropped_image_tile = self.getSubImage(rect)
+				cv2.imwrite(join(tiles_directory, f"tile{tile_id}.jpg"), cropped_image_tile)
+				if subtile_size:
+					sub_id = 0	
+					subtiles = self.splitTile(cropped_image_tile, subtile_size)
+					for subtile in subtiles:
+						sub_id += 1
+						cv2.imwrite(join(tiles_directory, f"tile{tile_id}_{sub_id}.jpg"), subtile)
+				else:
+					#cv2.imwrite(join(tiles_directory, f"tile{tile_id}.jpg"), cropped_image_tile)
+					pass
+				
+		print()
+		log.empty("Summary of extracted TMA tile areas (microns):", 1)
 		log.info(f"Min: {min(box_areas) * self.DOWNSCALE * self.MPP:.1f}", 2)
 		log.info(f"Max: {max(box_areas) * self.DOWNSCALE * self.MPP:.1f}", 2)
 		log.info(f"Mean: {mean(box_areas) * self.DOWNSCALE * self.MPP:.1f}", 2)
 		log.info(f"Median: {median(box_areas) * self.DOWNSCALE * self.MPP:.1f}", 2)
+	
+	def splitTile(self, image, microns):
+		height, width, channels = image.shape
+		pixels = int(microns / self.MPP)
+		num_y = int((height * self.MPP) / microns)
+		num_x = int((width * self.MPP) / microns)
+
+		# If the desired micron tile size is too large, expand and center the source image
+		if not num_y or not num_x:
+			expand_y = 0 if num_y else int((pixels-height)/2)+1
+			expand_x = 0 if num_x else int((pixels-width)/2)+1
+			image = cv2.copyMakeBorder(image, expand_y, expand_y, expand_x, expand_x, cv2.BORDER_CONSTANT, value=self.WHITE)
+			height, width, _ = image.shape
+			num_y = int((height * self.MPP) / microns)
+			num_x = int((width * self.MPP) / microns)
+
+		y_start = int((height - (num_y * pixels))/2)
+		x_start = int((width  - (num_x * pixels))/2)
+
+		subtiles = []
+
+		for y in range(num_y):
+			for x in range(num_x):
+				sub_x_start = x_start + (x * pixels)
+				sub_y_start = y_start + (y * pixels)
+				subtiles += [image[sub_y_start:sub_y_start+pixels, sub_x_start:sub_x_start+pixels]]
+
+		return subtiles
 
 	def getSubImage(self, rect):
 		box = cv2.boxPoints(rect) * self.DOWNSCALE
@@ -129,4 +171,4 @@ class TMA:
 
 if __name__ == '__main__':
 	sampleTMA = TMA("/home/shawarma/data/TMA/TMA_1185.svs", "/home/shawarma/data/TMA")
-	sampleTMA.extract_tiles()
+	sampleTMA.extract_tiles(604)
