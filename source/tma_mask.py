@@ -10,14 +10,18 @@ from os.path import join
 from statistics import mean, median
 from slideflow.util import log
 
+# TODO: Implement resizing tiles to given pixel size
+# TODO: Implement downsampled slide reading
+# TODO: Merge with `convoluter` (and rename module to "slide")
+# TODO: consider using Tensorflow for imaging warping (GPU accelerated): tf.contrib.image.sparse_image_warp
+
 def PolyArea(x,y):
 	return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
 
-class TMA:
+class TMAReader:
 	DOWNSCALE = 100
 	HEIGHT_MIN = 20
 	WIDTH_MIN = 20
-	
 
 	BLACK = (0,0,0)
 	BLUE = (255, 100, 100)
@@ -26,11 +30,16 @@ class TMA:
 	RED = (100, 100, 200)
 	WHITE = (255,255,255)
 
-	def __init__(self, tma, save_dir):
-		log.empty(f"Loading TMA at {sfutil.green(tma)}", 1)
+	def __init__(self, tma, save_dir, pb=None):
+		self.print = print if not pb else pb.print
+		self.pb = pb # Progress bar
+		self.p_id = None
+
+		log.empty(f"Loading TMA at {sfutil.green(tma)}", 1, self.print)
 
 		self.slide = ops.OpenSlide(tma)
-		self.save_dir = save_dir
+		self.annotations_dir = save_dir
+		self.tiles_dir = join(save_dir, "tiles")
 		self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
 		self.DIM = self.slide.dimensions
 
@@ -38,8 +47,7 @@ class TMA:
 		log.info(f"Full slide dimensions: {self.DIM}", 2)
 
 	def extract_tiles(self, subtile_size=None):
-		tiles_directory = join(self.save_dir, "tiles")
-		log.empty(f"Extracting tiles from TMA, saving to {sfutil.green(tiles_directory)}", 1)
+		log.empty(f"Extracting tiles from TMA, saving to {sfutil.green(self.tiles_dir)}", 1)
 		img_orig = np.array(self.slide.get_thumbnail((self.DIM[0]/self.DOWNSCALE, self.DIM[1]/self.DOWNSCALE)))
 		img_annotated = img_orig.copy()
 
@@ -83,7 +91,7 @@ class TMA:
 		log.info(f"Number of detected regions: {len(contours)}", 2)
 		log.info(f"Number of regions after filtering: {num_filtered}", 2)
 
-		cv2.imwrite(join(self.save_dir, "annotated.jpg"), cv2.resize(img_annotated, (1400, 1000)))
+		cv2.imwrite(join(self.annotations_dir, "annotated.jpg"), cv2.resize(img_annotated, (1400, 1000)))
 
 		tile_id = 0
 		for i, component in enumerate(zip(contours, heirarchy[0])):
@@ -97,15 +105,15 @@ class TMA:
 				print(f"Working on tile {tile_id} of {num_filtered}...", end="\033[K\r")
 
 				cropped_image_tile = self.getSubImage(rect)
-				cv2.imwrite(join(tiles_directory, f"tile{tile_id}.jpg"), cropped_image_tile)
+				cv2.imwrite(join(self.tiles_dir, f"tile{tile_id}.jpg"), cropped_image_tile)
 				if subtile_size:
 					sub_id = 0	
 					subtiles = self.splitTile(cropped_image_tile, subtile_size)
 					for subtile in subtiles:
 						sub_id += 1
-						cv2.imwrite(join(tiles_directory, f"tile{tile_id}_{sub_id}.jpg"), subtile)
+						cv2.imwrite(join(self.tiles_dir, f"tile{tile_id}_{sub_id}.jpg"), subtile)
 				else:
-					#cv2.imwrite(join(tiles_directory, f"tile{tile_id}.jpg"), cropped_image_tile)
+					#cv2.imwrite(join(self.tiles_dir, f"tile{tile_id}.jpg"), cropped_image_tile)
 					pass
 				
 		print()
@@ -170,5 +178,5 @@ class TMA:
 		return warped
 
 if __name__ == '__main__':
-	sampleTMA = TMA("/home/shawarma/data/TMA/TMA_1185.svs", "/home/shawarma/data/TMA")
+	sampleTMA = TMAReader("/home/shawarma/data/TMA/TMA_1185.svs", "/home/shawarma/data/TMA")
 	sampleTMA.extract_tiles(604)
