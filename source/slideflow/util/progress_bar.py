@@ -85,7 +85,7 @@ class ProgressBar:
 		if not self.starttime:
 			self.starttime = time.time()
 			return
-		self.tail = f" {int(self.counter/(time.time()-self.starttime))}{self.counter_text}/sec"
+		self.tail = f" {self.counter/(time.time()-self.starttime):.1f}{self.counter_text}/sec"
 
 	def update_counter(self, value):
 		self.counter += value

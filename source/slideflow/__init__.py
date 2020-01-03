@@ -43,10 +43,11 @@ COMET_API_KEY = "A3VWRcPaHgqc4H5K0FoCtRXbp"
 USE_COMET = False
 
 physical_devices = tf.config.experimental.list_physical_devices('GPU')
-assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
-tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 def autoselect_gpu(number_available, reverse=True):
+	if not len(physical_devices):
+		print("No GPUs detected.")
+		return
 	global GPU_LOCK
 	'''Automatically claims a free GPU and creates a lock file to prevent 
 	other instances of slideflow from using the same GPU.'''
@@ -62,6 +63,8 @@ def autoselect_gpu(number_available, reverse=True):
 
 def evaluator(outcome_header, model_name, model_type, model_file, project_config, results_dict,
 				filters=None, hyperparameters=None, checkpoint=None, eval_k_fold=None, log_level=3):
+	assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
+	tf.config.experimental.set_memory_growth(physical_devices[0], True)
 	if log_level == SILENT:
 		sfutil.LOGGING_LEVEL.SILENT = True
 	else:
@@ -120,6 +123,8 @@ def evaluator(outcome_header, model_name, model_type, model_file, project_config
 	return results_dict
 
 def heatmap_generator(model_name, filters, resolution, project_config, log_level=3):
+	assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
+	tf.config.experimental.set_memory_growth(physical_devices[0], True)
 	import slideflow.convoluter as convoluter
 
 	if log_level == SILENT:
@@ -153,6 +158,8 @@ def heatmap_generator(model_name, filters, resolution, project_config, log_level
 	c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
 
 def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, project_config, export_activations=False, log_level=3):
+	assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
+	tf.config.experimental.set_memory_growth(physical_devices[0], True)
 	if log_level == SILENT:
 		sfutil.LOGGING_LEVEL.SILENT = True
 	else:
@@ -204,7 +211,8 @@ def set_logging_level(level):
 def trainer(outcome_headers, model_name, model_type, project_config, results_dict, hp, validation_strategy, 
 			validation_target, validation_fraction, validation_k_fold, validation_log, k_fold_i=None, filters=None, 
 			pretrain=None, resume_training=None, checkpoint=None, log_level=3, supervised=True):
-
+	assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
+	tf.config.experimental.set_memory_growth(physical_devices[0], True)
 	if log_level == SILENT:
 		sfutil.LOGGING_LEVEL.SILENT = True
 	else:
