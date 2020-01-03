@@ -50,18 +50,20 @@ from matplotlib import pyplot as plt
 from slideflow.util import log, progress_bar
 from slideflow.util.fastim import FastImshow
 from statistics import mean, median
+from pathlib import Path
 
 # TODO: test JPG compatibility
 # TODO: remove "filetype" from SVSReader (should auto-detect)
 # TODO: test removing BatchNorm fix
 # TODO: remove final layer activations functions (duplicated in a separate module)
 # TODO: consider change `Convoluter` to a Heatmap creator class
+# TODO: move ProgressBar from progress_bar into slideflow.util.__init__
 
 # For TMA reader:
 # TODO: Implement resizing tiles to given pixel size
 # TODO: Test/implement downsampled slide reading
 # TODO: consolidate slide "thumbs" and the TMA "get_thumbnail"
-# TODO: consider using Tensorflow for imaging warping (GPU accelerated): tf.contrib.image.sparse_image_warp
+# TODO: consider using Tensorflow for imaging warping (GPU accelerated): tf.contrib.image.sparse_image_warp or tfa.image....
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 4
@@ -169,7 +171,6 @@ class SlideLoader:
 
 		# Calculate pixel size of extraction window using downsampling
 		self.extract_px = int(self.full_extract_px / self.downsample_factor)
-		stride_um = self.size_um / stride_div
 		self.full_stride = self.full_extract_px / stride_div
 		self.stride = self.extract_px / stride_div
 
@@ -179,7 +180,7 @@ class SlideLoader:
 		self.filter_px = int(self.full_extract_px * self.filter_magnification)
 
 		# Generating thumbnail for heatmap
-		self.thumbs_path = join('/'.join(path.split('/')[:-1]), "thumbs")
+		self.thumbs_path = join(Path(path).parent, "thumbs")
 		sfdatasets.make_dir(self.thumbs_path)
 		goal_thumb_area = 4096*4096
 		y_x_ratio = self.shape[1] / self.shape[0]
@@ -218,6 +219,10 @@ class TMAReader(SlideLoader):
 
 	def __init__(self, path, name, filetype, size_px, size_um, stride_div, export_folder=None, roi_dir=None, roi_list=None, pb=None):
 		super().__init__(path, name, filetype, size_px, size_um, stride_div, export_folder, pb)
+
+		if not self.loaded_correctly():
+			return
+
 		self.annotations_dir = self.export_folder
 		self.tiles_dir = self.thumbs_path
 		self.DIM = self.slide.dimensions
@@ -225,7 +230,8 @@ class TMAReader(SlideLoader):
 
 	def build_generator(self, export=False, augment=False, export_full_tma=False):
 		super().build_generator()
-		log.empty(f"Extracting tiles from TMA, saving to {sfutil.green(self.tiles_dir)}", 1, self.print)
+
+		log.empty(f"Extracting tiles from {sfutil.green(self.name)}, saving to {sfutil.green(self.tiles_dir)}", 1, self.print)
 		img_orig = np.array(self.slide.get_thumbnail((self.DIM[0]/self.DOWNSCALE, self.DIM[1]/self.DOWNSCALE)))
 		img_annotated = img_orig.copy()
 
@@ -277,7 +283,7 @@ class TMAReader(SlideLoader):
 		# Write annotated image to file
 		cv2.imwrite(join(self.annotations_dir, "annotated.jpg"), cv2.resize(img_annotated, (1400, 1000)))
 
-		self.p_id = None if not self.pb else self.pb.add_bar(0, total_logits_count, endtext=sfutil.green(self.shortname))
+		self.p_id = None if not self.pb else self.pb.add_bar(0, num_filtered, endtext=sfutil.green(self.shortname))
 
 		def generator():
 			tile_id = 0
@@ -290,9 +296,10 @@ class TMAReader(SlideLoader):
 				height = rect[1][1]
 				if width > self.WIDTH_MIN and height > self.HEIGHT_MIN and heir[3] < 0:
 					tile_id += 1
-					#print(f"Working on tile {tile_id} of {num_filtered}...", end="\033[K\r")
+					if self.pb:
+						self.pb.update(self.p_id, tile_id)
+						self.pb.update_counter(1)
 					cropped_image_tile = self.getSubImage(rect)
-					cv2.imwrite(join(self.tiles_dir, f"tile{tile_id}.jpg"), cropped_image_tile)
 					sub_id = 0	
 					subtiles = self.splitTile(cropped_image_tile, self.size_um)
 					if export_full_tma:
@@ -313,6 +320,10 @@ class TMAReader(SlideLoader):
 		return generator, None, None, None
 
 	def export_tiles(self, augment=False, export_full_tma=False):
+		if not self.loaded_correctly():
+			log.error(f"Unable to extract tiles; unable to load slide {sfutil.green(self.name)}", 1)
+			return
+
 		generator, _, _, _ = self.build_generator(export=True, augment=augment, export_full_tma=export_full_tma)
 
 		if not generator:
@@ -375,14 +386,29 @@ class TMAReader(SlideLoader):
 							[0, 0],
 							[rect_width-1, 0],
 							[rect_width-1, rect_height-1]], dtype="float32")
-		P = cv2.getPerspectiveTransform(src_pts, dst_pts)
-		warped=cv2.warpPerspective(np.array(extracted), P, (rect_width, rect_height))
+
+		#P = cv2.getPerspectiveTransform(src_pts, dst_pts)
+		#warped=cv2.warpPerspective(np.array(extracted), P, (rect_width, rect_height))
+
+		warped, _ = tf.contrib.image.sparse_image_warp(
+			np.array(extracted),
+			src_pts,
+			dst_pts,
+			interpolation_order=2,
+			regularization_weight=0.0,
+			num_boundary_points=0,
+			name='sparse_image_warp'
+		)
+
 		return warped
 
 class SlideReader(SlideLoader):
 	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
 	def __init__(self, path, name, filetype, size_px, size_um, stride_div, export_folder=None, roi_dir=None, roi_list=None, pb=None):
 		super().__init__(path, name, filetype, size_px, size_um, stride_div, export_folder, pb)
+
+		if not self.loaded_correctly():
+			return
 
 		self.rois = []
 		# Look in roi_dir if available
@@ -494,6 +520,10 @@ class SlideReader(SlideLoader):
 		return generator, slide_x_size, slide_y_size, self.full_stride
 
 	def export_tiles(self, augment=False):
+		if not self.loaded_correctly():
+			log.error(f"Unable to extract tiles; unable to load slide {sfutil.green(self.name)}", 1)
+			return
+
 		generator, _, _, _ = self.build_generator(export=True, augment=augment)
 
 		if not generator:
