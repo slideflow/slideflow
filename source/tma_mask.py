@@ -1,24 +1,6 @@
-import cv2
-import numpy as np
-import openslide as ops
-import math
-import sys
-import matplotlib.pylab as plt
-import slideflow.util as sfutil
+from slideflow.convoluter import TMAReader
 
-from os.path import join
-from statistics import mean, median
-from slideflow.util import log
-
-# TODO: Implement resizing tiles to given pixel size
-# TODO: Implement downsampled slide reading
-# TODO: Merge with `convoluter` (and rename module to "slide")
-# TODO: consider using Tensorflow for imaging warping (GPU accelerated): tf.contrib.image.sparse_image_warp
-
-def PolyArea(x,y):
-	return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
-
-class TMAReader:
+'''class TMAReader:
 	DOWNSCALE = 100
 	HEIGHT_MIN = 20
 	WIDTH_MIN = 20
@@ -176,7 +158,8 @@ class TMAReader:
 		P = cv2.getPerspectiveTransform(src_pts, dst_pts)
 		warped=cv2.warpPerspective(np.array(extracted), P, (rect_width, rect_height))
 		return warped
+'''
 
 if __name__ == '__main__':
-	sampleTMA = TMAReader("/home/shawarma/data/TMA/TMA_1185.svs", "/home/shawarma/data/TMA")
-	sampleTMA.extract_tiles(604)
+	sampleTMA = TMAReader("/home/shawarma/data/TMA/TMA_1185.svs", "TMA_1185", "svs", 1208, 604, 1, "/home/shawarma/data/TMA/tiles")
+	sampleTMA.export_tiles(export_full_tma=True)
