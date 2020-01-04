@@ -53,7 +53,6 @@ from statistics import mean, median
 from pathlib import Path
 
 # TODO: test JPG compatibility
-# TODO: remove "filetype" from SVSReader (should auto-detect)
 # TODO: test removing BatchNorm fix
 # TODO: remove final layer activations functions (duplicated in a separate module)
 # TODO: consider change `Convoluter` to a Heatmap creator class
@@ -124,18 +123,19 @@ class JPGSlide:
 class SlideLoader:
 	'''Object that loads an SVS slide and makes preparations for tile extraction.
 	Should not be used directly; this class must be inherited and extended by a child class!'''
-	def __init__(self, path, name, filetype, size_px, size_um, stride_div, export_folder=None, pb=None):
+	def __init__(self, path, size_px, size_um, stride_div, export_folder=None, pb=None):
 		self.load_error = False
 		self.print = print if not pb else pb.print
 		self.pb = pb
 		self.p_id = None
-		self.name = name
+		self.name = sfutil.path_to_name(path)
 		self.shortname = sfutil._shortname(self.name)
 		self.export_folder = export_folder
 		self.size_px = size_px
 		self.size_um = size_um
 		self.tiles_path = None if not export_folder else join(self.export_folder, self.name)
 		self.tile_mask = None
+		filetype = sfutil.path_to_ext(path)
 
 		# Initiate supported slide (SVS, TIF) or JPG slide reader
 		if filetype.lower() in sfutil.SUPPORTED_FORMATS:
@@ -219,8 +219,8 @@ class TMAReader(SlideLoader):
 	RED = (100, 100, 200)
 	WHITE = (255,255,255)
 
-	def __init__(self, path, name, filetype, size_px, size_um, stride_div, export_folder=None, roi_dir=None, roi_list=None, pb=None):
-		super().__init__(path, name, filetype, size_px, size_um, stride_div, export_folder, pb)
+	def __init__(self, path, size_px, size_um, stride_div, export_folder=None, roi_dir=None, roi_list=None, pb=None):
+		super().__init__(path, size_px, size_um, stride_div, export_folder, pb)
 
 		if not self.loaded_correctly():
 			return
@@ -228,7 +228,7 @@ class TMAReader(SlideLoader):
 		self.annotations_dir = self.export_folder
 		self.tiles_dir = self.thumbs_path
 		self.DIM = self.slide.dimensions
-		log.label(self.shortname, f"Loaded {filetype.upper()}: {self.MPP} um/px | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
+		log.label(self.shortname, f"Slide info: {self.MPP} um/px | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
 
 	def build_generator(self, export=False, augment=False, export_full_core=False):
 		super().build_generator()
@@ -428,8 +428,8 @@ class TMAReader(SlideLoader):
 
 class SlideReader(SlideLoader):
 	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
-	def __init__(self, path, name, filetype, size_px, size_um, stride_div, export_folder=None, roi_dir=None, roi_list=None, pb=None):
-		super().__init__(path, name, filetype, size_px, size_um, stride_div, export_folder, pb)
+	def __init__(self, path, size_px, size_um, stride_div, export_folder=None, roi_dir=None, roi_list=None, pb=None):
+		super().__init__(path, size_px, size_um, stride_div, export_folder, pb)
 
 		if not self.loaded_correctly():
 			return
@@ -440,7 +440,7 @@ class SlideReader(SlideLoader):
 			self.load_csv_roi(join(roi_dir, self.name + ".csv"))
 
 		# Else try loading ROI from same folder as slide
-		elif exists(sfutil.path_to_name(path) + ".csv"):
+		elif exists(self.name + ".csv"):
 			self.load_csv_roi(sfutil.path_to_name(path) + ".csv")
 		elif roi_list and self.name in [sfutil.path_to_name(r) for r in roi_list]:
 			matching_rois = []
@@ -460,7 +460,7 @@ class SlideReader(SlideLoader):
 			else:
 				log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
 
-		log.label(self.shortname, f"Loaded {filetype.upper()}: {self.MPP} um/px | {len(self.rois)} ROI(s) | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
+		log.label(self.shortname, f"Slide info: {self.MPP} um/px | {len(self.rois)} ROI(s) | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
 
 		# Abort if errors were raised during ROI loading
 		if self.load_error:
@@ -627,10 +627,7 @@ class Convoluter:
 	def load_slides(self, slides_array, category="None"):
 		for slide_path in slides_array:
 			name = sfutil.path_to_name(slide_path)
-			filetype = sfutil.path_to_ext(slide_path)
-			self.SLIDES.update({name: { "name": name,
-										"path": slide_path,
-										"type": filetype,
+			self.SLIDES.update({name: { "path": slide_path,
 										"category": category } })
 
 	def build_model(self, model_dir):
@@ -685,13 +682,13 @@ class Convoluter:
 			category = slide['category']
 
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
-			log.empty(f"Working on slide {sfutil.green(slide['name'])}", 1, pb.print)
+			log.empty(f"Working on slide {sfutil.green(slide_name)}", 1, pb.print)
 
 			# Load the slide
 			if not self.TMA:
-				whole_slide = SlideReader(slide['path'], slide['name'], slide['type'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, self.ROI_LIST, pb=pb)
+				whole_slide = SlideReader(slide['path'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, self.ROI_LIST, pb=pb)
 			else:
-				whole_slide = TMAReader(slide['path'], slide['name'], slide['type'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, pb=pb)
+				whole_slide = TMAReader(slide['path'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, pb=pb)
 
 			if not whole_slide.loaded_correctly():
 				continue
@@ -701,28 +698,27 @@ class Convoluter:
 																									  final_layer=save_final_layer, 
 																									  pb=pb)
 			if (type(logits) == bool) and (not logits):
-				log.error(f"Unable to create heatmap for slide {sfutil.green(slide['name'])}", 1)
+				log.error(f"Unable to create heatmap for slide {sfutil.green(whole_slide.name)}", 1)
 				return
 
 			# Save the results
 			if save_heatmaps:
-				self.gen_heatmaps(slide, whole_slide.thumb, logits, self.SIZE_PX, slide_name, save=True)
+				self.gen_heatmaps(slide, whole_slide.thumb, logits, self.SIZE_PX, whole_slide.name, save=True)
 			if save_final_layer:
-				self.export_activations(final_layer, final_layer_labels, logits_flat, slide_name, category)
+				self.export_activations(final_layer, final_layer_labels, logits_flat, whole_slide.name, category)
 			if display_heatmaps:
-				self.gen_heatmaps(slide, whole_slide.thumb, logits, self.SIZE_PX, slide_name, save=False)
+				self.gen_heatmaps(slide, whole_slide.thumb, logits, self.SIZE_PX, whole_slide.name, save=False)
 
 	def export_tiles(self, slide, pb):
 		slide_name = slide['name']
 		path = slide['path']
-		filetype = slide['type']
 		log.empty(f"Exporting tiles for slide {slide_name}", 1, pb.print)
 		
 		# Load the slide
 		if not self.TMA:
-			whole_slide = SlideReader(path, slide_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, self.ROI_LIST, pb=pb)
+			whole_slide = SlideReader(path, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, self.ROI_LIST, pb=pb)
 		else:
-			whole_slide = TMAReader(path, slide_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, pb=pb)
+			whole_slide = TMAReader(path, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, pb=pb)
 		if not whole_slide.loaded_correctly():
 			return
 
