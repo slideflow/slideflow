@@ -270,6 +270,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		"tile_px": project_config['tile_px'],
 		"tile_um": project_config['tile_um'],
 		"model_type": model_type,
+		"outcome_headers": outcome_headers,
 		"dataset_config": project_config['dataset_config'],
 		"datasets": project_config['datasets'],
 		"annotations": project_config['annotations'],
@@ -279,6 +280,9 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		"validation_k_fold": validation_k_fold,
 		"k_fold_i": k_fold_i,
 		"filters": filters,
+		"pretrain": pretrain,
+		"resume_training": resume_training,
+		"checkpoint": checkpoint,
 		"hp": hp._get_dict()
 	}
 	sfutil.write_json(hp_data, hp_file)
@@ -525,7 +529,10 @@ class SlideflowProject:
 	def create_project(self):
 		'''Prompts user to provide all relevant project configuration and saves configuration to "settings.json".'''
 		# General setup and slide configuration
-		project = {'root': sfutil.PROJECT_DIR}
+		project = {
+			'root': sfutil.PROJECT_DIR,
+			'slideflow_version': __version__
+		}
 		project['name'] = input("What is the project name? ")
 		
 		# Ask for annotations file location; if one has not been made, offer to create a blank template and then exit
