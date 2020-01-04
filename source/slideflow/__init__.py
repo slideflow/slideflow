@@ -24,7 +24,7 @@ import itertools
 
 import slideflow.trainer.model as sfmodel
 import slideflow.util as sfutil
-from slideflow.util import TCGA, log, progress_bar
+from slideflow.util import TCGA, log, ProgressBar
 from slideflow.util.datasets import Dataset
 from slideflow.mosaic import ActivationsVisualizer, TileVisualizer
 from comet_ml import Experiment
@@ -150,14 +150,15 @@ def heatmap_generator(model_name, filters, resolution, project_config, log_level
 	if not os.path.exists(heatmaps_folder): os.makedirs(heatmaps_folder)
 	model_path = model_name if model_name[-3:] == ".h5" else join(project_config['models_dir'], model_name, 'trained_model.h5')
 
-	c = sfslide.Convoluter(project_config['tile_px'], project_config['tile_um'], batch_size=64,
+	for slide in slide_list:
+		log.empty(f"Working on slide {sfutil.green(sfutil.path_to_name(slide))}", 1)
+		heatmap = sfslide.Heatmap(slide, model_path, project_config['tile_px'], project_config['tile_um'], 
 																				 use_fp16=project_config['use_fp16'],
 																				 stride_div=stride_div,
 																				 save_folder=heatmaps_folder,
 																				 roi_list=roi_list)
-	c.load_slides(slide_list)
-	c.build_model(model_path)
-	c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
+		heatmap.generate(batch_size=64, export_activations=True)
+		heatmap.save()
 
 def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, project_config, export_activations=False, log_level=3):
 	assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
@@ -675,7 +676,7 @@ class SlideflowProject:
 			Image.MAX_IMAGE_PIXELS = 100000000000
 
 			log.info("Exporting tiles only", 1)
-			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
+			pb = ProgressBar(bar_length=5, counter_text='tiles')
 
 			# Function to extract tiles from a slide
 			def extract_tiles_from_slide(slide_path, pb):
