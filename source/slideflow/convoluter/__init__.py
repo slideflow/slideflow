@@ -22,6 +22,7 @@ import sys
 import warnings
 
 import tensorflow as tf
+import tensorflow_addons as tfa
 import numpy as np
 import imageio
 import argparse
@@ -43,8 +44,8 @@ import slideflow.util.datasets as sfdatasets
 from os.path import join, isfile, exists
 from math import sqrt
 from PIL import Image
-from multiprocessing.dummy import Pool
-from queue import Queue
+from multiprocessing.dummy import Pool as DPool
+from multiprocessing import Process, Pool, Queue
 from matplotlib.widgets import Slider
 from matplotlib import pyplot as plt
 from slideflow.util import log, progress_bar
@@ -72,6 +73,9 @@ SKIP_MISSING_ROI = True
 
 # BatchNormFix
 tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
+
+def polyArea(x, y):
+	return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
 
 class ROIObject:
 	'''Object container for ROI annotations.'''
@@ -207,7 +211,9 @@ class SlideLoader:
 
 class TMAReader(SlideLoader):
 	'''Helper object that loads a TMA-formatted slide, detects TMA objects, and sets up a tile generator.'''
-	DOWNSCALE = 100
+	THUMB_DOWNSCALE = 100
+	QUEUE_SIZE = 8
+	NUM_EXTRACTION_WORKERS = 8
 	HEIGHT_MIN = 20
 	WIDTH_MIN = 20
 	BLACK = (0,0,0)
@@ -232,7 +238,7 @@ class TMAReader(SlideLoader):
 		super().build_generator()
 
 		log.empty(f"Extracting tiles from {sfutil.green(self.name)}, saving to {sfutil.green(self.tiles_dir)}", 1, self.print)
-		img_orig = np.array(self.slide.get_thumbnail((self.DIM[0]/self.DOWNSCALE, self.DIM[1]/self.DOWNSCALE)))
+		img_orig = np.array(self.slide.get_thumbnail((self.DIM[0]/self.THUMB_DOWNSCALE, self.DIM[1]/self.THUMB_DOWNSCALE)))
 		img_annotated = img_orig.copy()
 
 		# Create background mask for edge detection
@@ -267,7 +273,7 @@ class TMAReader(SlideLoader):
 				cv2.circle(img_annotated, (cX, cY), 4, self.GREEN, -1)
 				box = cv2.boxPoints(rect)
 				box = np.int0(box)
-				area = self.PolyArea([b[0] for b in box], [b[1] for b in box])
+				area = polyArea([b[0] for b in box], [b[1] for b in box])
 				box_areas += [area]
 				cv2.drawContours(img_annotated, [box], 0, self.BLUE, 2)
 				num_filtered += 1   
@@ -285,37 +291,67 @@ class TMAReader(SlideLoader):
 
 		self.p_id = None if not self.pb else self.pb.add_bar(0, num_filtered, endtext=sfutil.green(self.shortname))
 
+		# Select object rectangles that meet specified criteria
+		object_rects = []
+		for i, component in enumerate(zip(contours, heirarchy[0])):
+			cnt = component[0]
+			heir = component[1]
+			rect = cv2.minAreaRect(cnt)
+			width = rect[1][0]
+			height = rect[1][1]
+			if width > self.WIDTH_MIN and height > self.HEIGHT_MIN and heir[3] < 0:
+				object_rects += [(len(object_rects), rect)]
+
+		rectangle_queue = Queue()
+		extraction_queue = Queue(self.QUEUE_SIZE)
+
+		def section_extraction_worker(read_queue, write_queue):
+			while True:
+				tile_id, rect = read_queue.get(True)
+				if rect == "DONE":
+					write_queue.put((tile_id, rect))
+					break
+				else:
+					image_tile = self.get_sub_image(rect)
+					write_queue.put((tile_id, image_tile))
+
 		def generator():
-			tile_id = 0
-			unique_tile=True
-			for i, component in enumerate(zip(contours, heirarchy[0])):
-				cnt = component[0]
-				heir = component[1]
-				rect = cv2.minAreaRect(cnt)
-				width = rect[1][0]
-				height = rect[1][1]
-				if width > self.WIDTH_MIN and height > self.HEIGHT_MIN and heir[3] < 0:
-					tile_id += 1
+			extraction_pool = Pool(self.NUM_EXTRACTION_WORKERS, section_extraction_worker,(rectangle_queue, extraction_queue,))
+
+			for rect in object_rects:
+				rectangle_queue.put(rect)
+			rectangle_queue.put((-1, "DONE"))
+			
+			queue_progress = 0
+			while True:
+				queue_progress += 1
+				tile_id, image_tile = extraction_queue.get()
+				if image_tile == "DONE":
+					break
+				else:
 					if self.pb:
-						self.pb.update(self.p_id, tile_id)
+						self.pb.update(self.p_id, queue_progress)
 						self.pb.update_counter(1)
-					cropped_image_tile = self.getSubImage(rect)
-					sub_id = 0	
-					subtiles = self.splitTile(cropped_image_tile, self.size_um)
+
+					sub_id = 0
+					resized_section = self.resize_to_target(image_tile)
+					subtiles = self.split_section(resized_section)
 					if export_full_tma:
-						cv2.imwrite(join(self.tiles_dir, f"tile{tile_id}.jpg"), cropped_image_tile)
+						cv2.imwrite(join(self.tiles_dir, f"tile{tile_id}.jpg"), image_tile)
 					for subtile in subtiles:
 						sub_id += 1
 						cv2.imwrite(join(self.tiles_dir, f"tile{tile_id}_{sub_id}.jpg"), subtile)
-						yield subtile, tile_id, unique_tile
+						yield subtile, tile_id
+					
+			extraction_pool.close()
 					
 			if self.pb: 
 				self.pb.end(self.p_id)
 			log.empty("Summary of extracted TMA tile areas (microns):", 1)
-			log.info(f"Min: {min(box_areas) * self.DOWNSCALE * self.MPP:.1f}", 2)
-			log.info(f"Max: {max(box_areas) * self.DOWNSCALE * self.MPP:.1f}", 2)
-			log.info(f"Mean: {mean(box_areas) * self.DOWNSCALE * self.MPP:.1f}", 2)
-			log.info(f"Median: {median(box_areas) * self.DOWNSCALE * self.MPP:.1f}", 2)
+			log.info(f"Min: {min(box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2)
+			log.info(f"Max: {max(box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2)
+			log.info(f"Mean: {mean(box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2)
+			log.info(f"Median: {median(box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2)
 
 		return generator, None, None, None
 
@@ -330,76 +366,68 @@ class TMAReader(SlideLoader):
 			log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1)
 			return
 
-		for tile, _, _ in generator():
+		for tile, tile_id in generator():
 			pass
 
-	def splitTile(self, image, microns):
+	def resize_to_target(self, image_tile):
+		target_MPP = self.size_um / self.size_px
+		current_MPP = self.MPP * self.downsample_factor
+		resize_factor = current_MPP / target_MPP
+		return cv2.resize(image_tile, (0, 0), fx=resize_factor, fy=resize_factor)
+
+	def split_section(self, image):
 		height, width, channels = image.shape
-		pixels = int(microns / self.MPP)
-		num_y = int((height * self.MPP) / microns)
-		num_x = int((width * self.MPP) / microns)
+		num_y = int(height / self.size_px)
+		num_x = int(width  / self.size_px)
 
 		# If the desired micron tile size is too large, expand and center the source image
 		if not num_y or not num_x:
-			expand_y = 0 if num_y else int((pixels-height)/2)+1
-			expand_x = 0 if num_x else int((pixels-width)/2)+1
+			expand_y = 0 if num_y else int((self.size_px-height)/2)+1
+			expand_x = 0 if num_x else int((self.size_px-width)/2)+1
 			image = cv2.copyMakeBorder(image, expand_y, expand_y, expand_x, expand_x, cv2.BORDER_CONSTANT, value=self.WHITE)
 			height, width, _ = image.shape
-			num_y = int((height * self.MPP) / microns)
-			num_x = int((width * self.MPP) / microns)
+			num_y = int(height / self.size_px)
+			num_x = int(width  / self.size_px)
 
-		y_start = int((height - (num_y * pixels))/2)
-		x_start = int((width  - (num_x * pixels))/2)
+		y_start = int((height - (num_y * self.size_px))/2)
+		x_start = int((width  - (num_x * self.size_px))/2)
 
 		subtiles = []
 
 		for y in range(num_y):
 			for x in range(num_x):
-				sub_x_start = x_start + (x * pixels)
-				sub_y_start = y_start + (y * pixels)
-				subtiles += [image[sub_y_start:sub_y_start+pixels, sub_x_start:sub_x_start+pixels]]
+				sub_x_start = x_start + (x * self.size_px)
+				sub_y_start = y_start + (y * self.size_px)
+				subtiles += [image[sub_y_start:sub_y_start+self.size_px, sub_x_start:sub_x_start+self.size_px]]
 
 		return subtiles
 
-	def PolyArea(self, x, y):
-		return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
-
-	def getSubImage(self, rect):
-		box = cv2.boxPoints(rect) * self.DOWNSCALE
+	def get_sub_image(self, rect):
+		box = cv2.boxPoints(rect) * self.THUMB_DOWNSCALE
 		box = np.int0(box)
-		rect_width = int(rect[1][0] * self.DOWNSCALE)
-		rect_height = int(rect[1][1] * self.DOWNSCALE)
+
+		rect_width = int(rect[1][0] * self.THUMB_DOWNSCALE / self.downsample_factor)
+		rect_height = int(rect[1][1] * self.THUMB_DOWNSCALE / self.downsample_factor)
 
 		region_x_min = int(min([b[0] for b in box]))
 		region_x_max = max([b[0] for b in box])
 		region_y_min = int(min([b[1] for b in box]))
 		region_y_max = max([b[1] for b in box])
 
-		region_width = region_x_max - region_x_min
-		region_height = region_y_max - region_y_min
+		region_width  = int((region_x_max - region_x_min) / self.downsample_factor)
+		region_height = int((region_y_max - region_y_min) / self.downsample_factor)
 
-		extracted = self.slide.read_region((region_x_min, region_y_min), 0, (region_width, region_height))
-		relative_box = box - [region_x_min, region_y_min]
+		extracted = self.slide.read_region((region_x_min, region_y_min), self.downsample_level, (region_width, region_height))
+		relative_box = (box - [region_x_min, region_y_min]) / self.downsample_factor
 
 		src_pts = relative_box.astype("float32")
-		dst_pts = np.array([[0, rect_height-1],
+		dst_pts = np.array([[0, (rect_height)-1],
 							[0, 0],
-							[rect_width-1, 0],
-							[rect_width-1, rect_height-1]], dtype="float32")
+							[(rect_width)-1, 0],
+							[(rect_width)-1, (rect_height)-1]], dtype="float32")
 
-		#P = cv2.getPerspectiveTransform(src_pts, dst_pts)
-		#warped=cv2.warpPerspective(np.array(extracted), P, (rect_width, rect_height))
-
-		warped, _ = tf.contrib.image.sparse_image_warp(
-			np.array(extracted),
-			src_pts,
-			dst_pts,
-			interpolation_order=2,
-			regularization_weight=0.0,
-			num_boundary_points=0,
-			name='sparse_image_warp'
-		)
-
+		P = cv2.getPerspectiveTransform(src_pts, dst_pts)
+		warped=cv2.warpPerspective(np.array(extracted), P, (rect_width, rect_height))
 		return warped
 
 class SlideReader(SlideLoader):
@@ -646,7 +674,7 @@ class Convoluter:
 			def worker(slide):
 				self.export_tiles(self.SLIDES[slide], pb)
 			if NUM_THREADS > 1:
-				pool = Pool(NUM_THREADS)
+				pool = DPool(NUM_THREADS)
 				pool.map(worker, self.SLIDES)#lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
 			else:
 				for slide in self.SLIDES:
