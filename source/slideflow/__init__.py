@@ -26,7 +26,7 @@ import slideflow.trainer.model as sfmodel
 import slideflow.util as sfutil
 from slideflow.util import TCGA, log, ProgressBar
 from slideflow.util.datasets import Dataset
-from slideflow.mosaic import ActivationsVisualizer, TileVisualizer
+from slideflow.activations import ActivationsVisualizer, TileVisualizer
 from comet_ml import Experiment
 
 # TODO: allow datasets to have filters (would address evaluate() function)
