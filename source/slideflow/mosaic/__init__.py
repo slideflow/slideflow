@@ -27,7 +27,7 @@ from copy import deepcopy
 
 import slideflow.util as sfutil
 import slideflow.util.statistics as sfstats
-from slideflow.util import log, progress_bar, tfrecords, TCGA
+from slideflow.util import log, ProgressBar, tfrecords, TCGA
 from PIL import Image
 
 # TODO: add check that cached PKL corresponds to current and correct model & slides
@@ -630,7 +630,7 @@ class ActivationsVisualizer:
 
 		log.empty("Calculating tile-point distances...", 1)
 		tile_point_start = time.time()
-		pb = progress_bar.ProgressBar()
+		pb = ProgressBar()
 		pb_id = pb.add_bar(0, len(GRID))
 		for i, tile in enumerate(GRID):
 			pb.update(pb_id, i)
