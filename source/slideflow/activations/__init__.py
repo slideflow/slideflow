@@ -229,7 +229,6 @@ class ActivationsVisualizer:
 		#	loaded_model = tf.keras.models.Model(inputs=[_model.input],
 		#										 outputs=[_model.layers[-2].output])
 		
-		fl_activations_all, logits_all, slides_all, indices_all, tile_indices_all, tfrecord_all = [], [], [], [], [], []
 		unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in self.tfrecords_paths]))
 
 		# Prepare PKL export dictionary
@@ -254,7 +253,7 @@ class ActivationsVisualizer:
 			outfile = open(self.FLA, 'w')
 			csvwriter = csv.writer(outfile)
 
-		for tfrecord_index, tfrecord in enumerate(self.tfrecords_paths):
+		for tfrecord in self.tfrecords_paths:
 			log.empty(f"Calculating activations from {sfutil.green(tfrecord)}", 2)
 			dataset = tf.data.TFRecordDataset(tfrecord)
 
@@ -293,7 +292,7 @@ class ActivationsVisualizer:
 						self.slide_node_dict[slide].update({n: []})
 
 			# Export to PKL and CSV
-			for i, act in enumerate(fl_activations_combined):
+			for i in range(fl_activations_combined):
 				slide = slides_combined[i].decode('utf-8')
 				activations_vals = fl_activations_combined[i].tolist()
 				logits_vals = logits_combined[i].tolist()
@@ -302,7 +301,7 @@ class ActivationsVisualizer:
 					row = [slide] + logits_vals + activations_vals
 					csvwriter.writerow(row)
 				# Write to PKL
-				for n, node in enumerate(nodes_names):
+				for n in range(nodes_names):
 					val = activations_vals[n]
 					self.slide_node_dict[slide][n] += [val]
 

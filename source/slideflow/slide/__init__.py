@@ -19,7 +19,6 @@ from __future__ import print_function
 
 import os
 import sys
-import warnings
 
 import tensorflow as tf
 import numpy as np
@@ -590,7 +589,6 @@ class Heatmap:
 	activations as model predictions are generated.'''
 
 	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, save_folder='', roi_dir=None, roi_list=None):
-		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 		self.save_folder = save_folder
 		self.DTYPE = tf.float16 if use_fp16 else tf.float32
 		self.DTYPE_INT = tf.int16 if use_fp16 else tf.int32
