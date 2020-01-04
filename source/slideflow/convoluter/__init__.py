@@ -210,7 +210,7 @@ class SlideLoader:
 		return loaded_correctly
 
 class TMAReader(SlideLoader):
-	'''Helper object that loads a TMA-formatted slide, detects TMA objects, and sets up a tile generator.'''
+	'''Helper object that loads a TMA-formatted slide, detects tissue cores, and sets up a tile generator.'''
 	THUMB_DOWNSCALE = 100
 	QUEUE_SIZE = 8
 	NUM_EXTRACTION_WORKERS = 8
@@ -234,7 +234,7 @@ class TMAReader(SlideLoader):
 		self.DIM = self.slide.dimensions
 		log.label(self.shortname, f"Loaded {filetype.upper()}: {self.MPP} um/px | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
 
-	def build_generator(self, export=False, augment=False, export_full_tma=False):
+	def build_generator(self, export=False, augment=False, export_full_core=False):
 		super().build_generator()
 
 		log.empty(f"Extracting tiles from {sfutil.green(self.name)}, saving to {sfutil.green(self.tiles_dir)}", 1, self.print)
@@ -283,8 +283,7 @@ class TMAReader(SlideLoader):
 				box = np.int0(box)
 				cv2.drawContours(img_annotated, [box], 0, self.RED, 2)
 
-		log.info(f"Number of detected regions: {len(contours)}", 2)
-		log.info(f"Number of regions after filtering: {num_filtered}", 2)
+		log.info(f"Number of detected cores: {num_filtered}", 2)
 
 		# Write annotated image to file
 		cv2.imwrite(join(self.annotations_dir, "annotated.jpg"), cv2.resize(img_annotated, (1400, 1000)))
@@ -316,6 +315,7 @@ class TMAReader(SlideLoader):
 					write_queue.put((tile_id, image_tile))
 
 		def generator():
+			unique_tile = True
 			extraction_pool = Pool(self.NUM_EXTRACTION_WORKERS, section_extraction_worker,(rectangle_queue, extraction_queue,))
 
 			for rect in object_rects:
@@ -325,8 +325,8 @@ class TMAReader(SlideLoader):
 			queue_progress = 0
 			while True:
 				queue_progress += 1
-				tile_id, image_tile = extraction_queue.get()
-				if image_tile == "DONE":
+				tile_id, image_core = extraction_queue.get()
+				if image_core == "DONE":
 					break
 				else:
 					if self.pb:
@@ -334,20 +334,20 @@ class TMAReader(SlideLoader):
 						self.pb.update_counter(1)
 
 					sub_id = 0
-					resized_section = self.resize_to_target(image_tile)
-					subtiles = self.split_section(resized_section)
-					if export_full_tma:
-						cv2.imwrite(join(self.tiles_dir, f"tile{tile_id}.jpg"), image_tile)
+					resized_core = self.resize_to_target(image_core)
+					subtiles = self.split_core(resized_core)
+					if export_full_core:
+						cv2.imwrite(join(self.tiles_dir, f"tile{tile_id}.jpg"), image_core)
 					for subtile in subtiles:
 						sub_id += 1
 						cv2.imwrite(join(self.tiles_dir, f"tile{tile_id}_{sub_id}.jpg"), subtile)
-						yield subtile, tile_id
+						yield subtile, tile_id, unique_tile
 					
 			extraction_pool.close()
 					
 			if self.pb: 
 				self.pb.end(self.p_id)
-			log.empty("Summary of extracted TMA tile areas (microns):", 1)
+			log.empty("Summary of extracted core areas (microns):", 1)
 			log.info(f"Min: {min(box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2)
 			log.info(f"Max: {max(box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2)
 			log.info(f"Mean: {mean(box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2)
@@ -355,18 +355,18 @@ class TMAReader(SlideLoader):
 
 		return generator, None, None, None
 
-	def export_tiles(self, augment=False, export_full_tma=False):
+	def export_tiles(self, augment=False, export_full_core=False):
 		if not self.loaded_correctly():
 			log.error(f"Unable to extract tiles; unable to load slide {sfutil.green(self.name)}", 1)
 			return
 
-		generator, _, _, _ = self.build_generator(export=True, augment=augment, export_full_tma=export_full_tma)
+		generator, _, _, _ = self.build_generator(export=True, augment=augment, export_full_core=export_full_core)
 
 		if not generator:
 			log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1)
 			return
 
-		for tile, tile_id in generator():
+		for tile, tile_id, _ in generator():
 			pass
 
 	def resize_to_target(self, image_tile):
@@ -375,7 +375,7 @@ class TMAReader(SlideLoader):
 		resize_factor = current_MPP / target_MPP
 		return cv2.resize(image_tile, (0, 0), fx=resize_factor, fy=resize_factor)
 
-	def split_section(self, image):
+	def split_core(self, image):
 		height, width, channels = image.shape
 		num_y = int(height / self.size_px)
 		num_x = int(width  / self.size_px)
@@ -464,7 +464,7 @@ class SlideReader(SlideLoader):
 			else:
 				log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
 
-		log.label(self.shortname, f"Loaded {filetype.upper()}: {self.MPP} um/px | {num_rois} ROI(s) | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
+		log.label(self.shortname, f"Loaded {filetype.upper()}: {self.MPP} um/px | {len(self.rois)} ROI(s) | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
 
 		# Abort if errors were raised during ROI loading
 		if self.load_error:
@@ -540,6 +540,7 @@ class SlideReader(SlideLoader):
 						region.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.FLIP_TOP_BOTTOM).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug6.jpg'))
 						region.transpose(Image.ROTATE_90).transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.FLIP_TOP_BOTTOM).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug7.jpg'))
 				yield region, coord_label, unique_tile
+
 			if self.pb: 
 				self.pb.end(self.p_id)
 				log.complete(f"Finished tile extraction for {sfutil.green(self.shortname)} ({sum(tile_mask)} tiles of {len(coord)} possible)", 1, self.print)
@@ -607,7 +608,7 @@ class Convoluter:
 	 - logit predictions from saved Tensorflow model (logits may then be either saved or visualized with heatmaps)
 	 - final layer activations calculation (saved into a CSV file)
 	'''
-	def __init__(self, size_px, size_um, batch_size, use_fp16, stride_div=2, save_folder='', roi_dir=None, roi_list=None, augment=False):
+	def __init__(self, size_px, size_um, batch_size, use_fp16, stride_div=2, save_folder='', roi_dir=None, roi_list=None, augment=False, tma=False):
 		self.SLIDES = {}
 		self.MODEL_DIR = None
 		self.ROI_DIR = roi_dir
@@ -620,6 +621,7 @@ class Convoluter:
 		self.SAVE_FOLDER = save_folder
 		self.STRIDE_DIV = stride_div
 		self.AUGMENT = augment
+		self.TMA = tma
 
 	def _parse_function(self, image, label, mask):
 		parsed_image = tf.image.per_image_standardization(image)
@@ -690,7 +692,11 @@ class Convoluter:
 			log.empty(f"Working on slide {sfutil.green(slide['name'])}", 1, pb.print)
 
 			# Load the slide
-			whole_slide = SlideReader(slide['path'], slide['name'], slide['type'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, self.ROI_LIST, pb=pb)
+			if not self.TMA:
+				whole_slide = SlideReader(slide['path'], slide['name'], slide['type'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, self.ROI_LIST, pb=pb)
+			else:
+				whole_slide = TMAReader(slide['path'], slide['name'], slide['type'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, pb=pb)
+
 			if not whole_slide.loaded_correctly():
 				continue
 
@@ -717,7 +723,10 @@ class Convoluter:
 		log.empty(f"Exporting tiles for slide {slide_name}", 1, pb.print)
 		
 		# Load the slide
-		whole_slide = SlideReader(path, slide_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, self.ROI_LIST, pb=pb)
+		if not self.TMA:
+			whole_slide = SlideReader(path, slide_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, self.ROI_LIST, pb=pb)
+		else:
+			whole_slide = TMAReader(path, slide_name, filetype, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, pb=pb)
 		if not whole_slide.loaded_correctly():
 			return
 
