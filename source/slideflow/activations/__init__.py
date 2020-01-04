@@ -1,5 +1,3 @@
-import argparse
-import json
 import sys
 import os
 import math
@@ -20,7 +18,6 @@ import scipy.stats as stats
 
 from os.path import join, isfile, exists
 from random import shuffle, sample
-from mpl_toolkits import mplot3d
 from statistics import mean
 from math import isnan
 from copy import deepcopy
