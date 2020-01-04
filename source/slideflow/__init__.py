@@ -643,7 +643,7 @@ class SlideflowProject:
 
 		return results_dict
 
-	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, skip_validation=False, generate_tfrecords=True):
+	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, skip_validation=False, generate_tfrecords=True, tma=False):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.'''
 		import slideflow.convoluter as convoluter
@@ -672,7 +672,8 @@ class SlideflowProject:
 														use_fp16=self.PROJECT['use_fp16'], 
 														stride_div=2,
 														save_folder=save_folder, 
-														roi_dir=roi_dir)
+														roi_dir=roi_dir,
+														tma=tma)
 			c.load_slides(slide_list)
 			c.convolute_slides(export_tiles=True)
 
@@ -714,7 +715,7 @@ class SlideflowProject:
 
 		return AV
 
-	def generate_heatmaps(self, model_name, filters=None, resolution='medium'):
+	def generate_heatmaps(self, model_name, filters=None, resolution='low'):
 		'''Creates predictive heatmap overlays on a set of slides. 
 
 		Args:
@@ -735,7 +736,7 @@ class SlideflowProject:
 		log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
 		process.join()
 
-	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="medium", num_tiles_x=50, export_activations=False):
+	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, export_activations=False):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.'''
 		log.header("Generating mosaic map...")
