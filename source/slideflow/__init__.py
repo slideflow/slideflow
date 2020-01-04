@@ -1,4 +1,3 @@
-import argparse
 import os
 import sys
 import shutil
@@ -19,7 +18,6 @@ import csv
 
 import gc
 import atexit
-import subprocess
 import itertools
 
 import slideflow.trainer.model as sfmodel
@@ -31,7 +29,7 @@ from comet_ml import Experiment
 
 # TODO: allow datasets to have filters (would address evaluate() function)
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 SKIP_VERIFICATION = False
 NUM_THREADS = 4
