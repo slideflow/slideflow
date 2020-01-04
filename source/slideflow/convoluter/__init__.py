@@ -22,7 +22,6 @@ import sys
 import warnings
 
 import tensorflow as tf
-import tensorflow_addons as tfa
 import numpy as np
 import imageio
 import argparse
@@ -61,10 +60,7 @@ from pathlib import Path
 # TODO: move ProgressBar from progress_bar into slideflow.util.__init__
 
 # For TMA reader:
-# TODO: Implement resizing tiles to given pixel size
-# TODO: Test/implement downsampled slide reading
 # TODO: consolidate slide "thumbs" and the TMA "get_thumbnail"
-# TODO: consider using Tensorflow for imaging warping (GPU accelerated): tf.contrib.image.sparse_image_warp or tfa.image....
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 4
