@@ -248,12 +248,13 @@ class TMAReader(SlideLoader):
 		closing = cv2.morphologyEx(mask, cv2.MORPH_GRADIENT, closing_kernel)
 		dilated = cv2.dilate(closing, dilating_kernel)
 
-		# Use edge detection to find individual TMA parts
+		# Use edge detection to find individual cores
 		contours, heirarchy = cv2.findContours(dilated, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_TC89_L1)
 
 		# Filter out small regions that likely represent background noise
-		# Also generate image showing identified TMA parts
+		# Also generate image showing identified cores
 		box_areas = []
+		object_rects = []
 		num_filtered = 0
 		for i, component in enumerate(zip(contours, heirarchy[0])):
 			cnt = component[0]
@@ -263,6 +264,7 @@ class TMAReader(SlideLoader):
 			height = rect[1][1]
 			if width > self.WIDTH_MIN and height > self.HEIGHT_MIN and heir[3] < 0:
 				moment = cv2.moments(cnt)
+				object_rects += [(len(object_rects), rect)]
 				cX = int(moment["m10"] / moment["m00"])
 				cY = int(moment["m01"] / moment["m00"])
 				cv2.drawContours(img_annotated, contours, i, self.LIGHTBLUE)
@@ -285,18 +287,6 @@ class TMAReader(SlideLoader):
 		cv2.imwrite(join(self.annotations_dir, "annotated.jpg"), cv2.resize(img_annotated, (1400, 1000)))
 
 		self.p_id = None if not self.pb else self.pb.add_bar(0, num_filtered, endtext=sfutil.green(self.shortname))
-
-		# Select object rectangles that meet specified criteria
-		object_rects = []
-		for i, component in enumerate(zip(contours, heirarchy[0])):
-			cnt = component[0]
-			heir = component[1]
-			rect = cv2.minAreaRect(cnt)
-			width = rect[1][0]
-			height = rect[1][1]
-			if width > self.WIDTH_MIN and height > self.HEIGHT_MIN and heir[3] < 0:
-				object_rects += [(len(object_rects), rect)]
-
 		rectangle_queue = Queue()
 		extraction_queue = Queue(self.QUEUE_SIZE)
 
@@ -336,7 +326,8 @@ class TMAReader(SlideLoader):
 						cv2.imwrite(join(self.tiles_dir, f"tile{tile_id}.jpg"), image_core)
 					for subtile in subtiles:
 						sub_id += 1
-						cv2.imwrite(join(self.tiles_dir, f"tile{tile_id}_{sub_id}.jpg"), subtile)
+						if export:
+							cv2.imwrite(join(self.tiles_dir, f"tile{tile_id}_{sub_id}.jpg"), subtile)
 						yield subtile, tile_id, unique_tile
 					
 			extraction_pool.close()
