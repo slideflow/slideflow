@@ -11,10 +11,6 @@ from PIL import Image
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 
-#rint("Loading pre-calculated logits...")
-#with open('234794-2.pkl', 'rb') as handle:
-#	logits = pickle.load(handle)
-
 '''
 Fast Plotter for Large Images - Resamples Images to a target resolution on each zoom.
 '''
@@ -53,8 +49,6 @@ class FastImshow:
         self.dx = self.sz[1] / (self.extent[1] - self.startx ) # extent dx
         self.dy = self.sz[0] / (self.extent[3] - self.starty ) # extent dy
 
-    # end __init__
-
     def get_strides( self,xstart=0, xend=-1, ystart=0, yend=-1, tgt_res=512 ):
         '''
         Get sampling strides for a given bounding region. If none is provided,
@@ -76,7 +70,6 @@ class FastImshow:
             stridey = max(int((yend - ystart) / self.tgt_res),1)
 
         return stridex,stridey
-    # end get_strides
         
     def ax_update(self, ax):
         '''
@@ -108,7 +101,6 @@ class FastImshow:
         im.set_extent((xstart, xend, ystart, yend))
 
         ax.figure.canvas.draw_idle()
-    # end ax_update
 
     def show(self):
         '''
@@ -120,22 +112,3 @@ class FastImshow:
 
         self.ax.callbacks.connect('xlim_changed', self.ax_update)
         self.ax.callbacks.connect('ylim_changed', self.ax_update)
-    # end show
-
-# end ImgDisplay
-
-if __name__=="__main__":
-    #sz = (10000,20000) # rows, cols
-    #buf = np.arange(sz[0]*sz[1]).reshape(sz)
-
-    print("Loading image...")
-    #buf = imageio.imread('234794-2.jpg')
-
-    buf = plt.imread('234794-2_crop.jpg')
-    extent = (100,150,1000,2000)
-    fig = plt.figure()
-    ax  = fig.add_subplot(111)
-    im = FastImshow(buf,ax,extent=None,tgt_res=1024)
-    im.show()
-
-    plt.show()
