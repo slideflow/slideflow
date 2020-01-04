@@ -654,7 +654,6 @@ class SlideflowProject:
 		log.header("Extracting image tiles...")
 		tile_um = self.PROJECT['tile_um'] if not tile_um else tile_um
 		tile_px = self.PROJECT['tile_px'] if not tile_px else tile_px
-		sfslide.NUM_THREADS = NUM_THREADS
 
 		# Load dataset for evaluation
 		extracting_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
@@ -671,43 +670,35 @@ class SlideflowProject:
 			if not os.path.exists(save_folder):
 				os.makedirs(save_folder)
 
-			'''c = sfslide.Convoluter(tile_px, tile_um, batch_size=None,
-													 use_fp16=self.PROJECT['use_fp16'], 
-													 stride_div=2,
-													 save_folder=save_folder, 
-													 roi_dir=roi_dir,
-													 tma=tma)
-			c.load_slides(slide_list)
-			c.convolute_slides(export_tiles=True)'''
-
-			# Extract tiles without the use of the convoluter class
+			# Filter out warnings and allow loading large images
 			warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 			Image.MAX_IMAGE_PIXELS = 100000000000
+
 			log.info("Exporting tiles only", 1)
 			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
 
-			def export_tiles(slide_path, pb):
-				slide_name = sfutil.path_to_name(slide_path)
-				filetype = sfutil.path_to_ext(slide_path)
-				log.empty(f"Exporting tiles for slide {slide_name}", 1, pb.print)
+			# Function to extract tiles from a slide
+			def extract_tiles_from_slide(slide_path, pb):
+				log.empty(f"Exporting tiles for slide {sfutil.path_to_name(slide_path)}", 1, pb.print)
 
 				if not tma:
-					whole_slide = sfslide.SlideReader(slide_path, slide_name, filetype, tile_px, tile_um, stride_div, save_folder, roi_dir, roi_list=None, pb=pb)
+					whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, save_folder, roi_dir, roi_list=None, pb=pb)
 				else:
-					whole_slide = sfslide.TMAReader(slide_path, slide_name, filetype, tile_px, tile_um, stride_div, save_folder, pb=pb)
+					whole_slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, save_folder, pb=pb)
 
 				if not whole_slide.loaded_correctly():
 					return
 
 				whole_slide.export_tiles(augment=augment)
 
+			# Use multithreading if specified, extracting tiles from all slides in the filtered list
 			if NUM_THREADS > 1:
 				pool = DPool(NUM_THREADS)
-				pool.map(export_tiles, slide_list)
+				pool.map(extract_tiles_from_slide, slide_list)
 				pool.close()
 			else:
 				for slide_path in slide_list:
-					export_tiles(slide_path, pb)
+					extract_tiles_from_slide(slide_path, pb)
 
 			# Now, split extracted tiles into validation/training subsets if per-tile validation is being used
 			if not skip_validation and self.PROJECT['validation_target'] == 'per-tile':
@@ -720,6 +711,7 @@ class SlideflowProject:
 					if self.PROJECT['validation_strategy'] == 'k-fold':
 						sfutil.datasets.split_tiles(save_folder, fraction=[-1] * self.PROJECT['validation_k_fold'], names=[f'kfold-{i}' for i in range(self.PROJECT['validation_k_fold'])])
 
+		# Generate TFRecords from the extracted tiles
 		if generate_tfrecords:
 			self.generate_tfrecords_from_tiles()
 
