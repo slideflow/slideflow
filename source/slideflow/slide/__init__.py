@@ -47,7 +47,7 @@ from multiprocessing.dummy import Pool as DPool
 from multiprocessing import Process, Pool, Queue
 from matplotlib.widgets import Slider
 from matplotlib import pyplot as plt
-from slideflow.util import log, progress_bar
+from slideflow.util import log, ProgressBar
 from slideflow.util.fastim import FastImshow
 from statistics import mean, median
 from pathlib import Path
@@ -55,8 +55,6 @@ from pathlib import Path
 # TODO: test JPG compatibility
 # TODO: test removing BatchNorm fix
 # TODO: remove final layer activations functions (duplicated in a separate module)
-# TODO: consider change `Convoluter` to a Heatmap creator class
-# TODO: move ProgressBar from progress_bar into slideflow.util.__init__
 
 # For TMA reader:
 # TODO: consolidate slide "thumbs" and the TMA "get_thumbnail"
@@ -587,42 +585,23 @@ class SlideReader(SlideLoader):
 			self.rois[-1].add_shape(area_reduced)
 		return len(self.rois)
 
-class Convoluter:
-	'''Class to guide the convolution/tessellation of tiles across a set of slides, within ROIs if provided. 
-	Performs designated actions on tessellated tiles, which may include:
-	
-	 - image export (for generating a tile dataset, with or	without augmentation)
-	 - logit predictions from saved Tensorflow model (logits may then be either saved or visualized with heatmaps)
-	 - final layer activations calculation (saved into a CSV file)
-	'''
-	def __init__(self, size_px, size_um, batch_size, use_fp16, stride_div=2, save_folder='', roi_dir=None, roi_list=None, augment=False, tma=False):
-		self.SLIDES = {}
-		self.MODEL_DIR = None
-		self.ROI_DIR = roi_dir
-		self.ROI_LIST = roi_list
-		self.SIZE_PX = size_px
-		self.SIZE_UM = size_um
-		self.BATCH_SIZE = batch_size
+class Heatmap:
+	'''Generates heatmap by calculating predictions from a sliding scale window across a slide. May also export final layer
+	activations as model predictions are generated.'''
+
+	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, save_folder='', roi_dir=None, roi_list=None):
+		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+		self.save_folder = save_folder
 		self.DTYPE = tf.float16 if use_fp16 else tf.float32
 		self.DTYPE_INT = tf.int16 if use_fp16 else tf.int32
-		self.SAVE_FOLDER = save_folder
-		self.STRIDE_DIV = stride_div
-		self.AUGMENT = augment
-		self.TMA = tma
+		self.MODEL_DIR = None
+		self.logits = None
 
-	def _parse_function(self, image, label, mask):
-		parsed_image = tf.image.per_image_standardization(image)
-		parsed_image = tf.image.convert_image_dtype(parsed_image, self.DTYPE)
-		return parsed_image, label, mask
+		# Load the slide
+		self.slide = SlideReader(slide_path, size_px, size_um, stride_div, save_folder, roi_dir, roi_list)
 
-	def load_slides(self, slides_array, category="None"):
-		for slide_path in slides_array:
-			name = sfutil.path_to_name(slide_path)
-			self.SLIDES.update({name: { "path": slide_path,
-										"category": category } })
-
-	def build_model(self, model_dir):
-		self.MODEL_DIR = model_dir
+		# Build the model
+		self.MODEL_DIR = model_path
 
 		# First, load the designated model
 		_model = tf.keras.models.load_model(self.MODEL_DIR)
@@ -634,103 +613,30 @@ class Convoluter:
 		# Record the number of classes in the model
 		self.NUM_CLASSES = _model.layers[-1].output_shape[-1]
 
-	def convolute_slides(self, save_heatmaps=False, display_heatmaps=False, save_final_layer=False, export_tiles=True):
-		'''Parent function to guide convolution across a whole-slide image and execute desired functions.
-
-		Args:
-			save_heatmaps: 				Bool, if true will save heatmap overlays as PNG files
-			display_heatmaps:			Bool, if true will display interactive heatmap for each whole-slide image
-			save_final_layer: 			Bool, if true will calculate and save final layer activations in CSV file
-			export_tiles:				Bool, if true will save tessellated image tiles to subdirectory "tiles"
-
-		Returns:
-			None
-		'''
-		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
-
-		# If we are not making heatmaps, there is no need to work with overlapping tiles
-		if not save_heatmaps and not display_heatmaps:
-			log.info("Tessellating only non-overlapping tiles.", 1)
-			self.STRIDE_DIV = 1
-
-		# Check if we are doing image tile extraction only
-		if export_tiles and not (display_heatmaps or save_final_layer or save_heatmaps):
-			log.info("Exporting tiles only.", 1)
-			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
-			def worker(slide):
-				self.export_tiles(self.SLIDES[slide], pb)
-			if NUM_THREADS > 1:
-				pool = DPool(NUM_THREADS)
-				pool.map(worker, self.SLIDES)#lambda slide: self.export_tiles(self.SLIDES[slide], pb), self.SLIDES)
-			else:
-				for slide in self.SLIDES:
-					self.export_tiles(self.SLIDES[slide], pb)
+		if not self.slide.loaded_correctly():
+			log.error(f"Unable to load slide {self.slide.name} for heatmap generation", 1)
 			return
 
-		# Otherwise, we are generating heatmaps and unable to use multithreading or multiprocessing
-		for slide_name in self.SLIDES:
-			slide = self.SLIDES[slide_name]
-			category = slide['category']
+	def _parse_function(self, image, label, mask):
+		parsed_image = tf.image.per_image_standardization(image)
+		parsed_image = tf.image.convert_image_dtype(parsed_image, self.DTYPE)
+		return parsed_image, label, mask
 
-			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
-			log.empty(f"Working on slide {sfutil.green(slide_name)}", 1, pb.print)
-
-			# Load the slide
-			if not self.TMA:
-				whole_slide = SlideReader(slide['path'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, self.ROI_LIST, pb=pb)
-			else:
-				whole_slide = TMAReader(slide['path'], self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, pb=pb)
-
-			if not whole_slide.loaded_correctly():
-				continue
-
-			# Calculate the final layer activations and logits/predictions
-			logits, final_layer, final_layer_labels, logits_flat = self.calculate_logits(whole_slide, export_tiles=export_tiles, 
-																									  final_layer=save_final_layer, 
-																									  pb=pb)
-			if (type(logits) == bool) and (not logits):
-				log.error(f"Unable to create heatmap for slide {sfutil.green(whole_slide.name)}", 1)
-				return
-
-			# Save the results
-			if save_heatmaps:
-				self.gen_heatmaps(slide, whole_slide.thumb, logits, self.SIZE_PX, whole_slide.name, save=True)
-			if save_final_layer:
-				self.export_activations(final_layer, final_layer_labels, logits_flat, whole_slide.name, category)
-			if display_heatmaps:
-				self.gen_heatmaps(slide, whole_slide.thumb, logits, self.SIZE_PX, whole_slide.name, save=False)
-
-	def export_tiles(self, slide, pb):
-		slide_name = slide['name']
-		path = slide['path']
-		log.empty(f"Exporting tiles for slide {slide_name}", 1, pb.print)
-		
-		# Load the slide
-		if not self.TMA:
-			whole_slide = SlideReader(path, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, self.ROI_DIR, self.ROI_LIST, pb=pb)
-		else:
-			whole_slide = TMAReader(path, self.SIZE_PX, self.SIZE_UM, self.STRIDE_DIV, self.SAVE_FOLDER, pb=pb)
-		if not whole_slide.loaded_correctly():
-			return
-
-		# Export tiles
-		whole_slide.export_tiles(augment=self.AUGMENT)
-
-	def calculate_logits(self, whole_slide, export_tiles=False, final_layer=False, pb=None):
+	def calculate_logits(self, batch_size, activations=False):
 		'''Convolutes across a whole slide, returning logits and final layer activations for tessellated image tiles'''
 
 		# Create tile coordinate generator
-		gen_slice, x_size, y_size, stride_px = whole_slide.build_generator(export=export_tiles)
+		gen_slice, x_size, y_size, stride_px = self.slide.build_generator(export=False)
 
 		if not gen_slice:
-			log.error(f"No tiles extracted from slide {sfutil.green(whole_slide.name)}", 1)
+			log.error(f"No tiles extracted from slide {sfutil.green(self.slide.name)}", 1)
 			return False, False, False, False
 
 		# Generate dataset from the generator
 		with tf.name_scope('dataset_input'):
 			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (tf.uint8, tf.int64, tf.bool))
 			tile_dataset = tile_dataset.map(self._parse_function, num_parallel_calls=8)
-			tile_dataset = tile_dataset.batch(self.BATCH_SIZE, drop_remainder=False)
+			tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
 
 		logits_arr = []
 		labels_arr = []
@@ -748,7 +654,6 @@ class Convoluter:
 			logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
 			labels_arr = batch_labels if labels_arr == [] else np.concatenate([labels_arr, batch_labels])
 			unique_arr = batch_unique if unique_arr == [] else np.concatenate([unique_arr, batch_unique])
-		if pb: pb.end()
 
 		# Sort the output (may be shuffled due to multithreading)
 		try:
@@ -761,7 +666,7 @@ class Convoluter:
 		
 		# Perform same functions on final layer activations
 		flat_unique_logits = None
-		if final_layer:
+		if activations:
 			prelogits_arr = prelogits_arr[sorted_indices]
 			unique_arr = unique_arr[sorted_indices]
 			# Find logits from non-overlapping tiles (will be used for metadata for saved final layer activations CSV)
@@ -772,15 +677,15 @@ class Convoluter:
 			prelogits_out = None
 			prelogits_labels = None
 
-		if whole_slide.tile_mask is not None and x_size and y_size and stride_px:
+		if self.slide.tile_mask is not None and x_size and y_size and stride_px:
 			# Expand logits back to a full 2D map spanning the whole slide,
 			#  supplying values of "0" where tiles were skipped by the tile generator
 			x_logits_len = int(x_size / stride_px) + 1
 			y_logits_len = int(y_size / stride_px) + 1
-			expanded_logits = [[0] * self.NUM_CLASSES] * len(whole_slide.tile_mask)
+			expanded_logits = [[0] * self.NUM_CLASSES] * len(self.slide.tile_mask)
 			li = 0
 			for i in range(len(expanded_logits)):
-				if whole_slide.tile_mask[i] == 1:
+				if self.slide.tile_mask[i] == 1:
 					expanded_logits[i] = logits_arr[li]
 					li += 1
 			try:
@@ -795,65 +700,72 @@ class Convoluter:
 
 		return logits_out, prelogits_out, prelogits_labels, flat_unique_logits
 
-	def export_activations(self, output, labels, logits, name, category):
-		'''Exports final layer activations (and logits) for non-overlapping tiles into a CSV file.'''
-		log.empty("Writing csv...", 1)
-		csv_started = os.path.exists(join(self.SAVE_FOLDER, 'final_layer_activations.csv'))
-		write_mode = 'a' if csv_started else 'w'
-		with open(join(self.SAVE_FOLDER, 'final_layer_activations.csv'), write_mode) as csv_file:
-			csv_writer = csv.writer(csv_file, delimiter = ',')
-			if not csv_started:
-				csv_writer.writerow(["Tile_num", "Slide", "Category"] + [f"Logits{l}" for l in range(len(logits[0]))] + [f"Node{n}" for n in range(len(output[0]))])
-			for l in range(len(output)):
-				logit = logits[l].tolist()
-				out = output[l].tolist()
-				csv_writer.writerow([labels[l], name, category] + logit + out)
+	def generate(self, batch_size=16, export_activations=False):
+		# Calculate the final layer activations and logits/predictions
+		self.logits, activations, activations_labels, logits_flat = self.calculate_logits(batch_size=batch_size, activations=export_activations)
+		if (type(self.logits) == bool) and (not self.logits):
+			log.error(f"Unable to create heatmap for slide {sfutil.green(self.slide.name)}", 1)
+			return
 
-	def gen_heatmaps(self, slide, thumbnail, logits, size, name, save=True):
-		'''Displays and/or saves logits as a heatmap overlay.'''
-		fig = plt.figure(figsize=(18, 16))
-		ax = fig.add_subplot(111)
-		fig.subplots_adjust(bottom = 0.25, top=0.95)
+		# Export final layer activations if requested
+		if export_activations:
+			log.empty("Writing csv...", 1)
+			csv_started = os.path.exists(join(self.save_folder, 'heatmap_layer_activations.csv'))
+			write_mode = 'a' if csv_started else 'w'
+			with open(join(self.save_folder, 'heatmap_layer_activations.csv'), write_mode) as csv_file:
+				csv_writer = csv.writer(csv_file, delimiter = ',')
+				if not csv_started:
+					csv_writer.writerow(["Tile_num", "Slide", "Category"] + [f"Logits{l}" for l in range(len(logits_flat[0]))] + [f"Node{n}" for n in range(len(activations[0]))])
+				for l in range(len(activations)):
+					logit = logits_flat[l].tolist()
+					out = activations[l].tolist()
+					csv_writer.writerow([activations_labels[l], self.slide.name] + logit + out)
 
-		implot = ax.imshow(thumbnail, zorder=0) if save else FastImshow(thumbnail, ax, extent=None, tgt_res=1024)
-		im_extent = implot.get_extent() if save else implot.extent
-		extent = im_extent
-
+	def prepare_figure(self):
+		self.fig = plt.figure(figsize=(18, 16))
+		self.ax = self.fig.add_subplot(111)
+		self.fig.subplots_adjust(bottom = 0.25, top=0.95)
 		gca = plt.gca()
 		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
-
-		# Define color map
 		jetMap = np.linspace(0.45, 0.95, 255)
 		cmMap = cm.nipy_spectral(jetMap)
-		newMap = mcol.ListedColormap(cmMap)
+		self.newMap = mcol.ListedColormap(cmMap)		
 
+	def display(self):
+		self.prepare_figure()
 		heatmap_dict = {}
+		implot = FastImshow(self.slide.thumb, self.ax, extent=None, tgt_res=1024)
 
 		def slider_func(val):
 			for h, s in heatmap_dict.values():
 				h.set_alpha(s.val)
 
+		for i in range(self.NUM_CLASSES):
+			heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.extent, cmap=self.newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
+			ax_slider = self.fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor='lightgoldenrodyellow')
+			slider = Slider(ax_slider, f'Class {i}', 0, 1, valinit = 0)
+			heatmap_dict.update({f"Class{i}": [heatmap, slider]})
+			slider.on_changed(slider_func)
+
+		self.fig.canvas.set_window_title(self.slide.name)
+		implot.show()
+		plt.show()
+
+	def save(self):
+		'''Displays and/or saves logits as a heatmap overlay.'''
+		self.prepare_figure()
+		heatmap_dict = {}
+		implot = self.ax.imshow(self.slide.thumb, zorder=0)
+
 		# Make heatmaps and sliders
 		for i in range(self.NUM_CLASSES):
-			heatmap = ax.imshow(logits[:, :, i], extent=extent, cmap=newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
-			if save:
-				heatmap_dict.update({i: heatmap})
-			else:
-				ax_slider = fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor='lightgoldenrodyellow')
-				slider = Slider(ax_slider, f'Class {i}', 0, 1, valinit = 0)
-				heatmap_dict.update({f"Class{i}": [heatmap, slider]})
-				slider.on_changed(slider_func)
+			heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.get_extent(), cmap=self.newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
+			heatmap_dict.update({i: heatmap})
 
-		# Save of display heatmap overlays
-		if save:
-			plt.savefig(os.path.join(self.SAVE_FOLDER, f'{name}-raw.png'), bbox_inches='tight')
-			for i in range(self.NUM_CLASSES):
-				heatmap_dict[i].set_alpha(0.6)
-				plt.savefig(os.path.join(self.SAVE_FOLDER, f'{name}-{i}.png'), bbox_inches='tight')
-				heatmap_dict[i].set_alpha(0.0)
-			plt.close()
-			log.complete(f"Saved heatmaps for {sfutil.green(slide['name'])}", 1)
-		else:
-			fig.canvas.set_window_title(name)
-			implot.show()
-			plt.show()
+		plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-raw.png'), bbox_inches='tight')
+		for i in range(self.NUM_CLASSES):
+			heatmap_dict[i].set_alpha(0.6)
+			plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-{i}.png'), bbox_inches='tight')
+			heatmap_dict[i].set_alpha(0.0)
+		plt.close()
+		log.complete(f"Saved heatmaps for {sfutil.green(self.slide.name)}", 1)
