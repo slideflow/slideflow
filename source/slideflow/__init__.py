@@ -3,6 +3,7 @@ import os
 import sys
 import shutil
 import logging
+import warnings
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import multiprocessing
@@ -13,6 +14,7 @@ from pathlib import Path
 from glob import glob
 from random import shuffle, choice
 from string import ascii_lowercase
+from multiprocessing.dummy import Pool as DPool
 import csv
 
 import gc
@@ -22,7 +24,7 @@ import itertools
 
 import slideflow.trainer.model as sfmodel
 import slideflow.util as sfutil
-from slideflow.util import TCGA, log
+from slideflow.util import TCGA, log, progress_bar
 from slideflow.util.datasets import Dataset
 from slideflow.mosaic import ActivationsVisualizer, TileVisualizer
 from comet_ml import Experiment
@@ -125,7 +127,7 @@ def evaluator(outcome_header, model_name, model_type, model_file, project_config
 def heatmap_generator(model_name, filters, resolution, project_config, log_level=3):
 	assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
 	tf.config.experimental.set_memory_growth(physical_devices[0], True)
-	import slideflow.convoluter as convoluter
+	import slideflow.slide as sfslide
 
 	if log_level == SILENT:
 		sfutil.LOGGING_LEVEL.SILENT = True
@@ -148,11 +150,11 @@ def heatmap_generator(model_name, filters, resolution, project_config, log_level
 	if not os.path.exists(heatmaps_folder): os.makedirs(heatmaps_folder)
 	model_path = model_name if model_name[-3:] == ".h5" else join(project_config['models_dir'], model_name, 'trained_model.h5')
 
-	c = convoluter.Convoluter(project_config['tile_px'], project_config['tile_um'], batch_size=64,
-																					use_fp16=project_config['use_fp16'],
-																					stride_div=stride_div,
-																					save_folder=heatmaps_folder,
-																					roi_list=roi_list)
+	c = sfslide.Convoluter(project_config['tile_px'], project_config['tile_um'], batch_size=64,
+																				 use_fp16=project_config['use_fp16'],
+																				 stride_div=stride_div,
+																				 save_folder=heatmaps_folder,
+																				 roi_list=roi_list)
 	c.load_slides(slide_list)
 	c.build_model(model_path)
 	c.convolute_slides(save_heatmaps=True, save_final_layer=True, export_tiles=False)
@@ -643,15 +645,16 @@ class SlideflowProject:
 
 		return results_dict
 
-	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, skip_validation=False, generate_tfrecords=True, tma=False):
+	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, skip_validation=False, generate_tfrecords=True, stride_div=1, tma=False, augment=False):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.'''
-		import slideflow.convoluter as convoluter
+		import slideflow.slide as sfslide
+		from PIL import Image
 
 		log.header("Extracting image tiles...")
 		tile_um = self.PROJECT['tile_um'] if not tile_um else tile_um
 		tile_px = self.PROJECT['tile_px'] if not tile_px else tile_px
-		convoluter.NUM_THREADS = NUM_THREADS
+		sfslide.NUM_THREADS = NUM_THREADS
 
 		# Load dataset for evaluation
 		extracting_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
@@ -668,15 +671,45 @@ class SlideflowProject:
 			if not os.path.exists(save_folder):
 				os.makedirs(save_folder)
 
-			c = convoluter.Convoluter(tile_px, tile_um, batch_size=None,
-														use_fp16=self.PROJECT['use_fp16'], 
-														stride_div=2,
-														save_folder=save_folder, 
-														roi_dir=roi_dir,
-														tma=tma)
+			'''c = sfslide.Convoluter(tile_px, tile_um, batch_size=None,
+													 use_fp16=self.PROJECT['use_fp16'], 
+													 stride_div=2,
+													 save_folder=save_folder, 
+													 roi_dir=roi_dir,
+													 tma=tma)
 			c.load_slides(slide_list)
-			c.convolute_slides(export_tiles=True)
+			c.convolute_slides(export_tiles=True)'''
 
+			# Extract tiles without the use of the convoluter class
+			warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+			Image.MAX_IMAGE_PIXELS = 100000000000
+			log.info("Exporting tiles only", 1)
+			pb = progress_bar.ProgressBar(bar_length=5, counter_text='tiles')
+
+			def export_tiles(slide_path, pb):
+				slide_name = sfutil.path_to_name(slide_path)
+				filetype = sfutil.path_to_ext(slide_path)
+				log.empty(f"Exporting tiles for slide {slide_name}", 1, pb.print)
+
+				if not tma:
+					whole_slide = sfslide.SlideReader(slide_path, slide_name, filetype, tile_px, tile_um, stride_div, save_folder, roi_dir, roi_list=None, pb=pb)
+				else:
+					whole_slide = sfslide.TMAReader(slide_path, slide_name, filetype, tile_px, tile_um, stride_div, save_folder, pb=pb)
+
+				if not whole_slide.loaded_correctly():
+					return
+
+				whole_slide.export_tiles(augment=augment)
+
+			if NUM_THREADS > 1:
+				pool = DPool(NUM_THREADS)
+				pool.map(export_tiles, slide_list)
+				pool.close()
+			else:
+				for slide_path in slide_list:
+					export_tiles(slide_path, pb)
+
+			# Now, split extracted tiles into validation/training subsets if per-tile validation is being used
 			if not skip_validation and self.PROJECT['validation_target'] == 'per-tile':
 				if self.PROJECT['validation_target'] == 'per-tile':
 					if self.PROJECT['validation_strategy'] == 'boostrap':
