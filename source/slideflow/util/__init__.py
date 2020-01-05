@@ -345,7 +345,7 @@ def load_json(filename):
 
 def write_json(data, filename):
 	with open(filename, "w") as data_file:
-		json.dump(data, data_file)
+		json.dump(data, data_file, indent=1)
 
 def _parse_function(example_proto):
 	feature_description = {'slide':     tf.io.FixedLenFeature([], tf.string),
