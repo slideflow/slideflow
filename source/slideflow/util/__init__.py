@@ -323,7 +323,7 @@ def float_input(prompt, default=None, valid_range=None):
 			print(f"Please supply a valid numer in the range {valid_range[0]} to {valid_range[1]}")
 		return float_response
 
-def choice_input(prompt, valid_choices, default=None, multi_choice=False):
+def choice_input(prompt, valid_choices, default=None, multi_choice=False, input_type=str):
 	while True:
 		response = input(f"{prompt}")
 		if not response and default:
@@ -332,7 +332,11 @@ def choice_input(prompt, valid_choices, default=None, multi_choice=False):
 			print("Invalid option.")
 			continue
 		elif multi_choice:
-			response = response.replace(" ", "").split(',')
+			try:
+				response = [input_type(r) for r in response.replace(" ", "").split(',')]
+			except:
+				print(f"Invalid selection (response: {response})")
+				continue
 			invalid = [r not in valid_choices for r in response]
 			if any(invalid):
 				print(f'Invalid selection (response: {response})')
