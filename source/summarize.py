@@ -7,7 +7,7 @@ import argparse
 
 import slideflow.util as sfutil
 
-from os.path import join, exists
+from os.path import join, exists, isdir
 from slideflow.util import log, TCGA
 from tabulate import tabulate
 
@@ -20,6 +20,9 @@ from tabulate import tabulate
 
 # TODO: check that k-folds are truly compatible (rather than just checking to see if patient lists are the same)
 # TODO: Automatically link evaluations to model training
+# TODO: show average across K-fold
+# TODO: display category value names when showing AUC for each outcome
+# TODO: filter results by time (since X date)
 
 class Project:
 	def __init__(self, path):
@@ -58,7 +61,8 @@ class Project:
 					return
 				description = "" if 'description' not in config[dataset] else f" ({config[dataset]['description']})"
 				datasets_string += [f"{sfutil.bold(dataset)}{description}"]
-		print(' and '.join(datasets_string))
+		if len(self.outcomes):
+			print(' and '.join(datasets_string))
 		for outcome in self.outcomes:
 			outcome.print_summary()  
 
@@ -152,7 +156,10 @@ class Subset:
 		print(f"\t\tFilters: {self.filters}")
 
 		def sorted_val(e):
-			return float(e['slide_auc'][1:-1].split(', ')[0])
+			try:
+				return float(e['slide_auc'][1:-1].split(', ')[0])
+			except ValueError:
+				return -1
 
 		epochs = []
 		for model in self.models:
@@ -214,13 +221,17 @@ class Model:
 				if not interactive or not self.get_outcome_headers():
 					self.hyperparameters = False
 			if self.hyperparameters:
-				self.validation_strategy = self.hyperparameters["validation_strategy"]
-				self.k_fold_i = self.hyperparameters["k_fold_i"]
-				self.k_fold = self.hyperparameters["validation_k_fold"]
-				self.filters = self.hyperparameters['filters']
-				self.manifest = SlideManifest(join(self.dir, "slide_manifest.log"))
-				self.load_results(join(self.dir, "results_log.csv"))
-				self.hp_key = tuple(sorted(self.hyperparameters['hp'].items()))
+				try:
+					self.validation_strategy = self.hyperparameters["validation_strategy"]
+					self.k_fold_i = self.hyperparameters["k_fold_i"]
+					self.k_fold = self.hyperparameters["validation_k_fold"]
+					self.filters = self.hyperparameters['filters']
+					self.manifest = SlideManifest(join(self.dir, "slide_manifest.log"))
+					self.load_results(join(self.dir, "results_log.csv"))
+					self.hp_key = tuple(sorted(self.hyperparameters['hp'].items()))
+				except KeyError:
+					log.error(f"Model {join(self.dir, 'hyperparameters.json')} file incorrectly formatted")
+					self.hyperparameters = None
 
 	def load_results(self, results_log):
 		with open(results_log, 'r') as results_file:
@@ -243,7 +254,7 @@ class Model:
 			outcome_headers += ["<skip>"]
 		for i, outcome_header in enumerate(outcome_headers):
 			print(f"{i+1}. {outcome_header}")
-		ohi = sfutil.choice_input(f"What are the outcome header(s) for model {self.name} in project {self.project.name}?\n  (respond with number(s), separated by commas if multiple) ", list(range(len(outcome_headers))), multi_choice=True, input_type=int)
+		ohi = sfutil.choice_input(f"What are the outcome header(s) for model {self.name} in project {self.project.name}?\n  (respond with number(s), separated by commas if multiple) ", list(range(1, len(outcome_headers)+1)), multi_choice=True, input_type=int)
 		oh = [outcome_headers[i-1] for i in ohi]
 		if "<skip>" in oh:
 			return False
@@ -280,9 +291,18 @@ class SlideManifest:
 			slide_list_str = ", ".join(self.slide_list)
 			self.slide_hash = hashlib.md5(slide_list_str.encode('utf-8')).hexdigest()
 
-def load_from_directory(project_directory):
-	project_folders = [join(project_directory, d) for d in os.listdir(project_directory) 
-												  if exists(join(project_directory, d, "settings.json"))]
+def get_projects_from_folder(directory):
+	return [join(directory, d) for d in os.listdir(directory) 
+									   if (isdir(join(directory, d)) and exists(join(directory, d, "settings.json")))]
+
+def load_from_directory(search_directory, nested=False):
+	if nested:
+		project_folders = []
+		for _dir in [join(search_directory, d) for d in os.listdir(search_directory) if isdir(join(search_directory, d))]:
+			project_folders += get_projects_from_folder(_dir)
+	else:
+		project_folders = get_projects_from_folder(search_directory)
+		
 	for pf in project_folders:
 		project = Project(pf)
 		if not project.settings: continue
@@ -323,7 +343,8 @@ def load_from_directory(project_directory):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description = "Summarizes Slideflow project results.")
-	parser.add_argument('-d', '--dir', required=True, help='Path to parent directory containings slideflow projects.')
+	parser.add_argument('-d', '--dir', required=True, type=str, help='Path to parent directory containings slideflow projects.')
+	parser.add_argument('-n', '--nested', action="store_true", help='Whether directory specified contains further nested directories to search.')
 	args = parser.parse_args()
 
-	load_from_directory(args.dir)
+	load_from_directory(args.dir, args.nested)
