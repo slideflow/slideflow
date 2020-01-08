@@ -8,12 +8,8 @@ sf.NUM_THREADS = 4
 sf.SKIP_VERIFICATION = False
 
 parser = argparse.ArgumentParser(description = "Helper to guide through the SlideFlow pipeline")
-parser.add_argument('-p', '--project', help='Path to project directory.')
+parser.add_argument('-p', '--project', required=True, help='Path to project directory.')
 args = parser.parse_args()
-
-if not args.project:
-	print("You must specify a project directory using the -p flag.")
-	sys.exit()
 
 SFP = sf.SlideflowProject(args.project)
 
