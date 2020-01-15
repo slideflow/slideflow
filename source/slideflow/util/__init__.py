@@ -412,8 +412,8 @@ def get_slides_from_annotations(filters=None, filter_blank=[]):
 		if filters:
 			for filter_key in filters.keys():
 				if filter_key not in ann.keys():
-					log.error(f"Filter header {filter_key} not found in annotations file.")
-					sys.exit()
+					log.error(f"Filter header {bold(filter_key)} not found in annotations file.")
+					raise IndexError(f"Filter header {filter_key} not found in annotations file.")
 				if    ((type(filters[filter_key]) == list and ann[filter_key] not in filters[filter_key]) 
 					or (type(filters[filter_key]) != list and filters[filter_key] != ann[filter_key])):
 					skip_annotation = True
@@ -455,6 +455,7 @@ def get_outcomes_from_annotations(headers, filters=None, filter_blank=[], use_fl
 	headers = [headers] if type(headers) != list else headers
 	filter_blank = [filter_blank] if type(filter_blank) != list else filter_blank
 	assigned_headers = {}
+	unique_outcomes = None
 	for header in headers:
 		assigned_headers[header] = {}
 		try:
@@ -468,8 +469,8 @@ def get_outcomes_from_annotations(headers, filters=None, filter_blank=[], use_fl
 			try:
 				filtered_outcomes = [float(o) for o in filtered_outcomes]
 			except ValueError:
-				log.error(f"Unable to convert outcome {header} into type 'float'.", 1)
-				sys.exit()
+				log.error(f"Unable to convert outcome {bold(header)} into type 'float'.", 1)
+				raise TypeError(f"Unable to convert outcome {header} into type 'float'.")
 		else:
 			log.info(f'Assigning outcome descriptors in column "{header}" to numerical values', 1)
 			unique_outcomes = list(set(filtered_outcomes))
