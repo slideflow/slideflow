@@ -88,7 +88,7 @@ def evaluator(outcome_header, model_name, model_type, model_file, project_config
 	# Load dataset and annotations for evaluation
 	eval_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
 	sfutil.load_annotations(project_config['annotations'], eval_dataset)
-	outcomes = sfutil.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
+	outcomes, unique_outcomes = sfutil.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
 
 	# If using a specific k-fold, load validation plan
 	if eval_k_fold:
@@ -242,9 +242,9 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 	sfutil.load_annotations(project_config['annotations'], training_dataset)
 
 	# Load outcomes
-	outcomes = sfutil.get_outcomes_from_annotations(outcome_headers, filters=filters, 
-																			  filter_blank=outcome_headers,
-																			  use_float=(model_type == 'linear'))
+	outcomes, unique_outcomes = sfutil.get_outcomes_from_annotations(outcome_headers, filters=filters, 
+																	 				  filter_blank=outcome_headers,
+																	 				  use_float=(model_type == 'linear'))
 
 	# Get TFRecords for training and validation
 	training_tfrecords, validation_tfrecords = sfutil.tfrecords.get_training_and_validation_tfrecords(training_dataset, validation_log, outcomes, model_type,
@@ -271,6 +271,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		"tile_um": project_config['tile_um'],
 		"model_type": model_type,
 		"outcome_headers": outcome_headers,
+		"outcome_labels": None if model_type != 'categorical' else dict(zip(range(len(unique_outcomes)), unique_outcomes)),
 		"dataset_config": project_config['dataset_config'],
 		"datasets": project_config['datasets'],
 		"annotations": project_config['annotations'],
@@ -283,6 +284,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		"pretrain": pretrain,
 		"resume_training": resume_training,
 		"checkpoint": checkpoint,
+		"comet_experiment": None if not USE_COMET else experiment.get_key(),
 		"hp": hp._get_dict()
 	}
 	sfutil.write_json(hp_data, hp_file)
