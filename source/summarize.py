@@ -56,7 +56,7 @@ class Project:
 			config = json.load(config_file)
 			for dataset in datasets:
 				if dataset not in config:
-					log.error(f'Unable to load dataset "{dataset}" configuration for project {self.name}', 1)
+					log.error(f'Unable to load dataset "{dataset}" configuration for project "{self.name}" at {sfutil.green(self.settings["root"])}', 1)
 					return
 				description = "" if 'description' not in config[dataset] else f" ({config[dataset]['description']})"
 				datasets_string += [f"{sfutil.bold(dataset)}{description}"]
@@ -169,7 +169,7 @@ class Subset:
 		tabbed_results.update({"Model names": []})
 
 		for group in self.model_groups:
-			if group.k_fold and grouped:
+			if group.k_fold and not group.stage=="evaluation" and grouped:
 				models_by_kfold = group.get_models_by_kfold()
 				for e in group.epochs:
 					used_k_str = [sfutil.purple('-')] * group.k_fold
@@ -199,14 +199,18 @@ class Subset:
 							else:
 								continue
 					tabbed_results['Group ID'] += [group.id]
-					tabbed_results['Epoch'] += [int(e.strip('val_epoch'))]
+					tabbed_results['Epoch'] += [e.strip('val_epoch')]
 					tabbed_results['K-fold'] += [" / ".join(used_k_str)]
 					tabbed_results['Model names'] += [" / ".join(model_names)]
 
 					for metric in metrics:
 						for label in self.outcome_labels.values():
 							metric_label = f'{metric} ({label})'
-							tabbed_results[metric_label] += [" / ".join(metrics_results[metric_label]['str']) + ' (' + sfutil.green(sfutil.bold(f'{mean(metrics_results[metric_label]["val"]):.2f}')) + ')']
+							if len(metrics_results[metric_label]['val']):
+								mean_metric = f'{mean(metrics_results[metric_label]["val"]):.2f}'
+							else:
+								mean_metric = '-'
+							tabbed_results[metric_label] += [" / ".join(metrics_results[metric_label]['str']) + ' (' + sfutil.green(sfutil.bold(mean_metric)) + ')']
 			else:
 				epochs = []
 				for model in group.models:
@@ -237,6 +241,7 @@ class ModelGroup:
 		self.tile_um = models[0].tile_um
 		self.hp_key = models[0].hp_key
 		self.k_fold = models[0].k_fold
+		self.stage = models[0].stage
 		self.outcome_labels = models[0].outcome_labels
 		self.add_models(models)
 		self.id = _id
@@ -249,14 +254,14 @@ class ModelGroup:
 					self.epochs += [e]
 			model.group = self
 		else:
-			log.error("Incompatible model, unable to add to group")
+			log.error(f"Incompatible model, unable to add model {model.name} to group")
 	
 	def add_models(self, models):
 		for model in models:
 			self.add_model(model)
 	
 	def is_compatible(self, model):
-		if (model.hp_key == self.hp_key) and (model.k_fold == self.k_fold) and (model.tile_px == self.tile_px) and (model.tile_um == self.tile_um):
+		if (model.hp_key == self.hp_key) and (model.k_fold == self.k_fold) and (model.tile_px == self.tile_px) and (model.tile_um == self.tile_um) and (model.stage == self.stage):
 			return True
 		else:
 			return False
@@ -295,6 +300,10 @@ class Model:
 					self.hyperparameters = None
 			if self.hyperparameters:
 				try:
+					if "stage" in self.hyperparameters:
+						self.stage = self.hyperparameters["stage"]
+					else:
+						self.stage = "training"
 					self.tile_px = int(self.hyperparameters["tile_px"])
 					self.tile_um = int(self.hyperparameters["tile_um"])
 					self.validation_strategy = self.hyperparameters["validation_strategy"]
@@ -314,14 +323,21 @@ class Model:
 		with open(results_log, 'r') as results_file:
 			reader = csv.reader(results_file)
 			header = next(reader)
-			epoch_i = header.index('epoch')
+			try:
+				epoch_i = header.index('epoch')
+			except:
+				epoch_i = "Evaluation"
 			meta = [h for h in header if h != 'epoch']
 			meta_i = [header.index(h) for h in meta]
 			for row in reader:
-				epoch = row[epoch_i]
+				if epoch_i != "Evaluation":
+					epoch = row[epoch_i]
+				else:
+					epoch = epoch_i
 				self.results.update({
 					epoch: dict(zip(meta, [row[mi] for mi in meta_i]))
 				})
+			
 
 	def get_outcome_headers(self):
 		with open(self.project.settings['annotations'], 'r') as ann_file:
