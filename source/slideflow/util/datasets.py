@@ -191,7 +191,7 @@ class Dataset:
 	def get_manifest(self):
 		combined_manifest = {}
 		for d in self.datasets:
-			tfrecord_dir = self.datasets[d]['tfrecords']
+			tfrecord_dir = join(self.datasets[d]['tfrecords'], self.datasets[d]['label'])
 			combined_manifest.update(sfutil.get_global_manifest(tfrecord_dir))
 		return combined_manifest
 
