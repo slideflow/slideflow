@@ -184,8 +184,6 @@ class SlideLoader:
 		thumb_x = sqrt(goal_thumb_area / y_x_ratio)
 		thumb_y = thumb_x * y_x_ratio
 		self.thumb = self.slide.get_thumbnail((int(thumb_x), int(thumb_y)))
-		self.thumb_file = join(self.thumbs_path, f'{self.name}_thumb.jpg')
-		imageio.imwrite(self.thumb_file, self.thumb)
 
 	def build_generator(self):
 		log.label(self.shortname, f"Extracting {sfutil.bold(self.size_um)}um tiles (resizing {sfutil.bold(self.extract_px)}px -> {sfutil.bold(self.size_px)}px); stride: {sfutil.bold(int(self.stride))}px", 2, self.print)
