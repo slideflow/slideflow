@@ -283,7 +283,7 @@ class Model:
 		self.group = None
 		self.last_modified = None
 		if not exists(join(self.dir, "hyperparameters.json")): 
-			self.hyperparameters = None		
+			self.hyperparameters = None
 		else:
 			with open(join(self.dir, "hyperparameters.json"), 'r') as hp_file:
 				self.hyperparameters = json.load(hp_file)
