@@ -34,6 +34,7 @@ WARNING = '\033[93m'
 FAIL = '\033[91m'
 ENDC = '\033[0m'
 BOLD = '\033[1m'
+PURPLE = '\033[38;5;5m'
 UNDERLINE = '\033[4m'
 
 FORMATTING_OPTIONS = [HEADER, BLUE, GREEN, WARNING, FAIL, ENDC, BOLD, UNDERLINE]
@@ -167,6 +168,9 @@ def bold(text):
 
 def underline(text):
 	return UNDERLINE + str(text) + ENDC
+
+def purple(text):
+	return PURPLE + str(text) + ENDC
 
 class LOGGING_LEVEL:
 	INFO = 3
@@ -508,7 +512,7 @@ def get_outcomes_from_annotations(headers, filters=None, filter_blank=[], use_fl
 				else:
 					results[slide] = {'outcome': annotation_outcome if not use_float else [annotation_outcome]}
 					results[slide][TCGA.patient] = patient
-	return results
+	return results, unique_outcomes
 
 def update_annotations_with_slidenames(annotations_file, dataset):
 	'''Attempts to automatically associate slide names from a directory with patients in a given annotations file.'''
@@ -628,7 +632,7 @@ def read_annotations(annotations_file):
 			results += [row_dict]
 	return header, results
 			
-def load_annotations(annotations_file, dataset):
+def load_annotations(annotations_file, dataset=None):
 	global ANNOTATIONS
 	# Verify annotations file exists
 	if not os.path.exists(annotations_file):
