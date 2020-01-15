@@ -75,7 +75,7 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 	hp_data = sfutil.load_json(hp_file)
 	hp = sfmodel.HyperParameters()
 	hp._load_dict(hp_data['hp'])
-	model_name = hp_data['model_name']
+	model_name = f"eval-{hp_data['model_name']}"
 	model_type = hp_data['model_type']
 
 	# Filter out slides that are blank in the outcome category
@@ -103,7 +103,7 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 
 	# Set up model for evaluation
 	# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
-	model_dir = join(project_config['models_dir'], f"eval-{model_name}")
+	model_dir = join(project_config['models_dir'], model_name)
 
 	# Build a model using the slide list as input and the annotations dictionary as output labels
 	SFM = sfmodel.SlideflowModel(model_dir, project_config['tile_px'], outcomes, 
@@ -118,6 +118,7 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 	hp_data = {
 		"model_name": model_name,
 		"model_path": model_file,
+		"stage": "evaluation",
 		"tile_px": project_config['tile_px'],
 		"tile_um": project_config['tile_um'],
 		"model_type": model_type,
@@ -287,6 +288,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 	hp_file = join(project_config['models_dir'], full_model_name, 'hyperparameters.json')
 	hp_data = {
 		"model_name": model_name,
+		"stage": "training",
 		"tile_px": project_config['tile_px'],
 		"tile_um": project_config['tile_um'],
 		"model_type": model_type,
