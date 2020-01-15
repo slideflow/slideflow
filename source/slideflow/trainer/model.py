@@ -420,6 +420,8 @@ class SlideflowModel:
 			self.model = self.build_model(hp)
 			self.model.load_weights(checkpoint)
 
+		# Generate performance metrics
+		log.info("Calculating performance metrics...", 1)
 		tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, dataset_with_slidenames, self.SLIDE_ANNOTATIONS, model_type, self.DATA_DIR, label="eval")
 
 		log.info(f"Tile AUC: {tile_auc}", 1)
@@ -427,9 +429,16 @@ class SlideflowModel:
 		log.info(f"Patient AUC: {patient_auc}", 1)
 		log.info(f"R-squared: {r_squared}", 1)
 
-		log.info("Calculating performance metrics...", 1)
-		results = self.model.evaluate(dataset)
-		return results
+		val_loss, val_acc = self.model.evaluate(dataset)
+
+		# Log results
+		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
+		with open(results_log, "w") as results_file:
+			writer = csv.writer(results_file)
+			writer.writerow(['val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc', 'r_squared'])
+			writer.writerow([val_loss, val_acc, tile_auc, slide_auc, patient_auc, r_squared])
+		
+		return val_acc
 
 	def retrain_top_layers(self, model, hp, train_data, validation_data, steps_per_epoch, callbacks=None, epochs=1, verbose=1):
 		if verbose: log.info("Retraining top layer", 1)
@@ -503,7 +512,7 @@ class SlideflowModel:
 
 		with open(results_log, "w") as results_file:
 			writer = csv.writer(results_file)
-			writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc'])
+			writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc', 'r_squared'])
 		parent = self
 
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
@@ -534,7 +543,7 @@ class SlideflowModel:
 
 						with open(results_log, "a") as results_file:
 							writer = csv.writer(results_file)
-							writer.writerow([epoch_label, np.amax(train_acc), val_loss, val_acc, tile_auc, slide_auc, patient_auc])
+							writer.writerow([epoch_label, np.amax(train_acc), val_loss, val_acc, tile_auc, slide_auc, patient_auc, r_squared])
 
 		callbacks = [history_callback, PredictionAndEvaluationCallback()]
 		if hp.early_stop:
