@@ -8,7 +8,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import multiprocessing
 import tensorflow as tf
 
-from os.path import join, isfile, exists, isdir
+from os.path import join, isfile, exists, isdir, dirname
 from pathlib import Path
 from glob import glob
 from random import shuffle, choice
@@ -43,9 +43,8 @@ VALIDATION_ID = ''.join(choice(ascii_lowercase) for i in range(10))
 COMET_API_KEY = "A3VWRcPaHgqc4H5K0FoCtRXbp"
 USE_COMET = False
 
-physical_devices = tf.config.experimental.list_physical_devices('GPU')
-
 def autoselect_gpu(number_available, reverse=True):
+	physical_devices = tf.config.experimental.list_physical_devices('GPU')
 	if not len(physical_devices):
 		print("No GPUs detected.")
 		return
@@ -62,26 +61,22 @@ def autoselect_gpu(number_available, reverse=True):
 			return
 	log.error(f"No free GPUs detected; try deleting 'gpu[#].lock' files in the slideflow directory if GPUs are not in use.")
 
-def evaluator(outcome_header, model_name, model_type, model_file, project_config, results_dict,
+def evaluator(outcome_header, model_file, project_config, results_dict,
 				filters=None, hyperparameters=None, checkpoint=None, eval_k_fold=None, log_level=3):
-	assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
-	tf.config.experimental.set_memory_growth(physical_devices[0], True)
 	if log_level == SILENT:
 		sfutil.LOGGING_LEVEL.SILENT = True
 	else:
 		sfutil.LOGGING_LEVEL.INFO = log_level
 
-	model_root = join(project_config['models_dir'], model_name)
-	if sfutil.path_to_name(model_file) != model_file:
-		model_fullpath = join(model_root, model_file)
-	else:
-		model_fullpath = model_file
+	model_root = dirname(model_file)
 
 	# Load hyperparameters from saved model
 	hp_file = hyperparameters if hyperparameters else join(model_root, 'hyperparameters.json')
 	hp_data = sfutil.load_json(hp_file)
 	hp = sfmodel.HyperParameters()
 	hp._load_dict(hp_data['hp'])
+	model_name = hp_data['model_name']
+	model_type = hp_data['model_type']
 
 	# Filter out slides that are blank in the outcome category
 	filter_blank = [outcome_header] if type(outcome_header) != list else outcome_header
@@ -122,7 +117,7 @@ def evaluator(outcome_header, model_name, model_type, model_file, project_config
 	hp_file = join(model_dir, 'hyperparameters.json')
 	hp_data = {
 		"model_name": model_name,
-		"model_path": model_fullpath,
+		"model_path": model_file,
 		"tile_px": project_config['tile_px'],
 		"tile_um": project_config['tile_um'],
 		"model_type": model_type,
@@ -147,15 +142,13 @@ def evaluator(outcome_header, model_name, model_type, model_file, project_config
 
 	# Perform evaluation
 	log.info(f"Evaluating {sfutil.bold(len(eval_tfrecords))} tfrecords", 1)
-	results = SFM.evaluate(tfrecords=eval_tfrecords, hp=hp, model=model_fullpath, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
+	results = SFM.evaluate(tfrecords=eval_tfrecords, hp=hp, model=model_file, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
 
 	# Load results into multiprocessing dictionary
 	results_dict['results'] = results
 	return results_dict
 
 def heatmap_generator(model_name, filters, resolution, project_config, log_level=3):
-	assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
-	tf.config.experimental.set_memory_growth(physical_devices[0], True)
 	import slideflow.slide as sfslide
 
 	if log_level == SILENT:
@@ -190,8 +183,6 @@ def heatmap_generator(model_name, filters, resolution, project_config, log_level
 		heatmap.save()
 
 def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, project_config, export_activations=False, log_level=3):
-	assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
-	tf.config.experimental.set_memory_growth(physical_devices[0], True)
 	if log_level == SILENT:
 		sfutil.LOGGING_LEVEL.SILENT = True
 	else:
@@ -243,8 +234,6 @@ def set_logging_level(level):
 def trainer(outcome_headers, model_name, model_type, project_config, results_dict, hp, validation_strategy, 
 			validation_target, validation_fraction, validation_k_fold, validation_log, k_fold_i=None, filters=None, 
 			pretrain=None, resume_training=None, checkpoint=None, log_level=3, supervised=True):
-	assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
-	tf.config.experimental.set_memory_growth(physical_devices[0], True)
 	if log_level == SILENT:
 		sfutil.LOGGING_LEVEL.SILENT = True
 	else:
@@ -666,18 +655,17 @@ class SlideflowProject:
 		print("\nProject configuration saved.\n")
 		self.load_project(sfutil.PROJECT_DIR)
 
-	def evaluate(self, model_name, outcome_header, model_type='categorical', model_file="trained_model.h5", hyperparameters=None, filters=None, checkpoint=None, eval_k_fold=None):
+	def evaluate(self, outcome_header, model_file="trained_model.h5", hyperparameters=None, filters=None, checkpoint=None, eval_k_fold=None):
 		'''Evaluates a saved model on a given set of tfrecords.'''
-		log.header(f"Evaluating model {sfutil.bold(model_name)}...")
+		log.header(f"Evaluating model {sfutil.green(model_file)}...")
 		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
 		manager = multiprocessing.Manager()
 		results_dict = manager.dict()
 		ctx = multiprocessing.get_context('spawn')
 		
-		process = ctx.Process(target=evaluator, args=(outcome_header, model_name, model_type, model_file, 
-																	self.PROJECT, results_dict, filters, hyperparameters, 
-																	checkpoint, eval_k_fold, log_level))
+		process = ctx.Process(target=evaluator, args=(outcome_header, model_file, self.PROJECT, results_dict, filters, hyperparameters, 
+														checkpoint, eval_k_fold, log_level))
 		process.start()
 		log.info(f"Spawning evaluation process (PID: {process.pid})", 1)
 		process.join()
