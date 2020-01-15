@@ -110,11 +110,40 @@ def evaluator(outcome_header, model_name, model_type, model_file, project_config
 	model_dir = join(project_config['models_dir'], f"eval-{model_name}")
 
 	# Build a model using the slide list as input and the annotations dictionary as output labels
-	SFM = sfmodel.SlideflowModel(model_dir, project_config['tile_px'], outcomes, None, None,
+	SFM = sfmodel.SlideflowModel(model_dir, project_config['tile_px'], outcomes, 
+																			train_tfrecords=None,
+																			validation_tfrecords=eval_tfrecords,
 																			manifest=eval_dataset.get_manifest(),
 																			use_fp16=project_config['use_fp16'],
 																			model_type=model_type)
 
+	# Log model settings and hyperparameters
+	hp_file = join(model_dir, 'hyperparameters.json')
+	hp_data = {
+		"model_name": model_name,
+		"tile_px": project_config['tile_px'],
+		"tile_um": project_config['tile_um'],
+		"model_type": model_type,
+		"outcome_headers": outcome_header,
+		"outcome_labels": None if model_type != 'categorical' else dict(zip(range(len(unique_outcomes)), unique_outcomes)),
+		"dataset_config": project_config['dataset_config'],
+		"datasets": project_config['datasets'],
+		"annotations": project_config['annotations'],
+		"validation_target": hp_data['validation_target'],
+		"validation_strategy": hp_data['validation_strategy'],
+		"validation_fraction": hp_data['validation_fraction'],
+		"validation_k_fold": hp_data['validation_k_fold'],
+		"k_fold_i": eval_k_fold,
+		"filters": filters,
+		"pretrain": None,
+		"resume_training": None,
+		"checkpoint": checkpoint,
+		"comet_experiment": None,
+		"hp": hp._get_dict()
+	}
+	sfutil.write_json(hp_data, hp_file)
+
+	# Perform evaluation
 	log.info(f"Evaluating {sfutil.bold(len(eval_tfrecords))} tfrecords", 1)
 	results = SFM.evaluate(tfrecords=eval_tfrecords, hp=hp, model=model_fullpath, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
 
