@@ -14,6 +14,7 @@ from glob import glob
 from random import shuffle, choice
 from string import ascii_lowercase
 from multiprocessing.dummy import Pool as DPool
+from functools import partial
 import csv
 
 import gc
@@ -74,7 +75,7 @@ def evaluator(outcome_header, model_name, model_type, model_file, project_config
 	if sfutil.path_to_name(model_file) != model_file:
 		model_fullpath = join(model_root, model_file)
 	else:
-		model_fullpath= model_file
+		model_fullpath = model_file
 
 	# Load hyperparameters from saved model
 	hp_file = hyperparameters if hyperparameters else join(model_root, 'hyperparameters.json')
@@ -121,6 +122,7 @@ def evaluator(outcome_header, model_name, model_type, model_file, project_config
 	hp_file = join(model_dir, 'hyperparameters.json')
 	hp_data = {
 		"model_name": model_name,
+		"model_path": model_fullpath,
 		"tile_px": project_config['tile_px'],
 		"tile_um": project_config['tile_um'],
 		"model_type": model_type,
@@ -731,7 +733,7 @@ class SlideflowProject:
 			# Use multithreading if specified, extracting tiles from all slides in the filtered list
 			if NUM_THREADS > 1:
 				pool = DPool(NUM_THREADS)
-				pool.map(extract_tiles_from_slide, slide_list)
+				pool.map(partial(extract_tiles_from_slide, pb=pb), slide_list)
 				pool.close()
 			else:
 				for slide_path in slide_list:
