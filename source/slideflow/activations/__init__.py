@@ -21,6 +21,7 @@ from random import shuffle, sample
 from statistics import mean
 from math import isnan
 from copy import deepcopy
+from mpl_toolkits.mplot3d import Axes3D
 
 import slideflow.util as sfutil
 import slideflow.util.statistics as sfstats
@@ -289,7 +290,7 @@ class ActivationsVisualizer:
 						self.slide_node_dict[slide].update({n: []})
 
 			# Export to PKL and CSV
-			for i in range(fl_activations_combined):
+			for i in range(len(fl_activations_combined)):
 				slide = slides_combined[i].decode('utf-8')
 				activations_vals = fl_activations_combined[i].tolist()
 				logits_vals = logits_combined[i].tolist()
@@ -298,7 +299,7 @@ class ActivationsVisualizer:
 					row = [slide] + logits_vals + activations_vals
 					csvwriter.writerow(row)
 				# Write to PKL
-				for n in range(nodes_names):
+				for n in range(len(nodes_names)):
 					val = activations_vals[n]
 					self.slide_node_dict[slide][n] += [val]
 
@@ -789,7 +790,8 @@ class ActivationsVisualizer:
 		z = node_vals[ri]
 
 		# Plot tiles on a 3D coordinate space with 2 coordinates from UMAP & 3rd from the value of the excluded node
-		ax = plt.axes(projection='3d')
+		fig = plt.figure()
+		ax = Axes3D(fig)
 		ax.scatter(umap_x, umap_y, z, c=z,
 									  cmap='viridis',
 									  linewidth=0.5,
