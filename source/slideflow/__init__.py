@@ -527,12 +527,10 @@ class SlideflowProject:
 		del(pdict['filename'])
 		del(pdict['finetune_epochs'])
 		args = list(pdict.keys())
-		args.reverse()
 		for arg in args:
 			if type(pdict[arg]) != list:
 				pdict[arg] = [pdict[arg]]
 		argsv = list(pdict.values())
-		argsv.reverse()
 		sweep = list(itertools.product(*argsv))
 
 		if not filename:
@@ -547,8 +545,8 @@ class SlideflowProject:
 			# Iterate through sweep
 			for i, params in enumerate(sweep):
 				row = [f'HPSweep{i}', ','.join([str(f) for f in finetune_epochs])]
-				full_params = [finetune_epochs] + list(params)
-				hp = sfmodel.HyperParameters(*full_params)
+				full_params = dict(zip(['finetune_epochs'] + args, [finetune_epochs] + list(params)))
+				hp = sfmodel.HyperParameters(**full_params)
 				for arg in args:
 					row += [getattr(hp, arg)]
 				writer.writerow(row)
