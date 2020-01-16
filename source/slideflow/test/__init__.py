@@ -229,9 +229,10 @@ class TestSuite:
 		print("Testing performance of training (single categorical outcome)...")
 		results_dict = self.SFP.train(models='performance', outcome_header='category1', hyperparameters=hp, k_fold_iter=1)
 
-	def test_evaluation(self, model_name='category1-HPSweep0-kfold1'):
+	def test_evaluation(self):
 		print("Testing evaluation of a saved model...")
-		results = self.SFP.evaluate(model_name, outcome_header='category1')
+		model_file = join(PROJECT_CONFIG['models_dir'], 'category1-HPSweep0-kfold1', 'trained_model.h5')
+		results = self.SFP.evaluate(outcome_header='category1', model_file=model_file)
 		print('\t...OK')
 
 	def test_heatmap(self):
