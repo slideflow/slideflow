@@ -478,7 +478,7 @@ class SlideReader(SlideLoader):
 		total_logits_count = int(len(coord) * roi_area_fraction)
 		if total_logits_count == 0:
 			log.warn(f"No tiles were able to be extracted at the given micron size for slide {sfutil.green(self.name)}", 1, self.print)
-			return None, None, None, None, None
+			return None, None, None, None
 		# Create mask for indicating whether tile was extracted
 		tile_mask = np.asarray([0 for i in range(len(coord))])
 		self.p_id = None if not self.pb else self.pb.add_bar(0, total_logits_count, endtext=sfutil.green(self.shortname))
