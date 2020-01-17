@@ -345,7 +345,7 @@ class TMAReader(SlideLoader):
 		generator, _, _, _ = self.build_generator(export=True, augment=augment, export_full_core=export_full_core)
 
 		if not generator:
-			log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1)
+			log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1, self.print)
 			return
 
 		for tile, tile_id, _ in generator():
@@ -538,7 +538,7 @@ class SlideReader(SlideLoader):
 		generator, _, _, _ = self.build_generator(export=True, augment=augment)
 
 		if not generator:
-			log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1)
+			log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1, self.print)
 			return
 
 		for tile, _, _ in generator():
