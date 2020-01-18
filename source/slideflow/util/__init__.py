@@ -764,9 +764,16 @@ def update_tfrecord_manifest(directory, force_update=False):
 						slide_list_errors = list(set(slide_list_errors))
 		except:
 			continue
+	
+	error_threshold = 3
+	for s, slide in enumerate(slide_list_errors):
+		print_func = print if s < error_threshold else None
+		log.error(f"Failed TFRecord integrity check: annotation not found for slide {green(slide)}", 1, print_func)
 
-	for slide in slide_list_errors:
-		log.error(f"Failed TFRecord integrity check: annotation not found for slide {green(slide)}", 1)
+	if len(slide_list_errors) >= error_threshold:
+		log.error(f"...{len(slide_list_errors)} total TFRecord integrity check failures, see {green(log.logfile)} for details", 1)
+	if len(slide_list_errors) == 0:
+		log.info("TFRecords verified, no errors found.", 1)
 
 	sys.stdout.write("\r\033[K")
 	sys.stdout.flush()
