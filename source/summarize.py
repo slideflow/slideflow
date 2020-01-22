@@ -14,7 +14,7 @@ from slideflow.util import log, TCGA
 from tabulate import tabulate
 
 # Organization heirarchy:
-# Dataset
+# DatasetGroup
 #  |- Project
 #     |- Outcome
 #        |- Patient subset
@@ -25,17 +25,11 @@ from tabulate import tabulate
 # TODO: find r_squared from parent directory
 # TODO: export results to CSV
 
-class Project:
-	def __init__(self, path):
-		with open(join(path, "settings.json")) as settings_file:
-			self.settings = json.load(settings_file)
-
-		if not all(x in self.settings for x in ("dataset_config", "datasets", "name")):
-			self.settings = False
-		else:
-			self.name = self.settings['name']
-			self.dataset = self.settings['datasets']
-			self.outcomes = []
+class DatasetGroup:
+	def __init__(self, names, config):
+		self.names = [names] if type(names) != list else names
+		self.config = config
+		self.outcomes = []
 
 	def has_outcome(self, outcome):
 		return self.get_outcome(outcome) != -1
@@ -52,20 +46,30 @@ class Project:
 		return outcome
 
 	def print_summary(self, grouped=False, show_model_names=False):
-		datasets = [self.settings['datasets']] if type(self.settings['datasets']) != list else self.settings['datasets']
 		datasets_string = []
-		with open(self.settings['dataset_config'], 'r') as config_file:
+		with open(self.config, 'r') as config_file:
 			config = json.load(config_file)
-			for dataset in datasets:
-				if dataset not in config:
-					log.error(f'Unable to load dataset "{dataset}" configuration for project "{self.name}" at {sfutil.green(self.settings["root"])}', 1)
+			for dataset_name in self.names:
+				if dataset_name not in config:
+					log.error(f'Unable to load dataset "{dataset_name}" configuration', 1)
 					return
-				description = "" if 'description' not in config[dataset] else f" ({config[dataset]['description']})"
-				datasets_string += [f"{sfutil.bold(dataset)}{description}"]
+				description = "" if 'description' not in config[dataset_name] else f" ({config[dataset_name]['description']})"
+				datasets_string += [f"{sfutil.bold(dataset_name)}{description}"]
 		if len(self.outcomes):
 			print(' and '.join(datasets_string))
 		for outcome in self.outcomes:
 			outcome.print_summary(grouped=grouped, show_model_names=show_model_names)
+
+
+class Project:
+	def __init__(self, path):
+		with open(join(path, "settings.json")) as settings_file:
+			self.settings = json.load(settings_file)
+
+		if not all(x in self.settings for x in ("dataset_config", "datasets", "name")):
+			self.settings = False
+		else:
+			self.name = self.settings['name']
 
 class Outcome:
 	def __init__(self, outcome_headers, outcome_labels):
@@ -104,11 +108,10 @@ class Outcome:
 			subset.print_summary(grouped=grouped, show_model_names=show_model_names)
 
 class Subset:
-	def __init__(self, _id, slide_list, dataset, filters, validation_strategy, total_k_folds):
+	def __init__(self, _id, slide_list, filters, validation_strategy, total_k_folds):
 		self.model_groups = []
 		self.id = _id
 		self.slide_list = slide_list
-		self.dataset = dataset
 		self.filters = filters
 		self.num_slides = len(slide_list)
 		self.validation_strategy = validation_strategy
@@ -458,6 +461,12 @@ def get_projects_from_folder(directory):
 	return [join(directory, d) for d in os.listdir(directory) 
 									   if (isdir(join(directory, d)) and exists(join(directory, d, "settings.json")))]
 
+def get_compatible_dataset(project, datasets):
+	for dataset in datasets:
+		if dataset.config == project.settings['dataset_config'] and dataset.names == project.settings['datasets']:
+			return dataset
+	return False
+
 def load_from_directory(search_directory, nested=False, starttime=None, shownames=False):
 	if nested:
 		project_folders = []
@@ -465,14 +474,25 @@ def load_from_directory(search_directory, nested=False, starttime=None, showname
 			project_folders += get_projects_from_folder(_dir)
 	else:
 		project_folders = get_projects_from_folder(search_directory)
-		
+
+	datasets = []
+
 	for pf in project_folders:
+		# Initialize project
 		project = Project(pf)
 		if not project.settings: continue
 
+		# Find compatible dataset; if none exists; create
+		dataset = get_compatible_dataset(project, datasets)
+		if not dataset:
+			dataset = DatasetGroup(project.settings['datasets'], project.settings['dataset_config'])
+			datasets += [dataset]
+
+		# Find models in the project
 		models = os.listdir(join(pf, "models"))
 
 		for model_name in models:
+			# For each detected model, create a Model object
 			model = Model(join(pf, "models"), model_name, project)
 			if starttime and model.last_modified and model.last_modified-starttime < 0:
 				continue
@@ -480,10 +500,10 @@ def load_from_directory(search_directory, nested=False, starttime=None, showname
 			model_outcome = model.hyperparameters['outcome_headers']
 			model_outcome = [model_outcome] if type(model_outcome) != list else model_outcome
 
-			if project.has_outcome(model_outcome):
-				outcome = project.get_outcome(model_outcome)
+			if dataset.has_outcome(model_outcome):
+				outcome = dataset.get_outcome(model_outcome)
 			else:
-				outcome = project.add_outcome(model_outcome, model.outcome_labels)
+				outcome = dataset.add_outcome(model_outcome, model.outcome_labels)
 
 			subset = outcome.get_subset(model.validation_strategy, model.k_fold_i, model.manifest.hash)
 			if subset:
@@ -500,11 +520,12 @@ def load_from_directory(search_directory, nested=False, starttime=None, showname
 				})
 				subset.add_model(model)
 				continue
-			subset = Subset(len(outcome.subsets), model.manifest.slide_list, project.dataset, model.filters, model.validation_strategy, model.k_fold)
+			subset = Subset(len(outcome.subsets), model.manifest.slide_list, model.filters, model.validation_strategy, model.k_fold)
 			subset.add_model(model)
 			outcome.add_subset(subset)
-		
-		project.print_summary(grouped=True, show_model_names=shownames)
+	
+	for dataset in datasets:
+		dataset.print_summary(grouped=True, show_model_names=shownames)
 
 def valid_date(s):
 	try:
