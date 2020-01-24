@@ -9,6 +9,7 @@ from slideflow import util as sfutil
 from slideflow.trainer import model as sfmodel
 from slideflow.util import TCGA, log
 from slideflow.trainer.model import HyperParameters
+from slideflow.util.datasets import Dataset
 
 from glob import glob
 from os.path import join
@@ -141,7 +142,8 @@ class TestSuite:
 			for an in ANNOTATIONS:
 				csv_writer.writerow(an)
 		self.SFP.associate_slide_names()
-		loaded_slides = sfutil.get_slides_from_annotations()
+		project_dataset = Dataset(config_file=PROJECT_CONFIG['dataset_config'], sources=PROJECT_CONFIG['datasets'])
+		loaded_slides = project_dataset.get_slides_from_annotations()
 		for slide in SLIDES_TO_VERIFY:
 			if slide not in loaded_slides:
 				log.error("Failed to correctly associate slide names; please see annotations file below.")
