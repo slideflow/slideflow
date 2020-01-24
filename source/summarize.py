@@ -542,7 +542,7 @@ if __name__ == '__main__':
 	parser.add_argument('-d', '--dir', required=True, type=str, help='Path to parent directory containings slideflow projects.')
 	parser.add_argument('-n', '--nested', action="store_true", help='Whether directory specified contains further nested directories to search.')
 	parser.add_argument('-s', '--since', type=valid_date, help='Print results from this starting date (Format: YYYY-mm-dd or YYYY-mm-dd-HH-MM-SS)')
-	parser.add_argument('--names', type=valid_date, help='Print model names with results.')
+	parser.add_argument('--names', action="store_true", help='Print model names with results.')
 	args = parser.parse_args()
 
 	load_from_directory(args.dir, args.nested, args.since, args.names)
