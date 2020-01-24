@@ -61,7 +61,6 @@ from pathlib import Path
 Image.MAX_IMAGE_PIXELS = 100000000000
 NUM_THREADS = 4
 DEFAULT_JPG_MPP = 0.5
-SKIP_MISSING_ROI = True
 
 # BatchNormFix
 tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
@@ -414,6 +413,7 @@ class TMAReader(SlideLoader):
 
 class SlideReader(SlideLoader):
 	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
+	SKIP_MISSING_ROI = True
 	def __init__(self, path, size_px, size_um, stride_div, export_folder=None, roi_dir=None, roi_list=None, pb=None):
 		super().__init__(path, size_px, size_um, stride_div, export_folder, pb)
 
@@ -438,7 +438,7 @@ class SlideReader(SlideLoader):
 				log.warn(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}")
 			self.load_csv_roi(matching_rois[0])
 		else:
-			if SKIP_MISSING_ROI:
+			if self.SKIP_MISSING_ROI:
 				log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.print)
 				self.shape = None
 				self.load_error = True
