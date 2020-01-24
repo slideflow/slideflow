@@ -11,6 +11,7 @@ import slideflow.util as sfutil
 from statistics import mean
 from os.path import join, exists, isdir, getmtime
 from slideflow.util import log, TCGA
+from slideflow.util.datasets import Dataset
 from tabulate import tabulate
 
 # Organization heirarchy:
@@ -410,9 +411,10 @@ class Model:
 
 	def get_outcomes(self):
 		log.info(f"Outcomes not found in model hyperparameter log ({sfutil.green(self.dir)}), attempting to automatically detect...", 2)
-		sfutil.load_annotations(self.project.settings['annotations'])
+		dataset = Dataset(config_file=self.project.settings['dataset_config'], sources=self.project.settings['datasets'])
+		dataset.load_annotations(self.project.settings['annotations'])
 		try:
-			outcomes, unique_outcomes = sfutil.get_outcomes_from_annotations(self.hyperparameters['outcome_headers'], 
+			outcomes, unique_outcomes = dataset.get_outcomes_from_annotations(self.hyperparameters['outcome_headers'], 
 																			filters=self.hyperparameters['filters'], 
 																	 	 	filter_blank=self.hyperparameters['outcome_headers'],
 																	 		use_float=(self.hyperparameters['model_type'] == 'linear'))
