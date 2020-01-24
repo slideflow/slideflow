@@ -21,7 +21,6 @@ except:
 	pass
 # ------
 
-PROJECT_DIR = None
 ANNOTATIONS = []
 
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif']
@@ -137,17 +136,6 @@ class ProgressBar:
 		self.regen_tail()
 		self.refresh()
 
-def global_path(path_string):
-	if not PROJECT_DIR:
-		print("ERROR: No project loaded.")
-		sys.exit()
-	if path_string and (len(path_string) > 2) and path_string[:2] == "./":
-		return os.path.join(PROJECT_DIR, path_string[2:])
-	elif path_string and (path_string[0] != "/"):
-		return os.path.join(PROJECT_DIR, path_string)
-	else:
-		return path_string		
-
 def warn(text):
 	return WARNING + str(text) + ENDC
 
@@ -172,74 +160,74 @@ def underline(text):
 def purple(text):
 	return PURPLE + str(text) + ENDC
 
-class LOGGING_LEVEL:
-	INFO = 3
-	WARN = 3
-	ERROR = 3
-	COMPLETE = 3
-	SILENT = False
-
 class Logger:
 	logfile = None
+	INFO_LEVEL = 3
+	WARN_LEVEL = 3
+	ERROR_LEVEL = 3
+	COMPLETE_LEVEL = 3
+	SILENT = False
+	WRITE = False
+
 	def __init__(self):
 		pass
 	def info(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{info('INFO')}] {text}"
-		if print_func and l <= LOGGING_LEVEL.INFO and not LOGGING_LEVEL.SILENT:
+		if print_func and l <= self.INFO_LEVEL and not self.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def warn(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES_WARN[l]}[{warn('WARN')}] {text}"
-		if print_func and l <= LOGGING_LEVEL.WARN:
+		if print_func and l <= self.WARN_LEVEL:
 			print_func(message)
 		self.log(message)
 		return message
 	def error(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES_WARN[l]}[{fail('ERROR')}] {text}"
-		if print_func and l <= LOGGING_LEVEL.ERROR:
+		if print_func and l <= self.ERROR_LEVEL:
 			print_func(message)
 		self.log(message)
 		return message
 	def complete(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{header('Complete')}] {text}"
-		if print_func and l <= LOGGING_LEVEL.COMPLETE and not LOGGING_LEVEL.SILENT:
+		if print_func and l <= self.COMPLETE_LEVEL and not self.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def label(self, label, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{green(label)}] {text}"
-		if print_func and l <= LOGGING_LEVEL.INFO and not LOGGING_LEVEL.SILENT:
+		if print_func and l <= self.INFO_LEVEL and not self.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def empty(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}{text}"
-		if print_func and l <= LOGGING_LEVEL.INFO and not LOGGING_LEVEL.SILENT:
+		if print_func and l <= self.INFO_LEVEL and not self.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def header(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"\n{LOGGING_PREFIXES_EMPTY[l]}{bold(text)}"
-		if print_func and not LOGGING_LEVEL.SILENT:
+		if print_func and not self.SILENT:
 			print_func(message)
 		self.log(message)
 		return message
 	def log(self, text):
 		st = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-		'''if self.logfile:
+		if self.logfile and self.WRITE:
 			for s in FORMATTING_OPTIONS:
 				text = text.replace(s, "")
 			outfile = open(self.logfile, 'a')
 			outfile.write(f"[{st}] {text.strip()}\n")
-			outfile.close()'''
+			outfile.close()
 
 log = Logger()
 
@@ -247,6 +235,15 @@ class TCGA:
 	patient = 'submitter_id'
 	project = 'project_id'
 	slide = 'slide'
+
+def global_path(root, path_string):
+	if not root: root = ""
+	if path_string and (len(path_string) > 2) and path_string[:2] == "./":
+		return os.path.join(root, path_string[2:])
+	elif path_string and (path_string[0] != "/"):
+		return os.path.join(root, path_string)
+	else:
+		return path_string		
 
 def _shortname(string):
 	if len(string) == 60:
@@ -268,14 +265,14 @@ def yes_no_input(prompt, default='no'):
 			return False
 		print(f"Invalid response.")
 
-def dir_input(prompt, default=None, create_on_invalid=False, absolute=False):
+def dir_input(prompt, root, default=None, create_on_invalid=False, absolute=False):
 	while True:
 		if not absolute:
-			response = global_path(input(f"{prompt}"))
+			response = global_path(root, input(f"{prompt}"))
 		else:
 			response = input(f"{prompt}")
 		if not response and default:
-			response = global_path(default)
+			response = global_path(root, default)
 		if not os.path.exists(response) and create_on_invalid:
 			if yes_no_input(f'Directory "{response}" does not exist. Create directory? [Y/n] ', default='yes'):
 				os.makedirs(response)
@@ -287,11 +284,11 @@ def dir_input(prompt, default=None, create_on_invalid=False, absolute=False):
 			continue
 		return response
 
-def file_input(prompt, default=None, filetype=None, verify=True):
+def file_input(prompt, root, default=None, filetype=None, verify=True):
 	while True:
-		response = global_path(input(f"{prompt}"))
+		response = global_path(root, input(f"{prompt}"))
 		if not response and default:
-			response = global_path(default)
+			response = global_path(root, default)
 		if verify and not os.path.exists(response):
 			print(f'Unable to locate file "{response}"')
 			continue
@@ -715,10 +712,7 @@ def get_global_manifest(directory):
 
 def update_tfrecord_manifest(directory, force_update=False):
 	'''Log number of tiles in each TFRecord file present in the given directory and all subdirectories, 
-	saving manifest to file within the parent directory.
-	
-	Additionally, verify all TFRecords have an associated annotation.'''
-	global ANNOTATIONS
+	saving manifest to file within the parent directory.'''
 	slide_list = []
 	manifest_path = join(directory, "manifest.json")
 	manifest = {} if not exists(manifest_path) else load_json(manifest_path)

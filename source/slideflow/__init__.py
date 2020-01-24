@@ -23,50 +23,31 @@ import itertools
 
 import slideflow.trainer.model as sfmodel
 import slideflow.util as sfutil
-from slideflow.util import TCGA, log, ProgressBar
+from slideflow.util import TCGA, ProgressBar, log
 from slideflow.util.datasets import Dataset
 from slideflow.activations import ActivationsVisualizer, TileVisualizer
 from comet_ml import Experiment
 
 # TODO: allow datasets to have filters (would address evaluate() function)
 
-__version__ = "1.5.0"
+__version__ = "1.5.1"
 
-SKIP_VERIFICATION = False
 NUM_THREADS = 4
-EVAL_BATCH_SIZE = 64
-GPU_LOCK = None
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
 SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
-VALIDATION_ID = ''.join(choice(ascii_lowercase) for i in range(10))
 COMET_API_KEY = "A3VWRcPaHgqc4H5K0FoCtRXbp"
-USE_COMET = False
 
-def autoselect_gpu(number_available, reverse=True):
-	physical_devices = tf.config.experimental.list_physical_devices('GPU')
-	if not len(physical_devices):
-		print("No GPUs detected.")
-		return
-	global GPU_LOCK
-	'''Automatically claims a free GPU and creates a lock file to prevent 
-	other instances of slideflow from using the same GPU.'''
-	gpus = range(number_available) if not reverse else reversed(range(number_available))
-	for n in gpus:
-		if not exists(join(SOURCE_DIR, f"gpu{n}.lock")):
-			log.empty(f"Requesting GPU #{n}")
-			os.environ["CUDA_VISIBLE_DEVICES"]=str(n)
-			open(join(SOURCE_DIR, f"gpu{n}.lock"), 'a').close()
-			GPU_LOCK = n
-			return
-	log.error(f"No free GPUs detected; try deleting 'gpu[#].lock' files in the slideflow directory if GPUs are not in use.")
+DEFAULT_FLAGS = {
+	'test_mode': False,
+	'use_comet': False,
+	'skip_verification': False,
+	'eval_batch_size': 64,
+}
 
 def evaluator(outcome_header, model_file, project_config, results_dict,
-				filters=None, hyperparameters=None, checkpoint=None, eval_k_fold=None, log_level=3):
-	if log_level == SILENT:
-		sfutil.LOGGING_LEVEL.SILENT = True
-	else:
-		sfutil.LOGGING_LEVEL.INFO = log_level
+				filters=None, hyperparameters=None, checkpoint=None, eval_k_fold=None, flags=None):
+	if not flags: flags = DEFAULT_FLAGS
 
 	model_root = dirname(model_file)
 
@@ -111,7 +92,8 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 																			validation_tfrecords=eval_tfrecords,
 																			manifest=eval_dataset.get_manifest(),
 																			use_fp16=project_config['use_fp16'],
-																			model_type=model_type)
+																			model_type=model_type,
+																			test_mode=flags['test_mode'])
 
 	# Log model settings and hyperparameters
 	hp_file = join(model_dir, 'hyperparameters.json')
@@ -143,19 +125,16 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 
 	# Perform evaluation
 	log.info(f"Evaluating {sfutil.bold(len(eval_tfrecords))} tfrecords", 1)
-	results = SFM.evaluate(tfrecords=eval_tfrecords, hp=hp, model=model_file, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
+	results = SFM.evaluate(tfrecords=eval_tfrecords, hp=hp, model=model_file, model_type=model_type, checkpoint=checkpoint, batch_size=flags['eval_batch_size'])
 
 	# Load results into multiprocessing dictionary
 	results_dict['results'] = results
 	return results_dict
 
-def heatmap_generator(model_name, filters, resolution, project_config, log_level=3):
+def heatmap_generator(model_name, filters, resolution, project_config, flags=None):
 	import slideflow.slide as sfslide
 
-	if log_level == SILENT:
-		sfutil.LOGGING_LEVEL.SILENT = True
-	else:
-		sfutil.LOGGING_LEVEL.INFO = log_level
+	if not flags: flags = DEFAULT_FLAGS
 
 	resolutions = {'low': 1, 'medium': 2, 'high': 4}
 	try:
@@ -183,11 +162,8 @@ def heatmap_generator(model_name, filters, resolution, project_config, log_level
 		heatmap.generate(batch_size=64, export_activations=True)
 		heatmap.save()
 
-def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, project_config, export_activations=False, log_level=3):
-	if log_level == SILENT:
-		sfutil.LOGGING_LEVEL.SILENT = True
-	else:
-		sfutil.LOGGING_LEVEL.INFO = log_level
+def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, project_config, export_activations=False, flags=None):
+	if not flags: flags = DEFAULT_FLAGS
 
 	mosaic_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
 	sfutil.load_annotations(project_config['annotations'], mosaic_dataset)
@@ -213,32 +189,10 @@ def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, pro
 						num_tiles_x=num_tiles_x,
 						resolution=resolution)
 
-def release_gpu():
-	global GPU_LOCK
-	log.empty("Cleaning up...")
-	if GPU_LOCK != None and exists(join(SOURCE_DIR, f"gpu{GPU_LOCK}.lock")):
-		log.empty(f"Freeing GPU {GPU_LOCK}...")
-		os.remove(join(SOURCE_DIR, f"gpu{GPU_LOCK}.lock"))
-
-def select_gpu(number):
-	global GPU_LOCK
-	log.empty(f"Requesting GPU #{number}")
-	GPU_LOCK = number
-	os.environ["CUDA_VISIBLE_DEVICES"]=str(number)
-
-def set_logging_level(level):
-	if level == SILENT:
-		sfutil.LOGGING_LEVEL.SILENT = True
-	else:
-		sfutil.LOGGING_LEVEL.INFO = level
-
 def trainer(outcome_headers, model_name, model_type, project_config, results_dict, hp, validation_strategy, 
 			validation_target, validation_fraction, validation_k_fold, validation_log, k_fold_i=None, filters=None, 
-			pretrain=None, resume_training=None, checkpoint=None, log_level=3, supervised=True):
-	if log_level == SILENT:
-		sfutil.LOGGING_LEVEL.SILENT = True
-	else:
-		sfutil.LOGGING_LEVEL.INFO = log_level
+			pretrain=None, resume_training=None, checkpoint=None, supervised=True, flags=None):
+	if not flags: flags = DEFAULT_FLAGS
 
 	# First, clear prior Tensorflow graph to free memory
 	tf.keras.backend.clear_session()
@@ -251,7 +205,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 	full_model_name = model_name if not k_fold_i else model_name+f"-kfold{k_fold_i}"
 
 	# Initialize Comet experiment
-	if USE_COMET:
+	if flags['use_comet']:
 		experiment = Experiment(COMET_API_KEY, project_name=project_config['name'])
 		experiment.log_parameters(hp._get_dict())
 		experiment.log_other('model_name', model_name)
@@ -286,7 +240,8 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 	SFM = sfmodel.SlideflowModel(model_dir, project_config['tile_px'], outcomes, training_tfrecords, validation_tfrecords,
 																			manifest=training_dataset.get_manifest(),
 																			use_fp16=project_config['use_fp16'],
-																			model_type=model_type)
+																			model_type=model_type,
+																			test_mode=flags['test_mode'])
 
 	# Log model settings and hyperparameters
 	hp_file = join(project_config['models_dir'], full_model_name, 'hyperparameters.json')
@@ -310,7 +265,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		"pretrain": pretrain,
 		"resume_training": resume_training,
 		"checkpoint": checkpoint,
-		"comet_experiment": None if not USE_COMET else experiment.get_key(),
+		"comet_experiment": None if not flags['use_comet'] else experiment.get_key(),
 		"hp": hp._get_dict()
 	}
 	sfutil.write_json(hp_data, hp_file)
@@ -325,7 +280,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		results_dict.update({full_model_name: results})
 		logged_epochs = [int(e[5:]) for e in results['epochs'].keys() if e[:5] == 'epoch']
 		
-		if USE_COMET: experiment.log_metrics(results['epochs'][f'epoch{max(logged_epochs)}'])
+		if flags['use_comet']: experiment.log_metrics(results['epochs'][f'epoch{max(logged_epochs)}'])
 		del(SFM)
 		return history
 	except tf.errors.ResourceExhaustedError:
@@ -333,9 +288,10 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		del(SFM)
 		return None
 
-atexit.register(release_gpu)
-
 class SlideflowProject:
+	FLAGS = DEFAULT_FLAGS
+	GPU_LOCK = None
+
 	def __init__(self, project_folder, interactive=True):
 		'''Initializes project by creating project folder, prompting user for project settings, and project
 		settings to "settings.json" within the project directory.'''
@@ -347,18 +303,49 @@ class SlideflowProject:
 				if sfutil.yes_no_input(f'Directory "{project_folder}" does not exist. Create directory and set as project root? [Y/n] ', default='yes'):
 					os.makedirs(project_folder)
 				else:
-					project_folder = sfutil.dir_input("Where is the project root directory? ", create_on_invalid=True, absolute=True)
+					project_folder = sfutil.dir_input("Where is the project root directory? ", None, create_on_invalid=True, absolute=True)
 			else:
 				log.info(f"Project directory {project_folder} not found; will create.")
 				os.makedirs(project_folder)
 		if not project_folder:
-			project_folder = sfutil.dir_input("Where is the project root directory? ", create_on_invalid=True, absolute=True)
-		sfutil.PROJECT_DIR = project_folder
+			project_folder = sfutil.dir_input("Where is the project root directory? ", None, create_on_invalid=True, absolute=True)
 
 		if exists(join(project_folder, "settings.json")):
 			self.load_project(project_folder)
 		elif interactive:
 			self.create_project()
+
+		atexit.register(self.release_gpu)
+
+	def autoselect_gpu(self, number_available, reverse=True):
+		'''Automatically claims a free GPU and creates a lock file to prevent 
+		other instances of slideflow from using the same GPU.'''
+
+		physical_devices = tf.config.experimental.list_physical_devices('GPU')
+		if not len(physical_devices):
+			print("No GPUs detected.")
+			return
+		gpus = range(number_available) if not reverse else reversed(range(number_available))
+
+		for n in gpus:
+			if not exists(join(SOURCE_DIR, f"gpu{n}.lock")):
+				log.empty(f"Requesting GPU #{n}")
+				os.environ["CUDA_VISIBLE_DEVICES"]=str(n)
+				open(join(SOURCE_DIR, f"gpu{n}.lock"), 'a').close()
+				self.GPU_LOCK = n
+				return
+		log.error(f"No free GPUs detected; try deleting 'gpu[#].lock' files in the slideflow directory if GPUs are not in use.")
+
+	def release_gpu(self):
+		log.empty("Cleaning up...")
+		if self.GPU_LOCK != None and exists(join(SOURCE_DIR, f"gpu{self.GPU_LOCK}.lock")):
+			log.empty(f"Freeing GPU {self.GPU_LOCK}...")
+			os.remove(join(SOURCE_DIR, f"gpu{self.GPU_LOCK}.lock"))
+
+	def select_gpu(self, number):
+		log.empty(f"Requesting GPU #{number}")
+		self.GPU_LOCK = number
+		os.environ["CUDA_VISIBLE_DEVICES"]=str(number)
 		
 	def _get_hp(self, row, header):
 		'''Internal function used to convert a row in the batch_train CSV file into a HyperParameters object.'''
@@ -565,15 +552,15 @@ class SlideflowProject:
 		if not sfutil.yes_no_input("Has an annotations (CSV) file already been created? [y/N] ", default='no'):
 			if sfutil.yes_no_input("Create a blank annotations file? [Y/n] ", default='yes'):
 				project['annotations'] = sfutil.file_input("Where will the annotation file be located? [./annotations.csv] ", 
-									default='./annotations.csv', filetype="csv", verify=False)
+									root=project['root'], default='./annotations.csv', filetype="csv", verify=False)
 				self.create_blank_annotations_file(project['annotations'])
 		else:
 			project['annotations'] = sfutil.file_input("Where is the project annotations (CSV) file located? [./annotations.csv] ", 
-									default='./annotations.csv', filetype="csv")
+									root=project['root'], default='./annotations.csv', filetype="csv")
 
 		# Dataset configuration
 		project['dataset_config'] = sfutil.file_input("Where is the dataset configuration file located? [./datasets.json] ",
-													default='./datasets.json', filetype='json', verify=False)
+													root=project['root'], default='./datasets.json', filetype='json', verify=False)
 
 		project['datasets'] = []
 		while not project['datasets']:
@@ -593,13 +580,13 @@ class SlideflowProject:
 				print(f"{sfutil.bold('Creating new dataset')}")
 				dataset_name = input("What is the dataset name? ")
 				dataset_slides = sfutil.dir_input("Where are the slides stored? [./slides] ",
-										default='./slides', create_on_invalid=True)
+										root=project['root'], default='./slides', create_on_invalid=True)
 				dataset_roi = sfutil.dir_input("Where are the ROI files (CSV) stored? [./slides] ",
-										default='./slides', create_on_invalid=True)
+										root=project['root'], default='./slides', create_on_invalid=True)
 				dataset_tiles = sfutil.dir_input("Where will the tessellated image tiles be stored? (recommend SSD) [./tiles] ",
-										default='./tiles', create_on_invalid=True)
+										root=project['root'], default='./tiles', create_on_invalid=True)
 				dataset_tfrecords = sfutil.dir_input("Where should the TFRecord files be stored? (recommend HDD) [./tfrecord] ",
-										default='./tfrecord', create_on_invalid=True)
+										root=project['root'], default='./tfrecord', create_on_invalid=True)
 
 				self.add_dataset(name=dataset_name,
 								 slides=dataset_slides,
@@ -622,12 +609,12 @@ class SlideflowProject:
 
 		# Training
 		project['models_dir'] = sfutil.dir_input("Where should the saved models be stored? [./models] ",
-									default='./models', create_on_invalid=True)
+									root=project['root'], default='./models', create_on_invalid=True)
 		project['tile_um'] = sfutil.int_input("What is the tile width in microns? [280] ", default=280)
 		project['tile_px'] = sfutil.int_input("What is the tile width in pixels? [224] ", default=224)
 		project['use_fp16'] = sfutil.yes_no_input("Should FP16 be used instead of FP32? (recommended) [Y/n] ", default='yes')
 		project['batch_train_config'] = sfutil.file_input("Location for the batch training TSV config file? [./batch_train.tsv] ",
-													default='./batch_train.tsv', filetype='tsv', verify=False)
+													root=project['root'], default='./batch_train.tsv', filetype='tsv', verify=False)
 		
 		if not exists(project['batch_train_config']):
 			print("Batch training file not found, creating blank")
@@ -662,14 +649,13 @@ class SlideflowProject:
 	def evaluate(self, outcome_header, model_file="trained_model.h5", hyperparameters=None, filters=None, checkpoint=None, eval_k_fold=None):
 		'''Evaluates a saved model on a given set of tfrecords.'''
 		log.header(f"Evaluating model {sfutil.green(model_file)}...")
-		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
 		manager = multiprocessing.Manager()
 		results_dict = manager.dict()
 		ctx = multiprocessing.get_context('spawn')
 		
 		process = ctx.Process(target=evaluator, args=(outcome_header, model_file, self.PROJECT, results_dict, filters, hyperparameters, 
-														checkpoint, eval_k_fold, log_level))
+														checkpoint, eval_k_fold, self.FLAGS))
 		process.start()
 		log.info(f"Spawning evaluation process (PID: {process.pid})", 1)
 		process.join()
@@ -784,10 +770,9 @@ class SlideflowProject:
 								"high" uses a stride equal to 1/4 tile width.
 		'''
 		log.header("Generating heatmaps...")
-		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
 		ctx = multiprocessing.get_context('spawn')
-		process = ctx.Process(target=heatmap_generator, args=(model_name, filters, resolution, self.PROJECT, log_level))
+		process = ctx.Process(target=heatmap_generator, args=(model_name, filters, resolution, self.PROJECT, self.FLAGS))
 		process.start()
 		log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
 		process.join()
@@ -796,10 +781,9 @@ class SlideflowProject:
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.'''
 		log.header("Generating mosaic map...")
-		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
 		ctx = multiprocessing.get_context('spawn')
-		process = ctx.Process(target=mosaic_generator, args=(model, filters, focus_filters, resolution, num_tiles_x, self.PROJECT, export_activations, log_level))
+		process = ctx.Process(target=mosaic_generator, args=(model, filters, focus_filters, resolution, num_tiles_x, self.PROJECT, export_activations, self.FLAGS))
 		process.start()
 		log.info(f"Spawning mosaic process (PID: {process.pid})", 1)
 		process.join()
@@ -894,7 +878,7 @@ class SlideflowProject:
 			raise OSError(f'Unable to locate settings.json at location "{directory}".')
 
 		# Enable logging
-		log.logfile = sfutil.global_path("log.log")
+		log.logfile = join(self.PROJECT['root'], "log.log")
 
 		# Load dataset for evaluation
 		try:
@@ -902,7 +886,7 @@ class SlideflowProject:
 			# Load annotations
 			sfutil.load_annotations(self.PROJECT['annotations'], dataset)
 
-			if not SKIP_VERIFICATION:
+			if not self.FLAGS['skip_verification']:
 				log.header("Verifying Annotations...")
 				sfutil.verify_annotations_slides(dataset)
 				log.header("Verifying TFRecord manifest...")
@@ -955,13 +939,12 @@ class SlideflowProject:
 			A dictionary containing model names mapped to train_acc, val_loss, and val_acc
 		'''
 		# Reconcile provided arguments with project defaults
-		batch_train_file = self.PROJECT['batch_train_config'] if not batch_file else sfutil.global_path(batch_file)
+		batch_train_file = self.PROJECT['batch_train_config'] if not batch_file else join(self.PROJECT['root'], batch_file)
 		validation_strategy = self.PROJECT['validation_strategy'] if not validation_strategy else validation_strategy
 		validation_target = self.PROJECT['validation_target'] if not validation_target else validation_target
 		validation_fraction = self.PROJECT['validation_fraction'] if not validation_fraction else validation_fraction
 		validation_k_fold = self.PROJECT['validation_k_fold'] if not validation_k_fold else validation_k_fold
 		validation_log = join(self.PROJECT['root'], "validation_plans.json")
-		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
 		# Quickly scan for errors (duplicate model names in batch training file) and prepare models to train
 		if multi_outcome and model_type != "linear":
@@ -1007,29 +990,24 @@ class SlideflowProject:
 				model_name = f"{outcome_string}-{hp_model_name}"
 				model_iterations = [model_name] if not k_fold else [f"{model_name}-kfold{k+1}" for k in valid_k]
 
-				# Perform training
-				if k_fold:
-					for k in valid_k:
-						# Using a separate process ensures memory is freed once training has completed
-
-						process = ctx.Process(target=trainer, args=(selected_outcome_headers, model_name, model_type, 
-																				self.PROJECT, results_dict, hp, validation_strategy, 
-																				validation_target, validation_fraction, validation_k_fold, 
-																				validation_log, k+1, filters, pretrain, resume_training, 
-																				checkpoint, log_level, supervised))
-						process.start()
-						log.info(f"Spawning training process (PID: {process.pid})", 1)
-						process.join()
-				else:
+				def start_training_process(k):
 					# Using a separate process ensures memory is freed once training has completed
 					process = ctx.Process(target=trainer, args=(selected_outcome_headers, model_name, model_type, 
-																				self.PROJECT, results_dict, hp, validation_strategy, 
-																				validation_target, validation_fraction, validation_k_fold, 
-																				validation_log, None, filters, pretrain, resume_training, 
-																				checkpoint, log_level, supervised))
+																			self.PROJECT, results_dict, hp, validation_strategy, 
+																			validation_target, validation_fraction, validation_k_fold, 
+																			validation_log, k, filters, pretrain, resume_training, 
+																			checkpoint, supervised, self.FLAGS))
 					process.start()
 					log.info(f"Spawning training process (PID: {process.pid})", 1)
 					process.join()
+
+				# Perform training
+				if k_fold:
+					for k in valid_k:
+						start_training_process(k+1)
+						
+				else:
+					start_training_process(None)
 
 				# Record results
 				for mi in model_iterations:
