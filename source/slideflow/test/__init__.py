@@ -86,11 +86,8 @@ class TestSuite:
 	'''Class to supervise standardized testing of slideflow pipeline.'''
 	def __init__(self, reset=True, silent=True):
 		'''Initialize testing models.'''
-		if silent:
-			sf.set_logging_level(sf.SILENT)
-		else:
-			sf.set_logging_level(3)
-
+		log.SILENT = silent
+			
 		# Reset test progress
 		if reset: self.reset()
 
