@@ -64,8 +64,8 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 
 	# Load dataset and annotations for evaluation
 	eval_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
-	sfutil.load_annotations(project_config['annotations'], eval_dataset)
-	outcomes, unique_outcomes = sfutil.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
+	eval_dataset.load_annotations(project_config['annotations'], eval_dataset)
+	outcomes, unique_outcomes = eval_dataset.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
 
 	# If using a specific k-fold, load validation plan
 	if eval_k_fold:
@@ -79,8 +79,7 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 																									k_fold_iter=eval_k_fold)
 	# Otherwise use all TFRecords
 	else:
-		unfiltered_eval_tfrecords = eval_dataset.get_tfrecords(ask_to_merge_subdirs=True)
-		eval_tfrecords = sfutil.filter_tfrecords_paths(unfiltered_eval_tfrecords, filters=filters)
+		eval_tfrecords = eval_dataset.filter_tfrecords_paths(eval_dataset.get_tfrecords(ask_to_merge_subdirs=True), filters=filters)
 
 	# Set up model for evaluation
 	# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
@@ -144,9 +143,8 @@ def heatmap_generator(model_name, filters, resolution, project_config, flags=Non
 		return
 
 	heatmaps_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
-	sfutil.load_annotations(project_config['annotations'], heatmaps_dataset)
-	unfiltered_slide_list = heatmaps_dataset.get_slide_paths()
-	slide_list = sfutil.filter_slide_paths(unfiltered_slide_list, filters=filters)
+	heatmaps_dataset.load_annotations(project_config['annotations'], heatmaps_dataset)
+	slide_list = heatmaps_dataset.filter_slide_paths(heatmaps_dataset.get_slide_paths(), filters=filters)
 	roi_list = heatmaps_dataset.get_rois()
 	heatmaps_folder = os.path.join(project_config['root'], 'heatmaps')
 	if not os.path.exists(heatmaps_folder): os.makedirs(heatmaps_folder)
@@ -166,13 +164,13 @@ def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, pro
 	if not flags: flags = DEFAULT_FLAGS
 
 	mosaic_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
-	sfutil.load_annotations(project_config['annotations'], mosaic_dataset)
+	mosaic_dataset.load_annotations(project_config['annotations'], mosaic_dataset)
 	mosaic_tfrecords = mosaic_dataset.get_tfrecords(ask_to_merge_subdirs=True)
 	model_path = model if model[-3:] == ".h5" else join(project_config['models_dir'], model, 'trained_model.h5')
 
-	tfrecords_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=filters)
+	tfrecords_list = mosaic_dataset.filter_tfrecords_paths(mosaic_tfrecords, filters=filters)
 	if focus_filters:
-		focus_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=focus_filters)
+		focus_list = mosaic_dataset.filter_tfrecords_paths(mosaic_tfrecords, filters=focus_filters)
 	else:
 		focus_list = None
 	log.info(f"Generating mosaic from {len(tfrecords_list)} slides, with focus on {0 if not focus_list else len(focus_list)} slides.", 1)
@@ -214,12 +212,12 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 
 	# Load dataset and annotations for training
 	training_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
-	sfutil.load_annotations(project_config['annotations'], training_dataset)
+	training_dataset.load_annotations(project_config['annotations'], training_dataset)
 
 	# Load outcomes
-	outcomes, unique_outcomes = sfutil.get_outcomes_from_annotations(outcome_headers, filters=filters, 
-																	 				  filter_blank=outcome_headers,
-																	 				  use_float=(model_type == 'linear'))
+	outcomes, unique_outcomes = training_dataset.get_outcomes_from_annotations(outcome_headers, filters=filters, 
+																	 				  			filter_blank=outcome_headers,
+																	 				  			use_float=(model_type == 'linear'))
 	if model_type == 'categorical': 
 		outcome_labels = dict(zip(range(len(unique_outcomes)), unique_outcomes))
 	else:
@@ -476,8 +474,8 @@ class SlideflowProject:
 		# Load dataset
 		dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
 
-		sfutil.update_annotations_with_slidenames(self.PROJECT['annotations'], dataset)
-		sfutil.load_annotations(self.PROJECT['annotations'], dataset)
+		dataset.update_annotations_with_slidenames(self.PROJECT['annotations'], dataset)
+		dataset.load_annotations(self.PROJECT['annotations'], dataset)
 
 	def create_blank_annotations_file(self, outfile=None):
 		'''Creates an example blank annotations file.'''
@@ -677,8 +675,7 @@ class SlideflowProject:
 
 		for dataset_name in self.PROJECT['datasets']:
 			log.empty(f"Working on dataset {sfutil.bold(dataset_name)}", 1)
-			unfiltered_slide_list = extracting_dataset.get_slides_by_dataset(dataset_name)
-			slide_list = sfutil.filter_slide_paths(unfiltered_slide_list, filters=filters)
+			slide_list = extracting_dataset.filter_slide_paths(extracting_dataset.get_slides_by_dataset(dataset_name), filters=filters)
 			log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 1)
 			
 			save_folder = join(extracting_dataset.datasets[dataset_name]['tiles'], extracting_dataset.datasets[dataset_name]['label'])
@@ -743,7 +740,7 @@ class SlideflowProject:
 		activations_tfrecords = activations_dataset.get_tfrecords(ask_to_merge_subdirs=True)
 		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
 
-		tfrecords_list = sfutil.filter_tfrecords_paths(activations_tfrecords, filters=filters)
+		tfrecords_list = activations_dataset.filter_tfrecords_paths(activations_tfrecords, filters=filters)
 		log.info(f"Visualizing activations from {len(tfrecords_list)} slides", 1)
 
 		AV = ActivationsVisualizer(model=model_path,
@@ -884,11 +881,11 @@ class SlideflowProject:
 		try:
 			dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
 			# Load annotations
-			sfutil.load_annotations(self.PROJECT['annotations'], dataset)
+			dataset.load_annotations(self.PROJECT['annotations'], dataset)
 
 			if not self.FLAGS['skip_verification']:
 				log.header("Verifying Annotations...")
-				sfutil.verify_annotations_slides(dataset)
+				dataset.verify_annotations_slides(dataset)
 				log.header("Verifying TFRecord manifest...")
 				self.update_manifest()
 		except FileNotFoundError:
@@ -898,7 +895,7 @@ class SlideflowProject:
 		log.header(f"Resizing TFRecord tiles to ({size}, {size})")
 		resize_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
 		resize_tfrecords = resize_dataset.get_tfrecords()
-		tfrecords_list = sfutil.filter_tfrecords_paths(resize_tfrecords, filters=filters)
+		tfrecords_list = resize_dataset.filter_tfrecords_paths(resize_tfrecords, filters=filters)
 
 		log.info(f"Resizing {len(tfrecords_list)} tfrecords", 1)
 
@@ -1037,10 +1034,11 @@ class SlideflowProject:
 			force_update:	If True, will re-validate contents of all TFRecords. If False, will only validate
 								contents of TFRecords not yet in the manifest
 		'''
-		tfrecords_folders = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets']).get_tfrecords_folders()
+		dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		tfrecords_folders = dataset.get_tfrecords_folders()
 		for tfr_folder in tfrecords_folders:
-			sfutil.update_tfrecord_manifest(directory=tfr_folder, 
-											force_update=force_update)
+			dataset.update_tfrecord_manifest(directory=tfr_folder, 
+											 force_update=force_update)
 
 	def update_tfrecords(self):
 		log.header('Updating TFRecords...')
