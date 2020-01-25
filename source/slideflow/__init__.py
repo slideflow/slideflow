@@ -64,7 +64,7 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 
 	# Load dataset and annotations for evaluation
 	eval_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
-	eval_dataset.load_annotations(project_config['annotations'], eval_dataset)
+	eval_dataset.load_annotations(project_config['annotations'])
 	outcomes, unique_outcomes = eval_dataset.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
 
 	# If using a specific k-fold, load validation plan
@@ -143,7 +143,7 @@ def heatmap_generator(model_name, filters, resolution, project_config, flags=Non
 		return
 
 	heatmaps_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
-	heatmaps_dataset.load_annotations(project_config['annotations'], heatmaps_dataset)
+	heatmaps_dataset.load_annotations(project_config['annotations'])
 	slide_list = heatmaps_dataset.filter_slide_paths(heatmaps_dataset.get_slide_paths(), filters=filters)
 	roi_list = heatmaps_dataset.get_rois()
 	heatmaps_folder = os.path.join(project_config['root'], 'heatmaps')
@@ -164,7 +164,7 @@ def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, pro
 	if not flags: flags = DEFAULT_FLAGS
 
 	mosaic_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
-	mosaic_dataset.load_annotations(project_config['annotations'], mosaic_dataset)
+	mosaic_dataset.load_annotations(project_config['annotations'])
 	mosaic_tfrecords = mosaic_dataset.get_tfrecords(ask_to_merge_subdirs=True)
 	model_path = model if model[-3:] == ".h5" else join(project_config['models_dir'], model, 'trained_model.h5')
 
@@ -212,7 +212,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 
 	# Load dataset and annotations for training
 	training_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
-	training_dataset.load_annotations(project_config['annotations'], training_dataset)
+	training_dataset.load_annotations(project_config['annotations'])
 
 	# Load outcomes
 	outcomes, unique_outcomes = training_dataset.get_outcomes_from_annotations(outcome_headers, filters=filters, 
@@ -474,8 +474,8 @@ class SlideflowProject:
 		# Load dataset
 		dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
 
-		dataset.update_annotations_with_slidenames(self.PROJECT['annotations'], dataset)
-		dataset.load_annotations(self.PROJECT['annotations'], dataset)
+		dataset.update_annotations_with_slidenames(self.PROJECT['annotations'])
+		dataset.load_annotations(self.PROJECT['annotations'])
 
 	def create_blank_annotations_file(self, outfile=None):
 		'''Creates an example blank annotations file.'''
@@ -881,11 +881,11 @@ class SlideflowProject:
 		try:
 			dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
 			# Load annotations
-			dataset.load_annotations(self.PROJECT['annotations'], dataset)
+			dataset.load_annotations(self.PROJECT['annotations'])
 
 			if not self.FLAGS['skip_verification']:
 				log.header("Verifying Annotations...")
-				dataset.verify_annotations_slides(dataset)
+				dataset.verify_annotations_slides()
 				log.header("Verifying TFRecord manifest...")
 				self.update_manifest()
 		except FileNotFoundError:
@@ -1035,6 +1035,7 @@ class SlideflowProject:
 								contents of TFRecords not yet in the manifest
 		'''
 		dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		dataset.load_annotations(self.PROJECT['annotations'])
 		tfrecords_folders = dataset.get_tfrecords_folders()
 		for tfr_folder in tfrecords_folders:
 			dataset.update_tfrecord_manifest(directory=tfr_folder, 
