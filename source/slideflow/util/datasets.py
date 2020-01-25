@@ -1,5 +1,6 @@
 import shutil
 import sys
+import os
 import argparse
 import slideflow.util as sfutil
 
@@ -231,14 +232,14 @@ class Dataset:
 			if ann[TCGA.slide] not in slide_patient_dict:
 				slide_patient_dict.update({ann[TCGA.slide]: ann[TCGA.patient]})
 			elif slide_patient_dict[ann[TCGA.slide]] != ann[TCGA.patient]:
-				log.error(f"Multiple patients assigned to slide {green(ann[TCGA.slide])}.")
+				log.error(f"Multiple patients assigned to slide {sfutil.green(ann[TCGA.slide])}.")
 				sys.exit()
 
 			# Only return slides with annotation values specified in "filters"
 			if filters:
 				for filter_key in filters.keys():
 					if filter_key not in ann.keys():
-						log.error(f"Filter header {bold(filter_key)} not found in annotations file.")
+						log.error(f"Filter header {sfutil.bold(filter_key)} not found in annotations file.")
 						raise IndexError(f"Filter header {filter_key} not found in annotations file.")
 					if    ((type(filters[filter_key]) == list and ann[filter_key] not in filters[filter_key]) 
 						or (type(filters[filter_key]) != list and filters[filter_key] != ann[filter_key])):
@@ -294,7 +295,7 @@ class Dataset:
 				try:
 					filtered_outcomes = [float(o) for o in filtered_outcomes]
 				except ValueError:
-					log.error(f"Unable to convert outcome {bold(header)} into type 'float'.", 1)
+					log.error(f"Unable to convert outcome {sfutil.bold(header)} into type 'float'.", 1)
 					raise TypeError(f"Unable to convert outcome {header} into type 'float'.")
 			else:
 				log.info(f'Assigning outcome descriptors in column "{header}" to numerical values', 1)
@@ -302,7 +303,7 @@ class Dataset:
 				unique_outcomes.sort()
 				for i, uo in enumerate(unique_outcomes):
 					num_matching_slides_filtered = sum(o == uo for o in filtered_outcomes)
-					log.empty(f"{header} '{info(uo)}' assigned to value '{i}' [{bold(str(num_matching_slides_filtered))} slides]", 2)
+					log.empty(f"{header} '{sfutil.info(uo)}' assigned to value '{i}' [{sfutil.bold(str(num_matching_slides_filtered))} slides]", 2)
 			
 			# Create function to process/convert outcome
 			def _process_outcome(o):
@@ -340,10 +341,10 @@ class Dataset:
 						results[slide][TCGA.patient] = patient
 		return results, unique_outcomes
 
-	def load_annotations(self, annotations_file, dataset=None):
+	def load_annotations(self, annotations_file):
 		# Verify annotations file exists
 		if not os.path.exists(annotations_file):
-			log.error(f"Annotations file {green(annotations_file)} does not exist, unable to load")
+			log.error(f"Annotations file {sfutil.green(annotations_file)} does not exist, unable to load")
 			sys.exit()
 
 		header, current_annotations = sfutil.read_annotations(annotations_file)
@@ -365,15 +366,15 @@ class Dataset:
 			slide_index = header.index(TCGA.slide)
 		except:
 			log.error(f"Header column '{TCGA.slide}' not found.", 1)
-			if dataset and sfutil.yes_no_input('\nSearch slides directory and automatically associate patients with slides? [Y/n] ', default='yes'):
-				self.update_annotations_with_slidenames(annotations_file, dataset)
+			if sfutil.yes_no_input('\nSearch slides directory and automatically associate patients with slides? [Y/n] ', default='yes'):
+				self.update_annotations_with_slidenames(annotations_file)
 				header, current_annotations = sfutil.read_annotations(annotations_file)
 			else:
 				sys.exit()
 		self.ANNOTATIONS = current_annotations
 
-	def verify_annotations_slides(self, dataset):
-		slide_list = dataset.get_slide_paths()
+	def verify_annotations_slides(self):
+		slide_list = self.get_slide_paths()
 
 		# Verify no duplicate slide names are found
 		slide_list_from_annotations = self.get_slides_from_annotations()
@@ -388,13 +389,13 @@ class Dataset:
 			print_func = print if num_warned < warn_threshold else None
 			slide = annotation[TCGA.slide]
 			if slide == '':
-				log.warn(f"Patient {green(annotation[TCGA.patient])} has no slide assigned.", 1, print_func)
+				log.warn(f"Patient {sfutil.green(annotation[TCGA.patient])} has no slide assigned.", 1, print_func)
 				num_warned += 1
 			elif not slide in [sfutil.path_to_name(s) for s in slide_list]:
 				log.warn(f"Unable to locate slide {slide}", 1, print_func)
 				num_warned += 1
 		if num_warned >= warn_threshold:
-			log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)
+			log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
 		if not num_warned:
 			log.info(f"Slides successfully verified, no errors found.", 1)
 
@@ -450,10 +451,10 @@ class Dataset:
 		error_threshold = 3
 		for s, slide in enumerate(slide_list_errors):
 			print_func = print if s < error_threshold else None
-			log.error(f"Failed TFRecord integrity check: annotation not found for slide {green(slide)}", 1, print_func)
+			log.error(f"Failed TFRecord integrity check: annotation not found for slide {sfutil.green(slide)}", 1, print_func)
 
 		if len(slide_list_errors) >= error_threshold:
-			log.error(f"...{len(slide_list_errors)} total TFRecord integrity check failures, see {green(log.logfile)} for details", 1)
+			log.error(f"...{len(slide_list_errors)} total TFRecord integrity check failures, see {sfutil.green(log.logfile)} for details", 1)
 		if len(slide_list_errors) == 0:
 			log.info("TFRecords verified, no errors found.", 1)
 
@@ -478,10 +479,10 @@ class Dataset:
 			global_manifest.update({join(directory, record): relative_manifest[record]})
 		return global_manifest
 		
-	def update_annotations_with_slidenames(self, annotations_file, dataset):
+	def update_annotations_with_slidenames(self, annotations_file):
 		'''Attempts to automatically associate slide names from a directory with patients in a given annotations file.'''
 		header, _ = sfutil.read_annotations(annotations_file)
-		slide_list = dataset.get_slide_paths()
+		slide_list = self.get_slide_paths()
 
 		# First, load all patient names from the annotations file
 		try:
@@ -531,7 +532,7 @@ class Dataset:
 				#num_warned += 1
 				pass
 		if num_warned >= warn_threshold:
-			log.warn(f"...{num_warned} total warnings, see {green(log.logfile)} for details", 1)
+			log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
 
 		# Now, write the assocations
 		num_updated_annotations = 0
