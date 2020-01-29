@@ -23,50 +23,31 @@ import itertools
 
 import slideflow.trainer.model as sfmodel
 import slideflow.util as sfutil
-from slideflow.util import TCGA, log, ProgressBar
+from slideflow.util import TCGA, ProgressBar, log
 from slideflow.util.datasets import Dataset
 from slideflow.activations import ActivationsVisualizer, TileVisualizer
 from comet_ml import Experiment
 
 # TODO: allow datasets to have filters (would address evaluate() function)
 
-__version__ = "1.5.0"
+__version__ = "1.5.1"
 
-SKIP_VERIFICATION = False
 NUM_THREADS = 4
-EVAL_BATCH_SIZE = 64
-GPU_LOCK = None
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
 SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
-VALIDATION_ID = ''.join(choice(ascii_lowercase) for i in range(10))
 COMET_API_KEY = "A3VWRcPaHgqc4H5K0FoCtRXbp"
-USE_COMET = False
 
-def autoselect_gpu(number_available, reverse=True):
-	physical_devices = tf.config.experimental.list_physical_devices('GPU')
-	if not len(physical_devices):
-		print("No GPUs detected.")
-		return
-	global GPU_LOCK
-	'''Automatically claims a free GPU and creates a lock file to prevent 
-	other instances of slideflow from using the same GPU.'''
-	gpus = range(number_available) if not reverse else reversed(range(number_available))
-	for n in gpus:
-		if not exists(join(SOURCE_DIR, f"gpu{n}.lock")):
-			log.empty(f"Requesting GPU #{n}")
-			os.environ["CUDA_VISIBLE_DEVICES"]=str(n)
-			open(join(SOURCE_DIR, f"gpu{n}.lock"), 'a').close()
-			GPU_LOCK = n
-			return
-	log.error(f"No free GPUs detected; try deleting 'gpu[#].lock' files in the slideflow directory if GPUs are not in use.")
+DEFAULT_FLAGS = {
+	'test_mode': False,
+	'use_comet': False,
+	'skip_verification': False,
+	'eval_batch_size': 64,
+}
 
 def evaluator(outcome_header, model_file, project_config, results_dict,
-				filters=None, hyperparameters=None, checkpoint=None, eval_k_fold=None, log_level=3):
-	if log_level == SILENT:
-		sfutil.LOGGING_LEVEL.SILENT = True
-	else:
-		sfutil.LOGGING_LEVEL.INFO = log_level
+				filters=None, hyperparameters=None, checkpoint=None, eval_k_fold=None, flags=None):
+	if not flags: flags = DEFAULT_FLAGS
 
 	model_root = dirname(model_file)
 
@@ -83,8 +64,8 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 
 	# Load dataset and annotations for evaluation
 	eval_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
-	sfutil.load_annotations(project_config['annotations'], eval_dataset)
-	outcomes, unique_outcomes = sfutil.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
+	eval_dataset.load_annotations(project_config['annotations'])
+	outcomes, unique_outcomes = eval_dataset.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
 
 	# If using a specific k-fold, load validation plan
 	if eval_k_fold:
@@ -98,8 +79,7 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 																									k_fold_iter=eval_k_fold)
 	# Otherwise use all TFRecords
 	else:
-		unfiltered_eval_tfrecords = eval_dataset.get_tfrecords(ask_to_merge_subdirs=True)
-		eval_tfrecords = sfutil.filter_tfrecords_paths(unfiltered_eval_tfrecords, filters=filters)
+		eval_tfrecords = eval_dataset.filter_tfrecords_paths(eval_dataset.get_tfrecords(ask_to_merge_subdirs=True), filters=filters)
 
 	# Set up model for evaluation
 	# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
@@ -111,7 +91,8 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 																			validation_tfrecords=eval_tfrecords,
 																			manifest=eval_dataset.get_manifest(),
 																			use_fp16=project_config['use_fp16'],
-																			model_type=model_type)
+																			model_type=model_type,
+																			test_mode=flags['test_mode'])
 
 	# Log model settings and hyperparameters
 	hp_file = join(model_dir, 'hyperparameters.json')
@@ -143,19 +124,16 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 
 	# Perform evaluation
 	log.info(f"Evaluating {sfutil.bold(len(eval_tfrecords))} tfrecords", 1)
-	results = SFM.evaluate(tfrecords=eval_tfrecords, hp=hp, model=model_file, model_type=model_type, checkpoint=checkpoint, batch_size=EVAL_BATCH_SIZE)
+	results = SFM.evaluate(tfrecords=eval_tfrecords, hp=hp, model=model_file, model_type=model_type, checkpoint=checkpoint, batch_size=flags['eval_batch_size'])
 
 	# Load results into multiprocessing dictionary
 	results_dict['results'] = results
 	return results_dict
 
-def heatmap_generator(model_name, filters, resolution, project_config, log_level=3):
+def heatmap_generator(model_name, filters, resolution, project_config, flags=None):
 	import slideflow.slide as sfslide
 
-	if log_level == SILENT:
-		sfutil.LOGGING_LEVEL.SILENT = True
-	else:
-		sfutil.LOGGING_LEVEL.INFO = log_level
+	if not flags: flags = DEFAULT_FLAGS
 
 	resolutions = {'low': 1, 'medium': 2, 'high': 4}
 	try:
@@ -165,9 +143,8 @@ def heatmap_generator(model_name, filters, resolution, project_config, log_level
 		return
 
 	heatmaps_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
-	sfutil.load_annotations(project_config['annotations'], heatmaps_dataset)
-	unfiltered_slide_list = heatmaps_dataset.get_slide_paths()
-	slide_list = sfutil.filter_slide_paths(unfiltered_slide_list, filters=filters)
+	heatmaps_dataset.load_annotations(project_config['annotations'])
+	slide_list = heatmaps_dataset.filter_slide_paths(heatmaps_dataset.get_slide_paths(), filters=filters)
 	roi_list = heatmaps_dataset.get_rois()
 	heatmaps_folder = os.path.join(project_config['root'], 'heatmaps')
 	if not os.path.exists(heatmaps_folder): os.makedirs(heatmaps_folder)
@@ -183,20 +160,17 @@ def heatmap_generator(model_name, filters, resolution, project_config, log_level
 		heatmap.generate(batch_size=64, export_activations=True)
 		heatmap.save()
 
-def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, project_config, export_activations=False, log_level=3):
-	if log_level == SILENT:
-		sfutil.LOGGING_LEVEL.SILENT = True
-	else:
-		sfutil.LOGGING_LEVEL.INFO = log_level
+def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, max_tiles_per_slide, project_config, export_activations=False, flags=None):
+	if not flags: flags = DEFAULT_FLAGS
 
 	mosaic_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
-	sfutil.load_annotations(project_config['annotations'], mosaic_dataset)
+	mosaic_dataset.load_annotations(project_config['annotations'])
 	mosaic_tfrecords = mosaic_dataset.get_tfrecords(ask_to_merge_subdirs=True)
 	model_path = model if model[-3:] == ".h5" else join(project_config['models_dir'], model, 'trained_model.h5')
 
-	tfrecords_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=filters)
+	tfrecords_list = mosaic_dataset.filter_tfrecords_paths(mosaic_tfrecords, filters=filters)
 	if focus_filters:
-		focus_list = sfutil.filter_tfrecords_paths(mosaic_tfrecords, filters=focus_filters)
+		focus_list = mosaic_dataset.filter_tfrecords_paths(mosaic_tfrecords, filters=focus_filters)
 	else:
 		focus_list = None
 	log.info(f"Generating mosaic from {len(tfrecords_list)} slides, with focus on {0 if not focus_list else len(focus_list)} slides.", 1)
@@ -207,38 +181,17 @@ def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, pro
 								image_size=project_config['tile_px'],
 								focus_nodes=None,
 								use_fp16=project_config['use_fp16'],
+								batch_size=flags['eval_batch_size'],
 								export_csv=export_activations)
 
 	AV.generate_mosaic(focus=focus_list,
 						num_tiles_x=num_tiles_x,
 						resolution=resolution)
 
-def release_gpu():
-	global GPU_LOCK
-	log.empty("Cleaning up...")
-	if GPU_LOCK != None and exists(join(SOURCE_DIR, f"gpu{GPU_LOCK}.lock")):
-		log.empty(f"Freeing GPU {GPU_LOCK}...")
-		os.remove(join(SOURCE_DIR, f"gpu{GPU_LOCK}.lock"))
-
-def select_gpu(number):
-	global GPU_LOCK
-	log.empty(f"Requesting GPU #{number}")
-	GPU_LOCK = number
-	os.environ["CUDA_VISIBLE_DEVICES"]=str(number)
-
-def set_logging_level(level):
-	if level == SILENT:
-		sfutil.LOGGING_LEVEL.SILENT = True
-	else:
-		sfutil.LOGGING_LEVEL.INFO = level
-
 def trainer(outcome_headers, model_name, model_type, project_config, results_dict, hp, validation_strategy, 
 			validation_target, validation_fraction, validation_k_fold, validation_log, k_fold_i=None, filters=None, 
-			pretrain=None, resume_training=None, checkpoint=None, log_level=3, supervised=True):
-	if log_level == SILENT:
-		sfutil.LOGGING_LEVEL.SILENT = True
-	else:
-		sfutil.LOGGING_LEVEL.INFO = log_level
+			pretrain=None, resume_training=None, checkpoint=None, supervised=True, flags=None):
+	if not flags: flags = DEFAULT_FLAGS
 
 	# First, clear prior Tensorflow graph to free memory
 	tf.keras.backend.clear_session()
@@ -251,7 +204,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 	full_model_name = model_name if not k_fold_i else model_name+f"-kfold{k_fold_i}"
 
 	# Initialize Comet experiment
-	if USE_COMET:
+	if flags['use_comet']:
 		experiment = Experiment(COMET_API_KEY, project_name=project_config['name'])
 		experiment.log_parameters(hp._get_dict())
 		experiment.log_other('model_name', model_name)
@@ -260,12 +213,12 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 
 	# Load dataset and annotations for training
 	training_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
-	sfutil.load_annotations(project_config['annotations'], training_dataset)
+	training_dataset.load_annotations(project_config['annotations'])
 
 	# Load outcomes
-	outcomes, unique_outcomes = sfutil.get_outcomes_from_annotations(outcome_headers, filters=filters, 
-																	 				  filter_blank=outcome_headers,
-																	 				  use_float=(model_type == 'linear'))
+	outcomes, unique_outcomes = training_dataset.get_outcomes_from_annotations(outcome_headers, filters=filters, 
+																	 				  			filter_blank=outcome_headers,
+																	 				  			use_float=(model_type == 'linear'))
 	if model_type == 'categorical': 
 		outcome_labels = dict(zip(range(len(unique_outcomes)), unique_outcomes))
 	else:
@@ -286,7 +239,8 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 	SFM = sfmodel.SlideflowModel(model_dir, project_config['tile_px'], outcomes, training_tfrecords, validation_tfrecords,
 																			manifest=training_dataset.get_manifest(),
 																			use_fp16=project_config['use_fp16'],
-																			model_type=model_type)
+																			model_type=model_type,
+																			test_mode=flags['test_mode'])
 
 	# Log model settings and hyperparameters
 	hp_file = join(project_config['models_dir'], full_model_name, 'hyperparameters.json')
@@ -310,7 +264,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		"pretrain": pretrain,
 		"resume_training": resume_training,
 		"checkpoint": checkpoint,
-		"comet_experiment": None if not USE_COMET else experiment.get_key(),
+		"comet_experiment": None if not flags['use_comet'] else experiment.get_key(),
 		"hp": hp._get_dict()
 	}
 	sfutil.write_json(hp_data, hp_file)
@@ -325,7 +279,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		results_dict.update({full_model_name: results})
 		logged_epochs = [int(e[5:]) for e in results['epochs'].keys() if e[:5] == 'epoch']
 		
-		if USE_COMET: experiment.log_metrics(results['epochs'][f'epoch{max(logged_epochs)}'])
+		if flags['use_comet']: experiment.log_metrics(results['epochs'][f'epoch{max(logged_epochs)}'])
 		del(SFM)
 		return history
 	except tf.errors.ResourceExhaustedError:
@@ -333,9 +287,10 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		del(SFM)
 		return None
 
-atexit.register(release_gpu)
-
 class SlideflowProject:
+	FLAGS = DEFAULT_FLAGS
+	GPU_LOCK = None
+
 	def __init__(self, project_folder, interactive=True):
 		'''Initializes project by creating project folder, prompting user for project settings, and project
 		settings to "settings.json" within the project directory.'''
@@ -347,18 +302,49 @@ class SlideflowProject:
 				if sfutil.yes_no_input(f'Directory "{project_folder}" does not exist. Create directory and set as project root? [Y/n] ', default='yes'):
 					os.makedirs(project_folder)
 				else:
-					project_folder = sfutil.dir_input("Where is the project root directory? ", create_on_invalid=True, absolute=True)
+					project_folder = sfutil.dir_input("Where is the project root directory? ", None, create_on_invalid=True, absolute=True)
 			else:
 				log.info(f"Project directory {project_folder} not found; will create.")
 				os.makedirs(project_folder)
 		if not project_folder:
-			project_folder = sfutil.dir_input("Where is the project root directory? ", create_on_invalid=True, absolute=True)
-		sfutil.PROJECT_DIR = project_folder
+			project_folder = sfutil.dir_input("Where is the project root directory? ", None, create_on_invalid=True, absolute=True)
 
 		if exists(join(project_folder, "settings.json")):
 			self.load_project(project_folder)
 		elif interactive:
-			self.create_project()
+			self.create_project(project_folder)
+
+		atexit.register(self.release_gpu)
+
+	def autoselect_gpu(self, number_available, reverse=True):
+		'''Automatically claims a free GPU and creates a lock file to prevent 
+		other instances of slideflow from using the same GPU.'''
+
+		physical_devices = tf.config.experimental.list_physical_devices('GPU')
+		if not len(physical_devices):
+			print("No GPUs detected.")
+			return
+		gpus = range(number_available) if not reverse else reversed(range(number_available))
+
+		for n in gpus:
+			if not exists(join(SOURCE_DIR, f"gpu{n}.lock")):
+				log.empty(f"Requesting GPU #{n}")
+				os.environ["CUDA_VISIBLE_DEVICES"]=str(n)
+				open(join(SOURCE_DIR, f"gpu{n}.lock"), 'a').close()
+				self.GPU_LOCK = n
+				return
+		log.error(f"No free GPUs detected; try deleting 'gpu[#].lock' files in the slideflow directory if GPUs are not in use.")
+
+	def release_gpu(self):
+		log.empty("Cleaning up...")
+		if self.GPU_LOCK != None and exists(join(SOURCE_DIR, f"gpu{self.GPU_LOCK}.lock")):
+			log.empty(f"Freeing GPU {self.GPU_LOCK}...")
+			os.remove(join(SOURCE_DIR, f"gpu{self.GPU_LOCK}.lock"))
+
+	def select_gpu(self, number):
+		log.empty(f"Requesting GPU #{number}")
+		self.GPU_LOCK = number
+		os.environ["CUDA_VISIBLE_DEVICES"]=str(number)
 		
 	def _get_hp(self, row, header):
 		'''Internal function used to convert a row in the batch_train CSV file into a HyperParameters object.'''
@@ -489,8 +475,8 @@ class SlideflowProject:
 		# Load dataset
 		dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
 
-		sfutil.update_annotations_with_slidenames(self.PROJECT['annotations'], dataset)
-		sfutil.load_annotations(self.PROJECT['annotations'], dataset)
+		dataset.update_annotations_with_slidenames(self.PROJECT['annotations'])
+		dataset.load_annotations(self.PROJECT['annotations'])
 
 	def create_blank_annotations_file(self, outfile=None):
 		'''Creates an example blank annotations file.'''
@@ -552,11 +538,11 @@ class SlideflowProject:
 				writer.writerow(row)
 		log.complete(f"Wrote {len(sweep)} combinations for sweep to {sfutil.green(filename)}")
 
-	def create_project(self):
+	def create_project(self, project_folder):
 		'''Prompts user to provide all relevant project configuration and saves configuration to "settings.json".'''
 		# General setup and slide configuration
 		project = {
-			'root': sfutil.PROJECT_DIR,
+			'root': project_folder,
 			'slideflow_version': __version__
 		}
 		project['name'] = input("What is the project name? ")
@@ -565,15 +551,15 @@ class SlideflowProject:
 		if not sfutil.yes_no_input("Has an annotations (CSV) file already been created? [y/N] ", default='no'):
 			if sfutil.yes_no_input("Create a blank annotations file? [Y/n] ", default='yes'):
 				project['annotations'] = sfutil.file_input("Where will the annotation file be located? [./annotations.csv] ", 
-									default='./annotations.csv', filetype="csv", verify=False)
+									root=project['root'], default='./annotations.csv', filetype="csv", verify=False)
 				self.create_blank_annotations_file(project['annotations'])
 		else:
 			project['annotations'] = sfutil.file_input("Where is the project annotations (CSV) file located? [./annotations.csv] ", 
-									default='./annotations.csv', filetype="csv")
+									root=project['root'], default='./annotations.csv', filetype="csv")
 
 		# Dataset configuration
 		project['dataset_config'] = sfutil.file_input("Where is the dataset configuration file located? [./datasets.json] ",
-													default='./datasets.json', filetype='json', verify=False)
+													root=project['root'], default='./datasets.json', filetype='json', verify=False)
 
 		project['datasets'] = []
 		while not project['datasets']:
@@ -593,13 +579,13 @@ class SlideflowProject:
 				print(f"{sfutil.bold('Creating new dataset')}")
 				dataset_name = input("What is the dataset name? ")
 				dataset_slides = sfutil.dir_input("Where are the slides stored? [./slides] ",
-										default='./slides', create_on_invalid=True)
+										root=project['root'], default='./slides', create_on_invalid=True)
 				dataset_roi = sfutil.dir_input("Where are the ROI files (CSV) stored? [./slides] ",
-										default='./slides', create_on_invalid=True)
+										root=project['root'], default='./slides', create_on_invalid=True)
 				dataset_tiles = sfutil.dir_input("Where will the tessellated image tiles be stored? (recommend SSD) [./tiles] ",
-										default='./tiles', create_on_invalid=True)
+										root=project['root'], default='./tiles', create_on_invalid=True)
 				dataset_tfrecords = sfutil.dir_input("Where should the TFRecord files be stored? (recommend HDD) [./tfrecord] ",
-										default='./tfrecord', create_on_invalid=True)
+										root=project['root'], default='./tfrecord', create_on_invalid=True)
 
 				self.add_dataset(name=dataset_name,
 								 slides=dataset_slides,
@@ -617,17 +603,14 @@ class SlideflowProject:
 					print(f'Invalid selection: {dataset_selection}')
 					continue
 
-		# Other tessellation
-		project['delete_tiles'] = sfutil.yes_no_input("Should raw tile images be deleted after TFRecord storage? [Y/n] ", default='yes')
-
 		# Training
 		project['models_dir'] = sfutil.dir_input("Where should the saved models be stored? [./models] ",
-									default='./models', create_on_invalid=True)
+									root=project['root'], default='./models', create_on_invalid=True)
 		project['tile_um'] = sfutil.int_input("What is the tile width in microns? [280] ", default=280)
 		project['tile_px'] = sfutil.int_input("What is the tile width in pixels? [224] ", default=224)
 		project['use_fp16'] = sfutil.yes_no_input("Should FP16 be used instead of FP32? (recommended) [Y/n] ", default='yes')
 		project['batch_train_config'] = sfutil.file_input("Location for the batch training TSV config file? [./batch_train.tsv] ",
-													default='./batch_train.tsv', filetype='tsv', verify=False)
+													root=project['root'], default='./batch_train.tsv', filetype='tsv', verify=False)
 		
 		if not exists(project['batch_train_config']):
 			print("Batch training file not found, creating blank")
@@ -647,36 +630,35 @@ class SlideflowProject:
 		else:
 			project['validation_k_fold'] = 0
 
-		sfutil.write_json(project, join(sfutil.PROJECT_DIR, 'settings.json'))
+		sfutil.write_json(project, join(project_folder, 'settings.json'))
 		self.PROJECT = project
 
 		# Write a sample actions.py file
 		with open(join(SOURCE_DIR, 'sample_actions.py'), 'r') as sample_file:
 			sample_actions = sample_file.read()
-			with open(os.path.join(sfutil.PROJECT_DIR, 'actions.py'), 'w') as actions_file:
+			with open(os.path.join(project_folder, 'actions.py'), 'w') as actions_file:
 				actions_file.write(sample_actions)
 
 		print("\nProject configuration saved.\n")
-		self.load_project(sfutil.PROJECT_DIR)
+		self.load_project(project_folder)
 
 	def evaluate(self, outcome_header, model_file="trained_model.h5", hyperparameters=None, filters=None, checkpoint=None, eval_k_fold=None):
 		'''Evaluates a saved model on a given set of tfrecords.'''
 		log.header(f"Evaluating model {sfutil.green(model_file)}...")
-		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
 		manager = multiprocessing.Manager()
 		results_dict = manager.dict()
 		ctx = multiprocessing.get_context('spawn')
 		
 		process = ctx.Process(target=evaluator, args=(outcome_header, model_file, self.PROJECT, results_dict, filters, hyperparameters, 
-														checkpoint, eval_k_fold, log_level))
+														checkpoint, eval_k_fold, self.FLAGS))
 		process.start()
 		log.info(f"Spawning evaluation process (PID: {process.pid})", 1)
 		process.join()
 
 		return results_dict
 
-	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, skip_validation=False, generate_tfrecords=True, stride_div=1, tma=False, augment=False):
+	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, skip_validation=False, generate_tfrecords=True, stride_div=1, tma=False, augment=False, delete_tiles=True, enable_downsample=False):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.'''
 		import slideflow.slide as sfslide
@@ -688,11 +670,11 @@ class SlideflowProject:
 
 		# Load dataset for evaluation
 		extracting_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		extracting_dataset.load_annotations(self.PROJECT['annotations'])
 
 		for dataset_name in self.PROJECT['datasets']:
 			log.empty(f"Working on dataset {sfutil.bold(dataset_name)}", 1)
-			unfiltered_slide_list = extracting_dataset.get_slides_by_dataset(dataset_name)
-			slide_list = sfutil.filter_slide_paths(unfiltered_slide_list, filters=filters)
+			slide_list = extracting_dataset.filter_slide_paths(extracting_dataset.get_slides_by_dataset(dataset_name), filters=filters)
 			log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 1)
 			
 			save_folder = join(extracting_dataset.datasets[dataset_name]['tiles'], extracting_dataset.datasets[dataset_name]['label'])
@@ -713,9 +695,14 @@ class SlideflowProject:
 				log.empty(f"Exporting tiles for slide {sfutil.path_to_name(slide_path)}", 1, pb.print)
 
 				if not tma:
-					whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, save_folder, roi_dir, roi_list=None, pb=pb)
+					whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample, 
+																								export_folder=save_folder,
+																								roi_dir=roi_dir,
+																								roi_list=None, pb=pb)
 				else:
-					whole_slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, save_folder, pb=pb)
+					whole_slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample,
+																							  export_folder=save_folder, 
+																							  pb=pb)
 
 				if not whole_slide.loaded_correctly():
 					return
@@ -744,7 +731,7 @@ class SlideflowProject:
 
 		# Generate TFRecords from the extracted tiles
 		if generate_tfrecords:
-			self.generate_tfrecords_from_tiles()
+			self.generate_tfrecords_from_tiles(delete_tiles)
 
 	def generate_activations_analytics(self, model, outcome_header, filters=None, focus_nodes=[], node_exclusion=False):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.
@@ -754,10 +741,11 @@ class SlideflowProject:
 
 		# Load dataset for evaluation
 		activations_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		activations_dataset.load_annotations(self.PROJECT['annotations'])
 		activations_tfrecords = activations_dataset.get_tfrecords(ask_to_merge_subdirs=True)
 		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
 
-		tfrecords_list = sfutil.filter_tfrecords_paths(activations_tfrecords, filters=filters)
+		tfrecords_list = activations_dataset.filter_tfrecords_paths(activations_tfrecords, filters=filters)
 		log.info(f"Visualizing activations from {len(tfrecords_list)} slides", 1)
 
 		AV = ActivationsVisualizer(model=model_path,
@@ -784,27 +772,25 @@ class SlideflowProject:
 								"high" uses a stride equal to 1/4 tile width.
 		'''
 		log.header("Generating heatmaps...")
-		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
 		ctx = multiprocessing.get_context('spawn')
-		process = ctx.Process(target=heatmap_generator, args=(model_name, filters, resolution, self.PROJECT, log_level))
+		process = ctx.Process(target=heatmap_generator, args=(model_name, filters, resolution, self.PROJECT, self.FLAGS))
 		process.start()
 		log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
 		process.join()
 
-	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, export_activations=False):
+	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, max_tiles_per_slide=500, export_activations=False):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.'''
 		log.header("Generating mosaic map...")
-		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
 		ctx = multiprocessing.get_context('spawn')
-		process = ctx.Process(target=mosaic_generator, args=(model, filters, focus_filters, resolution, num_tiles_x, self.PROJECT, export_activations, log_level))
+		process = ctx.Process(target=mosaic_generator, args=(model, filters, focus_filters, resolution, num_tiles_x, max_tiles_per_slide, self.PROJECT, export_activations, self.FLAGS))
 		process.start()
 		log.info(f"Spawning mosaic process (PID: {process.pid})", 1)
 		process.join()
 
-	def generate_tfrecords_from_tiles(self):
+	def generate_tfrecords_from_tiles(self, delete_tiles=True):
 		'''Create tfrecord files from a collection of raw images'''
 		log.header('Writing TFRecord files...')
 
@@ -830,7 +816,7 @@ class SlideflowProject:
 
 			self.update_manifest()
 
-			if self.PROJECT['delete_tiles']:
+			if delete_tiles:
 				shutil.rmtree(tiles_dir)
 
 	def get_hyperparameter_combinations(self, hyperparameters, models, batch_train_file):
@@ -894,17 +880,16 @@ class SlideflowProject:
 			raise OSError(f'Unable to locate settings.json at location "{directory}".')
 
 		# Enable logging
-		log.logfile = sfutil.global_path("log.log")
+		log.logfile = join(self.PROJECT['root'], "log.log")
 
 		# Load dataset for evaluation
 		try:
 			dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
-			# Load annotations
-			sfutil.load_annotations(self.PROJECT['annotations'], dataset)
+			dataset.load_annotations(self.PROJECT['annotations'])
 
-			if not SKIP_VERIFICATION:
+			if not self.FLAGS['skip_verification']:
 				log.header("Verifying Annotations...")
-				sfutil.verify_annotations_slides(dataset)
+				dataset.verify_annotations_slides()
 				log.header("Verifying TFRecord manifest...")
 				self.update_manifest()
 		except FileNotFoundError:
@@ -913,8 +898,9 @@ class SlideflowProject:
 	def resize_tfrecords(self, size, filters=None):
 		log.header(f"Resizing TFRecord tiles to ({size}, {size})")
 		resize_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		resize_dataset.load_annotations(self.PROJECT['annotations'])
 		resize_tfrecords = resize_dataset.get_tfrecords()
-		tfrecords_list = sfutil.filter_tfrecords_paths(resize_tfrecords, filters=filters)
+		tfrecords_list = resize_dataset.filter_tfrecords_paths(resize_tfrecords, filters=filters)
 
 		log.info(f"Resizing {len(tfrecords_list)} tfrecords", 1)
 
@@ -955,13 +941,12 @@ class SlideflowProject:
 			A dictionary containing model names mapped to train_acc, val_loss, and val_acc
 		'''
 		# Reconcile provided arguments with project defaults
-		batch_train_file = self.PROJECT['batch_train_config'] if not batch_file else sfutil.global_path(batch_file)
+		batch_train_file = self.PROJECT['batch_train_config'] if not batch_file else join(self.PROJECT['root'], batch_file)
 		validation_strategy = self.PROJECT['validation_strategy'] if not validation_strategy else validation_strategy
 		validation_target = self.PROJECT['validation_target'] if not validation_target else validation_target
 		validation_fraction = self.PROJECT['validation_fraction'] if not validation_fraction else validation_fraction
 		validation_k_fold = self.PROJECT['validation_k_fold'] if not validation_k_fold else validation_k_fold
 		validation_log = join(self.PROJECT['root'], "validation_plans.json")
-		log_level = sfutil.LOGGING_LEVEL.INFO if not sfutil.LOGGING_LEVEL.SILENT else SILENT
 
 		# Quickly scan for errors (duplicate model names in batch training file) and prepare models to train
 		if multi_outcome and model_type != "linear":
@@ -1007,29 +992,24 @@ class SlideflowProject:
 				model_name = f"{outcome_string}-{hp_model_name}"
 				model_iterations = [model_name] if not k_fold else [f"{model_name}-kfold{k+1}" for k in valid_k]
 
-				# Perform training
-				if k_fold:
-					for k in valid_k:
-						# Using a separate process ensures memory is freed once training has completed
-
-						process = ctx.Process(target=trainer, args=(selected_outcome_headers, model_name, model_type, 
-																				self.PROJECT, results_dict, hp, validation_strategy, 
-																				validation_target, validation_fraction, validation_k_fold, 
-																				validation_log, k+1, filters, pretrain, resume_training, 
-																				checkpoint, log_level, supervised))
-						process.start()
-						log.info(f"Spawning training process (PID: {process.pid})", 1)
-						process.join()
-				else:
+				def start_training_process(k):
 					# Using a separate process ensures memory is freed once training has completed
 					process = ctx.Process(target=trainer, args=(selected_outcome_headers, model_name, model_type, 
-																				self.PROJECT, results_dict, hp, validation_strategy, 
-																				validation_target, validation_fraction, validation_k_fold, 
-																				validation_log, None, filters, pretrain, resume_training, 
-																				checkpoint, log_level, supervised))
+																			self.PROJECT, results_dict, hp, validation_strategy, 
+																			validation_target, validation_fraction, validation_k_fold, 
+																			validation_log, k, filters, pretrain, resume_training, 
+																			checkpoint, supervised, self.FLAGS))
 					process.start()
 					log.info(f"Spawning training process (PID: {process.pid})", 1)
 					process.join()
+
+				# Perform training
+				if k_fold:
+					for k in valid_k:
+						start_training_process(k+1)
+						
+				else:
+					start_training_process(None)
 
 				# Record results
 				for mi in model_iterations:
@@ -1059,14 +1039,17 @@ class SlideflowProject:
 			force_update:	If True, will re-validate contents of all TFRecords. If False, will only validate
 								contents of TFRecords not yet in the manifest
 		'''
-		tfrecords_folders = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets']).get_tfrecords_folders()
+		dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		dataset.load_annotations(self.PROJECT['annotations'])
+		tfrecords_folders = dataset.get_tfrecords_folders()
 		for tfr_folder in tfrecords_folders:
-			sfutil.update_tfrecord_manifest(directory=tfr_folder, 
-											force_update=force_update)
+			dataset.update_tfrecord_manifest(directory=tfr_folder, 
+											 force_update=force_update)
 
 	def update_tfrecords(self):
 		log.header('Updating TFRecords...')
 		working_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		working_dataset.load_annotations(self.PROJECT['annotations'])
 
 		for d in working_dataset.datasets:
 			config = working_dataset.datasets[d]
