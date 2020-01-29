@@ -11,3 +11,4 @@ umap-learn
 seaborn
 comet-ml
 pandas
+tabulate
