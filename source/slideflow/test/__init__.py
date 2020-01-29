@@ -47,7 +47,6 @@ PROJECT_CONFIG = {
 	'annotations': '/home/shawarma/data/test_project/annotations.csv',
 	'dataset_config': '/home/shawarma/data/test_datasets.json',
 	'datasets': ['TEST2'],
-	'delete_tiles': False,
 	'models_dir': '/home/shawarma/data/test_project/models',
 	'tile_um': 302,
 	'tile_px': 299,

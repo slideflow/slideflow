@@ -119,7 +119,7 @@ class JPGSlide:
 class SlideLoader:
 	'''Object that loads an SVS slide and makes preparations for tile extraction.
 	Should not be used directly; this class must be inherited and extended by a child class!'''
-	def __init__(self, path, size_px, size_um, stride_div, export_folder=None, pb=None):
+	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, export_folder=None, pb=None):
 		self.load_error = False
 		self.print = print if not pb else pb.print
 		self.pb = pb
@@ -161,7 +161,10 @@ class SlideLoader:
 
 		# Load downsampled level based on desired extraction size
 		downsample_desired = self.full_extract_px / size_px
-		self.downsample_level = self.slide.get_best_level_for_downsample(downsample_desired)
+		if enable_downsample:
+			self.downsample_level = self.slide.get_best_level_for_downsample(downsample_desired)
+		else:
+			self.downsample_level = self.slide.get_best_level_for_downsample(1)
 		self.downsample_factor = self.slide.level_downsamples[self.downsample_level]
 		self.shape = self.slide.level_dimensions[self.downsample_level]
 
@@ -213,8 +216,8 @@ class TMAReader(SlideLoader):
 	RED = (100, 100, 200)
 	WHITE = (255,255,255)
 
-	def __init__(self, path, size_px, size_um, stride_div, export_folder=None, roi_dir=None, roi_list=None, pb=None):
-		super().__init__(path, size_px, size_um, stride_div, export_folder, pb)
+	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, export_folder=None, roi_dir=None, roi_list=None, pb=None):
+		super().__init__(path, size_px, size_um, stride_div, enable_downsample, export_folder, pb)
 
 		if not self.loaded_correctly():
 			return
@@ -414,8 +417,8 @@ class TMAReader(SlideLoader):
 class SlideReader(SlideLoader):
 	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
 	SKIP_MISSING_ROI = True
-	def __init__(self, path, size_px, size_um, stride_div, export_folder=None, roi_dir=None, roi_list=None, pb=None):
-		super().__init__(path, size_px, size_um, stride_div, export_folder, pb)
+	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, export_folder=None, roi_dir=None, roi_list=None, pb=None):
+		super().__init__(path, size_px, size_um, stride_div, enable_downsample, export_folder, pb)
 
 		if not self.loaded_correctly():
 			return
@@ -512,7 +515,7 @@ class SlideReader(SlideLoader):
 				coord_label = ci
 				unique_tile = c[2]
 				if export and unique_tile:
-					region.save(join(self.tiles_path, f'{self.shortname}_{ci}.jpg'), "JPEG")
+					region.save(join(self.tiles_path, f'{self.shortname}_{ci}.jpg'))
 					if augment:
 						region.transpose(Image.ROTATE_90).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug1.jpg'))
 						region.transpose(Image.FLIP_TOP_BOTTOM).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug2.jpg'))
@@ -594,7 +597,10 @@ class Heatmap:
 		self.logits = None
 
 		# Load the slide
-		self.slide = SlideReader(slide_path, size_px, size_um, stride_div, save_folder, roi_dir, roi_list)
+		self.slide = SlideReader(slide_path, size_px, size_um, stride_div, enable_downsample=False, 
+																		   export_folder=save_folder,
+																		   roi_dir=roi_dir, 
+																		   roi_list=roi_list)
 
 		# Build the model
 		self.MODEL_DIR = model_path

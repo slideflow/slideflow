@@ -204,7 +204,7 @@ class Dataset:
 	def filter_slide_paths(self, slide_list, filters, filter_blank=[]):
 		filtered_slide_names = self.get_slides_from_annotations(filters=filters, filter_blank=filter_blank)
 		filtered_slide_list = [slide for slide in slide_list if sfutil.path_to_name(slide) in filtered_slide_names]
-		return filtered_slide_lists
+		return filtered_slide_list
 
 	def filter_tfrecords_paths(self, tfrecords_list, filters, filter_blank=[]):
 		filtered_slide_names = self.get_slides_from_annotations(filters=filters, filter_blank=filter_blank)
@@ -402,6 +402,8 @@ class Dataset:
 	def update_tfrecord_manifest(self, directory, force_update=False):
 		'''Log number of tiles in each TFRecord file present in the given directory and all subdirectories, 
 		saving manifest to file within the parent directory.'''
+		import tensorflow as tf
+
 		slide_list = []
 		manifest_path = join(directory, "manifest.json")
 		manifest = {} if not exists(manifest_path) else sfutil.load_json(manifest_path)
@@ -421,7 +423,7 @@ class Dataset:
 
 			manifest.update({rel_tfr: {}})
 			raw_dataset = tf.data.TFRecordDataset(tfr)
-			print(f" + Verifying tiles in {green(rel_tfr)}...", end="\r\033[K")
+			print(f" + Verifying tiles in {sfutil.green(rel_tfr)}...", end="\r\033[K")
 			total = 0
 			for raw_record in raw_dataset:
 				example = tf.train.Example()
