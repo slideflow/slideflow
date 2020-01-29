@@ -160,7 +160,7 @@ def heatmap_generator(model_name, filters, resolution, project_config, flags=Non
 		heatmap.generate(batch_size=64, export_activations=True)
 		heatmap.save()
 
-def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, project_config, export_activations=False, flags=None):
+def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, max_tiles_per_slide, project_config, export_activations=False, flags=None):
 	if not flags: flags = DEFAULT_FLAGS
 
 	mosaic_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
@@ -181,6 +181,7 @@ def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, pro
 								image_size=project_config['tile_px'],
 								focus_nodes=None,
 								use_fp16=project_config['use_fp16'],
+								batch_size=flags['eval_batch_size'],
 								export_csv=export_activations)
 
 	AV.generate_mosaic(focus=focus_list,
@@ -311,7 +312,7 @@ class SlideflowProject:
 		if exists(join(project_folder, "settings.json")):
 			self.load_project(project_folder)
 		elif interactive:
-			self.create_project()
+			self.create_project(project_folder)
 
 		atexit.register(self.release_gpu)
 
@@ -537,11 +538,11 @@ class SlideflowProject:
 				writer.writerow(row)
 		log.complete(f"Wrote {len(sweep)} combinations for sweep to {sfutil.green(filename)}")
 
-	def create_project(self):
+	def create_project(self, project_folder):
 		'''Prompts user to provide all relevant project configuration and saves configuration to "settings.json".'''
 		# General setup and slide configuration
 		project = {
-			'root': sfutil.PROJECT_DIR,
+			'root': project_folder,
 			'slideflow_version': __version__
 		}
 		project['name'] = input("What is the project name? ")
@@ -632,17 +633,17 @@ class SlideflowProject:
 		else:
 			project['validation_k_fold'] = 0
 
-		sfutil.write_json(project, join(sfutil.PROJECT_DIR, 'settings.json'))
+		sfutil.write_json(project, join(project_folder, 'settings.json'))
 		self.PROJECT = project
 
 		# Write a sample actions.py file
 		with open(join(SOURCE_DIR, 'sample_actions.py'), 'r') as sample_file:
 			sample_actions = sample_file.read()
-			with open(os.path.join(sfutil.PROJECT_DIR, 'actions.py'), 'w') as actions_file:
+			with open(os.path.join(project_folder, 'actions.py'), 'w') as actions_file:
 				actions_file.write(sample_actions)
 
 		print("\nProject configuration saved.\n")
-		self.load_project(sfutil.PROJECT_DIR)
+		self.load_project(project_folder)
 
 	def evaluate(self, outcome_header, model_file="trained_model.h5", hyperparameters=None, filters=None, checkpoint=None, eval_k_fold=None):
 		'''Evaluates a saved model on a given set of tfrecords.'''
@@ -774,13 +775,13 @@ class SlideflowProject:
 		log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
 		process.join()
 
-	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, export_activations=False):
+	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, max_tiles_per_slide=500, export_activations=False):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.'''
 		log.header("Generating mosaic map...")
 
 		ctx = multiprocessing.get_context('spawn')
-		process = ctx.Process(target=mosaic_generator, args=(model, filters, focus_filters, resolution, num_tiles_x, self.PROJECT, export_activations, self.FLAGS))
+		process = ctx.Process(target=mosaic_generator, args=(model, filters, focus_filters, resolution, num_tiles_x, max_tiles_per_slide, self.PROJECT, export_activations, self.FLAGS))
 		process.start()
 		log.info(f"Spawning mosaic process (PID: {process.pid})", 1)
 		process.join()
