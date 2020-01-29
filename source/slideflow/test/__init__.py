@@ -211,7 +211,7 @@ class TestSuite:
 
 			print("Training to multiple sequential categorical outcomes from batch train file...")
 			# Test multiple sequential categorical outcome models
-			self.SFP.train(outcome_header=['category1', 'category2'])
+			self.SFP.train(outcome_header=['category1', 'category2'], k_fold_iter=1)
 			print("\t...OK")
 		if linear:
 			# Test single linear outcome
