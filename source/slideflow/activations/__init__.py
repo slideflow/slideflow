@@ -322,7 +322,7 @@ class ActivationsVisualizer:
 					val = activations_vals[n]
 					self.slide_node_dict[slide][n] += [val]
 
-			print(f"{'Size':>6}: {sizeof_fmt(sizeof(self.slide_node_dict)):>8}")
+			#print(f"{'Size':>6}: {sizeof_fmt(sizeof(self.slide_node_dict)):>8}")
 
 		if export_csv:
 			outfile.close()
@@ -525,7 +525,7 @@ class ActivationsVisualizer:
 
 		return umap
 
-	def generate_mosaic(self, umap=None, focus=None, leniency=1.5, expanded=True, tile_zoom=15, num_tiles_x=50, resolution='high', 
+	def generate_mosaic(self, umap=None, focus=None, leniency=1.5, expanded=False, tile_zoom=15, num_tiles_x=50, resolution='high', 
 					export=True, tile_um=None, use_fp16=True, save_dir=None):
 		
 		FOCUS_SLIDE = None
@@ -643,10 +643,11 @@ class ActivationsVisualizer:
 		if mapping_method not in ('strict', 'expanded'):
 			raise TypeError("Unknown mapping method")
 
+		# Calculate tile-point distances
 		log.empty("Calculating tile-point distances...", 1)
 		tile_point_start = time.time()
 		pb = ProgressBar()
-		pb_id = pb.add_bar(0, len(GRID))
+		pb_id = pb.add_bar(0, len(GRID))	
 		for i, tile in enumerate(GRID):
 			pb.update(pb_id, i)
 			if mapping_method == 'strict':
@@ -674,6 +675,7 @@ class ActivationsVisualizer:
 													'point_index':d[0]})
 					else:
 						break
+		
 		pb.end()
 		tile_point_end = time.time()
 		log.info(f"Calculations complete ({tile_point_end-tile_point_start:.0f} sec)", 1)
