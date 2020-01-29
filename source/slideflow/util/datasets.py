@@ -1,6 +1,7 @@
 import shutil
 import sys
 import os
+import csv
 import argparse
 import slideflow.util as sfutil
 
