@@ -7,6 +7,7 @@ import hashlib
 import argparse
 
 import slideflow.util as sfutil
+import slideflow.util.statistics as sfstats
 
 from statistics import mean
 from os.path import join, exists, isdir, getmtime
@@ -61,7 +62,6 @@ class DatasetGroup:
 		for outcome in self.outcomes:
 			outcome.print_summary(grouped=grouped, show_model_names=show_model_names)
 
-
 class Project:
 	def __init__(self, path):
 		with open(join(path, "settings.json")) as settings_file:
@@ -74,9 +74,10 @@ class Project:
 
 class Outcome:
 	def __init__(self, outcome_headers, outcome_labels):
-		self.outcome_headers = outcome_headers
+		self.outcome_headers = [outcome_headers] if type(outcome_headers) != list else outcome_headers
 		self.outcome_labels = outcome_labels
 		self.subsets = []
+		self.string = ', '.join(self.outcome_headers)
 
 	def get_subset(self, validation_strategy, k_fold_i, manifest_hash):
 		for subset in self.subsets:
@@ -103,13 +104,13 @@ class Outcome:
 		self.subsets += [subset]
 
 	def print_summary(self, grouped=False, show_model_names=False):
-		headers = [self.outcome_headers] if type(self.outcome_headers) != list else self.outcome_headers
-		print(f"\t{', '.join(headers)}")
+
+		print(f"\t{self.string}")
 		for subset in self.subsets:
 			subset.print_summary(grouped=grouped, show_model_names=show_model_names)
 
 class Subset:
-	def __init__(self, _id, slide_list, filters, validation_strategy, total_k_folds):
+	def __init__(self, _id, outcome, slide_list, filters, validation_strategy, total_k_folds):
 		self.model_groups = []
 		self.id = _id
 		self.slide_list = slide_list
@@ -119,6 +120,7 @@ class Subset:
 		self.k_folds = {} if validation_strategy == "k-fold" else None
 		self.total_k_folds = total_k_folds if validation_strategy == 'k-fold' else 0
 		self.manifest_hash = None
+		self.outcome = outcome
 		self.outcome_labels = None
 		self.model_type = None
 
@@ -128,6 +130,7 @@ class Subset:
 			group.add_model(model)
 		else:
 			group = ModelGroup([model], len(self.model_groups))
+			group.subset = self
 			self.model_groups += [group]
 			if not self.outcome_labels:
 				self.outcome_labels = group.outcome_labels
@@ -137,6 +140,7 @@ class Subset:
 
 		if (model.validation_strategy != self.validation_strategy):
 			print("Incompatible model type: unable to add to subset")
+			return
 		if model.k_fold_i and model.k_fold_i in self.k_folds:
 			self.k_folds[model.k_fold_i]['models'] += [model]
 		elif model.k_fold_i:
@@ -145,6 +149,7 @@ class Subset:
 				'manifest_hash': model.manifest.hash,
 				'slide_hash': model.manifest.slide_hash
 			}})
+		model.subset = self
 
 	def get_compatible_model_group(self, model):
 		for group in self.model_groups:
@@ -191,6 +196,9 @@ class Subset:
 
 		for group in self.model_groups:
 			if group.k_fold and not group.stage=="evaluation" and grouped:
+				# Generates new figure overlaying ROCs from each k-fold
+				group.gen_combined_roc()
+
 				models_by_kfold = group.get_models_by_kfold()
 				for e in group.epochs:
 					used_k_str = [sfutil.purple('-')] * group.k_fold
@@ -293,6 +301,7 @@ class ModelGroup:
 		self.model_type = models[0].model_type
 		self.add_models(models)
 		self.id = _id
+		self.subset = None
 
 	def add_model(self, model):
 		if self.is_compatible(model):
@@ -309,7 +318,12 @@ class ModelGroup:
 			self.add_model(model)
 	
 	def is_compatible(self, model):
-		if (model.hp_key == self.hp_key) and (model.k_fold == self.k_fold) and (model.tile_px == self.tile_px) and (model.tile_um == self.tile_um) and (model.stage == self.stage):
+		if ((model.hp_key == self.hp_key) and 
+			(model.k_fold == self.k_fold) and 
+			(model.tile_px == self.tile_px) and 
+			(model.tile_um == self.tile_um) and 
+			(model.stage == self.stage) and 
+			(model.k_fold_i not in [m.k_fold_i for m in self.models])):
 			return True
 		else:
 			return False
@@ -327,6 +341,33 @@ class ModelGroup:
 						models_by_kfold[k] += [model]
 			return models_by_kfold
 
+	def gen_combined_roc(self):
+		save_dir = join(self.models[0].project.settings['root'], 'stats')
+		if not exists(save_dir):
+			os.makedirs(save_dir)
+
+		y_true_all, y_pred_all = {}, {}
+		for model in self.models:
+			epochs = [e.split('epoch')[-1] for e in list(model.results.keys())]
+			if not len(epochs): continue
+			pred = model.get_predictions(epochs[0])
+
+			for label in pred:
+				if label not in y_true_all:
+					y_true_all.update({label: []})
+					y_pred_all.update({label: []})
+
+				y_true_all[label] += [pred[label]['y_true']]
+				y_pred_all[label] += [pred[label]['y_pred']]
+
+		labels = list(y_true_all.keys())
+		labels.sort()
+		for label in labels:
+			#print(" | ".join([m.name for m in self.models]) + f" : [{label}] : {len(y_true_all[label])}")
+			outcome_str = "" if not self.subset else self.subset.outcome.string
+			sfstats.generate_combined_roc(y_true_all[label], y_pred_all[label], save_dir, labels=[f'K-fold {m.k_fold_i}' for m in self.models], name=f"Combined ROC [{outcome_str}-Group{self.id}-{label}]")
+			#print(f"Saved combined ROCs to {sfutil.green(save_dir)}")
+
 class Model:
 	def __init__(self, models_dir, name, project, interactive=True):
 		self.dir = join(models_dir, name)
@@ -336,6 +377,7 @@ class Model:
 		self.group = None
 		self.outcome_labels = None
 		self.last_modified = None
+		self.subset = None
 		if not exists(join(self.dir, "hyperparameters.json")): 
 			self.hyperparameters = None
 		else:
@@ -431,6 +473,19 @@ class Model:
 		log.info(f"Updated {sfutil.green(join(self.dir, 'hyperparameters.json'))} with 'outcome_labels'={self.hyperparameters['outcome_labels']}", 2)
 		return True
 
+	def get_predictions(self, epoch, level='patient'):
+		if level not in ('patient', 'slide', 'tile'):
+			log.error(f"Unknown prediction level {level}; must be 'patient', 'slide', or 'tile'.", 1)
+			return None, None
+
+		predictions = join(self.dir, f'{level}_predictions_val_epoch{epoch}.csv')
+		if not exists(predictions):
+			log.error(f"Unable to find predictions file {sfutil.bold(predictions)} in {sfutil.green(self.dir)}", 1)
+			return None, None
+
+		predictions = sfstats.read_predictions(predictions, level)
+		return predictions
+
 class SlideManifest:
 	def __init__(self, path):
 		self.metadata = {}
@@ -522,7 +577,7 @@ def load_from_directory(search_directory, nested=False, starttime=None, showname
 				})
 				subset.add_model(model)
 				continue
-			subset = Subset(len(outcome.subsets), model.manifest.slide_list, model.filters, model.validation_strategy, model.k_fold)
+			subset = Subset(len(outcome.subsets), outcome, model.manifest.slide_list, model.filters, model.validation_strategy, model.k_fold)
 			subset.add_model(model)
 			outcome.add_subset(subset)
 	
