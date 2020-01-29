@@ -51,7 +51,6 @@ warnings.filterwarnings('ignore')
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
 NO_BALANCE = 'NO_BALANCE'
-TEST_MODE = False
 
 class HyperParameters:
 	_OptDict = {
@@ -152,7 +151,7 @@ class HyperParameters:
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
-	def __init__(self, data_directory, image_size, slide_annotations, train_tfrecords, validation_tfrecords, manifest=None, use_fp16=True, model_type='categorical'):
+	def __init__(self, data_directory, image_size, slide_annotations, train_tfrecords, validation_tfrecords, manifest=None, use_fp16=True, model_type='categorical', test_mode=False):
 		self.DATA_DIR = data_directory # Directory where to write event logs and checkpoints.
 		self.MANIFEST = manifest
 		self.IMAGE_SIZE = image_size
@@ -163,6 +162,7 @@ class SlideflowModel:
 		self.VALIDATION_TFRECORDS = validation_tfrecords
 		self.MODEL_TYPE = model_type
 		self.SLIDES = list(slide_annotations.keys())
+		self.TEST_MODE = test_mode
 		outcomes = [slide_annotations[slide]['outcome'] for slide in self.SLIDES]
 
 		if model_type == 'categorical':
@@ -420,6 +420,8 @@ class SlideflowModel:
 			self.model = self.build_model(hp)
 			self.model.load_weights(checkpoint)
 
+		# Generate performance metrics
+		log.info("Calculating performance metrics...", 1)
 		tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, dataset_with_slidenames, self.SLIDE_ANNOTATIONS, model_type, self.DATA_DIR, label="eval")
 
 		log.info(f"Tile AUC: {tile_auc}", 1)
@@ -427,9 +429,16 @@ class SlideflowModel:
 		log.info(f"Patient AUC: {patient_auc}", 1)
 		log.info(f"R-squared: {r_squared}", 1)
 
-		log.info("Calculating performance metrics...", 1)
-		results = self.model.evaluate(dataset)
-		return results
+		val_loss, val_acc = self.model.evaluate(dataset)
+
+		# Log results
+		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
+		with open(results_log, "w") as results_file:
+			writer = csv.writer(results_file)
+			writer.writerow(['val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc', 'r_squared'])
+			writer.writerow([val_loss, val_acc, tile_auc, slide_auc, patient_auc, r_squared])
+		
+		return val_acc
 
 	def retrain_top_layers(self, model, hp, train_data, validation_data, steps_per_epoch, callbacks=None, epochs=1, verbose=1):
 		if verbose: log.info("Retraining top layer", 1)
@@ -468,7 +477,7 @@ class SlideflowModel:
 			val_steps = 0
 
 		#testing overide
-		if TEST_MODE:
+		if self.TEST_MODE:
 			num_tiles = 100
 			hp.finetune_epochs = 2
 
@@ -503,7 +512,7 @@ class SlideflowModel:
 
 		with open(results_log, "w") as results_file:
 			writer = csv.writer(results_file)
-			writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc'])
+			writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc', 'r_squared'])
 		parent = self
 
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
@@ -534,7 +543,7 @@ class SlideflowModel:
 
 						with open(results_log, "a") as results_file:
 							writer = csv.writer(results_file)
-							writer.writerow([epoch_label, np.amax(train_acc), val_loss, val_acc, tile_auc, slide_auc, patient_auc])
+							writer.writerow([epoch_label, np.amax(train_acc), val_loss, val_acc, tile_auc, slide_auc, patient_auc, r_squared])
 
 		callbacks = [history_callback, PredictionAndEvaluationCallback()]
 		if hp.early_stop:
