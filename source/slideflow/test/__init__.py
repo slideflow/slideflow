@@ -9,6 +9,7 @@ from slideflow import util as sfutil
 from slideflow.trainer import model as sfmodel
 from slideflow.util import TCGA, log
 from slideflow.trainer.model import HyperParameters
+from slideflow.util.datasets import Dataset
 
 from glob import glob
 from os.path import join
@@ -46,7 +47,6 @@ PROJECT_CONFIG = {
 	'annotations': '/home/shawarma/data/test_project/annotations.csv',
 	'dataset_config': '/home/shawarma/data/test_datasets.json',
 	'datasets': ['TEST2'],
-	'delete_tiles': False,
 	'models_dir': '/home/shawarma/data/test_project/models',
 	'tile_um': 302,
 	'tile_px': 299,
@@ -86,11 +86,8 @@ class TestSuite:
 	'''Class to supervise standardized testing of slideflow pipeline.'''
 	def __init__(self, reset=True, silent=True):
 		'''Initialize testing models.'''
-		if silent:
-			sf.set_logging_level(sf.SILENT)
-		else:
-			sf.set_logging_level(3)
-
+		log.SILENT = silent
+			
 		# Reset test progress
 		if reset: self.reset()
 
@@ -144,7 +141,9 @@ class TestSuite:
 			for an in ANNOTATIONS:
 				csv_writer.writerow(an)
 		self.SFP.associate_slide_names()
-		loaded_slides = sfutil.get_slides_from_annotations()
+		project_dataset = Dataset(config_file=PROJECT_CONFIG['dataset_config'], sources=PROJECT_CONFIG['datasets'])
+		project_dataset.load_annotations(PROJECT_CONFIG['annotations'])
+		loaded_slides = project_dataset.get_slides_from_annotations()
 		for slide in SLIDES_TO_VERIFY:
 			if slide not in loaded_slides:
 				log.error("Failed to correctly associate slide names; please see annotations file below.")
@@ -212,7 +211,7 @@ class TestSuite:
 
 			print("Training to multiple sequential categorical outcomes from batch train file...")
 			# Test multiple sequential categorical outcome models
-			self.SFP.train(outcome_header=['category1', 'category2'])
+			self.SFP.train(outcome_header=['category1', 'category2'], k_fold_iter=1)
 			print("\t...OK")
 		if linear:
 			# Test single linear outcome
