@@ -58,7 +58,7 @@ def generate_histogram(y_true, y_pred, data_dir, name='histogram'):
 	plt.legend()
 	plt.savefig(os.path.join(data_dir, f'{name}.png'))
 
-def generate_roc(y_true, y_pred, data_dir, name='ROC'):
+def generate_roc(y_true, y_pred, save_dir, name='ROC'):
 	# Statistics
 	fpr, tpr, threshold = metrics.roc_curve(y_true, y_pred)
 	roc_auc = metrics.auc(fpr, tpr)
@@ -73,8 +73,52 @@ def generate_roc(y_true, y_pred, data_dir, name='ROC'):
 	plt.ylim([0, 1])
 	plt.ylabel('TPR')
 	plt.xlabel('FPR')
-	plt.savefig(os.path.join(data_dir, f'{name}.png'))
+	plt.savefig(os.path.join(save_dir, f'{name}.png'))
 	return roc_auc
+
+def generate_combined_roc(y_true, y_pred, save_dir, labels, name='ROC'):
+	# Plot
+	plt.clf()
+	plt.title(name)
+	colors = ('b', 'g', 'r', 'c', 'm', 'y', 'k')
+
+	rocs = []
+	for i, (yt, yp) in enumerate(zip(y_true, y_pred)):
+		fpr, tpr, threshold = metrics.roc_curve(yt, yp)
+		roc_auc = metrics.auc(fpr, tpr)
+		rocs += [roc_auc]
+		plt.plot(fpr, tpr, colors[i % len(colors)], label = labels[i] + f' (AUC: {roc_auc:.2f})')	
+
+	# Finish plot
+	plt.legend(loc = 'lower right')
+	plt.plot([0, 1], [0, 1],'r--')
+	plt.xlim([0, 1])
+	plt.ylim([0, 1])
+	plt.ylabel('TPR')
+	plt.xlabel('FPR')
+	
+	plt.savefig(os.path.join(save_dir, f'{name}.png'))
+	return rocs
+
+def read_predictions(predictions_file, level):
+	predictions = {}
+	y_pred_label = "percent_tiles_positive" if level in ("patient", "slide") else "y_pred"
+	with open(predictions_file, 'r') as csvfile:
+		reader = csv.reader(csvfile)
+		header = next(reader)
+		prediction_labels = [h.split('y_true')[-1] for h in header if "y_true" in h]
+		for label in prediction_labels:
+			predictions.update({label: {
+				'y_true': [],
+				'y_pred': []
+			}})
+		for row in reader:
+			for label in prediction_labels:
+				yti = header.index(f'y_true{label}')
+				ypi = header.index(f'{y_pred_label}{label}')
+				predictions[label]['y_true'] += [int(row[yti])]
+				predictions[label]['y_pred'] += [float(row[ypi])]
+	return predictions
 
 def generate_scatter(y_true, y_pred, data_dir, name='_plot'):
 	'''Generate and save scatter plots and calculate R2 statistic for each outcome variable.
