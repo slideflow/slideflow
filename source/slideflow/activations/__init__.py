@@ -5,6 +5,7 @@ import csv
 import cv2
 import pickle
 import time
+import random
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -31,6 +32,20 @@ from PIL import Image
 # TODO: add check that cached PKL corresponds to current and correct model & slides
 # TODO: re-calculate new activations if some slides not present in cache
 
+def sizeof(obj):
+    size = sys.getsizeof(obj)
+    if isinstance(obj, dict): return size + sum(map(sizeof, obj.keys())) + sum(map(sizeof, obj.values()))
+    if isinstance(obj, (list, tuple, set, frozenset)): return size + sum(map(sizeof, obj))
+    return size
+
+def sizeof_fmt(num, suffix='B'):
+	''' by Fred Cirera,  https://stackoverflow.com/a/1094933/1870254, modified'''
+	for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
+		if abs(num) < 1024.0:
+			return "%3.1f %s%s" % (num, unit, suffix)
+		num /= 1024.0
+	return "%.1f %s%s" % (num, 'Yi', suffix)
+
 def create_bool_mask(x, y, w, sx, sy):
 	l = max(0,  int(x-(w/2.)))
 	r = min(sx, int(x+(w/2.)))
@@ -54,11 +69,12 @@ class ActivationsVisualizer:
 	slide_node_dict = {}
 
 	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, category_header=None, 
-					focus_nodes=[], use_fp16=True, batch_size=16, export_csv=False):
+					focus_nodes=[], use_fp16=True, batch_size=16, export_csv=False, max_tiles_per_slide=500):
 		'''Loads annotations, saved layer activations, and prepares output saving directories.
 		Will also read/write processed activations to a PKL cache file to save time in future iterations.'''
 
 		self.focus_nodes = focus_nodes
+		self.MAX_TILES_PER_SLIDE = max_tiles_per_slide
 		self.IMAGE_SIZE = image_size
 		self.tfrecords_paths = np.array(tfrecords)
 		self.slides_to_include = [sfutil.path_to_name(tfr) for tfr in self.tfrecords_paths]
@@ -125,7 +141,7 @@ class ActivationsVisualizer:
 				pickle.dump(self.slide_node_dict, pt_pkl_file)
 		# Otherwise will need to generate new activations from a given model
 		else:
-			self.generate_activations_from_model(model, use_fp16=use_fp16, batch_size=16, export_csv=export_csv)
+			self.generate_activations_from_model(model, use_fp16=use_fp16, batch_size=batch_size, export_csv=export_csv)
 			self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
 
 		# Now delete slides not included in our filtered TFRecord list
@@ -251,8 +267,8 @@ class ActivationsVisualizer:
 			outfile = open(self.FLA, 'w')
 			csvwriter = csv.writer(outfile)
 
-		for tfrecord in self.tfrecords_paths:
-			log.empty(f"Calculating activations from {sfutil.green(tfrecord)}", 2)
+		for t, tfrecord in enumerate(self.tfrecords_paths):
+			#log.empty(f"Calculating activations from {sfutil.green(tfrecord)}", 2)
 			dataset = tf.data.TFRecordDataset(tfrecord)
 
 			dataset = dataset.map(_parse_function, num_parallel_calls=8)
@@ -263,12 +279,8 @@ class ActivationsVisualizer:
 			for i, data in enumerate(dataset):
 				batch_processed_images, batch_slides = data
 				batch_slides = batch_slides.numpy()
-				sys.stdout.write(f"\r - Working on batch {i}")
+				sys.stdout.write(f"\r(TFRecord {t+1:>3}/{len(self.tfrecords_paths):>3}) (Batch {i+1:>3}) ({len(fl_activations_combined):>5} images): {sfutil.green(sfutil.path_to_name(tfrecord))}")
 				sys.stdout.flush()
-
-				# Calculate global and tfrecord-specific indices
-				#indices = list(range(len(indices_arr), len(indices_arr) + len(batch_slides)))
-				#tile_indices = list(range(i * len(batch_slides), i * len(batch_slides) + len(batch_slides)))
 
 				#if not complete_model:
 				fl_activations, logits = loaded_model.predict([batch_processed_images, batch_processed_images])
@@ -289,6 +301,13 @@ class ActivationsVisualizer:
 					for slide in unique_slides:
 						self.slide_node_dict[slide].update({n: []})
 
+			# Randomly select tiles, only taking as much as specified
+			if self.MAX_TILES_PER_SLIDE and len(fl_activations_combined) > self.MAX_TILES_PER_SLIDE:
+				selected_indices = random.sample(list(range(len(fl_activations_combined))), self.MAX_TILES_PER_SLIDE)
+				slides_combined = slides_combined[selected_indices]
+				logits_combined = logits_combined[selected_indices]
+				fl_activations_combined = fl_activations_combined[selected_indices]
+
 			# Export to PKL and CSV
 			for i in range(len(fl_activations_combined)):
 				slide = slides_combined[i].decode('utf-8')
@@ -303,8 +322,7 @@ class ActivationsVisualizer:
 					val = activations_vals[n]
 					self.slide_node_dict[slide][n] += [val]
 
-			sys.stdout.write("\r\033[K")
-			sys.stdout.flush()
+			#print(f"{'Size':>6}: {sizeof_fmt(sizeof(self.slide_node_dict)):>8}")
 
 		if export_csv:
 			outfile.close()
@@ -507,7 +525,7 @@ class ActivationsVisualizer:
 
 		return umap
 
-	def generate_mosaic(self, umap=None, focus=None, leniency=1.5, expanded=True, tile_zoom=15, num_tiles_x=50, resolution='high', 
+	def generate_mosaic(self, umap=None, focus=None, leniency=1.5, expanded=False, tile_zoom=15, num_tiles_x=50, resolution='high', 
 					export=True, tile_um=None, use_fp16=True, save_dir=None):
 		
 		FOCUS_SLIDE = None
@@ -625,10 +643,11 @@ class ActivationsVisualizer:
 		if mapping_method not in ('strict', 'expanded'):
 			raise TypeError("Unknown mapping method")
 
+		# Calculate tile-point distances
 		log.empty("Calculating tile-point distances...", 1)
 		tile_point_start = time.time()
 		pb = ProgressBar()
-		pb_id = pb.add_bar(0, len(GRID))
+		pb_id = pb.add_bar(0, len(GRID))	
 		for i, tile in enumerate(GRID):
 			pb.update(pb_id, i)
 			if mapping_method == 'strict':
@@ -656,6 +675,7 @@ class ActivationsVisualizer:
 													'point_index':d[0]})
 					else:
 						break
+		
 		pb.end()
 		tile_point_end = time.time()
 		log.info(f"Calculations complete ({tile_point_end-tile_point_start:.0f} sec)", 1)
