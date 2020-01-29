@@ -741,6 +741,7 @@ class SlideflowProject:
 
 		# Load dataset for evaluation
 		activations_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		activations_dataset.load_annotations(self.PROJECT['annotations'])
 		activations_tfrecords = activations_dataset.get_tfrecords(ask_to_merge_subdirs=True)
 		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
 
@@ -884,7 +885,6 @@ class SlideflowProject:
 		# Load dataset for evaluation
 		try:
 			dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
-			# Load annotations
 			dataset.load_annotations(self.PROJECT['annotations'])
 
 			if not self.FLAGS['skip_verification']:
@@ -898,6 +898,7 @@ class SlideflowProject:
 	def resize_tfrecords(self, size, filters=None):
 		log.header(f"Resizing TFRecord tiles to ({size}, {size})")
 		resize_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		resize_dataset.load_annotations(self.PROJECT['annotations'])
 		resize_tfrecords = resize_dataset.get_tfrecords()
 		tfrecords_list = resize_dataset.filter_tfrecords_paths(resize_tfrecords, filters=filters)
 
@@ -1048,6 +1049,7 @@ class SlideflowProject:
 	def update_tfrecords(self):
 		log.header('Updating TFRecords...')
 		working_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		working_dataset.load_annotations(self.PROJECT['annotations'])
 
 		for d in working_dataset.datasets:
 			config = working_dataset.datasets[d]
