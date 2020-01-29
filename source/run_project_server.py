@@ -33,7 +33,6 @@ if __name__=='__main__':
 		os.makedirs(in_process_dir)
 
 	while True:
-		# Select GPU
 		# Refresh queue
 		actions_queue = [py for py in glob(os.path.join(args.queue, "*")) if sf.util.path_to_ext(py) == "py"]
 		# Exit if queue empty
@@ -57,7 +56,7 @@ if __name__=='__main__':
 		actions.main(SFP)
 		# Move actions file into finished category
 		shutil.move(actions_file, finished_dir)
+    # Release GPU
+		SFP.release_gpu()
 		# Delete old project
 		del(SFP)
-		# Release GPU
-		sf.release_gpu()
