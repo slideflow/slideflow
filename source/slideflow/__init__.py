@@ -603,9 +603,6 @@ class SlideflowProject:
 					print(f'Invalid selection: {dataset_selection}')
 					continue
 
-		# Other tessellation
-		project['delete_tiles'] = sfutil.yes_no_input("Should raw tile images be deleted after TFRecord storage? [Y/n] ", default='yes')
-
 		# Training
 		project['models_dir'] = sfutil.dir_input("Where should the saved models be stored? [./models] ",
 									root=project['root'], default='./models', create_on_invalid=True)
@@ -661,7 +658,7 @@ class SlideflowProject:
 
 		return results_dict
 
-	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, skip_validation=False, generate_tfrecords=True, stride_div=1, tma=False, augment=False):
+	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, skip_validation=False, generate_tfrecords=True, stride_div=1, tma=False, augment=False, delete_tiles=True, enable_downsample=False):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.'''
 		import slideflow.slide as sfslide
@@ -673,6 +670,7 @@ class SlideflowProject:
 
 		# Load dataset for evaluation
 		extracting_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		extracting_dataset.load_annotations(self.PROJECT['annotations'])
 
 		for dataset_name in self.PROJECT['datasets']:
 			log.empty(f"Working on dataset {sfutil.bold(dataset_name)}", 1)
@@ -697,9 +695,14 @@ class SlideflowProject:
 				log.empty(f"Exporting tiles for slide {sfutil.path_to_name(slide_path)}", 1, pb.print)
 
 				if not tma:
-					whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, save_folder, roi_dir, roi_list=None, pb=pb)
+					whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample, 
+																								export_folder=save_folder,
+																								roi_dir=roi_dir,
+																								roi_list=None, pb=pb)
 				else:
-					whole_slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, save_folder, pb=pb)
+					whole_slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample,
+																							  export_folder=save_folder, 
+																							  pb=pb)
 
 				if not whole_slide.loaded_correctly():
 					return
@@ -728,7 +731,7 @@ class SlideflowProject:
 
 		# Generate TFRecords from the extracted tiles
 		if generate_tfrecords:
-			self.generate_tfrecords_from_tiles()
+			self.generate_tfrecords_from_tiles(delete_tiles)
 
 	def generate_activations_analytics(self, model, outcome_header, filters=None, focus_nodes=[], node_exclusion=False):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.
@@ -786,7 +789,7 @@ class SlideflowProject:
 		log.info(f"Spawning mosaic process (PID: {process.pid})", 1)
 		process.join()
 
-	def generate_tfrecords_from_tiles(self):
+	def generate_tfrecords_from_tiles(self, delete_tiles=True):
 		'''Create tfrecord files from a collection of raw images'''
 		log.header('Writing TFRecord files...')
 
@@ -812,7 +815,7 @@ class SlideflowProject:
 
 			self.update_manifest()
 
-			if self.PROJECT['delete_tiles']:
+			if delete_tiles:
 				shutil.rmtree(tiles_dir)
 
 	def get_hyperparameter_combinations(self, hyperparameters, models, batch_train_file):
