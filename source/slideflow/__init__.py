@@ -132,7 +132,6 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 
 def heatmap_generator(model_name, filters, resolution, project_config, flags=None):
 	import slideflow.slide as sfslide
-
 	if not flags: flags = DEFAULT_FLAGS
 
 	resolutions = {'low': 1, 'medium': 2, 'high': 4}
@@ -191,6 +190,7 @@ def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, max
 def trainer(outcome_headers, model_name, model_type, project_config, results_dict, hp, validation_strategy, 
 			validation_target, validation_fraction, validation_k_fold, validation_log, k_fold_i=None, filters=None, 
 			pretrain=None, resume_training=None, checkpoint=None, supervised=True, flags=None):
+             
 	if not flags: flags = DEFAULT_FLAGS
 
 	# First, clear prior Tensorflow graph to free memory
