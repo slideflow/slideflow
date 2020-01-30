@@ -691,7 +691,12 @@ class ActivationsVisualizer:
 				if not len(tile['distances']): continue
 				closest_point = tile['distances'][0][0]
 				point = points[closest_point]
-				_, tile_image = tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'])
+
+				_, tile_image = tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
+				image_arr = np.fromstring(tile_image.numpy(), np.uint8)
+				tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
+				tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)				
+
 				tile_alpha, num_slide, num_other = 1, 0, 0
 				if FOCUS_SLIDE and len(tile['points']):
 					for point_index in tile['points']:
@@ -718,7 +723,12 @@ class ActivationsVisualizer:
 				if not (point['paired_tile'] or tile['paired_point']):
 					point['paired_tile'] = True
 					tile['paired_point'] = True
-					_, tile_image = tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'])
+
+					_, tile_image = tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
+					image_arr = np.fromstring(tile_image.numpy(), np.uint8)
+					tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
+					tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
+
 					if not export:
 						tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
 					image = ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-tile_size/2,
