@@ -25,7 +25,7 @@ import slideflow.trainer.model as sfmodel
 import slideflow.util as sfutil
 from slideflow.util import TCGA, ProgressBar, log
 from slideflow.util.datasets import Dataset
-from slideflow.activations import ActivationsVisualizer, TileVisualizer
+from slideflow.activations import ActivationsVisualizer, TileVisualizer, Heatmap
 from comet_ml import Experiment
 
 # TODO: allow datasets to have filters (would address evaluate() function)
@@ -152,11 +152,11 @@ def heatmap_generator(model_name, filters, resolution, project_config, flags=Non
 
 	for slide in slide_list:
 		log.empty(f"Working on slide {sfutil.green(sfutil.path_to_name(slide))}", 1)
-		heatmap = sfslide.Heatmap(slide, model_path, project_config['tile_px'], project_config['tile_um'], 
-																				 use_fp16=project_config['use_fp16'],
-																				 stride_div=stride_div,
-																				 save_folder=heatmaps_folder,
-																				 roi_list=roi_list)
+		heatmap = Heatmap(slide, model_path, project_config['tile_px'], project_config['tile_um'], 
+																		use_fp16=project_config['use_fp16'],
+																		stride_div=stride_div,
+																		save_folder=heatmaps_folder,
+																		roi_list=roi_list)
 		heatmap.generate(batch_size=64, export_activations=True)
 		heatmap.save()
 
@@ -186,7 +186,8 @@ def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, max
 
 	AV.generate_mosaic(focus=focus_list,
 						num_tiles_x=num_tiles_x,
-						resolution=resolution)
+						resolution=resolution,
+						expanded=True)
 
 def trainer(outcome_headers, model_name, model_type, project_config, results_dict, hp, validation_strategy, 
 			validation_target, validation_fraction, validation_k_fold, validation_log, k_fold_i=None, filters=None, 
