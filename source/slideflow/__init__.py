@@ -30,9 +30,8 @@ from comet_ml import Experiment
 
 # TODO: allow datasets to have filters (would address evaluate() function)
 
-__version__ = "1.5.1"
+__version__ = "1.5.2"
 
-NUM_THREADS = 4
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
 SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -43,6 +42,7 @@ DEFAULT_FLAGS = {
 	'use_comet': False,
 	'skip_verification': False,
 	'eval_batch_size': 64,
+	'num_threads': 4
 }
 
 def evaluator(outcome_header, model_file, project_config, results_dict,
@@ -671,8 +671,8 @@ class SlideflowProject:
 				whole_slide.export_tiles(augment=augment)
 
 			# Use multithreading if specified, extracting tiles from all slides in the filtered list
-			if NUM_THREADS > 1:
-				pool = DPool(NUM_THREADS)
+			if self.FLAGS['num_threads'] > 1:
+				pool = DPool(self.FLAGS['num_threads'])
 				pool.map(partial(extract_tiles_from_slide, pb=pb), slide_list)
 				pool.close()
 			else:
