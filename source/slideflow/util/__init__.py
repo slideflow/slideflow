@@ -416,3 +416,57 @@ def path_to_ext(path):
 		return ''
 	else:
 		return _file.split('.')[-1]
+
+def update_results_log(results_log_path, model_name, results_dict):
+	'''Dynamically update results_log when recording training metrics.'''
+	# First, read current results log into a dictionary
+	results_log = {}
+	if exists(results_log_path):
+		with open(results_log_path, "r") as results_file:
+			reader = csv.reader(results_file)
+			headers = next(reader)
+			try:
+				model_name_i = headers.index('model_name')
+				result_keys = [k for k in headers if k != 'model_name']
+			except ValueError:
+				model_name_i = headers.index('epoch')
+				result_keys = [k for k in headers if k != 'epoch']
+			for row in reader:
+				name = row[model_name_i]
+				results_log[name] = {}
+				for result_key in result_keys:
+					result = row[headers.index(result_key)]
+					results_log[name][result_key] = result
+		# Move the current log file into a temporary file
+		shutil.move(results_log_path, f"{results_log_path}.temp")
+
+	# Next, update the results log with the new results data
+	for epoch in results_dict:
+		results_log.update({f'{model_name}-{epoch}': results_dict[epoch]})
+
+	# Finally, create a new log file incorporating the new data
+	with open(results_log_path, "w") as results_file:
+		writer = csv.writer(results_file)
+		result_keys = []
+		# Search through results to find all results keys
+		for model in results_log:
+			result_keys += list(results_log[model].keys())
+		# Remove duplicate result keys
+		result_keys = list(set(result_keys))
+		result_keys.sort()
+		# Write header labels
+		writer.writerow(['model_name'] + result_keys)
+		# Iterate through model results and record
+		for model in results_log:
+			row = [model]
+			# Include all saved metrics
+			for result_key in result_keys:
+				if result_key in results_log[model]:
+					row += [results_log[model][result_key]]
+				else:
+					row += [""]
+			writer.writerow(row)
+
+	# Delete the old results log file
+	if exists(f"{results_log_path}.temp"):
+		os.remove(f"{results_log_path}.temp")

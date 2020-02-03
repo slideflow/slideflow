@@ -172,14 +172,18 @@ class Subset:
 			m = []
 			for metric in metrics:
 				try:
-					m += [float(e[metric][1:-1].split(', ')[mi])]
-				except ValueError:
-					m += [-1]
-				except KeyError:
-					m += [-1]
-				except IndexError:
+					if metric in e:
+						m += [float(e[metric][1:-1].split(', ')[mi])]
+					elif f'{metric}{mi}' in e:
+						m += [float(e[f'{metric}{mi}'])]
+					else:
+						m += [-1]
+				except:
 					m += [-1]
 			return m
+
+		def format_epoch(s):
+			return s.split('epoch')[-1]
 
 		tabbed_results = {
 			'Group ID': [],
@@ -239,7 +243,7 @@ class Subset:
 							else:
 								continue
 					tabbed_results['Group ID'] += [group.id]
-					tabbed_results['Epoch'] += [e.strip('val_epoch')]
+					tabbed_results['Epoch'] += [format_epoch(e)]
 					tabbed_results['K-fold'] += [" / ".join(used_k_str)]
 					tabbed_results['Model names'] += [" / ".join(model_names)]
 
@@ -269,7 +273,7 @@ class Subset:
 
 				for e in epochs:
 					tabbed_results['Group ID'] += [group.id]
-					tabbed_results['Epoch'] += [e[1]]
+					tabbed_results['Epoch'] += [format_epoch(e[1])]
 					tabbed_results['K-fold'] += [e[0].k_fold_i]
 					tabbed_results['Model names'] += [e[0].name]
 
@@ -352,6 +356,9 @@ class ModelGroup:
 			if not len(epochs): continue
 			pred = model.get_predictions(epochs[0])
 
+			if not pred:
+				continue
+
 			for label in pred:
 				if label not in y_true_all:
 					y_true_all.update({label: []})
@@ -415,21 +422,26 @@ class Model:
 					self.hyperparameters = None
 
 	def load_results(self, results_log):
-		self.last_modified = getmtime(results_log)
+		try:
+			self.last_modified = getmtime(results_log)
+		except FileNotFoundError:
+			return
 		with open(results_log, 'r') as results_file:
 			reader = csv.reader(results_file)
 			header = next(reader)
-			try:
+			if 'epoch' in header:
 				epoch_i = header.index('epoch')
-			except:
-				epoch_i = "Evaluation"
+			elif 'model_name' in header:
+				epoch_i = header.index('model_name')
+			else:
+				epoch_i = None
 			meta = [h for h in header if h != 'epoch']
 			meta_i = [header.index(h) for h in meta]
 			for row in reader:
-				if epoch_i != "Evaluation":
+				if epoch_i != None:
 					epoch = row[epoch_i]
 				else:
-					epoch = epoch_i
+					epoch = 'Unknown'
 				self.results.update({
 					epoch: dict(zip(meta, [row[mi] for mi in meta_i]))
 				})
@@ -476,12 +488,12 @@ class Model:
 	def get_predictions(self, epoch, level='patient'):
 		if level not in ('patient', 'slide', 'tile'):
 			log.error(f"Unknown prediction level {level}; must be 'patient', 'slide', or 'tile'.", 1)
-			return None, None
+			return None
 
 		predictions = join(self.dir, f'{level}_predictions_val_epoch{epoch}.csv')
 		if not exists(predictions):
 			log.error(f"Unable to find predictions file {sfutil.bold(predictions)} in {sfutil.green(self.dir)}", 1)
-			return None, None
+			return None
 
 		predictions = sfstats.read_predictions(predictions, level)
 		return predictions
@@ -546,7 +558,10 @@ def load_from_directory(search_directory, nested=False, starttime=None, showname
 			datasets += [dataset]
 
 		# Find models in the project
-		models = os.listdir(join(pf, "models"))
+		if exists(join(pf, "models")):
+			models = os.listdir(join(pf, "models"))
+		else:
+			continue
 
 		for model_name in models:
 			# For each detected model, create a Model object

@@ -87,12 +87,12 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 
 	# Build a model using the slide list as input and the annotations dictionary as output labels
 	SFM = sfmodel.SlideflowModel(model_dir, project_config['tile_px'], outcomes, 
-																			train_tfrecords=None,
-																			validation_tfrecords=eval_tfrecords,
-																			manifest=eval_dataset.get_manifest(),
-																			use_fp16=project_config['use_fp16'],
-																			model_type=model_type,
-																			test_mode=flags['test_mode'])
+																		train_tfrecords=None,
+																		validation_tfrecords=eval_tfrecords,
+																		manifest=eval_dataset.get_manifest(),
+																		use_fp16=project_config['use_fp16'],
+																		model_type=model_type,
+																		test_mode=flags['test_mode'])
 
 	# Log model settings and hyperparameters
 	hp_file = join(model_dir, 'hyperparameters.json')
@@ -397,55 +397,6 @@ class SlideflowProject:
 						sys.exit()
 					models_to_train += [model_name]
 		return models_to_train
-
-	def _update_results_log(self, results_log_path, model_name, results_dict):
-		'''Internal function used to dynamically update results_log when recording training metrics.'''
-		# First, read current results log into a dictionary
-		results_log = {}
-		if exists(results_log_path):
-			with open(results_log_path, "r") as results_file:
-				reader = csv.reader(results_file)
-				headers = next(reader)
-				model_name_i = headers.index('model_name')
-				result_keys = [k for k in headers if k != 'model_name']
-				for row in reader:
-					name = row[model_name_i]
-					results_log[name] = {}
-					for result_key in result_keys:
-						result = row[headers.index(result_key)]
-						results_log[name][result_key] = result
-			# Move the current log file into a temporary file
-			shutil.move(results_log_path, f"{results_log_path}.temp")
-
-		# Next, update the results log with the new results data
-		for epoch in results_dict:
-			results_log.update({f'{model_name}-{epoch}': results_dict[epoch]})
-
-		# Finally, create a new log file incorporating the new data
-		with open(results_log_path, "w") as results_file:
-			writer = csv.writer(results_file)
-			result_keys = []
-			# Search through results to find all results keys
-			for model in results_log:
-				result_keys += list(results_log[model].keys())
-			# Remove duplicate result keys
-			result_keys = list(set(result_keys))
-			# Write header labels
-			writer.writerow(['model_name'] + result_keys)
-			# Iterate through model results and record
-			for model in results_log:
-				row = [model]
-				# Include all saved metrics
-				for result_key in result_keys:
-					if result_key in results_log[model]:
-						row += [results_log[model][result_key]]
-					else:
-						row += [""]
-				writer.writerow(row)
-
-		# Delete the old results log file
-		if exists(f"{results_log_path}.temp"):
-			os.remove(f"{results_log_path}.temp")
 
 	def _valid_hp(self, hp):
 		if (hp.model_type() != 'categorical' and ((hp.balanced_training == sfmodel.BALANCE_BY_CATEGORY) or 
@@ -780,7 +731,7 @@ class SlideflowProject:
 		log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
 		process.join()
 
-	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, max_tiles_per_slide=500, export_activations=False):
+	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, max_tiles_per_slide=100, export_activations=False):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.'''
 		log.header("Generating mosaic map...")
@@ -976,7 +927,7 @@ class SlideflowProject:
 		results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
 		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and type(k_fold_iter) != list) else k_fold_iter
 		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
-		valid_k = [] if not k_fold else [kf for kf in range(k_fold) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
+		valid_k = [] if not k_fold else [kf for kf in range(1, k_fold+1) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
 
 		# Next, prepare the multiprocessing manager (needed to free VRAM after training and keep track of results)
 		manager = multiprocessing.Manager()
@@ -991,7 +942,7 @@ class SlideflowProject:
 				# Generate model name
 				outcome_string = "-".join(selected_outcome_headers) if type(selected_outcome_headers) == list else selected_outcome_headers
 				model_name = f"{outcome_string}-{hp_model_name}"
-				model_iterations = [model_name] if not k_fold else [f"{model_name}-kfold{k+1}" for k in valid_k]
+				model_iterations = [model_name] if not k_fold else [f"{model_name}-kfold{k}" for k in valid_k]
 
 				def start_training_process(k):
 					# Using a separate process ensures memory is freed once training has completed
@@ -1007,7 +958,7 @@ class SlideflowProject:
 				# Perform training
 				if k_fold:
 					for k in valid_k:
-						start_training_process(k+1)
+						start_training_process(k)
 						
 				else:
 					start_training_process(None)
@@ -1017,7 +968,7 @@ class SlideflowProject:
 					if mi not in results_dict:
 						log.error(f"Training failed for model {model_name} for an unknown reason")
 					else:
-						self._update_results_log(results_log_path, mi, results_dict[mi]['epochs'])
+						sfutil.update_results_log(results_log_path, mi, results_dict[mi]['epochs'])
 				log.complete(f"Training complete for model {model_name}, results saved to {sfutil.green(results_log_path)}")
 
 			# Print summary of all models

@@ -61,12 +61,12 @@ def create_bool_mask(x, y, w, sx, sy):
 				m[yi][xi] = [False, False, False]
 	return m
 
-def calc_distance(point, tile_x, tile_y):
+'''def calc_distance(point, tile_x, tile_y):
 					point_x = point['x']
 					point_y = point['y']
 					point_index = point['global_index']
 					distance = math.sqrt((point_x-tile_x)**2 + (point_y-tile_y)**2)	
-					return point_index, distance
+					return point_index, distance'''
 
 class ActivationsVisualizer:
 	missing_slides = []
@@ -79,7 +79,7 @@ class ActivationsVisualizer:
 	slide_node_dict = {}
 
 	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, category_header=None, 
-					focus_nodes=[], use_fp16=True, batch_size=16, export_csv=False, max_tiles_per_slide=500):
+					focus_nodes=[], use_fp16=True, batch_size=16, export_csv=False, max_tiles_per_slide=100):
 		'''Loads annotations, saved layer activations, and prepares output saving directories.
 		Will also read/write processed activations to a PKL cache file to save time in future iterations.'''
 
@@ -238,7 +238,7 @@ class ActivationsVisualizer:
 
 	def generate_activations_from_model(self, model, use_fp16=True, batch_size=16, export_csv=True):
 		# Rename tfrecord_array to tfrecords
-		log.info(f"Calculating final layer activations from model {sfutil.green(model)}", 1)
+		log.info(f"Calculating final layer activations from model {sfutil.green(model)}, max {self.MAX_TILES_PER_SLIDE} tiles per slide.", 1)
 
 		# Load model
 		_model = tf.keras.models.load_model(model)
@@ -670,14 +670,14 @@ class ActivationsVisualizer:
 				distances.sort(key=lambda d: d[1])
 				tile['distances'] = distances
 			elif mapping_method == 'expanded':
-				pool = DPool(4)
-				distances = pool.map(partial(calc_distance, tile_x=tile['x'], tile_y=tile['y']), points)
+				#pool = DPool(4)
+				#distances = pool.map(partial(calc_distance, tile_x=tile['x'], tile_y=tile['y']), points)
 
 				# Calculate distance for each point within the entire grid from center of the grid tile
-				#distances = []
-				#for point in points:
-				#	distance = math.sqrt((point['x']-tile['x'])**2 + (point['y']-tile['y'])**2)
-				#	distances.append([point['global_index'], distance])
+				distances = []
+				for point in points:
+					distance = math.sqrt((point['x']-tile['x'])**2 + (point['y']-tile['y'])**2)
+					distances.append([point['global_index'], distance])
 				distances.sort(key=lambda d: d[1])
 				for d in distances:
 					if d[1] <= max_distance:
