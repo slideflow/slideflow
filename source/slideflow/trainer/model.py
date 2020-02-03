@@ -433,10 +433,22 @@ class SlideflowModel:
 
 		# Log results
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
-		with open(results_log, "w") as results_file:
-			writer = csv.writer(results_file)
-			writer.writerow(['val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc', 'r_squared'])
-			writer.writerow([val_loss, val_acc, tile_auc, slide_auc, patient_auc, r_squared])
+		results_dict = {
+			'eval': {
+				'val_loss': val_loss,
+				'val_acc': val_acc,
+				'tile_auc': tile_auc,
+				'slide_auc': slide_auc,
+				'patient_auc': patient_auc,
+				'r_squared': r_squared
+			}
+		}
+		sfutil.update_results_log(results_log, 'eval_model', results_dict)
+
+		#with open(results_log, "w") as results_file:
+		#	writer = csv.writer(results_file)
+		#	writer.writerow(['val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc', 'r_squared'])
+		#	writer.writerow([val_loss, val_acc, tile_auc, slide_auc, patient_auc, r_squared])
 		
 		return val_acc
 
@@ -510,9 +522,9 @@ class SlideflowModel:
 															write_graph=False,
 															update_freq=hp.batch_size*log_frequency)
 
-		with open(results_log, "w") as results_file:
-			writer = csv.writer(results_file)
-			writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc', 'r_squared'])
+		#with open(results_log, "w") as results_file:
+		#	writer = csv.writer(results_file)
+		#	writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc', 'r_squared'])
 		parent = self
 
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
@@ -541,9 +553,13 @@ class SlideflowModel:
 							results['epochs'][f'epoch{epoch+1}'][f'patient_auc{i}'] = auc
 						results['epochs'][f'epoch{epoch+1}']['r_squared'] = r_squared
 
-						with open(results_log, "a") as results_file:
-							writer = csv.writer(results_file)
-							writer.writerow([epoch_label, np.amax(train_acc), val_loss, val_acc, tile_auc, slide_auc, patient_auc, r_squared])
+						epoch_results = results['epochs'][f'epoch{epoch+1}']
+
+						sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch+1}': epoch_results})
+
+						#with open(results_log, "a") as results_file:
+						#	writer = csv.writer(results_file)
+						#	writer.writerow([epoch_label, np.amax(train_acc), val_loss, val_acc, tile_auc, slide_auc, patient_auc, r_squared])
 
 		callbacks = [history_callback, PredictionAndEvaluationCallback()]
 		if hp.early_stop:
