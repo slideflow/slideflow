@@ -59,7 +59,6 @@ from pathlib import Path
 # TODO: consolidate slide "thumbs" and the TMA "get_thumbnail"
 
 Image.MAX_IMAGE_PIXELS = 100000000000
-NUM_THREADS = 4
 DEFAULT_JPG_MPP = 0.5
 
 # BatchNormFix
