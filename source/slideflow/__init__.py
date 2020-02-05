@@ -150,7 +150,7 @@ def heatmap_generator(model_name, filters, resolution, project_config, export_ac
 
 	# Attempt to auto-detect supplied model name
 	detected_model_name = sfutil.path_to_name(model_path)
-	hp_file = join(model_path.split('/')[:-1], 'hyperparameters.json')
+	hp_file = join(*model_path.split('/')[:-1], 'hyperparameters.json')
 	if exists(hp_file):
 		loaded_hp = sfutil.load_json(hp_file)
 		if 'model_name' in loaded_hp:
