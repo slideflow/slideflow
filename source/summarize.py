@@ -350,30 +350,33 @@ class ModelGroup:
 		if not exists(save_dir):
 			os.makedirs(save_dir)
 
-		y_true_all, y_pred_all = {}, {}
-		for model in self.models:
-			epochs = [e.split('epoch')[-1] for e in list(model.results.keys())]
-			if not len(epochs): continue
-			pred = model.get_predictions(epochs[0])
+		for epoch in self.epochs:
+			y_true_all, y_pred_all = {}, {}
+			for model in self.models:
+				#epochs = [e.split('epoch')[-1] for e in list(model.results.keys())]
+				#if not len(epochs): continue
+				if epoch not in model.results.keys():
+					continue
+				pred = model.get_predictions(epoch.split('epoch')[-1])
 
-			if not pred:
-				continue
+				if not pred:
+					continue
 
-			for label in pred:
-				if label not in y_true_all:
-					y_true_all.update({label: []})
-					y_pred_all.update({label: []})
+				for label in pred:
+					if label not in y_true_all:
+						y_true_all.update({label: []})
+						y_pred_all.update({label: []})
 
-				y_true_all[label] += [pred[label]['y_true']]
-				y_pred_all[label] += [pred[label]['y_pred']]
+					y_true_all[label] += [pred[label]['y_true']]
+					y_pred_all[label] += [pred[label]['y_pred']]
 
-		labels = list(y_true_all.keys())
-		labels.sort()
-		for label in labels:
-			#print(" | ".join([m.name for m in self.models]) + f" : [{label}] : {len(y_true_all[label])}")
-			outcome_str = "" if not self.subset else self.subset.outcome.string
-			sfstats.generate_combined_roc(y_true_all[label], y_pred_all[label], save_dir, labels=[f'K-fold {m.k_fold_i}' for m in self.models], name=f"Combined ROC [{outcome_str}-Group{self.id}-{label}]")
-			#print(f"Saved combined ROCs to {sfutil.green(save_dir)}")
+			labels = list(y_true_all.keys())
+			labels.sort()
+			for label in labels:
+				#print(" | ".join([m.name for m in self.models]) + f" : [{label}] : {len(y_true_all[label])}")
+				outcome_str = "" if not self.subset else self.subset.outcome.string
+				sfstats.generate_combined_roc(y_true_all[label], y_pred_all[label], save_dir, labels=[f'K-fold {m.k_fold_i}' for m in self.models], name=f"Combined ROC [{outcome_str}-Group{self.id}-{label}-{epoch}]")
+				#print(f"Saved combined ROCs to {sfutil.green(save_dir)}")
 
 class Model:
 	def __init__(self, models_dir, name, project, interactive=True):
