@@ -30,7 +30,7 @@ from comet_ml import Experiment
 
 # TODO: allow datasets to have filters (would address evaluate() function)
 
-__version__ = "1.5.2"
+__version__ = "1.6.0"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -130,7 +130,7 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 	results_dict['results'] = results
 	return results_dict
 
-def heatmap_generator(model_name, filters, resolution, project_config, export_activations=False, flags=None):
+def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, resolution, project_config, export_activations=False, flags=None):
 	import slideflow.slide as sfslide
 
 	if not flags: flags = DEFAULT_FLAGS
@@ -142,32 +142,15 @@ def heatmap_generator(model_name, filters, resolution, project_config, export_ac
 		log.error(f"Invalid resolution '{resolution}': must be either 'low', 'medium', or 'high'.")
 		return
 
-	heatmaps_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
-	heatmaps_dataset.load_annotations(project_config['annotations'])
-	slide_list = heatmaps_dataset.filter_slide_paths(heatmaps_dataset.get_slide_paths(), filters=filters)
-	roi_list = heatmaps_dataset.get_rois()
-	model_path = model_name if model_name[-3:] == ".h5" else join(project_config['models_dir'], model_name, 'trained_model.h5')
-
-	# Attempt to auto-detect supplied model name
-	detected_model_name = sfutil.path_to_name(model_path)
-	hp_file = join(*model_path.split('/')[:-1], 'hyperparameters.json')
-	if exists(hp_file):
-		loaded_hp = sfutil.load_json(hp_file)
-		if 'model_name' in loaded_hp:
-			detected_model_name = loaded_hp['model_name']
-	
-	heatmaps_folder = os.path.join(project_config['root'], 'heatmaps', detected_model_name)
-	if not exists(heatmaps_folder): os.makedirs(heatmaps_folder)
-
-	for slide in slide_list:
-		log.empty(f"Working on slide {sfutil.green(sfutil.path_to_name(slide))}", 1)
-		heatmap = Heatmap(slide, model_path, project_config['tile_px'], project_config['tile_um'], 
-																		use_fp16=project_config['use_fp16'],
-																		stride_div=stride_div,
-																		save_folder=heatmaps_folder,
-																		roi_list=roi_list)
-		heatmap.generate(batch_size=flags['eval_batch_size'], export_activations=export_activations)
-		heatmap.save()
+	#for slide in slide_list:
+	log.empty(f"Working on slide {sfutil.green(sfutil.path_to_name(slide))}", 1)
+	heatmap = Heatmap(slide, model_path, project_config['tile_px'], project_config['tile_um'], 
+																	use_fp16=project_config['use_fp16'],
+																	stride_div=stride_div,
+																	save_folder=save_folder,
+																	roi_list=roi_list)
+	heatmap.generate(batch_size=flags['eval_batch_size'], export_activations=export_activations)
+	heatmap.save()
 
 def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, max_tiles_per_slide, project_config, export_activations=False, flags=None):
 	if not flags: flags = DEFAULT_FLAGS
@@ -735,11 +718,32 @@ class SlideflowProject:
 		'''
 		log.header("Generating heatmaps...")
 
+		# Prepare dataset
+		heatmaps_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		heatmaps_dataset.load_annotations(self.PROJECT['annotations'])
+		slide_list = heatmaps_dataset.filter_slide_paths(heatmaps_dataset.get_slide_paths(), filters=filters)
+		roi_list = heatmaps_dataset.get_rois()
+		model_path = model_name if model_name[-3:] == ".h5" else join(self.PROJECT['models_dir'], model_name, 'trained_model.h5')
+
+		# Attempt to auto-detect supplied model name
+		detected_model_name = sfutil.path_to_name(model_path)
+		hp_file = join(*model_path.split('/')[:-1], 'hyperparameters.json')
+		if exists(hp_file):
+			loaded_hp = sfutil.load_json(hp_file)
+			if 'model_name' in loaded_hp:
+				detected_model_name = loaded_hp['model_name']
+		
+		# Make output directory
+		heatmaps_folder = os.path.join(self.PROJECT['root'], 'heatmaps', detected_model_name)
+		if not exists(heatmaps_folder): os.makedirs(heatmaps_folder)
+
+		# Heatmap processes
 		ctx = multiprocessing.get_context('spawn')
-		process = ctx.Process(target=heatmap_generator, args=(model_name, filters, resolution, self.PROJECT, export_activations, self.FLAGS))
-		process.start()
-		log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
-		process.join()
+		for slide in slide_list:
+			process = ctx.Process(target=heatmap_generator, args=(slide, model_name, model_path, heatmaps_folder, roi_list, resolution, self.PROJECT, export_activations, self.FLAGS))
+			process.start()
+			log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
+			process.join()
 
 	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, max_tiles_per_slide=100, export_activations=False):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided

@@ -1214,7 +1214,7 @@ class Heatmap:
 	def display(self):
 		self.prepare_figure()
 		heatmap_dict = {}
-		implot = FastImshow(self.slide.thumb, self.ax, extent=None, tgt_res=1024)
+		implot = FastImshow(self.slide.thumb(), self.ax, extent=None, tgt_res=1024)
 
 		def slider_func(val):
 			for h, s in heatmap_dict.values():
@@ -1235,7 +1235,7 @@ class Heatmap:
 		'''Displays and/or saves logits as a heatmap overlay.'''
 		self.prepare_figure()
 		heatmap_dict = {}
-		implot = self.ax.imshow(self.slide.thumb, zorder=0)
+		implot = self.ax.imshow(self.slide.thumb(), zorder=0)
 
 		# Make heatmaps and sliders
 		for i in range(self.NUM_CLASSES):
