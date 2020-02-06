@@ -26,7 +26,7 @@ import imageio
 import argparse
 import pickle
 import csv
-import openslide as ops
+import pyvips as vips
 import shapely.geometry as sg
 import cv2
 import json
@@ -60,12 +60,120 @@ from pathlib import Path
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 DEFAULT_JPG_MPP = 0.5
+OPS_LEVEL_COUNT = 'openslide.level-count'
+OPS_MPP_X = 'openslide.mpp-x'
+OPS_WIDTH = 'width'
+OPS_HEIGHT = 'height'
+def OPS_LEVEL_HEIGHT(l):
+    return f'openslide.level[{l}].height'
+def OPS_LEVEL_WIDTH(l):
+    return f'openslide.level[{l}].width'
+def OPS_LEVEL_DOWNSAMPLE(l):
+    return f'openslide.level[{l}].downsample'
+
+VIPS_FORMAT_TO_DTYPE = {
+    'uchar': np.uint8,
+    'char': np.int8,
+    'ushort': np.uint16,
+    'short': np.int16,
+    'uint': np.uint32,
+    'int': np.int32,
+    'float': np.float32,
+    'double': np.float64,
+    'complex': np.complex64,
+    'dpcomplex': np.complex128,
+}
 
 # BatchNormFix
 tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
 
 def polyArea(x, y):
 	return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
+
+def vips2numpy(vi):
+    return np.ndarray(buffer=vi.write_to_memory(),
+                      dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
+                      shape=[vi.height, vi.width, vi.bands])
+
+class OpenslideToVIPS:
+	'''Wrapper for VIPS to preserve openslide-like functions.'''
+	def __init__(self, path):
+		self.path = path
+		self.full_image = vips.Image.new_from_file(path)
+		self.properties = {}
+		for field in self.full_image.get_fields():
+			self.properties.update({field: self.full_image.get(field)})
+		self.dimensions = (int(self.properties[OPS_WIDTH]), int(self.properties[OPS_HEIGHT]))
+		self.level_count = int(self.properties[OPS_LEVEL_COUNT])
+		self.loaded_downsample_levels = {
+			0: self.full_image
+		}
+
+		# Calculate level metadata
+		num_levels = int(self.full_image.get(OPS_LEVEL_COUNT))
+		self.levels = []
+		for l in range(num_levels):
+			width = int(self.full_image.get(OPS_LEVEL_WIDTH(l)))
+			height = int(self.full_image.get(OPS_LEVEL_HEIGHT(l)))
+			downsample = float(self.full_image.get(OPS_LEVEL_DOWNSAMPLE(l)))
+			self.levels += [{
+				'dimensions': (width, height),
+				'width': width,
+				'height': height,
+				'downsample': downsample
+			}]
+		self.level_downsamples = [l['downsample'] for l in self.levels]
+		self.level_dimensions = [l['dimensions'] for l in self.levels]
+
+	def get_best_level_for_downsample(self, downsample):
+		max_downsample = 0
+		for d in self.level_downsamples:
+			if d < downsample:
+				max_downsample = d
+		try:
+			max_level = self.level_downsamples.index(max_downsample)
+		except:
+			return 0
+		return max_level
+
+	def get_downsampled_image(self, level):
+		if level in range(len(self.levels)):
+			if level in self.loaded_downsample_levels:
+				return self.loaded_downsample_levels[level]
+			else:
+				downsampled_image = vips.Image.new_from_file(self.path, level=level)
+				self.loaded_downsample_levels.update({
+					level: downsampled_image
+				})
+				return downsampled_image
+		else:
+			return False
+
+	def get_thumbnail(self, dimensions, enable_downsample=False):
+		resize_factor = float(dimensions[0]) / self.dimensions[0]
+
+		if enable_downsample:
+			thumb_level = self.get_best_level_for_downsample(1/resize_factor)
+			thumb_factor = float(dimensions[0]) / self.level_dimensions[thumb_level][0]
+			thumb = self.get_downsampled_image(thumb_level)
+			resized = thumb.resize(thumb_factor)
+		else:
+			resized = self.full_image.resize(resize_factor)
+
+		np_resized = vips2numpy(resized)
+		pil_resized = Image.fromarray(np_resized)
+		return pil_resized
+
+	def read_region(self, base_level_dim, downsample_level, extract_size):
+		base_level_x, base_level_y = base_level_dim
+		extract_width, extract_height = extract_size
+		downsample_factor = self.level_downsamples[downsample_level]
+		downsample_x = int(base_level_x / downsample_factor)
+		downsample_y = int(base_level_y / downsample_factor)
+
+		image = self.get_downsampled_image(downsample_level)
+		region = image.extract_area(downsample_x, downsample_y, extract_width, extract_height)
+		return region
 
 class ROIObject:
 	'''Object container for ROI annotations.'''
@@ -82,8 +190,8 @@ class ROIObject:
 		for point in shape:
 			self.add_coord(point)
 
-class JPGSlide:
-	'''Object that provides cross-compatibility with certain OpenSlide methods when using JPG slides.'''
+'''class JPGSlide:
+	#Object that provides cross-compatibility with certain OpenSlide methods when using JPG slides.
 	def __init__(self, path, mpp):
 		self.loaded_image = Image.open(path)
 		self.dimensions = (self.loaded_image.size[1], self.loaded_image.size[0])
@@ -113,7 +221,7 @@ class JPGSlide:
 		#						 topleft[0]:topleft[0] + window[0],]
 
 	def get_best_level_for_downsample(self, downsample_desired):
-		return 0
+		return 0'''
 
 class SlideLoader:
 	'''Object that loads an SVS slide and makes preparations for tile extraction.
@@ -130,19 +238,20 @@ class SlideLoader:
 		self.size_um = size_um
 		self.tiles_path = None if not export_folder else join(self.export_folder, self.name)
 		self.tile_mask = None
+		self.enable_downsample = enable_downsample
 		filetype = sfutil.path_to_ext(path)
 
 		# Initiate supported slide (SVS, TIF) or JPG slide reader
 		if filetype.lower() in sfutil.SUPPORTED_FORMATS:
 			try:
-				self.slide = ops.OpenSlide(path)
-			except ops.lowlevel.OpenSlideUnsupportedFormatError:
+				self.slide = OpenslideToVIPS(path) #ops.OpenSlide(path)
+			except: #ops.lowlevel.OpenSlideUnsupportedFormatError:
 				log.warn(f" Unable to read slide from {path} , skipping", 1, self.print)
 				self.shape = None
 				self.load_error = True
 				return
-		elif filetype == "jpg":
-			self.slide = JPGSlide(path, mpp=DEFAULT_JPG_MPP)
+		#elif filetype == "jpg":
+		#	self.slide = JPGSlide(path, mpp=DEFAULT_JPG_MPP)
 		else:
 			log.error(f"Unsupported file type '{filetype}' for slide {self.name}.", 1, self.print)
 			self.load_error = True
@@ -150,7 +259,7 @@ class SlideLoader:
 
 		# Collect basic slide information
 		try:
-			self.MPP = float(self.slide.properties[ops.PROPERTY_NAME_MPP_X])
+			self.MPP = float(self.slide.properties[OPS_MPP_X])#ops.PROPERTY_NAME_MPP_X])
 		except KeyError:
 			log.error(f"Corrupted SVS ({sfutil.green(self.name)}), skipping slide", 1, self.print)
 			self.load_error = True
@@ -179,12 +288,17 @@ class SlideLoader:
 
 		# Generating thumbnail for heatmap
 		self.thumbs_path = join(Path(path).parent, "thumbs")
+		self.thumb_image = None
+	
+	def thumb(self):
 		sfdatasets.make_dir(self.thumbs_path)
-		goal_thumb_area = 4096*4096
-		y_x_ratio = self.shape[1] / self.shape[0]
-		thumb_x = sqrt(goal_thumb_area / y_x_ratio)
-		thumb_y = thumb_x * y_x_ratio
-		self.thumb = self.slide.get_thumbnail((int(thumb_x), int(thumb_y)))
+		if not self.thumb_image:
+			goal_thumb_area = 4096*4096
+			y_x_ratio = self.shape[1] / self.shape[0]
+			thumb_x = sqrt(goal_thumb_area / y_x_ratio)
+			thumb_y = thumb_x * y_x_ratio
+			self.thumb_image = self.slide.get_thumbnail((int(thumb_x), int(thumb_y)), enable_downsample=self.enable_downsample)
+		return self.thumb_image
 
 	def build_generator(self):
 		log.label(self.shortname, f"Extracting {sfutil.bold(self.size_um)}um tiles (resizing {sfutil.bold(self.extract_px)}px -> {sfutil.bold(self.size_px)}px); stride: {sfutil.bold(int(self.stride))}px", 2, self.print)
@@ -230,7 +344,7 @@ class TMAReader(SlideLoader):
 		super().build_generator()
 
 		log.empty(f"Extracting tiles from {sfutil.green(self.name)}, saving to {sfutil.green(self.tiles_dir)}", 1, self.print)
-		img_orig = np.array(self.slide.get_thumbnail((self.DIM[0]/self.THUMB_DOWNSCALE, self.DIM[1]/self.THUMB_DOWNSCALE)))
+		img_orig = np.array(self.slide.get_thumbnail((self.DIM[0]/self.THUMB_DOWNSCALE, self.DIM[1]/self.THUMB_DOWNSCALE), enable_downsample=self.enable_downsample))
 		img_annotated = img_orig.copy()
 
 		# Create background mask for edge detection
@@ -400,7 +514,7 @@ class TMAReader(SlideLoader):
 		region_width  = int((region_x_max - region_x_min) / self.downsample_factor)
 		region_height = int((region_y_max - region_y_min) / self.downsample_factor)
 
-		extracted = self.slide.read_region((region_x_min, region_y_min), self.downsample_level, (region_width, region_height))
+		extracted = vips2numpy(self.slide.read_region((region_x_min, region_y_min), self.downsample_level, (region_width, region_height)))
 		relative_box = (box - [region_x_min, region_y_min]) / self.downsample_factor
 
 		src_pts = relative_box.astype("float32")
@@ -410,7 +524,7 @@ class TMAReader(SlideLoader):
 							[(rect_width)-1, (rect_height)-1]], dtype="float32")
 
 		P = cv2.getPerspectiveTransform(src_pts, dst_pts)
-		warped=cv2.warpPerspective(np.array(extracted), P, (rect_width, rect_height))
+		warped=cv2.warpPerspective(extracted, P, (rect_width, rect_height))
 		return warped
 
 class SlideReader(SlideLoader):
@@ -498,32 +612,38 @@ class SlideReader(SlideLoader):
 				tile_counter += 1
 				if self.pb:
 					self.pb.update(self.p_id, tile_counter)
+
 				# Read the low-mag level for filter checking
-				filter_region = np.asarray(self.slide.read_region(c, self.slide.level_count-1, [self.filter_px, self.filter_px]))[:,:,:-1]
+				if self.enable_downsample:
+					filter_region = vips2numpy(self.slide.read_region((c[0], c[1]), self.slide.level_count-1, [self.filter_px, self.filter_px]))[:,:,:-1]
+				else:
+					filter_region = vips2numpy(self.slide.read_region((c[0], c[1]), 0, [self.extract_px, self.extract_px]))[:,:,:-1]
 				median_brightness = int(sum(np.median(filter_region, axis=(0, 1))))
 				if median_brightness > 660:
 					# Discard tile; median brightness (average RGB pixel) > 220
 					continue
+
 				if self.pb:
 					self.pb.update_counter(1)
+
 				# Read the region and discard the alpha pixels
-				region = self.slide.read_region(c, self.downsample_level, [self.extract_px, self.extract_px])
-				region = region.resize((self.size_px, self.size_px))
-				region = region.convert('RGB')
+				region = self.slide.read_region((c[0], c[1]), self.downsample_level, [self.extract_px, self.extract_px])
+				region = region.resize(float(self.size_px) / self.extract_px)
 				tile_mask[ci] = 1
 				coord_label = ci
 				unique_tile = c[2]
 				if export and unique_tile:
-					region.save(join(self.tiles_path, f'{self.shortname}_{ci}.jpg'))
+					region.jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}.jpg'))
 					if augment:
-						region.transpose(Image.ROTATE_90).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug1.jpg'))
-						region.transpose(Image.FLIP_TOP_BOTTOM).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug2.jpg'))
-						region.transpose(Image.ROTATE_90).transpose(Image.FLIP_TOP_BOTTOM).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug3.jpg'))
-						region.transpose(Image.FLIP_LEFT_RIGHT).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug4.jpg'))
-						region.transpose(Image.ROTATE_90).transpose(Image.FLIP_LEFT_RIGHT).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug5.jpg'))
-						region.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.FLIP_TOP_BOTTOM).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug6.jpg'))
-						region.transpose(Image.ROTATE_90).transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.FLIP_TOP_BOTTOM).save(join(self.tiles_path, f'{self.shortname}_{ci}_aug7.jpg'))
-				yield region, coord_label, unique_tile
+						region.rot90().jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}_aug1.jpg'))
+						region.flipver().jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}_aug2.jpg'))
+						region.rot90().flipver().jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}_aug3.jpg'))
+						region.fliphor().jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}_aug4.jpg'))
+						region.rot90().fliphor().jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}_aug5.jpg'))
+						region.fliphor().flipver().jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}_aug6.jpg'))
+						region.rot90().fliphor().flipver().jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}_aug7.jpg'))
+				pil_region = Image.fromarray(vips2numpy(region)).convert('RGB')
+				yield pil_region, coord_label, unique_tile
 
 			if self.pb: 
 				self.pb.end(self.p_id)
@@ -533,6 +653,7 @@ class SlideReader(SlideLoader):
 		return generator, slide_x_size, slide_y_size, self.full_stride
 
 	def export_tiles(self, augment=False):
+
 		if not self.loaded_correctly():
 			log.error(f"Unable to extract tiles; unable to load slide {sfutil.green(self.name)}", 1)
 			return
