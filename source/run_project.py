@@ -14,12 +14,11 @@ if __name__=='__main__':
 	parser.add_argument('-tM', '--test_mode', action="store_true", help="Whether or not to train in test mode.")
 	args = parser.parse_args()
 
-	sf.NUM_THREADS = args.threads
-
 	SFP = sf.SlideflowProject(args.project)
 	SFP.autoselect_gpu(args.gpu)
 	SFP.FLAGS['skip_verification'] = args.skip_verification
 	SFP.FLAGS['test_mode'] = args.test_mode
+	SFP.FLAGS['num_threads'] = args.threads
 
 	sys.path.insert(0, args.project)
 	try:
