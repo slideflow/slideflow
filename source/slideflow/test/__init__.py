@@ -6,9 +6,9 @@ import csv
 import shutil
 
 from slideflow import util as sfutil
+from slideflow import slide as sfslide
 from slideflow.trainer import model as sfmodel
-from slideflow.util import TCGA, log
-from slideflow.trainer.model import HyperParameters
+from slideflow.util import TCGA, log, ProgressBar
 from slideflow.util.datasets import Dataset
 
 from glob import glob
@@ -184,17 +184,30 @@ class TestSuite:
 											 filename=PROJECT_CONFIG["batch_train_config"])
 
 		# Create single hyperparameter combination
-		hp = HyperParameters(finetune_epochs=1, toplayer_epochs=0, model='InceptionV3', pooling='max', loss=loss,
+		hp = sfmodel.HyperParameters(finetune_epochs=1, toplayer_epochs=0, model='InceptionV3', pooling='max', loss=loss,
 				learning_rate=0.001, batch_size=64, hidden_layers=1, optimizer='Adam', early_stop=False, 
 				early_stop_patience=0, balanced_training='BALANCE_BY_PATIENT', balanced_validation='NO_BALANCE', 
 				augment=True)
 		print("\t...DONE")
 		return hp
 
-	def test_convolution(self):
+	def test_full_extraction(self):
 		# Test tile extraction, default parameters
-		print("Testing convolution...")
+		print("Testing multiple slides extraction...")
 		self.SFP.extract_tiles()
+		print("\t...OK")
+
+	def test_single_extraction(self):
+		print("Testing single slide extraction...")
+		extracting_dataset = Dataset(config_file=self.SFP.PROJECT['dataset_config'], sources=self.SFP.PROJECT['datasets'])
+		extracting_dataset.load_annotations(self.SFP.PROJECT['annotations'])
+		dataset_name = self.SFP.PROJECT['datasets'][0]
+		slide_list = extracting_dataset.filter_slide_paths(extracting_dataset.get_slides_by_dataset(dataset_name), filters=None)
+		roi_dir = extracting_dataset.datasets[dataset_name]['roi'] 
+		tiles_dir = extracting_dataset.datasets[dataset_name]['tiles']
+		pb = ProgressBar(bar_length=5, counter_text='tiles')
+		whole_slide = sfslide.SlideReader(slide_list[0], 299, 302, 1, enable_downsample=False, export_folder=tiles_dir, roi_dir=roi_dir, roi_list=None, pb=pb) 
+		whole_slide.export_tiles()
 		print("\t...OK")
 
 	def test_training(self, categorical=True, linear=True):
@@ -258,7 +271,7 @@ class TestSuite:
 
 	def test(self):
 		'''Perform and report results of all available testing.'''
-		self.test_convolution()
+		self.test_full_extraction()
 		self.test_training()
 		self.test_training_performance()
 		self.test_evaluation()

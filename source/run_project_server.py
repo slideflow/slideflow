@@ -17,9 +17,7 @@ if __name__=='__main__':
 	parser.add_argument('-sV', '--skip_verification', action="store_true", help="Whether or not to skip verification.")
 	parser.add_argument('-tM', '--test_mode', action="store_true", help="Whether or not to train in test mode.")
 	args = parser.parse_args()
-
-	sf.NUM_THREADS = args.threads
-
+	
 	if not args.queue or not os.path.exists(args.queue):
 		print("You must specify a valid queue directory using the -q flag.")
 		sys.exit()
@@ -52,6 +50,7 @@ if __name__=='__main__':
 		SFP.autoselect_gpu(args.gpu)
 		SFP.FLAGS['skip_verification'] = args.skip_verification
 		SFP.FLAGS['test_mode'] = args.test_mode
+		SFP.FLAGS['num_threads'] = args.threads
 		# Execute actions
 		actions.main(SFP)
 		# Move actions file into finished category
