@@ -384,6 +384,35 @@ class SlideflowModel:
 			base_model = hp.get_model(input_shape=(self.IMAGE_SIZE, self.IMAGE_SIZE, 3),
 									  weights=pretrain)
 
+		# TODO: Implement new model structure that only requires one input
+		'''# add a global spatial average pooling layer
+		x = base_model.output
+		x = GlobalAveragePooling2D()(x)
+		# let's add a fully-connected layer
+		x = Dense(1024, activation='relu')(x)
+		# and a logistic layer -- let's say we have 200 classes
+		predictions = Dense(200, activation='softmax')(x)
+
+		# this is the model we will train
+		model = Model(inputs=base_model.input, outputs=predictions)'''
+
+		# Sample
+		'''
+		# Get base model output
+		x = base_model.output
+		# Add pooling
+		if not hp.pooling:
+			x = tf.keras.layers.Flatten()(x)
+		# Add dense hidden layers
+		for i in range(hp.hidden_layers):
+			x = tf.keras.layers.Dense(500, activation='relu')(x)
+		# Add softmax layer
+		activation_type = 'linear' if hp.model_type() == 'linear' else 'softmax'
+		predictions = tf.keras.layers.Dense(self.NUM_CLASSES, activation=activation_type)(x)
+		# Assemble trainable model
+		model = tf.keras.Model(inputs=base_model.input, outputs=predictions)
+		'''
+
 		# Combine base model with top layer (classification/prediction layer)
 		layers = [base_model]
 		if not hp.pooling:
@@ -399,6 +428,13 @@ class SlideflowModel:
 		else:
 			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')]
 		model = tf.keras.Sequential(layers)
+
+		# Alternative fix to the multiple inputs problem
+		'''
+		input = tf.keras.layers.Input(shape=model.input_shape[1:])
+		output = model([input, input])
+		model = Model(input, output)
+		'''
 		
 		if checkpoint:
 			log.info(f"Loading checkpoint weights from {sfutil.green(checkpoint)}", 1)
@@ -406,14 +442,13 @@ class SlideflowModel:
 
 		return model
 
-	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None):
+	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None, min_tiles_per_slide=0):
 		# Load and initialize model
 		if not hp and checkpoint:
 			log.error("If using a checkpoint for evaluation, hyperparameters must be specified.")
 			sys.exit()
 		batch_size = batch_size if not hp else hp.batch_size
-		augment = False if not hp else hp.augment
-		dataset, dataset_with_slidenames, num_tiles = self.build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment, finite=True, include_slidenames=True)
+		dataset, dataset_with_slidenames, num_tiles = self.build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment=False, finite=True, include_slidenames=True)
 		if model:
 			self.model = tf.keras.models.load_model(model)
 		elif checkpoint:
@@ -422,7 +457,9 @@ class SlideflowModel:
 
 		# Generate performance metrics
 		log.info("Calculating performance metrics...", 1)
-		tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, dataset_with_slidenames, self.SLIDE_ANNOTATIONS, model_type, self.DATA_DIR, label="eval")
+		tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, dataset_with_slidenames, self.SLIDE_ANNOTATIONS, 
+																						   model_type, self.DATA_DIR, label="eval", manifest=self.MANIFEST,
+																						   min_tiles_per_slide=min_tiles_per_slide)
 
 		log.info(f"Tile AUC: {tile_auc}", 1)
 		log.info(f"Slide AUC: {slide_auc}", 1)
@@ -433,10 +470,22 @@ class SlideflowModel:
 
 		# Log results
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
-		with open(results_log, "w") as results_file:
-			writer = csv.writer(results_file)
-			writer.writerow(['val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc', 'r_squared'])
-			writer.writerow([val_loss, val_acc, tile_auc, slide_auc, patient_auc, r_squared])
+		results_dict = {
+			'eval': {
+				'val_loss': val_loss,
+				'val_acc': val_acc,
+				'tile_auc': tile_auc,
+				'slide_auc': slide_auc,
+				'patient_auc': patient_auc,
+				'r_squared': r_squared
+			}
+		}
+		sfutil.update_results_log(results_log, 'eval_model', results_dict)
+
+		#with open(results_log, "w") as results_file:
+		#	writer = csv.writer(results_file)
+		#	writer.writerow(['val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc', 'r_squared'])
+		#	writer.writerow([val_loss, val_acc, tile_auc, slide_auc, patient_auc, r_squared])
 		
 		return val_acc
 
@@ -463,13 +512,13 @@ class SlideflowModel:
 		model.layers[0].trainable = True
 		return toplayer_model.history
 
-	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, supervised=True, log_frequency=20):
+	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, supervised=True, log_frequency=20, min_tiles_per_slide=0):
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 
 		# Build inputs
 		train_data, _, num_tiles = self.build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, include_slidenames=False)
 		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
-			validation_data, validation_data_with_slidenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, hp.augment, finite=True, include_slidenames=True)
+			validation_data, validation_data_with_slidenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, augment=False, finite=True, include_slidenames=True)
 			validation_data_for_training = validation_data.repeat()
 			val_steps = 200
 		else:
@@ -510,9 +559,9 @@ class SlideflowModel:
 															write_graph=False,
 															update_freq=hp.batch_size*log_frequency)
 
-		with open(results_log, "w") as results_file:
-			writer = csv.writer(results_file)
-			writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc', 'r_squared'])
+		#with open(results_log, "w") as results_file:
+		#	writer = csv.writer(results_file)
+		#	writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc', 'r_squared'])
 		parent = self
 
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
@@ -525,7 +574,10 @@ class SlideflowModel:
 							train_acc = logs['acc']
 						else:
 							train_acc = logs[hp.loss]
-						tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, validation_data_with_slidenames, parent.SLIDE_ANNOTATIONS, hp.model_type(), parent.DATA_DIR, label=epoch_label)
+						tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, validation_data_with_slidenames, 
+																										   parent.SLIDE_ANNOTATIONS, hp.model_type(), 
+																										   parent.DATA_DIR, label=epoch_label, manifest=parent.MANIFEST,
+																										   min_tiles_per_slide=min_tiles_per_slide)
 						if verbose: log.info("Beginning validation testing", 1)
 						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
@@ -541,9 +593,13 @@ class SlideflowModel:
 							results['epochs'][f'epoch{epoch+1}'][f'patient_auc{i}'] = auc
 						results['epochs'][f'epoch{epoch+1}']['r_squared'] = r_squared
 
-						with open(results_log, "a") as results_file:
-							writer = csv.writer(results_file)
-							writer.writerow([epoch_label, np.amax(train_acc), val_loss, val_acc, tile_auc, slide_auc, patient_auc, r_squared])
+						epoch_results = results['epochs'][f'epoch{epoch+1}']
+
+						sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch+1}': epoch_results})
+
+						#with open(results_log, "a") as results_file:
+						#	writer = csv.writer(results_file)
+						#	writer.writerow([epoch_label, np.amax(train_acc), val_loss, val_acc, tile_auc, slide_auc, patient_auc, r_squared])
 
 		callbacks = [history_callback, PredictionAndEvaluationCallback()]
 		if hp.early_stop:
