@@ -9,9 +9,7 @@ using python Generators. These tessellated tiles can be exported as JPGs, with o
 data augmentation, or used as input for a trained Tensorflow model. Model predictions 
 can then be visualized as a heatmap overlay.
 
-This module is compatible with SVS and JPG images.
-
-Requires: Openslide (https://openslide.org/download/).'''
+Requires: libvips (https://libvips.github.io/libvips/).'''
 
 from __future__ import absolute_import
 from __future__ import division
@@ -54,9 +52,6 @@ from pathlib import Path
 # TODO: test JPG compatibility
 # TODO: test removing BatchNorm fix
 # TODO: remove final layer activations functions (duplicated in a separate module)
-
-# For TMA reader:
-# TODO: consolidate slide "thumbs" and the TMA "get_thumbnail"
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 DEFAULT_JPG_MPP = 0.5
@@ -272,7 +267,7 @@ class SlideLoader:
 		if enable_downsample:
 			self.downsample_level = self.slide.get_best_level_for_downsample(downsample_desired)
 		else:
-			self.downsample_level = self.slide.get_best_level_for_downsample(1)
+			self.downsample_level = 0
 		self.downsample_factor = self.slide.level_downsamples[self.downsample_level]
 		self.shape = self.slide.level_dimensions[self.downsample_level]
 
@@ -604,6 +599,7 @@ class SlideReader(SlideLoader):
 			if export and not os.path.exists(self.tiles_path): os.makedirs(self.tiles_path)
 			for ci in range(len(coord)):
 				c = coord[ci]
+
 				# Check if the center of the current window lies within any annotation; if not, skip
 				x_coord = int((c[0]+self.full_extract_px/2)/ROI_SCALE)
 				y_coord = int((c[1]+self.full_extract_px/2)/ROI_SCALE)
@@ -613,7 +609,7 @@ class SlideReader(SlideLoader):
 				if self.pb:
 					self.pb.update(self.p_id, tile_counter)
 
-				# Read the low-mag level for filter checking
+				# Read the low-magnification level for filtering out background
 				if self.enable_downsample:
 					filter_region = vips2numpy(self.slide.read_region((c[0], c[1]), self.slide.level_count-1, [self.filter_px, self.filter_px]))[:,:,:-1]
 				else:
@@ -626,7 +622,7 @@ class SlideReader(SlideLoader):
 				if self.pb:
 					self.pb.update_counter(1)
 
-				# Read the region and discard the alpha pixels
+				# Read the region and resize to target size
 				region = self.slide.read_region((c[0], c[1]), self.downsample_level, [self.extract_px, self.extract_px])
 				region = region.resize(float(self.size_px) / self.extract_px)
 				tile_mask[ci] = 1

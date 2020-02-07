@@ -1,10 +1,9 @@
 gast==0.2.2
-tensorflow-gpu==2
+tensorflow-gpu>=2.0.1
 scipy
 sklearn
 matplotlib
 imageio
-openslide-python
 opencv-python
 shapely
 umap-learn
@@ -12,3 +11,4 @@ seaborn
 comet-ml
 pandas
 tabulate
+pyvips
