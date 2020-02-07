@@ -25,14 +25,13 @@ import slideflow.trainer.model as sfmodel
 import slideflow.util as sfutil
 from slideflow.util import TCGA, ProgressBar, log
 from slideflow.util.datasets import Dataset
-from slideflow.activations import ActivationsVisualizer, TileVisualizer
+from slideflow.activations import ActivationsVisualizer, TileVisualizer, Heatmap
 from comet_ml import Experiment
 
 # TODO: allow datasets to have filters (would address evaluate() function)
 
-__version__ = "1.5.1"
+__version__ = "1.6.1"
 
-NUM_THREADS = 4
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
 SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -43,10 +42,13 @@ DEFAULT_FLAGS = {
 	'use_comet': False,
 	'skip_verification': False,
 	'eval_batch_size': 64,
+	'num_threads': 4
 }
 
 def evaluator(outcome_header, model_file, project_config, results_dict,
-				filters=None, hyperparameters=None, checkpoint=None, eval_k_fold=None, flags=None):
+				filters=None, hyperparameters=None, checkpoint=None, eval_k_fold=None, 
+				min_tiles_per_slide=0, flags=None):
+
 	if not flags: flags = DEFAULT_FLAGS
 
 	model_root = dirname(model_file)
@@ -56,7 +58,7 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 	hp_data = sfutil.load_json(hp_file)
 	hp = sfmodel.HyperParameters()
 	hp._load_dict(hp_data['hp'])
-	model_name = f"eval-{hp_data['model_name']}"
+	model_name = f"eval-{hp_data['model_name']}-{sfutil.path_to_name(model_file)}"
 	model_type = hp_data['model_type']
 
 	# Filter out slides that are blank in the outcome category
@@ -87,12 +89,12 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 
 	# Build a model using the slide list as input and the annotations dictionary as output labels
 	SFM = sfmodel.SlideflowModel(model_dir, project_config['tile_px'], outcomes, 
-																			train_tfrecords=None,
-																			validation_tfrecords=eval_tfrecords,
-																			manifest=eval_dataset.get_manifest(),
-																			use_fp16=project_config['use_fp16'],
-																			model_type=model_type,
-																			test_mode=flags['test_mode'])
+																		train_tfrecords=None,
+																		validation_tfrecords=eval_tfrecords,
+																		manifest=eval_dataset.get_manifest(),
+																		use_fp16=project_config['use_fp16'],
+																		model_type=model_type,
+																		test_mode=flags['test_mode'])
 
 	# Log model settings and hyperparameters
 	hp_file = join(model_dir, 'hyperparameters.json')
@@ -124,13 +126,20 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 
 	# Perform evaluation
 	log.info(f"Evaluating {sfutil.bold(len(eval_tfrecords))} tfrecords", 1)
-	results = SFM.evaluate(tfrecords=eval_tfrecords, hp=hp, model=model_file, model_type=model_type, checkpoint=checkpoint, batch_size=flags['eval_batch_size'])
+	
+	results = SFM.evaluate(tfrecords=eval_tfrecords, 
+						   hp=hp,
+						   model=model_file,
+						   model_type=model_type,
+						   checkpoint=checkpoint,
+						   batch_size=flags['eval_batch_size'],
+						   min_tiles_per_slide=min_tiles_per_slide)
 
 	# Load results into multiprocessing dictionary
 	results_dict['results'] = results
 	return results_dict
 
-def heatmap_generator(model_name, filters, resolution, project_config, flags=None):
+def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, resolution, project_config, export_activations=False, flags=None):
 	import slideflow.slide as sfslide
 	if not flags: flags = DEFAULT_FLAGS
 
@@ -141,23 +150,15 @@ def heatmap_generator(model_name, filters, resolution, project_config, flags=Non
 		log.error(f"Invalid resolution '{resolution}': must be either 'low', 'medium', or 'high'.")
 		return
 
-	heatmaps_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
-	heatmaps_dataset.load_annotations(project_config['annotations'])
-	slide_list = heatmaps_dataset.filter_slide_paths(heatmaps_dataset.get_slide_paths(), filters=filters)
-	roi_list = heatmaps_dataset.get_rois()
-	heatmaps_folder = os.path.join(project_config['root'], 'heatmaps')
-	if not os.path.exists(heatmaps_folder): os.makedirs(heatmaps_folder)
-	model_path = model_name if model_name[-3:] == ".h5" else join(project_config['models_dir'], model_name, 'trained_model.h5')
-
-	for slide in slide_list:
-		log.empty(f"Working on slide {sfutil.green(sfutil.path_to_name(slide))}", 1)
-		heatmap = sfslide.Heatmap(slide, model_path, project_config['tile_px'], project_config['tile_um'], 
-																				 use_fp16=project_config['use_fp16'],
-																				 stride_div=stride_div,
-																				 save_folder=heatmaps_folder,
-																				 roi_list=roi_list)
-		heatmap.generate(batch_size=64, export_activations=True)
-		heatmap.save()
+	#for slide in slide_list:
+	log.empty(f"Working on slide {sfutil.green(sfutil.path_to_name(slide))}", 1)
+	heatmap = Heatmap(slide, model_path, project_config['tile_px'], project_config['tile_um'], 
+																	use_fp16=project_config['use_fp16'],
+																	stride_div=stride_div,
+																	save_folder=save_folder,
+																	roi_list=roi_list)
+	heatmap.generate(batch_size=flags['eval_batch_size'], export_activations=export_activations)
+	heatmap.save()
 
 def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, max_tiles_per_slide, project_config, export_activations=False, flags=None):
 	if not flags: flags = DEFAULT_FLAGS
@@ -185,12 +186,14 @@ def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, max
 
 	AV.generate_mosaic(focus=focus_list,
 						num_tiles_x=num_tiles_x,
-						resolution=resolution)
+						resolution=resolution,
+						expanded=True)
 
 def trainer(outcome_headers, model_name, model_type, project_config, results_dict, hp, validation_strategy, 
-			validation_target, validation_fraction, validation_k_fold, validation_log, k_fold_i=None, filters=None, 
-			pretrain=None, resume_training=None, checkpoint=None, supervised=True, flags=None):
-             
+			validation_target, validation_fraction, validation_k_fold, validation_log, validation_dataset=None, 
+			validation_annotations=None, validation_filters=None, k_fold_i=None, filters=None, pretrain=None, 
+			resume_training=None, checkpoint=None, supervised=True, min_tiles_per_slide=0, flags=None):
+
 	if not flags: flags = DEFAULT_FLAGS
 
 	# First, clear prior Tensorflow graph to free memory
@@ -225,19 +228,31 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		outcome_labels = dict(zip(range(len(outcome_headers)), outcome_headers))
 
 	# Get TFRecords for training and validation
+	manifest = training_dataset.get_manifest()
 	training_tfrecords, validation_tfrecords = sfutil.tfrecords.get_training_and_validation_tfrecords(training_dataset, validation_log, outcomes, model_type,
-																								validation_target=validation_target,
-																								validation_strategy=validation_strategy,
-																								validation_fraction=validation_fraction,
-																								validation_k_fold=validation_k_fold,
-																								k_fold_iter=k_fold_i)
+																									validation_target=validation_target,
+																									validation_strategy=validation_strategy,
+																									validation_fraction=validation_fraction,
+																									validation_k_fold=validation_k_fold,
+																									k_fold_iter=k_fold_i)
+	# Use external validation dataset if specified
+	if validation_dataset:
+		validation_dataset = Dataset(config_file=project_config['dataset_config'], sources=validation_dataset)
+		validation_dataset.load_annotations(validation_annotations)
+		validation_tfrecords = validation_dataset.get_filtered_tfrecords(filters)
+		manifest.update(validation_dataset.get_manifest())
+		validation_outcomes, _ = validation_dataset.get_outcomes_from_annotations(outcome_headers, filters=validation_filters, 
+																	 				  			   filter_blank=outcome_headers,
+																	 				  			   use_float=(model_type == 'linear'))
+		outcomes.update(validation_outcomes)
+
 	# Initialize model
 	# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
 	model_dir = join(project_config['models_dir'], full_model_name)
 
 	# Build a model using the slide list as input and the annotations dictionary as output labels
 	SFM = sfmodel.SlideflowModel(model_dir, project_config['tile_px'], outcomes, training_tfrecords, validation_tfrecords,
-																			manifest=training_dataset.get_manifest(),
+																			manifest=manifest,
 																			use_fp16=project_config['use_fp16'],
 																			model_type=model_type,
 																			test_mode=flags['test_mode'])
@@ -274,7 +289,8 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		results, history = SFM.train(hp, pretrain=pretrain, 
 										 resume_training=resume_training, 
 										 checkpoint=checkpoint,
-										 supervised=supervised)
+										 supervised=supervised,
+										 min_tiles_per_slide=min_tiles_per_slide)
 		results['history'] = history
 		results_dict.update({full_model_name: results})
 		logged_epochs = [int(e[5:]) for e in results['epochs'].keys() if e[:5] == 'epoch']
@@ -396,55 +412,6 @@ class SlideflowProject:
 						sys.exit()
 					models_to_train += [model_name]
 		return models_to_train
-
-	def _update_results_log(self, results_log_path, model_name, results_dict):
-		'''Internal function used to dynamically update results_log when recording training metrics.'''
-		# First, read current results log into a dictionary
-		results_log = {}
-		if exists(results_log_path):
-			with open(results_log_path, "r") as results_file:
-				reader = csv.reader(results_file)
-				headers = next(reader)
-				model_name_i = headers.index('model_name')
-				result_keys = [k for k in headers if k != 'model_name']
-				for row in reader:
-					name = row[model_name_i]
-					results_log[name] = {}
-					for result_key in result_keys:
-						result = row[headers.index(result_key)]
-						results_log[name][result_key] = result
-			# Move the current log file into a temporary file
-			shutil.move(results_log_path, f"{results_log_path}.temp")
-
-		# Next, update the results log with the new results data
-		for epoch in results_dict:
-			results_log.update({f'{model_name}-{epoch}': results_dict[epoch]})
-
-		# Finally, create a new log file incorporating the new data
-		with open(results_log_path, "w") as results_file:
-			writer = csv.writer(results_file)
-			result_keys = []
-			# Search through results to find all results keys
-			for model in results_log:
-				result_keys += list(results_log[model].keys())
-			# Remove duplicate result keys
-			result_keys = list(set(result_keys))
-			# Write header labels
-			writer.writerow(['model_name'] + result_keys)
-			# Iterate through model results and record
-			for model in results_log:
-				row = [model]
-				# Include all saved metrics
-				for result_key in result_keys:
-					if result_key in results_log[model]:
-						row += [results_log[model][result_key]]
-					else:
-						row += [""]
-				writer.writerow(row)
-
-		# Delete the old results log file
-		if exists(f"{results_log_path}.temp"):
-			os.remove(f"{results_log_path}.temp")
 
 	def _valid_hp(self, hp):
 		if (hp.model_type() != 'categorical' and ((hp.balanced_training == sfmodel.BALANCE_BY_CATEGORY) or 
@@ -642,7 +609,7 @@ class SlideflowProject:
 		print("\nProject configuration saved.\n")
 		self.load_project(project_folder)
 
-	def evaluate(self, outcome_header, model_file="trained_model.h5", hyperparameters=None, filters=None, checkpoint=None, eval_k_fold=None):
+	def evaluate(self, outcome_header, model_file="trained_model.h5", hyperparameters=None, filters=None, checkpoint=None, eval_k_fold=None, min_tiles_per_slide=0):
 		'''Evaluates a saved model on a given set of tfrecords.'''
 		log.header(f"Evaluating model {sfutil.green(model_file)}...")
 
@@ -651,7 +618,7 @@ class SlideflowProject:
 		ctx = multiprocessing.get_context('spawn')
 		
 		process = ctx.Process(target=evaluator, args=(outcome_header, model_file, self.PROJECT, results_dict, filters, hyperparameters, 
-														checkpoint, eval_k_fold, self.FLAGS))
+														checkpoint, eval_k_fold, min_tiles_per_slide, self.FLAGS))
 		process.start()
 		log.info(f"Spawning evaluation process (PID: {process.pid})", 1)
 		process.join()
@@ -710,8 +677,8 @@ class SlideflowProject:
 				whole_slide.export_tiles(augment=augment)
 
 			# Use multithreading if specified, extracting tiles from all slides in the filtered list
-			if NUM_THREADS > 1:
-				pool = DPool(NUM_THREADS)
+			if self.FLAGS['num_threads'] > 1:
+				pool = DPool(self.FLAGS['num_threads'])
 				pool.map(partial(extract_tiles_from_slide, pb=pb), slide_list)
 				pool.close()
 			else:
@@ -759,27 +726,49 @@ class SlideflowProject:
 
 		return AV
 
-	def generate_heatmaps(self, model_name, filters=None, resolution='low'):
+	def generate_heatmaps(self, model_name, filters=None, resolution='low', export_activations=False):
 		'''Creates predictive heatmap overlays on a set of slides. 
 
 		Args:
-			model_name:		Which model to use for generating predictions
-			filter_header:	Column name for filtering input slides based on the project annotations file. 
-			filter_values:	List of values to include when filtering slides according to filter_header.
-			resolution:		Heatmap resolution (determines stride of tile predictions). 
-								"low" uses a stride equal to tile width.
-								"medium" uses a stride equal 1/2 tile width.
-								"high" uses a stride equal to 1/4 tile width.
+			model_name:			Which model to use for generating predictions
+			filter_header:		Column name for filtering input slides based on the project annotations file. 
+			filter_values:		List of values to include when filtering slides according to filter_header.
+			export_activations: If True, will export calculated activations to a CSV file.
+			resolution:			Heatmap resolution (determines stride of tile predictions). 
+									"low" uses a stride equal to tile width.
+									"medium" uses a stride equal 1/2 tile width.
+									"high" uses a stride equal to 1/4 tile width.
 		'''
 		log.header("Generating heatmaps...")
 
-		ctx = multiprocessing.get_context('spawn')
-		process = ctx.Process(target=heatmap_generator, args=(model_name, filters, resolution, self.PROJECT, self.FLAGS))
-		process.start()
-		log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
-		process.join()
+		# Prepare dataset
+		heatmaps_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		heatmaps_dataset.load_annotations(self.PROJECT['annotations'])
+		slide_list = heatmaps_dataset.filter_slide_paths(heatmaps_dataset.get_slide_paths(), filters=filters)
+		roi_list = heatmaps_dataset.get_rois()
+		model_path = model_name if model_name[-3:] == ".h5" else join(self.PROJECT['models_dir'], model_name, 'trained_model.h5')
 
-	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, max_tiles_per_slide=500, export_activations=False):
+		# Attempt to auto-detect supplied model name
+		detected_model_name = sfutil.path_to_name(model_path)
+		hp_file = join(*model_path.split('/')[:-1], 'hyperparameters.json')
+		if exists(hp_file):
+			loaded_hp = sfutil.load_json(hp_file)
+			if 'model_name' in loaded_hp:
+				detected_model_name = loaded_hp['model_name']
+		
+		# Make output directory
+		heatmaps_folder = os.path.join(self.PROJECT['root'], 'heatmaps', detected_model_name)
+		if not exists(heatmaps_folder): os.makedirs(heatmaps_folder)
+
+		# Heatmap processes
+		ctx = multiprocessing.get_context('spawn')
+		for slide in slide_list:
+			process = ctx.Process(target=heatmap_generator, args=(slide, model_name, model_path, heatmaps_folder, roi_list, resolution, self.PROJECT, export_activations, self.FLAGS))
+			process.start()
+			log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
+			process.join()
+
+	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, max_tiles_per_slide=100, export_activations=False):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.'''
 		log.header("Generating mosaic map...")
@@ -913,7 +902,8 @@ class SlideflowProject:
 
 	def train(self, models=None, outcome_header='category', multi_outcome=False, filters=None, resume_training=None, checkpoint=None, 
 				pretrain='imagenet', supervised=True, batch_file=None, hyperparameters=None, model_type='categorical',
-				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
+				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None,
+				validation_dataset=None, validation_annotations=None, validation_filters=None, min_tiles_per_slide=0):
 		'''Train model(s) given configurations found in batch_train.tsv.
 
 		Args:
@@ -975,7 +965,7 @@ class SlideflowProject:
 		results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
 		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and type(k_fold_iter) != list) else k_fold_iter
 		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
-		valid_k = [] if not k_fold else [kf for kf in range(k_fold) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
+		valid_k = [] if not k_fold else [kf for kf in range(1, k_fold+1) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
 
 		# Next, prepare the multiprocessing manager (needed to free VRAM after training and keep track of results)
 		manager = multiprocessing.Manager()
@@ -990,15 +980,16 @@ class SlideflowProject:
 				# Generate model name
 				outcome_string = "-".join(selected_outcome_headers) if type(selected_outcome_headers) == list else selected_outcome_headers
 				model_name = f"{outcome_string}-{hp_model_name}"
-				model_iterations = [model_name] if not k_fold else [f"{model_name}-kfold{k+1}" for k in valid_k]
+				model_iterations = [model_name] if not k_fold else [f"{model_name}-kfold{k}" for k in valid_k]
 
 				def start_training_process(k):
 					# Using a separate process ensures memory is freed once training has completed
 					process = ctx.Process(target=trainer, args=(selected_outcome_headers, model_name, model_type, 
 																			self.PROJECT, results_dict, hp, validation_strategy, 
 																			validation_target, validation_fraction, validation_k_fold, 
-																			validation_log, k, filters, pretrain, resume_training, 
-																			checkpoint, supervised, self.FLAGS))
+																			validation_log, validation_dataset, validation_annotations,
+																			validation_filters, k, filters, pretrain, resume_training, 
+																			checkpoint, supervised, min_tiles_per_slide, self.FLAGS))
 					process.start()
 					log.info(f"Spawning training process (PID: {process.pid})", 1)
 					process.join()
@@ -1006,7 +997,7 @@ class SlideflowProject:
 				# Perform training
 				if k_fold:
 					for k in valid_k:
-						start_training_process(k+1)
+						start_training_process(k)
 						
 				else:
 					start_training_process(None)
@@ -1016,7 +1007,7 @@ class SlideflowProject:
 					if mi not in results_dict:
 						log.error(f"Training failed for model {model_name} for an unknown reason")
 					else:
-						self._update_results_log(results_log_path, mi, results_dict[mi]['epochs'])
+						sfutil.update_results_log(results_log_path, mi, results_dict[mi]['epochs'])
 				log.complete(f"Training complete for model {model_name}, results saved to {sfutil.green(results_log_path)}")
 
 			# Print summary of all models

@@ -5,7 +5,7 @@ Slideflow is a Python package which aims to provide an easy and intuitive way of
  
 The overarching goal of the package is to provide tools to train and test models on histology slides, apply these models to new slides, and analyze performance by generating predictive heatmaps, ROCs, and mosaic maps.
 
-Slideflow requires Python 3.6+ and [openslide](https://openslide.org/download/).
+Slideflow requires Python 3.6+ and [libvips](https://libvips.github.io/libvips/).
 
 To get started, ensure you have the latest version of pip, setuptools, and wheel installed:
 
