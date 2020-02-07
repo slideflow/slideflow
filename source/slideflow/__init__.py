@@ -30,7 +30,7 @@ from comet_ml import Experiment
 
 # TODO: allow datasets to have filters (would address evaluate() function)
 
-__version__ = "1.6.0"
+__version__ = "1.6.1"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -46,7 +46,9 @@ DEFAULT_FLAGS = {
 }
 
 def evaluator(outcome_header, model_file, project_config, results_dict,
-				filters=None, hyperparameters=None, checkpoint=None, eval_k_fold=None, flags=None):
+				filters=None, hyperparameters=None, checkpoint=None, eval_k_fold=None, 
+				min_tiles_per_slide=0, flags=None):
+
 	if not flags: flags = DEFAULT_FLAGS
 
 	model_root = dirname(model_file)
@@ -56,7 +58,7 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 	hp_data = sfutil.load_json(hp_file)
 	hp = sfmodel.HyperParameters()
 	hp._load_dict(hp_data['hp'])
-	model_name = f"eval-{hp_data['model_name']}"
+	model_name = f"eval-{hp_data['model_name']}-{sfutil.path_to_name(model_file)}"
 	model_type = hp_data['model_type']
 
 	# Filter out slides that are blank in the outcome category
@@ -124,7 +126,14 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 
 	# Perform evaluation
 	log.info(f"Evaluating {sfutil.bold(len(eval_tfrecords))} tfrecords", 1)
-	results = SFM.evaluate(tfrecords=eval_tfrecords, hp=hp, model=model_file, model_type=model_type, checkpoint=checkpoint, batch_size=flags['eval_batch_size'])
+	
+	results = SFM.evaluate(tfrecords=eval_tfrecords, 
+						   hp=hp,
+						   model=model_file,
+						   model_type=model_type,
+						   checkpoint=checkpoint,
+						   batch_size=flags['eval_batch_size'],
+						   min_tiles_per_slide=min_tiles_per_slide)
 
 	# Load results into multiprocessing dictionary
 	results_dict['results'] = results
@@ -182,8 +191,9 @@ def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, max
 						expanded=True)
 
 def trainer(outcome_headers, model_name, model_type, project_config, results_dict, hp, validation_strategy, 
-			validation_target, validation_fraction, validation_k_fold, validation_log, k_fold_i=None, filters=None, 
-			pretrain=None, resume_training=None, checkpoint=None, supervised=True, flags=None):
+			validation_target, validation_fraction, validation_k_fold, validation_log, validation_dataset=None, 
+			validation_annotations=None, validation_filters=None, k_fold_i=None, filters=None, pretrain=None, 
+			resume_training=None, checkpoint=None, supervised=True, min_tiles_per_slide=0, flags=None):
 	if not flags: flags = DEFAULT_FLAGS
 
 	# First, clear prior Tensorflow graph to free memory
@@ -218,19 +228,31 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		outcome_labels = dict(zip(range(len(outcome_headers)), outcome_headers))
 
 	# Get TFRecords for training and validation
+	manifest = training_dataset.get_manifest()
 	training_tfrecords, validation_tfrecords = sfutil.tfrecords.get_training_and_validation_tfrecords(training_dataset, validation_log, outcomes, model_type,
-																								validation_target=validation_target,
-																								validation_strategy=validation_strategy,
-																								validation_fraction=validation_fraction,
-																								validation_k_fold=validation_k_fold,
-																								k_fold_iter=k_fold_i)
+																									validation_target=validation_target,
+																									validation_strategy=validation_strategy,
+																									validation_fraction=validation_fraction,
+																									validation_k_fold=validation_k_fold,
+																									k_fold_iter=k_fold_i)
+	# Use external validation dataset if specified
+	if validation_dataset:
+		validation_dataset = Dataset(config_file=project_config['dataset_config'], sources=validation_dataset)
+		validation_dataset.load_annotations(validation_annotations)
+		validation_tfrecords = validation_dataset.get_filtered_tfrecords(filters)
+		manifest.update(validation_dataset.get_manifest())
+		validation_outcomes, _ = validation_dataset.get_outcomes_from_annotations(outcome_headers, filters=validation_filters, 
+																	 				  			   filter_blank=outcome_headers,
+																	 				  			   use_float=(model_type == 'linear'))
+		outcomes.update(validation_outcomes)
+
 	# Initialize model
 	# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
 	model_dir = join(project_config['models_dir'], full_model_name)
 
 	# Build a model using the slide list as input and the annotations dictionary as output labels
 	SFM = sfmodel.SlideflowModel(model_dir, project_config['tile_px'], outcomes, training_tfrecords, validation_tfrecords,
-																			manifest=training_dataset.get_manifest(),
+																			manifest=manifest,
 																			use_fp16=project_config['use_fp16'],
 																			model_type=model_type,
 																			test_mode=flags['test_mode'])
@@ -267,7 +289,8 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		results, history = SFM.train(hp, pretrain=pretrain, 
 										 resume_training=resume_training, 
 										 checkpoint=checkpoint,
-										 supervised=supervised)
+										 supervised=supervised,
+										 min_tiles_per_slide=min_tiles_per_slide)
 		results['history'] = history
 		results_dict.update({full_model_name: results})
 		logged_epochs = [int(e[5:]) for e in results['epochs'].keys() if e[:5] == 'epoch']
@@ -586,7 +609,7 @@ class SlideflowProject:
 		print("\nProject configuration saved.\n")
 		self.load_project(project_folder)
 
-	def evaluate(self, outcome_header, model_file="trained_model.h5", hyperparameters=None, filters=None, checkpoint=None, eval_k_fold=None):
+	def evaluate(self, outcome_header, model_file="trained_model.h5", hyperparameters=None, filters=None, checkpoint=None, eval_k_fold=None, min_tiles_per_slide=0):
 		'''Evaluates a saved model on a given set of tfrecords.'''
 		log.header(f"Evaluating model {sfutil.green(model_file)}...")
 
@@ -595,7 +618,7 @@ class SlideflowProject:
 		ctx = multiprocessing.get_context('spawn')
 		
 		process = ctx.Process(target=evaluator, args=(outcome_header, model_file, self.PROJECT, results_dict, filters, hyperparameters, 
-														checkpoint, eval_k_fold, self.FLAGS))
+														checkpoint, eval_k_fold, min_tiles_per_slide, self.FLAGS))
 		process.start()
 		log.info(f"Spawning evaluation process (PID: {process.pid})", 1)
 		process.join()
@@ -879,7 +902,8 @@ class SlideflowProject:
 
 	def train(self, models=None, outcome_header='category', multi_outcome=False, filters=None, resume_training=None, checkpoint=None, 
 				pretrain='imagenet', supervised=True, batch_file=None, hyperparameters=None, model_type='categorical',
-				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None):
+				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None,
+				validation_dataset=None, validation_annotations=None, validation_filters=None, min_tiles_per_slide=0):
 		'''Train model(s) given configurations found in batch_train.tsv.
 
 		Args:
@@ -963,8 +987,9 @@ class SlideflowProject:
 					process = ctx.Process(target=trainer, args=(selected_outcome_headers, model_name, model_type, 
 																			self.PROJECT, results_dict, hp, validation_strategy, 
 																			validation_target, validation_fraction, validation_k_fold, 
-																			validation_log, k, filters, pretrain, resume_training, 
-																			checkpoint, supervised, self.FLAGS))
+																			validation_log, validation_dataset, validation_annotations,
+																			validation_filters, k, filters, pretrain, resume_training, 
+																			checkpoint, supervised, min_tiles_per_slide, self.FLAGS))
 					process.start()
 					log.info(f"Spawning training process (PID: {process.pid})", 1)
 					process.join()

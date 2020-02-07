@@ -129,6 +129,7 @@ class Dataset:
 
 	def __init__(self, config_file, sources):
 		config = sfutil.load_json(config_file)
+		sources = sources if type(sources) == list else [sources]
 		try:
 			self.datasets = {k:v for (k,v) in config.items() if k in sources}
 		except KeyError:
@@ -159,6 +160,11 @@ class Dataset:
 		for folder in folders_to_search:
 			tfrecords_list += glob(join(folder, "*.tfrecords"))
 		return tfrecords_list
+
+	def get_filtered_tfrecords(self, filters):
+		tfrecords_list = self.get_tfrecords()
+		filtered_list = self.filter_tfrecords_paths(tfrecords_list, filters=filters)
+		return filtered_list
 
 	def get_rois(self):
 		rois_list = []
