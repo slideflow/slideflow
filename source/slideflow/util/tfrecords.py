@@ -267,11 +267,15 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 	# Assemble dictionary of patients linking to list of slides and outcome
 	# slideflow.util.get_outcomes_from_annotations() ensures no duplicate outcomes are found in a single patient
 	patients_dict = {}
+	num_warned = 0
+	warn_threshold = 3
 	for slide in slide_list:
 		patient = outcomes[slide][sfutil.TCGA.patient]
+		print_func = print if num_warned < warn_threshold else None
 		# Skip slides not found in directory
 		if slide not in tfrecord_dir_list_names:
-			log.warn(f"Slide {slide} not found in tfrecord directory, skipping", 1)
+			log.warn(f"Slide {slide} not found in tfrecord directory, skipping", 1, print_func)
+			num_warned += 1
 			continue
 		if patient not in patients_dict:
 			patients_dict[patient] = {
@@ -283,6 +287,8 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 			sys.exit()
 		else:
 			patients_dict[patient]['slides'] += [slide]
+	if num_warned >= warn_threshold:
+		log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
 	patients = list(patients_dict.keys())
 	sorted_patients = [p for p in patients]
 	sorted_patients.sort()
