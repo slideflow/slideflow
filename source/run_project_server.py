@@ -16,10 +16,13 @@ if __name__=='__main__':
 	parser.add_argument('-t', '--threads', type=int, default=4, help='Number of threads to use during tile extraction.')
 	parser.add_argument('-sV', '--skip_verification', action="store_true", help="Whether or not to skip verification.")
 	parser.add_argument('-tM', '--test_mode', action="store_true", help="Whether or not to train in test mode.")
+	parser.add_argument('--nfs', action="store_true", help="Sets environmental variable HDF5_USE_FILE_LOCKING='FALSE' as a fix to problems with NFS file systems.")
 	args = parser.parse_args()
 
-	sf.NUM_THREADS = args.threads
-
+	if args.nfs:
+		os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
+		print("Set environmental variable 'HDF5_USE_FILE_LOCKING'='FALSE'")
+	
 	if not args.queue or not os.path.exists(args.queue):
 		print("You must specify a valid queue directory using the -q flag.")
 		sys.exit()
