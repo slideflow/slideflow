@@ -141,7 +141,6 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 
 def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, resolution, project_config, export_activations=False, flags=None):
 	import slideflow.slide as sfslide
-
 	if not flags: flags = DEFAULT_FLAGS
 
 	resolutions = {'low': 1, 'medium': 2, 'high': 4}
@@ -194,6 +193,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 			validation_target, validation_fraction, validation_k_fold, validation_log, validation_dataset=None, 
 			validation_annotations=None, validation_filters=None, k_fold_i=None, filters=None, pretrain=None, 
 			resume_training=None, checkpoint=None, supervised=True, min_tiles_per_slide=0, flags=None):
+
 	if not flags: flags = DEFAULT_FLAGS
 
 	# First, clear prior Tensorflow graph to free memory
