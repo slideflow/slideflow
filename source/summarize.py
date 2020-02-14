@@ -417,7 +417,8 @@ class Model:
 					self.filters = self.hyperparameters['filters']
 					self.manifest = SlideManifest(join(self.dir, "slide_manifest.log"))
 					self.load_results(join(self.dir, "results_log.csv"))
-					self.hp_key = tuple(sorted(self.hyperparameters['hp'].items()))
+					params = {i:self.hyperparameters['hp'][i] for i in self.hyperparameters['hp'] if i!='finetune_epochs'}
+					self.hp_key = tuple(sorted(params.items()))
 					self.model_type = self.hyperparameters['model_type']
 					self.outcome_labels = self.hyperparameters['outcome_labels']
 				except KeyError:
