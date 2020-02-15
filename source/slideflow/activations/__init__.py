@@ -238,21 +238,16 @@ class ActivationsVisualizer:
 
 	def generate_activations_from_model(self, model, use_fp16=True, batch_size=16, export_csv=True):
 		# Rename tfrecord_array to tfrecords
-		log.info(f"Calculating final layer activations from model {sfutil.green(model)}, max {self.MAX_TILES_PER_SLIDE} tiles per slide.", 1)
+		log.info(f"Calculating layer activations from {sfutil.green(model)}, max {self.MAX_TILES_PER_SLIDE} tiles per slide.", 1)
 
 		# Load model
 		_model = tf.keras.models.load_model(model)
-		#complete_model = False
-		#try:
 		loaded_model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
 											 outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
-		#except AttributeError:
-		#	# DANGEROUS: UNKNOWN RESULTS MAY OCCUR; WILL NOT IMPLEMENT FOR NOW
-		#	# Provides support for complete models that were not generated using Slideflow
-		#	complete_model = True
-		#	loaded_model = tf.keras.models.Model(inputs=[_model.input],
-		#										 outputs=[_model.layers[-2].output])
-		
+		model_input = tf.keras.layers.Input(shape=loaded_model.input_shape[0][1:])
+		model_output = loaded_model([model_input, model_input])
+		combined_model = tf.keras.Model(model_input, model_output)
+
 		unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in self.tfrecords_paths]))
 
 		# Prepare PKL export dictionary
@@ -278,7 +273,6 @@ class ActivationsVisualizer:
 			csvwriter = csv.writer(outfile)
 
 		for t, tfrecord in enumerate(self.tfrecords_paths):
-			#log.empty(f"Calculating activations from {sfutil.green(tfrecord)}", 2)
 			dataset = tf.data.TFRecordDataset(tfrecord)
 
 			dataset = dataset.map(_parse_function, num_parallel_calls=8)
@@ -292,11 +286,8 @@ class ActivationsVisualizer:
 				sys.stdout.write(f"\r(TFRecord {t+1:>3}/{len(self.tfrecords_paths):>3}) (Batch {i+1:>3}) ({len(fl_activations_combined):>5} images): {sfutil.green(sfutil.path_to_name(tfrecord))}")
 				sys.stdout.flush()
 
-				#if not complete_model:
-				fl_activations, logits = loaded_model.predict([batch_processed_images, batch_processed_images])
-				#else:
-				#	fl_activations = loaded_model.predict([batch_processed_images])
-				#	logits = [[-1]] * batch_size
+				fl_activations, logits = combined_model.predict(batch_processed_images)
+				
 				fl_activations_combined = fl_activations if fl_activations_combined == [] else np.concatenate([fl_activations_combined, fl_activations])
 				logits_combined = logits if logits_combined == [] else np.concatenate([logits_combined, logits])
 				slides_combined = batch_slides if slides_combined == [] else np.concatenate([slides_combined, batch_slides])

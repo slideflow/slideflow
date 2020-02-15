@@ -460,10 +460,10 @@ class Dataset:
 		error_threshold = 3
 		for s, slide in enumerate(slide_list_errors):
 			print_func = print if s < error_threshold else None
-			log.error(f"Failed TFRecord integrity check: annotation not found for slide {sfutil.green(slide)}", 1, print_func)
+			log.warn(f"Failed TFRecord integrity check: annotation not found for slide {sfutil.green(slide)}", 1, print_func)
 
 		if len(slide_list_errors) >= error_threshold:
-			log.error(f"...{len(slide_list_errors)} total TFRecord integrity check failures, see {sfutil.green(log.logfile)} for details", 1)
+			log.warn(f"...{len(slide_list_errors)} total TFRecord integrity check failures, see {sfutil.green(log.logfile)} for details", 1)
 		if len(slide_list_errors) == 0:
 			log.info("TFRecords verified, no errors found.", 1)
 
