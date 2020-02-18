@@ -59,6 +59,7 @@ OPS_LEVEL_COUNT = 'openslide.level-count'
 OPS_MPP_X = 'openslide.mpp-x'
 OPS_WIDTH = 'width'
 OPS_HEIGHT = 'height'
+
 def OPS_LEVEL_HEIGHT(l):
     return f'openslide.level[{l}].height'
 def OPS_LEVEL_WIDTH(l):
@@ -564,7 +565,7 @@ class SlideReader(SlideLoader):
 			log.error(f'Skipping slide {sfutil.green(self.name)} due to slide image or ROI loading error', 1, self.print)
 			return
 
-	def build_generator(self, export=False, augment=False):
+	def build_generator(self, export=False, augment=False, dual_extract=False):
 		super().build_generator()
 		# Calculate window sizes, strides, and coordinates for windows
 		coord = []
@@ -625,6 +626,14 @@ class SlideReader(SlideLoader):
 				# Read the region and resize to target size
 				region = self.slide.read_region((c[0], c[1]), self.downsample_level, [self.extract_px, self.extract_px])
 				region = region.resize(float(self.size_px) / self.extract_px)
+
+				if dual_extract:
+					try:
+						surrounding_region = self.slide.read_region((c[0]-self.full_stride, c[1]-self.full_stride), self.downsample_level, [self.extract_px*3, self.extract_px*3])
+						surrounding_region = surrounding_region.resize(float(self.size_px) / (self.extract_px*3))
+					except:
+						continue
+
 				tile_mask[ci] = 1
 				coord_label = ci
 				unique_tile = c[2]
@@ -638,8 +647,11 @@ class SlideReader(SlideLoader):
 						region.rot90().fliphor().jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}_aug5.jpg'))
 						region.fliphor().flipver().jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}_aug6.jpg'))
 						region.rot90().fliphor().flipver().jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}_aug7.jpg'))
-				pil_region = Image.fromarray(vips2numpy(region)).convert('RGB')
-				yield pil_region, coord_label, unique_tile
+				if dual_extract:
+					yield {"input_1": vips2numpy(region)[:,:,:-1], "input_2": vips2numpy(surrounding_region)[:,:,:-1]}
+				else:
+					pil_region = Image.fromarray(vips2numpy(region)).convert('RGB')
+					yield pil_region, coord_label, unique_tile
 
 			if self.pb: 
 				self.pb.end(self.p_id)
