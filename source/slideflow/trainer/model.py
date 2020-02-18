@@ -394,7 +394,7 @@ class SlideflowModel:
 		hidden_i = tf.keras.layers.Dense(200, activation='relu')(base_model_i.output)
 		combined = tf.keras.layers.Concatenate()([hidden, hidden_i])
 		hidden_c = tf.keras.layers.Dense(100, activation='relu')(combined)
-		predictions = tf.keras.layers.Dense(2, activation='softmax')(hidden)
+		predictions = tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')(hidden)
 
 		model = tf.keras.Model(inputs=[base_model.input, base_model_i.input], outputs=predictions)
 
