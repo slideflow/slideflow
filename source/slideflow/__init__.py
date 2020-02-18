@@ -1,4 +1,5 @@
 import os
+import io
 import sys
 import shutil
 import logging
@@ -624,6 +625,64 @@ class SlideflowProject:
 		process.join()
 
 		return results_dict
+
+	def extract_dual_tiles(self, tile_um=None, tile_px=None, stride_div=1, filters=None):
+		import slideflow.slide as sfslide
+		from PIL import Image
+		
+		# Filter out warnings and allow loading large images
+		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+		Image.MAX_IMAGE_PIXELS = 100000000000
+
+		tile_um = self.PROJECT['tile_um'] if not tile_um else tile_um
+		tile_px = self.PROJECT['tile_px'] if not tile_px else tile_px
+
+		log.header("Extracting dual-image tiles...")
+		extracting_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		extracting_dataset.load_annotations(self.PROJECT['annotations'])		
+
+		def extract_tiles_from_slide(slide_path, roi_list, dataset_config, pb):
+			root_path = join(dataset_config["tfrecords"], dataset_config["label"])
+			if not exists(root_path): 
+					os.makedirs(root_path)
+
+			whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, roi_list=roi_list, pb=pb)
+			small_tile_generator, _, _, _ = whole_slide.build_generator(dual_extract=True)
+			tfrecord_name = sfutil.path_to_name(slide_path)
+			tfrecord_path = join(root_path, f"{tfrecord_name}.tfrecords")
+			with tf.io.TFRecordWriter(tfrecord_path) as writer:
+				for image_dict in small_tile_generator():
+					label = bytes(tfrecord_name, 'utf-8')
+					image_string_dict = {}
+					for image_label in image_dict:
+						np_image = image_dict[image_label]
+						image = Image.fromarray(np_image).convert('RGB')
+						with io.BytesIO() as output:
+							image.save(output, format="JPEG")
+							image_string = output.getvalue()
+							image_string_dict.update({
+								image_label: image_string
+							})
+					tf_example = sfutil.tfrecords.multi_image_example(label, image_string_dict)
+					writer.write(tf_example.SerializeToString())
+
+		for dataset_name in self.PROJECT['datasets']:
+			log.empty(f"Working on dataset {sfutil.bold(dataset_name)}", 1)
+			slide_list = extracting_dataset.filter_slide_paths(extracting_dataset.get_slides_by_dataset(dataset_name), filters=filters)
+			roi_list = extracting_dataset.get_rois()
+			dataset_config = extracting_dataset.datasets[dataset_name]
+			log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 1)
+
+			log.info("Exporting tiles only", 1)
+			pb = ProgressBar(bar_length=5, counter_text='tiles')
+
+			if self.FLAGS['num_threads'] > 1:
+				pool = DPool(self.FLAGS['num_threads'])
+				pool.map(partial(extract_tiles_from_slide, roi_list=roi_list, dataset_config=dataset_config, pb=pb), slide_list)
+				pool.close()
+			else:
+				for slide_path in slide_list:
+					extract_tiles_from_slide(slide_path, roi_list, dataset_config, pb)
 
 	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, skip_validation=False, generate_tfrecords=True, stride_div=1, tma=False, augment=False, delete_tiles=True, enable_downsample=False):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 

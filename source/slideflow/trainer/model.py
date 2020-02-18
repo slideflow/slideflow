@@ -19,26 +19,27 @@ import time
 import os
 import sys
 import shutil
-from datetime import datetime
 
-import numpy as np
 import pickle
 import argparse
 import gc
 import csv
 import random
+import numpy as np
+import seaborn as sns
 
 import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorboard.plugins.custom_scalar import layout_pb2
 from tensorflow.python.framework import ops
 
+from datetime import datetime
 from glob import glob
 from scipy import stats
 from statistics import median
 from sklearn import metrics
 from matplotlib import pyplot as plt
-import seaborn as sns
+from functools import partial
 
 import slideflow.util as sfutil
 from slideflow.util import tfrecords, TCGA, log
@@ -231,29 +232,36 @@ class SlideflowModel:
 		image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
 		return image
 
-	def _parse_tfrecord_function(self, record):
-		features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
+	def _parse_tfrecord_function(self, record, include_slidenames=True, multi_input=False):
+		feature_description = tfrecords.FEATURE_DESCRIPTION if not multi_input else tfrecords.FEATURE_DESCRIPTION_MULTI
+		features = tf.io.parse_single_example(record, feature_description)
 		slide = features['slide']
 		if self.MODEL_TYPE == 'linear':
 			label = [self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(self.NUM_CLASSES)]
 		else:
 			label = self.ANNOTATIONS_TABLES[0].lookup(slide)
-		image_string = features['image_raw']
-		image = self._process_image(image_string, self.AUGMENT)
-		return image, label
-
-	def _parse_tfrecord_with_slidenames_function(self, record):
-		features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
-		slide = features['slide']
-		if self.MODEL_TYPE == 'linear':
-			label = [self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(self.NUM_CLASSES)]
+		if multi_input:
+			image_dict = {}
+			inputs = [inp for inp in list(feature_description.keys()) if inp != 'slide']
+			for i in inputs:
+				image_string = features[i]
+				image = self._process_image(image_string, self.AUGMENT)
+				image_dict.update({
+					i: image
+				})
+			if include_slidenames:
+				return image_dict, label, slide
+			else:
+				return image_dict, label
 		else:
-			label = self.ANNOTATIONS_TABLES[0].lookup(slide)
-		image_string = features['image_raw']
-		image = self._process_image(image_string, self.AUGMENT)
-		return image, label, slide
+			image_string = features['image_raw']
+			image = self._process_image(image_string, self.AUGMENT)
+			if include_slidenames:
+				return image, label, slide
+			else:
+				return image, label
 
-	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, include_slidenames=False):
+	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, include_slidenames=False, multi_input=False):
 		'''Generates an interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to balancing if provided.
 		Requires self.MANIFEST. Assumes TFRecord files are named by slide.
@@ -350,16 +358,16 @@ class SlideflowModel:
 			log.error(f"No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder", 1)
 			sys.exit()
 		if include_slidenames:
-			dataset_with_slidenames = dataset.map(self._parse_tfrecord_with_slidenames_function, num_parallel_calls = 8)
+			dataset_with_slidenames = dataset.map(partial(self._parse_tfrecord_function, include_slidenames=True, multi_input=multi_input), num_parallel_calls = 8)
 			dataset_with_slidenames = dataset_with_slidenames.batch(batch_size)
 		else:
 			dataset_with_slidenames = None
-		dataset = dataset.map(self._parse_tfrecord_function, num_parallel_calls = 8)
+		dataset = dataset.map(partial(self._parse_tfrecord_function, include_slidenames=False, multi_input=multi_input), num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
 		
 		return dataset, dataset_with_slidenames, global_num_tiles
 
-	def build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, include_slidenames=False):
+	def build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, include_slidenames=False, multi_input=False):
 		'''Assembles dataset inputs from tfrecords.
 		
 		Args:
@@ -368,8 +376,29 @@ class SlideflowModel:
 								 (only available if TFRECORDS_BY_PATIENT=True)'''
 		self.AUGMENT = augment
 		with tf.name_scope('input'):
-			dataset, dataset_with_slidenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, include_slidenames)
+			dataset, dataset_with_slidenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, include_slidenames, multi_input)
 		return dataset, dataset_with_slidenames, num_tiles
+
+	def build_multi_input_model(self, hp, pretrain=None, checkpoint=None):
+		base_model = tf.keras.applications.Xception(input_shape=(299,299,3),
+													include_top=False,
+													pooling='max',
+													weights='imagenet')
+
+		base_model_i = tf.keras.applications.InceptionV3(input_shape=(299,299,3),
+														 include_top=False,
+														 pooling='max',
+														 weights='imagenet')
+
+		hidden = tf.keras.layers.Dense(200, activation='relu')(base_model.output)
+		hidden_i = tf.keras.layers.Dense(200, activation='relu')(base_model_i.output)
+		combined = tf.keras.layers.Concatenate()([hidden, hidden_i])
+		hidden_c = tf.keras.layers.Dense(100, activation='relu')(combined)
+		predictions = tf.keras.layers.Dense(2, activation='softmax')(hidden)
+
+		model = tf.keras.Model(inputs=[base_model.input, base_model_i.input], outputs=predictions)
+
+		return model
 
 	def build_model(self, hp, pretrain=None, checkpoint=None):
 		# Assemble base model, using pretraining (imagenet) or the base layers of a supplied model
@@ -442,13 +471,13 @@ class SlideflowModel:
 
 		return model
 
-	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None, min_tiles_per_slide=0):
+	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None, min_tiles_per_slide=0, multi_input=False):
 		# Load and initialize model
 		if not hp and checkpoint:
 			log.error("If using a checkpoint for evaluation, hyperparameters must be specified.")
 			sys.exit()
 		batch_size = batch_size if not hp else hp.batch_size
-		dataset, dataset_with_slidenames, num_tiles = self.build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment=False, finite=True, include_slidenames=True)
+		dataset, dataset_with_slidenames, num_tiles = self.build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment=False, finite=True, include_slidenames=True, multi_input=multi_input)
 		if model:
 			self.model = tf.keras.models.load_model(model)
 		elif checkpoint:
@@ -512,13 +541,13 @@ class SlideflowModel:
 		model.layers[0].trainable = True
 		return toplayer_model.history
 
-	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, supervised=True, log_frequency=20, min_tiles_per_slide=0):
+	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, supervised=True, log_frequency=20, min_tiles_per_slide=0, multi_input=True):
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 
 		# Build inputs
-		train_data, _, num_tiles = self.build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, include_slidenames=False)
+		train_data, _, num_tiles = self.build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, include_slidenames=False, multi_input=multi_input)
 		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
-			validation_data, validation_data_with_slidenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, augment=False, finite=True, include_slidenames=True)
+			validation_data, validation_data_with_slidenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, augment=False, finite=True, include_slidenames=True, multi_input=multi_input)
 			validation_data_for_training = validation_data.repeat()
 			val_steps = 200
 		else:
@@ -611,8 +640,10 @@ class SlideflowModel:
 		if resume_training:
 			if verbose:	log.info(f"Resuming training from {sfutil.green(resume_training)}", 1)
 			self.model = tf.keras.models.load_model(resume_training)
-		else:
+		elif not multi_input:
 			self.model = self.build_model(hp, pretrain=pretrain, checkpoint=checkpoint)
+		else:
+			self.model = self.build_multi_input_model(hp, pretrain=pretrain, checkpoint=checkpoint)
 
 		# Retrain top layer only if using transfer learning and not resuming training
 		if hp.toplayer_epochs:
@@ -627,13 +658,13 @@ class SlideflowModel:
 						   metrics=metrics)
 
 		history = self.model.fit(train_data.repeat(),
-										steps_per_epoch=steps_per_epoch,
-										epochs=total_epochs,
-										verbose=verbose,
-										initial_epoch=hp.toplayer_epochs,
-										validation_data=validation_data_for_training,
-										validation_steps=val_steps,
-										callbacks=callbacks)
+								 steps_per_epoch=steps_per_epoch,
+								 epochs=total_epochs,
+								 verbose=verbose,
+								 initial_epoch=hp.toplayer_epochs,
+								 validation_data=validation_data_for_training,
+								 validation_steps=val_steps,
+								 callbacks=callbacks)
 
 		self.model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
 
