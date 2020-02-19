@@ -276,11 +276,7 @@ class Dataset:
 			use_float		If true, will try to convert data into float
 
 		Returns:
-			Dictionary with slides as keys and dictionaries as values. The value dictionaries contain the following keys/values:
-				TCGA.patient	patient name
-				outcome			if only one header is supplied, this is a single value containing the processed outcome for this slide
-									if multiple headers were supplied, this is a list of processed outcomes, one for each header
-									if use_float is specified, the value will always be a list
+			Dictionary with slides as keys and dictionaries as values. The value dictionaries contain both "TCGA.patient" and "outcome" keys.
 		'''
 		slides = self.get_slides_from_annotations(filters, filter_blank)
 		filtered_annotations = [a for a in self.ANNOTATIONS if a[TCGA.slide] in slides]

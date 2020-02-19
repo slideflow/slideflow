@@ -518,8 +518,8 @@ class SlideflowModel:
 		
 		return val_acc
 
-	def retrain_top_layers(self, model, hp, train_data, validation_data, steps_per_epoch, callbacks=None, epochs=1, verbose=1):
-		if verbose: log.info("Retraining top layer", 1)
+	def retrain_top_layers(self, model, hp, train_data, validation_data, steps_per_epoch, callbacks=None, epochs=1):
+		log.info("Retraining top layer", 1)
 		# Freeze the base layer
 		model.layers[0].trainable = False
 		val_steps = 100 if validation_data else None
@@ -531,7 +531,7 @@ class SlideflowModel:
 
 		toplayer_model = model.fit(train_data,
 				  epochs=epochs,
-				  verbose=verbose,
+				  verbose=1,
 				  steps_per_epoch=steps_per_epoch,
 				  validation_data=validation_data,
 				  validation_steps=val_steps,
@@ -541,7 +541,7 @@ class SlideflowModel:
 		model.layers[0].trainable = True
 		return toplayer_model.history
 
-	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, supervised=True, log_frequency=20, min_tiles_per_slide=0, multi_input=True):
+	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=20, min_tiles_per_slide=0, multi_input=True):
 		'''Train the model for a number of steps, according to flags set by the argument parser.'''
 
 		# Build inputs
@@ -571,7 +571,6 @@ class SlideflowModel:
 		initialized_optimizer = hp.get_opt()
 		steps_per_epoch = round(num_tiles/hp.batch_size)
 		tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
-		verbose = 1 if supervised else 0
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
 		metrics = ['acc'] if hp.model_type() != 'linear' else [hp.loss]
 
@@ -607,7 +606,7 @@ class SlideflowModel:
 																										   parent.SLIDE_ANNOTATIONS, hp.model_type(), 
 																										   parent.DATA_DIR, label=epoch_label, manifest=parent.MANIFEST,
 																										   min_tiles_per_slide=min_tiles_per_slide)
-						if verbose: log.info("Beginning validation testing", 1)
+						log.info("Beginning validation testing", 1)
 						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 
 						results['epochs'][f'epoch{epoch+1}'] = {}
@@ -638,7 +637,7 @@ class SlideflowModel:
 
 		# Build or load model
 		if resume_training:
-			if verbose:	log.info(f"Resuming training from {sfutil.green(resume_training)}", 1)
+			log.info(f"Resuming training from {sfutil.green(resume_training)}", 1)
 			self.model = tf.keras.models.load_model(resume_training)
 		elif not multi_input:
 			self.model = self.build_model(hp, pretrain=pretrain, checkpoint=checkpoint)
@@ -648,10 +647,10 @@ class SlideflowModel:
 		# Retrain top layer only if using transfer learning and not resuming training
 		if hp.toplayer_epochs:
 			self.retrain_top_layers(self.model, hp, train_data.repeat(), validation_data_for_training, steps_per_epoch, 
-									callbacks=None, epochs=hp.toplayer_epochs, verbose=verbose)
+									callbacks=None, epochs=hp.toplayer_epochs)
 
 		# Fine-tune the model
-		if verbose:	log.info("Beginning fine-tuning", 1)
+		log.info("Beginning fine-tuning", 1)
 
 		self.model.compile(loss=hp.loss,
 						   optimizer=initialized_optimizer,
@@ -660,7 +659,7 @@ class SlideflowModel:
 		history = self.model.fit(train_data.repeat(),
 								 steps_per_epoch=steps_per_epoch,
 								 epochs=total_epochs,
-								 verbose=verbose,
+								 verbose=1,
 								 initial_epoch=hp.toplayer_epochs,
 								 validation_data=validation_data_for_training,
 								 validation_steps=val_steps,
