@@ -629,7 +629,7 @@ class SlideflowProject:
 	def extract_dual_tiles(self, tile_um=None, tile_px=None, stride_div=1, filters=None):
 		import slideflow.slide as sfslide
 		from PIL import Image
-		
+
 		# Filter out warnings and allow loading large images
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 		Image.MAX_IMAGE_PIXELS = 100000000000
@@ -683,6 +683,8 @@ class SlideflowProject:
 			else:
 				for slide_path in slide_list:
 					extract_tiles_from_slide(slide_path, roi_list, dataset_config, pb)
+		
+		self.update_manifest()
 
 	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, skip_validation=False, generate_tfrecords=True, stride_div=1, tma=False, augment=False, delete_tiles=True, enable_downsample=False):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
