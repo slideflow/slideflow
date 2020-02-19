@@ -499,6 +499,30 @@ def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None, resize
 		writer.write(tf_example.SerializeToString())
 	writer.close()
 
+def shuffle_tfrecord(target):
+	old_tfrecord = target+".old"
+	shutil.move(target, old_tfrecord)
+
+	dataset = tf.data.TFRecordDataset(old_tfrecord)
+	writer = tf.io.TFRecordWriter(target)
+
+	extracted_tfrecord = []
+	for record in dataset:
+		extracted_tfrecord += [record.numpy()]
+
+	shuffle(extracted_tfrecord)
+
+	for record in extracted_tfrecord:
+		writer.write(record)
+	
+	writer.close()
+
+def shuffle_tfrecords_by_dir(directory):
+	records = [tfr for tfr in listdir(directory) if tfr[-10:] == ".tfrecords"]
+	for record in records:
+		log.empty(f'Working on {record}')
+		shuffle_tfrecord(join(directory, record))
+
 def get_tfrecord_by_index(tfrecord, index, decode=True):
 	'''Reads and returns an individual record from a tfrecord by index, including slide name and JPEG-processed image data.
 
