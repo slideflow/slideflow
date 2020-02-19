@@ -650,19 +650,26 @@ class SlideflowProject:
 			small_tile_generator, _, _, _ = whole_slide.build_generator(dual_extract=True)
 			tfrecord_name = sfutil.path_to_name(slide_path)
 			tfrecord_path = join(root_path, f"{tfrecord_name}.tfrecords")
+			records = []
+
+			for image_dict in small_tile_generator():
+				label = bytes(tfrecord_name, 'utf-8')
+				image_string_dict = {}
+				for image_label in image_dict:
+					np_image = image_dict[image_label]
+					image = Image.fromarray(np_image).convert('RGB')
+					with io.BytesIO() as output:
+						image.save(output, format="JPEG")
+						image_string = output.getvalue()
+						image_string_dict.update({
+							image_label: image_string
+						})
+				records += [[label, image_string_dict]]
+
+			shuffle(records)
+			
 			with tf.io.TFRecordWriter(tfrecord_path) as writer:
-				for image_dict in small_tile_generator():
-					label = bytes(tfrecord_name, 'utf-8')
-					image_string_dict = {}
-					for image_label in image_dict:
-						np_image = image_dict[image_label]
-						image = Image.fromarray(np_image).convert('RGB')
-						with io.BytesIO() as output:
-							image.save(output, format="JPEG")
-							image_string = output.getvalue()
-							image_string_dict.update({
-								image_label: image_string
-							})
+				for label, image_string_dict in records:
 					tf_example = sfutil.tfrecords.multi_image_example(label, image_string_dict)
 					writer.write(tf_example.SerializeToString())
 
