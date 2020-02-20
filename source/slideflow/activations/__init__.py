@@ -1064,11 +1064,16 @@ class Heatmap:
 		self.MODEL_DIR = None
 		self.logits = None
 
+		# Create progress bar
+		pb = ProgressBar(bar_length=5, counter_text='tiles')
+		self.print = pb.print
+
 		# Load the slide
 		self.slide = sfslide.SlideReader(slide_path, size_px, size_um, stride_div, enable_downsample=False, 
 																		   		   export_folder=save_folder,
 																		   		   roi_dir=roi_dir, 
-																				   roi_list=roi_list)
+																				   roi_list=roi_list,
+																				   pb=pb)
 
 		# Build the model
 		self.MODEL_DIR = model_path
@@ -1087,10 +1092,10 @@ class Heatmap:
 			log.error(f"Unable to load slide {self.slide.name} for heatmap generation", 1)
 			return
 
-	def _parse_function(self, image, label, mask):
+	def _parse_function(self, image):
 		parsed_image = tf.image.per_image_standardization(image)
 		parsed_image = tf.image.convert_image_dtype(parsed_image, self.DTYPE)
-		return parsed_image, label, mask
+		return parsed_image
 
 	def generate(self, batch_size=16):
 		'''Convolutes across a whole slide, returning logits for tessellated image tiles'''
