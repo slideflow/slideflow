@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Setting up a Project &mdash; slideflow 1.3.0 documentation</title>
+  <title>Setting up a Project &mdash; slideflow 1.6.2 documentation</title>
   
 
   
@@ -21,10 +21,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                1.3
+                1.6
               </div>
             
           
@@ -99,7 +99,9 @@
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="activations.html">Layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.html">Source</a></li>
 </ul>
 
             
@@ -174,10 +176,10 @@
 <li><p>A plan for which slides will be used for training and which will be used for final testing.</p></li>
 </ol>
 <p>We will use the <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script in the slideflow directory to both create and manage our project. To create a new project (or run commands on an existing project), use the following syntax:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">james@example:~/slideflow/source$</span> python3 run_project.py -p /path/to/project/directory
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">james@example:~/slideflow/source$</span> python3 run_project.py -g <span class="m">1</span> -p /path/to/project/directory
 </pre></div>
 </div>
-<p>…where the -p flag is used to designate the path to your project directory.</p>
+<p>…where the -p flag is used to designate the path to your project directory, and the -g flag is used to denote how many GPUs should be made available to slideflow.</p>
 <div class="section" id="project-configuration">
 <h2>Project Configuration<a class="headerlink" href="#project-configuration" title="Permalink to this headline">¶</a></h2>
 <p>Upon first executing the script, you will be asked a series of questions regarding your project. Default answers are given in brackets (if the question is a yes/no question, the default answer is the letter which is capitalized); if you press enter without typing anything, the default will be chosen. You can always change your answers later by editing <code class="docutils literal notranslate"><span class="pre">settings.json</span></code> in your project folder. Below is an overview of what you’ll be asked for.</p>
@@ -254,7 +256,7 @@ Default is ‘k-fold’</p></td>
 <span class="p">}</span>
 </pre></div>
 </div>
-<p>Datasets are configured either interactively at the time of project initialization, or may be added by calling <cite>SlideflowProject.add_dataset()</cite>:</p>
+<p>Datasets are configured either interactively at the time of project initialization, or may be added by calling <code class="docutils literal notranslate"><span class="pre">SlideflowProject.add_dataset()</span></code>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">add_dataset</span><span class="p">(</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;NAME&quot;</span><span class="p">,</span>
                  <span class="n">slides</span><span class="o">=</span><span class="s2">&quot;/slides/directory&quot;</span><span class="p">,</span>
                  <span class="n">roi</span><span class="o">=</span><span class="s2">&quot;/roi/directory&quot;</span><span class="p">,</span>
@@ -263,6 +265,24 @@ Default is ‘k-fold’</p></td>
                  <span class="n">label</span><span class="o">=</span><span class="s2">&quot;LABEL&quot;</span> <span class="p">)</span>
 </pre></div>
 </div>
+<dl class="function">
+<dt>
+<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">add_dataset</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">name</em>, <em class="sig-param">slides</em>, <em class="sig-param">roi</em>, <em class="sig-param">tiles</em>, <em class="sig-param">tfrecords</em>, <em class="sig-param">label</em>, <em class="sig-param">path=None</em><span class="sig-paren">)</span></dt>
+<dd><p>Adds a dataset to the dataset configuration file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – Dataset name.</p></li>
+<li><p><strong>slides</strong> – Path to directory containing slides.</p></li>
+<li><p><strong>roi</strong> – Path to directory containing CSV ROIs.</p></li>
+<li><p><strong>tiles</strong> – Path to directory in which to store extracted tiles.</p></li>
+<li><p><strong>tfrecords</strong> – Path to directory in which to store TFRecords of extracted tiles.</p></li>
+<li><p><strong>label</strong> – Label to give dataset (typically identifies tile size in pixels/microns).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
 </div>
 <div class="section" id="setting-up-annotations">
 <h2>Setting up annotations<a class="headerlink" href="#setting-up-annotations" title="Permalink to this headline">¶</a></h2>
@@ -337,7 +357,7 @@ Each line in the annotations file should correspond to a unique slide.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">main()</span></code> function contains several example commands, commented out with “#”. These serve as examples to help remind you of arguments you can use when executing project functions.</p>
 <p>To set up a project command, either uncomment an existing command or type a new command (specific commands will be discussed in more detail in the following sections).</p>
 <p>To execute the commands you have prepared, save the <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file and go to your slideflow directory. The <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> will load the saved script in your project directory and begin execution.</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">james@example:~/slideflow/source$</span> python3 run_project.py -p /path/to/project/directory
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">james@example:~/slideflow/source$</span> python3 run_project.py -g <span class="m">1</span> -p /path/to/project/directory
 </pre></div>
 </div>
 </div>
@@ -363,7 +383,7 @@ Each line in the annotations file should correspond to a unique slide.</p>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019, James M Dolezal
+        &copy; Copyright 2020, James M Dolezal
 
     </p>
   </div>

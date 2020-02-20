@@ -24,6 +24,7 @@ if __name__=='__main__':
 	SFP.autoselect_gpu(args.gpu)
 	SFP.FLAGS['skip_verification'] = args.skip_verification
 	SFP.FLAGS['test_mode'] = args.test_mode
+	SFP.FLAGS['num_threads'] = args.threads
 
 	sys.path.insert(0, args.project)
 	try:
