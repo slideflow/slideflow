@@ -59,6 +59,7 @@ OPS_LEVEL_COUNT = 'openslide.level-count'
 OPS_MPP_X = 'openslide.mpp-x'
 OPS_WIDTH = 'width'
 OPS_HEIGHT = 'height'
+
 def OPS_LEVEL_HEIGHT(l):
     return f'openslide.level[{l}].height'
 def OPS_LEVEL_WIDTH(l):
@@ -184,39 +185,6 @@ class ROIObject:
 	def add_shape(self, shape):
 		for point in shape:
 			self.add_coord(point)
-
-'''class JPGSlide:
-	#Object that provides cross-compatibility with certain OpenSlide methods when using JPG slides.
-	def __init__(self, path, mpp):
-		self.loaded_image = Image.open(path)
-		self.dimensions = (self.loaded_image.size[1], self.loaded_image.size[0])
-		# ImageIO version
-		#self.loaded_image = imageio.imread(path)
-		#self.dimensions = (self.loaded_image.shape[1], self.loaded_image.shape[0])
-		self.properties = {ops.PROPERTY_NAME_MPP_X: mpp}
-		self.level_dimensions = [self.dimensions]
-		self.level_count = 1
-		self.level_downsamples = [1.0]
-
-	def get_thumbnail(self, dimensions):
-		width = self.dimensions[1]
-		height = self.dimensions[0]
-		return self.loaded_image.resize([width, height], resample=Image.BICUBIC)
-		# ImageIO version
-		#return cv2.resize(self.loaded_image, dsize=dimensions, interpolation=cv2.INTER_CUBIC)
-
-	def read_region(self, topleft, level, window):
-		# Arg "level" required for code compatibility with slide reader but is not used
-		# Window = [y, x] pixels (note: this is reverse compared to slide/SVS files in [x,y] format)
-
-		return self.loaded_image.crop([topleft[0], topleft[1], topleft[0]+window[0], topleft[1]+window[1]])
-
-		# ImageIO version
-		#return self.loaded_image[topleft[1]:topleft[1] + window[1], 
-		#						 topleft[0]:topleft[0] + window[0],]
-
-	def get_best_level_for_downsample(self, downsample_desired):
-		return 0'''
 
 class SlideLoader:
 	'''Object that loads an SVS slide and makes preparations for tile extraction.
@@ -433,7 +401,7 @@ class TMAReader(SlideLoader):
 						sub_id += 1
 						if export:
 							cv2.imwrite(join(self.tiles_dir, f"tile{tile_id}_{sub_id}.jpg"), subtile)
-						yield subtile, tile_id, unique_tile
+						yield subtile#, tile_id, unique_tile
 					
 			extraction_pool.close()
 					
@@ -458,7 +426,7 @@ class TMAReader(SlideLoader):
 			log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1, self.print)
 			return
 
-		for tile, tile_id, _ in generator():
+		for tile in generator():
 			pass
 
 	def resize_to_target(self, image_tile):
@@ -564,7 +532,7 @@ class SlideReader(SlideLoader):
 			log.error(f'Skipping slide {sfutil.green(self.name)} due to slide image or ROI loading error', 1, self.print)
 			return
 
-	def build_generator(self, export=False, augment=False):
+	def build_generator(self, export=False, augment=False, dual_extract=False):
 		super().build_generator()
 		# Calculate window sizes, strides, and coordinates for windows
 		coord = []
@@ -625,6 +593,14 @@ class SlideReader(SlideLoader):
 				# Read the region and resize to target size
 				region = self.slide.read_region((c[0], c[1]), self.downsample_level, [self.extract_px, self.extract_px])
 				region = region.resize(float(self.size_px) / self.extract_px)
+
+				if dual_extract:
+					try:
+						surrounding_region = self.slide.read_region((c[0]-self.full_stride, c[1]-self.full_stride), self.downsample_level, [self.extract_px*3, self.extract_px*3])
+						surrounding_region = surrounding_region.resize(float(self.size_px) / (self.extract_px*3))
+					except:
+						continue
+
 				tile_mask[ci] = 1
 				coord_label = ci
 				unique_tile = c[2]
@@ -638,8 +614,11 @@ class SlideReader(SlideLoader):
 						region.rot90().fliphor().jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}_aug5.jpg'))
 						region.fliphor().flipver().jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}_aug6.jpg'))
 						region.rot90().fliphor().flipver().jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}_aug7.jpg'))
-				pil_region = Image.fromarray(vips2numpy(region)).convert('RGB')
-				yield pil_region, coord_label, unique_tile
+				if dual_extract:
+					yield {"input_1": vips2numpy(region)[:,:,:-1], "input_2": vips2numpy(surrounding_region)[:,:,:-1]}
+				else:
+					pil_region = Image.fromarray(vips2numpy(region)).convert('RGB')
+					yield pil_region#, coord_label, unique_tile
 
 			if self.pb: 
 				self.pb.end(self.p_id)
@@ -649,7 +628,6 @@ class SlideReader(SlideLoader):
 		return generator, slide_x_size, slide_y_size, self.full_stride
 
 	def export_tiles(self, augment=False):
-
 		if not self.loaded_correctly():
 			log.error(f"Unable to extract tiles; unable to load slide {sfutil.green(self.name)}", 1)
 			return
@@ -660,7 +638,7 @@ class SlideReader(SlideLoader):
 			log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1, self.print)
 			return
 
-		for tile, _, _ in generator():
+		for tile in generator():
 			pass
 
 	def load_csv_roi(self, path):

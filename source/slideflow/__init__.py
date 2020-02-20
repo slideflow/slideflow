@@ -1,4 +1,5 @@
 import os
+import io
 import sys
 import shutil
 import logging
@@ -30,7 +31,7 @@ from comet_ml import Experiment
 
 # TODO: allow datasets to have filters (would address evaluate() function)
 
-__version__ = "1.6.1"
+__version__ = "1.6.2"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -139,7 +140,7 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 	results_dict['results'] = results
 	return results_dict
 
-def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, resolution, project_config, export_activations=False, flags=None):
+def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, resolution, project_config, flags=None):
 	import slideflow.slide as sfslide
 	if not flags: flags = DEFAULT_FLAGS
 
@@ -157,7 +158,7 @@ def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, reso
 																	stride_div=stride_div,
 																	save_folder=save_folder,
 																	roi_list=roi_list)
-	heatmap.generate(batch_size=flags['eval_batch_size'], export_activations=export_activations)
+	heatmap.generate(batch_size=flags['eval_batch_size'])
 	heatmap.save()
 
 def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, max_tiles_per_slide, project_config, export_activations=False, flags=None):
@@ -625,6 +626,73 @@ class SlideflowProject:
 
 		return results_dict
 
+	def extract_dual_tiles(self, tile_um=None, tile_px=None, stride_div=1, filters=None):
+		import slideflow.slide as sfslide
+		from PIL import Image
+
+		# Filter out warnings and allow loading large images
+		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+		Image.MAX_IMAGE_PIXELS = 100000000000
+
+		tile_um = self.PROJECT['tile_um'] if not tile_um else tile_um
+		tile_px = self.PROJECT['tile_px'] if not tile_px else tile_px
+
+		log.header("Extracting dual-image tiles...")
+		extracting_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		extracting_dataset.load_annotations(self.PROJECT['annotations'])		
+
+		def extract_tiles_from_slide(slide_path, roi_list, dataset_config, pb):
+			root_path = join(dataset_config["tfrecords"], dataset_config["label"])
+			if not exists(root_path): 
+					os.makedirs(root_path)
+
+			whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, roi_list=roi_list, pb=pb)
+			small_tile_generator, _, _, _ = whole_slide.build_generator(dual_extract=True)
+			tfrecord_name = sfutil.path_to_name(slide_path)
+			tfrecord_path = join(root_path, f"{tfrecord_name}.tfrecords")
+			records = []
+
+			for image_dict in small_tile_generator():
+				label = bytes(tfrecord_name, 'utf-8')
+				image_string_dict = {}
+				for image_label in image_dict:
+					np_image = image_dict[image_label]
+					image = Image.fromarray(np_image).convert('RGB')
+					with io.BytesIO() as output:
+						image.save(output, format="JPEG")
+						image_string = output.getvalue()
+						image_string_dict.update({
+							image_label: image_string
+						})
+				records += [[label, image_string_dict]]
+
+			shuffle(records)
+			
+			with tf.io.TFRecordWriter(tfrecord_path) as writer:
+				for label, image_string_dict in records:
+					tf_example = sfutil.tfrecords.multi_image_example(label, image_string_dict)
+					writer.write(tf_example.SerializeToString())
+
+		for dataset_name in self.PROJECT['datasets']:
+			log.empty(f"Working on dataset {sfutil.bold(dataset_name)}", 1)
+			slide_list = extracting_dataset.filter_slide_paths(extracting_dataset.get_slides_by_dataset(dataset_name), filters=filters)
+			roi_list = extracting_dataset.get_rois()
+			dataset_config = extracting_dataset.datasets[dataset_name]
+			log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 1)
+
+			log.info("Exporting tiles only", 1)
+			pb = ProgressBar(bar_length=5, counter_text='tiles')
+
+			if self.FLAGS['num_threads'] > 1:
+				pool = DPool(self.FLAGS['num_threads'])
+				pool.map(partial(extract_tiles_from_slide, roi_list=roi_list, dataset_config=dataset_config, pb=pb), slide_list)
+				pool.close()
+			else:
+				for slide_path in slide_list:
+					extract_tiles_from_slide(slide_path, roi_list, dataset_config, pb)
+		
+		self.update_manifest()
+
 	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, skip_validation=False, generate_tfrecords=True, stride_div=1, tma=False, augment=False, delete_tiles=True, enable_downsample=False):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.'''
@@ -726,14 +794,13 @@ class SlideflowProject:
 
 		return AV
 
-	def generate_heatmaps(self, model_name, filters=None, resolution='low', export_activations=False):
+	def generate_heatmaps(self, model_name, filters=None, resolution='low'):
 		'''Creates predictive heatmap overlays on a set of slides. 
 
 		Args:
 			model_name:			Which model to use for generating predictions
 			filter_header:		Column name for filtering input slides based on the project annotations file. 
 			filter_values:		List of values to include when filtering slides according to filter_header.
-			export_activations: If True, will export calculated activations to a CSV file.
 			resolution:			Heatmap resolution (determines stride of tile predictions). 
 									"low" uses a stride equal to tile width.
 									"medium" uses a stride equal 1/2 tile width.
@@ -763,7 +830,7 @@ class SlideflowProject:
 		# Heatmap processes
 		ctx = multiprocessing.get_context('spawn')
 		for slide in slide_list:
-			process = ctx.Process(target=heatmap_generator, args=(slide, model_name, model_path, heatmaps_folder, roi_list, resolution, self.PROJECT, export_activations, self.FLAGS))
+			process = ctx.Process(target=heatmap_generator, args=(slide, model_name, model_path, heatmaps_folder, roi_list, resolution, self.PROJECT, self.FLAGS))
 			process.start()
 			log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
 			process.join()
