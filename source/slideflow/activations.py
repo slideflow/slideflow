@@ -1072,6 +1072,8 @@ class Heatmap:
 	'''Generates heatmap by calculating predictions from a sliding scale window across a slide.'''
 
 	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, save_folder='', roi_dir=None, roi_list=None):
+		from slideflow.slide import SlideReader
+
 		self.save_folder = save_folder
 		self.DTYPE = tf.float16 if use_fp16 else tf.float32
 		self.DTYPE_INT = tf.int16 if use_fp16 else tf.int32
@@ -1083,11 +1085,11 @@ class Heatmap:
 		self.print = pb.print
 
 		# Load the slide
-		self.slide = sf.slide.SlideReader(slide_path, size_px, size_um, stride_div, enable_downsample=False, 
-																		   		   export_folder=save_folder,
-																		   		   roi_dir=roi_dir, 
-																				   roi_list=roi_list,
-																				   pb=pb)
+		self.slide = SlideReader(slide_path, size_px, size_um, stride_div, enable_downsample=False, 
+																		   export_folder=save_folder,
+																		   roi_dir=roi_dir, 
+																		   roi_list=roi_list,
+																		   pb=pb)
 
 		# Build the model
 		self.MODEL_DIR = model_path
