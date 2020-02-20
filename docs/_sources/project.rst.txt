@@ -13,9 +13,9 @@ We will use the ``run_project.py`` script in the slideflow directory to both cre
 
 .. code-block:: console
 
-    james@example:~/slideflow/source$ python3 run_project.py -p /path/to/project/directory
+    james@example:~/slideflow/source$ python3 run_project.py -g 1 -p /path/to/project/directory
 
-...where the -p flag is used to designate the path to your project directory.
+...where the -p flag is used to designate the path to your project directory, and the -g flag is used to denote how many GPUs should be made available to slideflow.
 
 Project Configuration
 *********************
@@ -79,7 +79,7 @@ Dataset configurations are saved in a JSON file with the below syntax. Dataset c
         } 
     }
 
-Datasets are configured either interactively at the time of project initialization, or may be added by calling `SlideflowProject.add_dataset()`:
+Datasets are configured either interactively at the time of project initialization, or may be added by calling ``SlideflowProject.add_dataset()``:
 
 .. code-block:: python
 
@@ -89,6 +89,9 @@ Datasets are configured either interactively at the time of project initializati
                      tiles="/tiles/directory",
                      tfrecords="/tfrecords/directory",
                      label="LABEL" )
+
+.. autofunction:: slideflow.SlideflowProject.add_dataset
+   :noindex:
 
 Setting up annotations
 **********************
@@ -152,4 +155,4 @@ To execute the commands you have prepared, save the ``actions.py`` file and go t
 
 .. code-block:: console
 
-    james@example:~/slideflow/source$ python3 run_project.py -p /path/to/project/directory
+    james@example:~/slideflow/source$ python3 run_project.py -g 1 -p /path/to/project/directory
