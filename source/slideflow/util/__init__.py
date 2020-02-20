@@ -2,15 +2,15 @@ import sys
 import json
 import csv
 import time
-
 import os
-from os.path import join, isdir, exists
-from glob import glob
 import shutil
 import datetime
 
 import tensorflow as tf
+
+from glob import glob
 from tensorflow.keras import backend as K
+from os.path import join, isdir, exists
 
 # Enable color sequences on Windows
 try:
@@ -234,7 +234,16 @@ class TCGA:
 	project = 'project_id'
 	slide = 'slide'
 
+def make_dir(_dir):
+	'''Makes a directory if one does not already exist, in a manner compatible with multithreading. '''
+	if not exists(_dir):
+		try:
+			makedirs(_dir, exist_ok=True)
+		except FileExistsError:
+			pass
+
 def global_path(root, path_string):
+	'''Returns global path from a local path.'''
 	if not root: root = ""
 	if path_string and (len(path_string) > 2) and path_string[:2] == "./":
 		return os.path.join(root, path_string[2:])
@@ -251,6 +260,7 @@ def _shortname(string):
 		return string
 
 def yes_no_input(prompt, default='no'):
+	'''Prompts user for yes/no input.'''
 	yes = ['yes','y']
 	no = ['no', 'n']
 	while True:
@@ -264,6 +274,7 @@ def yes_no_input(prompt, default='no'):
 		print(f"Invalid response.")
 
 def dir_input(prompt, root, default=None, create_on_invalid=False, absolute=False):
+	'''Prompts user for directory input.'''
 	while True:
 		if not absolute:
 			response = global_path(root, input(f"{prompt}"))
@@ -283,6 +294,7 @@ def dir_input(prompt, root, default=None, create_on_invalid=False, absolute=Fals
 		return response
 
 def file_input(prompt, root, default=None, filetype=None, verify=True):
+	'''Prompts user for file input.'''
 	while True:
 		response = global_path(root, input(f"{prompt}"))
 		if not response and default:
@@ -297,6 +309,7 @@ def file_input(prompt, root, default=None, filetype=None, verify=True):
 		return response
 
 def int_input(prompt, default=None):
+	'''Prompts user for int input.'''
 	while True:
 		response = input(f"{prompt}")
 		if not response and default:
@@ -309,6 +322,7 @@ def int_input(prompt, default=None):
 		return int_response
 
 def float_input(prompt, default=None, valid_range=None):
+	'''Prompts user for float input.'''
 	while True:
 		response = input(f"{prompt}")
 		if not response and default:
@@ -323,6 +337,7 @@ def float_input(prompt, default=None, valid_range=None):
 		return float_response
 
 def choice_input(prompt, valid_choices, default=None, multi_choice=False, input_type=str):
+	'''Prompts user for multi-choice input.'''
 	while True:
 		response = input(f"{prompt}")
 		if not response and default:
@@ -343,10 +358,12 @@ def choice_input(prompt, valid_choices, default=None, multi_choice=False, input_
 		return response
 
 def load_json(filename):
+	'''Reads JSON data from file.'''
 	with open(filename, 'r') as data_file:
 		return json.load(data_file)
 
 def write_json(data, filename):
+	'''Writes data to JSON file.'''
 	with open(filename, "w") as data_file:
 		json.dump(data, data_file, indent=1)
 
@@ -356,6 +373,7 @@ def _parse_function(example_proto):
 	return tf.io.parse_single_example(example_proto, feature_description)
 
 def get_slide_paths(slides_dir):
+	'''Get all slide paths from a given directory containing slides.'''
 	num_dir = len(slides_dir.split('/'))
 	slide_list = [i for i in glob(join(slides_dir, '**/*.jpg'))
 					if i.split('/')[num_dir] != 'thumbs']
@@ -369,6 +387,7 @@ def get_slide_paths(slides_dir):
 	return slide_list
 
 def read_annotations(annotations_file):
+	'''Read an annotations file.'''
 	results = []
 	# Open annotations file and read header
 	with open(annotations_file) as csv_file:
@@ -404,6 +423,7 @@ def contains_nested_subdirs(directory):
 	return False
 
 def path_to_name(path):
+	'''Returns name of a file, without extension, from a given full path string.'''
 	_file = path.split('/')[-1]
 	if len(_file.split('.')) == 1:
 		return _file
@@ -411,8 +431,63 @@ def path_to_name(path):
 		return '.'.join(_file.split('.')[:-1])
 
 def path_to_ext(path):
+	'''Returns extension of a file path string.'''
 	_file = path.split('/')[-1]
 	if len(_file.split('.')) == 1:
 		return ''
 	else:
 		return _file.split('.')[-1]
+
+def update_results_log(results_log_path, model_name, results_dict):
+	'''Dynamically update results_log when recording training metrics.'''
+	# First, read current results log into a dictionary
+	results_log = {}
+	if exists(results_log_path):
+		with open(results_log_path, "r") as results_file:
+			reader = csv.reader(results_file)
+			headers = next(reader)
+			try:
+				model_name_i = headers.index('model_name')
+				result_keys = [k for k in headers if k != 'model_name']
+			except ValueError:
+				model_name_i = headers.index('epoch')
+				result_keys = [k for k in headers if k != 'epoch']
+			for row in reader:
+				name = row[model_name_i]
+				results_log[name] = {}
+				for result_key in result_keys:
+					result = row[headers.index(result_key)]
+					results_log[name][result_key] = result
+		# Move the current log file into a temporary file
+		shutil.move(results_log_path, f"{results_log_path}.temp")
+
+	# Next, update the results log with the new results data
+	for epoch in results_dict:
+		results_log.update({f'{model_name}-{epoch}': results_dict[epoch]})
+
+	# Finally, create a new log file incorporating the new data
+	with open(results_log_path, "w") as results_file:
+		writer = csv.writer(results_file)
+		result_keys = []
+		# Search through results to find all results keys
+		for model in results_log:
+			result_keys += list(results_log[model].keys())
+		# Remove duplicate result keys
+		result_keys = list(set(result_keys))
+		result_keys.sort()
+		# Write header labels
+		writer.writerow(['model_name'] + result_keys)
+		# Iterate through model results and record
+		for model in results_log:
+			row = [model]
+			# Include all saved metrics
+			for result_key in result_keys:
+				if result_key in results_log[model]:
+					row += [results_log[model][result_key]]
+				else:
+					row += [""]
+			writer.writerow(row)
+
+	# Delete the old results log file
+	if exists(f"{results_log_path}.temp"):
+		os.remove(f"{results_log_path}.temp")

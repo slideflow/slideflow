@@ -9,15 +9,7 @@ from glob import glob
 from random import shuffle
 from os import listdir, makedirs
 from os.path import isfile, isdir, join, exists
-from slideflow.util import log, TCGA, _shortname
-
-def make_dir(_dir):
-	''' Makes a directory if one does not already exist, in a manner compatible with multithreading. '''
-	if not exists(_dir):
-		try:
-			makedirs(_dir, exist_ok=True)
-		except FileExistsError:
-			pass
+from slideflow.util import log, TCGA, _shortname, make_dir
 
 def split_tiles(folder, fraction, names):
 	'''Split a directory of .jpg files into subdirectories.
@@ -125,10 +117,13 @@ def merge_validation(train_dir, eval_dir):
 			print(f"  Merged {len(files)} files for slide {slide_dir}")
 
 class Dataset:
+	'''Object to supervise organization of slides, tfrecords, and tiles across a one or more datasets in a stored configuration file.'''
+
 	ANNOTATIONS = []
 
 	def __init__(self, config_file, sources):
 		config = sfutil.load_json(config_file)
+		sources = sources if type(sources) == list else [sources]
 		try:
 			self.datasets = {k:v for (k,v) in config.items() if k in sources}
 		except KeyError:
@@ -137,6 +132,7 @@ class Dataset:
 			sys.exit()
 
 	def get_tfrecords(self, ask_to_merge_subdirs=False):
+		'''Returns a list of all tfrecords.'''
 		tfrecords_list = []
 		folders_to_search = []
 		for d in self.datasets:
@@ -160,13 +156,21 @@ class Dataset:
 			tfrecords_list += glob(join(folder, "*.tfrecords"))
 		return tfrecords_list
 
+	def get_filtered_tfrecords(self, filters):
+		'''Returns a list of tfrecords according to a set of filters.'''
+		tfrecords_list = self.get_tfrecords()
+		filtered_list = self.filter_tfrecords_paths(tfrecords_list, filters=filters)
+		return filtered_list
+
 	def get_rois(self):
+		'''Returns a list of all ROIs.'''
 		rois_list = []
 		for d in self.datasets:
 			rois_list += glob(join(self.datasets[d]['roi'], "*.csv"))
 		return rois_list
 
 	def get_tfrecords_by_subfolder(self, subfolder):
+		'''Returns a list of tfrecords in a specific subfolder.'''
 		tfrecords_list = []
 		folders_to_search = []
 		for d in self.datasets:
@@ -181,18 +185,21 @@ class Dataset:
 		return tfrecords_list
 
 	def get_slides_by_dataset(self, name):
+		'''Returns a list of slides belonging to a specific sub-dataset.'''
 		if name not in self.datasets.keys():
 			log.error(f"Dataset {name} not found.")
 			sys.exit()
 		return sfutil.get_slide_paths(self.datasets[name]['slides'])
 
 	def get_slide_paths(self):
+		'''Returns a list of paths to all slides.'''
 		paths = []
 		for d in self.datasets:
 			paths += sfutil.get_slide_paths(self.datasets[d]['slides'])
 		return paths
 
 	def get_manifest(self):
+		'''Generates a manifest of all tfrecords.'''
 		combined_manifest = {}
 		for d in self.datasets:
 			tfrecord_dir = join(self.datasets[d]['tfrecords'], self.datasets[d]['label'])
@@ -200,14 +207,17 @@ class Dataset:
 		return combined_manifest
 
 	def get_tfrecords_folders(self):
+		'''Returns folders containing tfrecords.'''
 		return [join(self.datasets[d]['tfrecords'], self.datasets[d]['label']) for d in self.datasets]
 
 	def filter_slide_paths(self, slide_list, filters, filter_blank=[]):
+		'''Filters a given list of slide paths according to a set of filters.'''
 		filtered_slide_names = self.get_slides_from_annotations(filters=filters, filter_blank=filter_blank)
 		filtered_slide_list = [slide for slide in slide_list if sfutil.path_to_name(slide) in filtered_slide_names]
 		return filtered_slide_list
 
 	def filter_tfrecords_paths(self, tfrecords_list, filters, filter_blank=[]):
+		'''Filters a given list of tfrecord paths according to a set of filters.'''
 		filtered_slide_names = self.get_slides_from_annotations(filters=filters, filter_blank=filter_blank)
 		filtered_tfrecords_list = [tfrecord for tfrecord in tfrecords_list if tfrecord.split('/')[-1][:-10] in filtered_slide_names]
 		return filtered_tfrecords_list
@@ -270,11 +280,7 @@ class Dataset:
 			use_float		If true, will try to convert data into float
 
 		Returns:
-			Dictionary with slides as keys and dictionaries as values. The value dictionaries contain the following keys/values:
-				TCGA.patient	patient name
-				outcome			if only one header is supplied, this is a single value containing the processed outcome for this slide
-									if multiple headers were supplied, this is a list of processed outcomes, one for each header
-									if use_float is specified, the value will always be a list
+			Dictionary with slides as keys and dictionaries as values. The value dictionaries contain both "TCGA.patient" and "outcome" keys.
 		'''
 		slides = self.get_slides_from_annotations(filters, filter_blank)
 		filtered_annotations = [a for a in self.ANNOTATIONS if a[TCGA.slide] in slides]
@@ -343,6 +349,7 @@ class Dataset:
 		return results, unique_outcomes
 
 	def load_annotations(self, annotations_file):
+		'''Load annotations from a given CSV file.'''
 		# Verify annotations file exists
 		if not os.path.exists(annotations_file):
 			log.error(f"Annotations file {sfutil.green(annotations_file)} does not exist, unable to load")
@@ -375,6 +382,7 @@ class Dataset:
 		self.ANNOTATIONS = current_annotations
 
 	def verify_annotations_slides(self):
+		'''Verify that annotations are correctly loaded.'''
 		slide_list = self.get_slide_paths()
 
 		# Verify no duplicate slide names are found
@@ -454,10 +462,10 @@ class Dataset:
 		error_threshold = 3
 		for s, slide in enumerate(slide_list_errors):
 			print_func = print if s < error_threshold else None
-			log.error(f"Failed TFRecord integrity check: annotation not found for slide {sfutil.green(slide)}", 1, print_func)
+			log.warn(f"Failed TFRecord integrity check: annotation not found for slide {sfutil.green(slide)}", 1, print_func)
 
 		if len(slide_list_errors) >= error_threshold:
-			log.error(f"...{len(slide_list_errors)} total TFRecord integrity check failures, see {sfutil.green(log.logfile)} for details", 1)
+			log.warn(f"...{len(slide_list_errors)} total TFRecord integrity check failures, see {sfutil.green(log.logfile)} for details", 1)
 		if len(slide_list_errors) == 0:
 			log.info("TFRecords verified, no errors found.", 1)
 

@@ -4,7 +4,17 @@ Training
 Prepare hyperparameters
 ***********************
 
-The next step is to prepare your hyperparameters and save them to a batch_train CSV file. Use the ``create_hyperparameter_sweep`` function to automatically set up a sweep of hyperparameter combinations. For example, the following code would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:
+There are two methods for configuring model hyperparameters. If you intend to train a model using a single combination of hyperparameters, use the ``HyperParameters`` class:
+
+.. code-block:: python
+
+	from slideflow.model import HyperParameters
+	hp = HyperParameters(finetune_epochs=[1], toplayer_epochs=0, model='Xception', pooling='avg', loss='sparse_categorical_crossentropy',
+				learning_rate=0.00001, batch_size=8, hidden_layers=1, optimizer='Adam', early_stop=False, 
+				early_stop_patience=0, balanced_training='BALANCE_BY_PATIENT', balanced_validation='NO_BALANCE', 
+				augment=True)
+
+Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the ``create_hyperparameter_sweep`` function to automatically configure a sweep to a batch_train CSV file. For example, the following code would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:
 
 .. code-block:: python
 
@@ -29,19 +39,19 @@ Available hyperparameters include:
 - **balanced_validation** - validation input balancing strategy; please see :ref:`balancing` for more details
 - **augment** - whether to augment data with random flipping/rotating during training
 
-As above, to execute this command, save your ``actions.py`` file and execute the ``run_project.py`` script in the slideflow directory.
-
 Begin training
 **************
 
-Once your hyperparameter settings have been chosen and saved to your batch_train CSV file, you may begin training using the ``train`` function. Documentation of the function is given below:
+Once your hyperparameter settings have been chosen you may begin training using the ``train`` function. Documentation of the function is given below:
 
 .. autofunction:: slideflow.SlideflowProject.train
    :noindex:
 
+If you used the ``HyperParameters`` class to configure a single combination of parameters, pass this object via the ``hyperparameters`` argument. If you configured a hyperparameter sweep, set the ``batch_file`` argument to the name of your hyperparameter sweep file (saved by default to 'batch_train.tsv').
+
 Your outcome variable is specified with the ``outcome_header`` argument. You may filter slides for training using the ``filter`` argument, as previously described. 
 
-The ``train()`` function will automatically train across all hyperparameters listed in the batch file, and will use the validation plan supplied in project settings. If you would like to use a different plan than described in ``settings.json``, you many manually choose your validation strategy by passing the relevant variables as arguments (e.g. ``validation_strategy``, ``validation_fraction``, and ``validation_k_fold``).
+The validation settings configured in the project settings file (``settings.json``) will be used by default. If you would like to use a different validation plan than the default configuration, you many manually pass the relevant variables as arguments (e.g. ``validation_strategy``, ``validation_fraction``, and ``validation_k_fold``).
 
 If you are using a continuous variable as an outcome measure, set the argument ``model_type`` equal to 'linear'.
 
@@ -50,7 +60,11 @@ For example, to train using only slides labeled as "train" in the "dataset" colu
 .. code-block:: python
 
 	SFP.train(outcome_header="category",
-		  filters={"dataset": ["train"]})
+		  filters={"dataset": ["train"]},
+		  batch_file='batch_train.tsv')
+
+
+To begin training, save your ``actions.py`` file and execute the ``run_project.py`` script in the slideflow directory.
 
 Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the ``results.log`` file in the project directory. Additional analytic data, including ROCs and scatter plots, are saved in the model directories.
 
@@ -61,6 +75,6 @@ During training, progress can be monitored using Tensorflow's bundled ``Tensorbo
 
 .. code-block:: bash
 
-	$ tensorboard --logdir=/path/to/histcon/models/active
+	$ tensorboard --logdir=/path/to/model/directory
 
 ... and then opening http://localhost:6006 in your web browser.
