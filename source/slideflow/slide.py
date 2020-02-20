@@ -35,7 +35,6 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as mcol
 import slideflow.util as sfutil
-import slideflow.util.datasets as sfdatasets
 
 from os.path import join, isfile, exists
 from math import sqrt
@@ -254,7 +253,7 @@ class SlideLoader:
 		self.thumb_image = None
 	
 	def thumb(self):
-		sfdatasets.make_dir(self.thumbs_path)
+		sfutil.make_dir(self.thumbs_path)
 		if not self.thumb_image:
 			goal_thumb_area = 4096*4096
 			y_x_ratio = self.shape[1] / self.shape[0]

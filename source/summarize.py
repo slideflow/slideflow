@@ -7,12 +7,12 @@ import hashlib
 import argparse
 
 import slideflow.util as sfutil
-import slideflow.util.statistics as sfstats
+import slideflow.statistics as sfstats
 
 from statistics import mean
 from os.path import join, exists, isdir, getmtime
 from slideflow.util import log, TCGA
-from slideflow.util.datasets import Dataset
+from slideflow.io.datasets import Dataset
 from tabulate import tabulate
 
 # Organization heirarchy:
