@@ -17,6 +17,7 @@ Slideflow Documentation
    extract_tiles
    training
    evaluation
+   activations
    appendix
    slideflow
 

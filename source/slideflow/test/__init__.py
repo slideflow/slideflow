@@ -5,11 +5,8 @@ import tensorflow as tf
 import csv
 import shutil
 
-from slideflow import util as sfutil
-from slideflow import slide as sfslide
-from slideflow.trainer import model as sfmodel
+from slideflow.io.datasets import Dataset
 from slideflow.util import TCGA, log, ProgressBar
-from slideflow.util.datasets import Dataset
 
 from glob import glob
 from os.path import join
@@ -184,7 +181,7 @@ class TestSuite:
 											 filename=PROJECT_CONFIG["batch_train_config"])
 
 		# Create single hyperparameter combination
-		hp = sfmodel.HyperParameters(finetune_epochs=1, toplayer_epochs=0, model='InceptionV3', pooling='max', loss=loss,
+		hp = sf.model.HyperParameters(finetune_epochs=1, toplayer_epochs=0, model='InceptionV3', pooling='max', loss=loss,
 				learning_rate=0.001, batch_size=64, hidden_layers=1, optimizer='Adam', early_stop=False, 
 				early_stop_patience=0, balanced_training='BALANCE_BY_PATIENT', balanced_validation='NO_BALANCE', 
 				augment=True)
@@ -206,7 +203,7 @@ class TestSuite:
 		roi_dir = extracting_dataset.datasets[dataset_name]['roi'] 
 		tiles_dir = extracting_dataset.datasets[dataset_name]['tiles']
 		pb = ProgressBar(bar_length=5, counter_text='tiles')
-		whole_slide = sfslide.SlideReader(slide_list[0], 299, 302, 1, enable_downsample=False, export_folder=tiles_dir, roi_dir=roi_dir, roi_list=None, pb=pb) 
+		whole_slide = sf.slide.SlideReader(slide_list[0], 299, 302, 1, enable_downsample=False, export_folder=tiles_dir, roi_dir=roi_dir, roi_list=None, pb=pb) 
 		whole_slide.export_tiles()
 		print("\t...OK")
 

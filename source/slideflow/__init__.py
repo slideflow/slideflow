@@ -3,7 +3,11 @@ import io
 import sys
 import shutil
 import logging
+import gc
+import atexit
+import itertools
 import warnings
+import csv
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import multiprocessing
@@ -16,16 +20,13 @@ from random import shuffle, choice
 from string import ascii_lowercase
 from multiprocessing.dummy import Pool as DPool
 from functools import partial
-import csv
 
-import gc
-import atexit
-import itertools
-
-import slideflow.trainer.model as sfmodel
+import slideflow.model as sfmodel
 import slideflow.util as sfutil
+import slideflow.io as sfio
+
+from slideflow.io.datasets import Dataset
 from slideflow.util import TCGA, ProgressBar, log
-from slideflow.util.datasets import Dataset
 from slideflow.activations import ActivationsVisualizer, TileVisualizer, Heatmap
 from comet_ml import Experiment
 
@@ -74,7 +75,7 @@ def evaluator(outcome_header, model, project_config, results_dict,
 	if eval_k_fold:
 		log.info(f"Using {sfutil.bold('k-fold iteration ' + str(eval_k_fold))}", 1)
 		validation_log = join(project_config['root'], "validation_plans.json")
-		_, eval_tfrecords = sfutil.tfrecords.get_training_and_validation_tfrecords(eval_dataset, validation_log, outcomes, model_type,
+		_, eval_tfrecords = sfio.tfrecords.get_training_and_validation_tfrecords(eval_dataset, validation_log, outcomes, model_type,
 																									validation_target=hp_data['validation_target'],
 																									validation_strategy=hp_data['validation_strategy'],
 																									validation_fraction=hp_data['validation_fraction'],
@@ -229,7 +230,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 
 	# Get TFRecords for training and validation
 	manifest = training_dataset.get_manifest()
-	training_tfrecords, validation_tfrecords = sfutil.tfrecords.get_training_and_validation_tfrecords(training_dataset, validation_log, outcomes, model_type,
+	training_tfrecords, validation_tfrecords = sfio.tfrecords.get_training_and_validation_tfrecords(training_dataset, validation_log, outcomes, model_type,
 																									validation_target=validation_target,
 																									validation_strategy=validation_strategy,
 																									validation_fraction=validation_fraction,
@@ -731,7 +732,7 @@ class SlideflowProject:
 			
 			with tf.io.TFRecordWriter(tfrecord_path) as writer:
 				for label, image_string_dict in records:
-					tf_example = sfutil.tfrecords.multi_image_example(label, image_string_dict)
+					tf_example = sfio.tfrecords.multi_image_example(label, image_string_dict)
 					writer.write(tf_example.SerializeToString())
 
 		for dataset_name in self.PROJECT['datasets']:
@@ -835,9 +836,9 @@ class SlideflowProject:
 						log.warn("Validation bootstrapping is not supported when the validation target is per-tile; will generate random fixed validation target", 1)
 					if self.PROJECT['validation_strategy'] in ('bootstrap', 'fixed'):
 						# Split the extracted tiles into two groups
-						sfutil.datasets.split_tiles(save_folder, fraction=[-1, self.PROJECT['validation_fraction']], names=['training', 'validation'])
+						sf.datasets.split_tiles(save_folder, fraction=[-1, self.PROJECT['validation_fraction']], names=['training', 'validation'])
 					if self.PROJECT['validation_strategy'] == 'k-fold':
-						sfutil.datasets.split_tiles(save_folder, fraction=[-1] * self.PROJECT['validation_k_fold'], names=[f'kfold-{i}' for i in range(self.PROJECT['validation_k_fold'])])
+						sf.datasets.split_tiles(save_folder, fraction=[-1] * self.PROJECT['validation_k_fold'], names=[f'kfold-{i}' for i in range(self.PROJECT['validation_k_fold'])])
 
 		# Generate TFRecords from the extracted tiles
 		if generate_tfrecords:
@@ -863,7 +864,7 @@ class SlideflowProject:
 								   root_dir=self.PROJECT['root'],
 								   image_size=self.PROJECT['tile_px'],
 								   annotations=self.PROJECT['annotations'],
-								   category_header=outcome_header,
+								   outcome_header=outcome_header,
 								   focus_nodes=focus_nodes,
 								   use_fp16=self.PROJECT['use_fp16'])
 
@@ -951,9 +952,9 @@ class SlideflowProject:
 				subdirs = [_dir for _dir in os.listdir(tiles_dir) if isdir(join(tiles_dir, _dir))]
 				for subdir in subdirs:
 					tfrecord_subdir = join(tfrecord_dir, subdir)
-					sfutil.tfrecords.write_tfrecords_multi(join(tiles_dir, subdir), tfrecord_subdir)
+					sfio.tfrecords.write_tfrecords_multi(join(tiles_dir, subdir), tfrecord_subdir)
 			else:
-				sfutil.tfrecords.write_tfrecords_multi(tiles_dir, tfrecord_dir)
+				sfio.tfrecords.write_tfrecords_multi(tiles_dir, tfrecord_dir)
 
 			self.update_manifest()
 
@@ -1006,7 +1007,7 @@ class SlideflowProject:
 		log.info(f"Resizing {len(tfrecords_list)} tfrecords", 1)
 
 		for tfr in tfrecords_list:
-			sfutil.tfrecords.transform_tfrecord(tfr, tfr+".transformed", resize=size)
+			sfio.tfrecords.transform_tfrecord(tfr, tfr+".transformed", resize=size)
 
 	def save_project(self):
 		'''Saves current project configuration as "settings.json".'''
@@ -1165,7 +1166,7 @@ class SlideflowProject:
 			tfrecord_folder = join(config["tfrecords"], config["label"])
 			num_updated = 0
 			log.info(f"Updating TFRecords in {sfutil.green(tfrecord_folder)}...")
-			num_updated += sfutil.tfrecords.update_tfrecord_dir(tfrecord_folder, slide='case', image_raw='image_raw')
+			num_updated += sfio.tfrecords.update_tfrecord_dir(tfrecord_folder, slide='case', image_raw='image_raw')
 		log.complete(f"Updated {sfutil.bold(num_updated)} TFRecords files")
 	
 	def visualize_tiles(self, model, directory, node, num_to_visualize=20, window=None):
