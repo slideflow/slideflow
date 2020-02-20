@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tile extraction &mdash; slideflow 1.3.0 documentation</title>
+  <title>Tile extraction &mdash; slideflow 1.6.2 documentation</title>
   
 
   
@@ -21,10 +21,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                1.3
+                1.6
               </div>
             
           
@@ -93,7 +93,9 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="activations.html">Layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.html">Source</a></li>
 </ul>
 
             
@@ -167,13 +169,29 @@
 <p>The documentation for the <code class="docutils literal notranslate"><span class="pre">extract_tiles</span></code> function is given below:</p>
 <dl class="function">
 <dt>
-<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">extract_tiles</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">tile_um=None</em>, <em class="sig-param">tile_px=None</em>, <em class="sig-param">filters=None</em>, <em class="sig-param">skip_validation=False</em><span class="sig-paren">)</span></dt>
+<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">extract_tiles</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">tile_um=None</em>, <em class="sig-param">tile_px=None</em>, <em class="sig-param">filters=None</em>, <em class="sig-param">generate_tfrecords=True</em>, <em class="sig-param">stride_div=1</em>, <em class="sig-param">tma=False</em>, <em class="sig-param">augment=False</em>, <em class="sig-param">delete_tiles=True</em>, <em class="sig-param">enable_downsample=False</em><span class="sig-paren">)</span></dt>
 <dd><p>Extract tiles from a group of slides; save a percentage of tiles for validation testing if the
 validation target is ‘per-patient’; and generate TFRecord files from the raw images.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tile_um</strong> – Tile size in microns. If None, will use project default.</p></li>
+<li><p><strong>tile_px</strong> – Tile size in pixels. If None, will use project default.</p></li>
+<li><p><strong>filters</strong> – Dataset filters to use when selecting slides for tile extraction.</p></li>
+<li><p><strong>generate_tfrecords</strong> – Bool. If True, will export extracted tiles to TFRecords (required for training).</p></li>
+<li><p><strong>stride_div</strong> – Stride divisor to use when extracting tiles. A stride of 1 will extract non-overlapping tiles.
+A stride_div of 2 will extract overlapping tiles, with a stride equal to 50% of the tile width.</p></li>
+<li><p><strong>tma</strong> – Bool. If True, reads slides as Tumor Micro-Arrays (TMAs), detecting and extracting tumor cores.</p></li>
+<li><p><strong>augment</strong> – Bool. If True, will augment tiles 8-fold by randomly flipping/rotating extracted tiles.</p></li>
+<li><p><strong>delete_tiles</strong> – Bool. If True, will delete loose tile images after storing into TFRecords.</p></li>
+<li><p><strong>enable_downsample</strong> – Bool. If True, enables the use of downsampling while reading slide images. This may result in corrupted image tiles
+if downsampled slide layers are corrupted or not fully generated. Manual confirmation of tile integrity is recommended.</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
-<p>The optional <code class="docutils literal notranslate"><span class="pre">filters</span></code> argument are used to filter a subset of slides to act on, according to your annotations file. If not supplied, all valid slides will be used by default.</p>
-<p>To filter according to a columns in your annotations file, pass a dictionary with keys equal to column names and values to a list of all acceptable values you want to include.</p>
+<p>To filter according to a columns in your annotations file, pass a dictionary to <code class="docutils literal notranslate"><span class="pre">filters</span></code> with keys equal to column names and values equal to a list of all acceptable values you want to include. If this argument is not supplied, all valid slides will be extracted.</p>
 <p>For example, to extract tiles only for slides that are labeled as “train” in the “dataset” column header in your annotations file, do:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">]})</span>
 </pre></div>
@@ -207,7 +225,7 @@ validation target is ‘per-patient’; and generate TFRecord files from the raw
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019, James M Dolezal
+        &copy; Copyright 2020, James M Dolezal
 
     </p>
   </div>
