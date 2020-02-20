@@ -1055,8 +1055,7 @@ class TileVisualizer:
 			plt.show()
 
 class Heatmap:
-	'''Generates heatmap by calculating predictions from a sliding scale window across a slide. May also export final layer
-	activations as model predictions are generated.'''
+	'''Generates heatmap by calculating predictions from a sliding scale window across a slide.'''
 
 	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, save_folder='', roi_dir=None, roi_list=None):
 		self.save_folder = save_folder
@@ -1065,11 +1064,16 @@ class Heatmap:
 		self.MODEL_DIR = None
 		self.logits = None
 
+		# Create progress bar
+		pb = ProgressBar(bar_length=5, counter_text='tiles')
+		self.print = pb.print
+
 		# Load the slide
 		self.slide = sfslide.SlideReader(slide_path, size_px, size_um, stride_div, enable_downsample=False, 
 																		   		   export_folder=save_folder,
 																		   		   roi_dir=roi_dir, 
-																				   roi_list=roi_list)
+																				   roi_list=roi_list,
+																				   pb=pb)
 
 		# Build the model
 		self.MODEL_DIR = model_path
@@ -1088,14 +1092,13 @@ class Heatmap:
 			log.error(f"Unable to load slide {self.slide.name} for heatmap generation", 1)
 			return
 
-	def _parse_function(self, image, label, mask):
+	def _parse_function(self, image):
 		parsed_image = tf.image.per_image_standardization(image)
 		parsed_image = tf.image.convert_image_dtype(parsed_image, self.DTYPE)
-		return parsed_image, label, mask
+		return parsed_image
 
-	def calculate_logits(self, batch_size, activations=False):
-		'''Convolutes across a whole slide, returning logits and final layer activations for tessellated image tiles'''
-
+	def generate(self, batch_size=16):
+		'''Convolutes across a whole slide, returning logits for tessellated image tiles'''
 		# Create tile coordinate generator
 		gen_slice, x_size, y_size, stride_px = self.slide.build_generator(export=False)
 
@@ -1105,48 +1108,15 @@ class Heatmap:
 
 		# Generate dataset from the generator
 		with tf.name_scope('dataset_input'):
-			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (tf.uint8, tf.int64, tf.bool))
+			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (tf.uint8))
 			tile_dataset = tile_dataset.map(self._parse_function, num_parallel_calls=8)
 			tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
 
-		logits_arr = []
-		labels_arr = []
-
-		prelogits_arr = [] # Final layer activations 
-		logits_arr = []	# Logits (predictions) 
-		unique_arr = []	# Boolean array indicating whether tile is unique (non-overlapping) 
-
 		# Iterate through generator to calculate logits +/- final layer activations for all tiles
-		for batch_images, batch_labels, batch_unique in tile_dataset:
+		logits_arr = []	# Logits (predictions) 
+		for batch_images in tile_dataset:
 			prelogits, logits = self.model.predict([batch_images, batch_images])
-			batch_labels = batch_labels.numpy()
-			batch_unique = batch_unique.numpy()
-			prelogits_arr = prelogits if prelogits_arr == [] else np.concatenate([prelogits_arr, prelogits])
 			logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
-			labels_arr = batch_labels if labels_arr == [] else np.concatenate([labels_arr, batch_labels])
-			unique_arr = batch_unique if unique_arr == [] else np.concatenate([unique_arr, batch_unique])
-
-		# Sort the output (may be shuffled due to multithreading)
-		try:
-			sorted_indices = labels_arr.argsort()
-		except AttributeError:
-			# This occurs when the list is empty, likely due to an empty annotation area
-			raise AttributeError("No tile calculations performed for this image, are you sure the annotation area isn't empty?")
-		logits_arr = logits_arr[sorted_indices]
-		labels_arr = labels_arr[sorted_indices]
-		
-		# Perform same functions on final layer activations
-		flat_unique_logits = None
-		if activations:
-			prelogits_arr = prelogits_arr[sorted_indices]
-			unique_arr = unique_arr[sorted_indices]
-			# Find logits from non-overlapping tiles (will be used for metadata for saved final layer activations CSV)
-			flat_unique_logits = [logits_arr[l] for l in range(len(logits_arr)) if unique_arr[l]]
-			prelogits_out = [prelogits_arr[p] for p in range(len(prelogits_arr)) if unique_arr[p]]
-			prelogits_labels = [labels_arr[l] for l in range(len(labels_arr)) if unique_arr[l]]
-		else:
-			prelogits_out = None
-			prelogits_labels = None
 
 		if self.slide.tile_mask is not None and x_size and y_size and stride_px:
 			# Expand logits back to a full 2D map spanning the whole slide,
@@ -1165,32 +1135,13 @@ class Heatmap:
 				log.error("Mismatch with number of categories in model output and expected number of categories", 1)
 
 			# Resize logits array into a two-dimensional array for heatmap display
-			logits_out = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.NUM_CLASSES])
+			self.logits = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.NUM_CLASSES])
 		else:
-			logits_out = logits_arr
+			self.logits = logits_arr
 
-		return logits_out, prelogits_out, prelogits_labels, flat_unique_logits
-
-	def generate(self, batch_size=16, export_activations=False):
-		# Calculate the final layer activations and logits/predictions
-		self.logits, activations, activations_labels, logits_flat = self.calculate_logits(batch_size=batch_size, activations=export_activations)
 		if (type(self.logits) == bool) and (not self.logits):
 			log.error(f"Unable to create heatmap for slide {sfutil.green(self.slide.name)}", 1)
 			return
-
-		# Export final layer activations if requested
-		if export_activations:
-			log.empty("Writing csv...", 1)
-			csv_started = os.path.exists(join(self.save_folder, 'heatmap_layer_activations.csv'))
-			write_mode = 'a' if csv_started else 'w'
-			with open(join(self.save_folder, 'heatmap_layer_activations.csv'), write_mode) as csv_file:
-				csv_writer = csv.writer(csv_file, delimiter = ',')
-				if not csv_started:
-					csv_writer.writerow(["Tile_num", "Slide", "Category"] + [f"Logits{l}" for l in range(len(logits_flat[0]))] + [f"Node{n}" for n in range(len(activations[0]))])
-				for l in range(len(activations)):
-					logit = logits_flat[l].tolist()
-					out = activations[l].tolist()
-					csv_writer.writerow([activations_labels[l], self.slide.name] + logit + out)
 
 	def prepare_figure(self):
 		self.fig = plt.figure(figsize=(18, 16))
