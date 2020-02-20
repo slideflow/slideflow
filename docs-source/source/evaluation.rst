@@ -26,18 +26,3 @@ To generate a predictive heatmap for a set of slides, use the ``generate_heatmap
    :noindex:
 
 Heatmaps will be saved in your project directory.
-
-Generate mosaic maps
-********************
-
-You can also generate mosaic maps using similar syntax to the above:
-
-.. code-block:: python
-
-	SFP.generate_mosaic(model="/path/to/saved/model.h5",
-		  filters={"dataset": ["evaluation"]})
-
-.. autofunction:: slideflow.SlideflowProject.generate_mosaic
-   :noindex:
-
-As with heatmaps, generated mosaic maps will be saved to your project directory.
