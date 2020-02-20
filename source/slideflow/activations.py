@@ -16,7 +16,11 @@ import seaborn as sns
 import pandas as pd
 import tensorflow as tf
 import scipy.stats as stats
+import slideflow.util as sfutil
+import slideflow.statistics as sfstats
+import slideflow.io as sfio
 
+from slideflow.util import log, ProgressBar, TCGA
 from os.path import join, isfile, exists
 from random import shuffle, sample
 from statistics import mean
@@ -25,29 +29,12 @@ from copy import deepcopy
 from mpl_toolkits.mplot3d import Axes3D
 from functools import partial
 from multiprocessing.dummy import Pool as DPool
-
-import slideflow.util as sfutil
-import slideflow.util.statistics as sfstats
-import slideflow.slide as sfslide
-from slideflow.util import log, ProgressBar, tfrecords, TCGA
 from PIL import Image
+
+
 
 # TODO: add check that cached PKL corresponds to current and correct model & slides
 # TODO: re-calculate new activations if some slides not present in cache
-
-def sizeof(obj):
-    size = sys.getsizeof(obj)
-    if isinstance(obj, dict): return size + sum(map(sizeof, obj.keys())) + sum(map(sizeof, obj.values()))
-    if isinstance(obj, (list, tuple, set, frozenset)): return size + sum(map(sizeof, obj))
-    return size
-
-def sizeof_fmt(num, suffix='B'):
-	''' by Fred Cirera,  https://stackoverflow.com/a/1094933/1870254, modified'''
-	for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
-		if abs(num) < 1024.0:
-			return "%3.1f %s%s" % (num, unit, suffix)
-		num /= 1024.0
-	return "%.1f %s%s" % (num, 'Yi', suffix)
 
 def create_bool_mask(x, y, w, sx, sy):
 	l = max(0,  int(x-(w/2.)))
@@ -60,13 +47,6 @@ def create_bool_mask(x, y, w, sx, sy):
 			if (t < yi < b) and (l < xi < r):
 				m[yi][xi] = [False, False, False]
 	return m
-
-'''def calc_distance(point, tile_x, tile_y):
-					point_x = point['x']
-					point_y = point['y']
-					point_index = point['global_index']
-					distance = math.sqrt((point_x-tile_x)**2 + (point_y-tile_y)**2)	
-					return point_index, distance'''
 
 class ActivationsVisualizer:
 	missing_slides = []
@@ -256,7 +236,7 @@ class ActivationsVisualizer:
 			self.slide_node_dict.update({slide: {}})
 
 		def _parse_function(record):
-			features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
+			features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION)
 			slide = features['slide']
 			image_string = features['image_raw']
 			raw_image = tf.image.decode_jpeg(image_string, channels=3)
@@ -322,8 +302,6 @@ class ActivationsVisualizer:
 				for n in range(len(nodes_names)):
 					val = activations_vals[n]
 					self.slide_node_dict[slide][n] += [val]
-
-			#print(f"{'Size':>6}: {sizeof_fmt(sizeof(self.slide_node_dict)):>8}")
 
 		if export_csv:
 			outfile.close()
@@ -696,7 +674,7 @@ class ActivationsVisualizer:
 				closest_point = tile['distances'][0][0]
 				point = points[closest_point]
 
-				_, tile_image = tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
+				_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
 				image_arr = np.fromstring(tile_image.numpy(), np.uint8)
 				tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
 				tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)				
@@ -728,7 +706,7 @@ class ActivationsVisualizer:
 					point['paired_tile'] = True
 					tile['paired_point'] = True
 
-					_, tile_image = tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
+					_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
 					image_arr = np.fromstring(tile_image.numpy(), np.uint8)
 					tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
 					tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
@@ -884,7 +862,7 @@ class ActivationsVisualizer:
 						tfr_dir = tfr
 				if not tfr_dir:
 					log.warn(f"TFRecord location not found for slide {g['slide']}", 1)
-				slide, image = tfrecords.get_tfrecord_by_index(tfr_dir, g['index'], decode=False)
+				slide, image = sfio.tfrecords.get_tfrecord_by_index(tfr_dir, g['index'], decode=False)
 				slide = slide.numpy()
 				image = image.numpy()
 				tile_filename = f"{i}-tfrecord{g['slide']}-{g['index']}-{g['val']:.2f}.jpg"
@@ -914,7 +892,7 @@ class ActivationsVisualizer:
 
 				def extract_by_index(indices, directory):
 					for index in indices:
-						slide, image = tfrecords.get_tfrecord_by_index(tfr_dir, index, decode=False)
+						slide, image = sfio.tfrecords.get_tfrecord_by_index(tfr_dir, index, decode=False)
 						slide = slide.numpy()
 						image = image.numpy()
 						tile_filename = f"tfrecord{slide}-tile{index}.jpg"
@@ -1069,7 +1047,7 @@ class Heatmap:
 		self.print = pb.print
 
 		# Load the slide
-		self.slide = sfslide.SlideReader(slide_path, size_px, size_um, stride_div, enable_downsample=False, 
+		self.slide = sfio.slide.SlideReader(slide_path, size_px, size_um, stride_div, enable_downsample=False, 
 																		   		   export_folder=save_folder,
 																		   		   roi_dir=roi_dir, 
 																				   roi_list=roi_list,
