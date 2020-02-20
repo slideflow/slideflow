@@ -31,7 +31,7 @@ from comet_ml import Experiment
 
 # TODO: allow datasets to have filters (would address evaluate() function)
 
-__version__ = "1.6.1"
+__version__ = "1.6.2"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -904,6 +904,7 @@ class SlideflowProject:
 		# Heatmap processes
 		ctx = multiprocessing.get_context('spawn')
 		for slide in slide_list:
+
 			process = ctx.Process(target=heatmap_generator, args=(slide, model, model_path, heatmaps_folder, roi_list, resolution, self.PROJECT, self.FLAGS))
 			process.start()
 			log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
