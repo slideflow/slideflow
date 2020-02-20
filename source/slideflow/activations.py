@@ -119,6 +119,33 @@ class ActivationsVisualizer:
 		for c in self.used_categories:
 			log.empty(f"\t{c}", 2)
 
+	def _get_tfrecords_path(self, slide):
+		for tfr in self.tfrecords_paths:
+			if sfutil.path_to_name(tfr) == slide:
+				return tfr
+		log.error(f"Unable to find TFRecord path for slide {sfutil.green(slide)}", 1)
+		sys.exit()
+
+	def _save_node_statistics_to_csv(self, nodes_avg_pt, tile_stats=None, slide_stats=None):
+		'''Exports statistics (ANOVA p-values and slide-level averages) to CSV.'''
+		# Save results to CSV
+		log.empty(f"Writing results to {sfutil.green(self.STATS_CSV_FILE)}...", 1)
+		with open(self.STATS_CSV_FILE, 'w') as outfile:
+			csv_writer = csv.writer(outfile)
+			header = ['slide', 'category'] + [f"FLNode{n}" for n in nodes_avg_pt]
+			csv_writer.writerow(header)
+			for slide in self.slides_to_include:
+				if slide in self.missing_slides: continue
+				category = self.slide_category_dict[slide]
+				row = [slide, category] + [mean(self.slide_node_dict[slide][n]) for n in nodes_avg_pt]
+				csv_writer.writerow(row)
+			if tile_stats:
+				csv_writer.writerow(['Tile-level statistic', 'ANOVA P-value'] + [tile_stats[n]['p'] for n in nodes_avg_pt])
+				csv_writer.writerow(['Tile-level statistic', 'ANOVA F-value'] + [tile_stats[n]['f'] for n in nodes_avg_pt])
+			if slide_stats:
+				csv_writer.writerow(['Slide-level statistic', 'ANOVA P-value'] + [slide_stats[n]['p'] for n in nodes_avg_pt])
+				csv_writer.writerow(['Slide-level statistic', 'ANOVA F-value'] + [slide_stats[n]['f'] for n in nodes_avg_pt])
+
 	def get_activations(self):
 		return self.slide_node_dict
 
@@ -183,13 +210,6 @@ class ActivationsVisualizer:
 			self.calculate_activation_averages_and_stats()
 		
 		return self.nodes
-
-	def get_tfrecords_path(self, slide):
-		for tfr in self.tfrecords_paths:
-			if sfutil.path_to_name(tfr) == slide:
-				return tfr
-		log.error(f"Unable to find TFRecord path for slide {sfutil.green(slide)}", 1)
-		sys.exit()
 
 	def generate_activations_from_model(self, model, use_fp16=True, batch_size=16, export_csv=True):
 		'''Calculates activations from a given model.
@@ -335,13 +355,11 @@ class ActivationsVisualizer:
 					row += [self.slide_node_dict[slide][n]]
 				csvwriter.writewrow(row)
 
-	def calculate_activation_averages_and_stats(self, annotations=None, outcome_header=None):
-		'''Calculates activation averages across categories, as well as tile-level and patient-level statistics using ANOVA, saving results internally.'''
+	def calculate_activation_averages_and_stats(self, export_csv=True):
+		'''Calculates activation averages across categories, as well as tile-level and patient-level statistics using ANOVA, exporting to CSV if desired.'''
 
-		if not self.categories and (annotations and outcome_header):
-			self.load_annotations(annotations, outcome_header)
-		elif not self.categories:
-			log.warn("Unable to calculate activations statistics; annotations not loaded. Please load with load_annotations() or provide 'annotations' and 'outcome_header'")
+		if not self.categories:
+			log.warn("Unable to calculate activations statistics; annotations not loaded. Please load with load_annotations().'")
 			return
 		empty_category_dict = {}
 		self.node_dict_avg_pt = {}
@@ -396,22 +414,15 @@ class ActivationsVisualizer:
 				log.warn(f"No stats calculated for node {node}", 1)
 			if (not self.focus_nodes) and i>9: break
 		if not exists(self.STATS_CSV_FILE):
-			self.save_node_statistics_to_csv(self.nodes_avg_pt, tile_stats=node_stats, slide_stats=node_stats_avg_pt)
+			self._save_node_statistics_to_csv(self.nodes_avg_pt, tile_stats=node_stats, slide_stats=node_stats_avg_pt)
 		else:
 			log.info(f"Stats file already generated at {sfutil.green(self.STATS_CSV_FILE)}; not regenerating", 1)
 
 	def generate_box_plots(self, annotations=None, outcome_header=None, interactive=False):
-		'''Generates box plots comparing nodal activations at the slide-level and tile-level.
-		
-		Args:
-			annotations:		CSV file containing annotations. Optional; may be loaded separately with load_annotations().
-			outcome_header:		Sorts slides into categories using this header in the annotations file.
-			interactive:		If true, will show a popup of the final figures.'''
+		'''Generates box plots comparing nodal activations at the slide-level and tile-level.'''
 
-		if not self.categories and (annotations and outcome_header):
-			self.load_annotations(annotations, outcome_header)
-		elif not self.categories:
-			log.warn("Unable to generate box plots; annotations not loaded. Please load with load_annotations() or provide 'annotations' and 'outcome_header'")
+		if not self.categories:
+			log.warn("Unable to generate box plots; annotations not loaded. Please load with load_annotations().")
 			return
 
 		# First ensure basic stats have been calculated
@@ -448,26 +459,6 @@ class ActivationsVisualizer:
 			boxplot_filename = join(self.STATS_ROOT, f"boxplot_{title}.png")
 			plt.savefig(boxplot_filename, bbox_inches='tight')
 			if (not self.focus_nodes) and i>4: break
-	
-	def save_node_statistics_to_csv(self, nodes_avg_pt, tile_stats=None, slide_stats=None):
-		'''Exports statistics (ANOVA p-values and slide-level averages) to CSV.'''
-		# Save results to CSV
-		log.empty(f"Writing results to {sfutil.green(self.STATS_CSV_FILE)}...", 1)
-		with open(self.STATS_CSV_FILE, 'w') as outfile:
-			csv_writer = csv.writer(outfile)
-			header = ['slide', 'category'] + [f"FLNode{n}" for n in nodes_avg_pt]
-			csv_writer.writerow(header)
-			for slide in self.slides_to_include:
-				if slide in self.missing_slides: continue
-				category = self.slide_category_dict[slide]
-				row = [slide, category] + [mean(self.slide_node_dict[slide][n]) for n in nodes_avg_pt]
-				csv_writer.writerow(row)
-			if tile_stats:
-				csv_writer.writerow(['Tile-level statistic', 'ANOVA P-value'] + [tile_stats[n]['p'] for n in nodes_avg_pt])
-				csv_writer.writerow(['Tile-level statistic', 'ANOVA F-value'] + [tile_stats[n]['f'] for n in nodes_avg_pt])
-			if slide_stats:
-				csv_writer.writerow(['Slide-level statistic', 'ANOVA P-value'] + [slide_stats[n]['p'] for n in nodes_avg_pt])
-				csv_writer.writerow(['Slide-level statistic', 'ANOVA F-value'] + [slide_stats[n]['f'] for n in nodes_avg_pt])
 
 	def calculate_umap(self, exclude_node=None):
 		'''Calculates UMAP, loading from PKL cache if available. May exclude a single node if desired.
@@ -587,7 +578,7 @@ class ActivationsVisualizer:
 								'neighbors':[],
 								'category':'none',
 								'slide':slide,
-								'tfrecord':self.get_tfrecords_path(slide),
+								'tfrecord':self._get_tfrecords_path(slide),
 								'tfrecord_index':umap['umap_meta'][i]['index'],
 								'paired_tile':None })
 		x_points = [p['x'] for p in points]
