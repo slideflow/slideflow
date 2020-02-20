@@ -20,9 +20,9 @@ FEATURE_TYPES = (tf.int64, tf.string, tf.string)
 FEATURE_DESCRIPTION =  {'slide':    tf.io.FixedLenFeature([], tf.string),
 						'image_raw':tf.io.FixedLenFeature([], tf.string)}
 
-OLD_FEATURE_DESCRIPTION = {'category': tf.io.FixedLenFeature([], tf.int64),
-						   'case':     tf.io.FixedLenFeature([], tf.string),
-						   'image_raw':tf.io.FixedLenFeature([], tf.string)}
+FEATURE_DESCRIPTION_MULTI =  {'slide':    tf.io.FixedLenFeature([], tf.string),
+							  'input_1':  tf.io.FixedLenFeature([], tf.string),
+							  'input_2':  tf.io.FixedLenFeature([], tf.string)}
 
 def _parse_function(example_proto):
 	return tf.io.parse_single_example(example_proto, FEATURE_DESCRIPTION)
@@ -44,6 +44,16 @@ def image_example(slide, image_string):
 		'slide':     _bytes_feature(slide),
 		'image_raw':_bytes_feature(image_string),
 	}
+	return tf.train.Example(features=tf.train.Features(feature=feature))
+
+def multi_image_example(slide, image_dict):
+	feature = {
+		'slide':	_bytes_feature(slide)
+	}
+	for image_label in image_dict:
+		feature.update({
+			image_label: _bytes_feature(image_dict[image_label])
+		})
 	return tf.train.Example(features=tf.train.Features(feature=feature))
 	
 def _get_images_by_dir(directory):
@@ -432,7 +442,7 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 	log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation", 1)
 	return training_tfrecords, validation_tfrecords
 
-def update_tfrecord_dir(directory, old_feature_description=OLD_FEATURE_DESCRIPTION, slide='slide', image_raw='image_raw'):
+def update_tfrecord_dir(directory, old_feature_description=FEATURE_DESCRIPTION, slide='slide', image_raw='image_raw'):
 	if not exists(directory):
 		log.error(f"Directory {directory} does not exist; unable to update tfrecords.")
 	else:
@@ -441,7 +451,7 @@ def update_tfrecord_dir(directory, old_feature_description=OLD_FEATURE_DESCRIPTI
 			update_tfrecord(tfr, old_feature_description, slide, image_raw)
 		return len(tfrecord_files)
 
-def update_tfrecord(tfrecord_file, old_feature_description=OLD_FEATURE_DESCRIPTION, slide='slide', image_raw='image_raw'):
+def update_tfrecord(tfrecord_file, old_feature_description=FEATURE_DESCRIPTION, slide='slide', image_raw='image_raw'):
 	shutil.move(tfrecord_file, tfrecord_file+".old")
 	dataset = tf.data.TFRecordDataset(tfrecord_file+".old")
 	writer = tf.io.TFRecordWriter(tfrecord_file)
@@ -489,6 +499,30 @@ def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None, resize
 		writer.write(tf_example.SerializeToString())
 	writer.close()
 
+def shuffle_tfrecord(target):
+	old_tfrecord = target+".old"
+	shutil.move(target, old_tfrecord)
+
+	dataset = tf.data.TFRecordDataset(old_tfrecord)
+	writer = tf.io.TFRecordWriter(target)
+
+	extracted_tfrecord = []
+	for record in dataset:
+		extracted_tfrecord += [record.numpy()]
+
+	shuffle(extracted_tfrecord)
+
+	for record in extracted_tfrecord:
+		writer.write(record)
+	
+	writer.close()
+
+def shuffle_tfrecords_by_dir(directory):
+	records = [tfr for tfr in listdir(directory) if tfr[-10:] == ".tfrecords"]
+	for record in records:
+		log.empty(f'Working on {record}')
+		shuffle_tfrecord(join(directory, record))
+
 def get_tfrecord_by_index(tfrecord, index, decode=True):
 	'''Reads and returns an individual record from a tfrecord by index, including slide name and JPEG-processed image data.
 
@@ -514,7 +548,7 @@ def get_tfrecord_by_index(tfrecord, index, decode=True):
 	log.error(f"Unable to find record at index {index} in {sfutil.green(tfrecord)}", 1)
 	return False, False
 
-def extract_tiles(tfrecord, destination):
+def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION, feature_label='image_raw'):
 	if not exists(destination):
 		os.makedirs(destination)
 	log.empty(f"Extracting tiles from tfrecord {sfutil.green(tfrecord)}", 1)
@@ -522,9 +556,9 @@ def extract_tiles(tfrecord, destination):
 
 	dataset = tf.data.TFRecordDataset(tfrecord)
 	for i, record in enumerate(dataset):
-		features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
+		features = tf.io.parse_single_example(record, description)
 		slidename = features['slide'].numpy().decode('utf-8')
-		image_raw_data = features['image_raw'].numpy()
+		image_raw_data = features[feature_label].numpy()
 		dest_folder = join(destination, slidename)
 		if not exists(dest_folder):
 			os.makedirs(dest_folder)
