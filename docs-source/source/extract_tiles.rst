@@ -14,9 +14,7 @@ The documentation for the ``extract_tiles`` function is given below:
 .. autofunction:: slideflow.SlideflowProject.extract_tiles
    :noindex:
 
-The optional ``filters`` argument are used to filter a subset of slides to act on, according to your annotations file. If not supplied, all valid slides will be used by default.
-
-To filter according to a columns in your annotations file, pass a dictionary with keys equal to column names and values to a list of all acceptable values you want to include. 
+To filter according to a columns in your annotations file, pass a dictionary to ``filters`` with keys equal to column names and values equal to a list of all acceptable values you want to include. If this argument is not supplied, all valid slides will be extracted.
 
 For example, to extract tiles only for slides that are labeled as "train" in the "dataset" column header in your annotations file, do:
 
