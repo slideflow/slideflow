@@ -55,6 +55,7 @@ BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
 NO_BALANCE = 'NO_BALANCE'
 
 class HyperParameters:
+	'''Object to supervise construction of a set of hyperparameters for Slideflow models.'''
 	_OptDict = {
 		'Adam':	tf.keras.optimizers.Adam,
 		'SGD': tf.keras.optimizers.SGD,
@@ -110,21 +111,6 @@ class HyperParameters:
 		self.balanced_validation = balanced_validation
 		self.augment = augment
 
-	def get_opt(self):
-		return self._OptDict[self.optimizer](lr=self.learning_rate)
-
-	def get_model(self, input_shape, weights):
-		return self._ModelDict[self.model](
-			input_shape=input_shape,
-			include_top=False,
-			pooling=self.pooling,
-			weights=weights
-		)
-
-	def model_type(self):
-		model_type = 'linear' if self.loss in self._LinearLoss else 'categorical'
-		return model_type
-
 	def _get_args(self):
 		return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt', 'get_model', 'model_type']]
 
@@ -149,6 +135,24 @@ class HyperParameters:
 			value = getattr(self, arg)
 			output += log.empty(f"{sfutil.header(arg)} = {value}\n", 2, None)
 		return output
+
+	def get_opt(self):
+		'''Returns optimizer with appropriate learning rate.'''
+		return self._OptDict[self.optimizer](lr=self.learning_rate)
+
+	def get_model(self, input_shape, weights):
+		'''Returns a Keras model of the appropriate architecture, input shape, pooling, and initial weights.'''
+		return self._ModelDict[self.model](
+			input_shape=input_shape,
+			include_top=False,
+			pooling=self.pooling,
+			weights=weights
+		)
+
+	def model_type(self):
+		'''Returns either 'linear' or 'categorical' depending on the loss type.'''
+		model_type = 'linear' if self.loss in self._LinearLoss else 'categorical'
+		return model_type
 
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
@@ -215,52 +219,73 @@ class SlideflowModel:
 							outcome = slide_annotations[slide]['outcome']
 							writer.writerow([slide, 'validation', outcome])
 
-	def _process_image(self, image_string, augment):
-		image = tf.image.decode_jpeg(image_string, channels = 3)
-		image = tf.image.per_image_standardization(image)
+	def _build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, include_slidenames=False, multi_input=False):
+		'''Assembles dataset inputs from tfrecords.
+		
+		Args:
+			folders:		Array of directories in which to search for slides (subfolders) containing tfrecords
+			balance:		Whether to use input balancing; options are BALANCE_BY_PATIENT, BALANCE_BY_CATEGORY, NO_BALANCE
+								 (only available if TFRECORDS_BY_PATIENT=True)'''
+		self.AUGMENT = augment
+		with tf.name_scope('input'):
+			dataset, dataset_with_slidenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, include_slidenames, multi_input)
+		return dataset, dataset_with_slidenames, num_tiles
 
-		if augment:
-			# Apply augmentations
-			# Rotate 0, 90, 180, 270 degrees
-			image = tf.image.rot90(image, tf.random.uniform(shape=[], minval=0, maxval=4, dtype=tf.int32))
-
-			# Random flip and rotation
-			image = tf.image.random_flip_left_right(image)
-			image = tf.image.random_flip_up_down(image)
-
-		dtype = tf.float16 if self.USE_FP16 else tf.float32
-		image = tf.image.convert_image_dtype(image, dtype)
-		image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
-		return image
-
-	def _parse_tfrecord_function(self, record, include_slidenames=True, multi_input=False):
-		feature_description = tfrecords.FEATURE_DESCRIPTION if not multi_input else tfrecords.FEATURE_DESCRIPTION_MULTI
-		features = tf.io.parse_single_example(record, feature_description)
-		slide = features['slide']
-		if self.MODEL_TYPE == 'linear':
-			label = [self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(self.NUM_CLASSES)]
+	def _build_model(self, hp, pretrain=None, checkpoint=None):
+		# Assemble base model, using pretraining (imagenet) or the base layers of a supplied model
+		if pretrain:
+			log.info(f"Using pretraining from {sfutil.green(pretrain)}", 1)
+		if pretrain and pretrain!='imagenet':
+			# Load pretrained model
+			pretrained_model = tf.keras.models.load_model(pretrain)
+			base_model = pretrained_model.get_layer(index=0)
 		else:
-			label = self.ANNOTATIONS_TABLES[0].lookup(slide)
-		if multi_input:
-			image_dict = {}
-			inputs = [inp for inp in list(feature_description.keys()) if inp != 'slide']
-			for i in inputs:
-				image_string = features[i]
-				image = self._process_image(image_string, self.AUGMENT)
-				image_dict.update({
-					i: image
-				})
-			if include_slidenames:
-				return image_dict, label, slide
-			else:
-				return image_dict, label
+			# Create model using ImageNet if specified
+			base_model = hp.get_model(input_shape=(self.IMAGE_SIZE, self.IMAGE_SIZE, 3),
+									  weights=pretrain)
+
+		# Combine base model with top layer (classification/prediction layer)
+		layers = [base_model]
+		if not hp.pooling:
+			layers += [tf.keras.layers.Flatten()]
+		# Add hidden layers if specified
+		for i in range(hp.hidden_layers):
+			layers += [tf.keras.layers.Dense(500, activation='relu')]
+		# If no hidden layers and no pooling is used, flatten the output prior to softmax
+		
+		# Add the softmax prediction layer
+		if hp.model_type() == "linear":
+			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='linear')]
 		else:
-			image_string = features['image_raw']
-			image = self._process_image(image_string, self.AUGMENT)
-			if include_slidenames:
-				return image, label, slide
-			else:
-				return image, label
+			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')]
+		model = tf.keras.Sequential(layers)
+
+		if checkpoint:
+			log.info(f"Loading checkpoint weights from {sfutil.green(checkpoint)}", 1)
+			model.load_weights(checkpoint)
+
+		return model
+
+	def _build_multi_input_model(self, hp, pretrain=None, checkpoint=None):
+		base_model = tf.keras.applications.Xception(input_shape=(299,299,3),
+													include_top=False,
+													pooling='max',
+													weights='imagenet')
+
+		base_model_i = tf.keras.applications.InceptionV3(input_shape=(299,299,3),
+														 include_top=False,
+														 pooling='max',
+														 weights='imagenet')
+
+		hidden = tf.keras.layers.Dense(200, activation='relu')(base_model.output)
+		hidden_i = tf.keras.layers.Dense(200, activation='relu')(base_model_i.output)
+		combined = tf.keras.layers.Concatenate()([hidden, hidden_i])
+		hidden_c = tf.keras.layers.Dense(100, activation='relu')(combined)
+		predictions = tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')(hidden)
+
+		model = tf.keras.Model(inputs=[base_model.input, base_model_i.input], outputs=predictions)
+
+		return model
 
 	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, include_slidenames=False, multi_input=False):
 		'''Generates an interleaved dataset from a collection of tfrecord files,
@@ -368,121 +393,102 @@ class SlideflowModel:
 		
 		return dataset, dataset_with_slidenames, global_num_tiles
 
-	def build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, include_slidenames=False, multi_input=False):
-		'''Assembles dataset inputs from tfrecords.
-		
-		Args:
-			folders:		Array of directories in which to search for slides (subfolders) containing tfrecords
-			balance:		Whether to use input balancing; options are BALANCE_BY_PATIENT, BALANCE_BY_CATEGORY, NO_BALANCE
-								 (only available if TFRECORDS_BY_PATIENT=True)'''
-		self.AUGMENT = augment
-		with tf.name_scope('input'):
-			dataset, dataset_with_slidenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, include_slidenames, multi_input)
-		return dataset, dataset_with_slidenames, num_tiles
-
-	def build_multi_input_model(self, hp, pretrain=None, checkpoint=None):
-		base_model = tf.keras.applications.Xception(input_shape=(299,299,3),
-													include_top=False,
-													pooling='max',
-													weights='imagenet')
-
-		base_model_i = tf.keras.applications.InceptionV3(input_shape=(299,299,3),
-														 include_top=False,
-														 pooling='max',
-														 weights='imagenet')
-
-		hidden = tf.keras.layers.Dense(200, activation='relu')(base_model.output)
-		hidden_i = tf.keras.layers.Dense(200, activation='relu')(base_model_i.output)
-		combined = tf.keras.layers.Concatenate()([hidden, hidden_i])
-		hidden_c = tf.keras.layers.Dense(100, activation='relu')(combined)
-		predictions = tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')(hidden)
-
-		model = tf.keras.Model(inputs=[base_model.input, base_model_i.input], outputs=predictions)
-
-		return model
-
-	def build_model(self, hp, pretrain=None, checkpoint=None):
-		# Assemble base model, using pretraining (imagenet) or the base layers of a supplied model
-		if pretrain:
-			log.info(f"Using pretraining from {sfutil.green(pretrain)}", 1)
-		if pretrain and pretrain!='imagenet':
-			# Load pretrained model
-			pretrained_model = tf.keras.models.load_model(pretrain)
-			base_model = pretrained_model.get_layer(index=0)
+	def _parse_tfrecord_function(self, record, include_slidenames=True, multi_input=False):
+		feature_description = tfrecords.FEATURE_DESCRIPTION if not multi_input else tfrecords.FEATURE_DESCRIPTION_MULTI
+		features = tf.io.parse_single_example(record, feature_description)
+		slide = features['slide']
+		if self.MODEL_TYPE == 'linear':
+			label = [self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(self.NUM_CLASSES)]
 		else:
-			# Create model using ImageNet if specified
-			base_model = hp.get_model(input_shape=(self.IMAGE_SIZE, self.IMAGE_SIZE, 3),
-									  weights=pretrain)
-
-		# TODO: Implement new model structure that only requires one input
-		'''# add a global spatial average pooling layer
-		x = base_model.output
-		x = GlobalAveragePooling2D()(x)
-		# let's add a fully-connected layer
-		x = Dense(1024, activation='relu')(x)
-		# and a logistic layer -- let's say we have 200 classes
-		predictions = Dense(200, activation='softmax')(x)
-
-		# this is the model we will train
-		model = Model(inputs=base_model.input, outputs=predictions)'''
-
-		# Sample
-		'''
-		# Get base model output
-		x = base_model.output
-		# Add pooling
-		if not hp.pooling:
-			x = tf.keras.layers.Flatten()(x)
-		# Add dense hidden layers
-		for i in range(hp.hidden_layers):
-			x = tf.keras.layers.Dense(500, activation='relu')(x)
-		# Add softmax layer
-		activation_type = 'linear' if hp.model_type() == 'linear' else 'softmax'
-		predictions = tf.keras.layers.Dense(self.NUM_CLASSES, activation=activation_type)(x)
-		# Assemble trainable model
-		model = tf.keras.Model(inputs=base_model.input, outputs=predictions)
-		'''
-
-		# Combine base model with top layer (classification/prediction layer)
-		layers = [base_model]
-		if not hp.pooling:
-			layers += [tf.keras.layers.Flatten()]
-		# Add hidden layers if specified
-		for i in range(hp.hidden_layers):
-			layers += [tf.keras.layers.Dense(500, activation='relu')]
-		# If no hidden layers and no pooling is used, flatten the output prior to softmax
-		
-		# Add the softmax prediction layer
-		if hp.model_type() == "linear":
-			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='linear')]
+			label = self.ANNOTATIONS_TABLES[0].lookup(slide)
+		if multi_input:
+			image_dict = {}
+			inputs = [inp for inp in list(feature_description.keys()) if inp != 'slide']
+			for i in inputs:
+				image_string = features[i]
+				image = self._process_image(image_string, self.AUGMENT)
+				image_dict.update({
+					i: image
+				})
+			if include_slidenames:
+				return image_dict, label, slide
+			else:
+				return image_dict, label
 		else:
-			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')]
-		model = tf.keras.Sequential(layers)
+			image_string = features['image_raw']
+			image = self._process_image(image_string, self.AUGMENT)
+			if include_slidenames:
+				return image, label, slide
+			else:
+				return image, label
 
-		# Alternative fix to the multiple inputs problem
-		'''
-		input = tf.keras.layers.Input(shape=model.input_shape[1:])
-		output = model([input, input])
-		model = Model(input, output)
-		'''
-		
-		if checkpoint:
-			log.info(f"Loading checkpoint weights from {sfutil.green(checkpoint)}", 1)
-			model.load_weights(checkpoint)
+	def _process_image(self, image_string, augment):
+		image = tf.image.decode_jpeg(image_string, channels = 3)
+		image = tf.image.per_image_standardization(image)
 
-		return model
+		if augment:
+			# Apply augmentations
+			# Rotate 0, 90, 180, 270 degrees
+			image = tf.image.rot90(image, tf.random.uniform(shape=[], minval=0, maxval=4, dtype=tf.int32))
+
+			# Random flip and rotation
+			image = tf.image.random_flip_left_right(image)
+			image = tf.image.random_flip_up_down(image)
+
+		dtype = tf.float16 if self.USE_FP16 else tf.float32
+		image = tf.image.convert_image_dtype(image, dtype)
+		image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
+		return image
+
+	def _retrain_top_layers(self, hp, train_data, validation_data, steps_per_epoch, callbacks=None, epochs=1):
+		log.info("Retraining top layer", 1)
+		# Freeze the base layer
+		self.model.layers[0].trainable = False
+		val_steps = 100 if validation_data else None
+		metrics = ['acc'] if hp.model_type() != 'linear' else [hp.loss]
+
+		self.model.compile(optimizer=tf.keras.optimizers.Adam(lr=hp.learning_rate),
+					  loss=hp.loss,
+					  metrics=metrics)
+
+		toplayer_model = self.model.fit(train_data,
+				  epochs=epochs,
+				  verbose=1,
+				  steps_per_epoch=steps_per_epoch,
+				  validation_data=validation_data,
+				  validation_steps=val_steps,
+				  callbacks=callbacks)
+
+		# Unfreeze the base layer
+		model.layers[0].trainable = True
+		return toplayer_model.history
 
 	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None, min_tiles_per_slide=0, multi_input=False):
+		'''Evaluate model.
+
+		Args:
+			tfrecords:				List of TFrecords paths to load for evaluation.
+			hp:						HyperParameters object
+			model:					Optional; .h5 model to load for evaluation. If None, will build model using hyperparameters.
+			model_type:				Either linear or categorical.
+			checkpoint:				Path to cp.cpkt checkpoint. If provided, will update model with given checkpoint weights.
+			batch_size:				Evaluation batch size.
+			min_tiles_per_slide:	If provided, will only evaluate slides with a given minimum number of tiles.
+			multi_input:			If true, will evaluate model with multi-image inputs.
+			
+		Returns:
+			Keras history object.'''
+
 		# Load and initialize model
 		if not hp and checkpoint:
 			log.error("If using a checkpoint for evaluation, hyperparameters must be specified.")
 			sys.exit()
 		batch_size = batch_size if not hp else hp.batch_size
-		dataset, dataset_with_slidenames, num_tiles = self.build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment=False, finite=True, include_slidenames=True, multi_input=multi_input)
+		dataset, dataset_with_slidenames, num_tiles = self._build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment=False, finite=True, include_slidenames=True, multi_input=multi_input)
 		if model:
 			self.model = tf.keras.models.load_model(model)
 		elif checkpoint:
-			self.model = self.build_model(hp)
+			self.model = self._build_model(hp)
 			self.model.load_weights(checkpoint)
 
 		# Generate performance metrics
@@ -519,36 +525,25 @@ class SlideflowModel:
 		
 		return val_acc
 
-	def retrain_top_layers(self, model, hp, train_data, validation_data, steps_per_epoch, callbacks=None, epochs=1):
-		log.info("Retraining top layer", 1)
-		# Freeze the base layer
-		model.layers[0].trainable = False
-		val_steps = 100 if validation_data else None
-		metrics = ['acc'] if hp.model_type() != 'linear' else [hp.loss]
-
-		model.compile(optimizer=tf.keras.optimizers.Adam(lr=hp.learning_rate),
-					  loss=hp.loss,
-					  metrics=metrics)
-
-		toplayer_model = model.fit(train_data,
-				  epochs=epochs,
-				  verbose=1,
-				  steps_per_epoch=steps_per_epoch,
-				  validation_data=validation_data,
-				  validation_steps=val_steps,
-				  callbacks=callbacks)
-
-		# Unfreeze the base layer
-		model.layers[0].trainable = True
-		return toplayer_model.history
-
 	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=20, min_tiles_per_slide=0, multi_input=True):
-		'''Train the model for a number of steps, according to flags set by the argument parser.'''
+		'''Train the model for a number of steps, according to flags set by the argument parser.
+		
+		Args:
+			hp:						HyperParameters object
+			pretrain				Either None, 'imagenet' or path to .h5 file for pretrained weights
+			resume_training			If True, will attempt to resume previously aborted training
+			checkpoint				Path to cp.cpkt checkpoint file. If provided, will load checkpoint weights
+			log_frequency			How frequent to update Tensorboard logs
+			min_tiles_per_slide		If provided, will only evaluate slides with a given minimum number of tiles
+			multi_input				If True, will train model with multi-image inputs
+			
+		Returns:
+			Results dictionary, Keras history object'''
 
 		# Build inputs
-		train_data, _, num_tiles = self.build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, include_slidenames=False, multi_input=multi_input)
+		train_data, _, num_tiles = self._build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, include_slidenames=False, multi_input=multi_input)
 		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
-			validation_data, validation_data_with_slidenames, _ = self.build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, augment=False, finite=True, include_slidenames=True, multi_input=multi_input)
+			validation_data, validation_data_with_slidenames, _ = self._build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, augment=False, finite=True, include_slidenames=True, multi_input=multi_input)
 			validation_data_for_training = validation_data.repeat()
 			val_steps = 200
 		else:
@@ -641,13 +636,13 @@ class SlideflowModel:
 			log.info(f"Resuming training from {sfutil.green(resume_training)}", 1)
 			self.model = tf.keras.models.load_model(resume_training)
 		elif not multi_input:
-			self.model = self.build_model(hp, pretrain=pretrain, checkpoint=checkpoint)
+			self.model = self._build_model(hp, pretrain=pretrain, checkpoint=checkpoint)
 		else:
-			self.model = self.build_multi_input_model(hp, pretrain=pretrain, checkpoint=checkpoint)
+			self.model = self._build_multi_input_model(hp, pretrain=pretrain, checkpoint=checkpoint)
 
 		# Retrain top layer only if using transfer learning and not resuming training
 		if hp.toplayer_epochs:
-			self.retrain_top_layers(self.model, hp, train_data.repeat(), validation_data_for_training, steps_per_epoch, 
+			self._retrain_top_layers(hp, train_data.repeat(), validation_data_for_training, steps_per_epoch, 
 									callbacks=None, epochs=hp.toplayer_epochs)
 
 		# Fine-tune the model
@@ -669,4 +664,3 @@ class SlideflowModel:
 		self.model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
 
 		return results, history.history
-		

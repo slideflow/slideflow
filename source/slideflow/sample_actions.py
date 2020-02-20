@@ -37,7 +37,7 @@ def main(SFP):
 
 	# Visualize and analyze penultimate layer activations
 	# ---------------------------------------------------
-	#AV = SFP.generate_activations_analytics(outcome_header="HPV", filters={"HPV": ["HPV+", "HPV-"]})
+	#AV = SFP.generate_activations_analytics(model='/path/to/trained_model.h5', outcome_header="HPV", filters={"HPV": ["HPV+", "HPV-"]})
 	#AV.generate_box_plots()
 	#AV.plot_2D_umap()
 	#top_nodes = AV.get_top_nodes_by_slide()
