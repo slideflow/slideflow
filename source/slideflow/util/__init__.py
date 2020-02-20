@@ -234,6 +234,14 @@ class TCGA:
 	project = 'project_id'
 	slide = 'slide'
 
+def make_dir(_dir):
+	''' Makes a directory if one does not already exist, in a manner compatible with multithreading. '''
+	if not exists(_dir):
+		try:
+			makedirs(_dir, exist_ok=True)
+		except FileExistsError:
+			pass
+
 def global_path(root, path_string):
 	if not root: root = ""
 	if path_string and (len(path_string) > 2) and path_string[:2] == "./":
