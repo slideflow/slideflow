@@ -39,23 +39,6 @@ def _int64_feature(value):
 	"""Returns an int64_list from a bool / enum / int / uint."""
 	return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-def image_example(slide, image_string):
-	feature = {
-		'slide':     _bytes_feature(slide),
-		'image_raw':_bytes_feature(image_string),
-	}
-	return tf.train.Example(features=tf.train.Features(feature=feature))
-
-def multi_image_example(slide, image_dict):
-	feature = {
-		'slide':	_bytes_feature(slide)
-	}
-	for image_label in image_dict:
-		feature.update({
-			image_label: _bytes_feature(image_dict[image_label])
-		})
-	return tf.train.Example(features=tf.train.Features(feature=feature))
-	
 def _get_images_by_dir(directory):
 	files = [f for f in listdir(directory) if (isfile(join(directory, f))) and
 				(sfutil.path_to_ext(f) == "jpg")]
@@ -77,6 +60,32 @@ def _read_and_return_record(record, assign_slide=None):
 		slide = assign_slide
 	tf_example = image_example(slide, image_raw)
 	return tf_example.SerializeToString()
+
+def _print_record(filename):
+	v_dataset = tf.data.TFRecordDataset(filename)
+	for i, record in enumerate(v_dataset):
+		features = _parse_tfrecord_function(record)
+		slide = str(features['slide'].numpy())
+		print(f"{sfutil.header(filename)}: Record {i}: Slide: {sfutil.green(slide)}")
+
+def image_example(slide, image_string):
+	'''Returns a Tensorflow Data example for TFRecord storage.'''
+	feature = {
+		'slide':     _bytes_feature(slide),
+		'image_raw':_bytes_feature(image_string),
+	}
+	return tf.train.Example(features=tf.train.Features(feature=feature))
+
+def multi_image_example(slide, image_dict):
+	'''Returns a Tensorflow Data example for TFRecord storage with multiple images.'''
+	feature = {
+		'slide':	_bytes_feature(slide)
+	}
+	for image_label in image_dict:
+		feature.update({
+			image_label: _bytes_feature(image_dict[image_label])
+		})
+	return tf.train.Example(features=tf.train.Features(feature=feature))
 
 def join_tfrecord(input_folder, output_file, assign_slide=None):
 	'''Randomly samples from tfrecords in the input folder with shuffling,
@@ -120,13 +129,6 @@ def split_tfrecord(tfrecord_file, output_folder):
 
 	for slide in writers.keys():
 		writers[slide].close()
-
-def _print_record(filename):
-	v_dataset = tf.data.TFRecordDataset(filename)
-	for i, record in enumerate(v_dataset):
-		features = _parse_tfrecord_function(record)
-		slide = str(features['slide'].numpy())
-		print(f"{sfutil.header(filename)}: Record {i}: Slide: {sfutil.green(slide)}")
 
 def print_tfrecord(target):
 	'''Prints the slide names for records in the given tfrecord file'''
@@ -247,8 +249,19 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 	If a validation plan has already been prepared (e.g. K-fold iterations were already determined), the previously generated plan will be used.
 	Otherwise, create a new plan and log the result in the TFRecord directory so future models may use the same plan for consistency.
 
+	Args:
+		dataset:				A slideflow.datasets.Dataset object
+		validation_log:			Path to .log file containing validation plans
+		outcomes:				Dictionary mapping slides to outcomes (used for balancing outcomes in training and validation cohorts)
+		model_type:				Either 'categorical' or 'linear'
+		validation_target:		Either 'per-slide' or 'per-tile'
+		validation_strategy:	Either 'k-fold', 'bootstrap', or 'fixed'.
+		validation_fraction:	Float, proportion of data for validation. Not used if strategy is k-fold.
+		validation_k_fold:		K, if using K-fold validation.
+		k_fold_iter:			Which K-fold iteration, if using K-fold validation.
+
 	Returns:
-		Two arrays: an array of full paths to training tfrecords, and an array of paths to validation tfrecords.''' 
+		Two arrays: 	an array of full paths to training tfrecords, and an array of paths to validation tfrecords.''' 
 
 	# Prepare dataset
 	tfr_folders = dataset.get_tfrecords_folders()
@@ -443,6 +456,7 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 	return training_tfrecords, validation_tfrecords
 
 def update_tfrecord_dir(directory, old_feature_description=FEATURE_DESCRIPTION, slide='slide', image_raw='image_raw'):
+	'''Updates tfrecords in a directory from an old format to a new format.'''
 	if not exists(directory):
 		log.error(f"Directory {directory} does not exist; unable to update tfrecords.")
 	else:
@@ -452,6 +466,7 @@ def update_tfrecord_dir(directory, old_feature_description=FEATURE_DESCRIPTION, 
 		return len(tfrecord_files)
 
 def update_tfrecord(tfrecord_file, old_feature_description=FEATURE_DESCRIPTION, slide='slide', image_raw='image_raw'):
+	'''Updates a single tfrecord from an old format to a new format.'''
 	shutil.move(tfrecord_file, tfrecord_file+".old")
 	dataset = tf.data.TFRecordDataset(tfrecord_file+".old")
 	writer = tf.io.TFRecordWriter(tfrecord_file)
@@ -464,6 +479,7 @@ def update_tfrecord(tfrecord_file, old_feature_description=FEATURE_DESCRIPTION, 
 	writer.close()
 
 def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None, resize=None):
+	'''Transforms images in a single tfrecord. Can perform hue shifting, resizing, or re-assigning slide label.'''
 	log.empty(f"Transforming tiles in tfrecord {sfutil.green(origin)}", 1)
 	log.info(f"Saving to new tfrecord at {sfutil.green(target)}", 2)
 	if assign_slide:
@@ -500,6 +516,7 @@ def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None, resize
 	writer.close()
 
 def shuffle_tfrecord(target):
+	'''Shuffles records in a TFRecord, saving the original to a .old file.'''
 	old_tfrecord = target+".old"
 	shutil.move(target, old_tfrecord)
 
@@ -518,16 +535,14 @@ def shuffle_tfrecord(target):
 	writer.close()
 
 def shuffle_tfrecords_by_dir(directory):
+	'''For each TFRecord in a directory, shuffles records in the TFRecord, saving the original to a .old file.'''
 	records = [tfr for tfr in listdir(directory) if tfr[-10:] == ".tfrecords"]
 	for record in records:
 		log.empty(f'Working on {record}')
 		shuffle_tfrecord(join(directory, record))
 
 def get_tfrecord_by_index(tfrecord, index, decode=True):
-	'''Reads and returns an individual record from a tfrecord by index, including slide name and JPEG-processed image data.
-
-	WARNING: this operation is slow, as tfrecord files are not indexed and each access requires reading through
-	the entire TFRecrod file!'''
+	'''Reads and returns an individual record from a tfrecord by index, including slide name and JPEG-processed image data.'''
 
 	def _decode(record):
 		features = _parse_tfrecord_function(record)
@@ -549,6 +564,7 @@ def get_tfrecord_by_index(tfrecord, index, decode=True):
 	return False, False
 
 def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION, feature_label='image_raw'):
+	'''Reads and saves images from a TFRecord to a destination folder.'''
 	if not exists(destination):
 		os.makedirs(destination)
 	log.empty(f"Extracting tiles from tfrecord {sfutil.green(tfrecord)}", 1)

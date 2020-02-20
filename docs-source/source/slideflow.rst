@@ -6,53 +6,45 @@ SlideflowProject
 
 .. autoclass:: slideflow.SlideflowProject
 	:members:
-	:no-undoc-members:
 
 activations
 ***********
 
 .. automodule:: slideflow.activations
 	:members:
-	:undoc-members:
+
+io.datasets
+***********
+
+.. automodule:: slideflow.io.datasets
+	:members:
+
+io.tfrecords
+************
+
+.. automodule:: slideflow.io.tfrecords
+	:members:
+
+model
+*****
+
+.. automodule:: slideflow.model
+	:members:
 
 slide
 *****
 
 .. automodule:: slideflow.slide
 	:members:
-	:undoc-members:
 
-trainer.model
-*************
+statistics
+**********
 
-.. automodule:: slideflow.trainer.model
+.. automodule:: slideflow.statistics
 	:members:
-	:undoc-members:
 
 util
 ****
 
 .. automodule:: slideflow.util
 	:members:
-	:undoc-members:
-
-util.datasets
-*************
-
-.. automodule:: slideflow.util.datasets
-	:members:
-	:undoc-members:
-
-util.statistics
-***************
-
-.. automodule:: slideflow.util.statistics
-	:members:
-	:undoc-members:
-
-util.tfrecords
-**************
-
-.. automodule:: slideflow.util.tfrecords
-	:members:
-	:undoc-members:
