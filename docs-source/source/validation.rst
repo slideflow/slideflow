@@ -27,6 +27,8 @@ There are several ways you can plan to validate your data. The project configura
 - **validation_fraction**:  (float between 0-1)
 - **validation_k_fold**:  int
 
+These options can be supplied either via your global project configuration (stored in ``settings.json``) or at the time of training by passing the arguments directly. Arguments passed at the time of training will override any project settings.
+
 validation_target
 ^^^^^^^^^^^^^^^^^
 

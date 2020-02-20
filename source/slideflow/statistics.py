@@ -36,6 +36,7 @@ def normalize_layout(layout, min_percentile=1, max_percentile=99, relative_margi
 	return clipped
 
 def gen_umap(array):
+	'''Generates and returns a umap from a given array.'''
 	try:
 		layout = umap.UMAP(n_components=2, verbose=True, n_neighbors=20, min_dist=0.01, metric="cosine").fit_transform(array)
 	except ValueError:
@@ -59,6 +60,7 @@ def generate_histogram(y_true, y_pred, data_dir, name='histogram'):
 	plt.savefig(os.path.join(data_dir, f'{name}.png'))
 
 def generate_roc(y_true, y_pred, save_dir, name='ROC'):
+	'''Generates and saves an ROC with a given set of y_true, y_pred values.'''
 	# Statistics
 	fpr, tpr, threshold = metrics.roc_curve(y_true, y_pred)
 	roc_auc = metrics.auc(fpr, tpr)
@@ -77,6 +79,7 @@ def generate_roc(y_true, y_pred, save_dir, name='ROC'):
 	return roc_auc
 
 def generate_combined_roc(y_true, y_pred, save_dir, labels, name='ROC'):
+	'''Generates and saves overlapping ROCs with a given combination of y_true and y_pred.'''
 	# Plot
 	plt.clf()
 	plt.title(name)
@@ -160,7 +163,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	'''
 	
 	# Get predictions and performance metrics
-	log.empty("Generating predictions...", 1)
+	log.empty("\nGenerating predictions...", 1)
 	label_end = "" if not label else f"_{label}"
 	label_start = "" if not label else f"{label}_"
 	y_true, y_pred, tile_to_slides = [], [], []
@@ -169,7 +172,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		sys.stdout.flush()
 		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in batch[2].numpy()]
 		y_true += [batch[1].numpy()]
-		y_pred += [model.predict_on_batch(batch[0])]
+		y_pred += [model.predict(batch[0])]
 	patients = list(set([annotations[slide][sfutil.TCGA.patient] for slide in tile_to_slides]))
 	sys.stdout.write("\r\033[K")
 	sys.stdout.flush()

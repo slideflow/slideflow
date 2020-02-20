@@ -22,20 +22,22 @@ def main(SFP):
 
 	# Evaluate model performance with separate data
 	# ---------------------------------------------
-	#SFP.evaluate(model='HPSweep0-kfold3', outcome_header="category", filters = {'dataset': ['eval']})
+	#SFP.evaluate(model='/path/to/trained_model.h5', outcome_header="category", filters = {'dataset': ['eval']})
 
 	# Create heatmaps of predictions with a certain model
 	# ---------------------------------------------------
-	#SFP.generate_heatmaps('HPSweep0', filters = {'dataset': ['eval']})
+	#SFP.generate_heatmaps(model='/path/to/trained_model.h5',
+	# 					   filters = {'dataset': ['eval']})
 
 	# Generate a mosaic map of tiles using a certain model
 	# ----------------------------------------------------
-	#SFP.generate_mosaic('/home/shawarma/data/slideflow_projects/TCGA_HNSC_HPV_598px_604um/external_models/TCGA_HNSC_HPV_598px_604um/trained_model_epoch5.h5', 
-	# 						filters = {'dataset': ['eval']}, resolution='high')
+	#SFP.generate_mosaic(model='/path/to/trained_model.h5', 
+	# 					 filters = {'dataset': ['eval']}, 
+	# 					 resolution='high')
 
 	# Visualize and analyze penultimate layer activations
 	# ---------------------------------------------------
-	#AV = SFP.generate_activations_analytics(outcome_header="HPV", filters={"HPV": ["HPV+", "HPV-"]})
+	#AV = SFP.generate_activations_analytics(model='/path/to/trained_model.h5', outcome_header="HPV", filters={"HPV": ["HPV+", "HPV-"]})
 	#AV.generate_box_plots()
 	#AV.plot_2D_umap()
 	#top_nodes = AV.get_top_nodes_by_slide()

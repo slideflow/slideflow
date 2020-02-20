@@ -7,12 +7,12 @@ import hashlib
 import argparse
 
 import slideflow.util as sfutil
-import slideflow.util.statistics as sfstats
+import slideflow.statistics as sfstats
 
 from statistics import mean
 from os.path import join, exists, isdir, getmtime
 from slideflow.util import log, TCGA
-from slideflow.util.datasets import Dataset
+from slideflow.io.datasets import Dataset
 from tabulate import tabulate
 
 # Organization heirarchy:
@@ -417,7 +417,8 @@ class Model:
 					self.filters = self.hyperparameters['filters']
 					self.manifest = SlideManifest(join(self.dir, "slide_manifest.log"))
 					self.load_results(join(self.dir, "results_log.csv"))
-					self.hp_key = tuple(sorted(self.hyperparameters['hp'].items()))
+					params = {i:self.hyperparameters['hp'][i] for i in self.hyperparameters['hp'] if i!='finetune_epochs'}
+					self.hp_key = tuple(sorted(params.items()))
 					self.model_type = self.hyperparameters['model_type']
 					self.outcome_labels = self.hyperparameters['outcome_labels']
 				except KeyError:

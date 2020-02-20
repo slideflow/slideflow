@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Introduction &mdash; slideflow 1.3.0 documentation</title>
+  <title>Introduction &mdash; slideflow 1.6.2 documentation</title>
   
 
   
@@ -21,10 +21,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                1.3
+                1.6
               </div>
             
           
@@ -93,7 +93,9 @@
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="activations.html">Layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.html">Source</a></li>
 </ul>
 
             
@@ -162,7 +164,7 @@
 <h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h1>
 <p><code class="docutils literal notranslate"><span class="pre">slideflow</span></code> is a Python package which aims to provide an easy and intuitive way of building and testing convolutional neural networks (CNNs) for use in histology image analysis. It is built using <code class="docutils literal notranslate"><span class="pre">Keras</span></code> (with <code class="docutils literal notranslate"><span class="pre">Tensorflow</span></code> backend, see <a class="reference external" href="https://www.tensorflow.org/">here</a>) and supports many standard network architectures - including InceptionV3, Resnet, and VGG16 - as well as custom architectures. The overarching goal of the package is to provide tools to train and test models on histology slides, apply these models to new slides, and analyze performance by generating predictive heatmaps, ROCs, and mosaic maps.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">slideflow</span></code> package includes a <code class="docutils literal notranslate"><span class="pre">SlideflowProject</span></code> class to help coordinate project organization and supervise execution of the pipeline.  In this documentation, we will review a high-level overview of the pipeline and examine how to execute each component of the pipeline using the <code class="docutils literal notranslate"><span class="pre">SlideflowProject</span></code> class. We will end by describing some of the source code components in more detail and provide examples for how you may further customize this pipeline according to your needs.</p>
-<p>The current implementation has been developed in Python 3.7 using Tensorflow 2.0 (beta), and tested in Ubuntu 18.04, Windows 10, and CentOS 7.</p>
+<p>The current implementation has been developed in Python 3.7 using Tensorflow 2.0 and tested in Ubuntu 19.10, Windows 10, and CentOS 7.</p>
 </div>
 
 
@@ -185,7 +187,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019, James M Dolezal
+        &copy; Copyright 2020, James M Dolezal
 
     </p>
   </div>
