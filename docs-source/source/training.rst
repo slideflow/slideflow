@@ -8,7 +8,7 @@ There are two methods for configuring model hyperparameters. If you intend to tr
 
 .. code-block:: python
 
-	from slideflow.trainer.model import HyperParameters
+	from slideflow.model import HyperParameters
 	hp = HyperParameters(finetune_epochs=[1], toplayer_epochs=0, model='Xception', pooling='avg', loss='sparse_categorical_crossentropy',
 				learning_rate=0.00001, batch_size=8, hidden_layers=1, optimizer='Adam', early_stop=False, 
 				early_stop_patience=0, balanced_training='BALANCE_BY_PATIENT', balanced_validation='NO_BALANCE', 

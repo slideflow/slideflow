@@ -11,5 +11,5 @@ if __name__=='__main__':
 		subfolders = [os.path.join(project_dir, _d) for _d in os.listdir(project_dir)]
 		for subfolder in subfolders:
 			sf.util.log.empty(f"Updating TFRecords in {sf.util.green(subfolder)}", 1)
-			num_updated += sf.tfrecords.update_tfrecord_dir(subfolder, slide='case')
+			num_updated += sf.io.tfrecords.update_tfrecord_dir(subfolder, slide='case')
 		sf.util.log.complete(f"Updated {num_updated} TFRecords.")
