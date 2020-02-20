@@ -324,6 +324,7 @@ class ActivationsVisualizer:
 			outfile.close()
 
 		fla_calc_time = time.time()
+		print()
 		log.info(f"Activation calculation time: {fla_calc_time-fla_start_time:.0f} sec", 1)
 		if export_csv:
 			log.complete(f"Final layer activations saved to {sfutil.green(self.FLA)}", 1)
