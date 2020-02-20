@@ -7,12 +7,12 @@ import hashlib
 import argparse
 
 import slideflow.util as sfutil
-import slideflow.util.statistics as sfstats
+import slideflow.statistics as sfstats
 
 from statistics import mean
 from os.path import join, exists, isdir, getmtime
 from slideflow.util import log, TCGA
-from slideflow.util.datasets import Dataset
+from slideflow.io.datasets import Dataset
 from tabulate import tabulate
 
 # Organization heirarchy:
@@ -172,14 +172,18 @@ class Subset:
 			m = []
 			for metric in metrics:
 				try:
-					m += [float(e[metric][1:-1].split(', ')[mi])]
-				except ValueError:
-					m += [-1]
-				except KeyError:
-					m += [-1]
-				except IndexError:
+					if metric in e:
+						m += [float(e[metric][1:-1].split(', ')[mi])]
+					elif f'{metric}{mi}' in e:
+						m += [float(e[f'{metric}{mi}'])]
+					else:
+						m += [-1]
+				except:
 					m += [-1]
 			return m
+
+		def format_epoch(s):
+			return s.split('epoch')[-1]
 
 		tabbed_results = {
 			'Group ID': [],
@@ -239,7 +243,7 @@ class Subset:
 							else:
 								continue
 					tabbed_results['Group ID'] += [group.id]
-					tabbed_results['Epoch'] += [e.strip('val_epoch')]
+					tabbed_results['Epoch'] += [format_epoch(e)]
 					tabbed_results['K-fold'] += [" / ".join(used_k_str)]
 					tabbed_results['Model names'] += [" / ".join(model_names)]
 
@@ -269,7 +273,7 @@ class Subset:
 
 				for e in epochs:
 					tabbed_results['Group ID'] += [group.id]
-					tabbed_results['Epoch'] += [e[1]]
+					tabbed_results['Epoch'] += [format_epoch(e[1])]
 					tabbed_results['K-fold'] += [e[0].k_fold_i]
 					tabbed_results['Model names'] += [e[0].name]
 
@@ -346,27 +350,33 @@ class ModelGroup:
 		if not exists(save_dir):
 			os.makedirs(save_dir)
 
-		y_true_all, y_pred_all = {}, {}
-		for model in self.models:
-			epochs = [e.split('epoch')[-1] for e in list(model.results.keys())]
-			if not len(epochs): continue
-			pred = model.get_predictions(epochs[0])
+		for epoch in self.epochs:
+			y_true_all, y_pred_all = {}, {}
+			for model in self.models:
+				#epochs = [e.split('epoch')[-1] for e in list(model.results.keys())]
+				#if not len(epochs): continue
+				if epoch not in model.results.keys():
+					continue
+				pred = model.get_predictions(epoch.split('epoch')[-1])
 
-			for label in pred:
-				if label not in y_true_all:
-					y_true_all.update({label: []})
-					y_pred_all.update({label: []})
+				if not pred:
+					continue
 
-				y_true_all[label] += [pred[label]['y_true']]
-				y_pred_all[label] += [pred[label]['y_pred']]
+				for label in pred:
+					if label not in y_true_all:
+						y_true_all.update({label: []})
+						y_pred_all.update({label: []})
 
-		labels = list(y_true_all.keys())
-		labels.sort()
-		for label in labels:
-			#print(" | ".join([m.name for m in self.models]) + f" : [{label}] : {len(y_true_all[label])}")
-			outcome_str = "" if not self.subset else self.subset.outcome.string
-			sfstats.generate_combined_roc(y_true_all[label], y_pred_all[label], save_dir, labels=[f'K-fold {m.k_fold_i}' for m in self.models], name=f"Combined ROC [{outcome_str}-Group{self.id}-{label}]")
-			#print(f"Saved combined ROCs to {sfutil.green(save_dir)}")
+					y_true_all[label] += [pred[label]['y_true']]
+					y_pred_all[label] += [pred[label]['y_pred']]
+
+			labels = list(y_true_all.keys())
+			labels.sort()
+			for label in labels:
+				#print(" | ".join([m.name for m in self.models]) + f" : [{label}] : {len(y_true_all[label])}")
+				outcome_str = "" if not self.subset else self.subset.outcome.string
+				sfstats.generate_combined_roc(y_true_all[label], y_pred_all[label], save_dir, labels=[f'K-fold {m.k_fold_i}' for m in self.models], name=f"Combined ROC [{outcome_str}-Group{self.id}-{label}-{epoch}]")
+				#print(f"Saved combined ROCs to {sfutil.green(save_dir)}")
 
 class Model:
 	def __init__(self, models_dir, name, project, interactive=True):
@@ -407,7 +417,8 @@ class Model:
 					self.filters = self.hyperparameters['filters']
 					self.manifest = SlideManifest(join(self.dir, "slide_manifest.log"))
 					self.load_results(join(self.dir, "results_log.csv"))
-					self.hp_key = tuple(sorted(self.hyperparameters['hp'].items()))
+					params = {i:self.hyperparameters['hp'][i] for i in self.hyperparameters['hp'] if i!='finetune_epochs'}
+					self.hp_key = tuple(sorted(params.items()))
 					self.model_type = self.hyperparameters['model_type']
 					self.outcome_labels = self.hyperparameters['outcome_labels']
 				except KeyError:
@@ -415,21 +426,26 @@ class Model:
 					self.hyperparameters = None
 
 	def load_results(self, results_log):
-		self.last_modified = getmtime(results_log)
+		try:
+			self.last_modified = getmtime(results_log)
+		except FileNotFoundError:
+			return
 		with open(results_log, 'r') as results_file:
 			reader = csv.reader(results_file)
 			header = next(reader)
-			try:
+			if 'epoch' in header:
 				epoch_i = header.index('epoch')
-			except:
-				epoch_i = "Evaluation"
+			elif 'model_name' in header:
+				epoch_i = header.index('model_name')
+			else:
+				epoch_i = None
 			meta = [h for h in header if h != 'epoch']
 			meta_i = [header.index(h) for h in meta]
 			for row in reader:
-				if epoch_i != "Evaluation":
+				if epoch_i != None:
 					epoch = row[epoch_i]
 				else:
-					epoch = epoch_i
+					epoch = 'Unknown'
 				self.results.update({
 					epoch: dict(zip(meta, [row[mi] for mi in meta_i]))
 				})
@@ -476,12 +492,12 @@ class Model:
 	def get_predictions(self, epoch, level='patient'):
 		if level not in ('patient', 'slide', 'tile'):
 			log.error(f"Unknown prediction level {level}; must be 'patient', 'slide', or 'tile'.", 1)
-			return None, None
+			return None
 
 		predictions = join(self.dir, f'{level}_predictions_val_epoch{epoch}.csv')
 		if not exists(predictions):
 			log.error(f"Unable to find predictions file {sfutil.bold(predictions)} in {sfutil.green(self.dir)}", 1)
-			return None, None
+			return None
 
 		predictions = sfstats.read_predictions(predictions, level)
 		return predictions
@@ -546,7 +562,10 @@ def load_from_directory(search_directory, nested=False, starttime=None, showname
 			datasets += [dataset]
 
 		# Find models in the project
-		models = os.listdir(join(pf, "models"))
+		if exists(join(pf, "models")):
+			models = os.listdir(join(pf, "models"))
+		else:
+			continue
 
 		for model_name in models:
 			# For each detected model, create a Model object

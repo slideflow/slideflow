@@ -55,6 +55,7 @@ if __name__=='__main__':
 		SFP.autoselect_gpu(args.gpu)
 		SFP.FLAGS['skip_verification'] = args.skip_verification
 		SFP.FLAGS['test_mode'] = args.test_mode
+		SFP.FLAGS['num_threads'] = args.threads
 		# Execute actions
 		actions.main(SFP)
 		# Move actions file into finished category
