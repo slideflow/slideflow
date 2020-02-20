@@ -864,7 +864,7 @@ class SlideflowProject:
 								   root_dir=self.PROJECT['root'],
 								   image_size=self.PROJECT['tile_px'],
 								   annotations=self.PROJECT['annotations'],
-								   category_header=outcome_header,
+								   outcome_header=outcome_header,
 								   focus_nodes=focus_nodes,
 								   use_fp16=self.PROJECT['use_fp16'])
 
