@@ -1,0 +1,285 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Layer activations &mdash; slideflow 1.6.2 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Appendix" href="appendix.html" />
+    <link rel="prev" title="Evaluation" href="evaluation.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="root.html" class="icon icon-home"> slideflow
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.6
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project.html">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Layer activations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#mosaic-maps">Mosaic maps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#working-with-activations">Working with activations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.html">Source</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="root.html">slideflow</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="root.html">Docs</a> &raquo;</li>
+        
+      <li>Layer activations</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/activations.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="layer-activations">
+<h1>Layer activations<a class="headerlink" href="#layer-activations" title="Permalink to this headline">¶</a></h1>
+<p>Once a model has been fully trained and evaluated, you may use the model to generate penultimate layer activations to gain better insight into the kinds of image features the model has learned.</p>
+<div class="section" id="mosaic-maps">
+<h2>Mosaic maps<a class="headerlink" href="#mosaic-maps" title="Permalink to this headline">¶</a></h2>
+<p>The easiest way to get started with layer activations is to calculate and display layer activations as a mosaic map. Mosaic maps are generated by calculating penultimate layer activations for a set of tiles, performing dimensionality reduction (UMAP) on the activations, and overlaying tile images onto the UMAP. The <code class="docutils literal notranslate"><span class="pre">SlideflowProject</span></code> class has a function which can supervise these steps automatically and save the final figure to the project directory:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">generate_mosaic</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;/path/to/saved/model.h5&quot;</span><span class="p">,</span>
+          <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;evaluation&quot;</span><span class="p">]})</span>
+</pre></div>
+</div>
+<dl class="function">
+<dt>
+<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">generate_mosaic</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">model</em>, <em class="sig-param">filters=None</em>, <em class="sig-param">focus_filters=None</em>, <em class="sig-param">resolution='low'</em>, <em class="sig-param">num_tiles_x=50</em>, <em class="sig-param">max_tiles_per_slide=100</em>, <em class="sig-param">export_activations=False</em><span class="sig-paren">)</span></dt>
+<dd><p>Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
+set of TFRecords and predictions are calculated using the specified model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> – Path to .h5 file to use when generating layer activations.</p></li>
+<li><p><strong>filters</strong> – Dataset filters to use when selecting slides to include the mosaic.</p></li>
+<li><p><strong>focus_filters</strong> – Dataset filters to use when selecting slides to highlight on the mosaic.</p></li>
+<li><p><strong>resolution</strong> – Resolution of the mosaic map. Impacts size of the final figure. Either low, medium, or high.</p></li>
+<li><p><strong>num_tiles_x</strong> – Specifies the size of the mosaic map grid.</p></li>
+<li><p><strong>max_tiles_per_slide</strong> – Limits the number of tiles taken from each slide. Too high of a number may introduce memory issues.</p></li>
+<li><p><strong>export_activations</strong> – Bool. If true, will save calculated layer activations to a CSV.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<img alt="_images/mosaic_example.png" src="_images/mosaic_example.png" />
+</div>
+<div class="section" id="working-with-activations">
+<h2>Working with activations<a class="headerlink" href="#working-with-activations" title="Permalink to this headline">¶</a></h2>
+<p>To work more directly with layer activations, use the <a class="reference internal" href="slideflow.html#slideflow.activations.ActivationsVisualizer" title="slideflow.activations.ActivationsVisualizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.activations.ActivationsVisualizer</span></code></a> class. Instancing the class supervises the calculation and caching of layer activations, which can then be exported, viewed (as a mosaic map), or analyzed with various statistical methods. <code class="docutils literal notranslate"><span class="pre">SlideflowProject.generate_activations_analytics()</span></code> automatically creates and returns an instance of this class.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">AV</span> <span class="o">=</span> <span class="n">SFP</span><span class="o">.</span><span class="n">generate_activations_analytics</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s1">&#39;/path/to/trained_model.h5&#39;</span><span class="p">,</span>
+                                        <span class="n">outcome_header</span><span class="o">=</span><span class="s2">&quot;HPV&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">get_predictions()</span></code> function will return a dictionary mapping slide names to outcome categories and list tile-level predictions. Predictions are ordered according to their position in their corresponding TFRecord. Corresponding tile images can be pulled from the TFRecords with <a class="reference internal" href="slideflow.html#slideflow.io.tfrecords.get_tfrecord_by_index" title="slideflow.io.tfrecords.get_tfrecord_by_index"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.io.tfrecords.get_tfrecord_by_index()</span></code></a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">AV</span><span class="o">.</span><span class="n">get_predictions</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Similarly, the <code class="docutils literal notranslate"><span class="pre">get_activations()</span></code> function will return a dictionary mapping slide names to layer nodes, listing tile-level activations for each node.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">AV</span><span class="o">.</span><span class="n">get_activations</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>To view layer activations using dimensionality reduction (UMAP), color-coded according to outcome categories, use the <code class="docutils literal notranslate"><span class="pre">plot_2D_umap()</span></code> function:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">AV</span><span class="o">.</span><span class="n">plot_2D_umap</span><span class="p">()</span>
+</pre></div>
+</div>
+<img alt="_images/2d_umap.png" src="_images/2d_umap.png" />
+<p>To compare activations of layer nodes across outcome categories and find nodes which differ significantly across categories, use the <code class="docutils literal notranslate"><span class="pre">generate_box_plots()</span></code> function:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">AV</span><span class="o">.</span><span class="n">generate_box_plots</span><span class="p">()</span>
+</pre></div>
+</div>
+<img alt="_images/boxplot_example.png" src="_images/boxplot_example.png" />
+<p>To get a list of the layer nodes which differ most significantly across outcome categories (by ANOVA), use <code class="docutils literal notranslate"><span class="pre">get_top_nodes_by_slide()</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">AV</span><span class="o">.</span><span class="n">get_top_nodes_by_slide</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>To view a UMAP of layer activations with an added third dimension representing the activation of a single node, use the <code class="docutils literal notranslate"><span class="pre">plot_3D_umap</span></code> function:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">AV</span><span class="o">.</span><span class="n">plot_3D_umap</span><span class="p">(</span><span class="n">node</span><span class="o">=</span><span class="mi">497</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="_images/3d_umap.png" src="_images/3d_umap.png" />
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="appendix.html" class="btn btn-neutral float-right" title="Appendix" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="evaluation.html" class="btn btn-neutral float-left" title="Evaluation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, James M Dolezal
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

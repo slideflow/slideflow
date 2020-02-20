@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Training &mdash; slideflow 1.3.0 documentation</title>
+  <title>Training &mdash; slideflow 1.6.2 documentation</title>
   
 
   
@@ -21,10 +21,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                1.3
+                1.6
               </div>
             
           
@@ -98,7 +98,9 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="activations.html">Layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.html">Source</a></li>
 </ul>
 
             
@@ -167,10 +169,18 @@
 <h1>Training<a class="headerlink" href="#training" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="prepare-hyperparameters">
 <h2>Prepare hyperparameters<a class="headerlink" href="#prepare-hyperparameters" title="Permalink to this headline">¶</a></h2>
-<p>The next step is to prepare your hyperparameters and save them to a batch_train CSV file. Use the <code class="docutils literal notranslate"><span class="pre">create_hyperparameter_sweep</span></code> function to automatically set up a sweep of hyperparameter combinations. For example, the following code would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:</p>
+<p>There are two methods for configuring model hyperparameters. If you intend to train a model using a single combination of hyperparameters, use the <code class="docutils literal notranslate"><span class="pre">HyperParameters</span></code> class:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">HyperParameters</span>
+<span class="n">hp</span> <span class="o">=</span> <span class="n">HyperParameters</span><span class="p">(</span><span class="n">finetune_epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">toplayer_epochs</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s1">&#39;Xception&#39;</span><span class="p">,</span> <span class="n">pooling</span><span class="o">=</span><span class="s1">&#39;avg&#39;</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
+                        <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.00001</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">hidden_layers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="s1">&#39;Adam&#39;</span><span class="p">,</span> <span class="n">early_stop</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">early_stop_patience</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">balanced_training</span><span class="o">=</span><span class="s1">&#39;BALANCE_BY_PATIENT&#39;</span><span class="p">,</span> <span class="n">balanced_validation</span><span class="o">=</span><span class="s1">&#39;NO_BALANCE&#39;</span><span class="p">,</span>
+                        <span class="n">augment</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the <code class="docutils literal notranslate"><span class="pre">create_hyperparameter_sweep</span></code> function to automatically configure a sweep to a batch_train CSV file. For example, the following code would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">create_hyperparameter_sweep</span><span class="p">(</span><span class="n">finetune_epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span> <span class="n">toplayer_epochs</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Xception&#39;</span><span class="p">],</span> <span class="n">pooling</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;avg&#39;</span><span class="p">],</span> <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
-                                <span class="n">learning_rate</span><span class="o">=</span><span class="p">[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">],</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">hidden_layers</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">optimizer</span><span class="o">=</span><span class="s1">&#39;Adam&#39;</span><span class="p">,</span> <span class="n">early_stop</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">early_stop_patience</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">balanced_training</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;BALANCE_BY_CATEGORY&#39;</span><span class="p">],</span>
-                                <span class="n">balanced_validation</span><span class="o">=</span><span class="s1">&#39;NO_BALANCE&#39;</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+                                <span class="n">learning_rate</span><span class="o">=</span><span class="p">[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">],</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">hidden_layers</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">optimizer</span><span class="o">=</span><span class="s1">&#39;Adam&#39;</span><span class="p">,</span> <span class="n">early_stop</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">early_stop_patience</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">balanced_training</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;BALANCE_BY_CATEGORY&#39;</span><span class="p">],</span>
+                                <span class="n">balanced_validation</span><span class="o">=</span><span class="s1">&#39;NO_BALANCE&#39;</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Available hyperparameters include:</p>
@@ -190,36 +200,42 @@
 <li><p><strong>balanced_validation</strong> - validation input balancing strategy; please see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a> for more details</p></li>
 <li><p><strong>augment</strong> - whether to augment data with random flipping/rotating during training</p></li>
 </ul>
-<p>As above, to execute this command, save your <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file and execute the <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script in the slideflow directory.</p>
 </div>
 <div class="section" id="begin-training">
 <h2>Begin training<a class="headerlink" href="#begin-training" title="Permalink to this headline">¶</a></h2>
-<p>Once your hyperparameter settings have been chosen and saved to your batch_train CSV file, you may begin training using the <code class="docutils literal notranslate"><span class="pre">train</span></code> function. Documentation of the function is given below:</p>
+<p>Once your hyperparameter settings have been chosen you may begin training using the <code class="docutils literal notranslate"><span class="pre">train</span></code> function. Documentation of the function is given below:</p>
 <dl class="function">
 <dt>
-<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">models=None</em>, <em class="sig-param">outcome_header='category'</em>, <em class="sig-param">multi_outcome=False</em>, <em class="sig-param">filters=None</em>, <em class="sig-param">resume_training=None</em>, <em class="sig-param">checkpoint=None</em>, <em class="sig-param">pretrain='imagenet'</em>, <em class="sig-param">supervised=True</em>, <em class="sig-param">batch_file=None</em>, <em class="sig-param">model_type='categorical'</em>, <em class="sig-param">validation_target=None</em>, <em class="sig-param">validation_strategy=None</em>, <em class="sig-param">validation_fraction=None</em>, <em class="sig-param">validation_k_fold=None</em>, <em class="sig-param">k_fold_iter=None</em><span class="sig-paren">)</span></dt>
+<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">models=None</em>, <em class="sig-param">outcome_header='category'</em>, <em class="sig-param">multi_outcome=False</em>, <em class="sig-param">filters=None</em>, <em class="sig-param">resume_training=None</em>, <em class="sig-param">checkpoint=None</em>, <em class="sig-param">pretrain='imagenet'</em>, <em class="sig-param">batch_file=None</em>, <em class="sig-param">hyperparameters=None</em>, <em class="sig-param">model_type='categorical'</em>, <em class="sig-param">validation_target=None</em>, <em class="sig-param">validation_strategy=None</em>, <em class="sig-param">validation_fraction=None</em>, <em class="sig-param">validation_k_fold=None</em>, <em class="sig-param">k_fold_iter=None</em>, <em class="sig-param">validation_dataset=None</em>, <em class="sig-param">validation_annotations=None</em>, <em class="sig-param">validation_filters=None</em>, <em class="sig-param">min_tiles_per_slide=0</em><span class="sig-paren">)</span></dt>
 <dd><p>Train model(s) given configurations found in batch_train.tsv.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>models</strong> (<em>optional</em>) – Either string representing a model name or an array of strings containing model names.
-Will train models with these names in the batch_train.tsv config file.
-Defaults to None, which will train all models in the batch_train.tsv config file.</p></li>
-<li><p><strong>outcome_header</strong> (<em>optional</em>) – String or list. Specifies which header(s) in the annotation file to use for the output category.
+<li><p><strong>models</strong> – Either a string representing a model name, or an array of strings containing multiple model names.
+Required if training to a single hyperparameter combination with the “hyperparameters” argument.
+If performing a hyperparameter sweep, will only train models with these names in the batch_train.tsv config file.
+May supply None if performing a hyperparameter sweep, in which case all models in the batch_train.tsv config file will be trained.</p></li>
+<li><p><strong>outcome_header</strong> – String or list. Specifies which header(s) in the annotation file to use for the output category.
 Defaults to ‘category’. If a list is provided, will loop through all outcomes and perform HP sweep on each.</p></li>
-<li><p><strong>multi_outcome</strong> (<em>optional</em>) – If True, will train to multiple outcomes simultaneously instead of looping through the
+<li><p><strong>multi_outcome</strong> – If True, will train to multiple outcomes simultaneously instead of looping through the
 list of outcomes in “outcome_header”. Defaults to False.</p></li>
-<li><p><strong>filters</strong> (<em>optional</em>) – Dictionary of column names mapping to column values by which to filter slides using the annotation file.</p></li>
-<li><p><strong>resume_training</strong> (<em>optional</em>) – Path to .h5 model to continue training</p></li>
-<li><p><strong>checkpoint</strong> (<em>optional</em>) – Path to cp.ckpt from which to load weights</p></li>
-<li><p><strong>supervised</strong> (<em>optional</em>) – Whether to use verbose output and save training progress to Tensorboard</p></li>
-<li><p><strong>batch_file</strong> (<em>optional</em>) – Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.</p></li>
-<li><p><strong>model_type</strong> (<em>optional</em>) – Type of output variable, either categorical (default) or linear.</p></li>
-<li><p><strong>validation_target</strong> (<em>optional</em>) – Whether to select validation data on a ‘per-patient’ or ‘per-tile’ basis. If not specified, will use project default.</p></li>
-<li><p><strong>validation_strategy</strong> (<em>optional</em>) – Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.</p></li>
-<li><p><strong>validation_fraction</strong> (<em>optional</em>) – Fraction of data to use for validation testing. If not specified, will use project default.</p></li>
-<li><p><strong>validation_k_fold</strong> (<em>optional</em>) – K, if using k-fold validation. If not specified, will use project default.</p></li>
-<li><p><strong>k_fold_iter</strong> (<em>optional</em>) – Which iteration to train if using k-fold validation. Defaults to training all iterations.</p></li>
+<li><p><strong>filters</strong> – Dictionary of column names mapping to column values by which to filter slides using the annotation file.</p></li>
+<li><p><strong>resume_training</strong> – Path to .h5 model to continue training</p></li>
+<li><p><strong>checkpoint</strong> – Path to cp.ckpt from which to load weights</p></li>
+<li><p><strong>pretrain</strong> – Pretrained weights to load. Default is imagenet. May supply a compatible .h5 file from which to load weights.</p></li>
+<li><p><strong>batch_file</strong> – Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.</p></li>
+<li><p><strong>hyperparameters</strong> – Manually specify hyperparameter combination to use for training. If specified, will ignore batch training file.</p></li>
+<li><p><strong>model_type</strong> – Type of output variable, either categorical (default) or linear.</p></li>
+<li><p><strong>validation_target</strong> – Whether to select validation data on a ‘per-patient’ or ‘per-tile’ basis. If not specified, will use project default.</p></li>
+<li><p><strong>validation_strategy</strong> – Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.</p></li>
+<li><p><strong>validation_fraction</strong> – Fraction of data to use for validation testing. If not specified, will use project default.</p></li>
+<li><p><strong>validation_k_fold</strong> – K, if using k-fold validation. If not specified, will use project default.</p></li>
+<li><p><strong>k_fold_iter</strong> – Which iteration to train if using k-fold validation. Defaults to training all iterations.</p></li>
+<li><p><strong>validation_dataset</strong> – If specified, will use a separate dataset on which to perform validation.</p></li>
+<li><p><strong>validation_annotations</strong> – If using a separate dataset for validation, the annotations CSV must be supplied.</p></li>
+<li><p><strong>validation_filters</strong> – If using a separate dataset for validation, these filters are used to select a subset of slides for validation.</p></li>
+<li><p><strong>min_tiles_per_slide</strong> – Minimum number of tiles a slide must have to be included in evaluation. Default is 0, but
+for best slide-level AUC, a minimum of at least 10 tiles per slide is recommended.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -228,20 +244,23 @@ list of outcomes in “outcome_header”. Defaults to False.</p></li>
 </dl>
 </dd></dl>
 
-<p>Your outcome variable is specified with the <code class="docutils literal notranslate"><span class="pre">category_header</span></code> argument. You may filter slides for training using the <code class="docutils literal notranslate"><span class="pre">filter_header</span></code> and <code class="docutils literal notranslate"><span class="pre">filter_values</span></code> arguments, as previously described.</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">train()</span></code> function will automatically train across all hyperparameters listed in the batch file, and will use the validation plan supplied in project settings. If you would like to use a different plan than described in <code class="docutils literal notranslate"><span class="pre">settings.json</span></code>, you many manually choose your validation strategy by passing the relevant variables as arguments (e.g. <code class="docutils literal notranslate"><span class="pre">validation_strategy</span></code>, <code class="docutils literal notranslate"><span class="pre">validation_fraction</span></code>, and <code class="docutils literal notranslate"><span class="pre">validation_k_fold</span></code>).</p>
+<p>If you used the <code class="docutils literal notranslate"><span class="pre">HyperParameters</span></code> class to configure a single combination of parameters, pass this object via the <code class="docutils literal notranslate"><span class="pre">hyperparameters</span></code> argument. If you configured a hyperparameter sweep, set the <code class="docutils literal notranslate"><span class="pre">batch_file</span></code> argument to the name of your hyperparameter sweep file (saved by default to ‘batch_train.tsv’).</p>
+<p>Your outcome variable is specified with the <code class="docutils literal notranslate"><span class="pre">outcome_header</span></code> argument. You may filter slides for training using the <code class="docutils literal notranslate"><span class="pre">filter</span></code> argument, as previously described.</p>
+<p>The validation settings configured in the project settings file (<code class="docutils literal notranslate"><span class="pre">settings.json</span></code>) will be used by default. If you would like to use a different validation plan than the default configuration, you many manually pass the relevant variables as arguments (e.g. <code class="docutils literal notranslate"><span class="pre">validation_strategy</span></code>, <code class="docutils literal notranslate"><span class="pre">validation_fraction</span></code>, and <code class="docutils literal notranslate"><span class="pre">validation_k_fold</span></code>).</p>
 <p>If you are using a continuous variable as an outcome measure, set the argument <code class="docutils literal notranslate"><span class="pre">model_type</span></code> equal to ‘linear’.</p>
 <p>For example, to train using only slides labeled as “train” in the “dataset” column, with the outcome variable defined by the column “category”, use the following syntax:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">category_header</span><span class="o">=</span><span class="s2">&quot;category&quot;</span><span class="p">,</span>
-          <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">]})</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">outcome_header</span><span class="o">=</span><span class="s2">&quot;category&quot;</span><span class="p">,</span>
+          <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">]},</span>
+          <span class="n">batch_file</span><span class="o">=</span><span class="s1">&#39;batch_train.tsv&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>To begin training, save your <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file and execute the <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script in the slideflow directory.</p>
 <p>Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the <code class="docutils literal notranslate"><span class="pre">results.log</span></code> file in the project directory. Additional analytic data, including ROCs and scatter plots, are saved in the model directories.</p>
 </div>
 <div class="section" id="monitoring-performance">
 <h2>Monitoring performance<a class="headerlink" href="#monitoring-performance" title="Permalink to this headline">¶</a></h2>
 <p>During training, progress can be monitored using Tensorflow’s bundled <code class="docutils literal notranslate"><span class="pre">Tensorboard</span></code> package:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir<span class="o">=</span>/path/to/histcon/models/active
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir<span class="o">=</span>/path/to/model/directory
 </pre></div>
 </div>
 <p>… and then opening <a class="reference external" href="http://localhost:6006">http://localhost:6006</a> in your web browser.</p>
@@ -268,7 +287,7 @@ list of outcomes in “outcome_header”. Defaults to False.</p></li>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019, James M Dolezal
+        &copy; Copyright 2020, James M Dolezal
 
     </p>
   </div>
