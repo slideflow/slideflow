@@ -31,7 +31,7 @@ from comet_ml import Experiment
 
 # TODO: allow datasets to have filters (would address evaluate() function)
 
-__version__ = "1.6.1"
+__version__ = "1.6.2"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -140,7 +140,7 @@ def evaluator(outcome_header, model_file, project_config, results_dict,
 	results_dict['results'] = results
 	return results_dict
 
-def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, resolution, project_config, export_activations=False, flags=None):
+def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, resolution, project_config, flags=None):
 	import slideflow.slide as sfslide
 	if not flags: flags = DEFAULT_FLAGS
 
@@ -158,7 +158,7 @@ def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, reso
 																	stride_div=stride_div,
 																	save_folder=save_folder,
 																	roi_list=roi_list)
-	heatmap.generate(batch_size=flags['eval_batch_size'], export_activations=export_activations)
+	heatmap.generate(batch_size=flags['eval_batch_size'])
 	heatmap.save()
 
 def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, max_tiles_per_slide, project_config, export_activations=False, flags=None):
@@ -794,14 +794,13 @@ class SlideflowProject:
 
 		return AV
 
-	def generate_heatmaps(self, model_name, filters=None, resolution='low', export_activations=False):
+	def generate_heatmaps(self, model_name, filters=None, resolution='low'):
 		'''Creates predictive heatmap overlays on a set of slides. 
 
 		Args:
 			model_name:			Which model to use for generating predictions
 			filter_header:		Column name for filtering input slides based on the project annotations file. 
 			filter_values:		List of values to include when filtering slides according to filter_header.
-			export_activations: If True, will export calculated activations to a CSV file.
 			resolution:			Heatmap resolution (determines stride of tile predictions). 
 									"low" uses a stride equal to tile width.
 									"medium" uses a stride equal 1/2 tile width.
@@ -831,7 +830,7 @@ class SlideflowProject:
 		# Heatmap processes
 		ctx = multiprocessing.get_context('spawn')
 		for slide in slide_list:
-			process = ctx.Process(target=heatmap_generator, args=(slide, model_name, model_path, heatmaps_folder, roi_list, resolution, self.PROJECT, export_activations, self.FLAGS))
+			process = ctx.Process(target=heatmap_generator, args=(slide, model_name, model_path, heatmaps_folder, roi_list, resolution, self.PROJECT, self.FLAGS))
 			process.start()
 			log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
 			process.join()
