@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Validation Planning &mdash; slideflow 1.3.0 documentation</title>
+  <title>Validation Planning &mdash; slideflow 1.6.2 documentation</title>
   
 
   
@@ -21,10 +21,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                1.3
+                1.6
               </div>
             
           
@@ -101,7 +101,9 @@
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="activations.html">Layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.html">Source</a></li>
 </ul>
 
             
@@ -187,6 +189,7 @@
 <li><p><strong>validation_fraction</strong>:  (float between 0-1)</p></li>
 <li><p><strong>validation_k_fold</strong>:  int</p></li>
 </ul>
+<p>These options can be supplied either via your global project configuration (stored in <code class="docutils literal notranslate"><span class="pre">settings.json</span></code>) or at the time of training by passing the arguments directly. Arguments passed at the time of training will override any project settings.</p>
 <div class="section" id="validation-target">
 <h3>validation_target<a class="headerlink" href="#validation-target" title="Permalink to this headline">¶</a></h3>
 <p>The first consideration is whether you will be separating validation data on a <strong>tile-level</strong> (setting aside a certain % of tiles from every slide for validation) or <strong>slide-level</strong> (setting aside a certain number of slides). In most instances, it is best to use slide-level validation separation, as this will offer the best insight into whether your model is generalizable on a different set of slides.</p>
@@ -227,7 +230,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019, James M Dolezal
+        &copy; Copyright 2020, James M Dolezal
 
     </p>
   </div>

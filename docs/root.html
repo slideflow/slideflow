@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Slideflow Documentation &mdash; slideflow 1.3.0 documentation</title>
+  <title>Slideflow Documentation &mdash; slideflow 1.6.2 documentation</title>
   
 
   
@@ -21,10 +21,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -59,7 +59,7 @@
             
             
               <div class="version">
-                1.3
+                1.6
               </div>
             
           
@@ -92,7 +92,9 @@
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="activations.html">Layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.html">Source</a></li>
 </ul>
 
             
@@ -197,12 +199,27 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="evaluation.html#generate-heatmaps">Generate heatmaps</a></li>
-<li class="toctree-l2"><a class="reference internal" href="evaluation.html#generate-mosaic-maps">Generate mosaic maps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="activations.html">Layer activations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="activations.html#mosaic-maps">Mosaic maps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="activations.html#working-with-activations">Working with activations</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="appendix.html#model-architecture">Model Architecture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="appendix.html#a-note-on-input-balancing">A Note on Input Balancing</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.html">Source</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.html#slideflowproject">SlideflowProject</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.html#module-slideflow.activations">activations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.html#module-slideflow.io.datasets">io.datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.html#module-slideflow.io.tfrecords">io.tfrecords</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.html#module-slideflow.model">model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.html#module-slideflow.slide">slide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.html#module-slideflow.statistics">statistics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.html#module-slideflow.util">util</a></li>
 </ul>
 </li>
 </ul>
@@ -235,7 +252,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019, James M Dolezal
+        &copy; Copyright 2020, James M Dolezal
 
     </p>
   </div>
