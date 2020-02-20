@@ -163,7 +163,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	'''
 	
 	# Get predictions and performance metrics
-	log.empty("Generating predictions...", 1)
+	log.empty("\nGenerating predictions...", 1)
 	label_end = "" if not label else f"_{label}"
 	label_start = "" if not label else f"{label}_"
 	y_true, y_pred, tile_to_slides = [], [], []
@@ -172,7 +172,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		sys.stdout.flush()
 		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in batch[2].numpy()]
 		y_true += [batch[1].numpy()]
-		y_pred += [model.predict_on_batch(batch[0])]
+		y_pred += [model.predict(batch[0])]
 	patients = list(set([annotations[slide][sfutil.TCGA.patient] for slide in tile_to_slides]))
 	sys.stdout.write("\r\033[K")
 	sys.stdout.flush()
