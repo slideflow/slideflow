@@ -2,15 +2,15 @@ import sys
 import json
 import csv
 import time
-
 import os
-from os.path import join, isdir, exists
-from glob import glob
 import shutil
 import datetime
 
 import tensorflow as tf
+
+from glob import glob
 from tensorflow.keras import backend as K
+from os.path import join, isdir, exists
 
 # Enable color sequences on Windows
 try:

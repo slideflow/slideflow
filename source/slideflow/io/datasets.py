@@ -9,15 +9,7 @@ from glob import glob
 from random import shuffle
 from os import listdir, makedirs
 from os.path import isfile, isdir, join, exists
-from slideflow.util import log, TCGA, _shortname
-
-def make_dir(_dir):
-	''' Makes a directory if one does not already exist, in a manner compatible with multithreading. '''
-	if not exists(_dir):
-		try:
-			makedirs(_dir, exist_ok=True)
-		except FileExistsError:
-			pass
+from slideflow.util import log, TCGA, _shortname, make_dir
 
 def split_tiles(folder, fraction, names):
 	'''Split a directory of .jpg files into subdirectories.

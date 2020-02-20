@@ -19,16 +19,18 @@ import time
 import os
 import sys
 import shutil
-
 import pickle
 import argparse
 import gc
 import csv
 import random
+import warnings
+warnings.filterwarnings('ignore')
+
 import numpy as np
 import seaborn as sns
-
 import tensorflow as tf
+
 from tensorflow.keras import backend as K
 from tensorboard.plugins.custom_scalar import layout_pb2
 from tensorflow.python.framework import ops
@@ -40,14 +42,13 @@ from statistics import median
 from sklearn import metrics
 from matplotlib import pyplot as plt
 from functools import partial
+from slideflow.util import TCGA, log
+from slideflow.io import tfrecords
 
 import slideflow.util as sfutil
-from slideflow.util import tfrecords, TCGA, log
+import slideflow.statistics as sfstats
 
-import slideflow.util.statistics as sfstats
 
-import warnings
-warnings.filterwarnings('ignore')
 
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
