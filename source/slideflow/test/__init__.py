@@ -116,6 +116,7 @@ class TestSuite:
 	def configure_project(self):
 		print("Setting up initial project configuration...")
 		self.SFP.PROJECT = PROJECT_CONFIG
+		self.SFP.FLAGS['test_mode'] = True
 		self.SFP.save_project()
 		print("\t...DONE")
 
@@ -213,7 +214,7 @@ class TestSuite:
 			hp = self.setup_hp('categorical')
 			print("Training to single categorical outcome from specified hyperparameters...")
 			results_dict = self.SFP.train(models = 'manual_hp', outcome_header='category1', hyperparameters=hp, k_fold_iter=1)
-
+			
 			if not results_dict or 'history' not in results_dict[results_dict.keys()[0]]:
 				print("\tFAIL: Keras results object not received from training")
 			else:
@@ -241,7 +242,7 @@ class TestSuite:
 	def test_evaluation(self):
 		print("Testing evaluation of a saved model...")
 		model_file = join(PROJECT_CONFIG['models_dir'], 'category1-HPSweep0-kfold1', 'trained_model.h5')
-		results = self.SFP.evaluate(outcome_header='category1', model_file=model_file)
+		results = self.SFP.evaluate(outcome_header='category1', model=model_file)
 		print('\t...OK')
 
 	def test_heatmap(self):

@@ -299,6 +299,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		del(SFM)
 		return history
 	except tf.errors.ResourceExhaustedError:
+		log.empty("\n")
 		log.error(f"Training failed for {sfutil.bold(model_name)}, GPU memory exceeded.", 0)
 		del(SFM)
 		return None
@@ -1097,18 +1098,23 @@ class SlideflowProject:
 			# For each hyperparameter combination, perform training
 			for hp, hp_model_name in hyperparameter_list:
 				# Generate model name
-				outcome_string = "-".join(selected_outcome_headers) if type(selected_outcome_headers) == list else selected_outcome_headers
+				if type(selected_outcome_headers) == list:
+					outcome_string = "-".join(selected_outcome_headers)
+				else:
+					outcome_string = selected_outcome_headers
+					selected_outcome_headers = [selected_outcome_headers]
+
 				model_name = f"{outcome_string}-{hp_model_name}"
 				model_iterations = [model_name] if not k_fold else [f"{model_name}-kfold{k}" for k in valid_k]
 
 				def start_training_process(k):
 					# Using a separate process ensures memory is freed once training has completed
 					process = ctx.Process(target=trainer, args=(selected_outcome_headers, model_name, model_type, 
-																			self.PROJECT, results_dict, hp, validation_strategy, 
-																			validation_target, validation_fraction, validation_k_fold, 
-																			validation_log, validation_dataset, validation_annotations,
-																			validation_filters, k, filters, pretrain, resume_training, 
-																			checkpoint, min_tiles_per_slide, self.FLAGS))
+																self.PROJECT, results_dict, hp, validation_strategy, 
+																validation_target, validation_fraction, validation_k_fold, 
+																validation_log, validation_dataset, validation_annotations,
+																validation_filters, k, filters, pretrain, resume_training, 
+																checkpoint, min_tiles_per_slide, self.FLAGS))
 					process.start()
 					log.info(f"Spawning training process (PID: {process.pid})", 1)
 					process.join()

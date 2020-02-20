@@ -525,7 +525,7 @@ class SlideflowModel:
 		
 		return val_acc
 
-	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=20, min_tiles_per_slide=0, multi_input=True):
+	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=20, min_tiles_per_slide=0, multi_input=False):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -550,15 +550,13 @@ class SlideflowModel:
 			validation_data_for_training = None
 			val_steps = 0
 
-		#testing overide
+		# Testing overide
 		if self.TEST_MODE:
 			num_tiles = 100
 			hp.finetune_epochs = 2
 
 		# Prepare results
-		results = {
-			'epochs': {}
-		}
+		results = {'epochs': {}}
 
 		# Calculate parameters
 		if type(hp.finetune_epochs) != list:
@@ -582,10 +580,6 @@ class SlideflowModel:
 															histogram_freq=0,
 															write_graph=False,
 															update_freq=hp.batch_size*log_frequency)
-
-		#with open(results_log, "w") as results_file:
-		#	writer = csv.writer(results_file)
-		#	writer.writerow(['epoch', 'train_acc', 'val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc', 'r_squared'])
 		parent = self
 
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
@@ -621,24 +615,19 @@ class SlideflowModel:
 
 						sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch+1}': epoch_results})
 
-						#with open(results_log, "a") as results_file:
-						#	writer = csv.writer(results_file)
-						#	writer.writerow([epoch_label, np.amax(train_acc), val_loss, val_acc, tile_auc, slide_auc, patient_auc, r_squared])
-
-		callbacks = [history_callback, PredictionAndEvaluationCallback()]
+		callbacks = [history_callback, PredictionAndEvaluationCallback(), cp_callback, tensorboard_callback]
+		
 		if hp.early_stop:
 			callbacks += [early_stop_callback]
-		if supervised:
-			callbacks += [cp_callback, tensorboard_callback]
 
 		# Build or load model
 		if resume_training:
 			log.info(f"Resuming training from {sfutil.green(resume_training)}", 1)
 			self.model = tf.keras.models.load_model(resume_training)
-		elif not multi_input:
-			self.model = self._build_model(hp, pretrain=pretrain, checkpoint=checkpoint)
-		else:
+		elif multi_input:
 			self.model = self._build_multi_input_model(hp, pretrain=pretrain, checkpoint=checkpoint)
+		else:
+			self.model = self._build_model(hp, pretrain=pretrain, checkpoint=checkpoint)
 
 		# Retrain top layer only if using transfer learning and not resuming training
 		if hp.toplayer_epochs:
