@@ -1,7 +1,50 @@
-slideflow
-=========
+Source
+======
 
-.. automodule:: slideflow
-    :members:
-    :undoc-members:
-    :show-inheritance:
+SlideflowProject
+****************
+
+.. autoclass:: slideflow.SlideflowProject
+	:members:
+
+activations
+***********
+
+.. automodule:: slideflow.activations
+	:members:
+
+io.datasets
+***********
+
+.. automodule:: slideflow.io.datasets
+	:members:
+
+io.tfrecords
+************
+
+.. automodule:: slideflow.io.tfrecords
+	:members:
+
+model
+*****
+
+.. automodule:: slideflow.model
+	:members:
+
+slide
+*****
+
+.. automodule:: slideflow.slide
+	:members:
+
+statistics
+**********
+
+.. automodule:: slideflow.statistics
+	:members:
+
+util
+****
+
+.. automodule:: slideflow.util
+	:members:
