@@ -25,6 +25,7 @@ import gc
 import csv
 import random
 import warnings
+import tempfile
 warnings.filterwarnings('ignore')
 
 import numpy as np
@@ -115,7 +116,7 @@ class HyperParameters:
 		self.trainable_layers = trainable_layers # Sara added 4/6/2020
 		self.max_tiles_per_slide = max_tiles_per_slide # Sara added 4/6/2020
 		self.min_tiles_per_slide = min_tiles_per_slide # Sara added 4/6/2020
-		self.L2_weight = L2_weight # Sara added 4/6/2020
+		self.L2_weight = float(L2_weight) # Sara added 4/6/2020
 
 	def _get_args(self):
 		return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt', 'get_model', 'model_type']]
@@ -249,6 +250,12 @@ class SlideflowModel:
 			# Create model using ImageNet if specified
 			base_model = hp.get_model(input_shape=(self.IMAGE_SIZE, self.IMAGE_SIZE, 3),
 									  weights=pretrain)
+
+			# Added by Sara 4/13/2020
+			# Add L2 regularization
+			if hp.L2_weight != 0:
+				base_model = sfutil.add_regularization(base_model, hp.L2_weight)
+			
 			# Added by Sara 4/6/2020
 			if hp.trainable_layers != 0:
 				# Sets only the last subset of layers to be trainable
@@ -261,19 +268,36 @@ class SlideflowModel:
 					layer.trainable = False
 
 		# James, comment here, why do we collapse the model into one layer here, instead of just adding the new layers to the end of the model 
+		# I think from what I can tell, it's because we need a sequential model that we can add the layers to? I tried to do model.add() to Xception and it did not work
+		# So I am guessing that is why
+		# Added by Sara 4/13/2020
+		# I added the L2 regularization above to when we load in the pre-trained model. That step needed it's own function because we have to save the pre-trained model weights and such
+		# I could not use the function (located in sfutil), at the end after we've assembled the whole model, because 'layers = [base_model] makes it all into only 3 layers, and I can no longerr
+		# access the other layers to add the regularizer. So I simply add them below, based on if we use regularizers or not.
+		# I wasn't sure if we needed them for linear so I did all of them, you can always reject the changes.
 		layers = [base_model]
 		if not hp.pooling:
 			layers += [tf.keras.layers.Flatten()]
 		# Add hidden layers if specified
 		for i in range(hp.hidden_layers):
-			layers += [tf.keras.layers.Dense(hp.hidden_layer_width, activation='relu')]
+			if hp.L2_weight != 0:
+				layers += [tf.keras.layers.Dense(hp.hidden_layer_width, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(hp.L2_weight))]
+			else:
+				layers += [tf.keras.layers.Dense(hp.hidden_layer_width, activation='relu')]
 		# If no hidden layers and no pooling is used, flatten the output prior to softmax
 		
 		# Add the softmax prediction layer
 		if hp.model_type() == "linear":
-			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='linear')]
+			if hp.L2_weight != 0:
+				layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='linear', kernel_regularizer=tf.keras.regularizers.l2(hp.L2_weight))]
+			else:
+				layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='linear')]
 		else:
-			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')]
+			if hp.L2_weight != 0:
+				layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax', kernel_regularizer=tf.keras.regularizers.l2(hp.L2_weight))]
+			else:
+				layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')]
+
 		model = tf.keras.Sequential(layers)
 
 		if checkpoint:
@@ -281,7 +305,7 @@ class SlideflowModel:
 			model.load_weights(checkpoint)
 
 		return model
-
+	
 	def _build_multi_input_model(self, hp, pretrain=None, checkpoint=None):
 		base_model = tf.keras.applications.Xception(input_shape=(299,299,3),
 													include_top=False,
