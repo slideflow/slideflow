@@ -524,7 +524,8 @@ class SlideflowProject:
 			writer.writerow(firstrow)
 
 	def create_hyperparameter_sweep(self, finetune_epochs, toplayer_epochs, model, pooling, loss, learning_rate, batch_size, hidden_layers,
-									optimizer, early_stop, early_stop_patience, balanced_training, balanced_validation, augment, filename=None):
+									optimizer, early_stop, early_stop_patience, balanced_training, balanced_validation, augment, 
+									hidden_layer_width, trainable_layers, max_tiles_per_slide, min_tiles_per_slide, L2_weight, filename=None):
 		'''Prepares a hyperparameter sweep using the batch train config file.'''
 		log.header("Preparing hyperparameter sweep...")
 		# Assemble all possible combinations of provided hyperparameters
@@ -1009,6 +1010,21 @@ class SlideflowProject:
 
 		for tfr in tfrecords_list:
 			sfio.tfrecords.transform_tfrecord(tfr, tfr+".transformed", resize=size)
+	
+	# Sara added 4/6/2020
+	def generate_tiles_from_tfrecords(self, destination=None, filters=None):
+		'''Extracts all tiles from a set of TFRecords'''
+		log.header(f"Extracting tiles from TFRecords")
+		to_extract_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		#if not destination:
+		#	to_extract_dataset_config = self.PROJECT['dataset_config']
+		#	destination = 
+		to_extract_dataset.load_annotations(self.PROJECT['annotations'])
+		to_extract_tfrecords = to_extract_dataset.get_tfrecords()
+		tfrecords_list = to_extract_dataset.filter_tfrecords_paths(to_extract_tfrecords, filters=filters)
+		
+		for tfr in tfrecords_list:
+			sfio.tfrecords.extract_tiles(tfr, destination)
 
 	def save_project(self):
 		'''Saves current project configuration as "settings.json".'''
