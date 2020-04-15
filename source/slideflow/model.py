@@ -555,15 +555,13 @@ class SlideflowModel:
 		results = {'epochs': {}}
 
 		# Calculate parameters
-		if type(hp.finetune_epochs) != list:
-			hp.finetune_epochs = [hp.finetune_epochs]
 		total_epochs = hp.toplayer_epochs + max(hp.finetune_epochs)
-		initialized_optimizer = hp.get_opt()
 		steps_per_epoch = round(num_tiles/hp.batch_size)
-		tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
+		initialized_optimizer = hp.get_opt()
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
 		metrics = ['acc'] if hp.model_type() != 'linear' else [hp.loss]
 
+		# Epoch override
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
 		early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=hp.early_stop_patience)
