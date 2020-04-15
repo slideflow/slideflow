@@ -541,15 +541,15 @@ class SlideflowModel:
 		Returns:
 			Results dictionary, Keras history object'''
 
+		#tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
+
 		# Build inputs
 		train_data, _, num_tiles = self._build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, include_slidenames=False, multi_input=multi_input)
-		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
-			validation_data, validation_data_with_slidenames, _ = self._build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, augment=False, finite=True, include_slidenames=True, multi_input=multi_input)
-			validation_data_for_training = validation_data.repeat()
-			val_steps = 200
-		else:
-			validation_data_for_training = None
-			val_steps = 0
+		using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
+		if using_validation:
+			validation_data, validation_data_with_slidenames, _ = self._build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, augment=False, finite=True, include_slidenames=True, multi_input=multi_input)	
+		validation_data_for_training = None if not using_validation else validation_data.repeat()
+		val_steps = 0 if not using_validation else 200
 
 		# Prepare results
 		results = {'epochs': {}}
