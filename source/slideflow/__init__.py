@@ -40,7 +40,6 @@ SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
 COMET_API_KEY = "A3VWRcPaHgqc4H5K0FoCtRXbp"
 
 DEFAULT_FLAGS = {
-	'test_mode': False,
 	'use_comet': False,
 	'skip_verification': False,
 	'eval_batch_size': 64,
@@ -95,8 +94,7 @@ def evaluator(outcome_header, model, project_config, results_dict,
 																		validation_tfrecords=eval_tfrecords,
 																		manifest=eval_dataset.get_manifest(),
 																		use_fp16=project_config['use_fp16'],
-																		model_type=model_type,
-																		test_mode=flags['test_mode'])
+																		model_type=model_type)
 
 	# Log model settings and hyperparameters
 	hp_file = join(model_dir, 'hyperparameters.json')
@@ -255,8 +253,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 	SFM = sfmodel.SlideflowModel(model_dir, project_config['tile_px'], outcomes, training_tfrecords, validation_tfrecords,
 																			manifest=manifest,
 																			use_fp16=project_config['use_fp16'],
-																			model_type=model_type,
-																			test_mode=flags['test_mode'])
+																			model_type=model_type)
 
 	# Log model settings and hyperparameters
 	hp_file = join(project_config['models_dir'], full_model_name, 'hyperparameters.json')
