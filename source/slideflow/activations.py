@@ -778,7 +778,7 @@ class ActivationsVisualizer:
 					continue
 				break
 
-	def plot_2D_umap(self, exclude_node=None, subsample=None, interactive=False, filename=None):
+	def plot_2D_umap(self, umap=None, exclude_node=None, subsample=None, interactive=False, filename=None):
 		'''Saves a plot of a calculated umap.
 
 		Args:
@@ -787,12 +787,14 @@ class ActivationsVisualizer:
 			interactive:	Bool. If true, will display figure.
 			filename:		Name of file to export figure.'''
 
-		umap = self.calculate_umap(exclude_node=exclude_node)
+		if not umap:
+			umap = self.calculate_umap(exclude_node=exclude_node)
+
 		umap_save_dir = join(self.STATS_ROOT, "2d_umap.png") if not filename else filename
 		if self.slide_category_dict:
 			categories = np.array([self.slide_category_dict[m['slide']] for m in umap['umap_meta']])
 		else:
-			categories = ["None" for m in umap['umap_meta']]
+			categories = np.array(["None" for m in umap['umap_meta']])
 
 		# Subsampling
 		if subsample:
