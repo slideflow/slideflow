@@ -577,38 +577,39 @@ class SlideflowModel:
 
 		hp.early_stop = True
 
+		def evaluate_model(epoch, logs={}):
+			epoch_label = f"val_epoch{epoch}"
+			if hp.model_type() != 'linear':
+				train_acc = logs['acc']
+			else:
+				train_acc = logs[hp.loss]
+			tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(parent.model, validation_data_with_slidenames, 
+																								parent.SLIDE_ANNOTATIONS, hp.model_type(), 
+																								parent.DATA_DIR, label=epoch_label, manifest=parent.MANIFEST,
+																								min_tiles_per_slide=min_tiles_per_slide)
+			log.info("Beginning testing at epoch end", 1)
+			val_loss, val_acc = parent.model.evaluate(validation_data, verbose=0)
+			results['epochs'][f'epoch{epoch}'] = {}
+			results['epochs'][f'epoch{epoch}']['train_acc'] = np.amax(train_acc)
+			results['epochs'][f'epoch{epoch}']['val_loss'] = val_loss
+			results['epochs'][f'epoch{epoch}']['val_acc'] = val_acc
+			for i, auc in enumerate(tile_auc):
+				results['epochs'][f'epoch{epoch}'][f'tile_auc{i}'] = auc
+			for i, auc in enumerate(slide_auc):
+				results['epochs'][f'epoch{epoch}'][f'slide_auc{i}'] = auc
+			for i, auc in enumerate(patient_auc):
+				results['epochs'][f'epoch{epoch}'][f'patient_auc{i}'] = auc
+			results['epochs'][f'epoch{epoch}']['r_squared'] = r_squared
+			epoch_results = results['epochs'][f'epoch{epoch}']
+			sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
+
+
 		class EpochEndCallback(tf.keras.callbacks.Callback):
 			def on_epoch_end(self, epoch, logs={}):
 				if epoch+1 in [e*100 for e in hp.finetune_epochs]:
 					self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5"))
 					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
-						epoch_label = f"val_epoch{epoch+1}"
-						if hp.model_type() != 'linear':
-							train_acc = logs['acc']
-						else:
-							train_acc = logs[hp.loss]
-						tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, validation_data_with_slidenames, 
-																										   parent.SLIDE_ANNOTATIONS, hp.model_type(), 
-																										   parent.DATA_DIR, label=epoch_label, manifest=parent.MANIFEST,
-																										   min_tiles_per_slide=min_tiles_per_slide)
-						log.info("Beginning testing at epoch end", 1)
-						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
-
-						results['epochs'][f'epoch{epoch+1}'] = {}
-						results['epochs'][f'epoch{epoch+1}']['train_acc'] = np.amax(train_acc)
-						results['epochs'][f'epoch{epoch+1}']['val_loss'] = val_loss
-						results['epochs'][f'epoch{epoch+1}']['val_acc'] = val_acc
-						for i, auc in enumerate(tile_auc):
-							results['epochs'][f'epoch{epoch+1}'][f'tile_auc{i}'] = auc
-						for i, auc in enumerate(slide_auc):
-							results['epochs'][f'epoch{epoch+1}'][f'slide_auc{i}'] = auc
-						for i, auc in enumerate(patient_auc):
-							results['epochs'][f'epoch{epoch+1}'][f'patient_auc{i}'] = auc
-						results['epochs'][f'epoch{epoch+1}']['r_squared'] = r_squared
-
-						epoch_results = results['epochs'][f'epoch{epoch+1}']
-
-						sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch+1}': epoch_results})
+						evaluate_model(epoch+1, logs)
 				results['epoch_count'] += 1
 
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
@@ -621,13 +622,17 @@ class SlideflowModel:
 					if hp.early_stop and (float(batch)/steps_per_epoch)+results['epoch_count'] > hp.early_stop_patience:
 						if val_acc <= results['val_acc_two_checks_prior']:
 							print("EARLY STOP")
-							# Do final model checking and saving
+							# Save model
+							self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{results['epoch_count']+1}_ES.h5"))
+							# Do final model evaluation
+							if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
+								evaluate_model(results['epoch_count']+1, logs)
+							# End training
 							self.model.stop_training = True
 						else:
 							results['val_acc_two_checks_prior'] = results['val_acc_one_check_prior']
 							results['val_acc_one_check_prior'] = val_acc
 							
-
 		callbacks = [history_callback, PredictionAndEvaluationCallback(), EpochEndCallback(), cp_callback, tensorboard_callback]
 		
 		if hp.early_stop:
