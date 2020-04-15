@@ -116,7 +116,6 @@ class TestSuite:
 	def configure_project(self):
 		print("Setting up initial project configuration...")
 		self.SFP.PROJECT = PROJECT_CONFIG
-		self.SFP.FLAGS['test_mode'] = True
 		self.SFP.save_project()
 		print("\t...DONE")
 

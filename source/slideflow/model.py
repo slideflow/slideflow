@@ -86,6 +86,7 @@ class HyperParameters:
 	}
 	_LinearLoss = ['mean_squared_error', 'mean_absolute_error', 'mean_absolute_percentage_error', 'mean_squared_logarithmic_error', 'squared_hinge', 'hinge', 'logcosh']
 
+	validate_on_batch = 20
 	def __init__(self, finetune_epochs=10, toplayer_epochs=0, model='InceptionV3', pooling='max', loss='sparse_categorical_crossentropy',
 				 learning_rate=0.001, batch_size=16, hidden_layers=1, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
@@ -549,11 +550,6 @@ class SlideflowModel:
 		else:
 			validation_data_for_training = None
 			val_steps = 0
-
-		# Testing overide
-		if self.TEST_MODE:
-			num_tiles = 100
-			hp.finetune_epochs = 2
 
 		# Prepare results
 		results = {'epochs': {}}
