@@ -575,8 +575,6 @@ class SlideflowModel:
 															  update_freq=log_frequency)
 		parent = self
 
-		hp.early_stop = True
-
 		def evaluate_model(epoch, logs={}):
 			epoch_label = f"val_epoch{epoch}"
 			if hp.model_type() != 'linear':
@@ -602,7 +600,6 @@ class SlideflowModel:
 			results['epochs'][f'epoch{epoch}']['r_squared'] = r_squared
 			epoch_results = results['epochs'][f'epoch{epoch}']
 			sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
-
 
 		class EpochEndCallback(tf.keras.callbacks.Callback):
 			def on_epoch_end(self, epoch, logs={}):
