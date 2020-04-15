@@ -98,7 +98,7 @@ class HyperParameters:
 		batch_norm_decay 0.99
 		'''
 		self.toplayer_epochs = toplayer_epochs
-		self.finetune_epochs = finetune_epochs
+		self.finetune_epochs = finetune_epochs if type(finetune_epochs) == list else [finetune_epochs]
 		self.model = model
 		self.pooling = pooling
 		self.loss = loss
