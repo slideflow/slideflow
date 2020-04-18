@@ -54,6 +54,33 @@ BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
 NO_BALANCE = 'NO_BALANCE'
 
+# James 4/18/2020: Moved regularization function to the "model" submodule for organization purposes
+def add_regularization(model, regularizer):
+	# this function is from "https://sthalles.github.io/keras-regularizer/"
+	# adds regularizer to layers where you can set such an attribute, in this case, L2 regularization.
+	if not isinstance(regularizer, tf.keras.regularizers.Regularizer):
+		print("Regularizer must be a subclass of tf.keras.regularizers.Regularizer")
+		return model
+
+	for layer in model.layers:
+		for attr in ['kernel_regularizer']:
+			if hasattr(layer, attr):
+				setattr(layer, attr, regularizer)
+
+    # When we change the layers attributes, the change only happens in the model config file
+	model_json = model.to_json()
+
+	# Save the weights before reloading the model.
+	tmp_weights_path = os.path.join(tempfile.gettempdir(), 'tmp_weights.h5')
+	model.save_weights(tmp_weights_path)
+
+	# load the model from the config
+	model = tf.keras.models.model_from_json(model_json)
+
+	# Reload the model weights
+	model.load_weights(tmp_weights_path, by_name=True)
+	return model
+
 class HyperParameters:
 	'''Object to supervise construction of a set of hyperparameters for Slideflow models.'''
 	_OptDict = {
@@ -89,7 +116,8 @@ class HyperParameters:
 	def __init__(self, finetune_epochs=10, toplayer_epochs=0, model='InceptionV3', pooling='max', loss='sparse_categorical_crossentropy',
 				 learning_rate=0.001, batch_size=16, hidden_layers=1, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
-				 validate_on_batch=256, augment=True):
+				 hidden_layer_width=1000, trainable_layers=0, max_tiles_per_slide=750, min_tiles_per_slide=0,
+				 L2_weight=0, validate_on_batch=256, augment=True):
 		''' Additional hyperparameters to consider:
 		beta1 0.9
 		beta2 0.999
@@ -111,6 +139,11 @@ class HyperParameters:
 		self.balanced_validation = balanced_validation
 		self.validate_on_batch = validate_on_batch
 		self.augment = augment
+		self.hidden_layer_width = hidden_layer_width # Sara added 4/6/2020
+		self.trainable_layers = trainable_layers # Sara added 4/6/2020
+		self.max_tiles_per_slide = max_tiles_per_slide # Sara added 4/6/2020
+		self.min_tiles_per_slide = min_tiles_per_slide # Sara added 4/6/2020
+		self.L2_weight = float(L2_weight) # Sara added 4/6/2020
 
 	def _get_args(self):
 		return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt', 'get_model', 'model_type']]
@@ -219,7 +252,8 @@ class SlideflowModel:
 							outcome = slide_annotations[slide]['outcome']
 							writer.writerow([slide, 'validation', outcome])
 
-	def _build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, include_slidenames=False, multi_input=False):
+	def _build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, max_tiles_per_slide=None, 
+								min_tiles_per_slide=None, include_slidenames=False, multi_input=False):
 		'''Assembles dataset inputs from tfrecords.
 		
 		Args:
@@ -228,7 +262,10 @@ class SlideflowModel:
 								 (only available if TFRECORDS_BY_PATIENT=True)'''
 		self.AUGMENT = augment
 		with tf.name_scope('input'):
-			dataset, dataset_with_slidenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, include_slidenames, multi_input)
+			dataset, dataset_with_slidenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, max_tiles_per_slide=max_tiles_per_slide,
+																															 min_tiles_per_slide=min_tiles_per_slide,
+																															 include_slidenames=include_slidenames,
+																															 multi_input=multi_input)
 		return dataset, dataset_with_slidenames, num_tiles
 
 	def _build_model(self, hp, pretrain=None, checkpoint=None):
@@ -244,20 +281,36 @@ class SlideflowModel:
 			base_model = hp.get_model(input_shape=(self.IMAGE_SIZE, self.IMAGE_SIZE, 3),
 									  weights=pretrain)
 
-		# Combine base model with top layer (classification/prediction layer)
+		# Add L2 regularization to all compatible layers in the base model
+		if hp.L2_weight != 0:
+			regularizer = tf.keras.regularizers.l2(hp.L2_weight)
+			base_model = add_regularization(base_model, regularizer)
+		else:
+			regularizer = None
+
+		# Allow only a subset of layers to be trainable
+		if hp.trainable_layers != 0:
+			# freezeIndex is the layer from 0 up to Index that should be frozen (not trainable). 
+			# Per Jakob's models, all but last 10, 20, or 30 layers were frozen. His last three layers were a 1000-node fully connected layer (eqv. to our hidden layers), 
+			# then softmax, then classification. It looks like we don't add a classification layer on though, I don't see it added anywhere.
+			# I see below that we add on the hidden layer and softmax layer, so I am freezing (10-2=8) only, since when we add the last layers on it will add up to 10, 20, 30
+			freezeIndex = int(len(base_model.layers) - (hp.trainable_layers - hp.hidden_layers - 1))
+			for layer in base_model.layers[:freezeIndex]:
+				layer.trainable = False
+
+		# Base model and pooling
+		# James 4/18/2020: The model is collapsed into one layer to allow for easier loading of pretrained models
 		layers = [base_model]
 		if not hp.pooling:
 			layers += [tf.keras.layers.Flatten()]
+
 		# Add hidden layers if specified
 		for i in range(hp.hidden_layers):
-			layers += [tf.keras.layers.Dense(500, activation='relu')]
-		# If no hidden layers and no pooling is used, flatten the output prior to softmax
-		
+				layers += [tf.keras.layers.Dense(hp.hidden_layer_width, activation='relu', kernel_regularizer=regularizer)]
+
 		# Add the softmax prediction layer
-		if hp.model_type() == "linear":
-			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='linear')]
-		else:
-			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')]
+		activation = 'linear' if hp.model_type() == 'linear' else 'softmax'
+		layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation=activation, kernel_regularizer=regularizer)]
 		model = tf.keras.Sequential(layers)
 
 		if checkpoint:
@@ -265,7 +318,7 @@ class SlideflowModel:
 			model.load_weights(checkpoint)
 
 		return model
-
+	
 	def _build_multi_input_model(self, hp, pretrain=None, checkpoint=None):
 		base_model = tf.keras.applications.Xception(input_shape=(299,299,3),
 													include_top=False,
@@ -287,20 +340,22 @@ class SlideflowModel:
 
 		return model
 
-	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, include_slidenames=False, multi_input=False):
+	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, max_tiles_per_slide=None, min_tiles_per_slide=None, include_slidenames=False, multi_input=False):
 		'''Generates an interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to balancing if provided.
 		Requires self.MANIFEST. Assumes TFRecord files are named by slide.
 
 		Args:
-			tfrecords	Array of paths to TFRecord files
-			batch_size	Batch size
-			balance		Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,
-							BALANCE_BY_PATIENT, and NO_BALANCE. If finite option is used, will drop
-							tiles in order to maintain proportions across the interleaved dataset.
-			augment		Whether to use data augmentation (random flip/rotate)
-			finite		Whether create finite or infinite datasets. WARNING: If finite option is 
-							used with balancing, some tiles will be skipped.'''
+			tfrecords			Array of paths to TFRecord files
+			batch_size			Batch size
+			balance				Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,
+									BALANCE_BY_PATIENT, and NO_BALANCE. If finite option is used, will drop
+									tiles in order to maintain proportions across the interleaved dataset.
+			augment				Whether to use data augmentation (random flip/rotate)
+			finite				Whether create finite or infinite datasets. WARNING: If finite option is 
+									used with balancing, some tiles will be skipped.
+			max_tiles_per_slide	Maximum number of tiles to use per slide.
+			min_tiles_per_slide	Minimum number of tiles that each slide must have to be included. '''
 							 
 		log.info(f"Interleaving {len(tfrecords)} tfrecords, finite={finite}", 1)
 		datasets = []
@@ -315,10 +370,28 @@ class SlideflowModel:
 			log.error(f"No TFRecords found.", 1)
 			sys.exit()
 
+		# if max_tiles_per_slide:
+		#	num_to_take = min(max_tiles_per_slide, num_to_take)
+
 		for filename in tfrecords:
 			slide_name = filename.split('/')[-1][:-10]
 			
 			if slide_name not in self.SLIDES:
+				continue
+
+			# Determine total number of tiles available in TFRecord
+			try:
+				tiles = self.MANIFEST[filename]['total']
+			except KeyError:
+				log.error(f"Manifest not finished, unable to find {sfutil.green(filename)}", 1)
+				sys.exit()
+			
+			# Ensure TFRecord has minimum number of tiles; otherwise, skip
+			if not min_tiles_per_slide and tiles == 0:
+				log.info(f"Skipping empty tfrecord {sfutil.green(slide_name)}", 2)
+				continue
+			elif tiles < min_tiles_per_slide:
+				log.info(f"Skipping tfrecord {sfutil.green(slide_name)}; has {tiles} tiles (minimum: {min_tiles_per_slide})", 2)
 				continue
 			
 			# Assign category by outcome if this is a categorical model.
@@ -327,11 +400,12 @@ class SlideflowModel:
 			dataset_to_add = tf.data.TFRecordDataset(filename) if finite else tf.data.TFRecordDataset(filename).repeat()
 			datasets += [dataset_to_add]
 			datasets_categories += [category]
-			try:
-				tiles = self.MANIFEST[filename]['total']
-			except KeyError:
-				log.error(f"Manifest not finished, unable to find {sfutil.green(filename)}", 1)
-				sys.exit()
+
+			# Cap number of tiles to take from TFRecord at maximum specified
+			if max_tiles_per_slide and tiles > max_tiles_per_slide:
+				log.empty(f"Only taking maximum of {max_tiles_per_slide} (of {tiles}) tiles from {sfutil.green(filename)}", 2)
+				tiles = max_tiles_per_slide
+			
 			if category not in categories.keys():
 				categories.update({category: {'num_slides': 1,
 											  'num_tiles': tiles}})
@@ -344,6 +418,8 @@ class SlideflowModel:
 			lowest_category_tile_count = min([categories[i]['num_tiles'] for i in categories])
 			categories_prob[category] = lowest_category_slide_count / categories[category]['num_slides']
 			categories_tile_fraction[category] = lowest_category_tile_count / categories[category]['num_tiles']
+
+		# Balancing
 		if balance == NO_BALANCE:
 			log.empty(f"Not balancing input", 2)
 			prob_weights = [i/sum(num_tiles) for i in num_tiles]
@@ -352,32 +428,25 @@ class SlideflowModel:
 			prob_weights = [1.0] * len(datasets)
 			if finite:
 				# Only take as many tiles as the number of tiles in the smallest dataset
+				minimum_tiles = min(num_tiles)
 				for i in range(len(datasets)):
-					num_to_take = min(num_tiles)
-					datasets[i] = datasets[i].take(num_to_take)
-					global_num_tiles += num_to_take
+					num_tiles[i] = minimum_tiles
 		if balance == BALANCE_BY_CATEGORY:
 			log.empty(f"Balancing input across categories", 2)
 			prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
 			if finite:
 				# Only take as many tiles as the number of tiles in the smallest category
 				for i in range(len(datasets)):
-					num_to_take = int(num_tiles[i] * categories_tile_fraction[datasets_categories[i]])
-					log.empty(f"Tile fraction (dataset {i+1}/{len(datasets)}): {categories_tile_fraction[datasets_categories[i]]}, taking {num_to_take}", 2)
-					datasets[i] = datasets[i].take(num_to_take)
-					global_num_tiles += num_to_take
+					num_tiles[i] = int(num_tiles[i] * categories_tile_fraction[datasets_categories[i]])
+					log.empty(f"Tile fraction (dataset {i+1}/{len(datasets)}): {categories_tile_fraction[datasets_categories[i]]}, taking {num_tiles[i]}", 2)
 				log.empty(f"Global num tiles: {global_num_tiles}", 2)
 		
-		# Remove empty slides
-		for i in sorted(range(len(prob_weights)), reverse=True):
-			if num_tiles[i] == 0:
-				del(num_tiles[i])
-				del(datasets[i])
-				del(datasets_categories[i])
-				del(prob_weights[i])
-		# If the global tile count was not manually set as above, then assume it is the sum of all tiles across all slides
-		if global_num_tiles==0:
-			global_num_tiles = sum(num_tiles)
+		# Take the calculcated number of tiles from each dataset and calculate global number of tiles
+		for i in range(len(datasets)):
+			datasets[i] = datasets[i].take(num_tiles[i])
+		global_num_tiles = sum(num_to_take)
+
+		# Interleave datasets
 		try:
 			dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
 		except IndexError:
@@ -484,7 +553,12 @@ class SlideflowModel:
 			log.error("If using a checkpoint for evaluation, hyperparameters must be specified.")
 			sys.exit()
 		batch_size = batch_size if not hp else hp.batch_size
-		dataset, dataset_with_slidenames, num_tiles = self._build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment=False, finite=True, include_slidenames=True, multi_input=multi_input)
+		dataset, dataset_with_slidenames, num_tiles = self._build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment=False, 
+																													finite=True,
+																													max_tiles_per_slide=hp.max_tiles_per_slide,
+																													min_tiles_per_slide=hp.min_tiles_per_slide,
+																													include_slidenames=True,
+																													multi_input=multi_input)
 		if model:
 			self.model = tf.keras.models.load_model(model)
 		elif checkpoint:
@@ -494,8 +568,7 @@ class SlideflowModel:
 		# Generate performance metrics
 		log.info("Calculating performance metrics...", 1)
 		tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, dataset_with_slidenames, self.SLIDE_ANNOTATIONS, 
-																						   model_type, self.DATA_DIR, label="eval", manifest=self.MANIFEST,
-																						   min_tiles_per_slide=min_tiles_per_slide)
+																						   model_type, self.DATA_DIR, label="eval", manifest=self.MANIFEST)
 
 		log.info(f"Tile AUC: {tile_auc}", 1)
 		log.info(f"Slide AUC: {slide_auc}", 1)
@@ -525,7 +598,7 @@ class SlideflowModel:
 		
 		return val_acc
 
-	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=100, min_tiles_per_slide=0, multi_input=False):
+	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=100, multi_input=False):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -543,10 +616,19 @@ class SlideflowModel:
 		#tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
 
 		# Build inputs
-		train_data, _, num_tiles = self._build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, include_slidenames=False, multi_input=multi_input)
-		using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
+		train_data, _, num_tiles = self._build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, finite=false,
+																																	 max_tiles_per_slide=hp.max_tiles_per_slide,
+																																	 min_tiles_per_slide=hp.min_tiles_per_slide,
+																																	 include_slidenames=False,
+																																	 multi_input=multi_input)
+    using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
 		if using_validation:
-			validation_data, validation_data_with_slidenames, _ = self._build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, augment=False, finite=True, include_slidenames=True, multi_input=multi_input)	
+			validation_data, validation_data_with_slidenames, _ = self._build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, augment=False, 
+																																							   finite=True,
+																																							   max_tiles_per_slide=hp.max_tiles_per_slide,
+																																							   min_tiles_per_slide=hp.min_tiles_per_slide,
+																																							   include_slidenames=True, 
+																																							   multi_input=multi_input)
 		validation_data_for_training = None if not using_validation else validation_data.repeat()
 		val_steps = 0 if not using_validation else 200
 
