@@ -1011,20 +1011,23 @@ class SlideflowProject:
 		for tfr in tfrecords_list:
 			sfio.tfrecords.transform_tfrecord(tfr, tfr+".transformed", resize=size)
 	
-	# Sara added 4/6/2020
-	def generate_tiles_from_tfrecords(self, destination=None, filters=None):
+	def extract_tiles_from_tfrecords(self, destination=None, filters=None):
 		'''Extracts all tiles from a set of TFRecords'''
 		log.header(f"Extracting tiles from TFRecords")
 		to_extract_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
-		#if not destination:
-		#	to_extract_dataset_config = self.PROJECT['dataset_config']
-		#	destination = 
 		to_extract_dataset.load_annotations(self.PROJECT['annotations'])
-		to_extract_tfrecords = to_extract_dataset.get_tfrecords()
-		tfrecords_list = to_extract_dataset.filter_tfrecords_paths(to_extract_tfrecords, filters=filters)
+		to_extract_dataset.apply_filters(filters)
 		
-		for tfr in tfrecords_list:
-			sfio.tfrecords.extract_tiles(tfr, destination)
+		for dataset_name in self.PROJECT['datasets']:
+			to_extract_tfrecords = to_extract_dataset.get_tfrecords(dataset=dataset_name)
+			if destination:
+				tiles_dir = destination
+			else:
+				tiles_dir = join(to_extract_dataset.datasets[dataset_name]['tiles'], to_extract_dataset.datasets[dataset_name]['label'])
+				if not exists(tiles_dir):
+					os.makedirs(tiles_dir)
+			for tfr in to_extract_tfrecords:
+				sfio.tfrecords.extract_tiles(tfr, tiles_dir)		
 
 	def save_project(self):
 		'''Saves current project configuration as "settings.json".'''
