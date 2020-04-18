@@ -75,7 +75,7 @@ ANNOTATIONS = [
 	['234867', 'TEST2', 'NIFTP', 'cat2a', '7.8', '4.1', ''],
 ]
 
-SLIDES_TO_VERIFY = ['234798', '234840']
+SLIDES_TO_VERIFY = ['234834', '234840']
 
 # --------------------------------------------------------------------------------------
 
@@ -116,7 +116,6 @@ class TestSuite:
 	def configure_project(self):
 		print("Setting up initial project configuration...")
 		self.SFP.PROJECT = PROJECT_CONFIG
-		self.SFP.FLAGS['test_mode'] = True
 		self.SFP.save_project()
 		print("\t...DONE")
 
@@ -138,13 +137,13 @@ class TestSuite:
 			csv_writer = csv.writer(csv_outfile, delimiter=',')
 			for an in ANNOTATIONS:
 				csv_writer.writerow(an)
-		self.SFP.associate_slide_names()
 		project_dataset = Dataset(config_file=PROJECT_CONFIG['dataset_config'], sources=PROJECT_CONFIG['datasets'])
 		project_dataset.load_annotations(PROJECT_CONFIG['annotations'])
-		loaded_slides = project_dataset.get_slides_from_annotations()
+		project_dataset.update_annotations_with_slidenames(PROJECT_CONFIG['annotations'])
+		loaded_slides = project_dataset.get_slides()
 		for slide in SLIDES_TO_VERIFY:
 			if slide not in loaded_slides:
-				log.error("Failed to correctly associate slide names; please see annotations file below.")
+				log.error(f"Failed to correctly associate slide names ({slide}); please see annotations file below.")
 				with open(outfile, 'r') as ann_read:
 					print()
 					print(ann_read.read())
@@ -200,7 +199,7 @@ class TestSuite:
 		extracting_dataset = Dataset(config_file=self.SFP.PROJECT['dataset_config'], sources=self.SFP.PROJECT['datasets'])
 		extracting_dataset.load_annotations(self.SFP.PROJECT['annotations'])
 		dataset_name = self.SFP.PROJECT['datasets'][0]
-		slide_list = extracting_dataset.filter_slide_paths(extracting_dataset.get_slides_by_dataset(dataset_name), filters=None)
+		slide_list = extracting_dataset.get_slide_paths(dataset=dataset_name)
 		roi_dir = extracting_dataset.datasets[dataset_name]['roi'] 
 		tiles_dir = extracting_dataset.datasets[dataset_name]['tiles']
 		pb = ProgressBar(bar_length=5, counter_text='tiles')
@@ -261,10 +260,11 @@ class TestSuite:
 													outcome_header='category1', 
 													focus_nodes=[0])
 		AV.generate_box_plots()
-		AV.plot_2D_umap()
+		umap = AV.calculate_umap()
+		umap.save_2d_plot(join(PROJECT_CONFIG['root'], 'stats', '2d_umap.png'))
 		top_nodes = AV.get_top_nodes_by_slide()
 		for node in top_nodes[:5]:
-			AV.plot_3D_umap(node)
+			umap.save_3d_node_plot(node)
 		print("\t...OK")
 
 	def test(self):

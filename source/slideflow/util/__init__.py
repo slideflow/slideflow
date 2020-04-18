@@ -39,6 +39,7 @@ LOGGING_PREFIXES = ['', ' + ', '    - ']
 LOGGING_PREFIXES_WARN = ['', ' ! ', '    ! ']
 LOGGING_PREFIXES_EMPTY = ['', '   ', '     ']
 
+# Old BatchNorm fix for bug in TF v1.14
 class UpdatedBatchNormalization(tf.keras.layers.BatchNormalization):
 	def call(self, inputs, training=None):
 		true_phase = int(K.get_session().run(K.learning_phase()))

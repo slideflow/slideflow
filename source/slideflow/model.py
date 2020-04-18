@@ -116,8 +116,8 @@ class HyperParameters:
 	def __init__(self, finetune_epochs=10, toplayer_epochs=0, model='InceptionV3', pooling='max', loss='sparse_categorical_crossentropy',
 				 learning_rate=0.001, batch_size=16, hidden_layers=1, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
-				 augment=True, hidden_layer_width=1000, trainable_layers=0, max_tiles_per_slide=750, min_tiles_per_slide=0,
-				 L2_weight=0):
+				 hidden_layer_width=1000, trainable_layers=0, max_tiles_per_slide=750, min_tiles_per_slide=0,
+				 L2_weight=0, validate_on_batch=256, augment=True):
 		''' Additional hyperparameters to consider:
 		beta1 0.9
 		beta2 0.999
@@ -125,7 +125,7 @@ class HyperParameters:
 		batch_norm_decay 0.99
 		'''
 		self.toplayer_epochs = toplayer_epochs
-		self.finetune_epochs = finetune_epochs
+		self.finetune_epochs = finetune_epochs if type(finetune_epochs) == list else [finetune_epochs]
 		self.model = model
 		self.pooling = pooling
 		self.loss = loss
@@ -137,6 +137,7 @@ class HyperParameters:
 		self.early_stop_patience = early_stop_patience
 		self.balanced_training = balanced_training
 		self.balanced_validation = balanced_validation
+		self.validate_on_batch = validate_on_batch
 		self.augment = augment
 		self.hidden_layer_width = hidden_layer_width # Sara added 4/6/2020
 		self.trainable_layers = trainable_layers # Sara added 4/6/2020
@@ -190,7 +191,7 @@ class HyperParameters:
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
-	def __init__(self, data_directory, image_size, slide_annotations, train_tfrecords, validation_tfrecords, manifest=None, use_fp16=True, model_type='categorical', test_mode=False):
+	def __init__(self, data_directory, image_size, slide_annotations, train_tfrecords, validation_tfrecords, manifest=None, use_fp16=True, model_type='categorical'):
 		self.DATA_DIR = data_directory # Directory where to write event logs and checkpoints.
 		self.MANIFEST = manifest
 		self.IMAGE_SIZE = image_size
@@ -201,7 +202,6 @@ class SlideflowModel:
 		self.VALIDATION_TFRECORDS = validation_tfrecords
 		self.MODEL_TYPE = model_type
 		self.SLIDES = list(slide_annotations.keys())
-		self.TEST_MODE = test_mode
 		outcomes = [slide_annotations[slide]['outcome'] for slide in self.SLIDES]
 
 		if model_type == 'categorical':
@@ -598,7 +598,7 @@ class SlideflowModel:
 		
 		return val_acc
 
-	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=20, multi_input=False):
+	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=100, multi_input=False):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -613,90 +613,106 @@ class SlideflowModel:
 		Returns:
 			Results dictionary, Keras history object'''
 
+		#tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
+
 		# Build inputs
 		train_data, _, num_tiles = self._build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, finite=false,
 																																	 max_tiles_per_slide=hp.max_tiles_per_slide,
 																																	 min_tiles_per_slide=hp.min_tiles_per_slide,
 																																	 include_slidenames=False,
 																																	 multi_input=multi_input)
-		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
+    using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
+		if using_validation:
 			validation_data, validation_data_with_slidenames, _ = self._build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, augment=False, 
 																																							   finite=True,
 																																							   max_tiles_per_slide=hp.max_tiles_per_slide,
 																																							   min_tiles_per_slide=hp.min_tiles_per_slide,
 																																							   include_slidenames=True, 
 																																							   multi_input=multi_input)
-			validation_data_for_training = validation_data.repeat()
-			val_steps = 200
-		else:
-			validation_data_for_training = None
-			val_steps = 0
-
-		# Testing overide
-		if self.TEST_MODE:
-			num_tiles = 100
-			hp.finetune_epochs = 2
+		validation_data_for_training = None if not using_validation else validation_data.repeat()
+		val_steps = 0 if not using_validation else 200
 
 		# Prepare results
-		results = {'epochs': {}}
+		results = {'epochs': {}, 'epoch_count': 0, 'val_acc_two_checks_prior': 0, 'val_acc_one_check_prior': 0}
 
 		# Calculate parameters
-		if type(hp.finetune_epochs) != list:
-			hp.finetune_epochs = [hp.finetune_epochs]
 		total_epochs = hp.toplayer_epochs + max(hp.finetune_epochs)
-		initialized_optimizer = hp.get_opt()
 		steps_per_epoch = round(num_tiles/hp.batch_size)
-		tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
+		initialized_optimizer = hp.get_opt()
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
 		metrics = ['acc'] if hp.model_type() != 'linear' else [hp.loss]
+
+		# Epoch override
+		#steps_per_epoch = round(steps_per_epoch/100)
+		#total_epochs = total_epochs * 100
 
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
 		early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=hp.early_stop_patience)
 		checkpoint_path = os.path.join(self.DATA_DIR, "cp.ckpt")
-		cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
-														save_weights_only=True,
-														verbose=1)
-		
+		cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, save_weights_only=True, verbose=1)
 		tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.DATA_DIR, 
-															histogram_freq=0,
-															write_graph=False,
-															update_freq=hp.batch_size*log_frequency)
+															  histogram_freq=0,
+															  write_graph=False,
+															  update_freq=log_frequency)
 		parent = self
 
-		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
-			def on_epoch_end(self, epoch, logs=None):
-				if epoch+1 in hp.finetune_epochs:
+		def evaluate_model(epoch, logs={}):
+			epoch_label = f"val_epoch{epoch}"
+			if hp.model_type() != 'linear':
+				train_acc = logs['acc']
+			else:
+				train_acc = logs[hp.loss]
+			tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(parent.model, validation_data_with_slidenames, 
+																								parent.SLIDE_ANNOTATIONS, hp.model_type(), 
+																								parent.DATA_DIR, label=epoch_label, manifest=parent.MANIFEST,
+																								min_tiles_per_slide=min_tiles_per_slide)
+			log.info("Beginning testing at epoch end", 1)
+			val_loss, val_acc = parent.model.evaluate(validation_data, verbose=0)
+			results['epochs'][f'epoch{epoch}'] = {}
+			results['epochs'][f'epoch{epoch}']['train_acc'] = np.amax(train_acc)
+			results['epochs'][f'epoch{epoch}']['val_loss'] = val_loss
+			results['epochs'][f'epoch{epoch}']['val_acc'] = val_acc
+			for i, auc in enumerate(tile_auc):
+				results['epochs'][f'epoch{epoch}'][f'tile_auc{i}'] = auc
+			for i, auc in enumerate(slide_auc):
+				results['epochs'][f'epoch{epoch}'][f'slide_auc{i}'] = auc
+			for i, auc in enumerate(patient_auc):
+				results['epochs'][f'epoch{epoch}'][f'patient_auc{i}'] = auc
+			results['epochs'][f'epoch{epoch}']['r_squared'] = r_squared
+			epoch_results = results['epochs'][f'epoch{epoch}']
+			sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
+
+		class EpochEndCallback(tf.keras.callbacks.Callback):
+			def on_epoch_end(self, epoch, logs={}):
+				if epoch+1 in [e*100 for e in hp.finetune_epochs]:
 					self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5"))
 					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
-						epoch_label = f"val_epoch{epoch+1}"
-						if hp.model_type() != 'linear':
-							train_acc = logs['acc']
+						evaluate_model(epoch+1, logs)
+				results['epoch_count'] += 1
+
+		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
+			def on_batch_end(self, batch, logs={}):
+				if (batch > 0) and (batch % hp.validate_on_batch == 0) and (parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS)):
+					val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
+					print(f" val_loss: {val_loss:.3f} | val_acc: {val_acc:.3f}")
+
+					# If early stopping and our patience criteria has been met, check if validation accuracy is still improving 
+					if hp.early_stop and (float(batch)/steps_per_epoch)+results['epoch_count'] > hp.early_stop_patience:
+						if val_acc <= results['val_acc_two_checks_prior']:
+							log.info(f"Early stop triggered: epoch {results['epoch_count']+1}, batch {batch}", 1)
+							# Save model
+							self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{results['epoch_count']+1}_ES.h5"))
+							# Do final model evaluation
+							if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
+								evaluate_model(results['epoch_count']+1, logs)
+							# End training
+							self.model.stop_training = True
 						else:
-							train_acc = logs[hp.loss]
-						tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, validation_data_with_slidenames, 
-																										   parent.SLIDE_ANNOTATIONS, hp.model_type(), 
-																										   parent.DATA_DIR, label=epoch_label, manifest=parent.MANIFEST)
-						log.info("Beginning validation testing", 1)
-						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
-
-						results['epochs'][f'epoch{epoch+1}'] = {}
-						results['epochs'][f'epoch{epoch+1}']['train_acc'] = np.amax(train_acc)
-						results['epochs'][f'epoch{epoch+1}']['val_loss'] = val_loss
-						results['epochs'][f'epoch{epoch+1}']['val_acc'] = val_acc
-						for i, auc in enumerate(tile_auc):
-							results['epochs'][f'epoch{epoch+1}'][f'tile_auc{i}'] = auc
-						for i, auc in enumerate(slide_auc):
-							results['epochs'][f'epoch{epoch+1}'][f'slide_auc{i}'] = auc
-						for i, auc in enumerate(patient_auc):
-							results['epochs'][f'epoch{epoch+1}'][f'patient_auc{i}'] = auc
-						results['epochs'][f'epoch{epoch+1}']['r_squared'] = r_squared
-
-						epoch_results = results['epochs'][f'epoch{epoch+1}']
-
-						sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch+1}': epoch_results})
-
-		callbacks = [history_callback, PredictionAndEvaluationCallback(), cp_callback, tensorboard_callback]
+							results['val_acc_two_checks_prior'] = results['val_acc_one_check_prior']
+							results['val_acc_one_check_prior'] = val_acc
+							
+		callbacks = [history_callback, PredictionAndEvaluationCallback(), EpochEndCallback(), cp_callback, tensorboard_callback]
 		
 		if hp.early_stop:
 			callbacks += [early_stop_callback]
@@ -730,7 +746,5 @@ class SlideflowModel:
 								 validation_data=validation_data_for_training,
 								 validation_steps=val_steps,
 								 callbacks=callbacks)
-
-		self.model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
 
 		return results, history.history
