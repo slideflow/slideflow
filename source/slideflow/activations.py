@@ -1,8 +1,6 @@
 import sys
 import os
-import math
 import csv
-import cv2
 import pickle
 import time
 import random
@@ -13,16 +11,16 @@ import matplotlib.cm as cm
 import matplotlib.patches as patches
 import matplotlib.colors as mcol
 import seaborn as sns
-import pandas as pd
 import tensorflow as tf
 import scipy.stats as stats
 import slideflow.util as sfutil
-import slideflow.statistics as sfstats
 import slideflow.io as sfio
 
 from slideflow.util import log, ProgressBar, TCGA
+from slideflow.mosaic import Mosaic
+from slideflow.statistics import TFRecordUMAP
 from os.path import join, isfile, exists
-from random import shuffle, sample
+from random import sample
 from statistics import mean
 from math import isnan
 from copy import deepcopy
@@ -51,21 +49,19 @@ class ActivationsVisualizer:
 		Will also read/write processed activations to a PKL cache file to save time in future iterations.'''
 
 	missing_slides = []
-	umaps = []
-	tfrecords_paths = []
-	slides = []				# List of slide names (without extension or path)
-	slide_category_dict = {}
 	categories = []
 	used_categories = []
+	slide_category_dict = {}
 	slide_node_dict = {}
-
+	umap = None
+	
 	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_header=None, 
 					focus_nodes=[], use_fp16=True, batch_size=16, export_csv=False, max_tiles_per_slide=100):
 		self.focus_nodes = focus_nodes
 		self.MAX_TILES_PER_SLIDE = max_tiles_per_slide
 		self.IMAGE_SIZE = image_size
-		self.tfrecords_paths = np.array(tfrecords)
-		self.slides_to_include = [sfutil.path_to_name(tfr) for tfr in self.tfrecords_paths]
+		self.tfrecords = np.array(tfrecords)
+		self.slides = [sfutil.path_to_name(tfr) for tfr in self.tfrecords]
 
 		self.FLA = join(root_dir, "stats", "final_layer_activations.csv")
 		self.STATS_CSV_FILE = join(root_dir, "stats", "slide_level_summary.csv")
@@ -100,11 +96,11 @@ class ActivationsVisualizer:
 		# Now delete slides not included in our filtered TFRecord list
 		loaded_slides = list(self.slide_node_dict.keys())
 		for loaded_slide in loaded_slides:
-			if loaded_slide not in self.slides_to_include:
+			if loaded_slide not in self.slides:
 				del self.slide_node_dict[loaded_slide]
 
 		# Now screen for missing slides in activations
-		for slide in self.slides_to_include:
+		for slide in self.slides:
 			try:
 				if self.slide_node_dict[slide][0] == []:
 					self.missing_slides += [slide]
@@ -114,17 +110,10 @@ class ActivationsVisualizer:
 			except KeyError:
 				log.warn(f"Skipping unknown slide {slide}", 1)
 				self.missing_slides += [slide]
-		log.info(f"Loaded activations from {(len(self.slides_to_include)-len(self.missing_slides))}/{len(self.slides_to_include)} slides ({len(self.missing_slides)} missing)", 1)
+		log.info(f"Loaded activations from {(len(self.slides)-len(self.missing_slides))}/{len(self.slides)} slides ({len(self.missing_slides)} missing)", 1)
 		log.info(f"Observed categories (total: {len(self.used_categories)}):", 1)
 		for c in self.used_categories:
 			log.empty(f"\t{c}", 2)
-
-	def _get_tfrecords_path(self, slide):
-		for tfr in self.tfrecords_paths:
-			if sfutil.path_to_name(tfr) == slide:
-				return tfr
-		log.error(f"Unable to find TFRecord path for slide {sfutil.green(slide)}", 1)
-		sys.exit()
 
 	def _save_node_statistics_to_csv(self, nodes_avg_pt, tile_stats=None, slide_stats=None):
 		'''Exports statistics (ANOVA p-values and slide-level averages) to CSV.'''
@@ -134,7 +123,7 @@ class ActivationsVisualizer:
 			csv_writer = csv.writer(outfile)
 			header = ['slide', 'category'] + [f"FLNode{n}" for n in nodes_avg_pt]
 			csv_writer.writerow(header)
-			for slide in self.slides_to_include:
+			for slide in self.slides:
 				if slide in self.missing_slides: continue
 				category = self.slide_category_dict[slide]
 				row = [slide, category] + [mean(self.slide_node_dict[slide][n]) for n in nodes_avg_pt]
@@ -163,14 +152,14 @@ class ActivationsVisualizer:
 			for row in ann_reader:
 				slide = row[slide_i]
 				category = row[category_i]
-				if slide not in self.slides_to_include: continue
+				if slide not in self.slides: continue
 				self.slide_category_dict.update({slide:category})
 
 		self.categories = list(set(self.slide_category_dict.values()))
 
-		if self.slide_node_dict:		
+		if self.slide_node_dict:
 			# If initial loading has been completed already, make note of observed categories in given header
-			for slide in self.slides_to_include:
+			for slide in self.slides:
 				try:
 					if self.slide_node_dict[slide][0] != []:
 						self.used_categories = list(set(self.used_categories + [self.slide_category_dict[slide]]))
@@ -189,7 +178,7 @@ class ActivationsVisualizer:
 			return
 		tile_node_activations_by_category = []
 		for c in self.used_categories:
-			nodelist = [self.slide_node_dict[pt][node] for pt in self.slides_to_include if (pt not in self.missing_slides and self.slide_category_dict[pt] == c)]
+			nodelist = [self.slide_node_dict[pt][node] for pt in self.slides if (pt not in self.missing_slides and self.slide_category_dict[pt] == c)]
 			tile_node_activations_by_category += [[nodeval for nl in nodelist for nodeval in nl]]
 		return tile_node_activations_by_category
 
@@ -231,7 +220,7 @@ class ActivationsVisualizer:
 		model_output = loaded_model([model_input, model_input])
 		combined_model = tf.keras.Model(model_input, model_output)
 
-		unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in self.tfrecords_paths]))
+		unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in self.tfrecords]))
 
 		# Prepare PKL export dictionary
 		self.slide_node_dict = {}
@@ -257,7 +246,7 @@ class ActivationsVisualizer:
 			outfile = open(self.FLA, 'w')
 			csvwriter = csv.writer(outfile)
 
-		for t, tfrecord in enumerate(self.tfrecords_paths):
+		for t, tfrecord in enumerate(self.tfrecords):
 			dataset = tf.data.TFRecordDataset(tfrecord)
 
 			dataset = dataset.map(_parse_function, num_parallel_calls=8)
@@ -275,7 +264,7 @@ class ActivationsVisualizer:
 				logits_combined = logits if logits_combined == [] else np.concatenate([logits_combined, logits])
 				slides_combined = batch_slides if slides_combined == [] else np.concatenate([slides_combined, batch_slides])
 
-				sys.stdout.write(f"\r(TFRecord {t+1:>3}/{len(self.tfrecords_paths):>3}) (Batch {i+1:>3}) ({len(fl_activations_combined):>5} images): {sfutil.green(sfutil.path_to_name(tfrecord))}")
+				sys.stdout.write(f"\r(TFRecord {t+1:>3}/{len(self.tfrecords):>3}) (Batch {i+1:>3}) ({len(fl_activations_combined):>5} images): {sfutil.green(sfutil.path_to_name(tfrecord))}")
 				sys.stdout.flush()
 
 				if len(fl_activations_combined) >= self.MAX_TILES_PER_SLIDE:
@@ -374,7 +363,7 @@ class ActivationsVisualizer:
 		for node in self.nodes:
 			# For each node, calculate average across tiles found in a slide
 			print(f"Calculating activation averages & stats for node {node}...", end="\r")
-			for slide in self.slides_to_include:
+			for slide in self.slides:
 				if slide in self.missing_slides: continue
 				pt_cat = self.slide_category_dict[slide]
 				avg = mean(self.slide_node_dict[slide][node])
@@ -466,59 +455,14 @@ class ActivationsVisualizer:
 		
 		Returns:
 			Dictionary containing umap data'''
-		# First, try to load prior umap cache
-		try:
-			with open(self.UMAP_CACHE, 'rb') as umap_file:
-				self.umaps = pickle.load(umap_file)
-				log.info(f"Loaded UMAP cache from {sfutil.green(self.UMAP_CACHE)}", 1)
-		except:
-			log.info(f"No UMAP cache found at {sfutil.green(self.UMAP_CACHE)}", 1)
-
-		# Check if UMAP cache has already been calculated; if so, return
-		slides = [slide for slide in self.slides_to_include if slide not in self.missing_slides]
+		slides = [slide for slide in self.slides if slide not in self.missing_slides]
 		nodes_to_include = [n for n in self.nodes if n != exclude_node]
-		for um in self.umaps:
-			# Check to see if this has already been cached
-			if (sorted(um['nodes']) == sorted(nodes_to_include)) and (sorted(um['slides']) == sorted(slides)):
-				log.info("UMAP results already calculated and cached", 1)
-				return um
+		self.umap = TFRecordUMAP(self.tfrecords, slides, cache=self.UMAP_CACHE)
+		self.umap.calculate_from_nodes(self.slide_node_dict, nodes_to_include, exclude_slides=self.missing_slides)
+		return self.umap
 
-		# Otherwise, generate a new umap
-		log.info("No compatible UMAP results found in cache; recalculating", 1)
-		node_activations = []
-		umap_meta = []
-		log.empty("Calculating UMAP...", 1)
-		for slide in self.slides_to_include:
-			if slide in self.missing_slides: continue
-			first_node = list(self.slide_node_dict[slide].keys())[0]
-			num_vals = len(self.slide_node_dict[slide][first_node])
-			for i in range(num_vals):
-				node_activations += [[self.slide_node_dict[slide][n][i] for n in nodes_to_include]]
-				umap_meta += [{
-					'slide': slide,
-					'index': i,
-				}]
-		coordinates = sfstats.gen_umap(np.array(node_activations))
-		umap_x = np.array([c[0] for c in coordinates])
-		umap_y = np.array([c[1] for c in coordinates])
-
-		# Cache new umap
-		umap = {
-			'nodes': nodes_to_include,
-			'slides': slides,
-			'umap_x': umap_x,
-			'umap_y': umap_y,
-			'umap_meta': umap_meta
-		}
-		self.umaps += [umap]
-		with open(self.UMAP_CACHE, 'wb') as umap_file:
-			pickle.dump(self.umaps, umap_file)
-			log.info(f"Wrote UMAP cache to {sfutil.green(self.UMAP_CACHE)}", 1)
-
-		return umap
-
-	def generate_mosaic(self, umap=None, focus=None, leniency=1.5, expanded=False, tile_zoom=15, num_tiles_x=50, resolution='high', 
-					export=True, tile_um=None, use_fp16=True, save_dir=None):
+	def generate_mosaic(self, focus=None, leniency=1.5, expanded=False, tile_zoom=15, num_tiles_x=50, resolution='high', 
+					export=True, save_dir=None):
 		'''Generate a mosaic map.
 
 		Args:
@@ -530,350 +474,34 @@ class ActivationsVisualizer:
 			num_tiles_x:	Mosaic map grid size
 			resolution:		Resolution of exported figure; either 'high', 'medium', or 'low'
 			export:			Bool, whether to save calculated mosaic map to a file.
-			tile_um:		Micron size of tiles.
-			use_fp16:		Bool. If true, will use Float16 (default) instead of Float32.
 			save_dir:		Directory in which to save results.'''
 
-		FOCUS_SLIDE = None
-		GRID = []
-		points= []
-		tile_point_distances = []	
+		if not self.umap: self.calculate_umap()
 
-		max_distance_factor = leniency
-		mapping_method = 'expanded' if expanded else 'strict'
-		tile_zoom_factor = tile_zoom
-		export = export
-		num_tiles_x = num_tiles_x
-		save_dir = self.STATS_ROOT if not save_dir else save_dir
+		mosaic = Mosaic(self.umap, leniency=leniency,
+								   expanded=expanded,
+								   tile_zoom=tile_zoom,
+								   num_tiles_x=num_tiles_x,
+								   resolution=resolution)
+		mosaic.focus(focus)
 
-		if not umap:
-			umap = self.calculate_umap()
-
-		# Variables used only when loading from slides
-		tile_um = tile_um
-		
-		# Initialize figure
-		log.info("Initializing figure...", 1)
-		if resolution not in ('high', 'low'):
-			log.warn(f"Unknown resolution option '{resolution}', defaulting to low resolution", 1)
-		if resolution == 'high':
-			fig = plt.figure(figsize=(200,200))
-			ax = fig.add_subplot(111, aspect='equal')
-		else:
-			fig = plt.figure(figsize=(24,18))
-			ax = fig.add_subplot(121, aspect='equal')
-		ax.set_facecolor("#dfdfdf")
-		fig.tight_layout()
-		plt.subplots_adjust(left=0.02, bottom=0, right=0.98, top=1, wspace=0.1, hspace=0)
-		ax.set_aspect('equal', 'box')
-		ax.set_xticklabels([])
-		ax.set_yticklabels([])
-
-		# First, load UMAP coordinates	
-		log.empty("Loading dimensionality reduction coordinates and plotting points...", 1)
-		for i in range(len(umap['umap_x'])):
-			slide = umap['umap_meta'][i]['slide']
-			points.append({'x':umap['umap_x'][i],
-								'y':umap['umap_y'][i],
-								'global_index': i,
-								'neighbors':[],
-								'category':'none',
-								'slide':slide,
-								'tfrecord':self._get_tfrecords_path(slide),
-								'tfrecord_index':umap['umap_meta'][i]['index'],
-								'paired_tile':None })
-		x_points = [p['x'] for p in points]
-		y_points = [p['y'] for p in points]
-		_x_width = max(x_points) - min(x_points)
-		_y_width = max(y_points) - min(y_points)
-		buffer = (_x_width + _y_width)/2 * 0.05
-		max_x = max(x_points) + buffer
-		min_x = min(x_points) - buffer
-		max_y = max(y_points) + buffer
-		min_y = min(y_points) - buffer
-
-		log.info(f"Loaded {len(points)} points.", 2)
-
-		tile_size = (max_x - min_x) / num_tiles_x
-		num_tiles_y = int((max_y - min_y) / tile_size)
-		max_distance = math.sqrt(2*((tile_size/2)**2)) * max_distance_factor
-
-		# Initialize grid
-		for j in range(num_tiles_y):
-			for i in range(num_tiles_x):
-				GRID.append({'x': ((tile_size/2) + min_x) + (tile_size * i),
-									'y': ((tile_size/2) + min_y) + (tile_size * j),
-									'x_index': i,
-									'y_index': j,
-									'grid_index': len(GRID),
-									'size': tile_size,
-									'points':[],
-									'distances':[],
-									'active': False,
-									'image': None})
-
-		# Add point indices to grid
-		points_added = 0
-		for point in points:
-			x_index = int((point['x'] - min_x) / tile_size)
-			y_index = int((point['y'] - min_y) / tile_size)
-			for g in GRID:
-				if g['x_index'] == x_index and g['y_index'] == y_index:
-					g['points'].append(point['global_index'])
-					points_added += 1
-		for g in GRID:
-			shuffle(g['points'])
-		log.info(f"{points_added} points added to grid", 2)
-
-		# Next, prepare mosaic grid by placing tile outlines
-		log.empty("Placing tile outlines...", 1)
-		max_grid_density = 1
-		for g in GRID:
-			max_grid_density = max(max_grid_density, len(g['points']))
-		for grid_tile in GRID:
-			rect_size = min((len(grid_tile['points']) / max_grid_density) * tile_zoom_factor, 1) * tile_size
-
-			tile = patches.Rectangle((grid_tile['x'] - rect_size/2, 
-							  		  grid_tile['y'] - rect_size/2), 
-									  rect_size, 
-							  		  rect_size, 
-									  fill=True, alpha=1, facecolor='white', edgecolor="#cccccc")
-			ax.add_patch(tile)
-
-			grid_tile['size'] = rect_size
-			grid_tile['rectangle'] = tile
-			grid_tile['neighbors'] = []
-			grid_tile['paired_point'] = None
-
-		# Then, calculate distances from each point to each spot on the grid
-		if mapping_method not in ('strict', 'expanded'):
-			raise TypeError("Unknown mapping method")
-
-		# Calculate tile-point distances
-		log.empty("Calculating tile-point distances...", 1)
-		tile_point_start = time.time()
-		pb = ProgressBar()
-		pb_id = pb.add_bar(0, len(GRID))	
-		for i, tile in enumerate(GRID):
-			pb.update(pb_id, i)
-			if mapping_method == 'strict':
-				# Calculate distance for each point within the grid tile from center of the grid tile
-				distances = []
-				for point_index in tile['points']:
-					point = points[point_index]
-					distance = math.sqrt((point['x']-tile['x'])**2 + (point['y']-tile['y'])**2)
-					distances.append([point['global_index'], distance])
-				distances.sort(key=lambda d: d[1])
-				tile['distances'] = distances
-			elif mapping_method == 'expanded':
-				#pool = DPool(4)
-				#distances = pool.map(partial(calc_distance, tile_x=tile['x'], tile_y=tile['y']), points)
-
-				# Calculate distance for each point within the entire grid from center of the grid tile
-				distances = []
-				for point in points:
-					distance = math.sqrt((point['x']-tile['x'])**2 + (point['y']-tile['y'])**2)
-					distances.append([point['global_index'], distance])
-				distances.sort(key=lambda d: d[1])
-				for d in distances:
-					if d[1] <= max_distance:
-						tile['neighbors'].append(d)
-						points[d[0]]['neighbors'].append([tile['grid_index'], d[1]])
-						tile_point_distances.append({'distance': d[1],
-													'grid_index':tile['grid_index'],
-													'point_index':d[0]})
-					else:
-						break
-		
-		pb.end()
-		tile_point_end = time.time()
-		log.info(f"Calculations complete ({tile_point_end-tile_point_start:.0f} sec)", 1)
-
-		if mapping_method == 'expanded':
-			tile_point_distances.sort(key=lambda d: d['distance'])
-
-		# Then, pair grid tiles and points according to their distances
-		log.empty("Placing image tiles...", 1)
-		num_placed = 0
-		if mapping_method == 'strict':
-			for tile in GRID:
-				if not len(tile['distances']): continue
-				closest_point = tile['distances'][0][0]
-				point = points[closest_point]
-
-				_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
-				image_arr = np.fromstring(tile_image.numpy(), np.uint8)
-				tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
-				tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)				
-
-				tile_alpha, num_slide, num_other = 1, 0, 0
-				if FOCUS_SLIDE and len(tile['points']):
-					for point_index in tile['points']:
-						point = points[point_index]
-						if point['slide'] == FOCUS_SLIDE:
-							num_slide += 1
-						else:
-							num_other += 1
-					fraction_slide = num_slide / (num_other + num_slide)
-					tile_alpha = fraction_slide
-				if not export:
-					tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
-				image = ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-tile['size']/2, 
-																						tile['x']+tile['size']/2,
-																						tile['y']-tile['size']/2,
-																						tile['y']+tile['size']/2], zorder=99, alpha=tile_alpha)
-				tile['image'] = image
-				num_placed += 1
-		elif mapping_method == 'expanded':
-			for distance_pair in tile_point_distances:
-				# Attempt to place pair, skipping if unable (due to other prior pair)
-				point = points[distance_pair['point_index']]
-				tile = GRID[distance_pair['grid_index']]
-				if not (point['paired_tile'] or tile['paired_point']):
-					point['paired_tile'] = True
-					tile['paired_point'] = True
-
-					_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
-					image_arr = np.fromstring(tile_image.numpy(), np.uint8)
-					tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
-					tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
-
-					if not export:
-						tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
-					image = ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-tile_size/2,
-																					tile['x']+tile_size/2,
-																					tile['y']-tile_size/2,
-																					tile['y']+tile_size/2], zorder=99)
-					tile['image'] = image
-					num_placed += 1
-		log.info(f"Num placed: {num_placed}", 2)
-
-		# If desired, highlight certain tiles according to a focus list
-		if focus:
-			for tile in GRID:
-				if not len(tile['points']): continue
-				num_cat, num_other = 0, 0
-				for point_index in tile['points']:
-					point = points[point_index]
-					if point['tfrecord'] in focus:
-						num_cat += 1
-					else:
-						num_other += 1
-				alpha = num_cat / (num_other + num_cat)
-				tile['image'].set_alpha(alpha)
-
-		# Finally, finish the mosaic figure
-		log.empty("Displaying/exporting figure...", 1)
-		ax.autoscale(enable=True, tight=None)
 		if export:
-			save_path = join(save_dir, f'Mosaic-{num_tiles_x}.png')
-			plt.savefig(save_path, bbox_inches='tight')
-			log.complete(f"Saved figure to {sfutil.green(save_path)}", 1)
-			plt.close()
-		else:
-			while True:
-				try:
-					plt.show()
-				except UnicodeDecodeError:
-					continue
-				break
-
-	def plot_2D_umap(self, umap=None, exclude_node=None, subsample=None, interactive=False, filename=None):
-		'''Saves a plot of a calculated umap.
-
-		Args:
-			exclude_node:	Node to exclude from umap calculations.
-			subsample:		Number of tiles to subsample from the umap.
-			interactive:	Bool. If true, will display figure.
-			filename:		Name of file to export figure.'''
-
-		if not umap:
-			umap = self.calculate_umap(exclude_node=exclude_node)
-
-		umap_save_dir = join(self.STATS_ROOT, "2d_umap.png") if not filename else filename
-		if self.slide_category_dict:
-			categories = np.array([self.slide_category_dict[m['slide']] for m in umap['umap_meta']])
-		else:
-			categories = np.array(["None" for m in umap['umap_meta']])
-
-		# Subsampling
-		if subsample:
-			ri = sample(range(len(umap['umap_x'])), subsample)
-		else:
-			ri = list(range(len(umap['umap_x'])))
-
-		unique_categories = list(set(categories[ri]))
-
-		# Prepare pandas dataframe
-		df = pd.DataFrame()
-		df['umap_x'] = umap['umap_x'][ri]
-		df['umap_y'] = umap['umap_y'][ri]
-		df['category'] = pd.Series(categories[ri], dtype='category')
-
-		# Make plot
-		plt.clf()
-		sns.scatterplot(x=umap['umap_x'][ri], y=umap['umap_y'][ri], data=df, hue='category', palette=sns.color_palette('Set1', len(unique_categories)))
-		if interactive:
-			log.info("Displaying 2D UMAP...", 1)
-			plt.show()
-
-		log.info(f"Saving 2D UMAP to {sfutil.green(umap_save_dir)}...", 1)
-		plt.savefig(umap_save_dir, bbox_inches='tight')
-		return umap
-
-	def plot_3D_umap(self, node, exclusion=False, subsample=1000, interactive=False, filename=None):
-		'''Saves a plot of a 3D umap, with the 3rd dimension representing the activation of a given node.'''
-		umap = self.calculate_umap(exclude_node=node if exclusion else None)
+			mosaic.save(self.STATS_ROOT if not save_dir else save_dir)
+			
+		return mosaic
+	
+	def plot_3D_umap(self, node, filename, subsample=1000):
 		umap_name = "3d_umap.png" if not node else f"3d_umap_{node}.png"
-		umap_save_dir = join(self.STATS_ROOT, umap_name) if not filename else filename
+		filename = join(self.STATS_ROOT, umap_name) if not filename else filename
+		title = f"UMAP with node {node} focus"
 
-		# Subsampling
-		if subsample:
-			ri = sample(range(len(umap['umap_x'])), subsample)
-		else:
-			ri = list(range(len(umap['umap_x'])))
+		if not self.umap: self.calculate_umap()
 
-		umap_x = umap['umap_x'][ri]
-		umap_y = umap['umap_y'][ri]
+		z = np.array([self.slide_node_dict[m['slide']][node][m['index']] for m in self.umap.point_meta])
 
-		node_vals = np.array([self.slide_node_dict[m['slide']][node][m['index']] for m in umap['umap_meta']])
-		z = node_vals[ri]
-
-		# Plot tiles on a 3D coordinate space with 2 coordinates from UMAP & 3rd from the value of the excluded node
-		fig = plt.figure()
-		ax = Axes3D(fig)
-		ax.scatter(umap_x, umap_y, z, c=z,
-									  cmap='viridis',
-									  linewidth=0.5,
-									  edgecolor="black")
-		ax.set_title(f"UMAP with node {node} focus")
-		if interactive:
-			log.info("Displaying 3D UMAP...", 1)
-			plt.show()
-		log.info(f"Saving 3D UMAP to {sfutil.green(umap_save_dir)}...", 1)
-		plt.savefig(umap_save_dir, bbox_inches='tight')
-		
-		return umap
-
-	def filter_tiles_by_umap(self, umap, x_lower=-999, x_upper=999, y_lower=-999, y_upper=999):
-		'''Returns dictionary of slide names mapping to tile indices, for tiles that fall within the specified location on the umap.'''
-		# Find tiles that meet UMAP location criteria
-		umap_x = umap['umap_x']
-		umap_y = umap['umap_y']
-		umap_meta = umap['umap_meta']
-		filtered_tiles = {}
-		num_selected = 0
-		for i in range(len(umap_meta)):
-			if (x_lower < umap_x[i] < x_upper) and (y_lower < umap_y[i] < y_upper):
-				slide = umap_meta[i]['slide']
-				tile_index = umap_meta[i]['index']
-				if slide not in filtered_tiles:
-					filtered_tiles.update({slide: [tile_index]})
-				else:
-					filtered_tiles[slide] += [tile_index]
-				num_selected += 1
-		log.info(f"Selected {num_selected} tiles by filter criteria.", 1)
-		return filtered_tiles
+		self.umap.save_3d_plot(z, filename=filename,
+								  title=title,
+								  subsample=subsample)
 
 	def save_example_tiles_gradient(self, nodes=None, tile_filter=None):
 		if not nodes:
@@ -883,7 +511,7 @@ class ActivationsVisualizer:
 				os.makedirs(join(self.SORTED_DIR, node))
 			
 			gradient = []
-			for slide in self.slides_to_include:
+			for slide in self.slides:
 				if slide in self.missing_slides: continue
 				for i, tile in enumerate(self.slide_node_dict[slide][node]):
 					if tile_filter and (slide not in tile_filter) or (i not in tile_filter[slide]):
@@ -896,7 +524,7 @@ class ActivationsVisualizer:
 			gradient = sorted(gradient, key=lambda k: k['val'])
 			for i, g in enumerate(gradient):
 				print(f"Extracting tile {i} of {len(gradient)} for node {node}...", end="\r")
-				for tfr in self.tfrecords_paths:
+				for tfr in self.tfrecords:
 					if sfutil.path_to_name(tfr) == g['slide']:
 						tfr_dir = tfr
 				if not tfr_dir:
@@ -923,7 +551,7 @@ class ActivationsVisualizer:
 				if not exists(lowest_dir): os.makedirs(lowest_dir)
 				if not exists(highest_dir): os.makedirs(highest_dir)
 
-				for tfr in self.tfrecords_paths:
+				for tfr in self.tfrecords:
 					if sfutil.path_to_name(tfr) == slide:
 						tfr_dir = tfr
 				if not tfr_dir:
