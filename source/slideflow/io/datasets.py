@@ -228,7 +228,6 @@ class Dataset:
 		if dataset:
 			paths = sfutil.get_slide_paths(self.datasets[name]['slides'])
 		else:
-			
 			paths = []
 			for d in self.datasets:
 				paths += sfutil.get_slide_paths(self.datasets[d]['slides'])
@@ -238,11 +237,17 @@ class Dataset:
 		filtered_paths = [path for path in paths if sfutil.path_to_name(path) in filtered_slides]
 		return filtered_paths
 
-	def get_tfrecords(self, ask_to_merge_subdirs=False):
+	def get_tfrecords(self, dataset=None, ask_to_merge_subdirs=False):
 		'''Returns a list of all tfrecords.'''
+		if dataset and dataset not in self.datasets.keys():
+			log.error(f"Dataset {name} not found.")
+			return None
+
+		datasets_to_search = list(self.datasets.keys()) if not dataset else [dataset]
+
 		tfrecords_list = []
 		folders_to_search = []
-		for d in self.datasets:
+		for d in datasets_to_search:
 			tfrecords = self.datasets[d]['tfrecords']
 			label = self.datasets[d]['label']
 			tfrecord_path = join(tfrecords, label)
