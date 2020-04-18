@@ -69,7 +69,7 @@ def evaluator(outcome_header, model, project_config, results_dict,
 	eval_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
 	eval_dataset.load_annotations(project_config['annotations'])
 	eval_dataset.apply_filters(filters=filters)
-	outcomes, unique_outcomes = eval_dataset.get_outcomes_from_annotations(outcome_header, filters=filters, filter_blank=filter_blank, use_float=(model_type=='linear'))
+	outcomes, unique_outcomes = eval_dataset.get_outcomes_from_annotations(outcome_header, use_float=(model_type=='linear'))
 
 	# If using a specific k-fold, load validation plan
 	if eval_k_fold:
@@ -218,11 +218,10 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 	# Load dataset and annotations for training
 	training_dataset = Dataset(config_file=project_config['dataset_config'], sources=project_config['datasets'])
 	training_dataset.load_annotations(project_config['annotations'])
+	training_dataset.apply_filters(filters=filters, filter_blank=outcome_headers)
 
 	# Load outcomes
-	outcomes, unique_outcomes = training_dataset.get_outcomes_from_annotations(outcome_headers, filters=filters, 
-																	 				  			filter_blank=outcome_headers,
-																	 				  			use_float=(model_type == 'linear'))
+	outcomes, unique_outcomes = training_dataset.get_outcomes_from_annotations(outcome_headers, use_float=(model_type == 'linear'))
 	if model_type == 'categorical': 
 		outcome_labels = dict(zip(range(len(unique_outcomes)), unique_outcomes))
 	else:

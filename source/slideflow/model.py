@@ -618,7 +618,7 @@ class SlideflowModel:
 					# If early stopping and our patience criteria has been met, check if validation accuracy is still improving 
 					if hp.early_stop and (float(batch)/steps_per_epoch)+results['epoch_count'] > hp.early_stop_patience:
 						if val_acc <= results['val_acc_two_checks_prior']:
-							print("EARLY STOP")
+							log.info(f"Early stop triggered: epoch {results['epoch_count']+1}, batch {batch}", 1)
 							# Save model
 							self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{results['epoch_count']+1}_ES.h5"))
 							# Do final model evaluation
