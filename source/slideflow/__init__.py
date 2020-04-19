@@ -286,8 +286,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 	try:
 		results, history = SFM.train(hp, pretrain=pretrain, 
 										 resume_training=resume_training, 
-										 checkpoint=checkpoint,
-										 min_tiles_per_slide=min_tiles_per_slide)
+										 checkpoint=checkpoint)
 		results['history'] = history
 		results_dict.update({full_model_name: results})
 		logged_epochs = [int(e[5:]) for e in results['epochs'].keys() if e[:5] == 'epoch']
@@ -906,7 +905,6 @@ class SlideflowProject:
 		# Heatmap processes
 		ctx = multiprocessing.get_context('spawn')
 		for slide in slide_list:
-
 			process = ctx.Process(target=heatmap_generator, args=(slide, model, model_path, heatmaps_folder, roi_list, resolution, self.PROJECT, self.FLAGS))
 			process.start()
 			log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
