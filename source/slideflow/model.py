@@ -25,6 +25,7 @@ import gc
 import csv
 import random
 import warnings
+import tempfile
 warnings.filterwarnings('ignore')
 
 import numpy as np
@@ -48,13 +49,10 @@ from slideflow.io import tfrecords
 import slideflow.util as sfutil
 import slideflow.statistics as sfstats
 
-
-
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
 NO_BALANCE = 'NO_BALANCE'
 
-# James 4/18/2020: Moved regularization function to the "model" submodule for organization purposes
 def add_regularization(model, regularizer):
 	# this function is from "https://sthalles.github.io/keras-regularizer/"
 	# adds regularizer to layers where you can set such an attribute, in this case, L2 regularization.
@@ -160,7 +158,7 @@ class HyperParameters:
 	def __str__(self):
 		output = "Hyperparameters:\n"
 			
-		args = self._get_args()
+		args = sorted(self._get_args(), key=lambda arg: arg.lower())
 		for arg in args:
 			value = getattr(self, arg)
 			output += log.empty(f"{sfutil.header(arg)} = {value}\n", 2, None)
@@ -396,7 +394,7 @@ class SlideflowModel:
 
 			# Cap number of tiles to take from TFRecord at maximum specified
 			if max_tiles and tiles > max_tiles:
-				log.empty(f"Only taking maximum of {max_tiles} (of {tiles}) tiles from {sfutil.green(filename)}", 2)
+				log.info(f"Only taking maximum of {max_tiles} (of {tiles}) tiles from {sfutil.green(filename)}", 2)
 				tiles = max_tiles
 			
 			if category not in categories.keys():
@@ -594,7 +592,7 @@ class SlideflowModel:
 		return val_acc
 
 	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=100, multi_input=False, 
-				validate_on_batch=256, max_tiles_per_slide=0, min_tiles_per_slide=0):
+				validate_on_batch=256, max_tiles_per_slide=0, min_tiles_per_slide=0, ema_observations=8, ema_smoothing=2):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -632,7 +630,12 @@ class SlideflowModel:
 		val_steps = 0 if not using_validation else 200
 
 		# Prepare results
-		results = {'epochs': {}, 'epoch_count': 0, 'val_acc_two_checks_prior': 0, 'val_acc_one_check_prior': 0}
+		results = {'epochs': {}, 
+				   'epoch_count': 0, 
+				   'ema_two_checks_prior': 0, 
+				   'ema_one_check_prior': 0, 
+				   'val_acc_moving_average': [], 
+				   'last_ema': -1}
 
 		# Calculate parameters
 		total_epochs = hp.toplayer_epochs + max(hp.finetune_epochs)
@@ -688,12 +691,28 @@ class SlideflowModel:
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
 			def on_batch_end(self, batch, logs={}):
 				if (batch > 0) and (batch % validate_on_batch == 0) and (parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS)):
+					print(" > working on validation...", end="")
 					val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
-					print(f" val_loss: {val_loss:.3f} | val_acc: {val_acc:.3f}")
+					print("\r\033[K", end="")
+					results['val_acc_moving_average'] += [val_acc]
+					# Calculate exponential moving average of validation accuracy
+					if len(results['val_acc_moving_average']) <= ema_observations:
+						log.empty(f"Batch {batch:<5} val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f}")
+					else:
+						# Only keep track of the last [ema_observations] validation accuracies
+						results['val_acc_moving_average'].pop(0)
+						if results['last_ema'] == -1:
+							# Calculate simple moving average
+							results['last_ema'] = sum(results['val_acc_moving_average']) / len(results['val_acc_moving_average'])
+							log.empty(f"Batch {batch:<5} val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f} (SMA: {results['last_ema']:.3f})")
+						else:
+							# Update exponential moving average
+							results['last_ema'] = (val_acc * (ema_smoothing/(1+ema_observations))) + (results['last_ema'] * (1-(ema_smoothing/(1+ema_observations))))
+							log.empty(f"Batch {batch:<5} val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f} (EMA: {results['last_ema']:.3f})")
 
 					# If early stopping and our patience criteria has been met, check if validation accuracy is still improving 
-					if hp.early_stop and (float(batch)/steps_per_epoch)+results['epoch_count'] > hp.early_stop_patience:
-						if val_acc <= results['val_acc_two_checks_prior']:
+					if hp.early_stop and (results['last_ema'] != -1) and (float(batch)/steps_per_epoch)+results['epoch_count'] > hp.early_stop_patience:
+						if results['last_ema'] <= results['ema_two_checks_prior']:
 							log.info(f"Early stop triggered: epoch {results['epoch_count']+1}, batch {batch}", 1)
 							# Save model
 							self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{results['epoch_count']+1}_ES.h5"))
@@ -703,8 +722,8 @@ class SlideflowModel:
 							# End training
 							self.model.stop_training = True
 						else:
-							results['val_acc_two_checks_prior'] = results['val_acc_one_check_prior']
-							results['val_acc_one_check_prior'] = val_acc
+							results['ema_two_checks_prior'] = results['ema_one_check_prior']
+							results['ema_one_check_prior'] = results['last_ema']
 							
 		callbacks = [history_callback, PredictionAndEvaluationCallback(), EpochEndCallback(), cp_callback, tensorboard_callback]
 		
