@@ -49,8 +49,6 @@ from statistics import mean, median
 from pathlib import Path
 
 # TODO: test JPG compatibility
-# TODO: test removing BatchNorm fix
-# TODO: remove final layer activations functions (duplicated in a separate module)
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 DEFAULT_JPG_MPP = 0.5
@@ -143,9 +141,9 @@ class OpenslideToVIPS:
 		else:
 			return False
 
-	def get_thumbnail(self, dimensions, enable_downsample=False):
+	def get_thumbnail(self, width, enable_downsample=False):
 		'''Returns a PIL thumbnail Image of the whole slide of the given dimensions.'''
-		thumbnail = self.full_image.thumbnail_image(dimensions[0]) 
+		thumbnail = self.full_image.thumbnail_image(width) 
 		log.empty("Reading thumbnail from slide...", 1)
 		np_thumb = vips2numpy(thumbnail)
 		log.empty("...complete.")
@@ -248,11 +246,7 @@ class SlideLoader:
 	def thumb(self):
 		'''Returns thumbnail of the slide.'''
 		if not self.thumb_image:
-			goal_thumb_area = 4096*4096
-			y_x_ratio = self.shape[1] / self.shape[0]
-			thumb_x = sqrt(goal_thumb_area / y_x_ratio)
-			thumb_y = thumb_x * y_x_ratio
-			self.thumb_image = self.slide.get_thumbnail((int(thumb_x), int(thumb_y)), enable_downsample=self.enable_downsample)
+			self.thumb_image = self.slide.get_thumbnail(2048, enable_downsample=self.enable_downsample)
 		return self.thumb_image
 
 	def build_generator(self):
@@ -371,7 +365,7 @@ class TMAReader(SlideLoader):
 		super().build_generator()
 
 		log.empty(f"Extracting tiles from {sfutil.green(self.name)}, saving to {sfutil.green(self.tiles_dir)}", 1, self.print)
-		img_orig = np.array(self.slide.get_thumbnail((self.DIM[0]/self.THUMB_DOWNSCALE, self.DIM[1]/self.THUMB_DOWNSCALE), enable_downsample=self.enable_downsample))
+		img_orig = np.array(self.slide.get_thumbnail(self.DIM[0]/self.THUMB_DOWNSCALE, enable_downsample=self.enable_downsample))
 		img_annotated = img_orig.copy()
 
 		# Create background mask for edge detection
