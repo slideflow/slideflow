@@ -201,7 +201,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 
 	# Log current model name and k-fold iteration, if applicable
 	k_fold_msg = "" if not k_fold_i else f" ({validation_strategy} iteration #{k_fold_i})"
-	log.empty(f"Training model {sfutil.bold(model_name)}{k_fold_msg}...", 1)
+	log.empty(f"Training model {sfutil.bold(model_name)}{k_fold_msg}...")
 	log.info(hp, 1)
 	full_model_name = model_name if not k_fold_i else model_name+f"-kfold{k_fold_i}"
 
@@ -684,7 +684,7 @@ class SlideflowProject:
 		process = ctx.Process(target=evaluator, args=(outcome_header, model, self.PROJECT, results_dict, filters, hyperparameters, 
 														checkpoint, eval_k_fold, max_tiles_per_slide, min_tiles_per_slide, self.FLAGS))
 		process.start()
-		log.info(f"Spawning evaluation process (PID: {process.pid})", 1)
+		log.empty(f"Spawning evaluation process (PID: {process.pid})")
 		process.join()
 
 		return results_dict
@@ -910,7 +910,7 @@ class SlideflowProject:
 		for slide in slide_list:
 			process = ctx.Process(target=heatmap_generator, args=(slide, model, model_path, heatmaps_folder, roi_list, resolution, self.PROJECT, self.FLAGS))
 			process.start()
-			log.info(f"Spawning heatmaps process (PID: {process.pid})", 1)
+			log.empty(f"Spawning heatmaps process (PID: {process.pid})")
 			process.join()
 
 	def generate_mosaic(self, model, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, max_tiles_per_slide=100, export_activations=False):
@@ -930,7 +930,7 @@ class SlideflowProject:
 		ctx = multiprocessing.get_context('spawn')
 		process = ctx.Process(target=mosaic_generator, args=(model, filters, focus_filters, resolution, num_tiles_x, max_tiles_per_slide, self.PROJECT, export_activations, self.FLAGS))
 		process.start()
-		log.info(f"Spawning mosaic process (PID: {process.pid})", 1)
+		log.empty(f"Spawning mosaic process (PID: {process.pid})")
 		process.join()
 
 	def generate_tfrecords_from_tiles(self, delete_tiles=True):
@@ -977,7 +977,7 @@ class SlideflowProject:
 		'''Loads a saved and pre-configured project.'''
 		if exists(join(directory, "settings.json")):
 			self.PROJECT = sfutil.load_json(join(directory, "settings.json"))
-			log.empty("Project configuration loaded.\n")
+			log.empty("Project configuration loaded.")
 		else:
 			raise OSError(f'Unable to locate settings.json at location "{directory}".')
 
@@ -1098,6 +1098,7 @@ class SlideflowProject:
 			log.header(f"Training ({len(hyperparameter_list)} models) for each of {len(outcome_header)} outcome variables:", 1)
 		for outcome in outcome_header:
 			log.empty(outcome, 2)
+		print()
 		outcome_header = [outcome_header] if multi_outcome else outcome_header
 
 		# Prepare k-fold validation configuration
@@ -1135,7 +1136,7 @@ class SlideflowProject:
 																validation_filters, k, filters, pretrain, resume_training, 
 																checkpoint, validate_on_batch, max_tiles_per_slide, min_tiles_per_slide, self.FLAGS))
 					process.start()
-					log.info(f"Spawning training process (PID: {process.pid})", 1)
+					log.empty(f"Spawning training process (PID: {process.pid})")
 					process.join()
 
 				# Perform training

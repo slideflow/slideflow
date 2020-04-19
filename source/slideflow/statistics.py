@@ -299,12 +299,12 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	'''
 	
 	# Get predictions and performance metrics
-	log.empty("\nGenerating predictions...", 1)
+	sys.stdout.write("\rGenerating predictions...")
 	label_end = "" if not label else f"_{label}"
 	label_start = "" if not label else f"{label}_"
 	y_true, y_pred, tile_to_slides = [], [], []
 	for i, batch in enumerate(dataset_with_slidenames):
-		sys.stdout.write(f"\r   - Working on batch {i}...")
+		sys.stdout.write(f"\rGenerating predictions (batch {i})...")
 		sys.stdout.flush()
 		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in batch[2].numpy()]
 		y_true += [batch[1].numpy()]
@@ -428,7 +428,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 			num_correctly_predicted_in_category = sum([yp[cat_index] for i, yp in enumerate(onehot_predictions) if y_true[i][cat_index]])
 			category_accuracy = num_correctly_predicted_in_category / num_tiles_in_category
 			cat_percent_acc = category_accuracy * 100
-			log.info(f"Category {cat_index} accuracy: {cat_percent_acc:.1f}% ({num_correctly_predicted_in_category}/{num_tiles_in_category})")
+			log.info(f"Category {cat_index} accuracy: {cat_percent_acc:.1f}% ({num_correctly_predicted_in_category}/{num_tiles_in_category})", 1)
 
 		# Generate slide-level percent calls
 		percent_calls_by_slide = get_average_by_slide(onehot_predictions, "percent_tiles_positive")
