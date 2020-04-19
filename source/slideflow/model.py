@@ -117,7 +117,7 @@ class HyperParameters:
 				 learning_rate=0.0001, batch_size=16, hidden_layers=1, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
 				 hidden_layer_width=500, trainable_layers=0, max_tiles_per_slide=0, min_tiles_per_slide=0,
-				 L2_weight=0, validate_on_batch=256, augment=True):
+				 L2_weight=0, augment=True):
 		''' Additional hyperparameters to consider:
 		beta1 0.9
 		beta2 0.999
@@ -137,7 +137,6 @@ class HyperParameters:
 		self.early_stop_patience = early_stop_patience
 		self.balanced_training = balanced_training
 		self.balanced_validation = balanced_validation
-		self.validate_on_batch = validate_on_batch
 		self.augment = augment
 		self.hidden_layer_width = hidden_layer_width # Sara added 4/6/2020
 		self.trainable_layers = trainable_layers # Sara added 4/6/2020
@@ -595,7 +594,7 @@ class SlideflowModel:
 		
 		return val_acc
 
-	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=100, multi_input=False):
+	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=100, multi_input=False, validate_on_batch=256):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -685,7 +684,7 @@ class SlideflowModel:
 
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
 			def on_batch_end(self, batch, logs={}):
-				if (batch > 0) and (batch % hp.validate_on_batch == 0) and (parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS)):
+				if (batch > 0) and (batch % validate_on_batch == 0) and (parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS)):
 					val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 					print(f" val_loss: {val_loss:.3f} | val_acc: {val_acc:.3f}")
 
