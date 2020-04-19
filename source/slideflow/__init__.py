@@ -194,7 +194,7 @@ def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, max
 def trainer(outcome_headers, model_name, model_type, project_config, results_dict, hp, validation_strategy, 
 			validation_target, validation_fraction, validation_k_fold, validation_log, validation_dataset=None, 
 			validation_annotations=None, validation_filters=None, k_fold_i=None, filters=None, pretrain=None, 
-			resume_training=None, checkpoint=None, min_tiles_per_slide=0, flags=None):
+			resume_training=None, checkpoint=None, validate_on_batch=0, flags=None):
 
 	if not flags: flags = DEFAULT_FLAGS
 
@@ -286,7 +286,8 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 	try:
 		results, history = SFM.train(hp, pretrain=pretrain, 
 										 resume_training=resume_training, 
-										 checkpoint=checkpoint)
+										 checkpoint=checkpoint,
+										 validate_on_batch=validate_on_batch)
 		results['history'] = history
 		results_dict.update({full_model_name: results})
 		logged_epochs = [int(e[5:]) for e in results['epochs'].keys() if e[:5] == 'epoch']
@@ -1031,7 +1032,7 @@ class SlideflowProject:
 	def train(self, models=None, outcome_header='category', multi_outcome=False, filters=None, resume_training=None, checkpoint=None, 
 				pretrain='imagenet', batch_file=None, hyperparameters=None, model_type='categorical',
 				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None,
-				validation_dataset=None, validation_annotations=None, validation_filters=None, min_tiles_per_slide=0):
+				validation_dataset=None, validation_annotations=None, validation_filters=None, validate_on_batch=256):
 		'''Train model(s) given configurations found in batch_train.tsv.
 
 		Args:
@@ -1058,8 +1059,7 @@ class SlideflowProject:
 			validation_dataset:		If specified, will use a separate dataset on which to perform validation.
 			validation_annotations:	If using a separate dataset for validation, the annotations CSV must be supplied.
 			validation_filters:		If using a separate dataset for validation, these filters are used to select a subset of slides for validation.
-			min_tiles_per_slide:	Minimum number of tiles a slide must have to be included in evaluation. Default is 0, but
-										for best slide-level AUC, a minimum of at least 10 tiles per slide is recommended. 
+			validate_on_batch:		Validation will be performed every X batches.
 
 		Returns:
 			A dictionary containing model names mapped to train_acc, val_loss, and val_acc
@@ -1128,7 +1128,7 @@ class SlideflowProject:
 																validation_target, validation_fraction, validation_k_fold, 
 																validation_log, validation_dataset, validation_annotations,
 																validation_filters, k, filters, pretrain, resume_training, 
-																checkpoint, min_tiles_per_slide, self.FLAGS))
+																checkpoint, validate_on_batch, self.FLAGS))
 					process.start()
 					log.info(f"Spawning training process (PID: {process.pid})", 1)
 					process.join()
