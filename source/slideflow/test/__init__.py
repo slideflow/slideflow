@@ -77,6 +77,8 @@ ANNOTATIONS = [
 
 SLIDES_TO_VERIFY = ['234834', '234840']
 
+SAVED_MODEL = join(PROJECT_CONFIG['models_dir'], 'category1-performance-kfold1', 'trained_model_epoch1.h5')
+
 # --------------------------------------------------------------------------------------
 
 class TestSuite:
@@ -174,6 +176,11 @@ class TestSuite:
 											 hidden_layers=[0,1],
 											 optimizer=["Adam"],
 											 early_stop=[False],
+											 hidden_layer_width=500,
+											 trainable_layers=0,
+											 max_tiles_per_slide=0,
+											 min_tiles_per_slide=0,
+											 L2_weight=0,
 											 early_stop_patience=[15],
 											 balanced_training=["BALANCE_BY_PATIENT"],
 											 balanced_validation=["NO_BALANCE"],
@@ -240,23 +247,22 @@ class TestSuite:
 
 	def test_evaluation(self):
 		print("Testing evaluation of a saved model...")
-		model_file = join(PROJECT_CONFIG['models_dir'], 'category1-HPSweep0-kfold1', 'trained_model.h5')
-		results = self.SFP.evaluate(outcome_header='category1', model=model_file)
+		results = self.SFP.evaluate(outcome_header='category1', model=SAVED_MODEL)
 		print('\t...OK')
 
 	def test_heatmap(self):
 		print("Testing heatmap generation...")
-		self.SFP.generate_heatmaps('category1-HPSweep0-kfold1', filters={TCGA.patient: ['234839']})
+		self.SFP.generate_heatmaps(SAVED_MODEL, filters={TCGA.patient: ['234839']})
 		print("\t...OK")
 
 	def test_mosaic(self):
 		print("Testing mosaic generation...")
-		self.SFP.generate_mosaic('category1-HPSweep0-kfold1', export_activations=True)
+		self.SFP.generate_mosaic(SAVED_MODEL, export_activations=True)
 		print("\t...OK")
 
 	def test_activations(self):
 		print("Testing activations analytics...")
-		AV = self.SFP.generate_activations_analytics(model='category1-HPSweep0-kfold1', 
+		AV = self.SFP.generate_activations_analytics(model=SAVED_MODEL, 
 													outcome_header='category1', 
 													focus_nodes=[0])
 		AV.generate_box_plots()
@@ -264,7 +270,7 @@ class TestSuite:
 		umap.save_2d_plot(join(PROJECT_CONFIG['root'], 'stats', '2d_umap.png'))
 		top_nodes = AV.get_top_nodes_by_slide()
 		for node in top_nodes[:5]:
-			umap.save_3d_node_plot(node)
+			AV.plot_3d_umap(node)
 		print("\t...OK")
 
 	def test(self):

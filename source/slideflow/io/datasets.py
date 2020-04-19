@@ -221,12 +221,12 @@ class Dataset:
 	def get_slide_paths(self, dataset=None):
 		'''Returns a list of paths to all slides.'''
 		if dataset and dataset not in self.datasets.keys():
-			log.error(f"Dataset {name} not found.")
+			log.error(f"Dataset {dataset} not found.")
 			return None
 
 		# Get unfiltered paths
 		if dataset:
-			paths = sfutil.get_slide_paths(self.datasets[name]['slides'])
+			paths = sfutil.get_slide_paths(self.datasets[dataset]['slides'])
 		else:
 			paths = []
 			for d in self.datasets:
