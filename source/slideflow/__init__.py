@@ -30,9 +30,7 @@ from slideflow.util import TCGA, ProgressBar, log
 from slideflow.activations import ActivationsVisualizer, TileVisualizer, Heatmap
 from comet_ml import Experiment
 
-# TODO: allow datasets to have filters (would address evaluate() function)
-
-__version__ = "1.6.2"
+__version__ = "1.7.0"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -156,8 +154,7 @@ def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, reso
 	log.empty(f"Working on slide {sfutil.green(sfutil.path_to_name(slide))}", 1)
 	heatmap = Heatmap(slide, model_path, project_config['tile_px'], project_config['tile_um'], 
 																	use_fp16=project_config['use_fp16'],
-																	stride_div=stride_div,
-																	save_folder=save_folder,
+																	stride_div=stride_lder,
 																	roi_list=roi_list)
 	heatmap.generate(batch_size=flags['eval_batch_size'])
 	heatmap.save()
@@ -674,7 +671,7 @@ class SlideflowProject:
 			filters:				Filters to use when selecting tfrecords on which to perform evaluation.
 			checkpoint:				Path to cp.ckpt file to load, if evaluating a saved checkpoint.
 			eval_k_fold:			K-fold iteration number to evaluate. If None, will evaluate all tfrecords irrespective of K-fold.
-			max_tiles_per_slide:	Will only use up to this many tiles from each slide for evaluation.
+			max_tiles_per_slide:	Will only use up to this many tiles from each slide for evaluation. If zero, will include all tiles.
 			min_tiles_per_slide:	Minimum number of tiles a slide must have to be included in evaluation. Default is 0, but
 										for best slide-level AUC, a minimum of at least 10 tiles per slide is recommended.'''
 										
@@ -1066,6 +1063,8 @@ class SlideflowProject:
 			validation_annotations:	If using a separate dataset for validation, the annotations CSV must be supplied.
 			validation_filters:		If using a separate dataset for validation, these filters are used to select a subset of slides for validation.
 			validate_on_batch:		Validation will be performed every X batches.
+			max_tiles_per_slide:	Will only use up to this many tiles from each slide for training. If zero, will include all tiles.
+			min_tiles_per_slide:	Minimum number of tiles a slide must have to be included in training. 
 
 		Returns:
 			A dictionary containing model names mapped to train_acc, val_loss, and val_acc
