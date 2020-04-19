@@ -178,8 +178,6 @@ class TestSuite:
 											 early_stop=[False],
 											 hidden_layer_width=500,
 											 trainable_layers=0,
-											 max_tiles_per_slide=0,
-											 min_tiles_per_slide=0,
 											 L2_weight=0,
 											 early_stop_patience=[15],
 											 balanced_training=["BALANCE_BY_PATIENT"],
