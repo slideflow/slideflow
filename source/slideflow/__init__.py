@@ -46,8 +46,8 @@ DEFAULT_FLAGS = {
 	'num_threads': 4
 }
 
-def evaluator(outcome_header, model, project_config, results_dict,
-				filters=None, hyperparameters=None, checkpoint=None, eval_k_fold=None, 
+def evaluator(outcome_header, model, project_config, results_dict, filters=None, 
+				hyperparameters=None, checkpoint=None, eval_k_fold=None, max_tiles_per_slide=0,
 				min_tiles_per_slide=0, flags=None):
 
 	if not flags: flags = DEFAULT_FLAGS
@@ -134,6 +134,7 @@ def evaluator(outcome_header, model, project_config, results_dict,
 						   model_type=model_type,
 						   checkpoint=checkpoint,
 						   batch_size=flags['eval_batch_size'],
+						   max_tiles_per_slide=max_tiles_per_slide,
 						   min_tiles_per_slide=min_tiles_per_slide)
 
 	# Load results into multiprocessing dictionary
@@ -194,7 +195,7 @@ def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, max
 def trainer(outcome_headers, model_name, model_type, project_config, results_dict, hp, validation_strategy, 
 			validation_target, validation_fraction, validation_k_fold, validation_log, validation_dataset=None, 
 			validation_annotations=None, validation_filters=None, k_fold_i=None, filters=None, pretrain=None, 
-			resume_training=None, checkpoint=None, validate_on_batch=0, flags=None):
+			resume_training=None, checkpoint=None, validate_on_batch=0, max_tiles_per_slide=0, min_tiles_per_slide=0, flags=None):
 
 	if not flags: flags = DEFAULT_FLAGS
 
@@ -287,7 +288,9 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		results, history = SFM.train(hp, pretrain=pretrain, 
 										 resume_training=resume_training, 
 										 checkpoint=checkpoint,
-										 validate_on_batch=validate_on_batch)
+										 validate_on_batch=validate_on_batch,
+										 max_tiles_per_slide=max_tiles_per_slide,
+										 min_tiles_per_slide=min_tiles_per_slide)
 		results['history'] = history
 		results_dict.update({full_model_name: results})
 		logged_epochs = [int(e[5:]) for e in results['epochs'].keys() if e[:5] == 'epoch']
@@ -522,7 +525,7 @@ class SlideflowProject:
 
 	def create_hyperparameter_sweep(self, finetune_epochs, toplayer_epochs, model, pooling, loss, learning_rate, batch_size, hidden_layers,
 									optimizer, early_stop, early_stop_patience, balanced_training, balanced_validation, augment, 
-									hidden_layer_width, trainable_layers, max_tiles_per_slide, min_tiles_per_slide, L2_weight, filename=None):
+									hidden_layer_width, trainable_layers, L2_weight, filename=None):
 		'''Prepares a hyperparameter sweep using the batch train config file.'''
 		log.header("Preparing hyperparameter sweep...")
 		# Assemble all possible combinations of provided hyperparameters
@@ -660,7 +663,8 @@ class SlideflowProject:
 		print("\nProject configuration saved.\n")
 		self.load_project(project_folder)
 
-	def evaluate(self, model, outcome_header, hyperparameters=None, filters=None, checkpoint=None, eval_k_fold=None, min_tiles_per_slide=0):
+	def evaluate(self, model, outcome_header, hyperparameters=None, filters=None, checkpoint=None,
+					eval_k_fold=None, max_tiles_per_slide=0, min_tiles_per_slide=0):
 		'''Evaluates a saved model on a given set of tfrecords.
 		
 		Args:
@@ -670,6 +674,7 @@ class SlideflowProject:
 			filters:				Filters to use when selecting tfrecords on which to perform evaluation.
 			checkpoint:				Path to cp.ckpt file to load, if evaluating a saved checkpoint.
 			eval_k_fold:			K-fold iteration number to evaluate. If None, will evaluate all tfrecords irrespective of K-fold.
+			max_tiles_per_slide:	Will only use up to this many tiles from each slide for evaluation.
 			min_tiles_per_slide:	Minimum number of tiles a slide must have to be included in evaluation. Default is 0, but
 										for best slide-level AUC, a minimum of at least 10 tiles per slide is recommended.'''
 										
@@ -680,7 +685,7 @@ class SlideflowProject:
 		ctx = multiprocessing.get_context('spawn')
 		
 		process = ctx.Process(target=evaluator, args=(outcome_header, model, self.PROJECT, results_dict, filters, hyperparameters, 
-														checkpoint, eval_k_fold, min_tiles_per_slide, self.FLAGS))
+														checkpoint, eval_k_fold, max_tiles_per_slide, min_tiles_per_slide, self.FLAGS))
 		process.start()
 		log.info(f"Spawning evaluation process (PID: {process.pid})", 1)
 		process.join()
@@ -1032,7 +1037,8 @@ class SlideflowProject:
 	def train(self, models=None, outcome_header='category', multi_outcome=False, filters=None, resume_training=None, checkpoint=None, 
 				pretrain='imagenet', batch_file=None, hyperparameters=None, model_type='categorical',
 				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None,
-				validation_dataset=None, validation_annotations=None, validation_filters=None, validate_on_batch=256):
+				validation_dataset=None, validation_annotations=None, validation_filters=None, validate_on_batch=256,
+				max_tiles_per_slide=0, min_tiles_per_slide=0):
 		'''Train model(s) given configurations found in batch_train.tsv.
 
 		Args:
@@ -1128,7 +1134,7 @@ class SlideflowProject:
 																validation_target, validation_fraction, validation_k_fold, 
 																validation_log, validation_dataset, validation_annotations,
 																validation_filters, k, filters, pretrain, resume_training, 
-																checkpoint, validate_on_batch, self.FLAGS))
+																checkpoint, validate_on_batch, max_tiles_per_slide, min_tiles_per_slide, self.FLAGS))
 					process.start()
 					log.info(f"Spawning training process (PID: {process.pid})", 1)
 					process.join()

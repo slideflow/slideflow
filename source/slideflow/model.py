@@ -116,8 +116,7 @@ class HyperParameters:
 	def __init__(self, finetune_epochs=10, toplayer_epochs=0, model='Xception', pooling='max', loss='sparse_categorical_crossentropy',
 				 learning_rate=0.0001, batch_size=16, hidden_layers=1, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
-				 hidden_layer_width=500, trainable_layers=0, max_tiles_per_slide=0, min_tiles_per_slide=0,
-				 L2_weight=0, augment=True):
+				 hidden_layer_width=500, trainable_layers=0, L2_weight=0, augment=True):
 		''' Additional hyperparameters to consider:
 		beta1 0.9
 		beta2 0.999
@@ -138,11 +137,9 @@ class HyperParameters:
 		self.balanced_training = balanced_training
 		self.balanced_validation = balanced_validation
 		self.augment = augment
-		self.hidden_layer_width = hidden_layer_width # Sara added 4/6/2020
-		self.trainable_layers = trainable_layers # Sara added 4/6/2020
-		self.max_tiles_per_slide = max_tiles_per_slide # Sara added 4/6/2020
-		self.min_tiles_per_slide = min_tiles_per_slide # Sara added 4/6/2020
-		self.L2_weight = float(L2_weight) # Sara added 4/6/2020
+		self.hidden_layer_width = hidden_layer_width
+		self.trainable_layers = trainable_layers
+		self.L2_weight = float(L2_weight)
 
 	def _get_args(self):
 		return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt', 'get_model', 'model_type']]
@@ -251,8 +248,8 @@ class SlideflowModel:
 							outcome = slide_annotations[slide]['outcome']
 							writer.writerow([slide, 'validation', outcome])
 
-	def _build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, max_tiles_per_slide=None, 
-								min_tiles_per_slide=None, include_slidenames=False, multi_input=False):
+	def _build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, max_tiles=None, 
+								min_tiles=None, include_slidenames=False, multi_input=False):
 		'''Assembles dataset inputs from tfrecords.
 		
 		Args:
@@ -261,8 +258,8 @@ class SlideflowModel:
 								 (only available if TFRECORDS_BY_PATIENT=True)'''
 		self.AUGMENT = augment
 		with tf.name_scope('input'):
-			dataset, dataset_with_slidenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, max_tiles_per_slide=max_tiles_per_slide,
-																															 min_tiles_per_slide=min_tiles_per_slide,
+			dataset, dataset_with_slidenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, max_tiles=max_tiles,
+																															 min_tiles=min_tiles,
 																															 include_slidenames=include_slidenames,
 																															 multi_input=multi_input)
 		return dataset, dataset_with_slidenames, num_tiles
@@ -339,7 +336,7 @@ class SlideflowModel:
 
 		return model
 
-	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, max_tiles_per_slide=None, min_tiles_per_slide=None, include_slidenames=False, multi_input=False):
+	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, max_tiles=None, min_tiles=None, include_slidenames=False, multi_input=False):
 		'''Generates an interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to balancing if provided.
 		Requires self.MANIFEST. Assumes TFRecord files are named by slide.
@@ -353,10 +350,10 @@ class SlideflowModel:
 			augment				Whether to use data augmentation (random flip/rotate)
 			finite				Whether create finite or infinite datasets. WARNING: If finite option is 
 									used with balancing, some tiles will be skipped.
-			max_tiles_per_slide	Maximum number of tiles to use per slide.
-			min_tiles_per_slide	Minimum number of tiles that each slide must have to be included. '''
+			max_tiles			Maximum number of tiles to use per slide.
+			min_tiles			Minimum number of tiles that each slide must have to be included. '''
 							 
-		log.info(f"Interleaving {len(tfrecords)} tfrecords, finite={finite}", 1)
+		log.info(f"Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min_tiles={min_tiles}", 1)
 		datasets = []
 		datasets_categories = []
 		num_tiles = []
@@ -383,11 +380,11 @@ class SlideflowModel:
 				sys.exit()
 			
 			# Ensure TFRecord has minimum number of tiles; otherwise, skip
-			if not min_tiles_per_slide and tiles == 0:
+			if not min_tiles and tiles == 0:
 				log.info(f"Skipping empty tfrecord {sfutil.green(slide_name)}", 2)
 				continue
-			elif tiles < min_tiles_per_slide:
-				log.info(f"Skipping tfrecord {sfutil.green(slide_name)}; has {tiles} tiles (minimum: {min_tiles_per_slide})", 2)
+			elif tiles < min_tiles:
+				log.info(f"Skipping tfrecord {sfutil.green(slide_name)}; has {tiles} tiles (minimum: {min_tiles})", 2)
 				continue
 			
 			# Assign category by outcome if this is a categorical model.
@@ -398,9 +395,9 @@ class SlideflowModel:
 			datasets_categories += [category]
 
 			# Cap number of tiles to take from TFRecord at maximum specified
-			if max_tiles_per_slide and tiles > max_tiles_per_slide:
-				log.empty(f"Only taking maximum of {max_tiles_per_slide} (of {tiles}) tiles from {sfutil.green(filename)}", 2)
-				tiles = max_tiles_per_slide
+			if max_tiles and tiles > max_tiles:
+				log.empty(f"Only taking maximum of {max_tiles} (of {tiles}) tiles from {sfutil.green(filename)}", 2)
+				tiles = max_tiles
 			
 			if category not in categories.keys():
 				categories.update({category: {'num_slides': 1,
@@ -528,7 +525,8 @@ class SlideflowModel:
 		model.layers[0].trainable = True
 		return toplayer_model.history
 
-	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None, min_tiles_per_slide=0, multi_input=False):
+	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None, 
+					max_tiles_per_slide=0, min_tiles_per_slide=0, multi_input=False):
 		'''Evaluate model.
 
 		Args:
@@ -538,6 +536,7 @@ class SlideflowModel:
 			model_type:				Either linear or categorical.
 			checkpoint:				Path to cp.cpkt checkpoint. If provided, will update model with given checkpoint weights.
 			batch_size:				Evaluation batch size.
+			max_tiles_per_slide:	If provided, will select only up to this maximum number of tiles from each slide.
 			min_tiles_per_slide:	If provided, will only evaluate slides with a given minimum number of tiles.
 			multi_input:			If true, will evaluate model with multi-image inputs.
 			
@@ -551,8 +550,8 @@ class SlideflowModel:
 		batch_size = batch_size if not hp else hp.batch_size
 		dataset, dataset_with_slidenames, num_tiles = self._build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment=False, 
 																													finite=True,
-																													max_tiles_per_slide=hp.max_tiles_per_slide,
-																													min_tiles_per_slide=hp.min_tiles_per_slide,
+																													max_tiles=max_tiles_per_slide,
+																													min_tiles=min_tiles_per_slide,
 																													include_slidenames=True,
 																													multi_input=multi_input)
 		if model:
@@ -594,7 +593,8 @@ class SlideflowModel:
 		
 		return val_acc
 
-	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=100, multi_input=False, validate_on_batch=256):
+	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=100, multi_input=False, 
+				validate_on_batch=256, max_tiles_per_slide=0, min_tiles_per_slide=0):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -603,8 +603,11 @@ class SlideflowModel:
 			resume_training			If True, will attempt to resume previously aborted training
 			checkpoint				Path to cp.cpkt checkpoint file. If provided, will load checkpoint weights
 			log_frequency			How frequent to update Tensorboard logs
-			min_tiles_per_slide		If provided, will only evaluate slides with a given minimum number of tiles
 			multi_input				If True, will train model with multi-image inputs
+			validate_on_batch		Validation will be performed every X batches.
+			max_tiles_per_slide		If provided, will select only up to this maximum number of tiles from each slide.
+			min_tiles_per_slide		If provided, will only evaluate slides with a given minimum number of tiles.
+			
 			
 		Returns:
 			Results dictionary, Keras history object'''
@@ -613,16 +616,16 @@ class SlideflowModel:
 
 		# Build inputs
 		train_data, _, num_tiles = self._build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, finite=False,
-																																	 max_tiles_per_slide=hp.max_tiles_per_slide,
-																																	 min_tiles_per_slide=hp.min_tiles_per_slide,
+																																	 max_tiles=max_tiles_per_slide,
+																																	 min_tiles=min_tiles_per_slide,
 																																	 include_slidenames=False,
 																																	 multi_input=multi_input)
 		using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
 		if using_validation:
 			validation_data, validation_data_with_slidenames, _ = self._build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, augment=False, 
 																																							   finite=True,
-																																							   max_tiles_per_slide=hp.max_tiles_per_slide,
-																																							   min_tiles_per_slide=hp.min_tiles_per_slide,
+																																							   max_tiles=max_tiles_per_slide,
+																																							   min_tiles=min_tiles_per_slide,
 																																							   include_slidenames=True, 
 																																							   multi_input=multi_input)
 		validation_data_for_training = None if not using_validation else validation_data.repeat()
