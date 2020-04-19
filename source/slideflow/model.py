@@ -630,12 +630,7 @@ class SlideflowModel:
 		val_steps = 0 if not using_validation else 200
 
 		# Prepare results
-		results = {'epochs': {}, 
-				   'epoch_count': 0, 
-				   'ema_two_checks_prior': 0, 
-				   'ema_one_check_prior': 0, 
-				   'val_acc_moving_average': [], 
-				   'last_ema': -1}
+		results = {'epochs': {}}
 
 		# Calculate parameters
 		total_epochs = hp.toplayer_epochs + max(hp.finetune_epochs)
@@ -646,7 +641,6 @@ class SlideflowModel:
 
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
-		early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=hp.early_stop_patience)
 		checkpoint_path = os.path.join(self.DATA_DIR, "cp.ckpt")
 		cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, save_weights_only=True, verbose=1)
 		tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.DATA_DIR, 
@@ -655,80 +649,87 @@ class SlideflowModel:
 															  update_freq=log_frequency)
 		parent = self
 
-		def evaluate_model(epoch, logs={}):
-			epoch_label = f"val_epoch{epoch}"
-			if hp.model_type() != 'linear':
-				train_acc = logs['acc']
-			else:
-				train_acc = logs[hp.loss]
-			tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(parent.model, validation_data_with_slidenames, 
-																								parent.SLIDE_ANNOTATIONS, hp.model_type(), 
-																								parent.DATA_DIR, label=epoch_label, manifest=parent.MANIFEST)
-			log.info("Beginning testing at epoch end", 1)
-			val_loss, val_acc = parent.model.evaluate(validation_data, verbose=0)
-			results['epochs'][f'epoch{epoch}'] = {}
-			results['epochs'][f'epoch{epoch}']['train_acc'] = np.amax(train_acc)
-			results['epochs'][f'epoch{epoch}']['val_loss'] = val_loss
-			results['epochs'][f'epoch{epoch}']['val_acc'] = val_acc
-			for i, auc in enumerate(tile_auc):
-				results['epochs'][f'epoch{epoch}'][f'tile_auc{i}'] = auc
-			for i, auc in enumerate(slide_auc):
-				results['epochs'][f'epoch{epoch}'][f'slide_auc{i}'] = auc
-			for i, auc in enumerate(patient_auc):
-				results['epochs'][f'epoch{epoch}'][f'patient_auc{i}'] = auc
-			results['epochs'][f'epoch{epoch}']['r_squared'] = r_squared
-			epoch_results = results['epochs'][f'epoch{epoch}']
-			sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
-
-		class EpochEndCallback(tf.keras.callbacks.Callback):
-			def on_epoch_end(self, epoch, logs={}):
-				if epoch+1 in [e for e in hp.finetune_epochs]:
-					self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5"))
-					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
-						evaluate_model(epoch+1, logs)
-				results['epoch_count'] += 1
-
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
-			def on_batch_end(self, batch, logs={}):
+			def __init__(self):
+				super(PredictionAndEvaluationCallback, self).__init__()
+
+				self.early_stop = False
+				self.last_ema = -1
+				self.val_acc_moving_average = []
+				self.ema_two_checks_prior = 0
+				self.ema_one_check_prior = 0
+				self.epoch_count = 0
+
+			def on_epoch_end(self, epoch, logs={}):
+				print("\r\033[K", end="")
+				self.epoch_count += 1
+				if epoch+1 in [e for e in hp.finetune_epochs]:
+					model_path = os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5")
+					self.model.save(model_path)
+					log.complete(f"Trained model saved to {sfutil.green(model_path)}", 1)
+					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
+						self.evaluate_model(logs)
+				self.model.stop_training = self.early_stop
+
+			def on_train_batch_end(self, batch, logs={}):
 				if (batch > 0) and (batch % validate_on_batch == 0) and (parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS)):
-					print(" > working on validation...", end="")
 					val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 					print("\r\033[K", end="")
-					results['val_acc_moving_average'] += [val_acc]
+					self.val_acc_moving_average += [val_acc]
 					# Calculate exponential moving average of validation accuracy
-					if len(results['val_acc_moving_average']) <= ema_observations:
-						log.empty(f"Batch {batch:<5} val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f}")
+					if len(self.val_acc_moving_average) <= ema_observations:
+						log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['acc']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f}")
 					else:
 						# Only keep track of the last [ema_observations] validation accuracies
-						results['val_acc_moving_average'].pop(0)
-						if results['last_ema'] == -1:
+						self.val_acc_moving_average.pop(0)
+						if self.last_ema == -1:
 							# Calculate simple moving average
-							results['last_ema'] = sum(results['val_acc_moving_average']) / len(results['val_acc_moving_average'])
-							log.empty(f"Batch {batch:<5} val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f} (SMA: {results['last_ema']:.3f})")
+							self.last_ema = sum(self.val_acc_moving_average) / len(self.val_acc_moving_average)
+							log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['acc']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f} (SMA: {self.last_ema:.3f})")
 						else:
 							# Update exponential moving average
-							results['last_ema'] = (val_acc * (ema_smoothing/(1+ema_observations))) + (results['last_ema'] * (1-(ema_smoothing/(1+ema_observations))))
-							log.empty(f"Batch {batch:<5} val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f} (EMA: {results['last_ema']:.3f})")
+							self.last_ema = (val_acc * (ema_smoothing/(1+ema_observations))) + (self.last_ema * (1-(ema_smoothing/(1+ema_observations))))
+							log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['acc']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f} (EMA: {self.last_ema:.3f})")
 
 					# If early stopping and our patience criteria has been met, check if validation accuracy is still improving 
-					if hp.early_stop and (results['last_ema'] != -1) and (float(batch)/steps_per_epoch)+results['epoch_count'] > hp.early_stop_patience:
-						if results['last_ema'] <= results['ema_two_checks_prior']:
-							log.info(f"Early stop triggered: epoch {results['epoch_count']+1}, batch {batch}", 1)
-							# Save model
-							self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{results['epoch_count']+1}_ES.h5"))
-							# Do final model evaluation
-							if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
-								evaluate_model(results['epoch_count']+1, logs)
-							# End training
+					if hp.early_stop and (self.last_ema != -1) and (float(batch)/steps_per_epoch)+self.epoch_count > hp.early_stop_patience:
+						if self.last_ema <= self.ema_two_checks_prior:
+							log.info(f"Early stop triggered: epoch {self.epoch_count+1}, batch {batch}", 1)
 							self.model.stop_training = True
+							self.early_stop = True
 						else:
-							results['ema_two_checks_prior'] = results['ema_one_check_prior']
-							results['ema_one_check_prior'] = results['last_ema']
+							self.ema_two_checks_prior = self.ema_one_check_prior
+							self.ema_one_check_prior = self.last_ema
+
+			def on_train_end(self, logs={}):
+				print("\r\033[K")
+
+			def evaluate_model(self, logs={}):
+				epoch = self.epoch_count
+				epoch_label = f"val_epoch{epoch}"
+				if hp.model_type() != 'linear':
+					train_acc = logs['acc']
+				else:
+					train_acc = logs[hp.loss]
+				tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(parent.model, validation_data_with_slidenames, 
+																									parent.SLIDE_ANNOTATIONS, hp.model_type(), 
+																									parent.DATA_DIR, label=epoch_label, manifest=parent.MANIFEST)
+				val_loss, val_acc = parent.model.evaluate(validation_data, verbose=0)
+				results['epochs'][f'epoch{epoch}'] = {}
+				results['epochs'][f'epoch{epoch}']['train_acc'] = np.amax(train_acc)
+				results['epochs'][f'epoch{epoch}']['val_loss'] = val_loss
+				results['epochs'][f'epoch{epoch}']['val_acc'] = val_acc
+				for i, auc in enumerate(tile_auc):
+					results['epochs'][f'epoch{epoch}'][f'tile_auc{i}'] = auc
+				for i, auc in enumerate(slide_auc):
+					results['epochs'][f'epoch{epoch}'][f'slide_auc{i}'] = auc
+				for i, auc in enumerate(patient_auc):
+					results['epochs'][f'epoch{epoch}'][f'patient_auc{i}'] = auc
+				results['epochs'][f'epoch{epoch}']['r_squared'] = r_squared
+				epoch_results = results['epochs'][f'epoch{epoch}']
+				sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
 							
-		callbacks = [history_callback, PredictionAndEvaluationCallback(), EpochEndCallback(), cp_callback, tensorboard_callback]
-		
-		if hp.early_stop:
-			callbacks += [early_stop_callback]
+		callbacks = [history_callback, PredictionAndEvaluationCallback(), cp_callback, tensorboard_callback]
 
 		# Build or load model
 		if resume_training:
