@@ -12,8 +12,10 @@ import slideflow.util as sfutil
 from os.path import join
 from slideflow.util import log
 from scipy import stats
+from random import sample
 from statistics import median
 from sklearn import metrics
+from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import pyplot as plt
 
 class TFRecordUMAP:
@@ -69,7 +71,7 @@ class TFRecordUMAP:
 
 		# Subsampling
 		if subsample:
-			ri = sample(range(len(self.x)), subsample)
+			ri = sample(range(len(self.x)), min(len(self.x), subsample))
 		else:
 			ri = list(range(len(self.x)))
 		x = self.x[ri]
@@ -94,7 +96,7 @@ class TFRecordUMAP:
 
 		# Subsampling
 		if subsample:
-			ri = sample(range(len(self.x)), subsample)
+			ri = sample(range(len(self.x)), min(len(self.x), subsample))
 		else:
 			ri = list(range(len(self.x)))
 

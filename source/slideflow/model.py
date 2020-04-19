@@ -113,10 +113,10 @@ class HyperParameters:
 	}
 	_LinearLoss = ['mean_squared_error', 'mean_absolute_error', 'mean_absolute_percentage_error', 'mean_squared_logarithmic_error', 'squared_hinge', 'hinge', 'logcosh']
 
-	def __init__(self, finetune_epochs=10, toplayer_epochs=0, model='InceptionV3', pooling='max', loss='sparse_categorical_crossentropy',
-				 learning_rate=0.001, batch_size=16, hidden_layers=1, optimizer='Adam', early_stop=False, 
+	def __init__(self, finetune_epochs=10, toplayer_epochs=0, model='Xception', pooling='max', loss='sparse_categorical_crossentropy',
+				 learning_rate=0.0001, batch_size=16, hidden_layers=1, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
-				 hidden_layer_width=1000, trainable_layers=0, max_tiles_per_slide=750, min_tiles_per_slide=0,
+				 hidden_layer_width=500, trainable_layers=0, max_tiles_per_slide=0, min_tiles_per_slide=0,
 				 L2_weight=0, validate_on_batch=256, augment=True):
 		''' Additional hyperparameters to consider:
 		beta1 0.9
@@ -370,9 +370,6 @@ class SlideflowModel:
 			log.error(f"No TFRecords found.", 1)
 			sys.exit()
 
-		# if max_tiles_per_slide:
-		#	num_to_take = min(max_tiles_per_slide, num_to_take)
-
 		for filename in tfrecords:
 			slide_name = filename.split('/')[-1][:-10]
 			
@@ -444,7 +441,7 @@ class SlideflowModel:
 		# Take the calculcated number of tiles from each dataset and calculate global number of tiles
 		for i in range(len(datasets)):
 			datasets[i] = datasets[i].take(num_tiles[i])
-		global_num_tiles = sum(num_to_take)
+		global_num_tiles = sum(num_tiles)
 
 		# Interleave datasets
 		try:
@@ -616,12 +613,12 @@ class SlideflowModel:
 		#tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
 
 		# Build inputs
-		train_data, _, num_tiles = self._build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, finite=false,
+		train_data, _, num_tiles = self._build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, finite=False,
 																																	 max_tiles_per_slide=hp.max_tiles_per_slide,
 																																	 min_tiles_per_slide=hp.min_tiles_per_slide,
 																																	 include_slidenames=False,
 																																	 multi_input=multi_input)
-    using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
+		using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
 		if using_validation:
 			validation_data, validation_data_with_slidenames, _ = self._build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, augment=False, 
 																																							   finite=True,
@@ -642,10 +639,6 @@ class SlideflowModel:
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
 		metrics = ['acc'] if hp.model_type() != 'linear' else [hp.loss]
 
-		# Epoch override
-		#steps_per_epoch = round(steps_per_epoch/100)
-		#total_epochs = total_epochs * 100
-
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
 		early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=hp.early_stop_patience)
@@ -665,8 +658,7 @@ class SlideflowModel:
 				train_acc = logs[hp.loss]
 			tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(parent.model, validation_data_with_slidenames, 
 																								parent.SLIDE_ANNOTATIONS, hp.model_type(), 
-																								parent.DATA_DIR, label=epoch_label, manifest=parent.MANIFEST,
-																								min_tiles_per_slide=min_tiles_per_slide)
+																								parent.DATA_DIR, label=epoch_label, manifest=parent.MANIFEST)
 			log.info("Beginning testing at epoch end", 1)
 			val_loss, val_acc = parent.model.evaluate(validation_data, verbose=0)
 			results['epochs'][f'epoch{epoch}'] = {}
@@ -685,7 +677,7 @@ class SlideflowModel:
 
 		class EpochEndCallback(tf.keras.callbacks.Callback):
 			def on_epoch_end(self, epoch, logs={}):
-				if epoch+1 in [e*100 for e in hp.finetune_epochs]:
+				if epoch+1 in [e for e in hp.finetune_epochs]:
 					self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5"))
 					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
 						evaluate_model(epoch+1, logs)

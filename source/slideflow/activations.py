@@ -490,7 +490,7 @@ class ActivationsVisualizer:
 			
 		return mosaic
 	
-	def plot_3D_umap(self, node, filename, subsample=1000):
+	def plot_3d_umap(self, node, filename=None, subsample=1000):
 		umap_name = "3d_umap.png" if not node else f"3d_umap_{node}.png"
 		filename = join(self.STATS_ROOT, umap_name) if not filename else filename
 		title = f"UMAP with node {node} focus"
@@ -831,7 +831,6 @@ class Heatmap:
 		for i in range(self.NUM_CLASSES):
 			heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.get_extent(), cmap=self.newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
 			heatmap_dict.update({i: heatmap})
-
 		plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-raw.png'), bbox_inches='tight')
 		for i in range(self.NUM_CLASSES):
 			heatmap_dict[i].set_alpha(0.6)
