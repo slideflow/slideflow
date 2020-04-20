@@ -592,7 +592,7 @@ class SlideflowModel:
 		return val_acc
 
 	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=100, multi_input=False, 
-				validate_on_batch=256, max_tiles_per_slide=0, min_tiles_per_slide=0, ema_observations=8, ema_smoothing=2):
+				validate_on_batch=256, max_tiles_per_slide=0, min_tiles_per_slide=0, ema_observations=20, ema_smoothing=2):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -605,7 +605,6 @@ class SlideflowModel:
 			validate_on_batch		Validation will be performed every X batches.
 			max_tiles_per_slide		If provided, will select only up to this maximum number of tiles from each slide.
 			min_tiles_per_slide		If provided, will only evaluate slides with a given minimum number of tiles.
-			
 			
 		Returns:
 			Results dictionary, Keras history object'''
@@ -652,7 +651,6 @@ class SlideflowModel:
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
 			def __init__(self):
 				super(PredictionAndEvaluationCallback, self).__init__()
-
 				self.early_stop = False
 				self.last_ema = -1
 				self.val_acc_moving_average = []
