@@ -582,4 +582,3 @@ def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION, featur
 		image_string = open(join(dest_folder, tile_filename), 'wb')
 		image_string.write(image_raw_data)
 		image_string.close()
-		

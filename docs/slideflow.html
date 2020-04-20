@@ -414,8 +414,8 @@ contents of TFRecords not yet in the manifest</p>
 Will also read/write processed activations to a PKL cache file to save time in future iterations.</p>
 <dl class="method">
 <dt id="slideflow.activations.ActivationsVisualizer.calculate_activation_averages_and_stats">
-<code class="sig-name descname">calculate_activation_averages_and_stats</code><span class="sig-paren">(</span><em class="sig-param">annotations=None</em>, <em class="sig-param">outcome_header=None</em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.activations.ActivationsVisualizer.calculate_activation_averages_and_stats" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculates activation averages across categories, as well as tile-level and patient-level statistics using ANOVA, saving results internally.</p>
+<code class="sig-name descname">calculate_activation_averages_and_stats</code><span class="sig-paren">(</span><em class="sig-param">export_csv=True</em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.activations.ActivationsVisualizer.calculate_activation_averages_and_stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates activation averages across categories, as well as tile-level and patient-level statistics using ANOVA, exporting to CSV if desired.</p>
 </dd></dl>
 
 <dl class="method">
@@ -466,15 +466,6 @@ Will also read/write processed activations to a PKL cache file to save time in f
 <dt id="slideflow.activations.ActivationsVisualizer.generate_box_plots">
 <code class="sig-name descname">generate_box_plots</code><span class="sig-paren">(</span><em class="sig-param">annotations=None</em>, <em class="sig-param">outcome_header=None</em>, <em class="sig-param">interactive=False</em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.activations.ActivationsVisualizer.generate_box_plots" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generates box plots comparing nodal activations at the slide-level and tile-level.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>annotations</strong> – CSV file containing annotations. Optional; may be loaded separately with load_annotations().</p></li>
-<li><p><strong>outcome_header</strong> – Sorts slides into categories using this header in the annotations file.</p></li>
-<li><p><strong>interactive</strong> – If true, will show a popup of the final figures.</p></li>
-</ul>
-</dd>
-</dl>
 </dd></dl>
 
 <dl class="method">
@@ -546,12 +537,6 @@ This function then returns a list of all nodes, sorted by ANOVA p-value (most si
 <dt id="slideflow.activations.ActivationsVisualizer.plot_3D_umap">
 <code class="sig-name descname">plot_3D_umap</code><span class="sig-paren">(</span><em class="sig-param">node</em>, <em class="sig-param">exclusion=False</em>, <em class="sig-param">subsample=1000</em>, <em class="sig-param">interactive=False</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.activations.ActivationsVisualizer.plot_3D_umap" title="Permalink to this definition">¶</a></dt>
 <dd><p>Saves a plot of a 3D umap, with the 3rd dimension representing the activation of a given node.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="slideflow.activations.ActivationsVisualizer.save_node_statistics_to_csv">
-<code class="sig-name descname">save_node_statistics_to_csv</code><span class="sig-paren">(</span><em class="sig-param">nodes_avg_pt</em>, <em class="sig-param">tile_stats=None</em>, <em class="sig-param">slide_stats=None</em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.activations.ActivationsVisualizer.save_node_statistics_to_csv" title="Permalink to this definition">¶</a></dt>
-<dd><p>Exports statistics (ANOVA p-values and slide-level averages) to CSV.</p>
 </dd></dl>
 
 </dd></dl>
@@ -913,7 +898,7 @@ build a training and validation set model, and monitor and execute training.</p>
 
 <dl class="method">
 <dt id="slideflow.model.SlideflowModel.train">
-<code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param">hp</em>, <em class="sig-param">pretrain='imagenet'</em>, <em class="sig-param">resume_training=None</em>, <em class="sig-param">checkpoint=None</em>, <em class="sig-param">log_frequency=20</em>, <em class="sig-param">min_tiles_per_slide=0</em>, <em class="sig-param">multi_input=True</em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.SlideflowModel.train" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param">hp</em>, <em class="sig-param">pretrain='imagenet'</em>, <em class="sig-param">resume_training=None</em>, <em class="sig-param">checkpoint=None</em>, <em class="sig-param">log_frequency=20</em>, <em class="sig-param">min_tiles_per_slide=0</em>, <em class="sig-param">multi_input=False</em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.SlideflowModel.train" title="Permalink to this definition">¶</a></dt>
 <dd><p>Train the model for a number of steps, according to flags set by the argument parser.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
