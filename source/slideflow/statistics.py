@@ -5,15 +5,151 @@ import umap
 
 import seaborn as sns
 import numpy as np
-from os.path import join
-
-from slideflow.util import log
-from scipy import stats
-from statistics import median
-from sklearn import metrics
-from matplotlib import pyplot as plt
+import pandas as pd
 
 import slideflow.util as sfutil
+
+from os.path import join
+from slideflow.util import log
+from scipy import stats
+from random import sample
+from statistics import median
+from sklearn import metrics
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import pyplot as plt
+
+class TFRecordUMAP:
+	x = []
+	y = []
+	point_meta = []
+	map_meta = {}
+
+	def __init__(self, tfrecords, slides, cache=None):
+		''' slides = self.slides_to_include '''
+		self.tfrecords = tfrecords
+		self.slides = slides
+		self.cache = cache
+
+		# Try to load from cache
+		if self.cache:
+			if self.load_cache():
+				return
+	
+	def calculate_from_nodes(self, slide_node_dict, nodes, exclude_slides=None):
+		self.map_meta['nodes'] = nodes
+
+		# Calculate UMAP
+		node_activations = []
+		log.empty("Calculating UMAP...", 1)
+		for slide in self.slides:
+			if slide in exclude_slides: continue
+			first_node = list(slide_node_dict[slide].keys())[0]
+			num_vals = len(slide_node_dict[slide][first_node])
+			for i in range(num_vals):
+				node_activations += [[slide_node_dict[slide][n][i] for n in nodes]]
+				self.point_meta += [{
+					'slide': slide,
+					'index': i,
+				}]
+
+		coordinates = gen_umap(np.array(node_activations))
+		self.x = np.array([c[0] for c in coordinates])
+		self.y = np.array([c[1] for c in coordinates])
+
+	def load_precalculated(self, x, y, meta):
+		self.x = x
+		self.y = y
+		self.point_meta = meta
+		self.save_cache()
+
+	def save_2d_plot(self, filename, slide_category_dict=None, subsample=None):
+		# Prepare plotting categories
+		if slide_category_dict:
+			categories = np.array([slide_category_dict[m['slide']] for m in self.point_meta])
+		else:
+			categories = np.array(["None" for m in self.point_meta])
+
+		# Subsampling
+		if subsample:
+			ri = sample(range(len(self.x)), min(len(self.x), subsample))
+		else:
+			ri = list(range(len(self.x)))
+		x = self.x[ri]
+		y = self.y[ri]
+
+		unique_categories = list(set(categories[ri]))	
+
+		# Prepare pandas dataframe
+		df = pd.DataFrame()
+		df['umap_x'] = x
+		df['umap_y'] = y
+		df['category'] = pd.Series(categories[ri], dtype='category')
+
+		# Make plot
+		plt.clf()
+		sns.scatterplot(x=x, y=y, data=df, hue='category', palette=sns.color_palette('Set1', len(unique_categories)))
+		log.info(f"Saving 2D UMAP to {sfutil.green(filename)}...", 1)
+		plt.savefig(filename, bbox_inches='tight')
+
+	def save_3d_plot(self, z, filename, title="UMAP", subsample=None):
+		'''Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument "z" '''
+
+		# Subsampling
+		if subsample:
+			ri = sample(range(len(self.x)), min(len(self.x), subsample))
+		else:
+			ri = list(range(len(self.x)))
+
+		x = self.x[ri]
+		y = self.y[ri]
+		z = z[ri]
+
+		# Plot tiles on a 3D coordinate space with 2 coordinates from UMAP & 3rd from the value of the excluded node
+		fig = plt.figure()
+		ax = Axes3D(fig)
+		ax.scatter(x, y, z, c=z,
+							cmap='viridis',
+							linewidth=0.5,
+							edgecolor="black")
+		ax.set_title(title)
+		log.info(f"Saving 3D UMAP to {sfutil.green(filename)}...", 1)
+		plt.savefig(filename, bbox_inches='tight')
+
+	def get_tiles_in_area(self, x_lower=-999, x_upper=999, y_lower=-999, y_upper=999):
+		'''Returns dictionary of slide names mapping to tile indices, for tiles that fall within the specified location on the umap.'''
+		# Find tiles that meet UMAP location criteria
+		filtered_tiles = {}
+		num_selected = 0
+		for i in range(len(self.point_meta)):
+			if (x_lower < self.x[i] < x_upper) and (y_lower < self.y[i] < y_upper):
+				slide = self.point_meta[i]['slide']
+				tile_index = self.point_meta[i]['index']
+				if slide not in filtered_tiles:
+					filtered_tiles.update({slide: [tile_index]})
+				else:
+					filtered_tiles[slide] += [tile_index]
+				num_selected += 1
+		log.info(f"Selected {num_selected} tiles by filter criteria.", 1)
+		return filtered_tiles
+
+	def save_cache(self):
+		if self.cache:
+			try:
+				with open(self.cache, 'wb') as cache_file:
+					pickle.dump([self.x, self.y, self.point_meta, self.map_meta], cache_file)
+					log.info(f"Wrote UMAP cache to {sfutil.green(self.cache)}", 1)
+			except:
+				log.info(f"Error attempting to write UMAP cache to {sfutil.green(self.cache)}", 1)
+
+	def load_cache(self):
+		try:
+			with open(self.cache, 'rb') as cache_file:
+				self.x, self.y, self.point_meta, self.map_meta = pickle.load(cache_file)
+				log.info(f"Loaded UMAP cache from {sfutil.green(self.cache)}", 1)
+				return True
+		except:
+			log.info(f"No UMAP cache found at {sfutil.green(self.cache)}", 1)
+		return False
 
 def normalize_layout(layout, min_percentile=1, max_percentile=99, relative_margin=0.1):
 	"""Removes outliers and scales layout to between [0,1]."""
@@ -163,12 +299,12 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	'''
 	
 	# Get predictions and performance metrics
-	log.empty("\nGenerating predictions...", 1)
+	sys.stdout.write("\rGenerating predictions...")
 	label_end = "" if not label else f"_{label}"
 	label_start = "" if not label else f"{label}_"
 	y_true, y_pred, tile_to_slides = [], [], []
 	for i, batch in enumerate(dataset_with_slidenames):
-		sys.stdout.write(f"\r   - Working on batch {i}...")
+		sys.stdout.write(f"\rGenerating predictions (batch {i})...")
 		sys.stdout.flush()
 		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in batch[2].numpy()]
 		y_true += [batch[1].numpy()]
@@ -292,7 +428,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 			num_correctly_predicted_in_category = sum([yp[cat_index] for i, yp in enumerate(onehot_predictions) if y_true[i][cat_index]])
 			category_accuracy = num_correctly_predicted_in_category / num_tiles_in_category
 			cat_percent_acc = category_accuracy * 100
-			log.info(f"Category {cat_index} accuracy: {cat_percent_acc:.1f}% ({num_correctly_predicted_in_category}/{num_tiles_in_category})")
+			log.info(f"Category {cat_index} accuracy: {cat_percent_acc:.1f}% ({num_correctly_predicted_in_category}/{num_tiles_in_category})", 1)
 
 		# Generate slide-level percent calls
 		percent_calls_by_slide = get_average_by_slide(onehot_predictions, "percent_tiles_positive")

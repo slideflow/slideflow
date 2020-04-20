@@ -25,6 +25,7 @@ import gc
 import csv
 import random
 import warnings
+import tempfile
 warnings.filterwarnings('ignore')
 
 import numpy as np
@@ -48,11 +49,35 @@ from slideflow.io import tfrecords
 import slideflow.util as sfutil
 import slideflow.statistics as sfstats
 
-
-
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
 NO_BALANCE = 'NO_BALANCE'
+
+def add_regularization(model, regularizer):
+	# this function is from "https://sthalles.github.io/keras-regularizer/"
+	# adds regularizer to layers where you can set such an attribute, in this case, L2 regularization.
+	if not isinstance(regularizer, tf.keras.regularizers.Regularizer):
+		print("Regularizer must be a subclass of tf.keras.regularizers.Regularizer")
+		return model
+
+	for layer in model.layers:
+		for attr in ['kernel_regularizer']:
+			if hasattr(layer, attr):
+				setattr(layer, attr, regularizer)
+
+    # When we change the layers attributes, the change only happens in the model config file
+	model_json = model.to_json()
+
+	# Save the weights before reloading the model.
+	tmp_weights_path = os.path.join(tempfile.gettempdir(), 'tmp_weights.h5')
+	model.save_weights(tmp_weights_path)
+
+	# load the model from the config
+	model = tf.keras.models.model_from_json(model_json)
+
+	# Reload the model weights
+	model.load_weights(tmp_weights_path, by_name=True)
+	return model
 
 class HyperParameters:
 	'''Object to supervise construction of a set of hyperparameters for Slideflow models.'''
@@ -86,10 +111,10 @@ class HyperParameters:
 	}
 	_LinearLoss = ['mean_squared_error', 'mean_absolute_error', 'mean_absolute_percentage_error', 'mean_squared_logarithmic_error', 'squared_hinge', 'hinge', 'logcosh']
 
-	def __init__(self, finetune_epochs=10, toplayer_epochs=0, model='InceptionV3', pooling='max', loss='sparse_categorical_crossentropy',
-				 learning_rate=0.001, batch_size=16, hidden_layers=1, optimizer='Adam', early_stop=False, 
+	def __init__(self, finetune_epochs=10, toplayer_epochs=0, model='Xception', pooling='max', loss='sparse_categorical_crossentropy',
+				 learning_rate=0.0001, batch_size=16, hidden_layers=1, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
-				 augment=True):
+				 hidden_layer_width=500, trainable_layers=0, L2_weight=0, augment=True):
 		''' Additional hyperparameters to consider:
 		beta1 0.9
 		beta2 0.999
@@ -97,7 +122,7 @@ class HyperParameters:
 		batch_norm_decay 0.99
 		'''
 		self.toplayer_epochs = toplayer_epochs
-		self.finetune_epochs = finetune_epochs
+		self.finetune_epochs = finetune_epochs if type(finetune_epochs) == list else [finetune_epochs]
 		self.model = model
 		self.pooling = pooling
 		self.loss = loss
@@ -110,6 +135,9 @@ class HyperParameters:
 		self.balanced_training = balanced_training
 		self.balanced_validation = balanced_validation
 		self.augment = augment
+		self.hidden_layer_width = hidden_layer_width
+		self.trainable_layers = trainable_layers
+		self.L2_weight = float(L2_weight)
 
 	def _get_args(self):
 		return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt', 'get_model', 'model_type']]
@@ -130,7 +158,7 @@ class HyperParameters:
 	def __str__(self):
 		output = "Hyperparameters:\n"
 			
-		args = self._get_args()
+		args = sorted(self._get_args(), key=lambda arg: arg.lower())
 		for arg in args:
 			value = getattr(self, arg)
 			output += log.empty(f"{sfutil.header(arg)} = {value}\n", 2, None)
@@ -157,7 +185,7 @@ class HyperParameters:
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
-	def __init__(self, data_directory, image_size, slide_annotations, train_tfrecords, validation_tfrecords, manifest=None, use_fp16=True, model_type='categorical', test_mode=False):
+	def __init__(self, data_directory, image_size, slide_annotations, train_tfrecords, validation_tfrecords, manifest=None, use_fp16=True, model_type='categorical'):
 		self.DATA_DIR = data_directory # Directory where to write event logs and checkpoints.
 		self.MANIFEST = manifest
 		self.IMAGE_SIZE = image_size
@@ -168,7 +196,6 @@ class SlideflowModel:
 		self.VALIDATION_TFRECORDS = validation_tfrecords
 		self.MODEL_TYPE = model_type
 		self.SLIDES = list(slide_annotations.keys())
-		self.TEST_MODE = test_mode
 		outcomes = [slide_annotations[slide]['outcome'] for slide in self.SLIDES]
 
 		if model_type == 'categorical':
@@ -219,7 +246,8 @@ class SlideflowModel:
 							outcome = slide_annotations[slide]['outcome']
 							writer.writerow([slide, 'validation', outcome])
 
-	def _build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, include_slidenames=False, multi_input=False):
+	def _build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, max_tiles=None, 
+								min_tiles=None, include_slidenames=False, multi_input=False):
 		'''Assembles dataset inputs from tfrecords.
 		
 		Args:
@@ -228,7 +256,10 @@ class SlideflowModel:
 								 (only available if TFRECORDS_BY_PATIENT=True)'''
 		self.AUGMENT = augment
 		with tf.name_scope('input'):
-			dataset, dataset_with_slidenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, include_slidenames, multi_input)
+			dataset, dataset_with_slidenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, max_tiles=max_tiles,
+																															 min_tiles=min_tiles,
+																															 include_slidenames=include_slidenames,
+																															 multi_input=multi_input)
 		return dataset, dataset_with_slidenames, num_tiles
 
 	def _build_model(self, hp, pretrain=None, checkpoint=None):
@@ -244,20 +275,36 @@ class SlideflowModel:
 			base_model = hp.get_model(input_shape=(self.IMAGE_SIZE, self.IMAGE_SIZE, 3),
 									  weights=pretrain)
 
-		# Combine base model with top layer (classification/prediction layer)
+		# Add L2 regularization to all compatible layers in the base model
+		if hp.L2_weight != 0:
+			regularizer = tf.keras.regularizers.l2(hp.L2_weight)
+			base_model = add_regularization(base_model, regularizer)
+		else:
+			regularizer = None
+
+		# Allow only a subset of layers to be trainable
+		if hp.trainable_layers != 0:
+			# freezeIndex is the layer from 0 up to Index that should be frozen (not trainable). 
+			# Per Jakob's models, all but last 10, 20, or 30 layers were frozen. His last three layers were a 1000-node fully connected layer (eqv. to our hidden layers), 
+			# then softmax, then classification. It looks like we don't add a classification layer on though, I don't see it added anywhere.
+			# I see below that we add on the hidden layer and softmax layer, so I am freezing (10-2=8) only, since when we add the last layers on it will add up to 10, 20, 30
+			freezeIndex = int(len(base_model.layers) - (hp.trainable_layers - hp.hidden_layers - 1))
+			for layer in base_model.layers[:freezeIndex]:
+				layer.trainable = False
+
+		# Base model and pooling
+		# James 4/18/2020: The model is collapsed into one layer to allow for easier loading of pretrained models
 		layers = [base_model]
 		if not hp.pooling:
 			layers += [tf.keras.layers.Flatten()]
+
 		# Add hidden layers if specified
 		for i in range(hp.hidden_layers):
-			layers += [tf.keras.layers.Dense(500, activation='relu')]
-		# If no hidden layers and no pooling is used, flatten the output prior to softmax
-		
+				layers += [tf.keras.layers.Dense(hp.hidden_layer_width, activation='relu', kernel_regularizer=regularizer)]
+
 		# Add the softmax prediction layer
-		if hp.model_type() == "linear":
-			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='linear')]
-		else:
-			layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation='softmax')]
+		activation = 'linear' if hp.model_type() == 'linear' else 'softmax'
+		layers += [tf.keras.layers.Dense(self.NUM_CLASSES, activation=activation, kernel_regularizer=regularizer)]
 		model = tf.keras.Sequential(layers)
 
 		if checkpoint:
@@ -265,7 +312,7 @@ class SlideflowModel:
 			model.load_weights(checkpoint)
 
 		return model
-
+	
 	def _build_multi_input_model(self, hp, pretrain=None, checkpoint=None):
 		base_model = tf.keras.applications.Xception(input_shape=(299,299,3),
 													include_top=False,
@@ -287,22 +334,24 @@ class SlideflowModel:
 
 		return model
 
-	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, include_slidenames=False, multi_input=False):
+	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, max_tiles=None, min_tiles=None, include_slidenames=False, multi_input=False):
 		'''Generates an interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to balancing if provided.
 		Requires self.MANIFEST. Assumes TFRecord files are named by slide.
 
 		Args:
-			tfrecords	Array of paths to TFRecord files
-			batch_size	Batch size
-			balance		Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,
-							BALANCE_BY_PATIENT, and NO_BALANCE. If finite option is used, will drop
-							tiles in order to maintain proportions across the interleaved dataset.
-			augment		Whether to use data augmentation (random flip/rotate)
-			finite		Whether create finite or infinite datasets. WARNING: If finite option is 
-							used with balancing, some tiles will be skipped.'''
+			tfrecords			Array of paths to TFRecord files
+			batch_size			Batch size
+			balance				Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,
+									BALANCE_BY_PATIENT, and NO_BALANCE. If finite option is used, will drop
+									tiles in order to maintain proportions across the interleaved dataset.
+			augment				Whether to use data augmentation (random flip/rotate)
+			finite				Whether create finite or infinite datasets. WARNING: If finite option is 
+									used with balancing, some tiles will be skipped.
+			max_tiles			Maximum number of tiles to use per slide.
+			min_tiles			Minimum number of tiles that each slide must have to be included. '''
 							 
-		log.info(f"Interleaving {len(tfrecords)} tfrecords, finite={finite}", 1)
+		log.info(f"Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min_tiles={min_tiles}", 1)
 		datasets = []
 		datasets_categories = []
 		num_tiles = []
@@ -320,6 +369,21 @@ class SlideflowModel:
 			
 			if slide_name not in self.SLIDES:
 				continue
+
+			# Determine total number of tiles available in TFRecord
+			try:
+				tiles = self.MANIFEST[filename]['total']
+			except KeyError:
+				log.error(f"Manifest not finished, unable to find {sfutil.green(filename)}", 1)
+				sys.exit()
+			
+			# Ensure TFRecord has minimum number of tiles; otherwise, skip
+			if not min_tiles and tiles == 0:
+				log.info(f"Skipping empty tfrecord {sfutil.green(slide_name)}", 2)
+				continue
+			elif tiles < min_tiles:
+				log.info(f"Skipping tfrecord {sfutil.green(slide_name)}; has {tiles} tiles (minimum: {min_tiles})", 2)
+				continue
 			
 			# Assign category by outcome if this is a categorical model.
 			# Otherwise, consider all slides from the same category (effectively skipping balancing); appropriate for linear models.
@@ -327,11 +391,12 @@ class SlideflowModel:
 			dataset_to_add = tf.data.TFRecordDataset(filename) if finite else tf.data.TFRecordDataset(filename).repeat()
 			datasets += [dataset_to_add]
 			datasets_categories += [category]
-			try:
-				tiles = self.MANIFEST[filename]['total']
-			except KeyError:
-				log.error(f"Manifest not finished, unable to find {sfutil.green(filename)}", 1)
-				sys.exit()
+
+			# Cap number of tiles to take from TFRecord at maximum specified
+			if max_tiles and tiles > max_tiles:
+				log.info(f"Only taking maximum of {max_tiles} (of {tiles}) tiles from {sfutil.green(filename)}", 2)
+				tiles = max_tiles
+			
 			if category not in categories.keys():
 				categories.update({category: {'num_slides': 1,
 											  'num_tiles': tiles}})
@@ -344,6 +409,8 @@ class SlideflowModel:
 			lowest_category_tile_count = min([categories[i]['num_tiles'] for i in categories])
 			categories_prob[category] = lowest_category_slide_count / categories[category]['num_slides']
 			categories_tile_fraction[category] = lowest_category_tile_count / categories[category]['num_tiles']
+
+		# Balancing
 		if balance == NO_BALANCE:
 			log.empty(f"Not balancing input", 2)
 			prob_weights = [i/sum(num_tiles) for i in num_tiles]
@@ -352,32 +419,25 @@ class SlideflowModel:
 			prob_weights = [1.0] * len(datasets)
 			if finite:
 				# Only take as many tiles as the number of tiles in the smallest dataset
+				minimum_tiles = min(num_tiles)
 				for i in range(len(datasets)):
-					num_to_take = min(num_tiles)
-					datasets[i] = datasets[i].take(num_to_take)
-					global_num_tiles += num_to_take
+					num_tiles[i] = minimum_tiles
 		if balance == BALANCE_BY_CATEGORY:
 			log.empty(f"Balancing input across categories", 2)
 			prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
 			if finite:
 				# Only take as many tiles as the number of tiles in the smallest category
 				for i in range(len(datasets)):
-					num_to_take = int(num_tiles[i] * categories_tile_fraction[datasets_categories[i]])
-					log.empty(f"Tile fraction (dataset {i+1}/{len(datasets)}): {categories_tile_fraction[datasets_categories[i]]}, taking {num_to_take}", 2)
-					datasets[i] = datasets[i].take(num_to_take)
-					global_num_tiles += num_to_take
+					num_tiles[i] = int(num_tiles[i] * categories_tile_fraction[datasets_categories[i]])
+					log.empty(f"Tile fraction (dataset {i+1}/{len(datasets)}): {categories_tile_fraction[datasets_categories[i]]}, taking {num_tiles[i]}", 2)
 				log.empty(f"Global num tiles: {global_num_tiles}", 2)
 		
-		# Remove empty slides
-		for i in sorted(range(len(prob_weights)), reverse=True):
-			if num_tiles[i] == 0:
-				del(num_tiles[i])
-				del(datasets[i])
-				del(datasets_categories[i])
-				del(prob_weights[i])
-		# If the global tile count was not manually set as above, then assume it is the sum of all tiles across all slides
-		if global_num_tiles==0:
-			global_num_tiles = sum(num_tiles)
+		# Take the calculcated number of tiles from each dataset and calculate global number of tiles
+		for i in range(len(datasets)):
+			datasets[i] = datasets[i].take(num_tiles[i])
+		global_num_tiles = sum(num_tiles)
+
+		# Interleave datasets
 		try:
 			dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
 		except IndexError:
@@ -463,7 +523,8 @@ class SlideflowModel:
 		model.layers[0].trainable = True
 		return toplayer_model.history
 
-	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None, min_tiles_per_slide=0, multi_input=False):
+	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None, 
+					max_tiles_per_slide=0, min_tiles_per_slide=0, multi_input=False):
 		'''Evaluate model.
 
 		Args:
@@ -473,6 +534,7 @@ class SlideflowModel:
 			model_type:				Either linear or categorical.
 			checkpoint:				Path to cp.cpkt checkpoint. If provided, will update model with given checkpoint weights.
 			batch_size:				Evaluation batch size.
+			max_tiles_per_slide:	If provided, will select only up to this maximum number of tiles from each slide.
 			min_tiles_per_slide:	If provided, will only evaluate slides with a given minimum number of tiles.
 			multi_input:			If true, will evaluate model with multi-image inputs.
 			
@@ -484,7 +546,12 @@ class SlideflowModel:
 			log.error("If using a checkpoint for evaluation, hyperparameters must be specified.")
 			sys.exit()
 		batch_size = batch_size if not hp else hp.batch_size
-		dataset, dataset_with_slidenames, num_tiles = self._build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment=False, finite=True, include_slidenames=True, multi_input=multi_input)
+		dataset, dataset_with_slidenames, num_tiles = self._build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment=False, 
+																													finite=True,
+																													max_tiles=max_tiles_per_slide,
+																													min_tiles=min_tiles_per_slide,
+																													include_slidenames=True,
+																													multi_input=multi_input)
 		if model:
 			self.model = tf.keras.models.load_model(model)
 		elif checkpoint:
@@ -494,8 +561,7 @@ class SlideflowModel:
 		# Generate performance metrics
 		log.info("Calculating performance metrics...", 1)
 		tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, dataset_with_slidenames, self.SLIDE_ANNOTATIONS, 
-																						   model_type, self.DATA_DIR, label="eval", manifest=self.MANIFEST,
-																						   min_tiles_per_slide=min_tiles_per_slide)
+																						   model_type, self.DATA_DIR, label="eval", manifest=self.MANIFEST)
 
 		log.info(f"Tile AUC: {tile_auc}", 1)
 		log.info(f"Slide AUC: {slide_auc}", 1)
@@ -525,7 +591,8 @@ class SlideflowModel:
 		
 		return val_acc
 
-	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=20, min_tiles_per_slide=0, multi_input=False):
+	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=100, multi_input=False, 
+				validate_on_batch=256, max_tiles_per_slide=0, min_tiles_per_slide=0, ema_observations=20, ema_smoothing=2):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -534,91 +601,133 @@ class SlideflowModel:
 			resume_training			If True, will attempt to resume previously aborted training
 			checkpoint				Path to cp.cpkt checkpoint file. If provided, will load checkpoint weights
 			log_frequency			How frequent to update Tensorboard logs
-			min_tiles_per_slide		If provided, will only evaluate slides with a given minimum number of tiles
 			multi_input				If True, will train model with multi-image inputs
+			validate_on_batch		Validation will be performed every X batches.
+			max_tiles_per_slide		If provided, will select only up to this maximum number of tiles from each slide.
+			min_tiles_per_slide		If provided, will only evaluate slides with a given minimum number of tiles.
 			
 		Returns:
 			Results dictionary, Keras history object'''
 
-		# Build inputs
-		train_data, _, num_tiles = self._build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, include_slidenames=False, multi_input=multi_input)
-		if self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS):
-			validation_data, validation_data_with_slidenames, _ = self._build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, augment=False, finite=True, include_slidenames=True, multi_input=multi_input)
-			validation_data_for_training = validation_data.repeat()
-			val_steps = 200
-		else:
-			validation_data_for_training = None
-			val_steps = 0
+		#tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
 
-		# Testing overide
-		if self.TEST_MODE:
-			num_tiles = 100
-			hp.finetune_epochs = 2
+		# Build inputs
+		train_data, _, num_tiles = self._build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, finite=False,
+																																	 max_tiles=max_tiles_per_slide,
+																																	 min_tiles=min_tiles_per_slide,
+																																	 include_slidenames=False,
+																																	 multi_input=multi_input)
+		using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
+		if using_validation:
+			validation_data, validation_data_with_slidenames, _ = self._build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, augment=False, 
+																																							   finite=True,
+																																							   max_tiles=max_tiles_per_slide,
+																																							   min_tiles=min_tiles_per_slide,
+																																							   include_slidenames=True, 
+																																							   multi_input=multi_input)
+		validation_data_for_training = None if not using_validation else validation_data.repeat()
+		val_steps = 0 if not using_validation else 200
 
 		# Prepare results
 		results = {'epochs': {}}
 
 		# Calculate parameters
-		if type(hp.finetune_epochs) != list:
-			hp.finetune_epochs = [hp.finetune_epochs]
 		total_epochs = hp.toplayer_epochs + max(hp.finetune_epochs)
-		initialized_optimizer = hp.get_opt()
 		steps_per_epoch = round(num_tiles/hp.batch_size)
-		tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
+		initialized_optimizer = hp.get_opt()
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
 		metrics = ['acc'] if hp.model_type() != 'linear' else [hp.loss]
 
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
-		early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=hp.early_stop_patience)
 		checkpoint_path = os.path.join(self.DATA_DIR, "cp.ckpt")
-		cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
-														save_weights_only=True,
-														verbose=1)
-		
+		cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, save_weights_only=True, verbose=1)
 		tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.DATA_DIR, 
-															histogram_freq=0,
-															write_graph=False,
-															update_freq=hp.batch_size*log_frequency)
+															  histogram_freq=0,
+															  write_graph=False,
+															  update_freq=log_frequency)
 		parent = self
 
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
-			def on_epoch_end(self, epoch, logs=None):
-				if epoch+1 in hp.finetune_epochs:
-					self.model.save(os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5"))
+			def __init__(self):
+				super(PredictionAndEvaluationCallback, self).__init__()
+				self.early_stop = False
+				self.last_ema = -1
+				self.val_acc_moving_average = []
+				self.ema_two_checks_prior = 0
+				self.ema_one_check_prior = 0
+				self.epoch_count = 0
+
+			def on_epoch_end(self, epoch, logs={}):
+				print("\r\033[K", end="")
+				self.epoch_count += 1
+				if epoch+1 in [e for e in hp.finetune_epochs]:
+					model_path = os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5")
+					self.model.save(model_path)
+					log.complete(f"Trained model saved to {sfutil.green(model_path)}", 1)
 					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
-						epoch_label = f"val_epoch{epoch+1}"
-						if hp.model_type() != 'linear':
-							train_acc = logs['acc']
+						self.evaluate_model(logs)
+				self.model.stop_training = self.early_stop
+
+			def on_train_batch_end(self, batch, logs={}):
+				if (batch > 0) and (batch % validate_on_batch == 0) and (parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS)):
+					val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
+					print("\r\033[K", end="")
+					self.val_acc_moving_average += [val_acc]
+					# Calculate exponential moving average of validation accuracy
+					if len(self.val_acc_moving_average) <= ema_observations:
+						log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['acc']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f}")
+					else:
+						# Only keep track of the last [ema_observations] validation accuracies
+						self.val_acc_moving_average.pop(0)
+						if self.last_ema == -1:
+							# Calculate simple moving average
+							self.last_ema = sum(self.val_acc_moving_average) / len(self.val_acc_moving_average)
+							log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['acc']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f} (SMA: {self.last_ema:.3f})")
 						else:
-							train_acc = logs[hp.loss]
-						tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, validation_data_with_slidenames, 
-																										   parent.SLIDE_ANNOTATIONS, hp.model_type(), 
-																										   parent.DATA_DIR, label=epoch_label, manifest=parent.MANIFEST,
-																										   min_tiles_per_slide=min_tiles_per_slide)
-						log.info("Beginning validation testing", 1)
-						val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
+							# Update exponential moving average
+							self.last_ema = (val_acc * (ema_smoothing/(1+ema_observations))) + (self.last_ema * (1-(ema_smoothing/(1+ema_observations))))
+							log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['acc']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f} (EMA: {self.last_ema:.3f})")
 
-						results['epochs'][f'epoch{epoch+1}'] = {}
-						results['epochs'][f'epoch{epoch+1}']['train_acc'] = np.amax(train_acc)
-						results['epochs'][f'epoch{epoch+1}']['val_loss'] = val_loss
-						results['epochs'][f'epoch{epoch+1}']['val_acc'] = val_acc
-						for i, auc in enumerate(tile_auc):
-							results['epochs'][f'epoch{epoch+1}'][f'tile_auc{i}'] = auc
-						for i, auc in enumerate(slide_auc):
-							results['epochs'][f'epoch{epoch+1}'][f'slide_auc{i}'] = auc
-						for i, auc in enumerate(patient_auc):
-							results['epochs'][f'epoch{epoch+1}'][f'patient_auc{i}'] = auc
-						results['epochs'][f'epoch{epoch+1}']['r_squared'] = r_squared
+					# If early stopping and our patience criteria has been met, check if validation accuracy is still improving 
+					if hp.early_stop and (self.last_ema != -1) and (float(batch)/steps_per_epoch)+self.epoch_count > hp.early_stop_patience:
+						if self.last_ema <= self.ema_two_checks_prior:
+							log.info(f"Early stop triggered: epoch {self.epoch_count+1}, batch {batch}", 1)
+							self.model.stop_training = True
+							self.early_stop = True
+						else:
+							self.ema_two_checks_prior = self.ema_one_check_prior
+							self.ema_one_check_prior = self.last_ema
 
-						epoch_results = results['epochs'][f'epoch{epoch+1}']
+			def on_train_end(self, logs={}):
+				print("\r\033[K")
 
-						sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch+1}': epoch_results})
-
+			def evaluate_model(self, logs={}):
+				epoch = self.epoch_count
+				epoch_label = f"val_epoch{epoch}"
+				if hp.model_type() != 'linear':
+					train_acc = logs['acc']
+				else:
+					train_acc = logs[hp.loss]
+				tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(parent.model, validation_data_with_slidenames, 
+																									parent.SLIDE_ANNOTATIONS, hp.model_type(), 
+																									parent.DATA_DIR, label=epoch_label, manifest=parent.MANIFEST)
+				val_loss, val_acc = parent.model.evaluate(validation_data, verbose=0)
+				results['epochs'][f'epoch{epoch}'] = {}
+				results['epochs'][f'epoch{epoch}']['train_acc'] = np.amax(train_acc)
+				results['epochs'][f'epoch{epoch}']['val_loss'] = val_loss
+				results['epochs'][f'epoch{epoch}']['val_acc'] = val_acc
+				for i, auc in enumerate(tile_auc):
+					results['epochs'][f'epoch{epoch}'][f'tile_auc{i}'] = auc
+				for i, auc in enumerate(slide_auc):
+					results['epochs'][f'epoch{epoch}'][f'slide_auc{i}'] = auc
+				for i, auc in enumerate(patient_auc):
+					results['epochs'][f'epoch{epoch}'][f'patient_auc{i}'] = auc
+				results['epochs'][f'epoch{epoch}']['r_squared'] = r_squared
+				epoch_results = results['epochs'][f'epoch{epoch}']
+				sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
+							
 		callbacks = [history_callback, PredictionAndEvaluationCallback(), cp_callback, tensorboard_callback]
-		
-		if hp.early_stop:
-			callbacks += [early_stop_callback]
 
 		# Build or load model
 		if resume_training:
@@ -649,7 +758,5 @@ class SlideflowModel:
 								 validation_data=validation_data_for_training,
 								 validation_steps=val_steps,
 								 callbacks=callbacks)
-
-		self.model.save(os.path.join(self.DATA_DIR, "trained_model.h5"))
 
 		return results, history.history

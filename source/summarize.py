@@ -471,10 +471,9 @@ class Model:
 		log.info(f"Outcomes not found in model hyperparameter log ({sfutil.green(self.dir)}), attempting to automatically detect...", 2)
 		dataset = Dataset(config_file=self.project.settings['dataset_config'], sources=self.project.settings['datasets'])
 		dataset.load_annotations(self.project.settings['annotations'])
+		dataset.apply_filters(filters=self.hyperparameters['filters'], filter_blank=self.hyperparameters['outcome_headers'])
 		try:
 			outcomes, unique_outcomes = dataset.get_outcomes_from_annotations(self.hyperparameters['outcome_headers'], 
-																			filters=self.hyperparameters['filters'], 
-																	 	 	filter_blank=self.hyperparameters['outcome_headers'],
 																	 		use_float=(self.hyperparameters['model_type'] == 'linear'))
 		except TypeError:
 			log.error(f"Unable to load results for model {sfutil.green(self.dir)}; model_type is {self.hyperparameters['model_type']} but outcomes in annotations file cannot be converted into float", 1)

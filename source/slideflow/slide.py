@@ -49,8 +49,6 @@ from statistics import mean, median
 from pathlib import Path
 
 # TODO: test JPG compatibility
-# TODO: test removing BatchNorm fix
-# TODO: remove final layer activations functions (duplicated in a separate module)
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 DEFAULT_JPG_MPP = 0.5
@@ -79,16 +77,13 @@ VIPS_FORMAT_TO_DTYPE = {
     'dpcomplex': np.complex128,
 }
 
-# BatchNormFix
-tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
-
 def polyArea(x, y):
 	return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
 
 def vips2numpy(vi):
-    return np.ndarray(buffer=vi.write_to_memory(),
-                      dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
-                      shape=[vi.height, vi.width, vi.bands])
+	return np.ndarray(buffer=vi.write_to_memory(),
+					  dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
+					  shape=[vi.height, vi.width, vi.bands])
 
 class OpenslideToVIPS:
 	'''Wrapper for VIPS to preserve openslide-like functions.'''
@@ -146,21 +141,14 @@ class OpenslideToVIPS:
 		else:
 			return False
 
-	def get_thumbnail(self, dimensions, enable_downsample=False):
+	def get_thumbnail(self, width, enable_downsample=False):
 		'''Returns a PIL thumbnail Image of the whole slide of the given dimensions.'''
-		resize_factor = float(dimensions[0]) / self.dimensions[0]
-
-		if enable_downsample:
-			thumb_level = self.get_best_level_for_downsample(1/resize_factor)
-			thumb_factor = float(dimensions[0]) / self.level_dimensions[thumb_level][0]
-			thumb = self.get_downsampled_image(thumb_level)
-			resized = thumb.resize(thumb_factor)
-		else:
-			resized = self.full_image.resize(resize_factor)
-
-		np_resized = vips2numpy(resized)
-		pil_resized = Image.fromarray(np_resized)
-		return pil_resized
+		thumbnail = self.full_image.thumbnail_image(width) 
+		log.empty("Reading thumbnail from slide...", 1)
+		np_thumb = vips2numpy(thumbnail)
+		log.empty("...complete.")
+		pil_thumb = Image.fromarray(np_thumb)
+		return pil_thumb
 
 	def read_region(self, base_level_dim, downsample_level, extract_size):
 		'''Extracts a region from the image at the given downsample level.'''
@@ -253,18 +241,12 @@ class SlideLoader:
 		self.filter_px = int(self.full_extract_px * self.filter_magnification)
 
 		# Generating thumbnail for heatmap
-		self.thumbs_path = join(Path(path).parent, "thumbs")
 		self.thumb_image = None
 	
 	def thumb(self):
 		'''Returns thumbnail of the slide.'''
-		sfutil.make_dir(self.thumbs_path)
 		if not self.thumb_image:
-			goal_thumb_area = 4096*4096
-			y_x_ratio = self.shape[1] / self.shape[0]
-			thumb_x = sqrt(goal_thumb_area / y_x_ratio)
-			thumb_y = thumb_x * y_x_ratio
-			self.thumb_image = self.slide.get_thumbnail((int(thumb_x), int(thumb_y)), enable_downsample=self.enable_downsample)
+			self.thumb_image = self.slide.get_thumbnail(2048, enable_downsample=self.enable_downsample)
 		return self.thumb_image
 
 	def build_generator(self):
@@ -304,7 +286,7 @@ class TMAReader(SlideLoader):
 			return
 
 		self.annotations_dir = self.export_folder
-		self.tiles_dir = self.thumbs_path
+		self.tiles_dir = self.export_folder
 		self.DIM = self.slide.dimensions
 		log.label(self.shortname, f"Slide info: {self.MPP} um/px | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
 
@@ -383,7 +365,7 @@ class TMAReader(SlideLoader):
 		super().build_generator()
 
 		log.empty(f"Extracting tiles from {sfutil.green(self.name)}, saving to {sfutil.green(self.tiles_dir)}", 1, self.print)
-		img_orig = np.array(self.slide.get_thumbnail((self.DIM[0]/self.THUMB_DOWNSCALE, self.DIM[1]/self.THUMB_DOWNSCALE), enable_downsample=self.enable_downsample))
+		img_orig = np.array(self.slide.get_thumbnail(self.DIM[0]/self.THUMB_DOWNSCALE, enable_downsample=self.enable_downsample))
 		img_annotated = img_orig.copy()
 
 		# Create background mask for edge detection
