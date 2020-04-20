@@ -28,6 +28,8 @@ import slideflow.io as sfio
 from slideflow.io.datasets import Dataset
 from slideflow.util import TCGA, ProgressBar, log
 from slideflow.activations import ActivationsVisualizer, TileVisualizer, Heatmap
+from slideflow.statistics import TFRecordUMAP
+from slideflow.mosaic import Mosaic
 from comet_ml import Experiment
 
 __version__ = "1.7.0"
@@ -176,13 +178,14 @@ def mosaic_generator(model, filters, focus_filters, resolution, num_tiles_x, max
 	log.info(f"Generating mosaic from {len(tfrecords_list)} slides, with focus on {0 if not focus_list else len(focus_list)} slides.", 1)
 
 	AV = ActivationsVisualizer(model=model_path,
-								tfrecords=tfrecords_list, 
-								root_dir=project_config['root'],
-								image_size=project_config['tile_px'],
-								focus_nodes=None,
-								use_fp16=project_config['use_fp16'],
-								batch_size=flags['eval_batch_size'],
-								export_csv=export_activations)
+							   tfrecords=tfrecords_list, 
+							   root_dir=project_config['root'],
+							   image_size=project_config['tile_px'],
+							   focus_nodes=None,
+							   use_fp16=project_config['use_fp16'],
+							   batch_size=flags['eval_batch_size'],
+							   export_csv=export_activations,
+							   max_tiles_per_slide=max_tiles_per_slide)
 
 	AV.generate_mosaic(focus=focus_list,
 						num_tiles_x=num_tiles_x,
@@ -932,6 +935,30 @@ class SlideflowProject:
 		process.start()
 		log.empty(f"Spawning mosaic process (PID: {process.pid})")
 		process.join()
+
+	def generate_mosaic_from_annotations(self, header_x, header_y, header_category=None, filters=None, focus_filters=None, resolution='low', num_tiles_x=50):
+		
+		dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		dataset.load_annotations(self.PROJECT['annotations'])
+		dataset.apply_filters(filters=filters, filter_blank=[header_x, header_y])
+		tfrecords = dataset.get_tfrecords()
+		slides = dataset.get_slides()
+		outcomes, _ = dataset.get_outcomes_from_annotations([header_x, header_y], use_float=True)
+
+		umap_x = np.array([outcomes[slide]['outcome'][0] for slide in slides])
+		umap_y = np.array([outcomes[slide]['outcome'][1] for slide in slides])
+		umap_meta = [{'slide': slide, 'index': 0} for slide in slides]
+
+		umap = TFRecordUMAP(tfrecords=dataset.get_tfrecords(), slides=dataset.get_slides())
+		umap.load_precalculated(umap_x, umap_y, umap_meta)
+
+		mosaic_map = Mosaic(umap, leniency=1.5,
+								  expanded=False,
+								  tile_zoom=15,
+								  num_tiles_x=num_tiles_x,
+								  resolution=resolution)
+
+		mosaic_map.save(join(self.PROJECT['root'], 'stats'))
 
 	def generate_tfrecords_from_tiles(self, delete_tiles=True):
 		'''Create tfrecord files from a collection of raw images'''
