@@ -148,6 +148,20 @@ class ActivationsVisualizer:
 			optimal_indices.update({slide: closest[0]})
 		return optimal_indices
 
+	def get_mapped_predictions(self):
+		umap_x = []
+		umap_y = []
+		umap_meta = []
+		for slide in self.slide_logits_dict:
+			for tfr in range(len(self.slide_logits_dict[slide][0])):
+				umap_x += [self.slide_logits_dict[slide][0][tfr]]
+				umap_y += [self.slide_logits_dict[slide][1][tfr]]
+				umap_meta += [{
+					'slide': slide,
+					'index': tfr
+				}]
+		return umap_x, umap_y, umap_meta
+
 	def get_activations(self):
 		return self.slide_node_dict
 
