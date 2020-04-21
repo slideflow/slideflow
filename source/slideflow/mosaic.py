@@ -62,8 +62,7 @@ class Mosaic:
 		log.empty("Loading coordinates and plotting points...", 1)
 		for i in range(len(umap.x)):
 			slide = umap.point_meta[i]['slide']
-			self.points.append({'x':umap.x[i],
-								'y':umap.y[i],
+			self.points.append({'coord':np.array((umap.x[i], umap.y[i])),
 								'global_index': i,
 								'neighbors':[],
 								'category':'none',
@@ -71,8 +70,8 @@ class Mosaic:
 								'tfrecord':self._get_tfrecords_from_slide(slide),
 								'tfrecord_index':umap.point_meta[i]['index'],
 								'paired_tile':None })
-		x_points = [p['x'] for p in self.points]
-		y_points = [p['y'] for p in self.points]
+		x_points = [p['coord'][0] for p in self.points]
+		y_points = [p['coord'][1] for p in self.points]
 		_x_width = max(x_points) - min(x_points)
 		_y_width = max(y_points) - min(y_points)
 		buffer = (_x_width + _y_width)/2 * 0.05
@@ -90,8 +89,9 @@ class Mosaic:
 		# Initialize grid
 		for j in range(self.num_tiles_y):
 			for i in range(self.num_tiles_x):
-				self.GRID.append({'x': ((tile_size/2) + min_x) + (tile_size * i),
-									'y': ((tile_size/2) + min_y) + (tile_size * j),
+				x = ((tile_size/2) + min_x) + (tile_size * i)
+				y = ((tile_size/2) + min_y) + (tile_size * j)
+				self.GRID.append({	'coord': np.array((x, y)),
 									'x_index': i,
 									'y_index': j,
 									'grid_index': len(self.GRID),
@@ -104,8 +104,8 @@ class Mosaic:
 		# Add point indices to grid
 		points_added = 0
 		for point in self.points:
-			x_index = int((point['x'] - min_x) / tile_size)
-			y_index = int((point['y'] - min_y) / tile_size)
+			x_index = int((point['coord'][0] - min_x) / tile_size)
+			y_index = int((point['coord'][1] - min_y) / tile_size)
 			for g in self.GRID:
 				if g['x_index'] == x_index and g['y_index'] == y_index:
 					g['points'].append(point['global_index'])
@@ -122,8 +122,8 @@ class Mosaic:
 		for grid_tile in self.GRID:
 			rect_size = min((len(grid_tile['points']) / max_grid_density) * tile_zoom_factor, 1) * tile_size
 
-			tile = patches.Rectangle((grid_tile['x'] - rect_size/2, 
-							  		  grid_tile['y'] - rect_size/2), 
+			tile = patches.Rectangle((grid_tile['coord'][0] - rect_size/2, 
+							  		  grid_tile['coord'][1] - rect_size/2), 
 									  rect_size, 
 							  		  rect_size, 
 									  fill=True, alpha=1, facecolor='white', edgecolor="#cccccc")
@@ -143,21 +143,17 @@ class Mosaic:
 			if mapping_method == 'strict':
 				# Calculate distance for each point within the grid tile from center of the grid tile
 				distances = []
-				tile_coord = np.array((tile['x'], tile['y']))
 				for point_index in tile['points']:
 					point = self.points[point_index]
-					distance = np.linalg.norm(tile_coord - np.array((point['x'], point['y'])))
-					#distance = math.sqrt((point['x']-tile['x'])**2 + (point['y']-tile['y'])**2)
+					distance = np.linalg.norm(tile['coord'] - point['coord'])
 					distances.append([point['global_index'], distance])
 				distances.sort(key=lambda d: d[1])
 				tile['distances'] = distances
 			elif mapping_method == 'expanded':
 				# Calculate distance for each point within the entire grid from center of the grid tile
 				distances = []
-				tile_coord = np.array((tile['x'], tile['y']))
 				for point in self.points:
-					distance = np.linalg.norm(tile_coord - np.array((point['x'], point['y'])))
-					#distance = math.sqrt((point['x']-tile['x'])**2 + (point['y']-tile['y'])**2)
+					distance = np.linalg.norm(tile['coord'] - point['coord'])
 					distances.append([point['global_index'], distance])
 				distances.sort(key=lambda d: d[1])
 				for d in distances:
