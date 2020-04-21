@@ -8,6 +8,7 @@ import atexit
 import itertools
 import warnings
 import csv
+import numpy as np
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import multiprocessing
@@ -936,18 +937,39 @@ class SlideflowProject:
 		log.empty(f"Spawning mosaic process (PID: {process.pid})")
 		process.join()
 
-	def generate_mosaic_from_annotations(self, header_x, header_y, header_category=None, filters=None, focus_filters=None, resolution='low', num_tiles_x=50):
-		
+	def generate_mosaic_from_annotations(self, header_x, header_y, header_category=None, filters=None, focus_filters=None,
+											resolution='low', num_tiles_x=50, use_optimal_tile=False, model=None, max_tiles_per_slide=0):
+
 		dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
 		dataset.load_annotations(self.PROJECT['annotations'])
 		dataset.apply_filters(filters=filters, filter_blank=[header_x, header_y])
 		tfrecords = dataset.get_tfrecords()
 		slides = dataset.get_slides()
 		outcomes, _ = dataset.get_outcomes_from_annotations([header_x, header_y], use_float=True)
+		outcomes_category, _ = dataset.get_outcomes_from_annotations(header_category)
+		slide_to_category = {k:v['outcome'] for k, v in outcomes_category.items()}
 
 		umap_x = np.array([outcomes[slide]['outcome'][0] for slide in slides])
 		umap_y = np.array([outcomes[slide]['outcome'][1] for slide in slides])
-		umap_meta = [{'slide': slide, 'index': 0} for slide in slides]
+
+		if use_optimal_tile and not model:
+			log.error("Unable to calculate optimal tile if no model is specified.")
+			return
+		elif use_optimal_tile:
+			# Calculate most representative tile in each slide/TFRecord for display
+			AV = ActivationsVisualizer(model=model,
+									   tfrecords=tfrecords, 
+									   root_dir=self.PROJECT['root'],
+									   image_size=self.PROJECT['tile_px'],
+									   use_fp16=self.PROJECT['use_fp16'],
+									   batch_size=self.FLAGS['eval_batch_size'],
+									   max_tiles_per_slide=max_tiles_per_slide)
+
+			optimal_slide_indices = AV.calculate_centroid_indices()
+			umap_meta = [{'slide': slide, 'index': optimal_slide_indices[slide]} for slide in slides]
+		else:
+			# Take the first tile from each slide/TFRecord
+			umap_meta = [{'slide': slide, 'index': 0} for slide in slides]
 
 		umap = TFRecordUMAP(tfrecords=dataset.get_tfrecords(), slides=dataset.get_slides())
 		umap.load_precalculated(umap_x, umap_y, umap_meta)
@@ -959,6 +981,7 @@ class SlideflowProject:
 								  resolution=resolution)
 
 		mosaic_map.save(join(self.PROJECT['root'], 'stats'))
+		umap.save_2d_plot(join(self.PROJECT['root'], 'stats', '2d_mosaic_umap.png'), slide_to_category)
 
 	def generate_tfrecords_from_tiles(self, delete_tiles=True):
 		'''Create tfrecord files from a collection of raw images'''

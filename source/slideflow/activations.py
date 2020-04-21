@@ -22,6 +22,8 @@ from slideflow.statistics import TFRecordUMAP
 from os.path import join, isfile, exists
 from random import sample
 from statistics import mean
+from sklearn.cluster import KMeans
+from sklearn.metrics import pairwise_distances_argmin_min
 from math import isnan
 from copy import deepcopy
 from mpl_toolkits.mplot3d import Axes3D
@@ -134,6 +136,17 @@ class ActivationsVisualizer:
 			if slide_stats:
 				csv_writer.writerow(['Slide-level statistic', 'ANOVA P-value'] + [slide_stats[n]['p'] for n in nodes_avg_pt])
 				csv_writer.writerow(['Slide-level statistic', 'ANOVA F-value'] + [slide_stats[n]['f'] for n in nodes_avg_pt])
+
+	def calculate_centroid_indices(self):
+		log.info("Calculating centroid indices...", 1)
+		optimal_indices = {}
+		for slide in self.slide_node_dict:
+			slide_nodes = self.slide_node_dict[slide]
+			coordinates = [[slide_nodes[n][i] for n in self.nodes] for i in range(len(slide_nodes[0]))]
+			km = KMeans(n_clusters=1).fit(coordinates)
+			closest, _ = pairwise_distances_argmin_min(km.cluster_centers_, coordinates)
+			optimal_indices.update({slide: closest[0]})
+		return optimal_indices
 
 	def get_activations(self):
 		return self.slide_node_dict
@@ -267,7 +280,7 @@ class ActivationsVisualizer:
 				sys.stdout.write(f"\r(TFRecord {t+1:>3}/{len(self.tfrecords):>3}) (Batch {i+1:>3}) ({len(fl_activations_combined):>5} images): {sfutil.green(sfutil.path_to_name(tfrecord))}")
 				sys.stdout.flush()
 
-				if len(fl_activations_combined) >= self.MAX_TILES_PER_SLIDE:
+				if self.MAX_TILES_PER_SLIDE and (len(fl_activations_combined) >= self.MAX_TILES_PER_SLIDE):
 					break
 
 			if not nodes_names and not logits_names:
