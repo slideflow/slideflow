@@ -966,7 +966,16 @@ class SlideflowProject:
 									   max_tiles_per_slide=max_tiles_per_slide)
 
 			optimal_slide_indices = AV.calculate_centroid_indices()
-			umap_meta = [{'slide': slide, 'index': optimal_slide_indices[slide]} for slide in slides]
+
+			# Restrict mosaic to only slides that had enough tiles to calculate an optimal index from centroid
+			successful_slides = list(optimal_slide_indices.keys())
+			for slide in slides:
+				if slide not in successful_slides:
+					log.warn(f"Unable to calculate optimal tile for slide {sfutil.green(slide)}; will not include in Mosaic", 1)
+			umap_x = np.array([outcomes[slide]['outcome'][0] for slide in successful_slides])
+			umap_y = np.array([outcomes[slide]['outcome'][1] for slide in successful_slides])
+
+			umap_meta = [{'slide': slide, 'index': optimal_slide_indices[slide]} for slide in successful_slides]
 		else:
 			# Take the first tile from each slide/TFRecord
 			umap_meta = [{'slide': slide, 'index': 0} for slide in slides]
