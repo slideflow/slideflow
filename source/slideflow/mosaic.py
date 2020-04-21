@@ -155,13 +155,12 @@ class Mosaic:
 		log.empty("Calculating tile-point distances...", 1)
 		tile_point_start = time.time()
 		pool = DPool(8)
-
 		for i, _ in enumerate(pool.imap_unordered(calc_distance, self.GRID), 1):
 			sys.stderr.write(f'\rCompleted {i/len(self.GRID):.2%}')
-
 		pool.close()
 		pool.join()
 		tile_point_end = time.time()
+		sys.stdout.write("\r\033[K")
 		log.info(f"Calculations complete ({tile_point_end-tile_point_start:.0f} sec)", 1)
 
 		if mapping_method == 'expanded':
