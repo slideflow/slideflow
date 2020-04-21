@@ -946,8 +946,8 @@ class SlideflowProject:
 		tfrecords = dataset.get_tfrecords()
 		slides = dataset.get_slides()
 		outcomes, _ = dataset.get_outcomes_from_annotations([header_x, header_y], use_float=True)
-		outcomes_category, _ = dataset.get_outcomes_from_annotations(header_category)
-		slide_to_category = {k:v['outcome'] for k, v in outcomes_category.items()}
+		outcomes_category, unique_outcomes = dataset.get_outcomes_from_annotations(header_category)
+		slide_to_category = {k:unique_outcomes[v['outcome']] for k, v in outcomes_category.items()}
 
 		umap_x = np.array([outcomes[slide]['outcome'][0] for slide in slides])
 		umap_y = np.array([outcomes[slide]['outcome'][1] for slide in slides])
