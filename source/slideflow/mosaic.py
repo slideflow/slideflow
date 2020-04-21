@@ -12,6 +12,8 @@ from matplotlib import patches
 from os.path import join
 from slideflow.util import log, ProgressBar
 
+from multiprocessing.dummy import Pool as DPool
+
 class Mosaic:
 	GRID = []
 	points = []
@@ -56,7 +58,7 @@ class Mosaic:
 		ax.set_yticklabels([])
 
 		# First, load UMAP coordinates	
-		log.empty("Loading dimensionality reduction coordinates and plotting points...", 1)
+		log.empty("Loading coordinates and plotting points...", 1)
 		for i in range(len(umap.x)):
 			slide = umap.point_meta[i]['slide']
 			self.points.append({'x':umap.x[i],
@@ -135,13 +137,8 @@ class Mosaic:
 		if mapping_method not in ('strict', 'expanded'):
 			raise TypeError("Unknown mapping method")
 
-		# Calculate tile-point distances
-		log.empty("Calculating tile-point distances...", 1)
-		tile_point_start = time.time()
-		pb = ProgressBar()
-		pb_id = pb.add_bar(0, len(self.GRID))	
-		for i, tile in enumerate(self.GRID):
-			pb.update(pb_id, i)
+		# ---- new function test
+		def calc_distance(tile):
 			if mapping_method == 'strict':
 				# Calculate distance for each point within the grid tile from center of the grid tile
 				distances = []
@@ -152,9 +149,6 @@ class Mosaic:
 				distances.sort(key=lambda d: d[1])
 				tile['distances'] = distances
 			elif mapping_method == 'expanded':
-				#pool = DPool(4)
-				#distances = pool.map(partial(calc_distance, tile_x=tile['x'], tile_y=tile['y']), points)
-
 				# Calculate distance for each point within the entire grid from center of the grid tile
 				distances = []
 				for point in self.points:
@@ -170,10 +164,33 @@ class Mosaic:
 													'point_index':d[0]})
 					else:
 						break
-		
+
+		log.empty("Calculating tile-point distances...", 1)
+		tile_point_start = time.time()
+		pool = DPool(8)
+		#pool.map(calc_distance, self.GRID)
+
+		for i, _ in enumerate(pool.imap_unordered(calc_distance, self.GRID), 1):
+			print('\rdone {0:%}'.format(i/len(self.GRID)), end="")
+
+		tile_point_end = time.time()
+		log.info(f"Calculations complete ({tile_point_end-tile_point_start:.0f} sec)", 1)
+
+		# ----------------------
+
+		'''
+		# Calculate tile-point distances
+		log.empty("Calculating tile-point distances...", 1)
+		tile_point_start = time.time()
+		pb = ProgressBar()
+		pb_id = pb.add_bar(0, len(self.GRID))
+		for i, tile in enumerate(self.GRID):
+			pb.update(pb_id, i)
+			calc_distance(tile)		
 		pb.end()
 		tile_point_end = time.time()
 		log.info(f"Calculations complete ({tile_point_end-tile_point_start:.0f} sec)", 1)
+		'''
 
 		if mapping_method == 'expanded':
 			tile_point_distances.sort(key=lambda d: d['distance'])
