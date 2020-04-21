@@ -937,8 +937,8 @@ class SlideflowProject:
 		log.empty(f"Spawning mosaic process (PID: {process.pid})")
 		process.join()
 
-	def generate_mosaic_from_annotations(self, header_x, header_y, header_category=None, filters=None, focus_filters=None,
-											resolution='low', num_tiles_x=50, expanded=False, use_optimal_tile=False, model=None, max_tiles_per_slide=0):
+	def generate_mosaic_from_annotations(self, header_x, header_y, header_category=None, filters=None, focus_filters=None, resolution='low', num_tiles_x=50,
+											expanded=False, use_optimal_tile=False, model=None, max_tiles_per_slide=0, map_predictions=False):
 
 		dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
 		dataset.load_annotations(self.PROJECT['annotations'])
@@ -965,24 +965,26 @@ class SlideflowProject:
 									   batch_size=self.FLAGS['eval_batch_size'],
 									   max_tiles_per_slide=max_tiles_per_slide)
 
-			optimal_slide_indices = AV.calculate_centroid_indices()
+			if map_predictions:
+				umap_x, umap_y, umap_meta = AV.get_mapped_predictions()
+			else:
+				optimal_slide_indices = AV.calculate_centroid_indices()
 
-			# Restrict mosaic to only slides that had enough tiles to calculate an optimal index from centroid
-			successful_slides = list(optimal_slide_indices.keys())
-			num_warned = 0
-			warn_threshold = 3
-			for slide in slides:
-				print_func = print if num_warned < warn_threshold else None
-				if slide not in successful_slides:
-					log.warn(f"Unable to calculate optimal tile for slide {sfutil.green(slide)}; will not include in Mosaic", 1, print_func)
-					num_warned += 1
-			if num_warned >= warn_threshold:
-				log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
+				# Restrict mosaic to only slides that had enough tiles to calculate an optimal index from centroid
+				successful_slides = list(optimal_slide_indices.keys())
+				num_warned = 0
+				warn_threshold = 3
+				for slide in slides:
+					print_func = print if num_warned < warn_threshold else None
+					if slide not in successful_slides:
+						log.warn(f"Unable to calculate optimal tile for slide {sfutil.green(slide)}; will not include in Mosaic", 1, print_func)
+						num_warned += 1
+				if num_warned >= warn_threshold:
+					log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
 
-			umap_x = np.array([outcomes[slide]['outcome'][0] for slide in successful_slides])
-			umap_y = np.array([outcomes[slide]['outcome'][1] for slide in successful_slides])
-
-			umap_meta = [{'slide': slide, 'index': optimal_slide_indices[slide]} for slide in successful_slides]
+				umap_x = np.array([outcomes[slide]['outcome'][0] for slide in successful_slides])
+				umap_y = np.array([outcomes[slide]['outcome'][1] for slide in successful_slides])
+				umap_meta = [{'slide': slide, 'index': optimal_slide_indices[slide]} for slide in successful_slides]
 		else:
 			# Take the first tile from each slide/TFRecord
 			umap_meta = [{'slide': slide, 'index': 0} for slide in slides]
