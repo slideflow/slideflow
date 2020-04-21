@@ -140,8 +140,9 @@ class Mosaic:
 			if mapping_method == 'strict':
 				# Calculate distance for each point within the grid tile from center of the grid tile
 				point_coords = np.asarray([self.points[global_index]['coord'] for global_index in tile['points']])
-				distances = np.linalg.norm(point_coords - tile['coord'], ord=2, axis=1.)
-				tile['nearest_index'] = tile['points'][np.argmin(distances)]
+				if len(point_coords):
+					distances = np.linalg.norm(point_coords - tile['coord'], ord=2, axis=1.)
+					tile['nearest_index'] = tile['points'][np.argmin(distances)]
 			elif mapping_method == 'expanded':
 				# Calculate distance for each point within the entire grid from center of the grid tile
 				point_coords = np.asarray([p['coord'] for p in self.points])
