@@ -146,7 +146,7 @@ class Mosaic:
 				for point_index in tile['points']:
 					point = self.points[point_index]
 					distance = np.linalg.norm(tile_coord - np.array((point['x'], point['y'])))
-					distance = math.sqrt((point['x']-tile['x'])**2 + (point['y']-tile['y'])**2)
+					#distance = math.sqrt((point['x']-tile['x'])**2 + (point['y']-tile['y'])**2)
 					distances.append([point['global_index'], distance])
 				distances.sort(key=lambda d: d[1])
 				tile['distances'] = distances
