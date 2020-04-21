@@ -1,6 +1,7 @@
 import math
 import time
 import cv2
+import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -171,10 +172,10 @@ class Mosaic:
 
 		log.empty("Calculating tile-point distances...", 1)
 		tile_point_start = time.time()
-		pool = DPool(32)
+		pool = DPool(8)
 
 		for i, _ in enumerate(pool.imap_unordered(calc_distance, self.GRID), 1):
-			print('\rCompleted {0:.2%}'.format(i/len(self.GRID)), end="")
+			sys.stderr.write(f'\rCompleted {i/len(self.GRID):.2%}')
 
 		pool.close()
 		pool.join()
