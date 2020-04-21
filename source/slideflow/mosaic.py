@@ -64,7 +64,6 @@ class Mosaic:
 			slide = umap.point_meta[i]['slide']
 			self.points.append({'coord':np.array((umap.x[i], umap.y[i])),
 								'global_index': i,
-								'neighbors':[],
 								'category':'none',
 								'slide':slide,
 								'tfrecord':self._get_tfrecords_from_slide(slide),
@@ -131,7 +130,6 @@ class Mosaic:
 
 			grid_tile['size'] = rect_size
 			grid_tile['rectangle'] = tile
-			grid_tile['neighbors'] = []
 			grid_tile['paired_point'] = None
 
 		# Then, calculate distances from each point to each spot on the grid
@@ -142,27 +140,29 @@ class Mosaic:
 		def calc_distance(tile):
 			if mapping_method == 'strict':
 				# Calculate distance for each point within the grid tile from center of the grid tile
-				distances = []
-				for point_index in tile['points']:
-					point = self.points[point_index]
-					distance = np.linalg.norm(tile['coord'] - point['coord'])
-					distances.append([point['global_index'], distance])
-				distances.sort(key=lambda d: d[1])
-				tile['distances'] = distances
+				point_coords = np.asarray([self.points[pi]['coord'] for pi in tile['points']])
+				global_indices = np.asarray([self.points[pi]['global_index'] for pi in tile['points']])
+				distances = np.linalg.norm(point_coords - tile['coord'], ord=2, axis=1.)
+				# Sort distances
+				sorted_indices = distances.argsort()
+				distances = distances[sorted_indices]
+				sorted_global = global_indices[sorted_indices]
+				tile['distances'] = np.stack((sorted_global, distances), axis=1)
 			elif mapping_method == 'expanded':
 				# Calculate distance for each point within the entire grid from center of the grid tile
-				distances = []
-				for point in self.points:
-					distance = np.linalg.norm(tile['coord'] - point['coord'])
-					distances.append([point['global_index'], distance])
-				distances.sort(key=lambda d: d[1])
-				for d in distances:
-					if d[1] <= max_distance:
-						tile['neighbors'].append(d)
-						self.points[d[0]]['neighbors'].append([tile['grid_index'], d[1]])
-						tile_point_distances.append({'distance': d[1],
+				point_coords = np.asarray([p['coord'] for p in self.points])
+				global_indices = np.asarray([p['global_index'] for p in self.points])
+				distances = np.linalg.norm(point_coords - tile['coord'], ord=2, axis=1.)
+				# Sort distances
+				sorted_indices = distances.argsort()
+				distances = distances[sorted_indices]
+				sorted_global = global_indices[sorted_indices]
+				for i, distance in enumerate(distances):
+					global_index = sorted_global[i]
+					if distance <= max_distance:
+						tile_point_distances.append({'distance': distance,
 													'grid_index':tile['grid_index'],
-													'point_index':d[0]})
+													'point_index':global_index})
 					else:
 						break
 
