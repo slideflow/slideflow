@@ -969,9 +969,16 @@ class SlideflowProject:
 
 			# Restrict mosaic to only slides that had enough tiles to calculate an optimal index from centroid
 			successful_slides = list(optimal_slide_indices.keys())
+			num_warned = 0
+			warn_threshold = 3
 			for slide in slides:
+				print_func = print if num_warned < warn_threshold else None
 				if slide not in successful_slides:
-					log.warn(f"Unable to calculate optimal tile for slide {sfutil.green(slide)}; will not include in Mosaic", 1)
+					log.warn(f"Unable to calculate optimal tile for slide {sfutil.green(slide)}; will not include in Mosaic", 1, print_func)
+					num_warned += 1
+			if num_warned >= warn_threshold:
+				log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
+
 			umap_x = np.array([outcomes[slide]['outcome'][0] for slide in successful_slides])
 			umap_y = np.array([outcomes[slide]['outcome'][1] for slide in successful_slides])
 
