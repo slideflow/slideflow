@@ -305,7 +305,7 @@ class ActivationsVisualizer:
 				logits_combined = logits_combined[:self.MAX_TILES_PER_SLIDE]
 				fl_activations_combined = fl_activations_combined[:self.MAX_TILES_PER_SLIDE]
 
-			# Export to PKL and CSV
+			# Export to memory and CSV
 			for i in range(len(fl_activations_combined)):
 				slide = slides_combined[i].decode('utf-8')
 				activations_vals = fl_activations_combined[i].tolist()
@@ -314,7 +314,7 @@ class ActivationsVisualizer:
 				if export_csv:
 					row = [slide] + logits_vals + activations_vals
 					csvwriter.writerow(row)
-				# Write to PKL
+				# Write to memory
 				for n in range(len(nodes_names)):
 					val = activations_vals[n]
 					self.slide_node_dict[slide][n] += [val]
