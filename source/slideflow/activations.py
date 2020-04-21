@@ -84,7 +84,7 @@ class ActivationsVisualizer:
 		# Load from PKL (cache) if present
 		if exists(self.PT_NODE_DICT_PKL) and exists(self.PT_LOGITS_DICT_PKL): 
 			# Load saved PKL cache
-			log.info("Loading pre-calculated predictions and activations from pickled files...", 1)
+			log.info("Loading pre-calculated predictions and activations from cache...", 1)
 			with open(self.PT_NODE_DICT_PKL, 'rb') as pt_pkl_file:
 				self.slide_node_dict = pickle.load(pt_pkl_file)
 				self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
