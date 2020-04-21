@@ -136,7 +136,6 @@ class Mosaic:
 		if mapping_method not in ('strict', 'expanded'):
 			raise TypeError("Unknown mapping method")
 
-		# ---- new function test
 		def calc_distance(tile):
 			if mapping_method == 'strict':
 				# Calculate distance for each point within the grid tile from center of the grid tile
@@ -154,17 +153,15 @@ class Mosaic:
 				global_indices = np.asarray([p['global_index'] for p in self.points])
 				distances = np.linalg.norm(point_coords - tile['coord'], ord=2, axis=1.)
 				# Sort distances
-				sorted_indices = distances.argsort()
-				distances = distances[sorted_indices]
-				sorted_global = global_indices[sorted_indices]
+				#sorted_indices = distances.argsort()
+				#distances = distances[sorted_indices]
+				#sorted_global = global_indices[sorted_indices]
 				for i, distance in enumerate(distances):
-					global_index = sorted_global[i]
 					if distance <= max_distance:
+						global_index = global_indices[i]
 						tile_point_distances.append({'distance': distance,
 													'grid_index':tile['grid_index'],
 													'point_index':global_index})
-					else:
-						break
 
 		log.empty("Calculating tile-point distances...", 1)
 		tile_point_start = time.time()
@@ -177,22 +174,6 @@ class Mosaic:
 		pool.join()
 		tile_point_end = time.time()
 		log.info(f"Calculations complete ({tile_point_end-tile_point_start:.0f} sec)", 1)
-
-		# ----------------------
-
-		'''
-		# Calculate tile-point distances
-		log.empty("Calculating tile-point distances...", 1)
-		tile_point_start = time.time()
-		pb = ProgressBar()
-		pb_id = pb.add_bar(0, len(self.GRID))
-		for i, tile in enumerate(self.GRID):
-			pb.update(pb_id, i)
-			calc_distance(tile)		
-		pb.end()
-		tile_point_end = time.time()
-		log.info(f"Calculations complete ({tile_point_end-tile_point_start:.0f} sec)", 1)
-		'''
 
 		if mapping_method == 'expanded':
 			tile_point_distances.sort(key=lambda d: d['distance'])
