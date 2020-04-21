@@ -223,10 +223,10 @@ class Mosaic:
 					tile_alpha = fraction_slide
 				if not export:
 					tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
-				image = ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-tile['size']/2, 
-																						tile['x']+tile['size']/2,
-																						tile['y']-tile['size']/2,
-																						tile['y']+tile['size']/2], zorder=99, alpha=tile_alpha)
+				image = ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['coord'][0]-tile['size']/2, 
+																						tile['coord'][0]+tile['size']/2,
+																						tile['coord'][1]-tile['size']/2,
+																						tile['coord'][1]+tile['size']/2], zorder=99, alpha=tile_alpha)
 				tile['image'] = image
 				num_placed += 1
 		elif mapping_method == 'expanded':
@@ -245,10 +245,10 @@ class Mosaic:
 
 					if not export:
 						tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
-					image = ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['x']-tile_size/2,
-																					tile['x']+tile_size/2,
-																					tile['y']-tile_size/2,
-																					tile['y']+tile_size/2], zorder=99)
+					image = ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['coord'][0]-tile_size/2,
+																					tile['coord'][0]+tile_size/2,
+																					tile['coord'][1]-tile_size/2,
+																					tile['coord'][1]+tile_size/2], zorder=99)
 					tile['image'] = image
 					num_placed += 1
 		log.info(f"Num placed: {num_placed}", 2)
