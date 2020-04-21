@@ -938,7 +938,7 @@ class SlideflowProject:
 		process.join()
 
 	def generate_mosaic_from_annotations(self, header_x, header_y, header_category=None, filters=None, focus_filters=None,
-											resolution='low', num_tiles_x=50, use_optimal_tile=False, model=None, max_tiles_per_slide=0):
+											resolution='low', num_tiles_x=50, expanded=False, use_optimal_tile=False, model=None, max_tiles_per_slide=0):
 
 		dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
 		dataset.load_annotations(self.PROJECT['annotations'])
@@ -991,7 +991,7 @@ class SlideflowProject:
 		umap.load_precalculated(umap_x, umap_y, umap_meta)
 
 		mosaic_map = Mosaic(umap, leniency=1.5,
-								  expanded=False,
+								  expanded=expanded,
 								  tile_zoom=15,
 								  num_tiles_x=num_tiles_x,
 								  resolution=resolution)
