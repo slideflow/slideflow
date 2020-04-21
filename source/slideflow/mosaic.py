@@ -151,8 +151,10 @@ class Mosaic:
 			elif mapping_method == 'expanded':
 				# Calculate distance for each point within the entire grid from center of the grid tile
 				distances = []
+				tile_coord = np.array((tile['x'], tile['y']))
 				for point in self.points:
-					distance = math.sqrt((point['x']-tile['x'])**2 + (point['y']-tile['y'])**2)
+					distance = np.linalg.norm(tile_coord - np.array((point['x'], point['y'])))
+					#distance = math.sqrt((point['x']-tile['x'])**2 + (point['y']-tile['y'])**2)
 					distances.append([point['global_index'], distance])
 				distances.sort(key=lambda d: d[1])
 				for d in distances:
@@ -168,11 +170,12 @@ class Mosaic:
 		log.empty("Calculating tile-point distances...", 1)
 		tile_point_start = time.time()
 		pool = DPool(8)
-		#pool.map(calc_distance, self.GRID)
 
 		for i, _ in enumerate(pool.imap_unordered(calc_distance, self.GRID), 1):
-			print('\rdone {0:%}'.format(i/len(self.GRID)), end="")
+			print('\Completed {0:.2%}'.format(i/len(self.GRID)), end="")
 
+		pool.close()
+		pool.join()
 		tile_point_end = time.time()
 		log.info(f"Calculations complete ({tile_point_end-tile_point_start:.0f} sec)", 1)
 
