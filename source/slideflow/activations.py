@@ -160,7 +160,7 @@ class ActivationsVisualizer:
 					'slide': slide,
 					'index': tfr
 				}]
-		return umap_x, umap_y, umap_meta
+		return np.array(umap_x), np.array(umap_y), umap_meta
 
 	def get_activations(self):
 		return self.slide_node_dict
