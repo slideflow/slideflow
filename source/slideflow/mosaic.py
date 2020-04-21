@@ -96,7 +96,7 @@ class Mosaic:
 									'grid_index': len(self.GRID),
 									'size': tile_size,
 									'points':[],
-									'distances':[],
+									'nearest_index':[],
 									'active': False,
 									'image': None})
 
@@ -139,29 +139,18 @@ class Mosaic:
 		def calc_distance(tile):
 			if mapping_method == 'strict':
 				# Calculate distance for each point within the grid tile from center of the grid tile
-				point_coords = np.asarray([self.points[pi]['coord'] for pi in tile['points']])
-				global_indices = np.asarray([self.points[pi]['global_index'] for pi in tile['points']])
+				point_coords = np.asarray([self.points[global_index]['coord'] for global_index in tile['points']])
 				distances = np.linalg.norm(point_coords - tile['coord'], ord=2, axis=1.)
-				# Sort distances
-				sorted_indices = distances.argsort()
-				distances = distances[sorted_indices]
-				sorted_global = global_indices[sorted_indices]
-				tile['distances'] = np.stack((sorted_global, distances), axis=1)
+				tile['nearest_index'] = tile['points'][np.argmin(distances)]
 			elif mapping_method == 'expanded':
 				# Calculate distance for each point within the entire grid from center of the grid tile
 				point_coords = np.asarray([p['coord'] for p in self.points])
-				global_indices = np.asarray([p['global_index'] for p in self.points])
 				distances = np.linalg.norm(point_coords - tile['coord'], ord=2, axis=1.)
-				# Sort distances
-				#sorted_indices = distances.argsort()
-				#distances = distances[sorted_indices]
-				#sorted_global = global_indices[sorted_indices]
 				for i, distance in enumerate(distances):
 					if distance <= max_distance:
-						global_index = global_indices[i]
 						tile_point_distances.append({'distance': distance,
 													'grid_index':tile['grid_index'],
-													'point_index':global_index})
+													'point_index':self.points[i]['global_index']})
 
 		log.empty("Calculating tile-point distances...", 1)
 		tile_point_start = time.time()
@@ -183,8 +172,8 @@ class Mosaic:
 		num_placed = 0
 		if mapping_method == 'strict':
 			for tile in self.GRID:
-				if not len(tile['distances']): continue
-				closest_point = tile['distances'][0][0]
+				if not tile['nearest_index']: continue
+				closest_point = tile['nearest_index']
 				point = self.points[closest_point]
 
 				_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
