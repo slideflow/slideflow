@@ -111,9 +111,14 @@ class HyperParameters:
 	}
 	_LinearLoss = ['mean_squared_error', 'mean_absolute_error', 'mean_absolute_percentage_error', 'mean_squared_logarithmic_error', 'squared_hinge', 'hinge', 'logcosh']
 
+	_AllLoss = ['mean_squared_error', 'mean_absolute_error', 'mean_absolute_percentage_error', 'mean_squared_logarithmic_error', 'squared_hinge', 'hinge'
+				'categorical_hinge', 'logcosh', 'huber_loss', 'categorical_crossentropy', 'sparse_categorical_crossentropy', 'binary_crossentropy',
+				'kullback_leibler_divergence', 'poisson', 'cosine_proximity', 'is_categorical_crossentropy']
+
+
 	def __init__(self, finetune_epochs=10, toplayer_epochs=0, model='Xception', pooling='max', loss='sparse_categorical_crossentropy',
 				 learning_rate=0.0001, batch_size=16, hidden_layers=1, optimizer='Adam', early_stop=False, 
-				 early_stop_patience=0, balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
+				 early_stop_patience=0, early_stop_method='loss', balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
 				 hidden_layer_width=500, trainable_layers=0, L2_weight=0, augment=True):
 		''' Additional hyperparameters to consider:
 		beta1 0.9
@@ -121,17 +126,37 @@ class HyperParameters:
 		epsilon 1.0
 		batch_norm_decay 0.99
 		'''
+		# Assert hyperparameters are valid
+		assert type(toplayer_epochs) == int
+		assert (type(finetune_epochs) == list and all([type(t) == int for t in finetune_epochs])) or type(finetune_epochs) == int
+		assert model in self._ModelDict.keys()
+		assert pooling in ['max', 'avg', 'none']
+		assert loss in self._AllLoss
+		assert type(learning_rate) == float
+		assert type(batch_size) == int
+		assert type(hidden_layers) == int
+		assert optimizer in self._OptDict.keys()
+		assert type(early_stop) == bool
+		assert type(early_stop_patience) == int
+		assert early_stop_method in ['loss', 'acc']
+		assert balanced_training in [BALANCE_BY_CATEGORY, BALANCE_BY_PATIENT, NO_BALANCE]
+		assert type(hidden_layer_width) == int
+		assert type(trainable_layers) == int
+		assert type(L2_weight) in (int, float)
+		assert type(augment) == bool
+
 		self.toplayer_epochs = toplayer_epochs
 		self.finetune_epochs = finetune_epochs if type(finetune_epochs) == list else [finetune_epochs]
 		self.model = model
-		self.pooling = pooling
+		self.pooling = pooling if pooling != 'none' else None
 		self.loss = loss
 		self.learning_rate = learning_rate
 		self.batch_size = batch_size
 		self.optimizer = optimizer
 		self.early_stop = early_stop
-		self.hidden_layers = hidden_layers
+		self.early_stop_method = early_stop_method
 		self.early_stop_patience = early_stop_patience
+		self.hidden_layers = hidden_layers
 		self.balanced_training = balanced_training
 		self.balanced_validation = balanced_validation
 		self.augment = augment
@@ -653,7 +678,7 @@ class SlideflowModel:
 				super(PredictionAndEvaluationCallback, self).__init__()
 				self.early_stop = False
 				self.last_ema = -1
-				self.val_acc_moving_average = []
+				self.moving_average = []
 				self.ema_two_checks_prior = 0
 				self.ema_one_check_prior = 0
 				self.epoch_count = 0
@@ -672,26 +697,29 @@ class SlideflowModel:
 			def on_train_batch_end(self, batch, logs={}):
 				if (batch > 0) and (batch % validate_on_batch == 0) and (parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS)):
 					val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
+					early_stop_value = val_acc if hp.early_stop_method == 'acc' else val_loss
 					print("\r\033[K", end="")
-					self.val_acc_moving_average += [val_acc]
+					self.moving_average += [early_stop_value]
 					# Calculate exponential moving average of validation accuracy
-					if len(self.val_acc_moving_average) <= ema_observations:
+					if len(self.moving_average) <= ema_observations:
 						log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['acc']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f}")
 					else:
 						# Only keep track of the last [ema_observations] validation accuracies
-						self.val_acc_moving_average.pop(0)
+						self.moving_average.pop(0)
 						if self.last_ema == -1:
 							# Calculate simple moving average
-							self.last_ema = sum(self.val_acc_moving_average) / len(self.val_acc_moving_average)
+							self.last_ema = sum(self.moving_average) / len(self.moving_average)
 							log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['acc']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f} (SMA: {self.last_ema:.3f})")
 						else:
 							# Update exponential moving average
-							self.last_ema = (val_acc * (ema_smoothing/(1+ema_observations))) + (self.last_ema * (1-(ema_smoothing/(1+ema_observations))))
+							self.last_ema = (early_stop_value * (ema_smoothing/(1+ema_observations))) + (self.last_ema * (1-(ema_smoothing/(1+ema_observations))))
 							log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['acc']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f} (EMA: {self.last_ema:.3f})")
 
 					# If early stopping and our patience criteria has been met, check if validation accuracy is still improving 
 					if hp.early_stop and (self.last_ema != -1) and (float(batch)/steps_per_epoch)+self.epoch_count > hp.early_stop_patience:
-						if self.last_ema <= self.ema_two_checks_prior:
+						if ((hp.early_stop_method == 'acc' and self.last_ema <= self.ema_two_checks_prior) or 
+							(hp.early_stop_method == 'loss' and self.last_ema >= self.ema_two_checks_prior)):
+
 							log.info(f"Early stop triggered: epoch {self.epoch_count+1}, batch {batch}", 1)
 							self.model.stop_training = True
 							self.early_stop = True
