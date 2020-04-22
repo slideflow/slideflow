@@ -127,26 +127,26 @@ class HyperParameters:
 		batch_norm_decay 0.99
 		'''
 		# Assert hyperparameters are valid
-		assert type(toplayer_epochs) == int
-		assert (type(finetune_epochs) == list and all([type(t) == int for t in finetune_epochs])) or type(finetune_epochs) == int
+		assert isinstance(toplayer_epochs, int)
+		assert (isinstance(finetune_epochs, list) and all([isinstance(t, int) for t in finetune_epochs])) or isinstance(finetune_epochs, int)
 		assert model in self._ModelDict.keys()
 		assert pooling in ['max', 'avg', 'none']
 		assert loss in self._AllLoss
-		assert type(learning_rate) == float
-		assert type(batch_size) == int
-		assert type(hidden_layers) == int
+		assert isinstance(learning_rate, float)
+		assert isinstance(batch_size, int)
+		assert isinstance(hidden_layers, int)
 		assert optimizer in self._OptDict.keys()
-		assert type(early_stop) == bool
-		assert type(early_stop_patience) == int
+		assert isinstance(early_stop, bool)
+		assert isinstance(early_stop_patience, int)
 		assert early_stop_method in ['loss', 'acc']
 		assert balanced_training in [BALANCE_BY_CATEGORY, BALANCE_BY_PATIENT, NO_BALANCE]
-		assert type(hidden_layer_width) == int
-		assert type(trainable_layers) == int
-		assert type(L2_weight) in (int, float)
-		assert type(augment) == bool
+		assert isinstance(hidden_layer_width, int)
+		assert isinstance(trainable_layers, int)
+		assert isinstance(L2_weight, (int, float))
+		assert isinstance(augment, bool)
 
 		self.toplayer_epochs = toplayer_epochs
-		self.finetune_epochs = finetune_epochs if type(finetune_epochs) == list else [finetune_epochs]
+		self.finetune_epochs = finetune_epochs if isinstance(finetune_epochs, list) else [finetune_epochs]
 		self.model = model
 		self.pooling = pooling if pooling != 'none' else None
 		self.loss = loss
