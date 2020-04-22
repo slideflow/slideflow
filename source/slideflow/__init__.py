@@ -64,7 +64,7 @@ def evaluator(outcome_header, model, project_config, results_dict, filters=None,
 	model_type = hp_data['model_type']
 
 	# Filter out slides that are blank in the outcome category
-	filter_blank = [outcome_header] if type(outcome_header) != list else outcome_header
+	filter_blank = [outcome_header] if isinstance(outcome_header, list) else outcome_header
 
 	# Load dataset and annotations for evaluation
 	eval_dataset = Dataset(config_file=project_config['dataset_config'],
@@ -427,7 +427,7 @@ class SlideflowProject:
 					return
 
 				hyperparameter_list += [[hp, hp_model_name]]
-		elif (type(hyperparameters) == list) and (type(models) == list):
+		elif isinstance(hyperparameters, list) and isinstance(models, list):
 			if len(models) != len(hyperparameters):
 				log.error(f"Unable to iterate through hyperparameters provided; length of hyperparameters ({len(hyperparameters)}) much match length of models ({len(models)})", 1)
 				return
@@ -455,7 +455,7 @@ class SlideflowProject:
 			for row in reader:
 				model_name = row[model_name_i]
 				# First check if this row is a valid model
-				if (not models) or (type(models)==str and model_name==models) or model_name in models:
+				if (not models) or (isinstance(models, str) and model_name==models) or model_name in models:
 					# Now verify there are no duplicate model names
 					if model_name in models_to_train:
 						log.error(f"Duplicate model names found in {sfutil.green(batch_train_file)}.", 0)
@@ -542,7 +542,7 @@ class SlideflowProject:
 		del(pdict['finetune_epochs'])
 		args = list(pdict.keys())
 		for arg in args:
-			if type(pdict[arg]) != list:
+			if isinstance(pdict[arg], list):
 				pdict[arg] = [pdict[arg]]
 		argsv = list(pdict.values())
 		sweep = list(itertools.product(*argsv))
@@ -1205,7 +1205,7 @@ class SlideflowProject:
 		
 		hyperparameter_list = self._get_hyperparameter_combinations(hyperparameters, models, batch_train_file)
 
-		outcome_header = [outcome_header] if type(outcome_header) != list else outcome_header
+		outcome_header = [outcome_header] if isinstance(outcome_header, list) else outcome_header
 		if multi_outcome:
 			log.info(f"Training ({len(hyperparameter_list)} models) using {len(outcome_header)} variables as simultaneous input:", 1)
 		else:
@@ -1217,7 +1217,7 @@ class SlideflowProject:
 
 		# Prepare k-fold validation configuration
 		results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
-		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and type(k_fold_iter) != list) else k_fold_iter
+		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and isinstance(k_fold_iter, list)) else k_fold_iter
 		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
 		valid_k = [] if not k_fold else [kf for kf in range(1, k_fold+1) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
 
@@ -1232,7 +1232,7 @@ class SlideflowProject:
 			# For each hyperparameter combination, perform training
 			for hp, hp_model_name in hyperparameter_list:
 				# Generate model name
-				if type(selected_outcome_headers) == list:
+				if isinstance(selected_outcome_headers, list):
 					outcome_string = "-".join(selected_outcome_headers)
 				else:
 					outcome_string = selected_outcome_headers
