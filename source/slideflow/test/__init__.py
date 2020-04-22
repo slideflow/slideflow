@@ -139,8 +139,9 @@ class TestSuite:
 			csv_writer = csv.writer(csv_outfile, delimiter=',')
 			for an in ANNOTATIONS:
 				csv_writer.writerow(an)
-		project_dataset = Dataset(config_file=PROJECT_CONFIG['dataset_config'], sources=PROJECT_CONFIG['datasets'])
-		project_dataset.load_annotations(PROJECT_CONFIG['annotations'])
+		project_dataset = Dataset(config_file=PROJECT_CONFIG['dataset_config'],
+								  sources=PROJECT_CONFIG['datasets'],
+								  annotations=PROJECT_CONFIG['annotations'])
 		project_dataset.update_annotations_with_slidenames(PROJECT_CONFIG['annotations'])
 		loaded_slides = project_dataset.get_slides()
 		for slide in SLIDES_TO_VERIFY:

@@ -124,7 +124,7 @@ class Dataset:
 	filters = None
 	filter_blank = None
 
-	def __init__(self, config_file, sources):
+	def __init__(self, config_file, sources, annotations=None, filters=None, filter_blank=None):
 		config = sfutil.load_json(config_file)
 		sources = sources if type(sources) == list else [sources]
 		try:
@@ -133,6 +133,12 @@ class Dataset:
 			sources_list = ", ".join(sources)
 			log.error(f"Unable to find datasets named {sfutil.bold(sources_list)} in config file {sfutil.green(config_file)}", 1)
 			sys.exit()
+		
+		if annotations:
+			self.load_annotations(annotations)
+			
+		if filters or filter_blank:
+			self.apply_filters(filters=filters, filter_blank=filter_blank)
 
 	def apply_filters(self, filters=None, filter_blank=None):
 		self.filters = filters
