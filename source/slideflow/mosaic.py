@@ -223,19 +223,8 @@ class Mosaic:
 					num_placed += 1
 		log.info(f"Num placed: {num_placed}", 2)
 
-		# If desired, highlight certain tiles according to a focus list
-		if focus:
-			for tile in self.GRID:
-				if not len(tile['points']): continue
-				num_cat, num_other = 0, 0
-				for point_index in tile['points']:
-					point = self.points[point_index]
-					if point['tfrecord'] in focus:
-						num_cat += 1
-					else:
-						num_other += 1
-				alpha = num_cat / (num_other + num_cat)
-				tile['image'].set_alpha(alpha)
+		# Focus on a subset of TFRecords if desired
+		if focus: self.focus(focus)
 
 		# Finally, finish the mosaic figure
 		ax.autoscale(enable=True, tight=None)
