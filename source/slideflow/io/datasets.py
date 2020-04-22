@@ -177,7 +177,7 @@ class Dataset:
 		
 		# Begin filtering slides with annotations
 		slides = []
-		self.filter_blank = [self.filter_blank] if isinstance(self.filter_blank, list) else self.filter_blank
+		self.filter_blank = [self.filter_blank] if not isinstance(self.filter_blank, list) else self.filter_blank
 		slide_patient_dict = {}
 		if not len(self.ANNOTATIONS):
 			print(self.ANNOTATIONS)
@@ -310,7 +310,7 @@ class Dataset:
 		slides = self.get_slides()
 		filtered_annotations = [a for a in self.ANNOTATIONS if a[TCGA.slide] in slides]
 		results = {}
-		headers = [headers] if isinstance(headers, list) else headers
+		headers = [headers] if not isinstance(headers, list) else headers
 		assigned_headers = {}
 		unique_outcomes = None
 		for header in headers:
@@ -365,7 +365,7 @@ class Dataset:
 				if slide in slides:
 					if slide in results:
 						so = results[slide]['outcome']
-						results[slide]['outcome'] = [so] if isinstance(so, list) else so
+						results[slide]['outcome'] = [so] if not isinstance(so, list) else so
 						results[slide]['outcome'] += [annotation_outcome]
 					else:
 						results[slide] = {'outcome': annotation_outcome if not use_float else [annotation_outcome]}
