@@ -87,9 +87,11 @@ class TFRecordUMAP:
 
 		# Make plot
 		plt.clf()
-		sns.scatterplot(x=x, y=y, data=df, hue='category', palette=sns.color_palette('Set1', len(unique_categories)))
+		fig = plt.figure()
+		umap_2d = sns.scatterplot(x=x, y=y, data=df, hue='category', palette=sns.color_palette('Set1', len(unique_categories)))
 		log.info(f"Saving 2D UMAP to {sfutil.green(filename)}...", 1)
-		plt.savefig(filename, bbox_inches='tight')
+		umap_figure = umap_2d.get_figure()
+		umap_figure.savefig(filename, bbox_inches='tight')
 
 	def save_3d_plot(self, z, filename, title="UMAP", subsample=None):
 		'''Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument "z" '''
@@ -264,7 +266,10 @@ def generate_scatter(y_true, y_pred, data_dir, name='_plot'):
 	y_true and y_pred are both 2D arrays; the first dimension is each observation, the second dimension is each outcome variable.'''
 	# Error checking
 	if y_true.shape != y_pred.shape:
-		log.error(f"Y_true (shape: {y_true.shape}) and y_pred (shape: {y_pred.shape}) must have the same shape to generate a scatter plot")
+		log.error(f"Y_true (shape: {y_true.shape}) and y_pred (shape: {y_pred.shape}) must have the same shape to generate a scatter plot", 1)
+		return
+	if y_true.shape[0] < 2:
+		log.error(f"Must have more than one observation to generate a scatter plot with R2 statistics.", 1)
 		return
 	
 	# Perform scatter for each outcome variable

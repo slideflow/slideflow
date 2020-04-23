@@ -29,7 +29,7 @@ from tabulate import tabulate
 
 class DatasetGroup:
 	def __init__(self, names, config):
-		self.names = [names] if type(names) != list else names
+		self.names = [names] if not isinstance(names, list) else names
 		self.config = config
 		self.outcomes = []
 
@@ -74,7 +74,7 @@ class Project:
 
 class Outcome:
 	def __init__(self, outcome_headers, outcome_labels):
-		self.outcome_headers = [outcome_headers] if type(outcome_headers) != list else outcome_headers
+		self.outcome_headers = [outcome_headers] if not isinstance(outcome_headers, list) else outcome_headers
 		self.outcome_labels = outcome_labels
 		self.subsets = []
 		self.string = ', '.join(self.outcome_headers)
@@ -573,7 +573,7 @@ def load_from_directory(search_directory, nested=False, starttime=None, showname
 				continue
 			if not model.hyperparameters: continue
 			model_outcome = model.hyperparameters['outcome_headers']
-			model_outcome = [model_outcome] if type(model_outcome) != list else model_outcome
+			model_outcome = [model_outcome] if not isinstance(model_outcome, list) else model_outcome
 
 			if dataset.has_outcome(model_outcome):
 				outcome = dataset.get_outcome(model_outcome)

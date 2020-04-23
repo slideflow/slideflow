@@ -85,7 +85,6 @@ class TestSuite:
 	'''Class to supervise standardized testing of slideflow pipeline.'''
 	def __init__(self, reset=True, silent=True):
 		'''Initialize testing models.'''
-		log.SILENT = silent
 			
 		# Reset test progress
 		if reset: self.reset()
@@ -102,7 +101,7 @@ class TestSuite:
 		self.setup_hp("categorical")
 
 	def reset(self):
-		print("Resetting test project...")
+		log.header("Resetting test project...")
 		if os.path.exists(PROJECT_CONFIG['dataset_config']):
 			os.remove(PROJECT_CONFIG['dataset_config'])
 		if os.path.exists(PROJECT_CONFIG['root']):
@@ -116,13 +115,13 @@ class TestSuite:
 		print("\t...DONE")
 
 	def configure_project(self):
-		print("Setting up initial project configuration...")
+		log.header("Setting up initial project configuration...")
 		self.SFP.PROJECT = PROJECT_CONFIG
 		self.SFP.save_project()
 		print("\t...DONE")
 
 	def configure_datasets(self):
-		print("Setting up test dataset configuration...")
+		log.header("Setting up test dataset configuration...")
 		for dataset_name in TEST_DATASETS.keys():
 			self.SFP.add_dataset(dataset_name, slides=TEST_DATASETS[dataset_name]['slides'],
 											   roi=TEST_DATASETS[dataset_name]['roi'],
@@ -133,14 +132,15 @@ class TestSuite:
 		print("\t...DONE")
 
 	def configure_annotations(self):
-		print("Testing annotation configuration and slide name associations...")
+		log.header("Testing annotation configuration and slide name associations...")
 		outfile = PROJECT_CONFIG['annotations']
 		with open(outfile, 'w') as csv_outfile:
 			csv_writer = csv.writer(csv_outfile, delimiter=',')
 			for an in ANNOTATIONS:
 				csv_writer.writerow(an)
-		project_dataset = Dataset(config_file=PROJECT_CONFIG['dataset_config'], sources=PROJECT_CONFIG['datasets'])
-		project_dataset.load_annotations(PROJECT_CONFIG['annotations'])
+		project_dataset = Dataset(config_file=PROJECT_CONFIG['dataset_config'],
+								  sources=PROJECT_CONFIG['datasets'],
+								  annotations=PROJECT_CONFIG['annotations'])
 		project_dataset.update_annotations_with_slidenames(PROJECT_CONFIG['annotations'])
 		loaded_slides = project_dataset.get_slides()
 		for slide in SLIDES_TO_VERIFY:
@@ -155,7 +155,7 @@ class TestSuite:
 
 	def setup_hp(self, model_type):
 		# Remove old batch train file
-		print("Setting up hyperparameter setup...")
+		log.header("Setting up hyperparameter setup...")
 		try:
 			os.remove(PROJECT_CONFIG['batch_train_config'])
 		except:
@@ -176,10 +176,11 @@ class TestSuite:
 											 hidden_layers=[0,1],
 											 optimizer=["Adam"],
 											 early_stop=[False],
+											 early_stop_patience=[15],
+											 early_stop_method='loss',
 											 hidden_layer_width=500,
 											 trainable_layers=0,
 											 L2_weight=0,
-											 early_stop_patience=[15],
 											 balanced_training=["BALANCE_BY_PATIENT"],
 											 balanced_validation=["NO_BALANCE"],
 											 augment=[True],
@@ -195,12 +196,12 @@ class TestSuite:
 
 	def test_full_extraction(self):
 		# Test tile extraction, default parameters
-		print("Testing multiple slides extraction...")
+		log.header("Testing multiple slides extraction...")
 		self.SFP.extract_tiles()
 		print("\t...OK")
 
 	def test_single_extraction(self):
-		print("Testing single slide extraction...")
+		log.header("Testing single slide extraction...")
 		extracting_dataset = Dataset(config_file=self.SFP.PROJECT['dataset_config'], sources=self.SFP.PROJECT['datasets'])
 		extracting_dataset.load_annotations(self.SFP.PROJECT['annotations'])
 		dataset_name = self.SFP.PROJECT['datasets'][0]
@@ -240,26 +241,26 @@ class TestSuite:
 	def test_training_performance(self):
 		hp = self.setup_hp('categorical')
 		hp.finetune_epochs = [1,3]
-		print("Testing performance of training (single categorical outcome)...")
+		log.header("Testing performance of training (single categorical outcome)...")
 		results_dict = self.SFP.train(models='performance', outcome_header='category1', hyperparameters=hp, k_fold_iter=1)
 
 	def test_evaluation(self):
-		print("Testing evaluation of a saved model...")
+		log.header("Testing evaluation of a saved model...")
 		results = self.SFP.evaluate(outcome_header='category1', model=SAVED_MODEL)
 		print('\t...OK')
 
 	def test_heatmap(self):
-		print("Testing heatmap generation...")
+		log.header("Testing heatmap generation...")
 		self.SFP.generate_heatmaps(SAVED_MODEL, filters={TCGA.patient: ['234839']})
 		print("\t...OK")
 
 	def test_mosaic(self):
-		print("Testing mosaic generation...")
+		log.header("Testing mosaic generation...")
 		self.SFP.generate_mosaic(SAVED_MODEL, export_activations=True)
 		print("\t...OK")
 
 	def test_activations(self):
-		print("Testing activations analytics...")
+		log.header("Testing activations analytics...")
 		AV = self.SFP.generate_activations_analytics(model=SAVED_MODEL, 
 													outcome_header='category1', 
 													focus_nodes=[0])
