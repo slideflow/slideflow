@@ -124,15 +124,21 @@ class Dataset:
 	filters = None
 	filter_blank = None
 
-	def __init__(self, config_file, sources):
+	def __init__(self, config_file, sources, annotations=None, filters=None, filter_blank=None):
 		config = sfutil.load_json(config_file)
-		sources = sources if type(sources) == list else [sources]
+		sources = sources if isinstance(sources, list) else [sources]
 		try:
 			self.datasets = {k:v for (k,v) in config.items() if k in sources}
 		except KeyError:
 			sources_list = ", ".join(sources)
 			log.error(f"Unable to find datasets named {sfutil.bold(sources_list)} in config file {sfutil.green(config_file)}", 1)
 			sys.exit()
+		
+		if annotations:
+			self.load_annotations(annotations)
+			
+		if filters or filter_blank:
+			self.apply_filters(filters=filters, filter_blank=filter_blank)
 
 	def apply_filters(self, filters=None, filter_blank=None):
 		self.filters = filters
@@ -171,7 +177,7 @@ class Dataset:
 		
 		# Begin filtering slides with annotations
 		slides = []
-		self.filter_blank = [self.filter_blank] if type(self.filter_blank) != list else self.filter_blank
+		self.filter_blank = [self.filter_blank] if not isinstance(self.filter_blank, list) else self.filter_blank
 		slide_patient_dict = {}
 		if not len(self.ANNOTATIONS):
 			print(self.ANNOTATIONS)
@@ -199,8 +205,8 @@ class Dataset:
 					if filter_key not in ann.keys():
 						log.error(f"Filter header {sfutil.bold(filter_key)} not found in annotations file.")
 						raise IndexError(f"Filter header {filter_key} not found in annotations file.")
-					if    ((type(self.filters[filter_key]) == list and ann[filter_key] not in self.filters[filter_key]) 
-						or (type(self.filters[filter_key]) != list and self.filters[filter_key] != ann[filter_key])):
+					if    ((isinstance(self.filters[filter_key], list) and ann[filter_key] not in self.filters[filter_key]) 
+						or (not isinstance(self.filters[filter_key], list) and self.filters[filter_key] != ann[filter_key])):
 						skip_annotation = True
 						break
 
@@ -304,7 +310,7 @@ class Dataset:
 		slides = self.get_slides()
 		filtered_annotations = [a for a in self.ANNOTATIONS if a[TCGA.slide] in slides]
 		results = {}
-		headers = [headers] if type(headers) != list else headers
+		headers = [headers] if not isinstance(headers, list) else headers
 		assigned_headers = {}
 		unique_outcomes = None
 		for header in headers:
@@ -359,7 +365,7 @@ class Dataset:
 				if slide in slides:
 					if slide in results:
 						so = results[slide]['outcome']
-						results[slide]['outcome'] = [so] if type(so) != list else so
+						results[slide]['outcome'] = [so] if not isinstance(so, list) else so
 						results[slide]['outcome'] += [annotation_outcome]
 					else:
 						results[slide] = {'outcome': annotation_outcome if not use_float else [annotation_outcome]}

@@ -22,6 +22,8 @@ from slideflow.statistics import TFRecordUMAP
 from os.path import join, isfile, exists
 from random import sample
 from statistics import mean
+from sklearn.cluster import KMeans
+from sklearn.metrics import pairwise_distances_argmin_min
 from math import isnan
 from copy import deepcopy
 from mpl_toolkits.mplot3d import Axes3D
@@ -82,7 +84,7 @@ class ActivationsVisualizer:
 		# Load from PKL (cache) if present
 		if exists(self.PT_NODE_DICT_PKL) and exists(self.PT_LOGITS_DICT_PKL): 
 			# Load saved PKL cache
-			log.info("Loading pre-calculated predictions and activations from pickled files...", 1)
+			log.info("Loading pre-calculated predictions and activations from cache...", 1)
 			with open(self.PT_NODE_DICT_PKL, 'rb') as pt_pkl_file:
 				self.slide_node_dict = pickle.load(pt_pkl_file)
 				self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
@@ -134,6 +136,31 @@ class ActivationsVisualizer:
 			if slide_stats:
 				csv_writer.writerow(['Slide-level statistic', 'ANOVA P-value'] + [slide_stats[n]['p'] for n in nodes_avg_pt])
 				csv_writer.writerow(['Slide-level statistic', 'ANOVA F-value'] + [slide_stats[n]['f'] for n in nodes_avg_pt])
+
+	def calculate_centroid_indices(self):
+		log.info("Calculating centroid indices...", 1)
+		optimal_indices = {}
+		for slide in self.slide_node_dict:
+			slide_nodes = self.slide_node_dict[slide]
+			coordinates = [[slide_nodes[n][i] for n in self.nodes] for i in range(len(slide_nodes[0]))]
+			km = KMeans(n_clusters=1).fit(coordinates)
+			closest, _ = pairwise_distances_argmin_min(km.cluster_centers_, coordinates)
+			optimal_indices.update({slide: closest[0]})
+		return optimal_indices
+
+	def get_mapped_predictions(self):
+		umap_x = []
+		umap_y = []
+		umap_meta = []
+		for slide in self.slide_logits_dict:
+			for tfr in range(len(self.slide_logits_dict[slide][0])):
+				umap_x += [self.slide_logits_dict[slide][0][tfr]]
+				umap_y += [self.slide_logits_dict[slide][1][tfr]]
+				umap_meta += [{
+					'slide': slide,
+					'index': tfr
+				}]
+		return np.array(umap_x), np.array(umap_y), umap_meta
 
 	def get_activations(self):
 		return self.slide_node_dict
@@ -267,7 +294,7 @@ class ActivationsVisualizer:
 				sys.stdout.write(f"\r(TFRecord {t+1:>3}/{len(self.tfrecords):>3}) (Batch {i+1:>3}) ({len(fl_activations_combined):>5} images): {sfutil.green(sfutil.path_to_name(tfrecord))}")
 				sys.stdout.flush()
 
-				if len(fl_activations_combined) >= self.MAX_TILES_PER_SLIDE:
+				if self.MAX_TILES_PER_SLIDE and (len(fl_activations_combined) >= self.MAX_TILES_PER_SLIDE):
 					break
 
 			if not nodes_names and not logits_names:
@@ -292,7 +319,7 @@ class ActivationsVisualizer:
 				logits_combined = logits_combined[:self.MAX_TILES_PER_SLIDE]
 				fl_activations_combined = fl_activations_combined[:self.MAX_TILES_PER_SLIDE]
 
-			# Export to PKL and CSV
+			# Export to memory and CSV
 			for i in range(len(fl_activations_combined)):
 				slide = slides_combined[i].decode('utf-8')
 				activations_vals = fl_activations_combined[i].tolist()
@@ -301,7 +328,7 @@ class ActivationsVisualizer:
 				if export_csv:
 					row = [slide] + logits_vals + activations_vals
 					csvwriter.writerow(row)
-				# Write to PKL
+				# Write to memory
 				for n in range(len(nodes_names)):
 					val = activations_vals[n]
 					self.slide_node_dict[slide][n] += [val]
