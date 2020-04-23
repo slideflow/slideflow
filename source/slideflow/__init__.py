@@ -33,7 +33,7 @@ from slideflow.statistics import TFRecordUMAP
 from slideflow.mosaic import Mosaic
 from comet_ml import Experiment
 
-__version__ = "1.7.0"
+__version__ = "1.7.1"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
