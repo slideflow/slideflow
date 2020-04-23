@@ -158,7 +158,8 @@ def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, reso
 	log.empty(f"Working on slide {sfutil.green(sfutil.path_to_name(slide))}", 1)
 	heatmap = Heatmap(slide, model_path, project_config['tile_px'], project_config['tile_um'], 
 																	use_fp16=project_config['use_fp16'],
-																	stride_div=stride_lder,
+																	stride_div=stride_div,
+																	save_folder=save_folder,
 																	roi_list=roi_list)
 	heatmap.generate(batch_size=flags['eval_batch_size'])
 	heatmap.save()
