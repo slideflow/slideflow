@@ -729,7 +729,7 @@ class TileVisualizer:
 class Heatmap:
 	'''Generates heatmap by calculating predictions from a sliding scale window across a slide.'''
 
-	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, save_folder='', roi_dir=None, roi_list=None):
+	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, save_folder='', roi_dir=None, roi_list=None, roi_method='inside'):
 		from slideflow.slide import SlideReader
 
 		self.save_folder = save_folder
@@ -747,6 +747,7 @@ class Heatmap:
 																		   export_folder=save_folder,
 																		   roi_dir=roi_dir, 
 																		   roi_list=roi_list,
+																		   roi_method=roi_method,
 																		   pb=pb)
 
 		# Build the model
