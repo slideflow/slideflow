@@ -56,6 +56,8 @@ OPS_LEVEL_COUNT = 'openslide.level-count'
 OPS_MPP_X = 'openslide.mpp-x'
 OPS_WIDTH = 'width'
 OPS_HEIGHT = 'height'
+EXTRACT_INSIDE = 'inside'
+EXTRACT_OUTSIDE = 'outside'
 
 def OPS_LEVEL_HEIGHT(l):
     return f'openslide.level[{l}].height'
@@ -491,13 +493,16 @@ class TMAReader(SlideLoader):
 class SlideReader(SlideLoader):
 	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
 	SKIP_MISSING_ROI = True
-	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, export_folder=None, roi_dir=None, roi_list=None, pb=None):
+	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, export_folder=None,
+					roi_dir=None, roi_list=None, roi_method=EXTRACT_INSIDE, pb=None):
+
 		super().__init__(path, size_px, size_um, stride_div, enable_downsample, export_folder, pb)
 
 		if not self.loaded_correctly():
 			return
 
 		self.rois = []
+		self.roi_method = roi_method
 		# Look in roi_dir if available
 		if roi_dir and exists(join(roi_dir, self.name + ".csv")):
 			self.load_csv_roi(join(roi_dir, self.name + ".csv"))
@@ -558,7 +563,7 @@ class SlideReader(SlideLoader):
 		total_area = (self.full_shape[0]/ROI_SCALE) * (self.full_shape[1]/ROI_SCALE)
 		roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
 
-		total_logits_count = int(len(coord) * roi_area_fraction)
+		total_logits_count = int(len(coord) * roi_area_fraction) if self.roi_method == EXTRACT_INSIDE else int(len(coord) * (1-roi_area_fraction))
 		if total_logits_count == 0:
 			log.warn(f"No tiles were able to be extracted at the given micron size for slide {sfutil.green(self.name)}", 1, self.print)
 			return None, None, None, None
@@ -575,7 +580,11 @@ class SlideReader(SlideLoader):
 				# Check if the center of the current window lies within any annotation; if not, skip
 				x_coord = int((c[0]+self.full_extract_px/2)/ROI_SCALE)
 				y_coord = int((c[1]+self.full_extract_px/2)/ROI_SCALE)
-				if bool(annPolys) and not any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in annPolys]):
+				# If the extraction method is EXTRACT_INSIDE, skip the tile if it's not in an ROI
+				if bool(annPolys) and (self.roi_method == EXTRACT_INSIDE) and not any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in annPolys]):
+					continue
+				# If the extraction method is EXTRACT_OUTSIDE, skip the tile if it's in an ROI
+				elif bool(annPolys) and (self.roi_method == EXTRACT_OUTSIDE) and any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in annPolys]):
 					continue
 				tile_counter += 1
 				if self.pb:
@@ -622,7 +631,7 @@ class SlideReader(SlideLoader):
 					yield {"input_1": vips2numpy(region)[:,:,:-1], "input_2": vips2numpy(surrounding_region)[:,:,:-1]}
 				else:
 					pil_region = Image.fromarray(vips2numpy(region)).convert('RGB')
-					yield pil_region#, coord_label, unique_tile
+					yield pil_region
 
 			if self.pb: 
 				self.pb.end(self.p_id)
