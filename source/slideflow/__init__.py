@@ -769,7 +769,8 @@ class SlideflowProject:
 		
 		self.update_manifest()
 
-	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, generate_tfrecords=True, stride_div=1, tma=False, augment=False, delete_tiles=True, enable_downsample=False):
+	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, generate_tfrecords=True, stride_div=1, tma=False, augment=False, 
+						delete_tiles=True, enable_downsample=False, roi_method='inside'):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.
 		
@@ -784,7 +785,8 @@ class SlideflowProject:
 			augment:			Bool. If True, will augment tiles 8-fold by randomly flipping/rotating extracted tiles.
 			delete_tiles:		Bool. If True, will delete loose tile images after storing into TFRecords.
 			enable_downsample:	Bool. If True, enables the use of downsampling while reading slide images. This may result in corrupted image tiles
-									if downsampled slide layers are corrupted or not fully generated. Manual confirmation of tile integrity is recommended.'''
+									if downsampled slide layers are corrupted or not fully generated. Manual confirmation of tile integrity is recommended.
+			roi_method:			Either 'inside' or 'outside'. Whether to extract tiles inside or outside the ROIs.'''
 
 		import slideflow.slide as sfslide
 		from PIL import Image
@@ -825,7 +827,9 @@ class SlideflowProject:
 					whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample, 
 																								export_folder=save_folder,
 																								roi_dir=roi_dir,
-																								roi_list=None, pb=pb)
+																								roi_list=None,
+																								roi_method=roi_method,
+																								pb=pb)
 				else:
 					whole_slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample,
 																							  export_folder=save_folder, 
