@@ -146,9 +146,7 @@ class OpenslideToVIPS:
 	def get_thumbnail(self, width, enable_downsample=False):
 		'''Returns a PIL thumbnail Image of the whole slide of the given dimensions.'''
 		thumbnail = self.full_image.thumbnail_image(width) 
-		log.empty("Reading thumbnail from slide...", 1)
 		np_thumb = vips2numpy(thumbnail)
-		log.empty("...complete.")
 		pil_thumb = Image.fromarray(np_thumb)
 		return pil_thumb
 
@@ -182,9 +180,16 @@ class ROIObject:
 class SlideLoader:
 	'''Object that loads an SVS slide and makes preparations for tile extraction.
 	Should not be used directly; this class must be inherited and extended by a child class!'''
-	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, export_folder=None, pb=None):
+	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False,
+					export_folder=None, thumb_folder=None, silent=False, pb=None):
 		self.load_error = False
-		self.print = print if not pb else pb.print
+		self.silent = silent
+		if pb and not silent:
+			self.print = pb.print
+		elif silent:
+			self.print = None
+		else:
+			self.print = print
 		self.pb = pb
 		self.p_id = None
 		self.name = sfutil.path_to_name(path)
@@ -195,6 +200,9 @@ class SlideLoader:
 		self.tiles_path = None if not export_folder else join(self.export_folder, self.name)
 		self.tile_mask = None
 		self.enable_downsample = enable_downsample
+		self.thumb_image = None
+		self.thumb_folder = thumb_folder
+		if not exists(thumb_folder): os.makedirs(thumb_folder)
 		filetype = sfutil.path_to_ext(path)
 
 		# Initiate supported slide (SVS, TIF) or JPG slide reader
@@ -241,14 +249,20 @@ class SlideLoader:
 		self.filter_dimensions = self.slide.level_dimensions[-1]
 		self.filter_magnification = self.filter_dimensions[0] / self.full_shape[0]
 		self.filter_px = int(self.full_extract_px * self.filter_magnification)
-
-		# Generating thumbnail for heatmap
-		self.thumb_image = None
 	
 	def thumb(self):
 		'''Returns thumbnail of the slide.'''
+		if self.thumb_folder:
+			thumbs = os.listdir(self.thumb_folder)
+			matching_thumbs = [tb for tb in thumbs if sfutil.path_to_name(tb) == self.name]
+			if matching_thumbs:
+				self.thumb_image = Image.open(join(self.thumb_folder, matching_thumbs[0]))
+				return self.thumb_image
 		if not self.thumb_image:
+			print("Calculating thumbnail from slide...", end="")
 			self.thumb_image = self.slide.get_thumbnail(2048, enable_downsample=self.enable_downsample)
+			print("\r\033[K", end="")
+			self.thumb_image.convert('RGB').save(join(self.thumb_folder, self.name+'.jpg'))
 		return self.thumb_image
 
 	def build_generator(self):
@@ -266,7 +280,7 @@ class SlideLoader:
 			log.error(f"Slide failed to load properly for slide {sfutil.green(self.name)}", 1, self.print)
 			sys.exit()
 		return loaded_correctly
-
+		
 class TMAReader(SlideLoader):
 	'''Helper object that loads a TMA-formatted slide, detects tissue cores, and sets up a tile generator.'''
 	THUMB_DOWNSCALE = 100
@@ -494,9 +508,9 @@ class SlideReader(SlideLoader):
 	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
 	SKIP_MISSING_ROI = True
 	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, export_folder=None,
-					roi_dir=None, roi_list=None, roi_method=EXTRACT_INSIDE, pb=None):
+					roi_dir=None, roi_list=None, roi_method=EXTRACT_INSIDE, thumb_folder=None, silent=False, pb=None):
 
-		super().__init__(path, size_px, size_um, stride_div, enable_downsample, export_folder, pb)
+		super().__init__(path, size_px, size_um, stride_div, enable_downsample, export_folder, thumb_folder, silent, pb)
 
 		if not self.loaded_correctly():
 			return
@@ -517,7 +531,7 @@ class SlideReader(SlideLoader):
 				if rn == self.name:
 					matching_rois += [rp]
 			if len(matching_rois) > 1:
-				log.warn(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}")
+				log.warn(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}", 1)
 			self.load_csv_roi(matching_rois[0])
 		else:
 			if self.SKIP_MISSING_ROI:
@@ -535,7 +549,7 @@ class SlideReader(SlideLoader):
 			log.error(f'Skipping slide {sfutil.green(self.name)} due to slide image or ROI loading error', 1, self.print)
 			return
 
-	def build_generator(self, export=False, augment=False, dual_extract=False):
+	def build_generator(self, export=False, augment=False, dual_extract=False, whole_slide=False):
 		'''Builds generator to supervise extraction of tiles across the slide.
 		
 		Args:
@@ -558,7 +572,10 @@ class SlideReader(SlideLoader):
 
 		# Load annotations as shapely.geometry objects
 		ROI_SCALE = 10
-		annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.rois]
+		if whole_slide:
+			annPolys = []
+		else:
+			annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.rois]
 		roi_area = sum([poly.area for poly in annPolys])
 		total_area = (self.full_shape[0]/ROI_SCALE) * (self.full_shape[1]/ROI_SCALE)
 		roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
@@ -569,7 +586,7 @@ class SlideReader(SlideLoader):
 			return None, None, None, None
 		# Create mask for indicating whether tile was extracted
 		tile_mask = np.asarray([0 for i in range(len(coord))])
-		self.p_id = None if not self.pb else self.pb.add_bar(0, total_logits_count, endtext=sfutil.green(self.shortname))
+		self.p_id = None if not self.pb else self.pb.add_bar(0, total_logits_count, endtext='' if self.silent else sfutil.green(self.shortname))
 
 		def generator():
 			tile_counter=0
@@ -618,7 +635,7 @@ class SlideReader(SlideLoader):
 				coord_label = ci
 				unique_tile = c[2]
 				if export and unique_tile:
-					region.jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}.jpg'))
+					region.jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}.jpg'), Q=100)
 					if augment:
 						region.rot90().jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}_aug1.jpg'))
 						region.flipver().jpegsave(join(self.tiles_path, f'{self.shortname}_{ci}_aug2.jpg'))
@@ -682,7 +699,7 @@ class SlideReader(SlideLoader):
 			for roi_object in roi_dict.values():
 				self.rois.append(roi_object)
 
-			return len(self.rois)
+		return len(self.rois)
 
 	def load_json_roi(self, path):
 		'''Loads ROI from a JSON file.'''

@@ -15,6 +15,7 @@ import tensorflow as tf
 import scipy.stats as stats
 import slideflow.util as sfutil
 import slideflow.io as sfio
+import shapely.geometry as sg
 
 from slideflow.util import log, ProgressBar, TCGA
 from slideflow.mosaic import Mosaic
@@ -729,17 +730,21 @@ class TileVisualizer:
 class Heatmap:
 	'''Generates heatmap by calculating predictions from a sliding scale window across a slide.'''
 
-	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, save_folder='', roi_dir=None, roi_list=None, roi_method='inside'):
+	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, save_folder='', 
+					roi_dir=None, roi_list=None, roi_method='inside', whole_slide=False, thumb_folder=None):
 		from slideflow.slide import SlideReader
 
 		self.save_folder = save_folder
 		self.DTYPE = tf.float16 if use_fp16 else tf.float32
 		self.DTYPE_INT = tf.int16 if use_fp16 else tf.int32
-		self.MODEL_DIR = None
+		self.MODEL_DIR = model_path
 		self.logits = None
+		self.whole_slide = whole_slide
 
 		# Create progress bar
-		pb = ProgressBar(bar_length=5, counter_text='tiles')
+		shortname = sfutil._shortname(sfutil.path_to_name(slide_path))
+		leadtext = f"Making heatmap for {sfutil.green(shortname)}{', ignoring ROI' if whole_slide else f', {roi_method} ROI'} "
+		pb = ProgressBar(bar_length=5, counter_text='tiles', leadtext=leadtext)
 		self.print = pb.print
 
 		# Load the slide
@@ -748,15 +753,13 @@ class Heatmap:
 																		   roi_dir=roi_dir, 
 																		   roi_list=roi_list,
 																		   roi_method=roi_method,
+																		   thumb_folder=thumb_folder if thumb_folder else join(save_folder, 'thumbs'),
+																		   silent=True,
 																		   pb=pb)
-
-		# Build the model
-		self.MODEL_DIR = model_path
-
 		# First, load the designated model
 		_model = tf.keras.models.load_model(self.MODEL_DIR)
 
-		# Now, construct a new model that outputs both predictions and final layer activations
+		# Now, construct a new model that outputs both predi ctions and final layer activations
 		self.model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
 										   outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
 
@@ -770,12 +773,13 @@ class Heatmap:
 	def _parse_function(self, image):
 		parsed_image = tf.image.per_image_standardization(image)
 		parsed_image = tf.image.convert_image_dtype(parsed_image, self.DTYPE)
+		parsed_image.set_shape([299, 299, 3])
 		return parsed_image
 
 	def generate(self, batch_size=16):
 		'''Convolutes across a whole slide, calculating logits and saving predictions internally for later use.'''
 		# Create tile coordinate generator
-		gen_slice, x_size, y_size, stride_px = self.slide.build_generator(export=False)
+		gen_slice, x_size, y_size, stride_px = self.slide.build_generator(export=False, whole_slide=self.whole_slide)
 
 		if not gen_slice:
 			log.error(f"No tiles extracted from slide {sfutil.green(self.slide.name)}", 1)
@@ -826,9 +830,9 @@ class Heatmap:
 		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
 		jetMap = np.linspace(0.45, 0.95, 255)
 		cmMap = cm.nipy_spectral(jetMap)
-		self.newMap = mcol.ListedColormap(cmMap)		
+		self.newMap = mcol.ListedColormap(cmMap)
 
-	def display(self):
+	def display(self, interpolation='none'):
 		'''Interactively displays calculated logits as a heatmap.'''
 		self.prepare_figure()
 		heatmap_dict = {}
@@ -839,7 +843,7 @@ class Heatmap:
 				h.set_alpha(s.val)
 
 		for i in range(self.NUM_CLASSES):
-			heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.extent, cmap=self.newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
+			heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.extent, cmap=self.newMap, alpha = 0.0, interpolation=interpolation, zorder=10) #bicubic
 			ax_slider = self.fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor='lightgoldenrodyellow')
 			slider = Slider(ax_slider, f'Class {i}', 0, 1, valinit = 0)
 			heatmap_dict.update({f"Class{i}": [heatmap, slider]})
@@ -849,20 +853,33 @@ class Heatmap:
 		implot.show()
 		plt.show()
 
-	def save(self):
+	def save(self, show_roi=True, interpolation='none'):
 		'''Saves calculated logits as heatmap overlays.'''
 		self.prepare_figure()
-		heatmap_dict = {}
 		implot = self.ax.imshow(self.slide.thumb(), zorder=0)
 
-		# Make heatmaps and sliders
-		for i in range(self.NUM_CLASSES):
-			heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.get_extent(), cmap=self.newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
-			heatmap_dict.update({i: heatmap})
+		# Plot ROIs
+		if show_roi:
+			ROI_SCALE = self.slide.full_shape[0]/2048
+			annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.slide.rois]
+			for poly in annPolys:
+				x,y = poly.exterior.xy
+				plt.plot(x, y, zorder=20, color='k', linewidth=5)
+
+		# Save plot without heatmaps
 		plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-raw.png'), bbox_inches='tight')
+
+		# Make heatmap plots and sliders
 		for i in range(self.NUM_CLASSES):
-			heatmap_dict[i].set_alpha(0.6)
+			heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.get_extent(),
+														   cmap=self.newMap,
+														   vmin=0,
+														   vmax=1,
+														   alpha=0.6,
+														   interpolation=interpolation,
+														   zorder=10) #bicubic
 			plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-{i}.png'), bbox_inches='tight')
-			heatmap_dict[i].set_alpha(0.0)
+			heatmap.remove()
+
 		plt.close()
 		log.complete(f"Saved heatmaps for {sfutil.green(self.slide.name)}", 1)

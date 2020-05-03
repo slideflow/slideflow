@@ -53,6 +53,8 @@ BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
 NO_BALANCE = 'NO_BALANCE'
 
+#tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
+
 def add_regularization(model, regularizer):
 	# this function is from "https://sthalles.github.io/keras-regularizer/"
 	# adds regularizer to layers where you can set such an attribute, in this case, L2 regularization.
@@ -138,7 +140,7 @@ class HyperParameters:
 		assert optimizer in self._OptDict.keys()
 		assert isinstance(early_stop, bool)
 		assert isinstance(early_stop_patience, int)
-		assert early_stop_method in ['loss', 'acc']
+		assert early_stop_method in ['loss', 'accuracy']
 		assert balanced_training in [BALANCE_BY_CATEGORY, BALANCE_BY_PATIENT, NO_BALANCE]
 		assert isinstance(hidden_layer_width, int)
 		assert isinstance(trainable_layers, int)
@@ -221,6 +223,7 @@ class SlideflowModel:
 		self.VALIDATION_TFRECORDS = validation_tfrecords
 		self.MODEL_TYPE = model_type
 		self.SLIDES = list(slide_annotations.keys())
+		self.DATASETS = {}
 		outcomes = [slide_annotations[slide]['outcome'] for slide in self.SLIDES]
 
 		if model_type == 'categorical':
@@ -413,8 +416,9 @@ class SlideflowModel:
 			# Assign category by outcome if this is a categorical model.
 			# Otherwise, consider all slides from the same category (effectively skipping balancing); appropriate for linear models.
 			category = self.SLIDE_ANNOTATIONS[slide_name]['outcome'] if self.MODEL_TYPE == 'categorical' else 1
-			dataset_to_add = tf.data.TFRecordDataset(filename) if finite else tf.data.TFRecordDataset(filename).repeat()
-			datasets += [dataset_to_add]
+			if filename not in self.DATASETS:
+				self.DATASETS.update({filename: tf.data.TFRecordDataset(filename)})
+			datasets += [self.DATASETS[filename]]
 			datasets_categories += [category]
 
 			# Cap number of tiles to take from TFRecord at maximum specified
@@ -460,6 +464,8 @@ class SlideflowModel:
 		# Take the calculcated number of tiles from each dataset and calculate global number of tiles
 		for i in range(len(datasets)):
 			datasets[i] = datasets[i].take(num_tiles[i])
+			if not finite:
+				datasets[i] = datasets[i].repeat()
 		global_num_tiles = sum(num_tiles)
 
 		# Interleave datasets
@@ -530,7 +536,7 @@ class SlideflowModel:
 		# Freeze the base layer
 		self.model.layers[0].trainable = False
 		val_steps = 100 if validation_data else None
-		metrics = ['acc'] if hp.model_type() != 'linear' else [hp.loss]
+		metrics = ['accuracy'] if hp.model_type() != 'linear' else [hp.loss]
 
 		self.model.compile(optimizer=tf.keras.optimizers.Adam(lr=hp.learning_rate),
 					  loss=hp.loss,
@@ -617,7 +623,8 @@ class SlideflowModel:
 		return val_acc
 
 	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=100, multi_input=False, 
-				validate_on_batch=256, max_tiles_per_slide=0, min_tiles_per_slide=0, ema_observations=20, ema_smoothing=2):
+				validate_on_batch=256, val_batch_size=32, validation_steps=None, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
+				ema_observations=20, ema_smoothing=2):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -634,34 +641,39 @@ class SlideflowModel:
 		Returns:
 			Results dictionary, Keras history object'''
 
-		#tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
-
 		# Build inputs
 		train_data, _, num_tiles = self._build_dataset_inputs(self.TRAIN_TFRECORDS, hp.batch_size, hp.balanced_training, hp.augment, finite=False,
 																																	 max_tiles=max_tiles_per_slide,
 																																	 min_tiles=min_tiles_per_slide,
 																																	 include_slidenames=False,
 																																	 multi_input=multi_input)
+		# Set up validation data
 		using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
 		if using_validation:
-			validation_data, validation_data_with_slidenames, _ = self._build_dataset_inputs(self.VALIDATION_TFRECORDS, hp.batch_size, hp.balanced_validation, augment=False, 
+			validation_data, validation_data_with_slidenames, _ = self._build_dataset_inputs(self.VALIDATION_TFRECORDS, val_batch_size, hp.balanced_validation, augment=False, 
 																																							   finite=True,
 																																							   max_tiles=max_tiles_per_slide,
 																																							   min_tiles=min_tiles_per_slide,
 																																							   include_slidenames=True, 
 																																							   multi_input=multi_input)
-		validation_data_for_training = None if not using_validation else validation_data.repeat()
-		val_steps = 0 if not using_validation else 200
+			validation_data_for_training = validation_data if not validation_steps else validation_data.repeat()
+		else:
+			validation_data_for_training = None
+			validation_steps = 0
 
 		# Prepare results
 		results = {'epochs': {}}
 
 		# Calculate parameters
-		total_epochs = hp.toplayer_epochs + max(hp.finetune_epochs)
+		if max(hp.finetune_epochs) <= starting_epoch:
+			log.error(f"Starting epoch ({starting_epoch}) cannot be greater than the maximum target epoch ({max(hp.finetune_epochs)})", 1)
+			return None, None
+		if starting_epoch != 0:
+			log.info(f"Starting training at epoch {starting_epoch}", 1)
+		total_epochs = hp.toplayer_epochs + (max(hp.finetune_epochs) - starting_epoch)
 		steps_per_epoch = round(num_tiles/hp.batch_size)
-		initialized_optimizer = hp.get_opt()
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
-		metrics = ['acc'] if hp.model_type() != 'linear' else [hp.loss]
+		metrics = ['accuracy'] if hp.model_type() != 'linear' else [hp.loss]
 
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
@@ -681,13 +693,13 @@ class SlideflowModel:
 				self.moving_average = []
 				self.ema_two_checks_prior = 0
 				self.ema_one_check_prior = 0
-				self.epoch_count = 0
+				self.epoch_count = starting_epoch
 
 			def on_epoch_end(self, epoch, logs={}):
 				print("\r\033[K", end="")
 				self.epoch_count += 1
-				if epoch+1 in [e for e in hp.finetune_epochs]:
-					model_path = os.path.join(parent.DATA_DIR, f"trained_model_epoch{epoch+1}.h5")
+				if self.epoch_count in [e for e in hp.finetune_epochs]:
+					model_path = os.path.join(parent.DATA_DIR, f"trained_model_epoch{self.epoch_count}.h5")
 					self.model.save(model_path)
 					log.complete(f"Trained model saved to {sfutil.green(model_path)}", 1)
 					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
@@ -695,29 +707,30 @@ class SlideflowModel:
 				self.model.stop_training = self.early_stop
 
 			def on_train_batch_end(self, batch, logs={}):
-				if (batch > 0) and (batch % validate_on_batch == 0) and (parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS)):
-					val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
-					early_stop_value = val_acc if hp.early_stop_method == 'acc' else val_loss
+				if using_validation and validate_on_batch and (batch > 0) and (batch % validate_on_batch == 0):
+					val_loss, val_acc = self.model.evaluate(validation_data, verbose=0, steps=validation_steps)
+					self.model.stop_training = False
+					early_stop_value = val_acc if hp.early_stop_method == 'accuracy' else val_loss
 					print("\r\033[K", end="")
 					self.moving_average += [early_stop_value]
 					# Calculate exponential moving average of validation accuracy
 					if len(self.moving_average) <= ema_observations:
-						log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['acc']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f}")
+						log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['accuracy']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f}")
 					else:
 						# Only keep track of the last [ema_observations] validation accuracies
 						self.moving_average.pop(0)
 						if self.last_ema == -1:
 							# Calculate simple moving average
 							self.last_ema = sum(self.moving_average) / len(self.moving_average)
-							log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['acc']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f} (SMA: {self.last_ema:.3f})")
+							log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['accuracy']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f} (SMA: {self.last_ema:.3f})")
 						else:
 							# Update exponential moving average
 							self.last_ema = (early_stop_value * (ema_smoothing/(1+ema_observations))) + (self.last_ema * (1-(ema_smoothing/(1+ema_observations))))
-							log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['acc']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f} (EMA: {self.last_ema:.3f})")
+							log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['accuracy']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f} (EMA: {self.last_ema:.3f})")
 
 					# If early stopping and our patience criteria has been met, check if validation accuracy is still improving 
 					if hp.early_stop and (self.last_ema != -1) and (float(batch)/steps_per_epoch)+self.epoch_count > hp.early_stop_patience:
-						if ((hp.early_stop_method == 'acc' and self.last_ema <= self.ema_two_checks_prior) or 
+						if ((hp.early_stop_method == 'accuracy' and self.last_ema <= self.ema_two_checks_prior) or 
 							(hp.early_stop_method == 'loss' and self.last_ema >= self.ema_two_checks_prior)):
 
 							log.info(f"Early stop triggered: epoch {self.epoch_count+1}, batch {batch}", 1)
@@ -734,13 +747,14 @@ class SlideflowModel:
 				epoch = self.epoch_count
 				epoch_label = f"val_epoch{epoch}"
 				if hp.model_type() != 'linear':
-					train_acc = logs['acc']
+					train_acc = logs['accuracy']
 				else:
 					train_acc = logs[hp.loss]
-				tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(parent.model, validation_data_with_slidenames, 
+				tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, validation_data_with_slidenames, 
 																									parent.SLIDE_ANNOTATIONS, hp.model_type(), 
 																									parent.DATA_DIR, label=epoch_label, manifest=parent.MANIFEST)
-				val_loss, val_acc = parent.model.evaluate(validation_data, verbose=0)
+				val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
+				log.info(f"Validation loss: {val_loss:.4f} | accuracy: {val_acc:.4f}", 1)
 				results['epochs'][f'epoch{epoch}'] = {}
 				results['epochs'][f'epoch{epoch}']['train_acc'] = np.amax(train_acc)
 				results['epochs'][f'epoch{epoch}']['val_loss'] = val_loss
@@ -768,23 +782,23 @@ class SlideflowModel:
 
 		# Retrain top layer only if using transfer learning and not resuming training
 		if hp.toplayer_epochs:
-			self._retrain_top_layers(hp, train_data.repeat(), validation_data_for_training, steps_per_epoch, 
+			self._retrain_top_layers(hp, train_data, validation_data_for_training, steps_per_epoch, 
 									callbacks=None, epochs=hp.toplayer_epochs)
 
 		# Fine-tune the model
 		log.info("Beginning fine-tuning", 1)
 
 		self.model.compile(loss=hp.loss,
-						   optimizer=initialized_optimizer,
+						   optimizer=hp.get_opt(),
 						   metrics=metrics)
 
-		history = self.model.fit(train_data.repeat(),
+		history = self.model.fit(train_data,
 								 steps_per_epoch=steps_per_epoch,
 								 epochs=total_epochs,
 								 verbose=1,
 								 initial_epoch=hp.toplayer_epochs,
 								 validation_data=validation_data_for_training,
-								 validation_steps=val_steps,
+								 validation_steps=validation_steps,
 								 callbacks=callbacks)
 
 		return results, history.history

@@ -48,7 +48,7 @@ class UpdatedBatchNormalization(tf.keras.layers.BatchNormalization):
 			return super(tf.keras.layers.BatchNormalization, self).call(inputs, training)
 
 class ProgressBar:
-	def __init__(self, bar_length=20, counter_text=None):
+	def __init__(self, bar_length=20, counter_text=None, leadtext=''):
 		self.BARS = {}
 		self.bar_length = bar_length
 		self.next_id = 0
@@ -57,6 +57,7 @@ class ProgressBar:
 		self.tail = ''
 		self.starttime = None
 		self.text = ''
+		self.leadtext = leadtext
 
 	def add_bar(self, val, endval, endtext=''):
 		bar_id = self.next_id
@@ -96,7 +97,11 @@ class ProgressBar:
 			bar = self.BARS[bar_id]
 			arrow = self.arrow(bar.percent())
 			spaces = u'-' * (self.bar_length - len(arrow))
-			out_text += u"\u007c{0}\u007c {1}% ({2}){3}".format(arrow + spaces, int(round(bar.percent() * 100)), bar.text, separator)
+			out_text += u"{0}\u007c{1}\u007c {2}%{3}{4}".format(self.leadtext,
+																arrow + spaces, 
+																int(round(bar.percent() * 100)), 
+																f' ({bar.text})' if bar.text else '',
+																separator)
 		out_text += self.tail
 		if out_text != self.text:
 			sys.stdout.write(out_text)
@@ -239,7 +244,7 @@ def make_dir(_dir):
 	'''Makes a directory if one does not already exist, in a manner compatible with multithreading. '''
 	if not exists(_dir):
 		try:
-			makedirs(_dir, exist_ok=True)
+			os.makedirs(_dir, exist_ok=True)
 		except FileExistsError:
 			pass
 
@@ -265,7 +270,7 @@ def yes_no_input(prompt, default='no'):
 	yes = ['yes','y']
 	no = ['no', 'n']
 	while True:
-		response = input(f"{prompt}")
+		response = input(prompt)
 		if not response and default:
 			return True if default in yes else False
 		if response.lower() in yes:

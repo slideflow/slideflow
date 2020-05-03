@@ -356,6 +356,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	# Create dictionary mapping slides to one_hot category encoding
 	y_true_slide = {}
 	y_true_patient = {}
+	patient_error = False
 	for i in range(len(tile_to_slides)):
 		slidename = tile_to_slides[i]
 		patient = annotations[slidename][sfutil.TCGA.patient]
@@ -367,9 +368,9 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 			sys.exit()
 		if patient not in y_true_patient:
 			y_true_patient.update({patient: y_true[i]})
-		elif not np.array_equal(y_true_patient[patient], y_true[i]):
+		elif not patient_error and not np.array_equal(y_true_patient[patient], y_true[i]):
 			log.error("Data integrity failure when generating ROCs; patient assigned to multiple slides with different outcomes", 1)
-			sys.exit()
+			patient_error = True
 
 	def get_average_by_slide(prediction_array, prediction_label):
 		'''For a given tile-level prediction array, calculate averages in each outcome by patient and save predictions to CSV'''
@@ -446,16 +447,17 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 			slide_auc += [auc]
 			log.info(f"Slide-level AUC (cat #{i}): {auc}", 1)
 
-		# Generate patient-level percent calls
-		percent_calls_by_patient = get_average_by_patient(onehot_predictions, "percent_tiles_positive")
+		if not patient_error:
+			# Generate patient-level percent calls
+			percent_calls_by_patient = get_average_by_patient(onehot_predictions, "percent_tiles_positive")
 
-		# Generate patient-level ROC
-		for i in range(num_cat):
-			patient_y_pred = percent_calls_by_patient[:, i]
-			patient_y_true = [y_true_patient[patient][i] for patient in patients]
-			auc = generate_roc(patient_y_true, patient_y_pred, data_dir, f'{label_start}patient_ROC{i}')
-			patient_auc += [auc]
-			log.info(f"Patient-level AUC (cat #{i}): {auc}", 1)
+			# Generate patient-level ROC
+			for i in range(num_cat):
+				patient_y_pred = percent_calls_by_patient[:, i]
+				patient_y_true = [y_true_patient[patient][i] for patient in patients]
+				auc = generate_roc(patient_y_true, patient_y_pred, data_dir, f'{label_start}patient_ROC{i}')
+				patient_auc += [auc]
+				log.info(f"Patient-level AUC (cat #{i}): {auc}", 1)
 
 	if model_type == 'linear':
 		# Generate and save slide-level averages of each outcome
@@ -463,10 +465,11 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		y_true_by_slide = np.array([y_true_slide[slide] for slide in unique_slides])
 		r_squared_slide = generate_scatter(y_true_by_slide, averages_by_slide, data_dir, label_end+"_by_slide")			
 
-		# Generate and save patient-level averages of each outcome
-		averages_by_patient = get_average_by_patient(y_pred, "average")
-		y_true_by_patient = np.array([y_true_patient[patient] for patient in patients])
-		r_squared_patient = generate_scatter(y_true_by_patient, averages_by_patient, data_dir, label_end+"_by_patient")			
+		if not patient_error:
+			# Generate and save patient-level averages of each outcome
+			averages_by_patient = get_average_by_patient(y_pred, "average")
+			y_true_by_patient = np.array([y_true_patient[patient] for patient in patients])
+			r_squared_patient = generate_scatter(y_true_by_patient, averages_by_patient, data_dir, label_end+"_by_patient")			
 
 	# Save tile-level predictions
 	tile_csv_dir = os.path.join(data_dir, f"tile_predictions{label_end}.csv")
