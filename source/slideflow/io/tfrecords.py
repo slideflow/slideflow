@@ -87,6 +87,36 @@ def multi_image_example(slide, image_dict):
 		})
 	return tf.train.Example(features=tf.train.Features(feature=feature))
 
+def merge_split_tfrecords(source, destination):
+	'''Merges TFRecords with the same name in subfolders within the given source folder,
+	as may be the case when using split TFRecords for tile-level validation.'''
+	tfrecords = {}
+	subdirs = [d for d in listdir(source) if isdir(join(source, d))]
+	for subdir in subdirs:
+		tfrs = [tfr for tfr in listdir(join(source, subdir)) if isfile(join(source, subdir, tfr)) and tfr[-9:] == 'tfrecords']
+		for tfr in tfrs:
+			name = sfutil.path_to_name(tfr)
+			if name not in tfrecords:
+				tfrecords.update({name: [join(source, subdir, tfr)] })
+			else:
+				tfrecords[name] += [join(source, subdir, tfr)]
+	for tfrecord_name in tfrecords:
+		writer = tf.io.TFRecordWriter(join(destination, f'{tfrecord_name}.tfrecords'))
+		datasets = []
+		for tfrecord in tfrecords[tfrecord_name]:
+			dataset = tf.data.TFRecordDataset(tfrecord)
+			dataset = dataset.shuffle(1000)
+			dataset_iter = iter(dataset)
+			datasets += [dataset_iter]
+		while len(datasets):
+			index = randint(0, len(datasets)-1)
+			try:
+				record = next(datasets[index])
+			except StopIteration:
+				del(datasets[index])
+				continue
+			writer.write(_read_and_return_record(record, None))
+
 def join_tfrecord(input_folder, output_file, assign_slide=None):
 	'''Randomly samples from tfrecords in the input folder with shuffling,
 	and combines into a single tfrecord file.'''
@@ -184,7 +214,7 @@ def write_tfrecords_single(input_directory, output_directory, filename, slide):
 	for tile in files:
 		image_labels.update({join(input_directory, tile): bytes(slide, 'utf-8')})
 	keys = list(image_labels.keys())
-	shuffle(keys)
+	#shuffle(keys)
 	with tf.io.TFRecordWriter(tfrecord_path) as writer:
 		for filename in keys:
 			label = image_labels[filename]
@@ -284,38 +314,6 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 	validation_tfrecords = []
 	accepted_plan = None
 	slide_list = list(outcomes.keys())
-	tfrecord_dir_list = dataset.get_tfrecords()
-	tfrecord_dir_list_names = [tfr.split('/')[-1][:-10] for tfr in tfrecord_dir_list]
-
-	# Assemble dictionary of patients linking to list of slides and outcome
-	# slideflow.util.get_outcomes_from_annotations() ensures no duplicate outcomes are found in a single patient
-	patients_dict = {}
-	num_warned = 0
-	warn_threshold = 3
-	for slide in slide_list:
-		patient = outcomes[slide][sfutil.TCGA.patient]
-		print_func = print if num_warned < warn_threshold else None
-		# Skip slides not found in directory
-		if slide not in tfrecord_dir_list_names:
-			log.warn(f"Slide {slide} not found in tfrecord directory, skipping", 1, print_func)
-			num_warned += 1
-			continue
-		if patient not in patients_dict:
-			patients_dict[patient] = {
-				'outcome': outcomes[slide]['outcome'],
-				'slides': [slide]
-			}
-		elif patients_dict[patient]['outcome'] != outcomes[slide]['outcome']:
-			log.error(f"Multiple outcomes found for patient {patient} ({patients_dict[patient]['outcome']}, {outcomes[slide]['outcome']})", 1)
-			sys.exit()
-		else:
-			patients_dict[patient]['slides'] += [slide]
-	if num_warned >= warn_threshold:
-		log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
-	patients = list(patients_dict.keys())
-	sorted_patients = [p for p in patients]
-	sorted_patients.sort()
-	shuffle(patients)
 
 	# If validation is done per-tile, use pre-separated TFRecord files (validation separation done at time of TFRecord creation)
 	if validation_target == 'per-tile':
@@ -349,8 +347,40 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 		training_tfrecords = [tfr for tfr in training_tfrecords if tfr.split('/')[-1][:-10] in slide_list]
 		validation_tfrecords = [tfr for tfr in validation_tfrecords if tfr.split('/')[-1][:-10] in slide_list]
 
-	# If validation is done per-patient, create and log a validation subset
 	elif validation_target == 'per-patient':
+		# Assemble dictionary of patients linking to list of slides and outcome
+		# slideflow.util.get_outcomes_from_annotations() ensures no duplicate outcomes are found in a single patient
+		tfrecord_dir_list = dataset.get_tfrecords()
+		tfrecord_dir_list_names = [tfr.split('/')[-1][:-10] for tfr in tfrecord_dir_list]
+		patients_dict = {}
+		num_warned = 0
+		warn_threshold = 3
+		for slide in slide_list:
+			patient = outcomes[slide][sfutil.TCGA.patient]
+			print_func = print if num_warned < warn_threshold else None
+			# Skip slides not found in directory
+			if slide not in tfrecord_dir_list_names:
+				log.warn(f"Slide {slide} not found in tfrecord directory, skipping", 1, print_func)
+				num_warned += 1
+				continue
+			if patient not in patients_dict:
+				patients_dict[patient] = {
+					'outcome': outcomes[slide]['outcome'],
+					'slides': [slide]
+				}
+			elif patients_dict[patient]['outcome'] != outcomes[slide]['outcome']:
+				log.error(f"Multiple outcomes found for patient {patient} ({patients_dict[patient]['outcome']}, {outcomes[slide]['outcome']})", 1)
+				sys.exit()
+			else:
+				patients_dict[patient]['slides'] += [slide]
+		if num_warned >= warn_threshold:
+			log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
+		patients = list(patients_dict.keys())
+		sorted_patients = [p for p in patients]
+		sorted_patients.sort()
+		shuffle(patients)
+
+		# Create and log a validation subset
 		if len(subdirs):
 			log.error(f"Validation target set to 'per-patient', but the TFRecord directory has validation configured per-tile (contains subfolders {', '.join(subdirs)}", 1)
 			sys.exit()
@@ -478,16 +508,17 @@ def update_tfrecord(tfrecord_file, old_feature_description=FEATURE_DESCRIPTION, 
 		writer.write(tf_example.SerializeToString())
 	writer.close()
 
-def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None, resize=None):
+def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None, resize=None, silent=False):
 	'''Transforms images in a single tfrecord. Can perform hue shifting, resizing, or re-assigning slide label.'''
-	log.empty(f"Transforming tiles in tfrecord {sfutil.green(origin)}", 1)
-	log.info(f"Saving to new tfrecord at {sfutil.green(target)}", 2)
+	print_func = None if silent else print
+	log.empty(f"Transforming tiles in tfrecord {sfutil.green(origin)}", 1, print_func)
+	log.info(f"Saving to new tfrecord at {sfutil.green(target)}", 2, print_func)
 	if assign_slide:
-		log.info(f"Assigning slide name {sfutil.bold(assign_slide)}", 2)
+		log.info(f"Assigning slide name {sfutil.bold(assign_slide)}", 2, print_func)
 	if hue_shift:
-		log.info(f"Shifting hue by {sfutil.bold(str(hue_shift))}", 2)
+		log.info(f"Shifting hue by {sfutil.bold(str(hue_shift))}", 2, print_func)
 	if resize:
-		log.info(f"Resizing records to ({resize}, {resize})", 2)
+		log.info(f"Resizing records to ({resize}, {resize})", 2, print_func)
 
 	dataset = tf.data.TFRecordDataset(origin)
 	writer = tf.io.TFRecordWriter(target)
