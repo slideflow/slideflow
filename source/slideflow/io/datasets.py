@@ -242,7 +242,7 @@ class Dataset:
 	def get_tfrecords(self, dataset=None, merge_subdirs=False, ask_to_merge_subdirs=False):
 		'''Returns a list of all tfrecords.'''
 		if dataset and dataset not in self.datasets.keys():
-			log.error(f"Dataset {name} not found.")
+			log.error(f"Dataset {dataset} not found.")
 			return None
 
 		datasets_to_search = list(self.datasets.keys()) if not dataset else [dataset]
@@ -253,6 +253,9 @@ class Dataset:
 			tfrecords = self.datasets[d]['tfrecords']
 			label = self.datasets[d]['label']
 			tfrecord_path = join(tfrecords, label)
+			if not exists(tfrecord_path):
+				log.warn(f"TFRecords path not found: {sfutil.green(tfrecord_path)}", 1)
+				return []
 			subdirs = [sd for sd in listdir(tfrecord_path) if isdir(join(tfrecord_path, sd))]
 
 			# Check if given subfolder contains split data (tiles split into multiple TFRecords, likely for validation testing)
@@ -495,7 +498,7 @@ class Dataset:
 					manifest[rel_tfr][slide] += 1
 				total += 1
 			manifest[rel_tfr]['total'] = total
-			print('\r\033[K')
+			print('\r\033[K', end="")
 
 		# Find slides that have TFRecords
 		for man_rel_tfr in manifest:
@@ -513,7 +516,7 @@ class Dataset:
 		error_threshold = 3
 		for s, slide in enumerate(slide_list_errors):
 			print_func = print if s < error_threshold else None
-			log.warn(f"Failed TFRecord integrity check: annotation not found for slide {sfutil.green(slide)}", 1, print_func)
+			log.warn(f"No corresponding slide annotation found for TFRecord {sfutil.green(slide)}; TFRecord will be ignored", 1, print_func)
 
 		if len(slide_list_errors) >= error_threshold:
 			log.warn(f"...{len(slide_list_errors)} total TFRecord integrity check failures, see {sfutil.green(log.logfile)} for details", 1)
