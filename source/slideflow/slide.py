@@ -51,7 +51,7 @@ from pathlib import Path
 # TODO: test JPG compatibility
 
 Image.MAX_IMAGE_PIXELS = 100000000000
-DEFAULT_JPG_MPP = 0.5
+DEFAULT_JPG_MPP = 0.25
 OPS_LEVEL_COUNT = 'openslide.level-count'
 OPS_MPP_X = 'openslide.mpp-x'
 OPS_WIDTH = 'width'
@@ -60,11 +60,12 @@ EXTRACT_INSIDE = 'inside'
 EXTRACT_OUTSIDE = 'outside'
 
 def OPS_LEVEL_HEIGHT(l):
-    return f'openslide.level[{l}].height'
+	return f'openslide.level[{l}].height'
 def OPS_LEVEL_WIDTH(l):
     return f'openslide.level[{l}].width'
 def OPS_LEVEL_DOWNSAMPLE(l):
     return f'openslide.level[{l}].downsample'
+
 
 VIPS_FORMAT_TO_DTYPE = {
     'uchar': np.uint8,
@@ -102,9 +103,8 @@ class OpenslideToVIPS:
 		}
 
 		# Calculate level metadata
-		num_levels = int(self.full_image.get(OPS_LEVEL_COUNT))
 		self.levels = []
-		for l in range(num_levels):
+		for l in range(self.level_count):
 			width = int(self.full_image.get(OPS_LEVEL_WIDTH(l)))
 			height = int(self.full_image.get(OPS_LEVEL_HEIGHT(l)))
 			downsample = float(self.full_image.get(OPS_LEVEL_DOWNSAMPLE(l)))
@@ -162,6 +162,36 @@ class OpenslideToVIPS:
 		region = image.extract_area(downsample_x, downsample_y, extract_width, extract_height)
 		return region
 
+class JPGslideToVIPS(OpenslideToVIPS):
+	'''Wrapper for JPG files, which do not possess separate levels, to preserve openslide-like functions.'''
+	def __init__(self, path):
+		self.path = path
+		self.full_image = vips.Image.new_from_file(path)
+		self.properties = {}
+		for field in self.full_image.get_fields():
+			self.properties.update({field: self.full_image.get(field)})
+		width = int(self.properties[OPS_WIDTH])
+		height = int(self.properties[OPS_HEIGHT])
+		self.dimensions = (width, height)
+		self.level_count = 1
+		self.loaded_downsample_levels = {
+			0: self.full_image
+		}
+
+		# Calculate level metadata
+		self.levels = [{
+			'dimensions': (width, height),
+			'width': width,
+			'height': height,
+			'downsample': 1,
+		}]
+		self.level_downsamples = [1]
+		self.level_dimensions = [(width, height)]
+
+		# MPP data
+		self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
+
+
 class ROIObject:
 	'''Object container for ROI annotations.'''
 	def __init__(self, name):
@@ -202,14 +232,17 @@ class SlideLoader:
 		self.enable_downsample = enable_downsample
 		self.thumb_image = None
 		self.thumb_folder = thumb_folder
-		if not exists(thumb_folder): os.makedirs(thumb_folder)
+		if thumb_folder and not exists(thumb_folder): os.makedirs(thumb_folder)
 		filetype = sfutil.path_to_ext(path)
 
 		# Initiate supported slide (SVS, TIF) or JPG slide reader
 		if filetype.lower() in sfutil.SUPPORTED_FORMATS:
 			try:
-				self.slide = OpenslideToVIPS(path) #ops.OpenSlide(path)
-			except: #ops.lowlevel.OpenSlideUnsupportedFormatError:
+				if filetype.lower() == 'jpg':
+					self.slide = JPGslideToVIPS(path)
+				else:
+					self.slide = OpenslideToVIPS(path)
+			except:
 				log.warn(f" Unable to read slide from {path} , skipping", 1, self.print)
 				self.shape = None
 				self.load_error = True
@@ -262,13 +295,14 @@ class SlideLoader:
 			print("Calculating thumbnail from slide...", end="")
 			self.thumb_image = self.slide.get_thumbnail(2048, enable_downsample=self.enable_downsample)
 			print("\r\033[K", end="")
-			self.thumb_image.convert('RGB').save(join(self.thumb_folder, self.name+'.jpg'))
+			if self.thumb_folder:
+				self.thumb_image.convert('RGB').save(join(self.thumb_folder, self.name+'.jpg'))
 		return self.thumb_image
 
 	def build_generator(self):
 		log.label(self.shortname, f"Extracting {sfutil.bold(self.size_um)}um tiles (resizing {sfutil.bold(self.extract_px)}px -> {sfutil.bold(self.size_px)}px); stride: {sfutil.bold(int(self.stride))}px", 2, self.print)
 		if self.size_px > self.extract_px:
-			log.label(self.shortname, f"[{sfutil.fail('!WARN!')}] Tiles will be up-scaled with cubic interpolation, ({self.extract_px}px -> {self.size_px}px)", 2, self.print)
+			log.label(self.shortname, f"[{sfutil.fail('!WARN!')}] Tiles will be up-scaled with bilinear interpolation, ({self.extract_px}px -> {self.size_px}px)", 2, self.print)
 	
 	def loaded_correctly(self):
 		'''Returns True if slide loaded correctly without errors; False if otherwise.'''
@@ -506,9 +540,8 @@ class TMAReader(SlideLoader):
 
 class SlideReader(SlideLoader):
 	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
-	SKIP_MISSING_ROI = True
 	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, export_folder=None,
-					roi_dir=None, roi_list=None, roi_method=EXTRACT_INSIDE, thumb_folder=None, silent=False, pb=None):
+					roi_dir=None, roi_list=None, roi_method=EXTRACT_INSIDE, skip_missing_roi=True, thumb_folder=None, silent=False, pb=None):
 
 		super().__init__(path, size_px, size_um, stride_div, enable_downsample, export_folder, thumb_folder, silent, pb)
 
@@ -534,7 +567,7 @@ class SlideReader(SlideLoader):
 				log.warn(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}", 1)
 			self.load_csv_roi(matching_rois[0])
 		else:
-			if self.SKIP_MISSING_ROI:
+			if skip_missing_roi:
 				log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.print)
 				self.shape = None
 				self.load_error = True

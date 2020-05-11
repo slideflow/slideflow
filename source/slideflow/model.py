@@ -535,7 +535,7 @@ class SlideflowModel:
 		log.info("Retraining top layer", 1)
 		# Freeze the base layer
 		self.model.layers[0].trainable = False
-		val_steps = 100 if validation_data else None
+		val_steps = 200 if validation_data else None
 		metrics = ['accuracy'] if hp.model_type() != 'linear' else [hp.loss]
 
 		self.model.compile(optimizer=tf.keras.optimizers.Adam(lr=hp.learning_rate),
@@ -623,7 +623,7 @@ class SlideflowModel:
 		return val_acc
 
 	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=100, multi_input=False, 
-				validate_on_batch=256, val_batch_size=32, validation_steps=None, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
+				validate_on_batch=256, val_batch_size=32, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
 				ema_observations=20, ema_smoothing=2):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
@@ -656,8 +656,16 @@ class SlideflowModel:
 																																							   min_tiles=min_tiles_per_slide,
 																																							   include_slidenames=True, 
 																																							   multi_input=multi_input)
-			validation_data_for_training = validation_data if not validation_steps else validation_data.repeat()
+			val_log_msg = "" if not validate_on_batch else f"every {sfutil.bold(str(validate_on_batch))} steps and "
+			log.info(f"Validation during training: {val_log_msg}at epoch end", 1)
+			if validation_steps:
+				validation_data_for_training = validation_data.repeat()
+				log.empty(f"Using {validation_steps} batches ({validation_steps * hp.batch_size} samples) each validation check", 2)
+			else:
+				validation_data_for_training = validation_data
+				log.empty(f"Using entire validation set each validation check", 2)
 		else:
+			log.info("Validation during training: None", 1)
 			validation_data_for_training = None
 			validation_steps = 0
 

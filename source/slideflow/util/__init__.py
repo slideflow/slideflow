@@ -21,7 +21,7 @@ except:
 	pass
 # ------
 
-SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif']
+SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif', 'jpg']
 SLIDE_ANNOTATIONS_TO_IGNORE = ['', 'na', 'n/a', 'none', 'missing']
 
 HEADER = '\033[95m'
@@ -380,16 +380,8 @@ def _parse_function(example_proto):
 
 def get_slide_paths(slides_dir):
 	'''Get all slide paths from a given directory containing slides.'''
-	num_dir = len(slides_dir.split('/'))
-	slide_list = [i for i in glob(join(slides_dir, '**/*.jpg'))
-					if i.split('/')[num_dir] != 'thumbs']
-	
-	for filetype in SUPPORTED_FORMATS:
-		slide_list.extend( [i for i in glob(join(slides_dir, f'**/*.{filetype}'))
-							if i.split('/')[num_dir] != 'thumbs'] )
-
-		slide_list.extend(glob(join(slides_dir, f'*.{filetype}')))
-
+	slide_list = [i for i in glob(join(slides_dir, '**/*.*')) if path_to_ext(i).lower() in SUPPORTED_FORMATS]
+	slide_list.extend([i for i in glob(join(slides_dir, '*.*')) if path_to_ext(i).lower() in SUPPORTED_FORMATS])
 	return slide_list
 
 def read_annotations(annotations_file):
