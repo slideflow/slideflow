@@ -33,7 +33,7 @@ from slideflow.statistics import TFRecordUMAP
 from slideflow.mosaic import Mosaic
 from comet_ml import Experiment
 
-__version__ = "1.7.2"
+__version__ = "1.7.3"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -168,7 +168,7 @@ def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, show
 def trainer(outcome_headers, model_name, model_type, project_config, results_dict, hp, validation_strategy, 
 			validation_target, validation_fraction, validation_k_fold, validation_log, validation_dataset=None, 
 			validation_annotations=None, validation_filters=None, k_fold_i=None, filters=None, pretrain=None, 
-			resume_training=None, checkpoint=None, validate_on_batch=0, validation_steps=None, max_tiles_per_slide=0, 
+			resume_training=None, checkpoint=None, validate_on_batch=0, validation_steps=200, max_tiles_per_slide=0, 
 			min_tiles_per_slide=0, starting_epoch=0, flags=None):
 
 	if not flags: flags = DEFAULT_FLAGS
@@ -729,8 +729,6 @@ class SlideflowProject:
 			roi_list = extracting_dataset.get_rois()
 			dataset_config = extracting_dataset.datasets[dataset_name]
 			log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 1)
-
-			log.info("Exporting tiles only", 1)
 			pb = ProgressBar(bar_length=5, counter_text='tiles')
 
 			if self.FLAGS['num_threads'] > 1:
@@ -744,7 +742,7 @@ class SlideflowProject:
 		self.update_manifest()
 
 	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, generate_tfrecords=True, stride_div=1, tma=False, augment=False, 
-						delete_tiles=True, enable_downsample=False, roi_method='inside', dataset=None):
+						delete_tiles=True, enable_downsample=False, roi_method='inside', skip_missing_roi=True, skip_extracted=True, dataset=None):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.
 		
@@ -768,19 +766,26 @@ class SlideflowProject:
 		log.header("Extracting image tiles...")
 		tile_um = self.PROJECT['tile_um'] if not tile_um else tile_um
 		tile_px = self.PROJECT['tile_px'] if not tile_px else tile_px
+		
+		if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
+		else:		datasets = self.PROJECT['datasets']
 
 		# Load dataset for evaluation
-		dataset = self.PROJECT['datasets']# if not dataset else dataset
 		extracting_dataset = Dataset(config_file=self.PROJECT['dataset_config'],
 									 sources=self.PROJECT['datasets'],
 									 annotations=self.PROJECT['annotations'],
 									 filters=filters)
 
-		for dataset_name in dataset:
+		for dataset_name in datasets:
 			log.empty(f"Working on dataset {sfutil.bold(dataset_name)}", 1)
 			slide_list = extracting_dataset.get_slide_paths(dataset=dataset_name)
+			extracted_tfrecords = [sfutil.path_to_name(tfr) for tfr in extracting_dataset.get_tfrecords(dataset=dataset_name)]
+			if skip_extracted:
+				slide_list = [slide for slide in slide_list if sfutil.path_to_name(slide) not in extracted_tfrecords]
+				if len(extracted_tfrecords):
+					log.info(f"Skipping tile extraction for {len(extracted_tfrecords)} slides; TFRecords already generated.", 1)	
 			log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 1)
-			
+
 			save_folder = join(extracting_dataset.datasets[dataset_name]['tiles'], extracting_dataset.datasets[dataset_name]['label'])
 			roi_dir = extracting_dataset.datasets[dataset_name]['roi']
 
@@ -791,7 +796,6 @@ class SlideflowProject:
 			warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 			Image.MAX_IMAGE_PIXELS = 100000000000
 
-			log.info("Exporting tiles only", 1)
 			pb = ProgressBar(bar_length=5, counter_text='tiles')
 
 			# Function to extract tiles from a slide
@@ -804,6 +808,7 @@ class SlideflowProject:
 																								roi_dir=roi_dir,
 																								roi_list=None,
 																								roi_method=roi_method,
+																								skip_missing_roi=skip_missing_roi,
 																								pb=pb)
 				else:
 					whole_slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample,
@@ -838,7 +843,7 @@ class SlideflowProject:
 		if generate_tfrecords:
 			self.generate_tfrecords_from_tiles(delete_tiles)
 
-	def generate_activations_analytics(self, model, outcome_header, filters=None, focus_nodes=[], node_exclusion=False):
+	def generate_activations_analytics(self, model, outcome_header=None, filters=None, focus_nodes=[], node_exclusion=False, export_csv=False):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.
 		
 		Note: GPU memory will remain in use, as the Keras model associated with the visualizer is active.'''
@@ -860,7 +865,8 @@ class SlideflowProject:
 								   annotations=self.PROJECT['annotations'],
 								   outcome_header=outcome_header,
 								   focus_nodes=focus_nodes,
-								   use_fp16=self.PROJECT['use_fp16'])
+								   use_fp16=self.PROJECT['use_fp16'],
+								   export_csv=export_csv)
 
 		return AV
 
@@ -1167,7 +1173,7 @@ class SlideflowProject:
 	def train(self, models=None, outcome_header='category', multi_outcome=False, filters=None, resume_training=None, checkpoint=None, 
 				pretrain='imagenet', batch_file=None, hyperparameters=None, model_type='categorical',
 				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None,
-				validation_dataset=None, validation_annotations=None, validation_filters=None, validate_on_batch=256, validation_steps=None,
+				validation_dataset=None, validation_annotations=None, validation_filters=None, validate_on_batch=256, validation_steps=200,
 				max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0):
 		'''Train model(s) given configurations found in batch_train.tsv.
 

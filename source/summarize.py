@@ -47,7 +47,7 @@ class DatasetGroup:
 		self.outcomes += [outcome]
 		return outcome
 
-	def print_summary(self, grouped=False, show_model_names=False):
+	def print_summary(self, grouped=False, show_model_names=False, roc_level='slide'):
 		datasets_string = []
 		with open(self.config, 'r') as config_file:
 			config = json.load(config_file)
@@ -60,7 +60,7 @@ class DatasetGroup:
 		if len(self.outcomes):
 			print(' and '.join(datasets_string))
 		for outcome in self.outcomes:
-			outcome.print_summary(grouped=grouped, show_model_names=show_model_names)
+			outcome.print_summary(grouped=grouped, show_model_names=show_model_names, roc_level=roc_level)
 
 class Project:
 	def __init__(self, path):
@@ -103,11 +103,11 @@ class Outcome:
 	def add_subset(self, subset):
 		self.subsets += [subset]
 
-	def print_summary(self, grouped=False, show_model_names=False):
+	def print_summary(self, grouped=False, show_model_names=False, roc_level='slide'):
 
 		print(f"\t{self.string}")
 		for subset in self.subsets:
-			subset.print_summary(grouped=grouped, show_model_names=show_model_names)
+			subset.print_summary(grouped=grouped, show_model_names=show_model_names, roc_level=roc_level)
 
 class Subset:
 	def __init__(self, _id, outcome, slide_list, filters, validation_strategy, total_k_folds):
@@ -157,7 +157,7 @@ class Subset:
 				return group
 		return False
 
-	def print_summary(self, metrics=None, grouped=False, show_model_names=False):
+	def print_summary(self, metrics=None, grouped=False, show_model_names=False, roc_level='slide'):
 		print(f"\t\tSubset {self.id}" + (f" ({self.total_k_folds}-fold cross-validation)" if self.validation_strategy=='k-fold' else "") + f": {len(self.slide_list)} slides")
 		print(f"\t\tFilters: {self.filters}")
 		print(f"\t\tOutcomes: {self.outcome_labels}")
@@ -201,7 +201,7 @@ class Subset:
 		for group in self.model_groups:
 			if group.k_fold and not group.stage=="evaluation" and grouped:
 				# Generates new figure overlaying ROCs from each k-fold
-				group.gen_combined_roc()
+				group.gen_combined_roc(level=roc_level)
 
 				models_by_kfold = group.get_models_by_kfold()
 				for e in group.epochs:
@@ -345,7 +345,7 @@ class ModelGroup:
 						models_by_kfold[k] += [model]
 			return models_by_kfold
 
-	def gen_combined_roc(self):
+	def gen_combined_roc(self, level='slide'):
 		save_dir = join(self.models[0].project.settings['root'], 'stats')
 		if not exists(save_dir):
 			os.makedirs(save_dir)
@@ -357,7 +357,7 @@ class ModelGroup:
 				#if not len(epochs): continue
 				if epoch not in model.results.keys():
 					continue
-				pred = model.get_predictions(epoch.split('epoch')[-1])
+				pred = model.get_predictions(epoch.split('epoch')[-1], level=level)
 
 				if not pred:
 					continue
@@ -539,7 +539,7 @@ def get_compatible_dataset(project, datasets):
 			return dataset
 	return False
 
-def load_from_directory(search_directory, nested=False, starttime=None, shownames=False):
+def load_from_directory(search_directory, nested=False, starttime=None, shownames=False, roc_level='slide'):
 	if nested:
 		project_folders = []
 		for _dir in [join(search_directory, d) for d in os.listdir(search_directory) if isdir(join(search_directory, d))]:
@@ -600,7 +600,7 @@ def load_from_directory(search_directory, nested=False, starttime=None, showname
 			outcome.add_subset(subset)
 	
 	for dataset in datasets:
-		dataset.print_summary(grouped=True, show_model_names=shownames)
+		dataset.print_summary(grouped=True, show_model_names=shownames, roc_level=roc_level)
 
 def valid_date(s):
 	try:
@@ -618,6 +618,9 @@ if __name__ == '__main__':
 	parser.add_argument('-n', '--nested', action="store_true", help='Whether directory specified contains further nested directories to search.')
 	parser.add_argument('-s', '--since', type=valid_date, help='Print results from this starting date (Format: YYYY-mm-dd or YYYY-mm-dd-HH-MM-SS)')
 	parser.add_argument('--names', action="store_true", help='Print model names with results.')
+	parser.add_argument('--tile', action="store_true", help='Calculates tile-level ROC, instead of slide-level (default).')
 	args = parser.parse_args()
 
-	load_from_directory(args.dir, args.nested, args.since, args.names)
+	roc_level = 'tile' if args.tile else 'slide'
+
+	load_from_directory(args.dir, args.nested, args.since, args.names, roc_level)
