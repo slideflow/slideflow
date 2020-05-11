@@ -35,7 +35,7 @@ class TFRecordUMAP:
 			if self.load_cache():
 				return
 	
-	def calculate_from_nodes(self, slide_node_dict, nodes, exclude_slides=None):
+	def calculate_from_nodes(self, slide_node_dict, slide_logits_dict, nodes, exclude_slides=None):
 		self.map_meta['nodes'] = nodes
 
 		# Calculate UMAP
@@ -45,11 +45,16 @@ class TFRecordUMAP:
 			if slide in exclude_slides: continue
 			first_node = list(slide_node_dict[slide].keys())[0]
 			num_vals = len(slide_node_dict[slide][first_node])
+			num_logits = len(slide_logits_dict[slide])
 			for i in range(num_vals):
 				node_activations += [[slide_node_dict[slide][n][i] for n in nodes]]
+				logits = [slide_logits_dict[slide][l][i] for l in range(num_logits)]
+				prediction = logits.index(max(logits))
+
 				self.point_meta += [{
 					'slide': slide,
 					'index': i,
+					'prediction': prediction,
 				}]
 
 		coordinates = gen_umap(np.array(node_activations))
@@ -62,10 +67,16 @@ class TFRecordUMAP:
 		self.point_meta = meta
 		self.save_cache()
 
-	def save_2d_plot(self, filename, slide_category_dict=None, subsample=None):
+	def save_2d_plot(self, filename, slide_category_dict=None, show_prediction=False, outcome_labels=None,
+					subsample=None, title=None):
 		# Prepare plotting categories
 		if slide_category_dict:
 			categories = np.array([slide_category_dict[m['slide']] for m in self.point_meta])
+		elif show_prediction:
+			if outcome_labels:
+				categories = np.array([outcome_labels[m['prediction']] for m in self.point_meta])
+			else:
+				categories = np.array([m['prediction'] for m in self.point_meta])
 		else:
 			categories = np.array(["None" for m in self.point_meta])
 
@@ -89,8 +100,10 @@ class TFRecordUMAP:
 		plt.clf()
 		fig = plt.figure()
 		umap_2d = sns.scatterplot(x=x, y=y, data=df, hue='category', palette=sns.color_palette('Set1', len(unique_categories)))
+		umap_2d.legend(loc='center left', bbox_to_anchor=(1.25, 0.5), ncol=1)
 		log.info(f"Saving 2D UMAP to {sfutil.green(filename)}...", 1)
 		umap_figure = umap_2d.get_figure()
+		if title: umap_figure.axes[0].set_title(title)
 		umap_figure.savefig(filename, bbox_inches='tight')
 
 	def save_3d_plot(self, z, filename, title="UMAP", subsample=None):
@@ -313,7 +326,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		sys.stdout.flush()
 		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in batch[2].numpy()]
 		y_true += [batch[1].numpy()]
-		y_pred += [model.predict(batch[0])]
+		y_pred += [model.predict_on_batch(batch[0])]
 	patients = list(set([annotations[slide][sfutil.TCGA.patient] for slide in tile_to_slides]))
 	sys.stdout.write("\r\033[K")
 	sys.stdout.flush()

@@ -4,9 +4,6 @@ import argparse
 import multiprocessing
 import os
 
-import matplotlib
-matplotlib.use('Qt5Agg')
-
 if __name__=='__main__':
 	multiprocessing.freeze_support()
 
