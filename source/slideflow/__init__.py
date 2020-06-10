@@ -474,11 +474,11 @@ class SlideflowProject:
 
 	def associate_slide_names(self):
 		'''Experimental function used to automatically associated patient names with slide filenames in the annotations file.'''
+		log.header("Associating slide names...")
 		# Load dataset
-		dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
-
+		dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'], annotations=self.PROJECT['annotations'])
 		dataset.update_annotations_with_slidenames(self.PROJECT['annotations'])
-		dataset.load_annotations(self.PROJECT['annotations'])
+		#dataset.load_annotations()
 
 	def create_blank_annotations_file(self, outfile=None):
 		'''Creates an example blank annotations file.'''

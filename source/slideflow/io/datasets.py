@@ -176,7 +176,6 @@ class Dataset:
 		self.filter_blank = [self.filter_blank] if not isinstance(self.filter_blank, list) else self.filter_blank
 		slide_patient_dict = {}
 		if not len(self.ANNOTATIONS):
-			print(self.ANNOTATIONS)
 			log.error("No annotations loaded; is the annotations file empty?")
 		for ann in self.ANNOTATIONS:
 			skip_annotation = False
@@ -220,7 +219,7 @@ class Dataset:
 		
 		return slides
 
-	def get_slide_paths(self, dataset=None):
+	def get_slide_paths(self, dataset=None, filter=True):
 		'''Returns a list of paths to all slides.'''
 		if dataset and dataset not in self.datasets.keys():
 			log.error(f"Dataset {dataset} not found.")
@@ -235,9 +234,12 @@ class Dataset:
 				paths += sfutil.get_slide_paths(self.datasets[d]['slides'])
 
 		# Filter paths
-		filtered_slides = self.get_slides()
-		filtered_paths = [path for path in paths if sfutil.path_to_name(path) in filtered_slides]
-		return filtered_paths
+		if filter:
+			filtered_slides = self.get_slides()
+			filtered_paths = [path for path in paths if sfutil.path_to_name(path) in filtered_slides]
+			return filtered_paths
+		else:
+			return paths
 
 	def get_tfrecords(self, dataset=None, merge_subdirs=False, ask_to_merge_subdirs=False):
 		'''Returns a list of all tfrecords.'''
@@ -400,7 +402,8 @@ class Dataset:
 		try:
 			patient_index = header.index(TCGA.patient)
 		except:
-			log.error(f"Check annotations file for header '{TCGA.patient}'.", 1)
+			print(header)
+			log.error(f"Check that annotations file is formatted correctly and contains header '{TCGA.patient}'.", 1)
 			sys.exit()
 
 		# Verify that a slide header exists; if not, offer to make one and automatically associate slide names with patients
@@ -541,7 +544,7 @@ class Dataset:
 	def update_annotations_with_slidenames(self, annotations_file):
 		'''Attempts to automatically associate slide names from a directory with patients in a given annotations file.'''
 		header, _ = sfutil.read_annotations(annotations_file)
-		slide_list = self.get_slide_paths()
+		slide_list = self.get_slide_paths(filter=False)
 
 		# First, load all patient names from the annotations file
 		try:
@@ -556,7 +559,9 @@ class Dataset:
 			header = next(csv_reader, None)
 			for row in csv_reader:
 				patients.extend([row[patient_index]])
-		patients = list(set(patients)) 
+		patients = list(set(patients))
+		log.info(f"Number of patients in annotations: {len(patients)}", 1)
+		log.info(f"Slides found: {len(slide_list)}", 1)
 
 		# Then, check for sets of slides that would match to the same patient; due to ambiguity, these will be skipped.
 		num_occurrences = {}
