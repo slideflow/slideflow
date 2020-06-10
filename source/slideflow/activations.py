@@ -728,7 +728,7 @@ class Heatmap:
 	'''Generates heatmap by calculating predictions from a sliding scale window across a slide.'''
 
 	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, save_folder='', 
-					roi_dir=None, roi_list=None, roi_method='inside', whole_slide=False, thumb_folder=None):
+					roi_dir=None, roi_list=None, roi_method='inside', thumb_folder=None):
 		from slideflow.slide import SlideReader
 
 		self.save_folder = save_folder
@@ -736,23 +736,23 @@ class Heatmap:
 		self.DTYPE_INT = tf.int16 if use_fp16 else tf.int32
 		self.MODEL_DIR = model_path
 		self.logits = None
-		self.whole_slide = whole_slide
 
 		# Create progress bar
 		shortname = sfutil._shortname(sfutil.path_to_name(slide_path))
-		leadtext = f"Making heatmap for {sfutil.green(shortname)}{', ignoring ROI' if whole_slide else f', {roi_method} ROI'} "
-		pb = ProgressBar(bar_length=5, counter_text='tiles', leadtext=leadtext)
+		pb = None#ProgressBar(bar_length=5, counter_text='tiles', leadtext=f"Making heatmap for {sfutil.green(shortname)}, {roi_method} ROI")
+		#self.print = pb.print
+		pb = ProgressBar(1, counter_text='tiles', leadtext="Generating heatmap... ", show_counter=True, show_eta=True)
 		self.print = pb.print
 
 		# Load the slide
 		self.slide = SlideReader(slide_path, size_px, size_um, stride_div, enable_downsample=False, 
-																		   export_folder=save_folder,
 																		   roi_dir=roi_dir, 
 																		   roi_list=roi_list,
 																		   roi_method=roi_method,
 																		   thumb_folder=thumb_folder if thumb_folder else join(save_folder, 'thumbs'),
 																		   silent=True,
 																		   pb=pb)
+		pb.BARS[0].end_value = self.slide.estimated_num_tiles
 		# First, load the designated model
 		_model = tf.keras.models.load_model(self.MODEL_DIR)
 
@@ -780,7 +780,7 @@ class Heatmap:
 		thumb_process.start()
 
 		# Create tile coordinate generator
-		gen_slice, x_size, y_size, stride_px = self.slide.build_generator(export=False, whole_slide=self.whole_slide)
+		gen_slice = self.slide.build_generator(return_numpy=True)
 
 		if not gen_slice:
 			log.error(f"No tiles extracted from slide {sfutil.green(self.slide.name)}", 1)
@@ -800,11 +800,11 @@ class Heatmap:
 		print('\r\033[KFinished predictions. Waiting on thumbnail...', end="")
 		thumb_process.join()
 
-		if self.slide.tile_mask is not None and x_size and y_size and stride_px:
+		if self.slide.tile_mask is not None and self.slide.extracted_x_size and self.slide.extracted_y_size and self.slide.full_stride:
 			# Expand logits back to a full 2D map spanning the whole slide,
 			#  supplying values of "0" where tiles were skipped by the tile generator
-			x_logits_len = int(x_size / stride_px) + 1
-			y_logits_len = int(y_size / stride_px) + 1
+			x_logits_len = int(self.slide.extracted_x_size / self.slide.full_stride) + 1
+			y_logits_len = int(self.slide.extracted_y_size / self.slide.full_stride) + 1
 			expanded_logits = [[0] * self.NUM_CLASSES] * len(self.slide.tile_mask)
 			li = 0
 			for i in range(len(expanded_logits)):
