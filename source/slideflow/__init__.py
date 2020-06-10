@@ -33,7 +33,7 @@ from slideflow.statistics import TFRecordUMAP
 from slideflow.mosaic import Mosaic
 from comet_ml import Experiment
 
-__version__ = "1.7.3"
+__version__ = "1.8.0"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -143,7 +143,7 @@ def evaluator(outcome_header, model, project_config, results_dict, filters=None,
 	results_dict['results'] = results
 	return results_dict
 
-def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, show_roi, resolution, interpolation, whole_slide, project_config, flags=None):
+def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, show_roi, resolution, interpolation, project_config, flags=None):
 	import slideflow.slide as sfslide
 	if not flags: flags = DEFAULT_FLAGS
 
@@ -160,7 +160,6 @@ def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, show
 																	stride_div=stride_div,
 																	save_folder=save_folder,
 																	roi_list=roi_list,
-																	whole_slide=whole_slide,
 																	thumb_folder=join(project_config['root'], 'thumbs'))
 	heatmap.generate(batch_size=flags['eval_batch_size'])
 	heatmap.save(show_roi=show_roi, interpolation=interpolation)
@@ -288,7 +287,7 @@ class SlideflowProject:
 	FLAGS = DEFAULT_FLAGS
 	GPU_LOCK = None
 
-	def __init__(self, project_folder, num_gpu=0, reverse_select_gpu=True, interactive=True):
+	def __init__(self, project_folder, num_gpu=1, reverse_select_gpu=True, interactive=True):
 		'''Initializes project by creating project folder, prompting user for project settings, and project
 		settings to "settings.json" within the project directory.'''
 		os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -331,7 +330,8 @@ class SlideflowProject:
 				self.select_gpu(n)
 				return
 
-		log.error(f"No free GPUs detected; try deleting 'gpu[#].lock' files in the slideflow directory if GPUs are not in use.", 1)
+		log.warn(f"No GPU selected; tried selecting one from a user-specified pool of {number_available} ({len(physical_devices)} detected).", 1)
+		log.empty(f"Try deleting 'gpu[#].lock' files in {sfutil.green(SOURCE_DIR)} if GPUs are not in use.", 2)
 
 	def release_gpu(self):
 		log.header("Cleaning up...")
@@ -340,7 +340,7 @@ class SlideflowProject:
 			os.remove(join(SOURCE_DIR, f"gpu{self.GPU_LOCK}.lock"))
 
 	def select_gpu(self, number):
-		log.empty(f"Requesting GPU #{number}", 1)
+		log.empty(f"Using GPU #{number}", 1)
 		self.GPU_LOCK = number
 		os.environ["CUDA_VISIBLE_DEVICES"]=str(number)
 		open(join(SOURCE_DIR, f"gpu{number}.lock"), 'a').close()
@@ -697,7 +697,7 @@ class SlideflowProject:
 					os.makedirs(root_path)
 
 			whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, roi_list=roi_list, pb=pb)
-			small_tile_generator, _, _, _ = whole_slide.build_generator(dual_extract=True)
+			small_tile_generator = whole_slide.build_generator(dual_extract=True)
 			tfrecord_name = sfutil.path_to_name(slide_path)
 			tfrecord_path = join(root_path, f"{tfrecord_name}.tfrecords")
 			records = []
@@ -729,7 +729,7 @@ class SlideflowProject:
 			roi_list = extracting_dataset.get_rois()
 			dataset_config = extracting_dataset.datasets[dataset_name]
 			log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 1)
-			pb = ProgressBar(bar_length=5, counter_text='tiles')
+			pb = None#ProgressBar(bar_length=5, counter_text='tiles')
 
 			if self.FLAGS['num_threads'] > 1:
 				pool = DPool(self.FLAGS['num_threads'])
@@ -741,7 +741,7 @@ class SlideflowProject:
 		
 		self.update_manifest()
 
-	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, generate_tfrecords=True, stride_div=1, tma=False, augment=False, 
+	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, stride_div=1, tma=False, save_tiles=False, save_tfrecord=True,
 						delete_tiles=True, enable_downsample=False, roi_method='inside', skip_missing_roi=True, skip_extracted=True, dataset=None):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.
@@ -750,11 +750,9 @@ class SlideflowProject:
 			tile_um:			Tile size in microns. If None, will use project default.
 			tile_px:			Tile size in pixels. If None, will use project default.
 			filters:			Dataset filters to use when selecting slides for tile extraction.
-			generate_tfrecords:	Bool. If True, will export extracted tiles to TFRecords (required for training).
 			stride_div:			Stride divisor to use when extracting tiles. A stride of 1 will extract non-overlapping tiles. 
 									A stride_div of 2 will extract overlapping tiles, with a stride equal to 50% of the tile width.
 			tma:				Bool. If True, reads slides as Tumor Micro-Arrays (TMAs), detecting and extracting tumor cores.
-			augment:			Bool. If True, will augment tiles 8-fold by randomly flipping/rotating extracted tiles.
 			delete_tiles:		Bool. If True, will delete loose tile images after storing into TFRecords.
 			enable_downsample:	Bool. If True, enables the use of downsampling while reading slide images. This may result in corrupted image tiles
 									if downsampled slide layers are corrupted or not fully generated. Manual confirmation of tile integrity is recommended.
@@ -763,9 +761,18 @@ class SlideflowProject:
 		import slideflow.slide as sfslide
 		from PIL import Image
 
+		# Filter out warnings and allow loading large images
+		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+		Image.MAX_IMAGE_PIXELS = 100000000000
+
 		log.header("Extracting image tiles...")
 		tile_um = self.PROJECT['tile_um'] if not tile_um else tile_um
 		tile_px = self.PROJECT['tile_px'] if not tile_px else tile_px
+		#self.FLAGS['num_threads'] = 1
+
+		if not save_tiles and not save_tfrecord:
+			log.error("Either save_tiles or save_tfrecord must be true to extract tiles.", 1)
+			return
 		
 		if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
 		else:		datasets = self.PROJECT['datasets']
@@ -776,27 +783,67 @@ class SlideflowProject:
 									 annotations=self.PROJECT['annotations'],
 									 filters=filters)
 
+		# Prepare validation/training subsets if per-tile validation is being used
+		if self.PROJECT['validation_target'] == 'per-tile':
+			if self.PROJECT['validation_strategy'] == 'boostrap':
+				log.warn("Validation bootstrapping is not supported when the validation target is per-tile; will generate random fixed validation target", 1)
+			if self.PROJECT['validation_strategy'] in ('bootstrap', 'fixed'):
+				# Split the extracted tiles into two groups
+				split_fraction = [-1, self.PROJECT['validation_fraction']]
+				split_names = ['training', 'validation']
+			if self.PROJECT['validation_strategy'] == 'k-fold':
+				split_fraction = [-1] * self.PROJECT['validation_k_fold']
+				split_names = [f'kfold-{i}' for i in range(self.PROJECT['validation_k_fold'])]
+		else:
+			split, split_fraction, split_names = None, None, None
+
 		for dataset_name in datasets:
 			log.empty(f"Working on dataset {sfutil.bold(dataset_name)}", 1)
+
+			tiles_folder = join(extracting_dataset.datasets[dataset_name]['tiles'], extracting_dataset.datasets[dataset_name]['label'])
+			roi_dir = extracting_dataset.datasets[dataset_name]['roi']
+			dataset_config = extracting_dataset.datasets[dataset_name]
+			tfrecord_dir = join(dataset_config["tfrecords"], dataset_config["label"])
+			if save_tfrecord and not exists(tfrecord_dir):
+				os.makedirs(tfrecord_dir)
+			if save_tiles and not os.path.exists(tiles_folder):
+				os.makedirs(tiles_folder)
+
+			# Prepare list of slides for extraction
 			slide_list = extracting_dataset.get_slide_paths(dataset=dataset_name)
-			extracted_tfrecords = [sfutil.path_to_name(tfr) for tfr in extracting_dataset.get_tfrecords(dataset=dataset_name)]
+			already_extracted_tfrecords = [sfutil.path_to_name(tfr) for tfr in extracting_dataset.get_tfrecords(dataset=dataset_name)]
 			if skip_extracted:
-				slide_list = [slide for slide in slide_list if sfutil.path_to_name(slide) not in extracted_tfrecords]
-				if len(extracted_tfrecords):
-					log.info(f"Skipping tile extraction for {len(extracted_tfrecords)} slides; TFRecords already generated.", 1)	
+				# First, check for interrupted extraction
+				interrupted = [sfutil.path_to_name(marker) for marker in glob(join((tfrecord_dir if tfrecord_dir else tiles_folder), '*.unfinished'))]
+				if len(interrupted):
+					log.info(f'Interrupted tile extraction detected in {len(interrupted)} tfrecords, will re-extract these slides')
+					for interrupted_slide in interrupted:
+						log.empty(interrupted_slide, 2)
+						del(already_extracted_tfrecords[already_extracted_tfrecords.index(interrupted_slide)])
+					
+				slide_list = [slide for slide in slide_list if sfutil.path_to_name(slide) not in already_extracted_tfrecords]
+				if len(already_extracted_tfrecords):
+					log.info(f"Skipping tile extraction for {len(already_extracted_tfrecords)} slides; TFRecords already generated.", 1)	
 			log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 1)
 
-			save_folder = join(extracting_dataset.datasets[dataset_name]['tiles'], extracting_dataset.datasets[dataset_name]['label'])
-			roi_dir = extracting_dataset.datasets[dataset_name]['roi']
-
-			if not os.path.exists(save_folder):
-				os.makedirs(save_folder)
-
-			# Filter out warnings and allow loading large images
-			warnings.simplefilter('ignore', Image.DecompressionBombWarning)
-			Image.MAX_IMAGE_PIXELS = 100000000000
-
-			pb = ProgressBar(bar_length=5, counter_text='tiles')
+			# Verify slides and estimate total number of tiles
+			log.info("Verifying slides...", 1)
+			total_tiles = 0
+			for slide_path in slide_list:
+				slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, roi_dir=roi_dir,
+																					  roi_method=roi_method,
+																					  skip_missing_roi=skip_missing_roi,
+																					  silent=True)
+				print(f"\r\033[KVerified {sfutil.green(slide.name)} (approx. {slide.estimated_num_tiles} tiles)", end="")
+				total_tiles += slide.estimated_num_tiles
+				del(slide)
+			print("\r\033[K", end='')
+			log.info(f"Verification complete. Total estimated tiles to extract: {total_tiles}", 1)
+			
+			if total_tiles:
+				pb = ProgressBar(total_tiles, counter_text='tiles', leadtext="Extracting tiles... ", show_counter=True, show_eta=True)
+			else:
+				pb = None
 
 			# Function to extract tiles from a slide
 			def extract_tiles_from_slide(slide_path, pb):
@@ -804,21 +851,22 @@ class SlideflowProject:
 
 				if not tma:
 					whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample, 
-																								export_folder=save_folder,
 																								roi_dir=roi_dir,
-																								roi_list=None,
 																								roi_method=roi_method,
 																								skip_missing_roi=skip_missing_roi,
 																								pb=pb)
 				else:
 					whole_slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample,
-																							  export_folder=save_folder, 
+																							  export_folder=tiles_folder, 
 																							  pb=pb)
 
 				if not whole_slide.loaded_correctly():
 					return
 
-				whole_slide.export_tiles(augment=augment)
+				whole_slide.export_tiles(tfrecord_dir=tfrecord_dir if save_tfrecord else None,
+										 tiles_dir=tiles_folder if save_tiles else None,
+										 split_fraction=split_fraction,
+										 split_names=split_names)
 
 			# Use multithreading if specified, extracting tiles from all slides in the filtered list
 			if self.FLAGS['num_threads'] > 1:
@@ -828,20 +876,6 @@ class SlideflowProject:
 			else:
 				for slide_path in slide_list:
 					extract_tiles_from_slide(slide_path, pb)
-
-			# Now, split extracted tiles into validation/training subsets if per-tile validation is being used
-			if self.PROJECT['validation_target'] == 'per-tile':
-				if self.PROJECT['validation_strategy'] == 'boostrap':
-					log.warn("Validation bootstrapping is not supported when the validation target is per-tile; will generate random fixed validation target", 1)
-				if self.PROJECT['validation_strategy'] in ('bootstrap', 'fixed'):
-					# Split the extracted tiles into two groups
-					sf.io.datasets.split_tiles(save_folder, fraction=[-1, self.PROJECT['validation_fraction']], names=['training', 'validation'])
-				if self.PROJECT['validation_strategy'] == 'k-fold':
-					sf.io.datasets.split_tiles(save_folder, fraction=[-1] * self.PROJECT['validation_k_fold'], names=[f'kfold-{i}' for i in range(self.PROJECT['validation_k_fold'])])
-
-		# Generate TFRecords from the extracted tiles
-		if generate_tfrecords:
-			self.generate_tfrecords_from_tiles(delete_tiles)
 
 	def generate_activations_analytics(self, model, outcome_header=None, filters=None, focus_nodes=[], node_exclusion=False, export_csv=False):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.
@@ -870,7 +904,7 @@ class SlideflowProject:
 
 		return AV
 
-	def generate_heatmaps(self, model, filters=None, resolution='low', interpolation='none', show_roi=True, whole_slide=False, single_thread=False):
+	def generate_heatmaps(self, model, filters=None, resolution='low', interpolation='none', show_roi=True, single_thread=False):
 		'''Creates predictive heatmap overlays on a set of slides. 
 
 		Args:
@@ -909,10 +943,10 @@ class SlideflowProject:
 		for slide in slide_list:
 			if single_thread:
 				heatmap_generator(slide, model, model_path, heatmaps_folder, roi_list, show_roi,
-									resolution, interpolation, whole_slide, self.PROJECT, self.FLAGS)
+									resolution, interpolation, self.PROJECT, self.FLAGS)
 			else:
 				process = ctx.Process(target=heatmap_generator, args=(slide, model, model_path, heatmaps_folder, roi_list, show_roi, 
-																		resolution, interpolation, whole_slide, self.PROJECT, self.FLAGS))
+																		resolution, interpolation, self.PROJECT, self.FLAGS))
 				process.start()
 				log.empty(f"Spawning heatmaps process (PID: {process.pid})")
 				process.join()
@@ -1081,6 +1115,9 @@ class SlideflowProject:
 			config = working_dataset.datasets[d]
 			tfrecord_dir = join(config["tfrecords"], config["label"])
 			tiles_dir = join(config["tiles"], config["label"])
+			if not exists(tiles_dir):
+				log.warn(f"No tiles found for dataset {sfutil.bold(d)}", 1)
+				continue
 
 			# Check to see if subdirectories in the target folders are slide directories (contain images)
 			#  or are further subdirectories (e.g. validation and training)

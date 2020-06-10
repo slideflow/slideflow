@@ -214,7 +214,7 @@ def write_tfrecords_single(input_directory, output_directory, filename, slide):
 	for tile in files:
 		image_labels.update({join(input_directory, tile): bytes(slide, 'utf-8')})
 	keys = list(image_labels.keys())
-	#shuffle(keys)
+	shuffle(keys)
 	with tf.io.TFRecordWriter(tfrecord_path) as writer:
 		for filename in keys:
 			label = image_labels[filename]
