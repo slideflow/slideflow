@@ -488,15 +488,24 @@ class Dataset:
 				return
 			print(f"\r\033[K + Verifying tiles in {sfutil.green(rel_tfr)}...", end="")
 			total = 0
-			for raw_record in raw_dataset:
-				example = tf.train.Example()
-				example.ParseFromString(raw_record.numpy())
-				slide = example.features.feature['slide'].bytes_list.value[0].decode('utf-8')
-				if slide not in manifest[rel_tfr]:
-					manifest[rel_tfr][slide] = 1
-				else:
-					manifest[rel_tfr][slide] += 1
-				total += 1
+			try:
+				for raw_record in raw_dataset:
+					example = tf.train.Example()
+					example.ParseFromString(raw_record.numpy())
+					slide = example.features.feature['slide'].bytes_list.value[0].decode('utf-8')
+					if slide not in manifest[rel_tfr]:
+						manifest[rel_tfr][slide] = 1
+					else:
+						manifest[rel_tfr][slide] += 1
+					total += 1
+			except tf.python.framework.errors_impl.DataLossError:
+				print('\r\033[K', end="")
+				log.error(f"Corrupt or incomplete TFRecord at {tfr}", 1)
+				log.info(f"Deleting and removing corrupt TFRecord from manifest...", 1)
+				del(raw_dataset)
+				os.remove(tfr)
+				del(manifest[rel_tfr])
+				continue
 			manifest[rel_tfr]['total'] = total
 			print('\r\033[K', end="")
 

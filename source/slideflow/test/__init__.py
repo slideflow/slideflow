@@ -31,8 +31,8 @@ TEST_DATASETS = {
 		'label': sf.NO_LABEL
 	},
 	'TEST2': {
-		'slides': '/media/Backup/Other_files/Thyroid/SVS',
-		'roi': '/media/Backup/Other_files/Thyroid/SVS',
+		'slides': '/media/Backup/SLIDES/THCA/UCH_OLD',
+		'roi': '/media/Backup/SLIDES/THCA/UCH_OLD',
 		'tiles': '/home/shawarma/data/test_project/tiles/TEST2',
 		'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST2',
 		'label': sf.NO_LABEL
@@ -194,7 +194,7 @@ class TestSuite:
 		print("\t...DONE")
 		return hp
 
-	def test_full_extraction(self):
+	def test_extraction(self):
 		# Test tile extraction, default parameters
 		log.header("Testing multiple slides extraction...")
 		self.SFP.extract_tiles()
@@ -208,7 +208,7 @@ class TestSuite:
 		slide_list = extracting_dataset.get_slide_paths(dataset=dataset_name)
 		roi_dir = extracting_dataset.datasets[dataset_name]['roi'] 
 		tiles_dir = extracting_dataset.datasets[dataset_name]['tiles']
-		pb = ProgressBar(bar_length=5, counter_text='tiles')
+		pb = None#ProgressBar(bar_length=5, counter_text='tiles')
 		whole_slide = sf.slide.SlideReader(slide_list[0], 299, 302, 1, enable_downsample=False, export_folder=tiles_dir, roi_dir=roi_dir, roi_list=None, pb=pb) 
 		whole_slide.export_tiles()
 		print("\t...OK")
@@ -218,7 +218,7 @@ class TestSuite:
 			# Test categorical outcome
 			hp = self.setup_hp('categorical')
 			print("Training to single categorical outcome from specified hyperparameters...")
-			results_dict = self.SFP.train(models = 'manual_hp', outcome_header='category1', hyperparameters=hp, k_fold_iter=1)
+			results_dict = self.SFP.train(models = 'manual_hp', outcome_header='category1', hyperparameters=hp, k_fold_iter=1, validate_on_batch=10)
 			
 			if not results_dict or 'history' not in results_dict[results_dict.keys()[0]]:
 				print("\tFAIL: Keras results object not received from training")
@@ -234,7 +234,7 @@ class TestSuite:
 			hp = self.setup_hp('linear')
 			# Test multiple linear outcome
 			print("Training to multiple linear outcomes...")
-			self.SFP.train(outcome_header=['linear1', 'linear2'], multi_outcome=True, model_type='linear', k_fold_iter=1)
+			self.SFP.train(outcome_header=['linear1', 'linear2'], multi_outcome=True, model_type='linear', k_fold_iter=1, validate_on_batch=10)
 			print("\t...OK")
 		print("\t...OK")
 
@@ -274,7 +274,7 @@ class TestSuite:
 
 	def test(self):
 		'''Perform and report results of all available testing.'''
-		self.test_full_extraction()
+		self.test_extraction()
 		self.test_training()
 		self.test_training_performance()
 		self.test_evaluation()

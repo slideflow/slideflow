@@ -11,4 +11,4 @@ seaborn
 comet-ml
 pandas
 tabulate
-pyvips=2.1.11
+pyvips==2.1.11
