@@ -11,7 +11,7 @@ import slideflow.io as sfio
 from random import shuffle
 from matplotlib import patches
 from os.path import join
-from slideflow.util import log, ProgressBar
+from slideflow.util import log
 
 from multiprocessing.dummy import Pool as DPool
 
@@ -136,6 +136,8 @@ class Mosaic:
 		# Then, calculate distances from each point to each spot on the grid
 		if mapping_method not in ('strict', 'expanded'):
 			raise TypeError("Unknown mapping method")
+		else:
+			log.info(f"Mapping method: {mapping_method}", 2)
 
 		def calc_distance(tile):
 			if mapping_method == 'strict':
@@ -173,7 +175,7 @@ class Mosaic:
 		num_placed = 0
 		if mapping_method == 'strict':
 			for tile in self.GRID:
-				if not tile['nearest_index']: continue
+				if not len(tile['points']): continue
 				closest_point = tile['nearest_index']
 				point = self.points[closest_point]
 

@@ -676,6 +676,8 @@ class SlideflowModel:
 		if max(hp.finetune_epochs) <= starting_epoch:
 			log.error(f"Starting epoch ({starting_epoch}) cannot be greater than the maximum target epoch ({max(hp.finetune_epochs)})", 1)
 			return None, None
+		if hp.early_stop and hp.early_stop_method == 'accuracy' and hp.model_type() != 'categorical':
+			log.error(f"Unable to use early stopping method 'accuracy' with a non-categorical model type (type: '{hp.model_type()}')")
 		if starting_epoch != 0:
 			log.info(f"Starting training at epoch {starting_epoch}", 1)
 		total_epochs = hp.toplayer_epochs + (max(hp.finetune_epochs) - starting_epoch)
@@ -702,6 +704,7 @@ class SlideflowModel:
 				self.ema_two_checks_prior = 0
 				self.ema_one_check_prior = 0
 				self.epoch_count = starting_epoch
+				self.model_type = hp.model_type()
 
 			def on_epoch_end(self, epoch, logs={}):
 				print("\r\033[K", end="")
@@ -721,32 +724,41 @@ class SlideflowModel:
 					early_stop_value = val_acc if hp.early_stop_method == 'accuracy' else val_loss
 					print("\r\033[K", end="")
 					self.moving_average += [early_stop_value]
-					# Calculate exponential moving average of validation accuracy
-					if len(self.moving_average) <= ema_observations:
-						log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['accuracy']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f}")
+					# Base logging message
+					if self.model_type == 'categorical':
+						log_message = f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['accuracy']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f}"
 					else:
-						# Only keep track of the last [ema_observations] validation accuracies
-						self.moving_average.pop(0)
-						if self.last_ema == -1:
-							# Calculate simple moving average
-							self.last_ema = sum(self.moving_average) / len(self.moving_average)
-							log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['accuracy']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f} (SMA: {self.last_ema:.3f})")
+						log_message = f"Batch {batch:<5} loss: {logs['loss']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f}"
+					# First, skip moving average calculations if using an invalid metric
+					if self.model_type != 'categorical' and hp.early_stop_method == 'accuracy':
+						log.empty(log_message)
+					else:
+						# Calculate exponential moving average of validation accuracy
+						if len(self.moving_average) <= ema_observations:
+							log.empty(log_message)
 						else:
-							# Update exponential moving average
-							self.last_ema = (early_stop_value * (ema_smoothing/(1+ema_observations))) + (self.last_ema * (1-(ema_smoothing/(1+ema_observations))))
-							log.empty(f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['accuracy']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f} (EMA: {self.last_ema:.3f})")
+							# Only keep track of the last [ema_observations] validation accuracies
+							self.moving_average.pop(0)
+							if self.last_ema == -1:
+								# Calculate simple moving average
+								self.last_ema = sum(self.moving_average) / len(self.moving_average)
+								log.empty(log_message +  f" (SMA: {self.last_ema:.3f})")
+							else:
+								# Update exponential moving average
+								self.last_ema = (early_stop_value * (ema_smoothing/(1+ema_observations))) + (self.last_ema * (1-(ema_smoothing/(1+ema_observations))))
+								log.empty(log_message + f" (EMA: {self.last_ema:.3f})")
 
-					# If early stopping and our patience criteria has been met, check if validation accuracy is still improving 
-					if hp.early_stop and (self.last_ema != -1) and (float(batch)/steps_per_epoch)+self.epoch_count > hp.early_stop_patience:
-						if ((hp.early_stop_method == 'accuracy' and self.last_ema <= self.ema_two_checks_prior) or 
-							(hp.early_stop_method == 'loss' and self.last_ema >= self.ema_two_checks_prior)):
+						# If early stopping and our patience criteria has been met, check if validation accuracy is still improving 
+						if hp.early_stop and (self.last_ema != -1) and (float(batch)/steps_per_epoch)+self.epoch_count > hp.early_stop_patience:
+							if ((hp.early_stop_method == 'accuracy' and self.last_ema <= self.ema_two_checks_prior) or 
+								(hp.early_stop_method == 'loss' and self.last_ema >= self.ema_two_checks_prior)):
 
-							log.info(f"Early stop triggered: epoch {self.epoch_count+1}, batch {batch}", 1)
-							self.model.stop_training = True
-							self.early_stop = True
-						else:
-							self.ema_two_checks_prior = self.ema_one_check_prior
-							self.ema_one_check_prior = self.last_ema
+								log.info(f"Early stop triggered: epoch {self.epoch_count+1}, batch {batch}", 1)
+								self.model.stop_training = True
+								self.early_stop = True
+							else:
+								self.ema_two_checks_prior = self.ema_one_check_prior
+								self.ema_one_check_prior = self.last_ema
 
 			def on_train_end(self, logs={}):
 				print("\r\033[K")
