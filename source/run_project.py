@@ -19,8 +19,7 @@ if __name__=='__main__':
 		os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
 		print("Set environmental variable 'HDF5_USE_FILE_LOCKING'='FALSE'")
 
-	SFP = sf.SlideflowProject(args.project)
-	SFP.autoselect_gpu(args.gpu)
+	SFP = sf.SlideflowProject(args.project, num_gpu=args.gpu)
 	SFP.FLAGS['skip_verification'] = args.skip_verification
 	SFP.FLAGS['num_threads'] = args.threads
 
