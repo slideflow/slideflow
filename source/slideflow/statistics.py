@@ -106,7 +106,7 @@ class TFRecordUMAP:
 		# Make plot
 		plt.clf()
 		fig = plt.figure()
-		umap_2d = sns.scatterplot(x=x, y=y, data=df, hue='category', palette=sns.color_palette('Set1', len(unique_categories)))
+		umap_2d = sns.scatterplot(x=x, y=y, data=df, hue='category', palette=sns.color_palette('hls', len(unique_categories)))
 		umap_2d.legend(loc='center left', bbox_to_anchor=(1.25, 0.5), ncol=1)
 		log.info(f"Saving 2D UMAP to {sfutil.green(filename)}...", 1)
 		umap_figure = umap_2d.get_figure()
