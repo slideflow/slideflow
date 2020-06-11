@@ -21,7 +21,7 @@ except:
 	pass
 # ------
 
-SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif']
+SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif', 'jpg']
 SLIDE_ANNOTATIONS_TO_IGNORE = ['', 'na', 'n/a', 'none', 'missing']
 
 HEADER = '\033[95m'
@@ -47,93 +47,113 @@ class UpdatedBatchNormalization(tf.keras.layers.BatchNormalization):
 		with K.learning_phase_scope(trainable * true_phase):
 			return super(tf.keras.layers.BatchNormalization, self).call(inputs, training)
 
-class ProgressBar:
-	def __init__(self, bar_length=20, counter_text=None):
-		self.BARS = {}
+class Bar:
+	starttime = None
+	lastupdated = None
+	text = ''
+
+	def __init__(self, ending_value, starting_value=0, bar_length=20, label='',
+					show_eta=False, show_counter=False, counter_text=''):
+		self.value = starting_value
+		self.end_value = ending_value
 		self.bar_length = bar_length
-		self.next_id = 0
-		self.counter = 0
-		self.counter_text = "" if not counter_text else " " + counter_text
-		self.tail = ''
-		self.starttime = None
-		self.text = ''
+		self.label = label
+		self.show_counter = show_counter
+		self.counter_text = '' if not counter_text else " " + counter_text
+		self.show_eta = show_eta		
 
-	def add_bar(self, val, endval, endtext=''):
-		bar_id = self.next_id
-		self.next_id += 1
+	def get_text(self):
+		current_time = int(time.time())
+		if not self.starttime:
+			self.starttime = current_time
+			self.lastupdated = self.starttime
+		elif current_time == self.lastupdated:
+			return self.text
+		else:
+			self.lastupdated = current_time
 
-		class Bar:
-			value = val
-			endvalue = endval
-			text = endtext
-			id = bar_id
-			def percent(self):
-				return float(self.value) / self.endvalue
+		percent = float(self.value) / self.end_value
+		arrow = chr(0x2588) * int(round(percent * self.bar_length))
+		spaces = u'-' * (self.bar_length - len(arrow))
+		timediff = int(time.time())-self.starttime
+		if timediff != 0:
+			num_per_sec = self.value/timediff
 
-		self.BARS.update({bar_id: Bar()})
-		self.hard_refresh()
-		return bar_id
+		self.text = u"\u007c{0}\u007c {1:.1f}%{2}".format(arrow + spaces, 
+													 (float(self.value) / self.end_value)*100, 
+													 f' ({self.label})' if self.label else '')
+		if self.show_counter:
+			num_per_sec_str = "?" if timediff == 0 else f'{num_per_sec:.1f}'
+			self.text += f" {num_per_sec_str}{self.counter_text}/sec"
+		if self.show_eta and timediff:
+			eta_sec = (self.end_value - self.value) / num_per_sec
+			self.text += f" (ETA: {time.strftime('%H:%M:%S', time.gmtime(eta_sec))})"
+		elif self.show_eta:
+			self.text += f" (ETA: ?)"
 
-	def arrow(self, percent):
-		return chr(0x2588) * int(round(percent * self.bar_length))
+		return self.text
 
-	def update(self, _id, val, text=None):
-		self.BARS[_id].value = min(val, self.BARS[_id].endvalue)
-		if text:
-			self.BARS[_id].text = text
+class ProgressBar:
+	tail = ''
+	text = ''
+
+	def __init__(self, ending_val, starting_val=0, bar_length=20, endtext='', show_eta=False, 
+					show_counter=False, counter_text='', leadtext=''):
+		
+		self.leadtext = leadtext
+		self.BARS = [Bar(ending_val, starting_val, bar_length, endtext, show_eta, show_counter, counter_text)]
+		self.refresh()
+
+	def add_bar(self, val, endval, bar_length=20, endtext='', show_eta=False,
+					show_counter=False, counter_text=''):
+
+		self.BARS += [Bar(val, endval, bar_length, endtext, show_eta, show_counter, counter_text)]
+		self.refresh()
+		return len(self.BARS)-1
+
+	def increase_bar_value(self, id=0):
+		self.BARS[id].value = min(self.BARS[id].value + 1, self.BARS[id].end_value)
+		self.refresh()
+
+	def set_bar_value(self, value, id=0):
+		self.BARS[id].value = min(val, self.BARS[id].end_value)
+		self.refresh()
+
+	def set_bar_text(self, text, id=0):
+		self.BARS[id].text = text
 		self.refresh()
 
 	def refresh(self):
-		if not self.starttime:
-			self.starttime = time.time()
 		if len(self.BARS) == 0:
 			sys.stdout.write("\r\033[K")
 			sys.stdout.flush()
 			return
-		out_text = "\r\033[K"
-		for i, bar_id in enumerate(self.BARS):
-			separator = "  " if i != len(self.BARS)-1 else ""
-			bar = self.BARS[bar_id]
-			arrow = self.arrow(bar.percent())
-			spaces = u'-' * (self.bar_length - len(arrow))
-			out_text += u"\u007c{0}\u007c {1}% ({2}){3}".format(arrow + spaces, int(round(bar.percent() * 100)), bar.text, separator)
-		out_text += self.tail
-		if out_text != self.text:
-			sys.stdout.write(out_text)
-		self.text = out_text
-		sys.stdout.flush()
+		new_text = f"\r\033[K{self.leadtext}"
+		for bar in self.BARS:
+			new_text += bar.get_text()
+			if len(self.BARS) > 1:
+				new_text += "  "
+		new_text += self.tail
+		if new_text != self.text:
+			sys.stdout.write(new_text)
+			sys.stdout.flush()
+			self.text = new_text
 
-	def end(self, _id = -1):
-		if _id == -1:
+	def end(self, id=-1):
+		if id == -1:
 			bars_keys = list(self.BARS.keys())
 			for bar_id in bars_keys:
 				del(self.BARS[bar_id])
-				#self.BARS[bar_id].value = self.BARS[bar_id].endvalue
-			self.hard_refresh()
-			#sys.stdout.write('\n')
+			sys.stdout.write(self.text)
 		else:
-			del(self.BARS[_id])
-			self.hard_refresh()
+			del(self.BARS[id])
+			sys.stdout.write(f"\r\033[K{self.text}\n")
 
-	def print(self, text):
-		sys.stdout.write("\r\033[K" + text + "\n")
+	def print(self, string):
+		sys.stdout.write(f"\r\033[K{string}\n")
 		sys.stdout.flush()
-		self.hard_refresh()
-
-	def hard_refresh(self):
-		self.text = ''
-		self.refresh()
-
-	def regen_tail(self):
-		if not self.starttime:
-			self.starttime = time.time()
-			return
-		self.tail = f" {self.counter/(time.time()-self.starttime):.1f}{self.counter_text}/sec"
-
-	def update_counter(self, value):
-		self.counter += value
-		self.regen_tail()
-		self.refresh()
+		sys.stdout.write(self.text)
+		sys.stdout.flush()
 
 def warn(text):
 	return WARNING + str(text) + ENDC
@@ -239,7 +259,7 @@ def make_dir(_dir):
 	'''Makes a directory if one does not already exist, in a manner compatible with multithreading. '''
 	if not exists(_dir):
 		try:
-			makedirs(_dir, exist_ok=True)
+			os.makedirs(_dir, exist_ok=True)
 		except FileExistsError:
 			pass
 
@@ -265,7 +285,7 @@ def yes_no_input(prompt, default='no'):
 	yes = ['yes','y']
 	no = ['no', 'n']
 	while True:
-		response = input(f"{prompt}")
+		response = input(prompt)
 		if not response and default:
 			return True if default in yes else False
 		if response.lower() in yes:
@@ -375,16 +395,8 @@ def _parse_function(example_proto):
 
 def get_slide_paths(slides_dir):
 	'''Get all slide paths from a given directory containing slides.'''
-	num_dir = len(slides_dir.split('/'))
-	slide_list = [i for i in glob(join(slides_dir, '**/*.jpg'))
-					if i.split('/')[num_dir] != 'thumbs']
-	
-	for filetype in SUPPORTED_FORMATS:
-		slide_list.extend( [i for i in glob(join(slides_dir, f'**/*.{filetype}'))
-							if i.split('/')[num_dir] != 'thumbs'] )
-
-		slide_list.extend(glob(join(slides_dir, f'*.{filetype}')))
-
+	slide_list = [i for i in glob(join(slides_dir, '**/*.*')) if path_to_ext(i).lower() in SUPPORTED_FORMATS]
+	slide_list.extend([i for i in glob(join(slides_dir, '*.*')) if path_to_ext(i).lower() in SUPPORTED_FORMATS])
 	return slide_list
 
 def read_annotations(annotations_file):

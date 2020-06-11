@@ -15,6 +15,7 @@ import tensorflow as tf
 import scipy.stats as stats
 import slideflow.util as sfutil
 import slideflow.io as sfio
+import shapely.geometry as sg
 
 from slideflow.util import log, ProgressBar, TCGA
 from slideflow.mosaic import Mosaic
@@ -28,7 +29,7 @@ from math import isnan
 from copy import deepcopy
 from mpl_toolkits.mplot3d import Axes3D
 from functools import partial
-from multiprocessing.dummy import Pool as DPool
+from multiprocessing.dummy import Process as DProcess
 from PIL import Image
 
 # TODO: add check that cached PKL corresponds to current and correct model & slides
@@ -311,10 +312,6 @@ class ActivationsVisualizer:
 						self.slide_logits_dict[slide].update({l: []})
 
 			if self.MAX_TILES_PER_SLIDE and len(fl_activations_combined) > self.MAX_TILES_PER_SLIDE:
-				#selected_indices = random.sample(list(range(len(fl_activations_combined))), self.MAX_TILES_PER_SLIDE)
-				#slides_combined = slides_combined[selected_indices]
-				#logits_combined = logits_combined[selected_indices]
-				#fl_activations_combined = fl_activations_combined[selected_indices]
 				slides_combined = slides_combined[:self.MAX_TILES_PER_SLIDE]
 				logits_combined = logits_combined[:self.MAX_TILES_PER_SLIDE]
 				fl_activations_combined = fl_activations_combined[:self.MAX_TILES_PER_SLIDE]
@@ -485,7 +482,8 @@ class ActivationsVisualizer:
 		slides = [slide for slide in self.slides if slide not in self.missing_slides]
 		nodes_to_include = [n for n in self.nodes if n != exclude_node]
 		self.umap = TFRecordUMAP(self.tfrecords, slides, cache=self.UMAP_CACHE)
-		self.umap.calculate_from_nodes(self.slide_node_dict, nodes_to_include, exclude_slides=self.missing_slides)
+		self.umap.calculate_from_nodes(self.slide_node_dict, self.slide_logits_dict, nodes=nodes_to_include,
+																					 exclude_slides=self.missing_slides)
 		return self.umap
 
 	def generate_mosaic(self, focus=None, leniency=1.5, expanded=False, tile_zoom=15, num_tiles_x=50, resolution='high', 
@@ -729,33 +727,36 @@ class TileVisualizer:
 class Heatmap:
 	'''Generates heatmap by calculating predictions from a sliding scale window across a slide.'''
 
-	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, save_folder='', roi_dir=None, roi_list=None):
+	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, save_folder='', 
+					roi_dir=None, roi_list=None, roi_method='inside', thumb_folder=None):
 		from slideflow.slide import SlideReader
 
 		self.save_folder = save_folder
 		self.DTYPE = tf.float16 if use_fp16 else tf.float32
 		self.DTYPE_INT = tf.int16 if use_fp16 else tf.int32
-		self.MODEL_DIR = None
+		self.MODEL_DIR = model_path
 		self.logits = None
 
 		# Create progress bar
-		pb = ProgressBar(bar_length=5, counter_text='tiles')
+		shortname = sfutil._shortname(sfutil.path_to_name(slide_path))
+		pb = None#ProgressBar(bar_length=5, counter_text='tiles', leadtext=f"Making heatmap for {sfutil.green(shortname)}, {roi_method} ROI")
+		#self.print = pb.print
+		pb = ProgressBar(1, counter_text='tiles', leadtext="Generating heatmap... ", show_counter=True, show_eta=True)
 		self.print = pb.print
 
 		# Load the slide
 		self.slide = SlideReader(slide_path, size_px, size_um, stride_div, enable_downsample=False, 
-																		   export_folder=save_folder,
 																		   roi_dir=roi_dir, 
 																		   roi_list=roi_list,
+																		   roi_method=roi_method,
+																		   thumb_folder=thumb_folder if thumb_folder else join(save_folder, 'thumbs'),
+																		   silent=True,
 																		   pb=pb)
-
-		# Build the model
-		self.MODEL_DIR = model_path
-
+		pb.BARS[0].end_value = self.slide.estimated_num_tiles
 		# First, load the designated model
 		_model = tf.keras.models.load_model(self.MODEL_DIR)
 
-		# Now, construct a new model that outputs both predictions and final layer activations
+		# Now, construct a new model that outputs both predi ctions and final layer activations
 		self.model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
 										   outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
 
@@ -769,12 +770,17 @@ class Heatmap:
 	def _parse_function(self, image):
 		parsed_image = tf.image.per_image_standardization(image)
 		parsed_image = tf.image.convert_image_dtype(parsed_image, self.DTYPE)
+		parsed_image.set_shape([299, 299, 3])
 		return parsed_image
 
 	def generate(self, batch_size=16):
 		'''Convolutes across a whole slide, calculating logits and saving predictions internally for later use.'''
+		# Pre-load thumbnail in separate thread
+		thumb_process = DProcess(target=self.slide.thumb)
+		thumb_process.start()
+
 		# Create tile coordinate generator
-		gen_slice, x_size, y_size, stride_px = self.slide.build_generator(export=False)
+		gen_slice = self.slide.build_generator(return_numpy=True)
 
 		if not gen_slice:
 			log.error(f"No tiles extracted from slide {sfutil.green(self.slide.name)}", 1)
@@ -787,16 +793,18 @@ class Heatmap:
 			tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
 
 		# Iterate through generator to calculate logits +/- final layer activations for all tiles
-		logits_arr = []	# Logits (predictions) 
+		logits_arr = []	# Logits (predictions)
 		for batch_images in tile_dataset:
-			prelogits, logits = self.model.predict([batch_images, batch_images])
+			prelogits, logits = self.model.predict_on_batch([batch_images, batch_images])
 			logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
+		print('\r\033[KFinished predictions. Waiting on thumbnail...', end="")
+		thumb_process.join()
 
-		if self.slide.tile_mask is not None and x_size and y_size and stride_px:
+		if self.slide.tile_mask is not None and self.slide.extracted_x_size and self.slide.extracted_y_size and self.slide.full_stride:
 			# Expand logits back to a full 2D map spanning the whole slide,
 			#  supplying values of "0" where tiles were skipped by the tile generator
-			x_logits_len = int(x_size / stride_px) + 1
-			y_logits_len = int(y_size / stride_px) + 1
+			x_logits_len = int(self.slide.extracted_x_size / self.slide.full_stride) + 1
+			y_logits_len = int(self.slide.extracted_y_size / self.slide.full_stride) + 1
 			expanded_logits = [[0] * self.NUM_CLASSES] * len(self.slide.tile_mask)
 			li = 0
 			for i in range(len(expanded_logits)):
@@ -825,9 +833,9 @@ class Heatmap:
 		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
 		jetMap = np.linspace(0.45, 0.95, 255)
 		cmMap = cm.nipy_spectral(jetMap)
-		self.newMap = mcol.ListedColormap(cmMap)		
+		self.newMap = mcol.ListedColormap(cmMap)
 
-	def display(self):
+	def display(self, interpolation='none'):
 		'''Interactively displays calculated logits as a heatmap.'''
 		self.prepare_figure()
 		heatmap_dict = {}
@@ -838,7 +846,7 @@ class Heatmap:
 				h.set_alpha(s.val)
 
 		for i in range(self.NUM_CLASSES):
-			heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.extent, cmap=self.newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
+			heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.extent, cmap=self.newMap, alpha = 0.0, interpolation=interpolation, zorder=10) #bicubic
 			ax_slider = self.fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor='lightgoldenrodyellow')
 			slider = Slider(ax_slider, f'Class {i}', 0, 1, valinit = 0)
 			heatmap_dict.update({f"Class{i}": [heatmap, slider]})
@@ -848,20 +856,39 @@ class Heatmap:
 		implot.show()
 		plt.show()
 
-	def save(self):
+	def save(self, show_roi=True, interpolation='none'):
 		'''Saves calculated logits as heatmap overlays.'''
+		print("\r\033[KPreparing figure...", end="")
 		self.prepare_figure()
-		heatmap_dict = {}
+		print("\r\033[KPreparing plot...", end="")
 		implot = self.ax.imshow(self.slide.thumb(), zorder=0)
 
-		# Make heatmaps and sliders
-		for i in range(self.NUM_CLASSES):
-			heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.get_extent(), cmap=self.newMap, alpha = 0.0, interpolation='none', zorder=10) #bicubic
-			heatmap_dict.update({i: heatmap})
+		# Plot ROIs
+		print("\r\033[KPlotting ROIs...", end="")
+		if show_roi:
+			ROI_SCALE = self.slide.full_shape[0]/2048
+			annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.slide.rois]
+			for poly in annPolys:
+				x,y = poly.exterior.xy
+				plt.plot(x, y, zorder=20, color='k', linewidth=5)
+
+		# Save plot without heatmaps
+		print("\r\033[KSaving base figure...", end="")
 		plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-raw.png'), bbox_inches='tight')
+
+		# Make heatmap plots and sliders
 		for i in range(self.NUM_CLASSES):
-			heatmap_dict[i].set_alpha(0.6)
+			print(f"\r\033[KMaking heatmap {i+1} of {self.NUM_CLASSES}...", end="")
+			heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.get_extent(),
+														   cmap=self.newMap,
+														   vmin=0,
+														   vmax=1,
+														   alpha=0.6,
+														   interpolation=interpolation, #bicubic
+														   zorder=10)
 			plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-{i}.png'), bbox_inches='tight')
-			heatmap_dict[i].set_alpha(0.0)
+			heatmap.remove()
+
 		plt.close()
+		print("\r\033[K", end="")
 		log.complete(f"Saved heatmaps for {sfutil.green(self.slide.name)}", 1)

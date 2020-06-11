@@ -35,7 +35,7 @@ class TFRecordUMAP:
 			if self.load_cache():
 				return
 	
-	def calculate_from_nodes(self, slide_node_dict, nodes, exclude_slides=None):
+	def calculate_from_nodes(self, slide_node_dict, slide_logits_dict, nodes, exclude_slides=None):
 		self.map_meta['nodes'] = nodes
 
 		# Calculate UMAP
@@ -45,11 +45,16 @@ class TFRecordUMAP:
 			if slide in exclude_slides: continue
 			first_node = list(slide_node_dict[slide].keys())[0]
 			num_vals = len(slide_node_dict[slide][first_node])
+			num_logits = len(slide_logits_dict[slide])
 			for i in range(num_vals):
 				node_activations += [[slide_node_dict[slide][n][i] for n in nodes]]
+				logits = [slide_logits_dict[slide][l][i] for l in range(num_logits)]
+				prediction = logits.index(max(logits))
+
 				self.point_meta += [{
 					'slide': slide,
 					'index': i,
+					'prediction': prediction,
 				}]
 
 		coordinates = gen_umap(np.array(node_activations))
@@ -62,10 +67,16 @@ class TFRecordUMAP:
 		self.point_meta = meta
 		self.save_cache()
 
-	def save_2d_plot(self, filename, slide_category_dict=None, subsample=None):
+	def save_2d_plot(self, filename, slide_category_dict=None, show_prediction=False, outcome_labels=None,
+					subsample=None, title=None):
 		# Prepare plotting categories
 		if slide_category_dict:
 			categories = np.array([slide_category_dict[m['slide']] for m in self.point_meta])
+		elif show_prediction:
+			if outcome_labels:
+				categories = np.array([outcome_labels[m['prediction']] for m in self.point_meta])
+			else:
+				categories = np.array([m['prediction'] for m in self.point_meta])
 		else:
 			categories = np.array(["None" for m in self.point_meta])
 
@@ -89,8 +100,10 @@ class TFRecordUMAP:
 		plt.clf()
 		fig = plt.figure()
 		umap_2d = sns.scatterplot(x=x, y=y, data=df, hue='category', palette=sns.color_palette('Set1', len(unique_categories)))
+		umap_2d.legend(loc='center left', bbox_to_anchor=(1.25, 0.5), ncol=1)
 		log.info(f"Saving 2D UMAP to {sfutil.green(filename)}...", 1)
 		umap_figure = umap_2d.get_figure()
+		if title: umap_figure.axes[0].set_title(title)
 		umap_figure.savefig(filename, bbox_inches='tight')
 
 	def save_3d_plot(self, z, filename, title="UMAP", subsample=None):
@@ -313,7 +326,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		sys.stdout.flush()
 		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in batch[2].numpy()]
 		y_true += [batch[1].numpy()]
-		y_pred += [model.predict(batch[0])]
+		y_pred += [model.predict_on_batch(batch[0])]
 	patients = list(set([annotations[slide][sfutil.TCGA.patient] for slide in tile_to_slides]))
 	sys.stdout.write("\r\033[K")
 	sys.stdout.flush()
@@ -356,6 +369,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	# Create dictionary mapping slides to one_hot category encoding
 	y_true_slide = {}
 	y_true_patient = {}
+	patient_error = False
 	for i in range(len(tile_to_slides)):
 		slidename = tile_to_slides[i]
 		patient = annotations[slidename][sfutil.TCGA.patient]
@@ -367,9 +381,9 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 			sys.exit()
 		if patient not in y_true_patient:
 			y_true_patient.update({patient: y_true[i]})
-		elif not np.array_equal(y_true_patient[patient], y_true[i]):
+		elif not patient_error and not np.array_equal(y_true_patient[patient], y_true[i]):
 			log.error("Data integrity failure when generating ROCs; patient assigned to multiple slides with different outcomes", 1)
-			sys.exit()
+			patient_error = True
 
 	def get_average_by_slide(prediction_array, prediction_label):
 		'''For a given tile-level prediction array, calculate averages in each outcome by patient and save predictions to CSV'''
@@ -446,16 +460,17 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 			slide_auc += [auc]
 			log.info(f"Slide-level AUC (cat #{i}): {auc}", 1)
 
-		# Generate patient-level percent calls
-		percent_calls_by_patient = get_average_by_patient(onehot_predictions, "percent_tiles_positive")
+		if not patient_error:
+			# Generate patient-level percent calls
+			percent_calls_by_patient = get_average_by_patient(onehot_predictions, "percent_tiles_positive")
 
-		# Generate patient-level ROC
-		for i in range(num_cat):
-			patient_y_pred = percent_calls_by_patient[:, i]
-			patient_y_true = [y_true_patient[patient][i] for patient in patients]
-			auc = generate_roc(patient_y_true, patient_y_pred, data_dir, f'{label_start}patient_ROC{i}')
-			patient_auc += [auc]
-			log.info(f"Patient-level AUC (cat #{i}): {auc}", 1)
+			# Generate patient-level ROC
+			for i in range(num_cat):
+				patient_y_pred = percent_calls_by_patient[:, i]
+				patient_y_true = [y_true_patient[patient][i] for patient in patients]
+				auc = generate_roc(patient_y_true, patient_y_pred, data_dir, f'{label_start}patient_ROC{i}')
+				patient_auc += [auc]
+				log.info(f"Patient-level AUC (cat #{i}): {auc}", 1)
 
 	if model_type == 'linear':
 		# Generate and save slide-level averages of each outcome
@@ -463,10 +478,11 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		y_true_by_slide = np.array([y_true_slide[slide] for slide in unique_slides])
 		r_squared_slide = generate_scatter(y_true_by_slide, averages_by_slide, data_dir, label_end+"_by_slide")			
 
-		# Generate and save patient-level averages of each outcome
-		averages_by_patient = get_average_by_patient(y_pred, "average")
-		y_true_by_patient = np.array([y_true_patient[patient] for patient in patients])
-		r_squared_patient = generate_scatter(y_true_by_patient, averages_by_patient, data_dir, label_end+"_by_patient")			
+		if not patient_error:
+			# Generate and save patient-level averages of each outcome
+			averages_by_patient = get_average_by_patient(y_pred, "average")
+			y_true_by_patient = np.array([y_true_patient[patient] for patient in patients])
+			r_squared_patient = generate_scatter(y_true_by_patient, averages_by_patient, data_dir, label_end+"_by_patient")			
 
 	# Save tile-level predictions
 	tile_csv_dir = os.path.join(data_dir, f"tile_predictions{label_end}.csv")

@@ -50,8 +50,7 @@ if __name__=='__main__':
 		actions_name = actions_file.split('/')[-1].replace('.py', '')
 		actions = __import__(actions_name)
 		# Create project
-		SFP = sf.SlideflowProject(actions.project)
-		SFP.autoselect_gpu(args.gpu)
+		SFP = sf.SlideflowProject(actions.project, num_gpu=args.gpu)
 		SFP.FLAGS['skip_verification'] = args.skip_verification
 		SFP.FLAGS['num_threads'] = args.threads
 		# Execute actions
