@@ -2,6 +2,7 @@ import os
 import sys
 import csv
 import umap
+import pickle
 
 import seaborn as sns
 import numpy as np
@@ -35,7 +36,12 @@ class TFRecordUMAP:
 			if self.load_cache():
 				return
 	
-	def calculate_from_nodes(self, slide_node_dict, slide_logits_dict, nodes, exclude_slides=None):
+	def calculate_from_nodes(self, slide_node_dict, slide_logits_dict, nodes, exclude_slides=None, force_recalculate=False):
+		# Abort if cache already loaded
+		if len(self.x) and len(self.y) and not force_recalculate:
+			log.info("UMAP loaded from cache, will not recalculate", 1)
+			return
+		
 		self.map_meta['nodes'] = nodes
 
 		# Calculate UMAP
@@ -60,6 +66,7 @@ class TFRecordUMAP:
 		coordinates = gen_umap(np.array(node_activations))
 		self.x = np.array([c[0] for c in coordinates])
 		self.y = np.array([c[1] for c in coordinates])
+		self.save_cache()
 
 	def load_precalculated(self, x, y, meta):
 		self.x = x
@@ -162,7 +169,7 @@ class TFRecordUMAP:
 				self.x, self.y, self.point_meta, self.map_meta = pickle.load(cache_file)
 				log.info(f"Loaded UMAP cache from {sfutil.green(self.cache)}", 1)
 				return True
-		except:
+		except FileNotFoundError:
 			log.info(f"No UMAP cache found at {sfutil.green(self.cache)}", 1)
 		return False
 
