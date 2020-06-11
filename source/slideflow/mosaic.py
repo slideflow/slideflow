@@ -11,7 +11,7 @@ import slideflow.io as sfio
 from random import shuffle
 from matplotlib import patches
 from os.path import join
-from slideflow.util import log, ProgressBar
+from slideflow.util import log
 
 from multiprocessing.dummy import Pool as DPool
 
@@ -38,11 +38,12 @@ class Mosaic:
 		mapping_method = 'expanded' if expanded else 'strict'
 		tile_zoom_factor = tile_zoom
 		export = export
+		self.umap = umap
 		self.num_tiles_x = num_tiles_x
 		self.tfrecords_paths = umap.tfrecords
 		
 		# Initialize figure
-		log.info("Initializing figure...", 1)
+		log.empty("Initializing figure...", 1)
 		if resolution not in ('high', 'low'):
 			log.warn(f"Unknown resolution option '{resolution}', defaulting to low resolution", 1)
 		if resolution == 'high':
@@ -135,6 +136,8 @@ class Mosaic:
 		# Then, calculate distances from each point to each spot on the grid
 		if mapping_method not in ('strict', 'expanded'):
 			raise TypeError("Unknown mapping method")
+		else:
+			log.info(f"Mapping method: {mapping_method}", 2)
 
 		def calc_distance(tile):
 			if mapping_method == 'strict':
@@ -162,7 +165,7 @@ class Mosaic:
 		pool.join()
 		tile_point_end = time.time()
 		sys.stdout.write("\r\033[K")
-		log.info(f"Calculations complete ({tile_point_end-tile_point_start:.0f} sec)", 1)
+		log.info(f"Calculations complete ({tile_point_end-tile_point_start:.0f} sec)", 2)
 
 		if mapping_method == 'expanded':
 			tile_point_distances.sort(key=lambda d: d['distance'])
@@ -172,7 +175,7 @@ class Mosaic:
 		num_placed = 0
 		if mapping_method == 'strict':
 			for tile in self.GRID:
-				if not tile['nearest_index']: continue
+				if not len(tile['points']): continue
 				closest_point = tile['nearest_index']
 				point = self.points[closest_point]
 
@@ -200,7 +203,8 @@ class Mosaic:
 				tile['image'] = image
 				num_placed += 1
 		elif mapping_method == 'expanded':
-			for distance_pair in tile_point_distances:
+			for i, distance_pair in enumerate(tile_point_distances):
+				print(f"\rPlacing tile {i}/{len(tile_point_distances)}...", end="")
 				# Attempt to place pair, skipping if unable (due to other prior pair)
 				point = self.points[distance_pair['point_index']]
 				tile = self.GRID[distance_pair['grid_index']]
@@ -221,6 +225,7 @@ class Mosaic:
 																					tile['coord'][1]+tile_size/2], zorder=99)
 					tile['image'] = image
 					num_placed += 1
+			print("\r\033[K")
 		log.info(f"Num placed: {num_placed}", 2)
 
 		# Focus on a subset of TFRecords if desired
