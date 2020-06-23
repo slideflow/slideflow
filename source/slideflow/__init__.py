@@ -12,7 +12,6 @@ import numpy as np
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import multiprocessing
-import tensorflow as tf
 
 from os.path import join, isfile, exists, isdir, dirname
 from pathlib import Path
@@ -29,7 +28,7 @@ import slideflow.io as sfio
 from slideflow.io.datasets import Dataset
 from slideflow.util import TCGA, ProgressBar, log
 from slideflow.activations import ActivationsVisualizer, TileVisualizer, Heatmap
-from slideflow.statistics import TFRecordUMAP
+from slideflow.statistics import TFRecordUMAP, calculate_centroid
 from slideflow.mosaic import Mosaic
 from comet_ml import Experiment
 
@@ -170,6 +169,8 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 			resume_training=None, checkpoint=None, validate_on_batch=0, validation_steps=200, max_tiles_per_slide=0, 
 			min_tiles_per_slide=0, starting_epoch=0, flags=None):
 
+	import tensorflow as tf
+
 	if not flags: flags = DEFAULT_FLAGS
 
 	# First, clear prior Tensorflow graph to free memory
@@ -287,7 +288,7 @@ class SlideflowProject:
 	FLAGS = DEFAULT_FLAGS
 	GPU_LOCK = None
 
-	def __init__(self, project_folder, num_gpu=1, reverse_select_gpu=True, interactive=True):
+	def __init__(self, project_folder, num_gpu=1, reverse_select_gpu=True, force_gpu=None, interactive=True):
 		'''Initializes project by creating project folder, prompting user for project settings, and project
 		settings to "settings.json" within the project directory.'''
 		os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -311,7 +312,10 @@ class SlideflowProject:
 			self.create_project(project_folder)
 
 		# Set up GPU
-		self.autoselect_gpu(num_gpu, reverse=reverse_select_gpu)
+		if force_gpu is not None:
+			self.select_gpu(force_gpu)
+		else:
+			self.autoselect_gpu(num_gpu, reverse=reverse_select_gpu)
 		atexit.register(self.release_gpu)
 
 	def autoselect_gpu(self, number_available, reverse=True):
@@ -319,19 +323,21 @@ class SlideflowProject:
 		other instances of slideflow from using the same GPU.'''
 		log.header("Selecting GPU...")
 
-		physical_devices = tf.config.experimental.list_physical_devices('GPU')
-		if not len(physical_devices):
-			log.warn("No GPUs detected.", 1)
-			return
-
-		gpus = range(number_available) if not reverse else reversed(range(number_available))
-		for n in gpus:
-			if not exists(join(SOURCE_DIR, f"gpu{n}.lock")):
-				self.select_gpu(n)
-				return
-
-		log.warn(f"No GPU selected; tried selecting one from a user-specified pool of {number_available} ({len(physical_devices)} detected).", 1)
-		log.empty(f"Try deleting 'gpu[#].lock' files in {sfutil.green(SOURCE_DIR)} if GPUs are not in use.", 2)
+		if not number_available:
+			os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+			log.warn(f"Disabling GPU access.")
+		else:
+			gpus = range(number_available) if not reverse else reversed(range(number_available))
+			gpu_selected = -1
+			for n in gpus:
+				if not exists(join(SOURCE_DIR, f"gpu{n}.lock")):
+					self.select_gpu(n)
+					gpu_selected = n
+					break
+			if gpu_selected == -1 and number_available:
+				log.warn(f"No GPU selected; tried selecting one from a user-specified pool of {number_available}.", 1)
+				log.empty(f"Try deleting 'gpu[#].lock' files in {sfutil.green(SOURCE_DIR)} if GPUs are not in use.", 2)
+		import tensorflow as tf
 
 	def release_gpu(self):
 		log.header("Cleaning up...")
@@ -340,10 +346,14 @@ class SlideflowProject:
 			os.remove(join(SOURCE_DIR, f"gpu{self.GPU_LOCK}.lock"))
 
 	def select_gpu(self, number):
-		log.empty(f"Using GPU #{number}", 1)
-		self.GPU_LOCK = number
-		os.environ["CUDA_VISIBLE_DEVICES"]=str(number)
-		open(join(SOURCE_DIR, f"gpu{number}.lock"), 'a').close()
+		if number == -1:
+			os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+			log.warn(f"Disabling GPU access.")
+		else:
+			log.empty(f"Using GPU #{number}", 1)
+			self.GPU_LOCK = number
+			os.environ["CUDA_VISIBLE_DEVICES"]=str(number)
+			open(join(SOURCE_DIR, f"gpu{number}.lock"), 'a').close()
 		
 	def _get_hp(self, row, header):
 		'''Internal function used to convert a row in the batch_train CSV file into a HyperParameters object.'''
@@ -476,7 +486,7 @@ class SlideflowProject:
 		'''Experimental function used to automatically associated patient names with slide filenames in the annotations file.'''
 		log.header("Associating slide names...")
 		# Load dataset
-		dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'], annotations=self.PROJECT['annotations'])
+		dataset = self.get_dataset()
 		dataset.update_annotations_with_slidenames(self.PROJECT['annotations'])
 		#dataset.load_annotations()
 
@@ -676,6 +686,7 @@ class SlideflowProject:
 
 	def extract_dual_tiles(self, tile_um=None, tile_px=None, stride_div=1, filters=None):
 		import slideflow.slide as sfslide
+		import tensorflow as tf
 		from PIL import Image
 
 		# Filter out warnings and allow loading large images
@@ -686,10 +697,7 @@ class SlideflowProject:
 		tile_px = self.PROJECT['tile_px'] if not tile_px else tile_px
 
 		log.header("Extracting dual-image tiles...")
-		extracting_dataset = Dataset(config_file=self.PROJECT['dataset_config'],
-									 sources=self.PROJECT['datasets'],
-									 annotations=self.PROJECT['annotations'],
-									 filters=filters)
+		extracting_dataset = get_dataset(filters=filters)
 
 		def extract_tiles_from_slide(slide_path, roi_list, dataset_config, pb):
 			root_path = join(dataset_config["tfrecords"], dataset_config["label"])
@@ -778,10 +786,7 @@ class SlideflowProject:
 		else:		datasets = self.PROJECT['datasets']
 
 		# Load dataset for evaluation
-		extracting_dataset = Dataset(config_file=self.PROJECT['dataset_config'],
-									 sources=self.PROJECT['datasets'],
-									 annotations=self.PROJECT['annotations'],
-									 filters=filters)
+		extracting_dataset = self.get_dataset(filters=filters)
 
 		# Prepare validation/training subsets if per-tile validation is being used
 		if self.PROJECT['validation_target'] == 'per-tile':
@@ -877,17 +882,15 @@ class SlideflowProject:
 				for slide_path in slide_list:
 					extract_tiles_from_slide(slide_path, pb)
 
-	def generate_activations_analytics(self, model, outcome_header=None, filters=None, focus_nodes=[], node_exclusion=False, export_csv=False):
+	def generate_activations_analytics(self, model, outcome_header=None, filters=None, focus_nodes=[], node_exclusion=False, export_csv=False,
+										umap_cache='default', activations_cache='default'):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.
 		
 		Note: GPU memory will remain in use, as the Keras model associated with the visualizer is active.'''
 		log.header("Generating final layer activation analytics...")
 
 		# Load dataset for evaluation
-		activations_dataset = Dataset(config_file=self.PROJECT['dataset_config'],
-									  sources=self.PROJECT['datasets'],
-									  annotations=self.PROJECT['annotations'],
-									  filters=filters)
+		activations_dataset = self.get_dataset(filters=filters)
 		tfrecords_list = activations_dataset.get_tfrecords(ask_to_merge_subdirs=True)
 		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
 		log.info(f"Visualizing activations from {len(tfrecords_list)} slides", 1)
@@ -900,7 +903,9 @@ class SlideflowProject:
 								   outcome_header=outcome_header,
 								   focus_nodes=focus_nodes,
 								   use_fp16=self.PROJECT['use_fp16'],
-								   export_csv=export_csv)
+								   export_csv=export_csv,
+								   activations_cache=activations_cache,
+								   umap_cache=umap_cache)
 
 		return AV
 
@@ -918,10 +923,7 @@ class SlideflowProject:
 		log.header("Generating heatmaps...")
 
 		# Prepare dataset
-		heatmaps_dataset = Dataset(config_file=self.PROJECT['dataset_config'],
-								   sources=self.PROJECT['datasets'],
-								   annotations=self.PROJECT['annotations'],
-								   filters=filters)
+		heatmaps_dataset = self.get_dataset(filters=filters)
 		slide_list = heatmaps_dataset.get_slide_paths()
 		roi_list = heatmaps_dataset.get_rois()
 		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
@@ -951,7 +953,9 @@ class SlideflowProject:
 				log.empty(f"Spawning heatmaps process (PID: {process.pid})")
 				process.join()
 
-	def generate_mosaic(self, model, header_category=None, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, max_tiles_per_slide=100, expanded=False, export_activations=False):
+	def generate_mosaic(self, model, header_category=None, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, max_tiles_per_slide=100,
+						expanded=False, export_activations=False, umap_cache='default', activations_cache='default', map_centroid=False, cmap=None, 
+						mosaic_filename=None, umap_filename=None, show_prediction=False):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.
 		
@@ -966,10 +970,7 @@ class SlideflowProject:
 
 		log.header("Generating mosaic map...")
 
-		mosaic_dataset = Dataset(config_file=self.PROJECT['dataset_config'],
-								sources=self.PROJECT['datasets'],
-								annotations=self.PROJECT['annotations'],
-								filters=filters)
+		mosaic_dataset = self.get_dataset(filters=filters)
 
 		if header_category:
 			outcomes_category, unique_outcomes = mosaic_dataset.get_outcomes_from_annotations(header_category)
@@ -977,12 +978,13 @@ class SlideflowProject:
 		else:
 			slide_to_category = {}
 
-		tfrecords_list = mosaic_dataset.get_tfrecords(merge_subdirs=False)
+		tfrecords_list = mosaic_dataset.get_tfrecords()
+
 		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
 
 		if focus_filters:
 			mosaic_dataset.apply_filters(focus_filters)
-			focus_list = mosaic_dataset.get_tfrecords(merge_subdirs=False)
+			focus_list = mosaic_dataset.get_tfrecords()
 		else:
 			focus_list = None
 		log.info(f"Generating mosaic from {len(tfrecords_list)} slides, with focus on {0 if not focus_list else len(focus_list)} slides.", 1)
@@ -995,26 +997,60 @@ class SlideflowProject:
 								use_fp16=self.PROJECT['use_fp16'],
 								batch_size=self.FLAGS['eval_batch_size'],
 								export_csv=export_activations,
-								max_tiles_per_slide=max_tiles_per_slide)
-
-		mosaic = AV.generate_mosaic(focus=focus_list,
-									num_tiles_x=num_tiles_x,
-									resolution=resolution,
-									expanded=expanded)
-
-		mosaic.umap.save_2d_plot(join(self.PROJECT['root'], 'stats', '2d_mosaic_umap.png'), slide_to_category)
+								max_tiles_per_slide=max_tiles_per_slide,
+								activations_cache=activations_cache,
+								umap_cache=umap_cache)
+		if map_centroid:
+			log.info("Calculating centroid indices for slide-level UMAP...", 1)
+			optimal_slide_indices, centroid_activations = calculate_centroid(AV.slide_node_dict)
 			
-		return mosaic
+			# Restrict mosaic to only slides that had enough tiles to calculate an optimal index from centroid
+			successful_slides = list(optimal_slide_indices.keys())
+			num_warned = 0
+			warn_threshold = 3
+			for slide in mosaic_dataset.get_slides():
+				print_func = print if num_warned < warn_threshold else None
+				if slide not in successful_slides:
+					log.warn(f"Unable to calculate centroid for slide {sfutil.green(slide)}; will not include in Mosaic", 1, print_func)
+					num_warned += 1
+			if num_warned >= warn_threshold:
+				log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
 
-	def generate_mosaic_from_predictions(self, model, filters=None, focus_filters=None, header_category=None, resolution='low', num_tiles_x=50,
+			# Generate mosaic from centroid
+			if umap_cache == 'default':
+				umap_cache = join(self.PROJECT['root'], 'stats', 'umap_cache.pkl')
+			else:
+				umap_cache = join(self.PROJECT['root'], 'stats', umap_cache)
+
+			umap = TFRecordUMAP(tfrecords=mosaic_dataset.get_tfrecords(), slides=successful_slides, cache=umap_cache)
+			umap.calculate_from_centroid(centroid_activations, optimal_slide_indices)
+			umap.save_2d_plot(umap_filename if umap_filename else join(self.PROJECT['root'], 'stats', '2d_mosaic_umap.png'), slide_to_category, show_prediction=show_prediction, cmap=cmap)
+
+			if mosaic_filename:
+				mosaic = Mosaic(umap, leniency=1.5,
+									expanded=expanded,
+									tile_zoom=15,
+									num_tiles_x=num_tiles_x,
+									resolution=resolution)
+				mosaic.save(mosaic_filename if mosaic_filename else join(self.STATS_ROOT, 'Mosaic.png'))
+			
+		else:
+			AV.calculate_umap()
+			AV.umap.save_2d_plot(umap_filename if umap_filename else join(self.PROJECT['root'], 'stats', '2d_mosaic_umap.png'), slide_to_category, show_prediction=show_prediction, cmap=cmap)
+
+			if mosaic_filename:
+				mosaic = Mosaic(AV.umap,leniency=1.5,
+										expanded=expanded,
+										tile_zoom=15,
+										num_tiles_x=num_tiles_x,
+										resolution=resolution)
+				mosaic.focus(focus_list)
+				mosaic.save(mosaic_filename if mosaic_filename else join(self.STATS_ROOT, 'Mosaic.png'))
+
+	def generate_mosaic_from_predictions(self, model, x, y, filters=None, focus_filters=None, header_category=None, resolution='low', num_tiles_x=50,
 											expanded=False, max_tiles_per_slide=0):
 
-		dataset = Dataset(config_file=self.PROJECT['dataset_config'], 
-						  sources=self.PROJECT['datasets'],
-						  annotations=self.PROJECT['annotations'],
-						  filters=filters,
-						  filter_blank=header_category)
-
+		dataset = self.get_dataset(filters=filters, filter_blank=header_category)
 		outcomes_category, unique_outcomes = dataset.get_outcomes_from_annotations(header_category)
 		slide_to_category = {k:unique_outcomes[v['outcome']] for k, v in outcomes_category.items()}
 
@@ -1026,10 +1062,11 @@ class SlideflowProject:
 								   batch_size=self.FLAGS['eval_batch_size'],
 								   max_tiles_per_slide=max_tiles_per_slide)
 
-		umap_x, umap_y, umap_meta = AV.get_mapped_predictions()
+		umap_x, umap_y, umap_meta = AV.get_mapped_predictions(x, y)
 
 		umap = TFRecordUMAP(tfrecords=dataset.get_tfrecords(), slides=dataset.get_slides())
 		umap.load_precalculated(umap_x, umap_y, umap_meta)
+		umap.save_2d_plot(join(self.PROJECT['root'], 'stats', '2d_mosaic_umap.png'), slide_to_category)
 
 		mosaic_map = Mosaic(umap, leniency=1.5,
 								  expanded=expanded,
@@ -1038,17 +1075,11 @@ class SlideflowProject:
 								  resolution=resolution)
 
 		mosaic_map.save(join(self.PROJECT['root'], 'stats'))
-		umap.save_2d_plot(join(self.PROJECT['root'], 'stats', '2d_mosaic_umap.png'), slide_to_category)
 
 	def generate_mosaic_from_annotations(self, header_x, header_y, header_category=None, filters=None, focus_filters=None, resolution='low', num_tiles_x=50,
 											expanded=False, use_optimal_tile=False, model=None, max_tiles_per_slide=0):
 
-		dataset = Dataset(config_file=self.PROJECT['dataset_config'], 
-						  sources=self.PROJECT['datasets'],
-						  annotations=self.PROJECT['annotations'],
-						  filters=filters,
-						  filter_blank=[header_x, header_y])
-		
+		dataset = self.get_dataset(filters=filters, filter_blank=[header_x, header_y])		
 		slides = dataset.get_slides()
 		outcomes, _ = dataset.get_outcomes_from_annotations([header_x, header_y], use_float=True)
 		outcomes_category, unique_outcomes = dataset.get_outcomes_from_annotations(header_category)
@@ -1070,7 +1101,7 @@ class SlideflowProject:
 									   batch_size=self.FLAGS['eval_batch_size'],
 									   max_tiles_per_slide=max_tiles_per_slide)
 
-			optimal_slide_indices = AV.calculate_centroid_indices()
+			optimal_slide_indices, _ = calculate_centroid(AV.slide_node_dict)
 
 			# Restrict mosaic to only slides that had enough tiles to calculate an optimal index from centroid
 			successful_slides = list(optimal_slide_indices.keys())
@@ -1134,6 +1165,13 @@ class SlideflowProject:
 
 			if delete_tiles:
 				shutil.rmtree(tiles_dir)
+	
+	def get_dataset(self, filters=None, filter_blank=None):
+		return Dataset(config_file=self.PROJECT['dataset_config'], 
+					   sources=self.PROJECT['datasets'],
+					   annotations=self.PROJECT['annotations'],
+					   filters=filters,
+					   filter_blank=filter_blank)
 
 	def load_datasets(self, path):
 		'''Loads datasets from a given datasets.json file.'''
@@ -1159,9 +1197,7 @@ class SlideflowProject:
 
 		# Load dataset for evaluation
 		try:
-			dataset = Dataset(config_file=self.PROJECT['dataset_config'],
-							  sources=self.PROJECT['datasets'],
-							  annotations=self.PROJECT['annotations'])
+			dataset = self.get_dataset()
 
 			if not self.FLAGS['skip_verification']:
 				log.header("Verifying Annotations...")
@@ -1174,10 +1210,7 @@ class SlideflowProject:
 	def resize_tfrecords(self, size, filters=None):
 		'''Resizes TFRecords to a given pixel size.'''
 		log.header(f"Resizing TFRecord tiles to ({size}, {size})")
-		resize_dataset = Dataset(config_file=self.PROJECT['dataset_config'],
-								 sources=self.PROJECT['datasets'],
-								 annotations=self.PROJECT['annotations'],
-								 filters=filters)
+		resize_dataset = self.get_dataset(filters=filters)
 		tfrecords_list = resize_dataset.get_tfrecords()
 		log.info(f"Resizing {len(tfrecords_list)} tfrecords", 1)
 
@@ -1187,10 +1220,7 @@ class SlideflowProject:
 	def extract_tiles_from_tfrecords(self, destination=None, filters=None):
 		'''Extracts all tiles from a set of TFRecords'''
 		log.header(f"Extracting tiles from TFRecords")
-		to_extract_dataset = Dataset(config_file=self.PROJECT['dataset_config'],
-									 sources=self.PROJECT['datasets'],
-									 annotations=self.PROJECT['annotations'],
-									 filters=filters)
+		to_extract_dataset = self.get_dataset(filters=filters)
 		
 		for dataset_name in self.PROJECT['datasets']:
 			to_extract_tfrecords = to_extract_dataset.get_tfrecords(dataset=dataset_name)
@@ -1352,17 +1382,12 @@ class SlideflowProject:
 			force_update:	If True, will re-validate contents of all TFRecords. If False, will only validate
 								contents of TFRecords not yet in the manifest
 		'''
-		dataset = Dataset(config_file=self.PROJECT['dataset_config'],
-						  sources=self.PROJECT['datasets'],
-						  annotations=self.PROJECT['annotations'])
+		dataset = self.get_dataset()
 		dataset.update_manifest()
 
 	def update_tfrecords(self):
 		log.header('Updating TFRecords...')
-		working_dataset = Dataset(config_file=self.PROJECT['dataset_config'],
-								  sources=self.PROJECT['datasets'],
-								  annotations=self.PROJECT['annotations'])
-
+		working_dataset = self.get_dataset()
 		for d in working_dataset.datasets:
 			config = working_dataset.datasets[d]
 			tfrecord_folder = join(config["tfrecords"], config["label"])
@@ -1371,16 +1396,21 @@ class SlideflowProject:
 			num_updated += sfio.tfrecords.update_tfrecord_dir(tfrecord_folder, slide='case', image_raw='image_raw')
 		log.complete(f"Updated {sfutil.bold(num_updated)} TFRecords files")
 	
-	def visualize_tiles(self, model, directory, node, num_to_visualize=20, window=None):
-		tiles = [o for o in os.listdir(directory) if not isdir(join(directory, o))]
-		tiles.sort(key=lambda x: int(x.split('-')[0]))
-		tiles.reverse()
-
+	def visualize_tiles(self, model, node, tfrecord_dict=None, directory=None, num_to_visualize=20, window=None):
 		TV = TileVisualizer(model=model, 
 							node=node,
 							shape=[self.PROJECT['tile_px'], self.PROJECT['tile_px'], 3],
 							tile_width=window)
 
-		for tile in tiles[:20]:
-			tile_loc = join(directory, tile)
-			TV.visualize_tile(tile_loc, save_dir=directory)
+		if tfrecord_dict:
+			for tfrecord in tfrecord_dict:
+				for tile_index in tfrecord_dict[tfrecord]:
+					TV.visualize_tile(tfrecord=tfrecord, index=tile_index, save_dir=directory)
+
+		else:
+			tiles = [o for o in os.listdir(directory) if not isdir(join(directory, o))]
+			tiles.sort(key=lambda x: int(x.split('-')[0]))
+			tiles.reverse()
+			for tile in tiles[:20]:
+				tile_loc = join(directory, tile)
+				TV.visualize_tile(image_jpg=tile_loc, save_dir=directory)
