@@ -60,14 +60,13 @@ class ActivationsVisualizer:
 	
 	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_header=None, 
 					focus_nodes=[], use_fp16=True, use_activations_cache=False, umap_cache='default', activations_cache='default',
-					batch_size=16, export_csv=False, max_tiles_per_slide=100):
+					batch_size=16, activations_export=None, max_tiles_per_slide=100):
 		self.focus_nodes = focus_nodes
 		self.MAX_TILES_PER_SLIDE = max_tiles_per_slide
 		self.IMAGE_SIZE = image_size
 		self.tfrecords = np.array(tfrecords)
 		self.slides = sorted([sfutil.path_to_name(tfr) for tfr in self.tfrecords])
 
-		self.FLA = join(root_dir, "stats", "final_layer_activations.csv")
 		self.STATS_CSV_FILE = join(root_dir, "stats", "slide_level_summary.csv")
 		self.EXAMPLE_TILES_DIR = join(root_dir, "stats", "example_tiles")
 		self.SORTED_DIR = join(root_dir, "stats", "sorted_tiles")
@@ -91,7 +90,7 @@ class ActivationsVisualizer:
 				self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
 		# Otherwise will need to generate new activations from a given model
 		else:
-			self.generate_activations_from_model(model, use_fp16=use_fp16, batch_size=batch_size, export_csv=export_csv)
+			self.generate_activations_from_model(model, use_fp16=use_fp16, batch_size=batch_size, export=activations_export)
 			self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
 
 		# Now delete slides not included in our filtered TFRecord list
@@ -117,11 +116,11 @@ class ActivationsVisualizer:
 		for c in self.used_categories:
 			log.empty(f"\t{c}", 2)
 
-	def _save_node_statistics_to_csv(self, nodes_avg_pt, tile_stats=None, slide_stats=None):
+	def _save_node_statistics_to_csv(self, nodes_avg_pt, filename, tile_stats=None, slide_stats=None):
 		'''Exports statistics (ANOVA p-values and slide-level averages) to CSV.'''
 		# Save results to CSV
-		log.empty(f"Writing results to {sfutil.green(self.STATS_CSV_FILE)}...", 1)
-		with open(self.STATS_CSV_FILE, 'w') as outfile:
+		log.empty(f"Writing results to {sfutil.green(filename)}...", 1)
+		with open(filename, 'w') as outfile:
 			csv_writer = csv.writer(outfile)
 			header = ['slide', 'category'] + [f"FLNode{n}" for n in nodes_avg_pt]
 			csv_writer.writerow(header)
@@ -225,14 +224,14 @@ class ActivationsVisualizer:
 		
 		return self.nodes
 
-	def generate_activations_from_model(self, model, use_fp16=True, batch_size=16, export_csv=True):
+	def generate_activations_from_model(self, model, use_fp16=True, batch_size=16, export=None):
 		'''Calculates activations from a given model.
 
 		Args:
 			model:		Path to .h5 file from which to calculate final layer activations.
 			use_fp16:	If true, uses Float16 (default) instead of Float32.
 			batch_size:	Batch size for model predictions.
-			export_csv:	If true, will export calculated activations to a CSV.'''
+			export:		String (default: None). If provided, will export CSV of activations with this filename.'''
 
 		# Rename tfrecord_array to tfrecords
 		log.info(f"Calculating layer activations from {sfutil.green(model)}, max {self.MAX_TILES_PER_SLIDE} tiles per slide.", 1)
@@ -267,8 +266,8 @@ class ActivationsVisualizer:
 		# Calculate final layer activations for each tfrecord
 		fla_start_time = time.time()
 		nodes_names, logits_names = [], []
-		if export_csv:
-			outfile = open(self.FLA, 'w')
+		if export:
+			outfile = open(export, 'w')
 			csvwriter = csv.writer(outfile)
 
 		for t, tfrecord in enumerate(self.tfrecords):
@@ -299,7 +298,7 @@ class ActivationsVisualizer:
 				nodes_names = [f"FLNode{f}" for f in range(fl_activations_combined.shape[1])]
 				logits_names = [f"Logits{l}" for l in range(logits_combined.shape[1])]
 				header = ["Slide"] + logits_names + nodes_names
-				if export_csv:
+				if export:
 					csvwriter.writerow(header)
 				for n in range(len(nodes_names)):
 					for slide in unique_slides:
@@ -319,7 +318,7 @@ class ActivationsVisualizer:
 				activations_vals = fl_activations_combined[i].tolist()
 				logits_vals = logits_combined[i].tolist()
 				# Write to CSV
-				if export_csv:
+				if export:
 					row = [slide] + logits_vals + activations_vals
 					csvwriter.writerow(row)
 				# Write to memory
@@ -330,14 +329,14 @@ class ActivationsVisualizer:
 					val = logits_vals[l]
 					self.slide_logits_dict[slide][l] += [val]
 
-		if export_csv:
+		if export:
 			outfile.close()
 
 		fla_calc_time = time.time()
 		print()
 		log.info(f"Activation calculation time: {fla_calc_time-fla_start_time:.0f} sec", 1)
-		if export_csv:
-			log.complete(f"Final layer activations saved to {sfutil.green(self.FLA)}", 1)
+		if export:
+			log.complete(f"Final layer activations saved to {sfutil.green(export)}", 1)
 		
 		# Dump PKL dictionary to file
 		if self.ACTIVATIONS_CACHE:
@@ -347,13 +346,13 @@ class ActivationsVisualizer:
 
 		return self.slide_node_dict, self.slide_logits_dict
 
-	def export_activations_to_csv(self, nodes=None):
+	def export_activations_to_csv(self, filename, nodes=None):
 		'''Exports calculated activations to csv.
 
 		Args:
 			nodes:		Exports activations of the given nodes. If None, will export activations for all nodes.'''
 
-		with open(self.FLA, 'w') as outfile:
+		with open(filename, 'w') as outfile:
 			csvwriter = csv.writer(outfile)
 			nodes = self.nodes if not nodes else nodes
 			header = ["Slide"] + [f"FLNode{f}" for f in nodes]
@@ -364,7 +363,7 @@ class ActivationsVisualizer:
 					row += [self.slide_node_dict[slide][n]]
 				csvwriter.writewrow(row)
 
-	def calculate_activation_averages_and_stats(self, export_csv=True):
+	def calculate_activation_averages_and_stats(self, filename=None):
 		'''Calculates activation averages across categories, as well as tile-level and patient-level statistics using ANOVA, exporting to CSV if desired.'''
 
 		if not self.categories:
@@ -422,10 +421,13 @@ class ActivationsVisualizer:
 			except:
 				log.warn(f"No stats calculated for node {node}", 1)
 			if (not self.focus_nodes) and i>9: break
-		if not exists(self.STATS_CSV_FILE):
-			self._save_node_statistics_to_csv(self.nodes_avg_pt, tile_stats=node_stats, slide_stats=node_stats_avg_pt)
+
+		# Export results
+		export_file = self.STATS_CSV_FILE if not filename else filename
+		if not exists(export_file):
+			self._save_node_statistics_to_csv(self.nodes_avg_pt, filename=export_file, tile_stats=node_stats, slide_stats=node_stats_avg_pt)
 		else:
-			log.info(f"Stats file already generated at {sfutil.green(self.STATS_CSV_FILE)}; not regenerating", 1)
+			log.info(f"Stats file already generated at {sfutil.green(export_file)}; not regenerating", 1)
 
 	def generate_box_plots(self, annotations=None, outcome_header=None, interactive=False):
 		'''Generates box plots comparing nodal activations at the slide-level and tile-level.'''
