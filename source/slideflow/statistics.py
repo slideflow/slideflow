@@ -101,6 +101,21 @@ class TFRecordUMAP:
 			self.y = np.array([c[1] for c in coordinates])
 			self.save_cache()
 
+	def export_to_csv(self, filename):
+		'''Exports calculated UMAP coordinates to csv.'''
+		with open(filename, 'w') as outfile:
+			csvwriter = csv.writer(outfile)
+			header = ['slide', 'index', 'x', 'y']
+			csvwriter.writerow(header)
+			for index in range(len(self.point_meta)):
+				x = self.x[index]
+				y = self.y[index]
+				meta = self.point_meta[index]
+				slide = meta['slide']
+				index = meta['index']
+				row = [slide, index, x, y]
+				csvwriter.writerow(row)
+
 	def load_precalculated(self, x, y, meta):
 		self.x = x
 		self.y = y
