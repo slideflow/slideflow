@@ -16,6 +16,8 @@ from scipy import stats
 from random import sample
 from statistics import median
 from sklearn import metrics
+from sklearn.cluster import KMeans
+from sklearn.metrics import pairwise_distances_argmin_min
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import pyplot as plt
 
@@ -68,6 +70,37 @@ class TFRecordUMAP:
 		self.y = np.array([c[1] for c in coordinates])
 		self.save_cache()
 
+	def calculate_from_centroid(self, slide_activations, tile_indices, force_recalculate=False):
+		if len(self.x) and len(self.y) and not force_recalculate:
+			log.info("UMAP loaded from cache, will filter to include only provided tiles", 1)
+			new_x = []
+			new_y = []
+			new_meta = []
+			for i in range(len(self.point_meta)):
+				slide = self.point_meta[i]['slide']
+				if slide in tile_indices and self.point_meta[i]['index'] == tile_indices[slide]:
+					new_x += [self.x[i]]
+					new_y += [self.y[i]]
+					new_meta += [self.point_meta[i]]
+			self.x = np.array(new_x)
+			self.y = np.array(new_y)
+			self.point_meta = np.array(new_meta)
+		else:
+			log.empty("Calculating UMAP...", 1)
+			umap_input = []
+			for slide in self.slides:
+				umap_input += [slide_activations[slide]]
+				self.point_meta += [{
+					'slide': slide,
+					'index': tile_indices[slide],
+					'prediction': 0
+				}]
+
+			coordinates = gen_umap(np.array(umap_input))
+			self.x = np.array([c[0] for c in coordinates])
+			self.y = np.array([c[1] for c in coordinates])
+			self.save_cache()
+
 	def load_precalculated(self, x, y, meta):
 		self.x = x
 		self.y = y
@@ -75,10 +108,17 @@ class TFRecordUMAP:
 		self.save_cache()
 
 	def save_2d_plot(self, filename, slide_category_dict=None, show_prediction=False, outcome_labels=None,
-					subsample=None, title=None):
+					subsample=None, title=None, cmap=None):
+		# By default use all tiles
+		x, y = self.x, self.y
 		# Prepare plotting categories
 		if slide_category_dict:
-			categories = np.array([slide_category_dict[m['slide']] for m in self.point_meta])
+			# Filter out tiles not included in slide_category_dict
+			meta = [pm for pm in self.point_meta if pm['slide'] in slide_category_dict]
+			x = np.array([self.x[xi] for xi in range(len(self.x)) if self.point_meta[xi]['slide'] in slide_category_dict])
+			y = np.array([self.y[yi] for yi in range(len(self.y)) if self.point_meta[yi]['slide'] in slide_category_dict])
+
+			categories = np.array([slide_category_dict[m['slide']] for m in meta])
 		elif show_prediction:
 			if outcome_labels:
 				categories = np.array([outcome_labels[m['prediction']] for m in self.point_meta])
@@ -89,13 +129,14 @@ class TFRecordUMAP:
 
 		# Subsampling
 		if subsample:
-			ri = sample(range(len(self.x)), min(len(self.x), subsample))
+			ri = sample(range(len(x)), min(len(x), subsample))
 		else:
-			ri = list(range(len(self.x)))
-		x = self.x[ri]
-		y = self.y[ri]
+			ri = list(range(len(x)))
+		x = x[ri]
+		y = y[ri]
 
-		unique_categories = list(set(categories[ri]))	
+		unique_categories = list(set(categories[ri]))
+		unique_categories.sort()
 
 		# Prepare pandas dataframe
 		df = pd.DataFrame()
@@ -106,12 +147,14 @@ class TFRecordUMAP:
 		# Make plot
 		plt.clf()
 		fig = plt.figure()
-		umap_2d = sns.scatterplot(x=x, y=y, data=df, hue='category', palette=sns.color_palette('hls', len(unique_categories)))
+		seaborn_palette = sns.color_palette("Paired", len(unique_categories)) if len(unique_categories) <= 12 else sns.color_palette('hls', len(unique_categories))
+		palette = {unique_categories[i]:seaborn_palette[i] for i in range(len(unique_categories))}
+		umap_2d = sns.scatterplot(x=x, y=y, data=df, hue='category', palette=cmap if cmap else palette)
 		umap_2d.legend(loc='center left', bbox_to_anchor=(1.25, 0.5), ncol=1)
-		log.info(f"Saving 2D UMAP to {sfutil.green(filename)}...", 1)
 		umap_figure = umap_2d.get_figure()
 		if title: umap_figure.axes[0].set_title(title)
 		umap_figure.savefig(filename, bbox_inches='tight')
+		log.complete(f"Saved 2D UMAP to {sfutil.green(filename)}", 1)
 
 	def save_3d_plot(self, z, filename, title="UMAP", subsample=None):
 		'''Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument "z" '''
@@ -172,6 +215,29 @@ class TFRecordUMAP:
 		except FileNotFoundError:
 			log.info(f"No UMAP cache found at {sfutil.green(self.cache)}", 1)
 		return False
+
+def get_centroid_index(input_array):
+	km = KMeans(n_clusters=1).fit(input_array)
+	closest, _ = pairwise_distances_argmin_min(km.cluster_centers_, input_array)
+	return closest[0]
+
+def calculate_centroid(slide_node_dict):
+	optimal_indices = {}
+	centroid_activations = {}
+	nodes = list(slide_node_dict[list(slide_node_dict.keys())[0]].keys())
+	for slide in slide_node_dict:
+		slide_nodes = slide_node_dict[slide]
+		# Reorganize "slide_nodes" into an array of node activations for each tile
+		# Final size of array should be (num_nodes, num_tiles_in_slide) 
+		activations = [[slide_nodes[n][i] for n in nodes] for i in range(len(slide_nodes[0]))]
+		km = KMeans(n_clusters=1).fit(activations)
+		closest, _ = pairwise_distances_argmin_min(km.cluster_centers_, activations)
+		closest_index = closest[0]
+		closest_activations = activations[closest_index]
+
+		optimal_indices.update({slide: closest_index})
+		centroid_activations.update({slide: closest_activations})
+	return optimal_indices, centroid_activations
 
 def normalize_layout(layout, min_percentile=1, max_percentile=99, relative_margin=0.1):
 	"""Removes outliers and scales layout to between [0,1]."""
