@@ -882,7 +882,7 @@ class SlideflowProject:
 				for slide_path in slide_list:
 					extract_tiles_from_slide(slide_path, pb)
 
-	def generate_activations_analytics(self, model, outcome_header=None, filters=None, focus_nodes=[], node_exclusion=False, export_csv=False,
+	def generate_activations_analytics(self, model, outcome_header=None, filters=None, focus_nodes=[], node_exclusion=False, activations_export=None,
 										umap_cache='default', activations_cache='default'):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.
 		
@@ -903,7 +903,7 @@ class SlideflowProject:
 								   outcome_header=outcome_header,
 								   focus_nodes=focus_nodes,
 								   use_fp16=self.PROJECT['use_fp16'],
-								   export_csv=export_csv,
+								   activations_export=activations_export,
 								   activations_cache=activations_cache,
 								   umap_cache=umap_cache)
 
@@ -954,8 +954,8 @@ class SlideflowProject:
 				process.join()
 
 	def generate_mosaic(self, model, header_category=None, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, max_tiles_per_slide=100,
-						expanded=False, export_activations=False, umap_cache='default', activations_cache='default', map_centroid=False, cmap=None, 
-						mosaic_filename=None, umap_filename=None, show_prediction=False):
+						expanded=False, show_prediction=False, map_centroid=False, cmap=None, umap_cache='default', activations_cache='default', 
+						mosaic_filename=None, umap_filename=None, activations_export=None, umap_export=None):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.
 		
@@ -996,7 +996,7 @@ class SlideflowProject:
 								focus_nodes=None,
 								use_fp16=self.PROJECT['use_fp16'],
 								batch_size=self.FLAGS['eval_batch_size'],
-								export_csv=export_activations,
+								activations_export=activations_export,
 								max_tiles_per_slide=max_tiles_per_slide,
 								activations_cache=activations_cache,
 								umap_cache=umap_cache)
@@ -1026,6 +1026,9 @@ class SlideflowProject:
 			umap.calculate_from_centroid(centroid_activations, optimal_slide_indices)
 			umap.save_2d_plot(umap_filename if umap_filename else join(self.PROJECT['root'], 'stats', '2d_mosaic_umap.png'), slide_to_category, show_prediction=show_prediction, cmap=cmap)
 
+			if umap_export:
+				umap.export_to_csv(umap_export)
+
 			if mosaic_filename:
 				mosaic = Mosaic(umap, leniency=1.5,
 									expanded=expanded,
@@ -1037,6 +1040,9 @@ class SlideflowProject:
 		else:
 			AV.calculate_umap()
 			AV.umap.save_2d_plot(umap_filename if umap_filename else join(self.PROJECT['root'], 'stats', '2d_mosaic_umap.png'), slide_to_category, show_prediction=show_prediction, cmap=cmap)
+			
+			if umap_export:
+				AV.umap.export_to_csv(umap_export)
 
 			if mosaic_filename:
 				mosaic = Mosaic(AV.umap,leniency=1.5,
