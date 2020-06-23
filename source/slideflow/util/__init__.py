@@ -12,6 +12,8 @@ from glob import glob
 from tensorflow.keras import backend as K
 from os.path import join, isdir, exists
 
+# TODO: re-enable logging with maximum log file size
+
 # Enable color sequences on Windows
 try:
 	import ctypes
