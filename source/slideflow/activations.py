@@ -50,17 +50,17 @@ def create_bool_mask(x, y, w, sx, sy):
 class ActivationsVisualizer:
 	'''Loads annotations, saved layer activations, and prepares output saving directories.
 		Will also read/write processed activations to a PKL cache file to save time in future iterations.'''
-
-	missing_slides = []
-	categories = []
-	used_categories = []
-	slide_category_dict = {}
-	slide_node_dict = {}
-	umap = None
 	
 	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_header=None, 
-					focus_nodes=[], use_fp16=True, use_activations_cache=False, umap_cache='default', activations_cache='default',
+					focus_nodes=[], use_fp16=True, use_activations_cache=False, activations_cache='default',
 					batch_size=16, activations_export=None, max_tiles_per_slide=100):
+		self.missing_slides = []
+		self.categories = []
+		self.used_categories = []
+		self.slide_category_dict = {}
+		self.slide_node_dict = {}
+		self.umap = None
+
 		self.focus_nodes = focus_nodes
 		self.MAX_TILES_PER_SLIDE = max_tiles_per_slide
 		self.IMAGE_SIZE = image_size
@@ -72,7 +72,6 @@ class ActivationsVisualizer:
 		self.SORTED_DIR = join(root_dir, "stats", "sorted_tiles")
 		self.STATS_ROOT = join(root_dir, "stats")
 		self.ACTIVATIONS_CACHE = join(root_dir, "stats", "activations_cache.pkl") if activations_cache=='default' else join(root_dir, 'stats', activations_cache)
-		self.UMAP_CACHE = join(root_dir, "stats", "umap_cache.pkl") if umap_cache=='default' else join(root_dir, 'stats', umap_cache)
 		if not exists(join(root_dir, "stats")):
 			os.makedirs(join(root_dir, "stats"))
 
@@ -164,6 +163,36 @@ class ActivationsVisualizer:
 
 	def get_predictions(self):
 		return self.slide_logits_dict
+
+	def get_slide_level_predictions(self, model_type='linear', prediction_filter=None):
+		slide_predictions = {}
+		slide_percentages = {}
+		if model_type == 'categorical':
+			first_slide = list(self.slide_logits_dict.keys())[0]
+			logits = sorted(list(self.slide_logits_dict[first_slide].keys()))
+			for slide in self.slide_logits_dict:
+				num_tiles = len(self.slide_logits_dict[slide][0])
+				tile_predictions = []
+				for i in range(num_tiles):
+					calculated_logits = [self.slide_logits_dict[slide][l][i] for l in logits]
+					if prediction_filter:
+						filtered_calculated_logits = [calculated_logits[l] for l in prediction_filter]
+					else:
+						filtered_calculated_logits = calculated_logits
+					tile_predictions += [calculated_logits.index(max(filtered_calculated_logits))]
+				slide_prediction_values = {l:(tile_predictions.count(l)/len(tile_predictions)) for l in logits}
+				slide_percentages.update({slide: slide_prediction_values})
+				slide_predictions.update({slide: max(slide_prediction_values, key=lambda l: slide_prediction_values[l])})
+		elif model_type == 'linear':
+			first_slide = list(self.slide_logits_dict.keys())[0]
+			for slide in self.slide_logits_dict:
+				num_tiles = len(self.slide_logits_dict[slide][0])
+				tile_predictions = []
+				for i in range(num_tiles):
+					tile_predictions += [self.slide_logits_dict[slide][0][i]]
+				slide_percentages[slide] = [sum(tile_predictions) / len(tile_predictions)]
+				slide_predictions[slide] = [sum(tile_predictions) / len(tile_predictions)]
+		return slide_predictions, slide_percentages
 
 	def load_annotations(self, annotations, outcome_header):
 		'''Loads annotations from a given file with the specified outcome header.'''
@@ -471,18 +500,6 @@ class ActivationsVisualizer:
 			plt.savefig(boxplot_filename, bbox_inches='tight')
 			if (not self.focus_nodes) and i>4: break
 
-	def calculate_umap(self, exclude_node=None):
-		'''Calculates UMAP, loading from PKL cache if available. May exclude a single node if desired.
-		
-		Returns:
-			Dictionary containing umap data'''
-		slides = [slide for slide in self.slides if slide not in self.missing_slides]
-		nodes_to_include = [n for n in self.nodes if n != exclude_node]
-		self.umap = TFRecordUMAP(self.tfrecords, slides, cache=self.UMAP_CACHE)
-		self.umap.calculate_from_nodes(self.slide_node_dict, self.slide_logits_dict, nodes=nodes_to_include,
-																					 exclude_slides=self.missing_slides)
-		return self.umap
-	
 	def plot_3d_umap(self, node, filename=None, subsample=1000):
 		umap_name = "3d_umap.png" if not node else f"3d_umap_{node}.png"
 		filename = join(self.STATS_ROOT, umap_name) if not filename else filename
@@ -745,11 +762,12 @@ class Heatmap:
 		parsed_image.set_shape([299, 299, 3])
 		return parsed_image
 
-	def generate(self, batch_size=16):
+	def generate(self, batch_size=16, skip_thumb=False):
 		'''Convolutes across a whole slide, calculating logits and saving predictions internally for later use.'''
 		# Pre-load thumbnail in separate thread
-		thumb_process = DProcess(target=self.slide.thumb)
-		thumb_process.start()
+		if not skip_thumb:
+			thumb_process = DProcess(target=self.slide.thumb)
+			thumb_process.start()
 
 		# Create tile coordinate generator
 		gen_slice = self.slide.build_generator(return_numpy=True)
@@ -769,10 +787,11 @@ class Heatmap:
 		for batch_images in tile_dataset:
 			prelogits, logits = self.model.predict_on_batch([batch_images, batch_images])
 			logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
-		print('\r\033[KFinished predictions. Waiting on thumbnail...', end="")
-		thumb_process.join()
+		if not skip_thumb:
+			print('\r\033[KFinished predictions. Waiting on thumbnail...', end="")
+			thumb_process.join()
 
-		if self.slide.tile_mask is not None and self.slide.extracted_x_size and self.slide.extracted_y_size and self.slide.full_stride:
+		if (self.slide.tile_mask is not None) and (self.slide.extracted_x_size) and (self.slide.extracted_y_size) and (self.slide.full_stride):
 			# Expand logits back to a full 2D map spanning the whole slide,
 			#  supplying values of "0" where tiles were skipped by the tile generator
 			x_logits_len = int(self.slide.extracted_x_size / self.slide.full_stride) + 1
@@ -807,7 +826,7 @@ class Heatmap:
 		cmMap = cm.nipy_spectral(jetMap)
 		self.newMap = mcol.ListedColormap(cmMap)
 
-	def display(self, interpolation='none'):
+	def display(self, interpolation='none', logit_cmap=None):
 		'''Interactively displays calculated logits as a heatmap.'''
 		self.prepare_figure()
 		heatmap_dict = {}
@@ -828,38 +847,49 @@ class Heatmap:
 		implot.show()
 		plt.show()
 
-	def save(self, show_roi=True, interpolation='none'):
+	def save(self, show_roi=True, interpolation='none', logit_cmap=None, skip_thumb=False):
 		'''Saves calculated logits as heatmap overlays.'''
 		print("\r\033[KPreparing figure...", end="")
 		self.prepare_figure()
-		print("\r\033[KPreparing plot...", end="")
-		implot = self.ax.imshow(self.slide.thumb(), zorder=0)
-
+		
 		# Plot ROIs
-		print("\r\033[KPlotting ROIs...", end="")
 		if show_roi:
+			print("\r\033[KPlotting ROIs...", end="")
 			ROI_SCALE = self.slide.full_shape[0]/2048
 			annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.slide.rois]
 			for poly in annPolys:
 				x,y = poly.exterior.xy
 				plt.plot(x, y, zorder=20, color='k', linewidth=5)
 
-		# Save plot without heatmaps
-		print("\r\033[KSaving base figure...", end="")
-		plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-raw.png'), bbox_inches='tight')
+		if not skip_thumb:
+			# Save plot without heatmaps
+			print("\r\033[KSaving base figure...", end="")
+			implot = self.ax.imshow(self.slide.thumb(), zorder=0)
+			plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-raw.png'), bbox_inches='tight')
 
-		# Make heatmap plots and sliders
-		for i in range(self.NUM_CLASSES):
-			print(f"\r\033[KMaking heatmap {i+1} of {self.NUM_CLASSES}...", end="")
-			heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.get_extent(),
-														   cmap=self.newMap,
-														   vmin=0,
-														   vmax=1,
-														   alpha=0.6,
-														   interpolation=interpolation, #bicubic
-														   zorder=10)
-			plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-{i}.png'), bbox_inches='tight')
-			heatmap.remove()
+		if logit_cmap:
+			if callable(logit_cmap):
+				map_logit = logit_cmap
+			else:
+				def map_logit(l): 
+					# Make heatmap with specific logit predictions mapped to r, g, and b
+					return (l[logit_cmap['r']], l[logit_cmap['g']], l[logit_cmap['b']])
+			extent = None if skip_thumb else implot.get_extent()
+			heatmap = self.ax.imshow([[map_logit(l) for l in row] for row in self.logits], extent=extent, zorder=10)
+			plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-custom.png'), bbox_inches='tight')
+		else:
+			# Make heatmap plots and sliders for each outcome category
+			for i in range(self.NUM_CLASSES):
+				print(f"\r\033[KMaking heatmap {i+1} of {self.NUM_CLASSES}...", end="")
+				heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.get_extent(),
+															cmap=self.newMap,
+															vmin=0,
+															vmax=1,
+															alpha=0.6,
+															interpolation=interpolation, #bicubic
+															zorder=10)
+				plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-{i}.png'), bbox_inches='tight')
+				heatmap.remove()
 
 		plt.close()
 		print("\r\033[K", end="")

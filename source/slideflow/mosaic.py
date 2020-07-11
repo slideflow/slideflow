@@ -2,6 +2,7 @@ import math
 import time
 import cv2
 import sys
+import csv
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -37,6 +38,7 @@ class Mosaic:
 		max_distance_factor = leniency
 		mapping_method = 'expanded' if expanded else 'strict'
 		tile_zoom_factor = tile_zoom
+		self.mapped_tiles = {}
 		self.umap = umap
 		self.num_tiles_x = num_tiles_x
 		self.tfrecords_paths = umap.tfrecords
@@ -188,11 +190,14 @@ class Mosaic:
 				closest_point = tile['nearest_index']
 				point = self.points[closest_point]
 
-				_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
-				image_arr = np.fromstring(tile_image.numpy(), np.uint8)
-				tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
-				tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)				
+				if not point['tfrecord']:
+					log.error(f"The tfrecord {point['tfrecord']} was not found in the list of paths provided by the input umap, unable to continue.", 1)
+					return
 
+				_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
+				self.mapped_tiles.update({point['tfrecord']: point['tfrecord_index']})
+				tile_image = self._decode_image_string(tile_image.numpy())
+				
 				tile_alpha, num_slide, num_other = 1, 0, 0
 				display_size = tile_size
 				if relative_size:
@@ -225,9 +230,8 @@ class Mosaic:
 					tile['paired_point'] = True
 
 					_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
-					image_arr = np.fromstring(tile_image.numpy(), np.uint8)
-					tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
-					tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
+					self.mapped_tiles.update({point['tfrecord']: point['tfrecord_index']})
+					tile_image = self._decode_image_string(tile_image.numpy())					
 
 					if not export:
 						tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
@@ -251,6 +255,22 @@ class Mosaic:
 			if sfutil.path_to_name(tfr) == slide:
 				return tfr
 		log.error(f"Unable to find TFRecord path for slide {sfutil.green(slide)}", 1)
+
+	def _decode_image_string(self, string, normalize=True):
+
+		def normalize(x):
+			norm = np.array((x - np.min(x)) / (np.max(x) - np.min(x)))
+			return np.dot(norm[...,:3], [0.5, 0.5, 0.5])
+
+		image_arr = np.fromstring(string, np.uint8)
+		tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
+		
+		if normalize:
+			tile_image_bgr = np.array(normalize(tile_image_bgr) * 255, dtype=np.uint8)
+		
+		tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
+			
+		return tile_image
 
 	def focus(self, tfrecords):
 		# If desired, highlight certain tiles according to a focus list
@@ -276,6 +296,14 @@ class Mosaic:
 		plt.savefig(filename, bbox_inches='tight')
 		log.complete(f"Saved figure to {sfutil.green(filename)}", 1)
 		plt.close()
+
+	def save_report(self, filename):
+		with open(filename, 'w') as f:
+			writer = csv.writer(f)
+			writer.writerow(['slide', 'index'])
+			for tfr in self.mapped_tiles:
+				writer.writerow([tfr, self.mapped_tiles[tfr]])
+		log.complete(f"Mosaic report saved to {sfutil.green(filename)}", 1)
 
 	def display(self):
 		log.empty("Displaying figure...")

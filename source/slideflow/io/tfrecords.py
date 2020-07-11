@@ -577,7 +577,10 @@ def get_tfrecord_by_index(tfrecord, index, decode=True):
 	'''Reads and returns an individual record from a tfrecord by index, including slide name and JPEG-processed image data.'''
 
 	if type(index) != int:
-		raise IndexError("index must be an integer.")
+		try:
+			index = int(index)
+		except:
+			raise IndexError(f"index must be an integer, not {type(index)} (provided {index}).")
 
 	def _decode(record):
 		features = _parse_tfrecord_function(record)
