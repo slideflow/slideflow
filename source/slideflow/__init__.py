@@ -961,7 +961,7 @@ class SlideflowProject:
 	def generate_mosaic(self, model, header_category=None, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, max_tiles_per_slide=100,
 						expanded=False, map_centroid=False, show_prediction=None, restrict_prediction=None, outcome_labels=None, cmap=None, model_type=None,
 						umap_cache='default', activations_cache='default', mosaic_filename=None, umap_filename=None, activations_export=None, umap_export=None,
-						use_float=False):
+						use_float=False, normalize=None):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.
 		
@@ -1079,14 +1079,15 @@ class SlideflowProject:
 								expanded=expanded,
 								tile_zoom=15,
 								num_tiles_x=num_tiles_x,
-								resolution=resolution)
+								resolution=resolution,
+								normalize=normalize)
 			mosaic.focus(focus_list)
 			mosaic.save(mosaic_filename if mosaic_filename else join(self.STATS_ROOT, 'Mosaic.png'))
 			
 		return AV, mosaic, umap
 
 	def generate_mosaic_from_predictions(self, model, x, y, filters=None, focus_filters=None, header_category=None, resolution='low', num_tiles_x=50,
-											expanded=False, max_tiles_per_slide=0):
+											expanded=False, max_tiles_per_slide=0, normalize=None):
 
 		dataset = self.get_dataset(filters=filters, filter_blank=header_category)
 		outcomes_category, unique_outcomes = dataset.get_outcomes_from_annotations(header_category)
@@ -1114,14 +1115,15 @@ class SlideflowProject:
 								  expanded=expanded,
 								  tile_zoom=15,
 								  num_tiles_x=num_tiles_x,
-								  resolution=resolution)
+								  resolution=resolution,
+								  normalize=normalize)
 
 		mosaic_map.save(join(self.PROJECT['root'], 'stats'))
 		mosaic_map.save_report(join(self.PROJECT['root'], 'stats', 'mosaic_report.csv'))
 
 	def generate_mosaic_from_annotations(self, header_x, header_y, header_category=None, filters=None, focus_filters=None, resolution='low', num_tiles_x=50,
 											expanded=False, use_optimal_tile=False, model=None, max_tiles_per_slide=100, mosaic_filename=None, umap_filename=None,
-											activations_cache='default'):
+											activations_cache='default', normalize=None):
 
 		dataset = self.get_dataset(filters=filters, filter_blank=[header_x, header_y])
 		# We are assembling a list of slides from the TFRecords path list, because we only want to use slides that have a corresponding TFRecord
@@ -1180,7 +1182,8 @@ class SlideflowProject:
 								  tile_zoom=15,
 								  num_tiles_x=num_tiles_x,
 								  tile_select='centroid' if use_optimal_tile else 'nearest',
-								  resolution=resolution)
+								  resolution=resolution,
+								  normalize=normalize)
 
 		mosaic_map.save(mosaic_filename if mosaic_filename else join(self.PROJECT['root'], 'stats', 'Mosaic.png'))
 		mosaic_map.save_report(join(self.PROJECT['root'], 'stats', 'mosaic_report.csv'))
