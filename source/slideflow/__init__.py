@@ -32,7 +32,9 @@ from slideflow.statistics import TFRecordUMAP, calculate_centroid
 from slideflow.mosaic import Mosaic
 from comet_ml import Experiment
 
-__version__ = "1.8.1"
+# TODO: change Dataset handling to exclude tile size specificity in naming
+
+__version__ = "1.8.2"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -60,7 +62,7 @@ def evaluator(outcome_header, model, project_config, results_dict, filters=None,
 	hp = sfmodel.HyperParameters()
 	hp._load_dict(hp_data['hp'])
 	model_name = f"eval-{hp_data['model_name']}-{sfutil.path_to_name(model)}"
-	model_type = hp_data['model_type']
+	model_type = hp.model_type()
 
 	# Filter out slides that are blank in the outcome category
 	filter_blank = [outcome_header] if not isinstance(outcome_header, list) else outcome_header
@@ -70,13 +72,13 @@ def evaluator(outcome_header, model, project_config, results_dict, filters=None,
 						   sources=project_config['datasets'],
 						   annotations=project_config['annotations'],
 						   filters=filters)
-	outcomes, unique_outcomes = eval_dataset.get_outcomes_from_annotations(outcome_header, use_float=(model_type=='linear'))
+	outcomes, unique_outcomes = eval_dataset.get_outcomes_from_annotations(outcome_header, use_float=(hp.model_type()=='linear'))
 
 	# If using a specific k-fold, load validation plan
 	if eval_k_fold:
 		log.info(f"Using {sfutil.bold('k-fold iteration ' + str(eval_k_fold))}", 1)
 		validation_log = join(project_config['root'], "validation_plans.json")
-		_, eval_tfrecords = sfio.tfrecords.get_training_and_validation_tfrecords(eval_dataset, validation_log, outcomes, model_type,
+		_, eval_tfrecords = sfio.tfrecords.get_training_and_validation_tfrecords(eval_dataset, validation_log, outcomes, hp.model_type(),
 																									validation_target=hp_data['validation_target'],
 																									validation_strategy=hp_data['validation_strategy'],
 																									validation_fraction=hp_data['validation_fraction'],
@@ -96,7 +98,7 @@ def evaluator(outcome_header, model, project_config, results_dict, filters=None,
 																		validation_tfrecords=eval_tfrecords,
 																		manifest=eval_dataset.get_manifest(),
 																		use_fp16=project_config['use_fp16'],
-																		model_type=model_type)
+																		model_type=hp.model_type())
 
 	# Log model settings and hyperparameters
 	hp_file = join(model_dir, 'hyperparameters.json')
@@ -106,9 +108,9 @@ def evaluator(outcome_header, model, project_config, results_dict, filters=None,
 		"stage": "evaluation",
 		"tile_px": project_config['tile_px'],
 		"tile_um": project_config['tile_um'],
-		"model_type": model_type,
+		"model_type": hp.model_type(),
 		"outcome_headers": outcome_header,
-		"outcome_labels": None if model_type != 'categorical' else dict(zip(range(len(unique_outcomes)), unique_outcomes)),
+		"outcome_labels": None if hp.model_type() != 'categorical' else dict(zip(range(len(unique_outcomes)), unique_outcomes)),
 		"dataset_config": project_config['dataset_config'],
 		"datasets": project_config['datasets'],
 		"annotations": project_config['annotations'],
@@ -132,7 +134,7 @@ def evaluator(outcome_header, model, project_config, results_dict, filters=None,
 	results = SFM.evaluate(tfrecords=eval_tfrecords, 
 						   hp=hp,
 						   model=model,
-						   model_type=model_type,
+						   model_type=hp.model_type(),
 						   checkpoint=checkpoint,
 						   batch_size=flags['eval_batch_size'],
 						   max_tiles_per_slide=max_tiles_per_slide,
@@ -142,7 +144,8 @@ def evaluator(outcome_header, model, project_config, results_dict, filters=None,
 	results_dict['results'] = results
 	return results_dict
 
-def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, show_roi, resolution, interpolation, project_config, flags=None):
+def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, show_roi, resolution, interpolation, project_config, 
+						logit_cmap=None, skip_thumb=False, flags=None):
 	import slideflow.slide as sfslide
 	if not flags: flags = DEFAULT_FLAGS
 
@@ -153,17 +156,21 @@ def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, show
 		log.error(f"Invalid resolution '{resolution}': must be either 'low', 'medium', or 'high'.")
 		return
 
-	#for slide in slide_list:
+	if exists(join(save_folder, f'{sfutil.path_to_name(slide)}-custom.png')):
+		log.empty(f"Skipping already-completed heatmap for slide {sfutil.path_to_name(slide)}", 1)
+		return
+
 	heatmap = Heatmap(slide, model_path, project_config['tile_px'], project_config['tile_um'], 
 																	use_fp16=project_config['use_fp16'],
 																	stride_div=stride_div,
 																	save_folder=save_folder,
 																	roi_list=roi_list,
 																	thumb_folder=join(project_config['root'], 'thumbs'))
-	heatmap.generate(batch_size=flags['eval_batch_size'])
-	heatmap.save(show_roi=show_roi, interpolation=interpolation)
 
-def trainer(outcome_headers, model_name, model_type, project_config, results_dict, hp, validation_strategy, 
+	heatmap.generate(batch_size=flags['eval_batch_size'], skip_thumb=skip_thumb)
+	heatmap.save(show_roi=show_roi, interpolation=interpolation, logit_cmap=logit_cmap, skip_thumb=skip_thumb)
+
+def trainer(outcome_headers, model_name, project_config, results_dict, hp, validation_strategy, 
 			validation_target, validation_fraction, validation_k_fold, validation_log, validation_dataset=None, 
 			validation_annotations=None, validation_filters=None, k_fold_i=None, filters=None, pretrain=None, 
 			resume_training=None, checkpoint=None, validate_on_batch=0, validation_steps=200, max_tiles_per_slide=0, 
@@ -198,15 +205,15 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 							   filter_blank=outcome_headers)
 
 	# Load outcomes
-	outcomes, unique_outcomes = training_dataset.get_outcomes_from_annotations(outcome_headers, use_float=(model_type == 'linear'))
-	if model_type == 'categorical': 
+	outcomes, unique_outcomes = training_dataset.get_outcomes_from_annotations(outcome_headers, use_float=(hp.model_type() == 'linear'))
+	if hp.model_type() == 'categorical': 
 		outcome_labels = dict(zip(range(len(unique_outcomes)), unique_outcomes))
 	else:
 		outcome_labels = dict(zip(range(len(outcome_headers)), outcome_headers))
 
 	# Get TFRecords for training and validation
 	manifest = training_dataset.get_manifest()
-	training_tfrecords, validation_tfrecords = sfio.tfrecords.get_training_and_validation_tfrecords(training_dataset, validation_log, outcomes, model_type,
+	training_tfrecords, validation_tfrecords = sfio.tfrecords.get_training_and_validation_tfrecords(training_dataset, validation_log, outcomes, hp.model_type(),
 																									validation_target=validation_target,
 																									validation_strategy=validation_strategy,
 																									validation_fraction=validation_fraction,
@@ -221,7 +228,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 									 filter_blank=outcome_headers)
 		validation_tfrecords = validation_dataset.get_tfrecords()
 		manifest.update(validation_dataset.get_manifest())
-		validation_outcomes, _ = validation_dataset.get_outcomes_from_annotations(outcome_headers, use_float=(model_type == 'linear'))
+		validation_outcomes, _ = validation_dataset.get_outcomes_from_annotations(outcome_headers, use_float=(hp.model_type() == 'linear'))
 		outcomes.update(validation_outcomes)
 
 	# Initialize model
@@ -232,7 +239,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 	SFM = sfmodel.SlideflowModel(model_dir, project_config['tile_px'], outcomes, training_tfrecords, validation_tfrecords,
 																			manifest=manifest,
 																			use_fp16=project_config['use_fp16'],
-																			model_type=model_type)
+																			model_type=hp.model_type())
 
 	# Log model settings and hyperparameters
 	hp_file = join(project_config['models_dir'], full_model_name, 'hyperparameters.json')
@@ -241,7 +248,7 @@ def trainer(outcome_headers, model_name, model_type, project_config, results_dic
 		"stage": "training",
 		"tile_px": project_config['tile_px'],
 		"tile_um": project_config['tile_um'],
-		"model_type": model_type,
+		"model_type": hp.model_type(),
 		"outcome_headers": outcome_headers,
 		"outcome_labels": outcome_labels,
 		"dataset_config": project_config['dataset_config'],
@@ -404,12 +411,13 @@ class SlideflowProject:
 				
 			for row in batch_train_rows:
 				# Read hyperparameters
-				hp, hp_model_name = self._get_hp(row, header)
-				if hp_model_name not in hp_models_to_train: continue
-
-				# Verify HP combinations are valid
-				if not self._valid_hp(hp):
+				try:
+					hp, hp_model_name = self._get_hp(row, header)
+				except sfmodel.HyperParameterError as e:
+					log.error("Invalid Hyperparameter combination: " + str(e))
 					return
+
+				if hp_model_name not in hp_models_to_train: continue
 
 				hyperparameter_list += [[hp, hp_model_name]]
 		elif isinstance(hyperparameters, list) and isinstance(models, list):
@@ -417,11 +425,11 @@ class SlideflowProject:
 				log.error(f"Unable to iterate through hyperparameters provided; length of hyperparameters ({len(hyperparameters)}) much match length of models ({len(models)})", 1)
 				return
 			for i in range(len(models)):
-				if not self._valid_hp(hyperparameters[i]):
+				if not hyperparameters[i].validate():
 					return
 				hyperparameter_list += [[hyperparameters[i], models[i]]]
 		else:
-			if not self._valid_hp(hyperparameters):
+			if not hyperparameters.validate():
 				return
 			hyperparameter_list = [[hyperparameters, models]]
 		return hyperparameter_list
@@ -447,13 +455,6 @@ class SlideflowProject:
 						sys.exit()
 					models_to_train += [model_name]
 		return models_to_train
-
-	def _valid_hp(self, hp):
-		if (hp.model_type() != 'categorical' and ((hp.balanced_training == sfmodel.BALANCE_BY_CATEGORY) or 
-											    (hp.balanced_validation == sfmodel.BALANCE_BY_CATEGORY))):
-			log.error(f'Invalid hyperparameter combination: balancing type "{sfmodel.BALANCE_BY_CATEGORY}" and model type "{hp.model_type()}".', 1)
-			return False
-		return True
 
 	def add_dataset(self, name, slides, roi, tiles, tfrecords, label, path=None):
 		'''Adds a dataset to the dataset configuration file.
@@ -824,7 +825,8 @@ class SlideflowProject:
 					log.info(f'Interrupted tile extraction detected in {len(interrupted)} tfrecords, will re-extract these slides')
 					for interrupted_slide in interrupted:
 						log.empty(interrupted_slide, 2)
-						del(already_extracted_tfrecords[already_extracted_tfrecords.index(interrupted_slide)])
+						if interrupted_slide in already_extracted_tfrecords:
+							del(already_extracted_tfrecords[already_extracted_tfrecords.index(interrupted_slide)])
 					
 				slide_list = [slide for slide in slide_list if sfutil.path_to_name(slide) not in already_extracted_tfrecords]
 				if len(already_extracted_tfrecords):
@@ -852,7 +854,8 @@ class SlideflowProject:
 
 			# Function to extract tiles from a slide
 			def extract_tiles_from_slide(slide_path, pb):
-				log.empty(f"Exporting tiles for slide {sfutil.path_to_name(slide_path)}", 1, pb.print)
+				print_func = print if not pb else pb.print
+				log.empty(f"Exporting tiles for slide {sfutil.path_to_name(slide_path)}", 1, print_func)
 
 				if not tma:
 					whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample, 
@@ -874,7 +877,7 @@ class SlideflowProject:
 										 split_names=split_names)
 
 			# Use multithreading if specified, extracting tiles from all slides in the filtered list
-			if self.FLAGS['num_threads'] > 1:
+			if self.FLAGS['num_threads'] > 1 and len(slide_list):
 				pool = DPool(self.FLAGS['num_threads'])
 				pool.map(partial(extract_tiles_from_slide, pb=pb), slide_list)
 				pool.close()
@@ -882,8 +885,11 @@ class SlideflowProject:
 				for slide_path in slide_list:
 					extract_tiles_from_slide(slide_path, pb)
 
+		# Update manifest
+		self.update_manifest()
+
 	def generate_activations_analytics(self, model, outcome_header=None, filters=None, focus_nodes=[], node_exclusion=False, activations_export=None,
-										umap_cache='default', activations_cache='default'):
+										activations_cache='default'):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.
 		
 		Note: GPU memory will remain in use, as the Keras model associated with the visualizer is active.'''
@@ -904,12 +910,11 @@ class SlideflowProject:
 								   focus_nodes=focus_nodes,
 								   use_fp16=self.PROJECT['use_fp16'],
 								   activations_export=activations_export,
-								   activations_cache=activations_cache,
-								   umap_cache=umap_cache)
+								   activations_cache=activations_cache)
 
 		return AV
 
-	def generate_heatmaps(self, model, filters=None, resolution='low', interpolation='none', show_roi=True, single_thread=False):
+	def generate_heatmaps(self, model, filters=None, directory=None, resolution='low', interpolation='none', show_roi=True, logit_cmap=None, skip_thumb=False, single_thread=False):
 		'''Creates predictive heatmap overlays on a set of slides. 
 
 		Args:
@@ -937,7 +942,7 @@ class SlideflowProject:
 				detected_model_name = loaded_hp['model_name']
 		
 		# Make output directory
-		heatmaps_folder = os.path.join(self.PROJECT['root'], 'heatmaps', detected_model_name)
+		heatmaps_folder = directory if directory else os.path.join(self.PROJECT['root'], 'heatmaps', detected_model_name)
 		if not exists(heatmaps_folder): os.makedirs(heatmaps_folder)
 
 		# Heatmap processes
@@ -945,17 +950,18 @@ class SlideflowProject:
 		for slide in slide_list:
 			if single_thread:
 				heatmap_generator(slide, model, model_path, heatmaps_folder, roi_list, show_roi,
-									resolution, interpolation, self.PROJECT, self.FLAGS)
+									resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb, self.FLAGS)
 			else:
 				process = ctx.Process(target=heatmap_generator, args=(slide, model, model_path, heatmaps_folder, roi_list, show_roi, 
-																		resolution, interpolation, self.PROJECT, self.FLAGS))
+																		resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb, self.FLAGS))
 				process.start()
 				log.empty(f"Spawning heatmaps process (PID: {process.pid})")
 				process.join()
 
 	def generate_mosaic(self, model, header_category=None, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, max_tiles_per_slide=100,
-						expanded=False, show_prediction=False, map_centroid=False, cmap=None, umap_cache='default', activations_cache='default', 
-						mosaic_filename=None, umap_filename=None, activations_export=None, umap_export=None):
+						expanded=False, map_centroid=False, show_prediction=None, restrict_prediction=None, outcome_labels=None, cmap=None, model_type=None,
+						umap_cache='default', activations_cache='default', mosaic_filename=None, umap_filename=None, activations_export=None, umap_export=None,
+						use_float=False):
 		'''Generates a mosaic map with dimensionality reduction on penultimate layer activations. Tile data is extracted from the provided
 		set of TFRecords and predictions are calculated using the specified model.
 		
@@ -970,18 +976,9 @@ class SlideflowProject:
 
 		log.header("Generating mosaic map...")
 
+		# Prepare dataset & model
 		mosaic_dataset = self.get_dataset(filters=filters)
-
-		if header_category:
-			outcomes_category, unique_outcomes = mosaic_dataset.get_outcomes_from_annotations(header_category)
-			slide_to_category = {k:unique_outcomes[v['outcome']] for k, v in outcomes_category.items()}
-		else:
-			slide_to_category = {}
-
 		tfrecords_list = mosaic_dataset.get_tfrecords()
-
-		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
-
 		if focus_filters:
 			mosaic_dataset.apply_filters(focus_filters)
 			focus_list = mosaic_dataset.get_tfrecords()
@@ -989,69 +986,104 @@ class SlideflowProject:
 			focus_list = None
 		log.info(f"Generating mosaic from {len(tfrecords_list)} slides, with focus on {0 if not focus_list else len(focus_list)} slides.", 1)
 
-		AV = ActivationsVisualizer(model=model_path,
-								tfrecords=tfrecords_list, 
-								root_dir=self.PROJECT['root'],
-								image_size=self.PROJECT['tile_px'],
-								focus_nodes=None,
-								use_fp16=self.PROJECT['use_fp16'],
-								batch_size=self.FLAGS['eval_batch_size'],
-								activations_export=activations_export,
-								max_tiles_per_slide=max_tiles_per_slide,
-								activations_cache=activations_cache,
-								umap_cache=umap_cache)
-		if map_centroid:
-			log.info("Calculating centroid indices for slide-level UMAP...", 1)
-			optimal_slide_indices, centroid_activations = calculate_centroid(AV.slide_node_dict)
-			
-			# Restrict mosaic to only slides that had enough tiles to calculate an optimal index from centroid
-			successful_slides = list(optimal_slide_indices.keys())
-			num_warned = 0
-			warn_threshold = 3
-			for slide in mosaic_dataset.get_slides():
-				print_func = print if num_warned < warn_threshold else None
-				if slide not in successful_slides:
-					log.warn(f"Unable to calculate centroid for slide {sfutil.green(slide)}; will not include in Mosaic", 1, print_func)
-					num_warned += 1
-			if num_warned >= warn_threshold:
-				log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
-
-			# Generate mosaic from centroid
-			if umap_cache == 'default':
-				umap_cache = join(self.PROJECT['root'], 'stats', 'umap_cache.pkl')
-			else:
-				umap_cache = join(self.PROJECT['root'], 'stats', umap_cache)
-
-			umap = TFRecordUMAP(tfrecords=mosaic_dataset.get_tfrecords(), slides=successful_slides, cache=umap_cache)
-			umap.calculate_from_centroid(centroid_activations, optimal_slide_indices)
-			umap.save_2d_plot(umap_filename if umap_filename else join(self.PROJECT['root'], 'stats', '2d_mosaic_umap.png'), slide_to_category, show_prediction=show_prediction, cmap=cmap)
-
-			if umap_export:
-				umap.export_to_csv(umap_export)
-
-			if mosaic_filename:
-				mosaic = Mosaic(umap, leniency=1.5,
-									expanded=expanded,
-									tile_zoom=15,
-									num_tiles_x=num_tiles_x,
-									resolution=resolution)
-				mosaic.save(mosaic_filename if mosaic_filename else join(self.STATS_ROOT, 'Mosaic.png'))
-			
+		# Set up paths
+		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
+		if umap_cache == 'default':
+			umap_cache = join(self.PROJECT['root'], 'stats', 'umap_cache.pkl')
 		else:
-			AV.calculate_umap()
-			AV.umap.save_2d_plot(umap_filename if umap_filename else join(self.PROJECT['root'], 'stats', '2d_mosaic_umap.png'), slide_to_category, show_prediction=show_prediction, cmap=cmap)
-			
-			if umap_export:
-				AV.umap.export_to_csv(umap_export)
+			umap_cache = join(self.PROJECT['root'], 'stats', umap_cache)
 
-			if mosaic_filename:
-				mosaic = Mosaic(AV.umap,leniency=1.5,
-										expanded=expanded,
-										tile_zoom=15,
-										num_tiles_x=num_tiles_x,
-										resolution=resolution)
-				mosaic.focus(focus_list)
-				mosaic.save(mosaic_filename if mosaic_filename else join(self.STATS_ROOT, 'Mosaic.png'))
+		# If a header category is supplied and we are not showing predictions, then assign slide labels from annotations
+		if header_category and (show_prediction is None):
+			outcomes_category, unique_outcomes = mosaic_dataset.get_outcomes_from_annotations(header_category, use_float=use_float)
+			if use_float:
+				slide_labels = {k:outcomes_category[k]['outcome'] for k, v in outcomes_category.items()}
+			else:
+				slide_labels = {k:unique_outcomes[v['outcome']] for k, v in outcomes_category.items()}			
+		else:
+			slide_labels = {}
+
+		# If showing predictions, try to automatically load prediction labels
+		if (show_prediction is not None) and (not outcome_labels):
+			if exists(join(dirname(model_path), 'hyperparameters.json')):
+				model_hyperparameters = sfutil.load_json(join(dirname(model_path), 'hyperparameters.json'))
+				outcome_labels = model_hyperparameters['outcome_labels']
+				model_type = model_type if model_type else model_hyperparameters['model_type']
+				log.info(f'Automatically loaded prediction labels found at {sfutil.green(dirname(model_path))}', 1)
+			else:
+				log.info(f'Unable to auto-detect prediction labels from model hyperparameters file', 1)
+				
+		# Initialize mosaic, umap, and ActivationsVisualizer
+		mosaic, umap = None, None
+
+		AV = ActivationsVisualizer(model=model_path,
+								   tfrecords=tfrecords_list, 
+								   root_dir=self.PROJECT['root'],
+								   image_size=self.PROJECT['tile_px'],
+								   focus_nodes=None,
+								   use_fp16=self.PROJECT['use_fp16'],
+								   batch_size=self.FLAGS['eval_batch_size'],
+								   activations_export=activations_export,
+								   max_tiles_per_slide=max_tiles_per_slide,
+								   activations_cache=activations_cache)
+
+		umap = TFRecordUMAP.from_activations(AV, use_centroid=map_centroid, prediction_filter=restrict_prediction, cache=umap_cache)
+
+		# If displaying centroid AND predictions, then show slide-level predictions rather than tile-level predictions
+		if map_centroid and show_prediction is not None:
+			log.info("Showing slide-level predictions at point of centroid", 1)
+
+			# If not model has not been assigned, assume categorical model
+			model_type = model_type if model_type else 'categorical'
+
+			# Get predictions
+			slide_predictions, slide_percentages = AV.get_slide_level_predictions(model_type=model_type, prediction_filter=restrict_prediction)
+
+			# Assign outcome label to prediction
+			# If show_prediction is provided (either a number or string), then display ONLY the prediction for the provided category, as a colormap
+			if type(show_prediction) == int:
+				log.info(f"Showing prediction for outcome {show_prediction} as colormap", 1)
+				slide_labels = {k:v[show_prediction] for k, v in slide_percentages.items()}
+				show_prediction = None
+				use_float = True
+			elif type(show_prediction) == str:
+				log.info(f"Showing prediction for outcome {show_prediction} as colormap", 1)
+				reversed_labels = {v:k for k, v in outcome_labels.items()}
+				if show_prediction not in reversed_labels:
+					raise ValueError(f"Unknown outcome category `{show_prediction}`")
+				slide_labels = {k:v[int(reversed_labels[show_prediction])] for k, v in slide_percentages.items()}
+				show_prediction = None
+				use_float = True
+			elif use_float:
+				# Displaying linear predictions needs to be implemented here
+				raise TypeError("If showing prediction and use_float is True, please pass desired outcome category for prediction to `show_prediction`.")
+			# Otherwise, show_prediction is assumed to be just "True", in which case show categorical predictions
+			else:
+				try:
+					slide_labels = {k:outcome_labels[v] for (k,v) in slide_predictions.items()}
+				except KeyError:
+					# Try interpreting prediction label keys as strings
+					slide_labels = {k:outcome_labels[str(v)] for (k,v) in slide_predictions.items()}
+
+		umap.save_2d_plot(umap_filename if umap_filename else join(self.PROJECT['root'], 'stats', '2d_mosaic_umap.png'), slide_labels=slide_labels,
+																														 slide_filter=mosaic_dataset.get_slides(),
+																														 show_tile_meta='prediction' if (show_prediction and not map_centroid) else None,
+																														 outcome_labels=outcome_labels,
+																														 cmap=cmap,
+																														 use_float=use_float)
+		if umap_export:
+			umap.export_to_csv(umap_export)
+
+		if mosaic_filename:
+			mosaic = Mosaic(umap, leniency=1.5,
+								expanded=expanded,
+								tile_zoom=15,
+								num_tiles_x=num_tiles_x,
+								resolution=resolution)
+			mosaic.focus(focus_list)
+			mosaic.save(mosaic_filename if mosaic_filename else join(self.STATS_ROOT, 'Mosaic.png'))
+			
+		return AV, mosaic, umap
 
 	def generate_mosaic_from_predictions(self, model, x, y, filters=None, focus_filters=None, header_category=None, resolution='low', num_tiles_x=50,
 											expanded=False, max_tiles_per_slide=0):
@@ -1070,8 +1102,12 @@ class SlideflowProject:
 
 		umap_x, umap_y, umap_meta = AV.get_mapped_predictions(x, y)
 
-		umap = TFRecordUMAP(tfrecords=dataset.get_tfrecords(), slides=dataset.get_slides())
-		umap.load_precalculated(umap_x, umap_y, umap_meta)
+		umap = TFRecordUMAP.from_precalculated(tfrecords=dataset.get_tfrecords(),
+											   slides=dataset.get_slides(),
+											   x=umap_x,
+											   y=umap_y,
+											   meta=umap_meta)
+ 
 		umap.save_2d_plot(join(self.PROJECT['root'], 'stats', '2d_mosaic_umap.png'), slide_to_category)
 
 		mosaic_map = Mosaic(umap, leniency=1.5,
@@ -1081,12 +1117,16 @@ class SlideflowProject:
 								  resolution=resolution)
 
 		mosaic_map.save(join(self.PROJECT['root'], 'stats'))
+		mosaic_map.save_report(join(self.PROJECT['root'], 'stats', 'mosaic_report.csv'))
 
 	def generate_mosaic_from_annotations(self, header_x, header_y, header_category=None, filters=None, focus_filters=None, resolution='low', num_tiles_x=50,
-											expanded=False, use_optimal_tile=False, model=None, max_tiles_per_slide=0):
+											expanded=False, use_optimal_tile=False, model=None, max_tiles_per_slide=100, mosaic_filename=None, umap_filename=None,
+											activations_cache='default'):
 
-		dataset = self.get_dataset(filters=filters, filter_blank=[header_x, header_y])		
-		slides = dataset.get_slides()
+		dataset = self.get_dataset(filters=filters, filter_blank=[header_x, header_y])
+		# We are assembling a list of slides from the TFRecords path list, because we only want to use slides that have a corresponding TFRecord
+		#  (some slides did not have a large enough ROI for tile extraction, and some slides may be in the annotations but are missing a slide image)
+		slides = [sfutil.path_to_name(tfr) for tfr in dataset.get_tfrecords()]
 		outcomes, _ = dataset.get_outcomes_from_annotations([header_x, header_y], use_float=True)
 		outcomes_category, unique_outcomes = dataset.get_outcomes_from_annotations(header_category)
 		slide_to_category = {k:unique_outcomes[v['outcome']] for k, v in outcomes_category.items()}
@@ -1105,7 +1145,8 @@ class SlideflowProject:
 									   image_size=self.PROJECT['tile_px'],
 									   use_fp16=self.PROJECT['use_fp16'],
 									   batch_size=self.FLAGS['eval_batch_size'],
-									   max_tiles_per_slide=max_tiles_per_slide)
+									   max_tiles_per_slide=max_tiles_per_slide,
+									   activations_cache='default')
 
 			optimal_slide_indices, _ = calculate_centroid(AV.slide_node_dict)
 
@@ -1128,17 +1169,36 @@ class SlideflowProject:
 			# Take the first tile from each slide/TFRecord
 			umap_meta = [{'slide': slide, 'index': 0} for slide in slides]
 
-		umap = TFRecordUMAP(tfrecords=dataset.get_tfrecords(), slides=slides)
-		umap.load_precalculated(umap_x, umap_y, umap_meta)
+		umap = TFRecordUMAP.from_precalculated(tfrecords=dataset.get_tfrecords(),
+											   slides=slides,
+											   x=umap_x,
+											   y=umap_y,
+											   meta=umap_meta)
 
 		mosaic_map = Mosaic(umap, leniency=1.5,
 								  expanded=expanded,
 								  tile_zoom=15,
 								  num_tiles_x=num_tiles_x,
+								  tile_select='centroid' if use_optimal_tile else 'nearest',
 								  resolution=resolution)
 
-		mosaic_map.save(join(self.PROJECT['root'], 'stats'))
-		umap.save_2d_plot(join(self.PROJECT['root'], 'stats', '2d_mosaic_umap.png'), slide_to_category)
+		mosaic_map.save(mosaic_filename if mosaic_filename else join(self.PROJECT['root'], 'stats', 'Mosaic.png'))
+		mosaic_map.save_report(join(self.PROJECT['root'], 'stats', 'mosaic_report.csv'))
+		umap.save_2d_plot(umap_filename if umap_filename else join(self.PROJECT['root'], 'stats', '2d_mosaic_umap.png'), slide_to_category)
+
+	def generate_thumbnails(self, filters=None, filter_blank=None, enable_downsample=False):
+		'''Generates slide thumbnails and saves to project folder.'''
+		log.header('Generating thumbnails...')
+
+		thumb_folder = join(self.PROJECT['root'], 'thumbs')
+		dataset = self.get_dataset(filters=filters, filter_blank=filter_blank)		
+		slide_list = dataset.get_slide_paths(dataset=dataset_name)
+		log.info(f"Saving thumbnails to {sfutil.green(thumb_folder)}", 1)
+
+		for slide_path in slide_list:
+			log.empty(f"Working on {sfutil.green(sfutil.path_to_name(slide_path))}...", 1)
+			whole_slide = sfslide.SlideReader(slide_path, 0, 0, 1, enable_downsample=enable_downsample,
+																   skip_missing_roi=False)
 
 	def generate_tfrecords_from_tiles(self, delete_tiles=True):
 		'''Create tfrecord files from a collection of raw images'''
@@ -1244,8 +1304,8 @@ class SlideflowProject:
 		sfutil.write_json(self.PROJECT, join(self.PROJECT['root'], 'settings.json'))
 
 	def train(self, models=None, outcome_header='category', multi_outcome=False, filters=None, resume_training=None, checkpoint=None, 
-				pretrain='imagenet', batch_file=None, hyperparameters=None, model_type='categorical',
-				validation_target=None, validation_strategy=None, validation_fraction=None, validation_k_fold=None, k_fold_iter=None,
+				pretrain='imagenet', batch_file=None, hyperparameters=None, validation_target=None, validation_strategy=None,
+				validation_fraction=None, validation_k_fold=None, k_fold_iter=None,
 				validation_dataset=None, validation_annotations=None, validation_filters=None, validate_on_batch=256, validation_steps=200,
 				max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0):
 		'''Train model(s) given configurations found in batch_train.tsv.
@@ -1265,7 +1325,6 @@ class SlideflowProject:
 			pretrain:				Pretrained weights to load. Default is imagenet. May supply a compatible .h5 file from which to load weights.
 			batch_file:				Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.
 			hyperparameters:		Manually specify hyperparameter combination to use for training. If specified, will ignore batch training file.
-			model_type:				Type of output variable, either categorical (default) or linear.
 			validation_target: 		Whether to select validation data on a 'per-patient' or 'per-tile' basis. If not specified, will use project default.
 			validation_strategy:	Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.
 			validation_fraction:	Fraction of data to use for validation testing. If not specified, will use project default.
@@ -1290,10 +1349,6 @@ class SlideflowProject:
 		validation_log = join(self.PROJECT['root'], "validation_plans.json")
 
 		# Quickly scan for errors (duplicate model names in batch training file) and prepare models to train
-		if multi_outcome and model_type != "linear":
-			log.error("Multiple outcome variables only supported for linear outcome variables.")
-			sys.exit()
-
 		if hyperparameters and not models:
 			log.error("If specifying hyperparameters, 'models' must be supplied. ", 1)
 			return
@@ -1329,6 +1384,9 @@ class SlideflowProject:
 		for selected_outcome_headers in outcome_header:
 			# For each hyperparameter combination, perform training
 			for hp, hp_model_name in hyperparameter_list:
+				if multi_outcome and hp.model_type() != 'linear':
+					log.error("Multiple outcome variables only supported for linear outcome variables.")
+					return
 				# Generate model name
 				if isinstance(selected_outcome_headers, list):
 					outcome_string = "-".join(selected_outcome_headers)
@@ -1341,8 +1399,8 @@ class SlideflowProject:
 
 				def start_training_process(k):
 					# Using a separate process ensures memory is freed once training has completed
-					process = ctx.Process(target=trainer, args=(selected_outcome_headers, model_name, model_type, 
-																self.PROJECT, results_dict, hp, validation_strategy, 
+					process = ctx.Process(target=trainer, args=(selected_outcome_headers, model_name,self.PROJECT,
+																results_dict, hp, validation_strategy, 
 																validation_target, validation_fraction, validation_k_fold, 
 																validation_log, validation_dataset, validation_annotations,
 																validation_filters, k, filters, pretrain, resume_training, 
