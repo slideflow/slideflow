@@ -111,6 +111,7 @@ class HyperParameters:
 		#'ResNeXt50': tf.keras.applications.ResNeXt50,
 		#'ResNeXt101': tf.keras.applications.ResNeXt101,
 		'InceptionV3': tf.keras.applications.InceptionV3,
+		'NASNetLarge': tf.keras.applications.NASNetLarge,
 		'InceptionResNetV2': tf.keras.applications.InceptionResNetV2,
 		'MobileNet': tf.keras.applications.MobileNet,
 		'MobileNetV2': tf.keras.applications.MobileNetV2,
