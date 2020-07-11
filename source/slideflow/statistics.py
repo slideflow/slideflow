@@ -554,10 +554,12 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	sys.stdout.flush()
 	y_pred = np.concatenate(y_pred)
 	y_true = np.concatenate(y_true)
-	num_true_outcome_categories = max(y_true)+1
 
-	if num_true_outcome_categories != len(y_pred[0]):
-		log.warn(f"Model predictions have different number of outcome categories ({len(y_pred[0])}) than provided annotations ({num_true_outcome_categories})!", 1)
+	if model_type == 'categorical':
+		num_true_outcome_categories = max(y_true)+1
+		if num_true_outcome_categories != len(y_pred[0]):
+			log.warn(f"Model predictions have different number of outcome categories ({len(y_pred[0])}) than provided annotations ({num_true_outcome_categories})!", 1)
+
 	num_tiles = len(tile_to_slides)
 	unique_slides = list(set(tile_to_slides))
 
