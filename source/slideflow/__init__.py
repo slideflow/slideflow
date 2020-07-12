@@ -32,9 +32,7 @@ from slideflow.statistics import TFRecordUMAP, calculate_centroid
 from slideflow.mosaic import Mosaic
 from comet_ml import Experiment
 
-# TODO: change Dataset handling to exclude tile size specificity in naming
-
-__version__ = "1.8.2"
+__version__ = "1.9.0a"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -70,6 +68,8 @@ def evaluator(outcome_header, model, project_config, results_dict, filters=None,
 	# Load dataset and annotations for evaluation
 	eval_dataset = Dataset(config_file=project_config['dataset_config'],
 						   sources=project_config['datasets'],
+						   tile_px=hp.tile_px,
+						   tile_um=hp.tile_um,
 						   annotations=project_config['annotations'],
 						   filters=filters)
 	outcomes, unique_outcomes = eval_dataset.get_outcomes_from_annotations(outcome_header, use_float=(hp.model_type()=='linear'))
@@ -93,12 +93,11 @@ def evaluator(outcome_header, model, project_config, results_dict, filters=None,
 	model_dir = join(project_config['models_dir'], model_name)
 
 	# Build a model using the slide list as input and the annotations dictionary as output labels
-	SFM = sfmodel.SlideflowModel(model_dir, project_config['tile_px'], outcomes, 
-																		train_tfrecords=None,
-																		validation_tfrecords=eval_tfrecords,
-																		manifest=eval_dataset.get_manifest(),
-																		use_fp16=project_config['use_fp16'],
-																		model_type=hp.model_type())
+	SFM = sfmodel.SlideflowModel(model_dir, hp.tile_px, outcomes, train_tfrecords=None,
+																  validation_tfrecords=eval_tfrecords,
+																  manifest=eval_dataset.get_manifest(),
+																  use_fp16=project_config['use_fp16'],
+																  model_type=hp.model_type())
 
 	# Log model settings and hyperparameters
 	hp_file = join(model_dir, 'hyperparameters.json')
@@ -106,8 +105,6 @@ def evaluator(outcome_header, model, project_config, results_dict, filters=None,
 		"model_name": model_name,
 		"model_path": model,
 		"stage": "evaluation",
-		"tile_px": project_config['tile_px'],
-		"tile_um": project_config['tile_um'],
 		"model_type": hp.model_type(),
 		"outcome_headers": outcome_header,
 		"outcome_labels": None if hp.model_type() != 'categorical' else dict(zip(range(len(unique_outcomes)), unique_outcomes)),
@@ -160,12 +157,13 @@ def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, show
 		log.empty(f"Skipping already-completed heatmap for slide {sfutil.path_to_name(slide)}", 1)
 		return
 
-	heatmap = Heatmap(slide, model_path, project_config['tile_px'], project_config['tile_um'], 
-																	use_fp16=project_config['use_fp16'],
-																	stride_div=stride_div,
-																	save_folder=save_folder,
-																	roi_list=roi_list,
-																	thumb_folder=join(project_config['root'], 'thumbs'))
+	hp_data = sfutil.load_json(join(dirname(model_path), 'hyperparameters.json'))
+
+	heatmap = Heatmap(slide, model_path, hp_data['tile_px'], hp_data['tile_um'],use_fp16=project_config['use_fp16'],
+																				stride_div=stride_div,
+																				save_folder=save_folder,
+																				roi_list=roi_list,
+																				thumb_folder=join(project_config['root'], 'thumbs'))
 
 	heatmap.generate(batch_size=flags['eval_batch_size'], skip_thumb=skip_thumb)
 	heatmap.save(show_roi=show_roi, interpolation=interpolation, logit_cmap=logit_cmap, skip_thumb=skip_thumb)
@@ -200,6 +198,8 @@ def trainer(outcome_headers, model_name, project_config, results_dict, hp, valid
 	# Load dataset and annotations for training
 	training_dataset = Dataset(config_file=project_config['dataset_config'],
 							   sources=project_config['datasets'],
+							   tile_px=hp.tile_px,
+							   tile_um=hp.tile_um,
 							   annotations=project_config['annotations'],
 							   filters=filters,
 							   filter_blank=outcome_headers)
@@ -236,7 +236,7 @@ def trainer(outcome_headers, model_name, project_config, results_dict, hp, valid
 	model_dir = join(project_config['models_dir'], full_model_name)
 
 	# Build a model using the slide list as input and the annotations dictionary as output labels
-	SFM = sfmodel.SlideflowModel(model_dir, project_config['tile_px'], outcomes, training_tfrecords, validation_tfrecords,
+	SFM = sfmodel.SlideflowModel(model_dir, hp.tile_px, outcomes, training_tfrecords, validation_tfrecords,
 																			manifest=manifest,
 																			use_fp16=project_config['use_fp16'],
 																			model_type=hp.model_type())
@@ -246,8 +246,8 @@ def trainer(outcome_headers, model_name, project_config, results_dict, hp, valid
 	hp_data = {
 		"model_name": model_name,
 		"stage": "training",
-		"tile_px": project_config['tile_px'],
-		"tile_um": project_config['tile_um'],
+		"tile_px": hp.tile_px,
+		"tile_um": hp.tile_um,
 		"model_type": hp.model_type(),
 		"outcome_headers": outcome_headers,
 		"outcome_labels": outcome_labels,
@@ -456,7 +456,7 @@ class SlideflowProject:
 					models_to_train += [model_name]
 		return models_to_train
 
-	def add_dataset(self, name, slides, roi, tiles, tfrecords, label, path=None):
+	def add_dataset(self, name, slides, roi, tiles, tfrecords, path=None):
 		'''Adds a dataset to the dataset configuration file.
 
 		Args:
@@ -464,8 +464,7 @@ class SlideflowProject:
 			slides:		Path to directory containing slides.
 			roi:		Path to directory containing CSV ROIs.
 			tiles:		Path to directory in which to store extracted tiles.
-			tfrecords:	Path to directory in which to store TFRecords of extracted tiles.
-			label:		Label to give dataset (typically identifies tile size in pixels/microns).'''
+			tfrecords:	Path to directory in which to store TFRecords of extracted tiles.'''
 
 		if not path:
 			path = self.PROJECT['dataset_config']
@@ -478,18 +477,15 @@ class SlideflowProject:
 			'roi': roi,
 			'tiles': tiles,
 			'tfrecords': tfrecords,
-			'label': label
 		}})
 		sfutil.write_json(datasets_data, path)
 		log.info(f"Saved dataset {name} to {path}")
 
 	def associate_slide_names(self):
-		'''Experimental function used to automatically associated patient names with slide filenames in the annotations file.'''
+		'''Experimental function used to automatically associate patient names with slide filenames in the annotations file.'''
 		log.header("Associating slide names...")
-		# Load dataset
-		dataset = self.get_dataset()
+		dataset = self.get_dataset(tile_px=0, tile_um=0, verification=False)
 		dataset.update_annotations_with_slidenames(self.PROJECT['annotations'])
-		#dataset.load_annotations()
 
 	def create_blank_annotations_file(self, outfile=None):
 		'''Creates an example blank annotations file.'''
@@ -606,7 +602,6 @@ class SlideflowProject:
 								 roi=dataset_roi,
 								 tiles=dataset_tiles,
 								 tfrecords=dataset_tfrecords,
-								 label=NO_LABEL,
 								 path=project['dataset_config'])
 
 				print("Updated dataset configuration file.")
@@ -620,8 +615,6 @@ class SlideflowProject:
 		# Training
 		project['models_dir'] = sfutil.dir_input("Where should the saved models be stored? [./models] ",
 									root=project['root'], default='./models', create_on_invalid=True)
-		project['tile_um'] = sfutil.int_input("What is the tile width in microns? [280] ", default=280)
-		project['tile_px'] = sfutil.int_input("What is the tile width in pixels? [224] ", default=224)
 		project['use_fp16'] = sfutil.yes_no_input("Should FP16 be used instead of FP32? (recommended) [Y/n] ", default='yes')
 		project['batch_train_config'] = sfutil.file_input("Location for the batch training TSV config file? [./batch_train.tsv] ",
 													root=project['root'], default='./batch_train.tsv', filetype='tsv', verify=False)
@@ -685,7 +678,7 @@ class SlideflowProject:
 
 		return results_dict
 
-	def extract_dual_tiles(self, tile_um=None, tile_px=None, stride_div=1, filters=None):
+	def extract_dual_tiles(self, tile_um, tile_px, stride_div=1, filters=None):
 		import slideflow.slide as sfslide
 		import tensorflow as tf
 		from PIL import Image
@@ -694,11 +687,8 @@ class SlideflowProject:
 		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 		Image.MAX_IMAGE_PIXELS = 100000000000
 
-		tile_um = self.PROJECT['tile_um'] if not tile_um else tile_um
-		tile_px = self.PROJECT['tile_px'] if not tile_px else tile_px
-
 		log.header("Extracting dual-image tiles...")
-		extracting_dataset = get_dataset(filters=filters)
+		extracting_dataset = self.get_dataset(filters=filters, tile_px=tile_px, tile_um=tile_um)
 
 		def extract_tiles_from_slide(slide_path, roi_list, dataset_config, pb):
 			root_path = join(dataset_config["tfrecords"], dataset_config["label"])
@@ -748,16 +738,16 @@ class SlideflowProject:
 				for slide_path in slide_list:
 					extract_tiles_from_slide(slide_path, roi_list, dataset_config, pb)
 		
-		self.update_manifest()
+		extracting_dataset.update_manifest()
 
-	def extract_tiles(self, tile_um=None, tile_px=None, filters=None, stride_div=1, tma=False, save_tiles=False, save_tfrecord=True,
+	def extract_tiles(self, tile_px, tile_um, filters=None, stride_div=1, tma=False, save_tiles=False, save_tfrecord=True,
 						delete_tiles=True, enable_downsample=False, roi_method='inside', skip_missing_roi=True, skip_extracted=True, dataset=None):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.
 		
 		Args:
-			tile_um:			Tile size in microns. If None, will use project default.
-			tile_px:			Tile size in pixels. If None, will use project default.
+			tile_px:			Tile size in pixels.
+			tile_um:			Tile size in microns.
 			filters:			Dataset filters to use when selecting slides for tile extraction.
 			stride_div:			Stride divisor to use when extracting tiles. A stride of 1 will extract non-overlapping tiles. 
 									A stride_div of 2 will extract overlapping tiles, with a stride equal to 50% of the tile width.
@@ -775,9 +765,6 @@ class SlideflowProject:
 		Image.MAX_IMAGE_PIXELS = 100000000000
 
 		log.header("Extracting image tiles...")
-		tile_um = self.PROJECT['tile_um'] if not tile_um else tile_um
-		tile_px = self.PROJECT['tile_px'] if not tile_px else tile_px
-		#self.FLAGS['num_threads'] = 1
 
 		if not save_tiles and not save_tfrecord:
 			log.error("Either save_tiles or save_tfrecord must be true to extract tiles.", 1)
@@ -787,7 +774,7 @@ class SlideflowProject:
 		else:		datasets = self.PROJECT['datasets']
 
 		# Load dataset for evaluation
-		extracting_dataset = self.get_dataset(filters=filters)
+		extracting_dataset = self.get_dataset(filters=filters, tile_px=tile_px, tile_um=tile_um)
 
 		# Prepare validation/training subsets if per-tile validation is being used
 		if self.PROJECT['validation_target'] == 'per-tile':
@@ -885,8 +872,8 @@ class SlideflowProject:
 				for slide_path in slide_list:
 					extract_tiles_from_slide(slide_path, pb)
 
-		# Update manifest
-		self.update_manifest()
+			# Update manifest
+			extracting_dataset.update_manifest()
 
 	def generate_activations_analytics(self, model, outcome_header=None, filters=None, focus_nodes=[], node_exclusion=False, activations_export=None,
 										activations_cache='default'):
@@ -896,15 +883,19 @@ class SlideflowProject:
 		log.header("Generating final layer activation analytics...")
 
 		# Load dataset for evaluation
-		activations_dataset = self.get_dataset(filters=filters)
-		tfrecords_list = activations_dataset.get_tfrecords(ask_to_merge_subdirs=True)
 		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
+		hp_data = sfutil.load_json(join(dirname(model_path), 'hyperparameters.json'))
+		activations_dataset = self.get_dataset(filters=filters,
+											   tile_px=hp_data['hp']['tile_px'],
+											   tile_um=hp_data['hp']['tile_um'])
+		tfrecords_list = activations_dataset.get_tfrecords(ask_to_merge_subdirs=True)
+
 		log.info(f"Visualizing activations from {len(tfrecords_list)} slides", 1)
 
 		AV = ActivationsVisualizer(model=model_path,
 								   tfrecords=tfrecords_list,
 								   root_dir=self.PROJECT['root'],
-								   image_size=self.PROJECT['tile_px'],
+								   image_size=hp_data['hp']['tile_px'],
 								   annotations=self.PROJECT['annotations'],
 								   outcome_header=outcome_header,
 								   focus_nodes=focus_nodes,
@@ -928,10 +919,13 @@ class SlideflowProject:
 		log.header("Generating heatmaps...")
 
 		# Prepare dataset
-		heatmaps_dataset = self.get_dataset(filters=filters)
+		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
+		hp_data = sfutil.load_json(join(dirname(model_path), 'hyperparameters.json'))
+		heatmaps_dataset = self.get_dataset(filters=filters,
+											tile_px=hp_data['hp']['tile_px'],
+											tile_um=hp_data['hp']['tile_um'])
 		slide_list = heatmaps_dataset.get_slide_paths()
 		roi_list = heatmaps_dataset.get_rois()
-		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
 
 		# Attempt to auto-detect supplied model name
 		detected_model_name = sfutil.path_to_name(model_path)
@@ -976,8 +970,18 @@ class SlideflowProject:
 
 		log.header("Generating mosaic map...")
 
+		# Set up paths
+		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
+		if umap_cache == 'default':
+			umap_cache = join(self.PROJECT['root'], 'stats', 'umap_cache.pkl')
+		else:
+			umap_cache = join(self.PROJECT['root'], 'stats', umap_cache)
+
 		# Prepare dataset & model
-		mosaic_dataset = self.get_dataset(filters=filters)
+		hp_data = sfutil.load_json(join(dirname(model_path), 'hyperparameters.json'))
+		mosaic_dataset = self.get_dataset(filters=filters,
+										  tile_px=hp_data['hp']['tile_px'],
+										  tile_um=hp_data['hp']['tile_um'])
 		tfrecords_list = mosaic_dataset.get_tfrecords()
 		if focus_filters:
 			mosaic_dataset.apply_filters(focus_filters)
@@ -985,13 +989,6 @@ class SlideflowProject:
 		else:
 			focus_list = None
 		log.info(f"Generating mosaic from {len(tfrecords_list)} slides, with focus on {0 if not focus_list else len(focus_list)} slides.", 1)
-
-		# Set up paths
-		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
-		if umap_cache == 'default':
-			umap_cache = join(self.PROJECT['root'], 'stats', 'umap_cache.pkl')
-		else:
-			umap_cache = join(self.PROJECT['root'], 'stats', umap_cache)
 
 		# If a header category is supplied and we are not showing predictions, then assign slide labels from annotations
 		if header_category and (show_prediction is None):
@@ -1019,7 +1016,7 @@ class SlideflowProject:
 		AV = ActivationsVisualizer(model=model_path,
 								   tfrecords=tfrecords_list, 
 								   root_dir=self.PROJECT['root'],
-								   image_size=self.PROJECT['tile_px'],
+								   image_size=hp_data['hp']['tile_px'],
 								   focus_nodes=None,
 								   use_fp16=self.PROJECT['use_fp16'],
 								   batch_size=self.FLAGS['eval_batch_size'],
@@ -1089,14 +1086,19 @@ class SlideflowProject:
 	def generate_mosaic_from_predictions(self, model, x, y, filters=None, focus_filters=None, header_category=None, resolution='low', num_tiles_x=50,
 											expanded=False, max_tiles_per_slide=0, normalize=None):
 
-		dataset = self.get_dataset(filters=filters, filter_blank=header_category)
+		hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
+		dataset = self.get_dataset(filters=filters,
+								   filter_blank=header_category,
+								   tile_px=hp_data['hp']['tile_px'],
+								   tile_um=hp_data['hp']['tile_um'])
+
 		outcomes_category, unique_outcomes = dataset.get_outcomes_from_annotations(header_category)
 		slide_to_category = {k:unique_outcomes[v['outcome']] for k, v in outcomes_category.items()}
 
 		AV = ActivationsVisualizer(model=model,
 								   tfrecords=dataset.get_tfrecords(), 
 								   root_dir=self.PROJECT['root'],
-								   image_size=self.PROJECT['tile_px'],
+								   image_size=hp_data['hp']['tile_px'],
 								   use_fp16=self.PROJECT['use_fp16'],
 								   batch_size=self.FLAGS['eval_batch_size'],
 								   max_tiles_per_slide=max_tiles_per_slide)
@@ -1121,11 +1123,15 @@ class SlideflowProject:
 		mosaic_map.save(join(self.PROJECT['root'], 'stats'))
 		mosaic_map.save_report(join(self.PROJECT['root'], 'stats', 'mosaic_report.csv'))
 
-	def generate_mosaic_from_annotations(self, header_x, header_y, header_category=None, filters=None, focus_filters=None, resolution='low', num_tiles_x=50,
+	def generate_mosaic_from_annotations(self, header_x, header_y, tile_px, tile_um, header_category=None, filters=None, focus_filters=None, resolution='low', num_tiles_x=50,
 											expanded=False, use_optimal_tile=False, model=None, max_tiles_per_slide=100, mosaic_filename=None, umap_filename=None,
 											activations_cache='default', normalize=None):
 
-		dataset = self.get_dataset(filters=filters, filter_blank=[header_x, header_y])
+		dataset = self.get_dataset(filters=filters,
+								   filter_blank=[header_x, header_y],
+								   tile_px=tile_px,
+								   tile_um=tile_um)
+
 		# We are assembling a list of slides from the TFRecords path list, because we only want to use slides that have a corresponding TFRecord
 		#  (some slides did not have a large enough ROI for tile extraction, and some slides may be in the annotations but are missing a slide image)
 		slides = [sfutil.path_to_name(tfr) for tfr in dataset.get_tfrecords()]
@@ -1144,7 +1150,7 @@ class SlideflowProject:
 			AV = ActivationsVisualizer(model=model,
 									   tfrecords=dataset.get_tfrecords(), 
 									   root_dir=self.PROJECT['root'],
-									   image_size=self.PROJECT['tile_px'],
+									   image_size=tile_px,
 									   use_fp16=self.PROJECT['use_fp16'],
 									   batch_size=self.FLAGS['eval_batch_size'],
 									   max_tiles_per_slide=max_tiles_per_slide,
@@ -1194,7 +1200,7 @@ class SlideflowProject:
 		log.header('Generating thumbnails...')
 
 		thumb_folder = join(self.PROJECT['root'], 'thumbs')
-		dataset = self.get_dataset(filters=filters, filter_blank=filter_blank)		
+		dataset = self.get_dataset(filters=filters, filter_blank=filter_blank, tile_px=0, tile_um=0)
 		slide_list = dataset.get_slide_paths(dataset=dataset_name)
 		log.info(f"Saving thumbnails to {sfutil.green(thumb_folder)}", 1)
 
@@ -1203,18 +1209,21 @@ class SlideflowProject:
 			whole_slide = sfslide.SlideReader(slide_path, 0, 0, 1, enable_downsample=enable_downsample,
 																   skip_missing_roi=False)
 
-	def generate_tfrecords_from_tiles(self, delete_tiles=True):
+	def generate_tfrecords_from_tiles(self, tile_px, tile_um, delete_tiles=True):
 		'''Create tfrecord files from a collection of raw images'''
 		log.header('Writing TFRecord files...')
 
 		# Load dataset for evaluation
-		working_dataset = Dataset(config_file=self.PROJECT['dataset_config'], sources=self.PROJECT['datasets'])
+		working_dataset = Dataset(config_file=self.PROJECT['dataset_config'],
+								  sources=self.PROJECT['datasets'],
+								  tile_px=tile_px,
+								  tile_um=tile_um)
 		
 		for d in working_dataset.datasets:
 			log.empty(f"Working on dataset {d}", 1)
 			config = working_dataset.datasets[d]
-			tfrecord_dir = join(config["tfrecords"], config["label"])
-			tiles_dir = join(config["tiles"], config["label"])
+			tfrecord_dir = join(config["tfrecords"], config['label'])
+			tiles_dir = join(config["tiles"], config['label'])
 			if not exists(tiles_dir):
 				log.warn(f"No tiles found for dataset {sfutil.bold(d)}", 1)
 				continue
@@ -1230,17 +1239,28 @@ class SlideflowProject:
 			else:
 				sfio.tfrecords.write_tfrecords_multi(tiles_dir, tfrecord_dir)
 
-			self.update_manifest()
+			working_dataset.update_manifest()
 
 			if delete_tiles:
 				shutil.rmtree(tiles_dir)
 	
-	def get_dataset(self, filters=None, filter_blank=None):
-		return Dataset(config_file=self.PROJECT['dataset_config'], 
-					   sources=self.PROJECT['datasets'],
-					   annotations=self.PROJECT['annotations'],
-					   filters=filters,
-					   filter_blank=filter_blank)
+	def get_dataset(self, tile_px=None, tile_um=None, filters=None, filter_blank=None, verification=True):
+		try:
+			dataset = Dataset(config_file=self.PROJECT['dataset_config'], 
+							  sources=self.PROJECT['datasets'],
+							  tile_px=tile_px,
+							  tile_um=tile_um,
+							  annotations=self.PROJECT['annotations'],
+							  filters=filters,
+							  filter_blank=filter_blank)
+		except FileNotFoundError:
+			log.warn("No datasets configured.")
+
+		if verification:
+			log.header("Verifying Annotations...")
+			dataset.verify_annotations_slides()
+			log.header("Verifying TFRecord manifest...")
+			dataset.update_manifest()
 
 	def load_datasets(self, path):
 		'''Loads datasets from a given datasets.json file.'''
@@ -1264,32 +1284,24 @@ class SlideflowProject:
 		# Enable logging
 		log.logfile = join(self.PROJECT['root'], "log.log")
 
-		# Load dataset for evaluation
-		try:
-			dataset = self.get_dataset()
-
-			if not self.FLAGS['skip_verification']:
-				log.header("Verifying Annotations...")
-				dataset.verify_annotations_slides()
-				log.header("Verifying TFRecord manifest...")
-				self.update_manifest()
-		except FileNotFoundError:
-			log.warn("No datasets configured.")
-
-	def resize_tfrecords(self, size, filters=None):
+	def resize_tfrecords(self, source_tile_px, source_tile_um, dest_tile_px, filters=None):
 		'''Resizes TFRecords to a given pixel size.'''
 		log.header(f"Resizing TFRecord tiles to ({size}, {size})")
-		resize_dataset = self.get_dataset(filters=filters)
+		resize_dataset = self.get_dataset(filters=filters,
+										  tile_px=source_tile_px,
+										  tile_um=source_tile_um)
 		tfrecords_list = resize_dataset.get_tfrecords()
 		log.info(f"Resizing {len(tfrecords_list)} tfrecords", 1)
 
 		for tfr in tfrecords_list:
-			sfio.tfrecords.transform_tfrecord(tfr, tfr+".transformed", resize=size)
+			sfio.tfrecords.transform_tfrecord(tfr, tfr+".transformed", resize=dest_tile_px)
 	
-	def extract_tiles_from_tfrecords(self, destination=None, filters=None):
+	def extract_tiles_from_tfrecords(self, tile_px, tile_um, destination=None, filters=None):
 		'''Extracts all tiles from a set of TFRecords'''
 		log.header(f"Extracting tiles from TFRecords")
-		to_extract_dataset = self.get_dataset(filters=filters)
+		to_extract_dataset = self.get_dataset(filters=filters,
+											  tile_px=tile_px,
+											  tile_um=tile_um)
 		
 		for dataset_name in self.PROJECT['datasets']:
 			to_extract_tfrecords = to_extract_dataset.get_tfrecords(dataset=dataset_name)
@@ -1442,31 +1454,12 @@ class SlideflowProject:
 
 		return results_dict
 
-	def update_manifest(self, force_update=False):
-		'''Updates manifest file in the TFRecord directory, used to track number of records and verify annotations.
-		
-		Args:
-			force_update:	If True, will re-validate contents of all TFRecords. If False, will only validate
-								contents of TFRecords not yet in the manifest
-		'''
-		dataset = self.get_dataset()
-		dataset.update_manifest()
-
-	def update_tfrecords(self):
-		log.header('Updating TFRecords...')
-		working_dataset = self.get_dataset()
-		for d in working_dataset.datasets:
-			config = working_dataset.datasets[d]
-			tfrecord_folder = join(config["tfrecords"], config["label"])
-			num_updated = 0
-			log.info(f"Updating TFRecords in {sfutil.green(tfrecord_folder)}...")
-			num_updated += sfio.tfrecords.update_tfrecord_dir(tfrecord_folder, slide='case', image_raw='image_raw')
-		log.complete(f"Updated {sfutil.bold(num_updated)} TFRecords files")
-	
 	def visualize_tiles(self, model, node, tfrecord_dict=None, directory=None, num_to_visualize=20, window=None):
+		hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
+		tile_px = hp_data['hp']['tile_px']
 		TV = TileVisualizer(model=model, 
 							node=node,
-							shape=[self.PROJECT['tile_px'], self.PROJECT['tile_px'], 3],
+							shape=[tile_px, tile_px, 3],
 							tile_width=window)
 
 		if tfrecord_dict:
