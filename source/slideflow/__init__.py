@@ -512,8 +512,8 @@ class SlideflowProject:
 			writer.writerow(header)
 			writer.writerow(firstrow)
 
-	def create_hyperparameter_sweep(self, finetune_epochs, toplayer_epochs, model, pooling, loss, learning_rate, batch_size, hidden_layers,
-									optimizer, early_stop, early_stop_patience, early_stop_method, balanced_training, balanced_validation, 
+	def create_hyperparameter_sweep(self, tile_px, tile_um, finetune_epochs, toplayer_epochs, model, pooling, loss, learning_rate, batch_size,
+									hidden_layers, optimizer, early_stop, early_stop_patience, early_stop_method, balanced_training, balanced_validation, 
 									augment, hidden_layer_width, trainable_layers, L2_weight, filename=None):
 		'''Prepares a hyperparameter sweep using the batch train config file.'''
 		log.header("Preparing hyperparameter sweep...")
@@ -1262,6 +1262,8 @@ class SlideflowProject:
 			log.header("Verifying TFRecord manifest...")
 			dataset.update_manifest()
 
+		return dataset
+
 	def load_datasets(self, path):
 		'''Loads datasets from a given datasets.json file.'''
 		try:
@@ -1322,7 +1324,7 @@ class SlideflowProject:
 				pretrain='imagenet', batch_file=None, hyperparameters=None, validation_target=None, validation_strategy=None,
 				validation_fraction=None, validation_k_fold=None, k_fold_iter=None,
 				validation_dataset=None, validation_annotations=None, validation_filters=None, validate_on_batch=256, validation_steps=200,
-				max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0):
+				max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, auto_extract=False):
 		'''Train model(s) given configurations found in batch_train.tsv.
 
 		Args:
@@ -1402,6 +1404,11 @@ class SlideflowProject:
 				if multi_outcome and hp.model_type() != 'linear':
 					log.error("Multiple outcome variables only supported for linear outcome variables.")
 					return
+
+				# Auto-extract tiles if requested
+				if auto_extract:
+					self.extract_tiles(hp.tile_px, hp.tile_um, filters=filters)
+
 				# Generate model name
 				if isinstance(selected_outcome_headers, list):
 					outcome_string = "-".join(selected_outcome_headers)
