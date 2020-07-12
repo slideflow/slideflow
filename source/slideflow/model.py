@@ -125,7 +125,7 @@ class HyperParameters:
 				'kullback_leibler_divergence', 'poisson', 'cosine_proximity', 'is_categorical_crossentropy']
 
 
-	def __init__(self, finetune_epochs=10, toplayer_epochs=0, model='Xception', pooling='max', loss='sparse_categorical_crossentropy',
+	def __init__(self, tile_px=299, tile_um=302, finetune_epochs=10, toplayer_epochs=0, model='Xception', pooling='max', loss='sparse_categorical_crossentropy',
 				 learning_rate=0.0001, batch_size=16, hidden_layers=1, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, early_stop_method='loss', balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
 				 hidden_layer_width=500, trainable_layers=0, L2_weight=0, augment=True):
@@ -136,6 +136,8 @@ class HyperParameters:
 		batch_norm_decay 0.99
 		'''
 		# Assert provided hyperparameters are valid
+		assert isinstance(tile_px, int)
+		assert isinstance(tile_um, int)
 		assert isinstance(toplayer_epochs, int)
 		assert (isinstance(finetune_epochs, list) and all([isinstance(t, int) for t in finetune_epochs])) or isinstance(finetune_epochs, int)
 		assert model in self._ModelDict.keys()
@@ -154,6 +156,8 @@ class HyperParameters:
 		assert isinstance(L2_weight, (int, float))
 		assert isinstance(augment, bool)
 
+		self.tile_px = tile_px
+		self.tile_um = tile_um
 		self.toplayer_epochs = toplayer_epochs
 		self.finetune_epochs = finetune_epochs if isinstance(finetune_epochs, list) else [finetune_epochs]
 		self.model = model

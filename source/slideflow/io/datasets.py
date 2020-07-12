@@ -416,11 +416,9 @@ class Dataset:
 			slide_index = header.index(TCGA.slide)
 		except:
 			log.error(f"Header column '{TCGA.slide}' not found.", 1)
-			if sfutil.yes_no_input('\nSearch slides directory and automatically associate patients with slides? [Y/n] ', default='yes'):
-				self.update_annotations_with_slidenames(annotations_file)
-				header, current_annotations = sfutil.read_annotations(annotations_file)
-			else:
-				log.warn("No slide annotations found in annotations file.", 1)
+			log.info("Attempting to automatically associate patients with slides...", 1)
+			self.update_annotations_with_slidenames(annotations_file)
+			header, current_annotations = sfutil.read_annotations(annotations_file)
 		self.ANNOTATIONS = current_annotations
 
 	def verify_annotations_slides(self):
@@ -541,7 +539,7 @@ class Dataset:
 			log.info("TFRecords verified, no errors found.", 1)
 
 		# Write manifest file
-		if manifest != prior_manifest:
+		if (manifest != prior_manifest) or (manifest == {}):
 			sfutil.write_json(manifest, manifest_path)
 
 		return manifest
