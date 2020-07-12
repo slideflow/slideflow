@@ -7,6 +7,7 @@ import shutil
 
 from slideflow.io.datasets import Dataset
 from slideflow.util import TCGA, log, ProgressBar
+from slideflow.statistics import TFRecordUMAP
 
 from glob import glob
 from os.path import join
@@ -256,7 +257,7 @@ class TestSuite:
 
 	def test_mosaic(self):
 		log.header("Testing mosaic generation...")
-		self.SFP.generate_mosaic(SAVED_MODEL, export_activations=True)
+		self.SFP.generate_mosaic(SAVED_MODEL)
 		print("\t...OK")
 
 	def test_activations(self):
@@ -265,11 +266,11 @@ class TestSuite:
 													outcome_header='category1', 
 													focus_nodes=[0])
 		AV.generate_box_plots()
-		umap = AV.calculate_umap()
+		umap = TFRecordUMAP.from_activations(AV)
 		umap.save_2d_plot(join(PROJECT_CONFIG['root'], 'stats', '2d_umap.png'))
 		top_nodes = AV.get_top_nodes_by_slide()
 		for node in top_nodes[:5]:
-			AV.plot_3d_umap(node)
+			umap.save_3d_node_plot(node, join(PROJECT_CONFIG['root'], 'stats', f'3d_node{node}.png'))
 		print("\t...OK")
 
 	def test(self):

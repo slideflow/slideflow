@@ -500,19 +500,6 @@ class ActivationsVisualizer:
 			plt.savefig(boxplot_filename, bbox_inches='tight')
 			if (not self.focus_nodes) and i>4: break
 
-	def plot_3d_umap(self, node, filename=None, subsample=1000):
-		umap_name = "3d_umap.png" if not node else f"3d_umap_{node}.png"
-		filename = join(self.STATS_ROOT, umap_name) if not filename else filename
-		title = f"UMAP with node {node} focus"
-
-		if not self.umap: self.calculate_umap()
-
-		z = np.array([self.slide_node_dict[m['slide']][node][m['index']] for m in self.umap.point_meta])
-
-		self.umap.save_3d_plot(z, filename=filename,
-								  title=title,
-								  subsample=subsample)
-
 	def save_example_tiles_gradient(self, nodes=None, tile_filter=None):
 		if not nodes:
 			nodes = self.focus_nodes

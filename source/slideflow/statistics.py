@@ -270,8 +270,13 @@ class TFRecordUMAP:
 
 		lasso = LassoSelector(plt.gca(), onselect)
 
-	def save_3d_plot(self, z, filename, title="UMAP", subsample=None):
+	def save_3d_node_plot(self, node, filename, subsample=None):
 		'''Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument "z" '''
+
+		title = f"UMAP with node {node} focus"
+
+		# Get node activations for 3rd dimension
+		z = np.array([self.AV.slide_node_dict[m['slide']][node][m['index']] for m in self.point_meta])
 
 		# Subsampling
 		if subsample:
