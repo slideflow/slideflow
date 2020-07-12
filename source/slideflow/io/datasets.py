@@ -545,7 +545,8 @@ class Dataset:
 		return manifest
 		
 	def update_annotations_with_slidenames(self, annotations_file):
-		'''Attempts to automatically associate slide names from a directory with patients in a given annotations file.'''
+		'''Attempts to automatically associate slide names from a directory with patients in a given annotations file,
+			skipping any slide names that are already present in the annotations file.'''
 		header, _ = sfutil.read_annotations(annotations_file)
 		slide_list = self.get_slide_paths(filter=False)
 
@@ -636,7 +637,7 @@ class Dataset:
 							row.extend([""])
 							num_missing += 1
 						csv_writer.writerow(row)
-		log.info(f"Successfully associated slides with {num_updated_annotations} annotation entries. Slides not found for {num_missing} annotations.", 1)
+		log.complete(f"Successfully associated slides with {num_updated_annotations} annotation entries. Slides not found for {num_missing} annotations.", 1)
 
 		# Finally, backup the old annotation file and overwrite existing with the new data
 		backup_file = f"{annotations_file}.backup"
