@@ -124,15 +124,20 @@ class Dataset:
 	filters = None
 	filter_blank = None
 
-	def __init__(self, config_file, sources, annotations=None, filters=None, filter_blank=None):
+	def __init__(self, config_file, sources, tile_px, tile_um, annotations=None, filters=None, filter_blank=None):
 		config = sfutil.load_json(config_file)
 		sources = sources if isinstance(sources, list) else [sources]
+
 		try:
 			self.datasets = {k:v for (k,v) in config.items() if k in sources}
 		except KeyError:
 			sources_list = ", ".join(sources)
 			log.error(f"Unable to find datasets named {sfutil.bold(sources_list)} in config file {sfutil.green(config_file)}", 1)
 			sys.exit()
+
+		label = f"{tile_px}px_{tile_um}um"
+		for dataset in self.datasets:
+			self.datasets[dataset]['label'] = label
 		
 		if annotations:
 			self.load_annotations(annotations)
