@@ -727,7 +727,7 @@ class SlideflowProject:
 			slide_list = extracting_dataset.get_slide_paths(dataset=dataset_name)
 			roi_list = extracting_dataset.get_rois()
 			dataset_config = extracting_dataset.datasets[dataset_name]
-			log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 1)
+			log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 2)
 			pb = None#ProgressBar(bar_length=5, counter_text='tiles')
 
 			if self.FLAGS['num_threads'] > 1:
@@ -821,7 +821,7 @@ class SlideflowProject:
 			log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 1)
 
 			# Verify slides and estimate total number of tiles
-			log.info("Verifying slides...", 1)
+			log.empty("Verifying slides...", 1)
 			total_tiles = 0
 			for slide_path in slide_list:
 				slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, roi_dir=roi_dir,
@@ -832,7 +832,7 @@ class SlideflowProject:
 				total_tiles += slide.estimated_num_tiles
 				del(slide)
 			print("\r\033[K", end='')
-			log.info(f"Verification complete. Total estimated tiles to extract: {total_tiles}", 1)
+			log.complete(f"Verification complete. Total estimated tiles to extract: {total_tiles}", 1)
 			
 			if total_tiles:
 				pb = ProgressBar(total_tiles, counter_text='tiles', leadtext="Extracting tiles... ", show_counter=True, show_eta=True)
@@ -1286,6 +1286,9 @@ class SlideflowProject:
 		# Enable logging
 		log.logfile = join(self.PROJECT['root'], "log.log")
 
+		# Auto-update slidenames for newly added slides
+		self.associate_slide_names()
+
 	def resize_tfrecords(self, source_tile_px, source_tile_um, dest_tile_px, filters=None):
 		'''Resizes TFRecords to a given pixel size.'''
 		log.header(f"Resizing TFRecord tiles to ({size}, {size})")
@@ -1443,7 +1446,7 @@ class SlideflowProject:
 				# Record results
 				for mi in model_iterations:
 					if mi not in results_dict:
-						log.error(f"Training failed for model {model_name} for an unknown reason")
+						log.error(f"Training failed for model {model_name}")
 					else:
 						sfutil.update_results_log(results_log_path, mi, results_dict[mi]['epochs'])
 				log.complete(f"Training complete for model {model_name}, results saved to {sfutil.green(results_log_path)}")
