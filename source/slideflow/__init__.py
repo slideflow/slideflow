@@ -1436,6 +1436,7 @@ class SlideflowProject:
 					process.join()
 
 				# Perform training
+				log.header("Training model...")
 				if k_fold:
 					for k in valid_k:
 						start_training_process(k)
