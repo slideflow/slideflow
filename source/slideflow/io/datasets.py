@@ -535,8 +535,6 @@ class Dataset:
 
 		if len(slide_list_errors) >= error_threshold:
 			log.warn(f"...{len(slide_list_errors)} total TFRecord integrity check failures, see {sfutil.green(log.logfile)} for details", 1)
-		if len(slide_list_errors) == 0:
-			log.info("TFRecords verified, no errors found.", 1)
 
 		# Write manifest file
 		if (manifest != prior_manifest) or (manifest == {}):
