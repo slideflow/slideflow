@@ -21,7 +21,7 @@ class Mosaic:
 	points = []
 
 	def __init__(self, umap, focus=None, leniency=1.5, expanded=False, tile_zoom=15, num_tiles_x=50, resolution='high', 
-					export=True, relative_size=False, tile_select='nearest', tile_meta=None, normalize='color'):
+					export=True, relative_size=False, tile_select='nearest', tile_meta=None, normalize=False):
 		'''Generate a mosaic map.
 
 		Args:
