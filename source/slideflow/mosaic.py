@@ -191,7 +191,7 @@ class Mosaic:
 				point = self.points[closest_point]
 
 				if not point['tfrecord']:
-					log.error(f"The tfrecord {point['tfrecord']} was not found in the list of paths provided by the input umap, unable to continue.", 1)
+					log.error(f"The tfrecord {point['slide']} was not found in the list of paths provided by the input umap, unable to continue.", 1)
 					return
 
 				_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
