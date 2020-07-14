@@ -50,45 +50,59 @@ class UpdatedBatchNormalization(tf.keras.layers.BatchNormalization):
 			return super(tf.keras.layers.BatchNormalization, self).call(inputs, training)
 
 class Bar:
-	starttime = None
-	lastupdated = None
-	text = ''
-
 	def __init__(self, ending_value, starting_value=0, bar_length=20, label='',
-					show_eta=False, show_counter=False, counter_text=''):
+					show_eta=False, show_counter=False, counter_text='', update_interval=1):
+		# Setup timing
+		self.starttime = None
+		self.lastupdated = None
+		self.checkpoint_time = None
+		self.checkpoint_val = starting_value
+
+		# Other initializing variables
 		self.value = starting_value
 		self.end_value = ending_value
 		self.bar_length = bar_length
 		self.label = label
 		self.show_counter = show_counter
 		self.counter_text = '' if not counter_text else " " + counter_text
-		self.show_eta = show_eta		
+		self.show_eta = show_eta
+		self.text = ''
+		self.num_per_sec = 0
+		self.update_interval = update_interval
 
 	def get_text(self):
 		current_time = int(time.time())
 		if not self.starttime:
 			self.starttime = current_time
+			self.checkpoint_time = current_time
+			self.checkpoint_val = self.value
 			self.lastupdated = self.starttime
 		elif current_time == self.lastupdated:
 			return self.text
 		else:
-			self.lastupdated = current_time
+			current_time
+
+		timediff = int(time.time())-self.starttime
+
+		# Checkpoint every 5 seconds
+		if (current_time - self.checkpoint_time) > self.update_interval:
+			self.num_per_sec = (self.value - self.checkpoint_val) / (current_time - self.checkpoint_time)
+			# Reset checkpoint
+			self.checkpoint_val = self.value
+			self.checkpoint_time = current_time
 
 		percent = float(self.value) / self.end_value
 		arrow = chr(0x2588) * int(round(percent * self.bar_length))
 		spaces = u'-' * (self.bar_length - len(arrow))
-		timediff = int(time.time())-self.starttime
-		if timediff != 0:
-			num_per_sec = self.value/timediff
 
 		self.text = u"\u007c{0}\u007c {1:.1f}%{2}".format(arrow + spaces, 
 													 (float(self.value) / self.end_value)*100, 
 													 f' ({self.label})' if self.label else '')
-		if self.show_counter:
-			num_per_sec_str = "?" if timediff == 0 else f'{num_per_sec:.1f}'
+		if self.show_counter and self.num_per_sec:
+			num_per_sec_str = "?" if timediff == 0 else f'{self.num_per_sec:.1f}'
 			self.text += f" {num_per_sec_str}{self.counter_text}/sec"
-		if self.show_eta and timediff:
-			eta_sec = (self.end_value - self.value) / num_per_sec
+		if self.show_eta and timediff and self.num_per_sec:
+			eta_sec = (self.end_value - self.value) / self.num_per_sec
 			self.text += f" (ETA: {time.strftime('%H:%M:%S', time.gmtime(eta_sec))})"
 		elif self.show_eta:
 			self.text += f" (ETA: ?)"
