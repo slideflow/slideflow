@@ -704,7 +704,7 @@ class Heatmap:
 	'''Generates heatmap by calculating predictions from a sliding scale window across a slide.'''
 
 	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, save_folder='', 
-					roi_dir=None, roi_list=None, roi_method='inside', thumb_folder=None):
+					roi_dir=None, roi_list=None, roi_method='inside', thumb_folder=None, buffered=True):
 		from slideflow.slide import SlideReader
 
 		self.save_folder = save_folder
@@ -727,6 +727,7 @@ class Heatmap:
 																		   roi_method=roi_method,
 																		   thumb_folder=thumb_folder if thumb_folder else join(save_folder, 'thumbs'),
 																		   silent=True,
+																		   buffered=buffered,
 																		   pb=pb)
 		pb.BARS[0].end_value = self.slide.estimated_num_tiles
 		# First, load the designated model

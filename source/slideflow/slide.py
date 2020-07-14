@@ -17,6 +17,7 @@ from __future__ import print_function
 
 import os
 import sys
+import io
 
 import tensorflow as tf
 import numpy as np
@@ -95,12 +96,22 @@ class InvalidTileSplitException(Exception):
 
 class OpenslideToVIPS:
 	'''Wrapper for VIPS to preserve openslide-like functions.'''
-	def __init__(self, path):
+	def __init__(self, path, buffered=False):
 		self.path = path
-		self.full_image = vips.Image.new_from_file(path)
+		
+		if buffered:
+			with open(path, 'rb') as image_file:
+				image_buffer = image_file.read()
+			self.full_image = vips.Image.new_from_buffer(image_buffer, options="")
+			loaded_image = vips.Image.new_from_file(path)
+		else:
+			self.full_image = vips.Image.new_from_file(path)
+			loaded_image = self.full_image
+		
+		
 		self.properties = {}
-		for field in self.full_image.get_fields():
-			self.properties.update({field: self.full_image.get(field)})
+		for field in loaded_image.get_fields():
+			self.properties.update({field: loaded_image.get(field)})
 		self.dimensions = (int(self.properties[OPS_WIDTH]), int(self.properties[OPS_HEIGHT]))
 		self.level_count = int(self.properties[OPS_LEVEL_COUNT])
 		self.loaded_downsample_levels = {
@@ -110,9 +121,9 @@ class OpenslideToVIPS:
 		# Calculate level metadata
 		self.levels = []
 		for l in range(self.level_count):
-			width = int(self.full_image.get(OPS_LEVEL_WIDTH(l)))
-			height = int(self.full_image.get(OPS_LEVEL_HEIGHT(l)))
-			downsample = float(self.full_image.get(OPS_LEVEL_DOWNSAMPLE(l)))
+			width = int(loaded_image.get(OPS_LEVEL_WIDTH(l)))
+			height = int(loaded_image.get(OPS_LEVEL_HEIGHT(l)))
+			downsample = float(loaded_image.get(OPS_LEVEL_DOWNSAMPLE(l)))
 			self.levels += [{
 				'dimensions': (width, height),
 				'width': width,
@@ -216,7 +227,7 @@ class SlideLoader:
 	'''Object that loads an SVS slide and makes preparations for tile extraction.
 	Should not be used directly; this class must be inherited and extended by a child class!'''
 	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False,
-					thumb_folder=None, silent=False, pb=None):
+					thumb_folder=None, silent=False, buffered=True, pb=None):
 		self.load_error = False
 		self.silent = silent
 		if pb and not silent:
@@ -239,16 +250,16 @@ class SlideLoader:
 
 		# Initiate supported slide (SVS, TIF) or JPG slide reader
 		if filetype.lower() in sfutil.SUPPORTED_FORMATS:
-			try:
-				if filetype.lower() == 'jpg':
-					self.slide = JPGslideToVIPS(path)
-				else:
-					self.slide = OpenslideToVIPS(path)
-			except:
-				log.warn(f" Unable to read slide from {path} , skipping", 1, self.print)
-				self.shape = None
-				self.load_error = True
-				return
+			#try:
+			if filetype.lower() == 'jpg':
+				self.slide = JPGslideToVIPS(path)
+			else:
+				self.slide = OpenslideToVIPS(path, buffered=buffered)
+			#except:
+			#	log.warn(f" Unable to read slide from {path} , skipping", 1, self.print)
+			#	self.shape = None
+			#	self.load_error = True
+			#	return
 		#elif filetype == "jpg":
 		#	self.slide = JPGSlide(path, mpp=DEFAULT_JPG_MPP)
 		else:
@@ -330,8 +341,8 @@ class TMAReader(SlideLoader):
 	RED = (100, 100, 200)
 	WHITE = (255,255,255)
 
-	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, export_folder=None, roi_dir=None, roi_list=None, pb=None):
-		super().__init__(path, size_px, size_um, stride_div, enable_downsample, pb)
+	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, export_folder=None, roi_dir=None, roi_list=None, buffered=True, pb=None):
+		super().__init__(path, size_px, size_um, stride_div, enable_downsample, buffered, pb)
 
 		if not self.loaded_correctly():
 			return
@@ -544,9 +555,9 @@ class SlideReader(SlideLoader):
 
 	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
 	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, roi_dir=None, roi_list=None,
-					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, thumb_folder=None, silent=False, pb=None, pb_id=0):
+					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, thumb_folder=None, silent=False, buffered=True, pb=None, pb_id=0):
 
-		super().__init__(path, size_px, size_um, stride_div, enable_downsample, thumb_folder, silent, pb)
+		super().__init__(path, size_px, size_um, stride_div, enable_downsample, thumb_folder, silent, buffered, pb)
 
 		# Initialize calculated variables
 		self.extracted_x_size = 0
