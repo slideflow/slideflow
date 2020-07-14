@@ -258,7 +258,7 @@ class Mosaic:
 
 	def _decode_image_string(self, string, normalize='color'):
 
-		def normalize(x, color=True):
+		def normalize_func(x, color=True):
 			norm = np.array((x - np.min(x)) / (np.max(x) - np.min(x)))
 			if not color:
 				gray = np.dot(norm[...,:3], [0.333, 0.333, 0.333])
@@ -271,9 +271,8 @@ class Mosaic:
 
 		image_arr = np.fromstring(string, np.uint8)
 		tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
-		
 		if normalize:
-			tile_image_bgr = np.array(normalize(tile_image_bgr, color=(normalize=='color')) * 255, dtype=np.uint8)
+			tile_image_bgr = np.array(normalize_func(tile_image_bgr, color=(normalize=='color')) * 255, dtype=np.uint8)
 		
 		tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
 			
