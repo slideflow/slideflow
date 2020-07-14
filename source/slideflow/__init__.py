@@ -142,7 +142,7 @@ def evaluator(outcome_header, model, project_config, results_dict, filters=None,
 	return results_dict
 
 def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, show_roi, resolution, interpolation, project_config, 
-						logit_cmap=None, skip_thumb=False, flags=None):
+						logit_cmap=None, skip_thumb=False, buffered=True, flags=None):
 	import slideflow.slide as sfslide
 	if not flags: flags = DEFAULT_FLAGS
 
@@ -163,7 +163,8 @@ def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, show
 																				stride_div=stride_div,
 																				save_folder=save_folder,
 																				roi_list=roi_list,
-																				thumb_folder=join(project_config['root'], 'thumbs'))
+																				thumb_folder=join(project_config['root'], 'thumbs'),
+																				buffered=True)
 
 	heatmap.generate(batch_size=flags['eval_batch_size'], skip_thumb=skip_thumb)
 	heatmap.save(show_roi=show_roi, interpolation=interpolation, logit_cmap=logit_cmap, skip_thumb=skip_thumb)
@@ -678,7 +679,7 @@ class SlideflowProject:
 
 		return results_dict
 
-	def extract_dual_tiles(self, tile_um, tile_px, stride_div=1, filters=None):
+	def extract_dual_tiles(self, tile_um, tile_px, stride_div=1, filters=None, buffered=True):
 		import slideflow.slide as sfslide
 		import tensorflow as tf
 		from PIL import Image
@@ -695,7 +696,7 @@ class SlideflowProject:
 			if not exists(root_path): 
 					os.makedirs(root_path)
 
-			whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, roi_list=roi_list, pb=pb)
+			whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, roi_list=roi_list, buffered=buffered, pb=pb)
 			small_tile_generator = whole_slide.build_generator(dual_extract=True)
 			tfrecord_name = sfutil.path_to_name(slide_path)
 			tfrecord_path = join(root_path, f"{tfrecord_name}.tfrecords")
@@ -740,8 +741,8 @@ class SlideflowProject:
 		
 		extracting_dataset.update_manifest()
 
-	def extract_tiles(self, tile_px, tile_um, filters=None, stride_div=1, tma=False, save_tiles=False, save_tfrecord=True,
-						delete_tiles=True, enable_downsample=False, roi_method='inside', skip_missing_roi=True, skip_extracted=True, dataset=None):
+	def extract_tiles(self, tile_px, tile_um, filters=None, stride_div=1, tma=False, save_tiles=False, save_tfrecord=True, delete_tiles=True,
+						enable_downsample=False, roi_method='inside', skip_missing_roi=True, skip_extracted=True, dataset=None, buffered=True):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.
 		
@@ -827,7 +828,8 @@ class SlideflowProject:
 				slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, roi_dir=roi_dir,
 																					  roi_method=roi_method,
 																					  skip_missing_roi=skip_missing_roi,
-																					  silent=True)
+																					  silent=True,
+																					  buffered=False)
 				print(f"\r\033[KVerified {sfutil.green(slide.name)} (approx. {slide.estimated_num_tiles} tiles)", end="")
 				total_tiles += slide.estimated_num_tiles
 				del(slide)
@@ -849,10 +851,12 @@ class SlideflowProject:
 																								roi_dir=roi_dir,
 																								roi_method=roi_method,
 																								skip_missing_roi=skip_missing_roi,
+																								buffered=buffered,
 																								pb=pb)
 				else:
 					whole_slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample,
 																							  export_folder=tiles_folder, 
+																							  buffered=buffered,
 																							  pb=pb)
 
 				if not whole_slide.loaded_correctly():
@@ -905,7 +909,8 @@ class SlideflowProject:
 
 		return AV
 
-	def generate_heatmaps(self, model, filters=None, directory=None, resolution='low', interpolation='none', show_roi=True, logit_cmap=None, skip_thumb=False, single_thread=False):
+	def generate_heatmaps(self, model, filters=None, directory=None, resolution='low', interpolation='none', show_roi=True, logit_cmap=None,
+							skip_thumb=False, buffered=True, single_thread=False):
 		'''Creates predictive heatmap overlays on a set of slides. 
 
 		Args:
@@ -944,10 +949,10 @@ class SlideflowProject:
 		for slide in slide_list:
 			if single_thread:
 				heatmap_generator(slide, model, model_path, heatmaps_folder, roi_list, show_roi,
-									resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb, self.FLAGS)
+									resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb, buffered, self.FLAGS)
 			else:
 				process = ctx.Process(target=heatmap_generator, args=(slide, model, model_path, heatmaps_folder, roi_list, show_roi, 
-																		resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb, self.FLAGS))
+																		resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb, buffered, self.FLAGS))
 				process.start()
 				log.empty(f"Spawning heatmaps process (PID: {process.pid})")
 				process.join()
@@ -1207,7 +1212,8 @@ class SlideflowProject:
 		for slide_path in slide_list:
 			log.empty(f"Working on {sfutil.green(sfutil.path_to_name(slide_path))}...", 1)
 			whole_slide = sfslide.SlideReader(slide_path, 0, 0, 1, enable_downsample=enable_downsample,
-																   skip_missing_roi=False)
+																   skip_missing_roi=False,
+																   buffered=False)
 
 	def generate_tfrecords_from_tiles(self, tile_px, tile_um, delete_tiles=True):
 		'''Create tfrecord files from a collection of raw images'''
