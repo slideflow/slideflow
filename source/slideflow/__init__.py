@@ -60,7 +60,6 @@ def evaluator(outcome_header, model, project_config, results_dict, filters=None,
 	hp = sfmodel.HyperParameters()
 	hp._load_dict(hp_data['hp'])
 	model_name = f"eval-{hp_data['model_name']}-{sfutil.path_to_name(model)}"
-	model_type = hp.model_type()
 
 	# Filter out slides that are blank in the outcome category
 	filter_blank = [outcome_header] if not isinstance(outcome_header, list) else outcome_header
