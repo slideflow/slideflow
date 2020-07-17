@@ -100,14 +100,9 @@ class OpenslideToVIPS:
 		self.path = path
 		
 		if buffered:
-			with open(path, 'rb') as image_file:
-				image_buffer = image_file.read()
-			self.full_image = vips.Image.new_from_buffer(image_buffer, options="")
-			loaded_image = vips.Image.new_from_file(path)
-		else:
-			self.full_image = vips.Image.new_from_file(path)
-			loaded_image = self.full_image
-		
+			os.system(f'vmtouch -q -t "{self.path}"')
+		self.full_image = vips.Image.new_from_file(path)
+		loaded_image = self.full_image
 		
 		self.properties = {}
 		for field in loaded_image.get_fields():
@@ -115,7 +110,7 @@ class OpenslideToVIPS:
 		self.dimensions = (int(self.properties[OPS_WIDTH]), int(self.properties[OPS_HEIGHT]))
 		self.level_count = int(self.properties[OPS_LEVEL_COUNT])
 		self.loaded_downsample_levels = {
-			0: self.full_image
+			0: self.full_image,
 		}
 
 		# Calculate level metadata
@@ -177,6 +172,9 @@ class OpenslideToVIPS:
 		image = self.get_downsampled_image(downsample_level)
 		region = image.crop(downsample_x, downsample_y, extract_width, extract_height)
 		return region
+
+	def unbuffer(self):
+		os.system(f'vmtouch -e "{self.path}"')
 
 class JPGslideToVIPS(OpenslideToVIPS):
 	'''Wrapper for JPG files, which do not possess separate levels, to preserve openslide-like functions.'''
