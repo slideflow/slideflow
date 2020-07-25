@@ -879,7 +879,7 @@ class SlideflowProject:
 						if buffer != 'vmtouch':
 							buffered_path = join(buffer, sfutil.path_to_name(path)+".svs")
 							extract_tiles_from_slide(buffered_path, pb)
-							command = f'rm {buffered_path}'
+							command = f'rm "{buffered_path}"'
 							rm_proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 						else:
 							extract_tiles_from_slide(path, pb)
@@ -892,7 +892,7 @@ class SlideflowProject:
 				for slide_path in slide_list:
 					if buffer and buffer != 'vmtouch':
 						while True:
-							command = f'cp {slide_path} {join(buffer, sfutil.path_to_name(slide_path)+".svs")}'
+							command = f'cp "{slide_path}" "{join(buffer, sfutil.path_to_name(slide_path)+".svs")}"'
 							cp_proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 							commandResult = cp_proc.wait()
 							if commandResult:
