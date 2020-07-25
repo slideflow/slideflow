@@ -428,7 +428,7 @@ def generate_roc(y_true, y_pred, save_dir=None, name='ROC'):
 	return roc_auc, optimal_threshold
 
 # The below function is deprecated and will be removed in the next version
-'''def generate_combined_roc(y_true, y_pred, save_dir, labels, name='ROC'):
+def generate_combined_roc(y_true, y_pred, save_dir, labels, name='ROC'):
 	# Generates and saves overlapping ROCs with a given combination of y_true and y_pred.
 	# Plot
 	plt.clf()
@@ -451,7 +451,7 @@ def generate_roc(y_true, y_pred, save_dir=None, name='ROC'):
 	plt.xlabel('FPR')
 	
 	plt.savefig(os.path.join(save_dir, f'{name}.png'))
-	return rocs'''
+	return rocs
 
 def read_predictions(predictions_file, level):
 	predictions = {}

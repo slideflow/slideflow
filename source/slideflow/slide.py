@@ -96,10 +96,11 @@ class InvalidTileSplitException(Exception):
 
 class OpenslideToVIPS:
 	'''Wrapper for VIPS to preserve openslide-like functions.'''
-	def __init__(self, path, buffered=False):
+	def __init__(self, path, buffer=None):
 		self.path = path
+		self.buffer = buffer
 		
-		if buffered:
+		if buffer == 'vmtouch':
 			os.system(f'vmtouch -q -t "{self.path}"')
 		self.full_image = vips.Image.new_from_file(path)
 		loaded_image = self.full_image
@@ -174,7 +175,8 @@ class OpenslideToVIPS:
 		return region
 
 	def unbuffer(self):
-		os.system(f'vmtouch -e "{self.path}"')
+		if self.buffer == 'vmtouch':
+			os.system(f'vmtouch -e "{self.path}"')
 
 class JPGslideToVIPS(OpenslideToVIPS):
 	'''Wrapper for JPG files, which do not possess separate levels, to preserve openslide-like functions.'''
@@ -225,7 +227,7 @@ class SlideLoader:
 	'''Object that loads an SVS slide and makes preparations for tile extraction.
 	Should not be used directly; this class must be inherited and extended by a child class!'''
 	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False,
-					thumb_folder=None, silent=False, buffered=True, pb=None):
+					thumb_folder=None, silent=False, buffer=None, pb=None):
 		self.load_error = False
 		self.silent = silent
 		if pb and not silent:
@@ -252,7 +254,7 @@ class SlideLoader:
 			if filetype.lower() == 'jpg':
 				self.slide = JPGslideToVIPS(path)
 			else:
-				self.slide = OpenslideToVIPS(path, buffered=buffered)
+				self.slide = OpenslideToVIPS(path, buffer=buffer)
 			#except:
 			#	log.warn(f" Unable to read slide from {path} , skipping", 1, self.print)
 			#	self.shape = None
@@ -339,8 +341,8 @@ class TMAReader(SlideLoader):
 	RED = (100, 100, 200)
 	WHITE = (255,255,255)
 
-	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, export_folder=None, roi_dir=None, roi_list=None, buffered=True, pb=None):
-		super().__init__(path, size_px, size_um, stride_div, enable_downsample, buffered, pb)
+	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, export_folder=None, roi_dir=None, roi_list=None, buffer=None, pb=None):
+		super().__init__(path, size_px, size_um, stride_div, enable_downsample, buffer, pb)
 
 		if not self.loaded_correctly():
 			return
@@ -553,9 +555,9 @@ class SlideReader(SlideLoader):
 
 	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
 	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, roi_dir=None, roi_list=None,
-					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, thumb_folder=None, silent=False, buffered=True, pb=None, pb_id=0):
+					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, thumb_folder=None, silent=False, buffer=None, pb=None, pb_id=0):
 
-		super().__init__(path, size_px, size_um, stride_div, enable_downsample, thumb_folder, silent, buffered, pb)
+		super().__init__(path, size_px, size_um, stride_div, enable_downsample, thumb_folder, silent, buffer, pb)
 
 		# Initialize calculated variables
 		self.extracted_x_size = 0
@@ -740,6 +742,10 @@ class SlideReader(SlideLoader):
 			os.remove(unfinished_marker)
 		except:
 			log.error(f"Unable to mark slide {self.name} as tile extraction complete", 1)
+
+		# Unbuffer slide
+		self.slide.unbuffer()
+
 		log.complete(f"Finished tile extraction for slide {sfutil.green(self.shortname)}", 1, self.print)
 
 	def load_csv_roi(self, path):
