@@ -7,7 +7,6 @@ import atexit
 import itertools
 import csv
 import queue, threading
-import subprocess
 import time
 import numpy as np
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
@@ -145,7 +144,7 @@ def evaluator(outcome_header, model, project_config, results_dict, filters=None,
 	return results_dict
 
 def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, show_roi, resolution, interpolation, project_config, 
-						logit_cmap=None, skip_thumb=False, buffer=True, flags=None):
+						logit_cmap=None, skip_thumb=False, buffer=True, normalizer=None, normalizer_source=None, flags=None):
 	import slideflow.slide as sfslide
 	if not flags: flags = DEFAULT_FLAGS
 
@@ -167,7 +166,9 @@ def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, show
 																				save_folder=save_folder,
 																				roi_list=roi_list,
 																				thumb_folder=join(project_config['root'], 'thumbs'),
-																				buffer=True)
+																				buffer=True,
+																				normalizer=normalizer,
+																				normalizer_source=normalizer_source)
 
 	heatmap.generate(batch_size=flags['eval_batch_size'], skip_thumb=skip_thumb)
 	heatmap.save(show_roi=show_roi, interpolation=interpolation, logit_cmap=logit_cmap, skip_thumb=skip_thumb)
@@ -952,8 +953,7 @@ class SlideflowProject:
 							buffered_path = join(buffer, os.path.basename(path))
 							report = extract_tiles_from_slide(buffered_path, pb)
 							reports.add(report)
-							command = f'rm "{buffered_path}"'
-							rm_proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+							os.remove(buffered_path)
 						else:
 							report = extract_tiles_from_slide(path, pb)
 							reports.add(report)
@@ -966,15 +966,12 @@ class SlideflowProject:
 				for slide_path in slide_list:
 					if buffer and buffer != 'vmtouch':
 						while True:
-							command = f'cp "{slide_path}" "{join(buffer, os.path.basename(slide_path))}"'
-							cp_proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-							commandResult = cp_proc.wait()
-							if commandResult:
-								# Buffer is full; wait 5 seconds and try again
-								time.sleep(5)
-							else: 
+							try:
+								shutil.copyfile(slide_path, join(buffer, os.path.basename(slide_path)))
 								q.put(slide_path)
 								break
+							except OSError:
+								time.sleep(5)
 					else:
 						q.put(slide_path)
 				q.join()
@@ -1026,7 +1023,7 @@ class SlideflowProject:
 		return AV
 
 	def generate_heatmaps(self, model, filters=None, directory=None, resolution='low', interpolation='none', show_roi=True, logit_cmap=None,
-							skip_thumb=False, buffer=True, single_thread=False):
+							skip_thumb=False, normalizer=None, normalizer_source=None, buffer=True, single_thread=False):
 		'''Creates predictive heatmap overlays on a set of slides. 
 
 		Args:
@@ -1065,10 +1062,10 @@ class SlideflowProject:
 		for slide in slide_list:
 			if single_thread:
 				heatmap_generator(slide, model, model_path, heatmaps_folder, roi_list, show_roi,
-									resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb, buffer, self.FLAGS)
+									resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb, buffer, normalizer, normalizer_source, self.FLAGS)
 			else:
 				process = ctx.Process(target=heatmap_generator, args=(slide, model, model_path, heatmaps_folder, roi_list, show_roi, 
-																		resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb, buffer, self.FLAGS))
+																		resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb, buffer, normalizer, normalizer_source, self.FLAGS))
 				process.start()
 				log.empty(f"Spawning heatmaps process (PID: {process.pid})")
 				process.join()
@@ -1586,13 +1583,15 @@ class SlideflowProject:
 
 		return results_dict
 
-	def visualize_tiles(self, model, node, tfrecord_dict=None, directory=None, num_to_visualize=20, window=None):
+	def visualize_tiles(self, model, node, tfrecord_dict=None, directory=None, num_to_visualize=20, window=None, normalizer=None, normalizer_source=None):
 		hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
 		tile_px = hp_data['hp']['tile_px']
 		TV = TileVisualizer(model=model, 
 							node=node,
 							shape=[tile_px, tile_px, 3],
-							tile_width=window)
+							tile_width=window,
+							normalizer=normalizer,
+							normalizer_source=normalizer_source)
 
 		if tfrecord_dict:
 			for tfrecord in tfrecord_dict:
