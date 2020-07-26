@@ -35,7 +35,6 @@ from slideflow.mosaic import Mosaic
 from comet_ml import Experiment
 
 __version__ = "1.9.0a"
-package_directory = os.path.dirname(os.path.abspath(__file__))
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -51,7 +50,7 @@ DEFAULT_FLAGS = {
 
 def evaluator(outcome_header, model, project_config, results_dict, filters=None, 
 				hyperparameters=None, checkpoint=None, eval_k_fold=None, max_tiles_per_slide=0,
-				min_tiles_per_slide=0, flags=None):
+				min_tiles_per_slide=0, normalizer=None, normalizer_source=None, flags=None):
 
 	if not flags: flags = DEFAULT_FLAGS
 
@@ -99,7 +98,9 @@ def evaluator(outcome_header, model, project_config, results_dict, filters=None,
 																  validation_tfrecords=eval_tfrecords,
 																  manifest=eval_dataset.get_manifest(),
 																  use_fp16=project_config['use_fp16'],
-																  model_type=hp.model_type())
+																  model_type=hp.model_type(),
+																  normalizer=normalizer,
+																  normalizer_source=normalizer_source)
 
 	# Log model settings and hyperparameters
 	hp_file = join(model_dir, 'hyperparameters.json')
@@ -175,7 +176,7 @@ def trainer(outcome_headers, model_name, project_config, results_dict, hp, valid
 			validation_target, validation_fraction, validation_k_fold, validation_log, validation_dataset=None, 
 			validation_annotations=None, validation_filters=None, k_fold_i=None, filters=None, pretrain=None, 
 			resume_training=None, checkpoint=None, validate_on_batch=0, validation_steps=200, max_tiles_per_slide=0, 
-			min_tiles_per_slide=0, starting_epoch=0, flags=None):
+			min_tiles_per_slide=0, starting_epoch=0, normalizer=None, normalizer_source=None, flags=None):
 
 	import tensorflow as tf
 
@@ -242,7 +243,9 @@ def trainer(outcome_headers, model_name, project_config, results_dict, hp, valid
 	SFM = sfmodel.SlideflowModel(model_dir, hp.tile_px, outcomes, training_tfrecords, validation_tfrecords,
 																			manifest=manifest,
 																			use_fp16=project_config['use_fp16'],
-																			model_type=hp.model_type())
+																			model_type=hp.model_type(),
+																			normalizer=normalizer,
+																			normalizer_source=normalizer_source)
 
 	# Log model settings and hyperparameters
 	hp_file = join(project_config['models_dir'], full_model_name, 'hyperparameters.json')
@@ -653,7 +656,7 @@ class SlideflowProject:
 		self.load_project(project_folder)
 
 	def evaluate(self, model, outcome_header, hyperparameters=None, filters=None, checkpoint=None,
-					eval_k_fold=None, max_tiles_per_slide=0, min_tiles_per_slide=0):
+					eval_k_fold=None, max_tiles_per_slide=0, min_tiles_per_slide=0, normalizer=None, normalizer_source=None):
 		'''Evaluates a saved model on a given set of tfrecords.
 		
 		Args:
@@ -674,7 +677,7 @@ class SlideflowProject:
 		ctx = multiprocessing.get_context('spawn')
 		
 		process = ctx.Process(target=evaluator, args=(outcome_header, model, self.PROJECT, results_dict, filters, hyperparameters, 
-														checkpoint, eval_k_fold, max_tiles_per_slide, min_tiles_per_slide, self.FLAGS))
+														checkpoint, eval_k_fold, max_tiles_per_slide, min_tiles_per_slide, normalizer, normalizer_source, self.FLAGS))
 		process.start()
 		log.empty(f"Spawning evaluation process (PID: {process.pid})")
 		process.join()
@@ -739,15 +742,12 @@ class SlideflowProject:
 		
 		extracting_dataset.update_manifest()
 
-	def tfrecord_report(self, tile_px, tile_um, filters=None, filter_blank=None, destination='auto', dataset=None, normalize='macenko', normalizer_source=None):
+	def tfrecord_report(self, tile_px, tile_um, filters=None, filter_blank=None, destination='auto', dataset=None):
 		from slideflow.slide import ExtractionReport, SlideReport, StainNormalizer
 		import tensorflow as tf
 
 		if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
 		else:		datasets = self.PROJECT['datasets']
-
-		# Setup normalization
-		normalizer = None if not normalize else StainNormalizer(method=normalize, source=normalizer_source)
 
 		tfrecord_dataset = self.get_dataset(filters=filters, filter_blank=filter_blank, tile_px=tile_px, tile_um=tile_um)
 		log.header("Generating TFRecords report...")
@@ -763,9 +763,6 @@ class SlideflowProject:
 					if i > 9: break
 					features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION)
 					image_raw_data = features['image_raw'].numpy()
-
-					if normalizer:
-						image_raw_data = normalizer.normalize_jpeg(image_raw_data)
 
 					sample_tiles += [image_raw_data]
 				reports += [SlideReport(sample_tiles, tfr)]
@@ -1451,7 +1448,7 @@ class SlideflowProject:
 				pretrain='imagenet', batch_file=None, hyperparameters=None, validation_target=None, validation_strategy=None,
 				validation_fraction=None, validation_k_fold=None, k_fold_iter=None,
 				validation_dataset=None, validation_annotations=None, validation_filters=None, validate_on_batch=256, validation_steps=200,
-				max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, auto_extract=False):
+				max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, auto_extract=False, normalizer=None, normalizer_source=None):
 		'''Train model(s) given configurations found in batch_train.tsv.
 
 		Args:
@@ -1554,7 +1551,7 @@ class SlideflowProject:
 																validation_log, validation_dataset, validation_annotations,
 																validation_filters, k, filters, pretrain, resume_training, 
 																checkpoint, validate_on_batch, validation_steps, max_tiles_per_slide,
-																min_tiles_per_slide, starting_epoch, self.FLAGS))
+																min_tiles_per_slide, starting_epoch, normalizer, normalizer_source, self.FLAGS))
 					process.start()
 					log.empty(f"Spawning training process (PID: {process.pid})")
 					process.join()
