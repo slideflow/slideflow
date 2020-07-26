@@ -250,6 +250,7 @@ class SlideflowModel:
 		outcomes = [slide_annotations[slide]['outcome'] for slide in self.SLIDES]
 
 		# Normalization setup
+		if normalizer: log.info(f"Using realtime {normalizer} normalization", 2)
 		self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
 		if model_type == 'categorical':

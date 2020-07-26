@@ -211,7 +211,7 @@ class TestSuite:
 		tiles_dir = extracting_dataset.datasets[dataset_name]['tiles']
 		pb = None#ProgressBar(bar_length=5, counter_text='tiles')
 		whole_slide = sf.slide.SlideReader(slide_list[0], 299, 302, 1, enable_downsample=False, export_folder=tiles_dir, roi_dir=roi_dir, roi_list=None, buffer=buffer, pb=pb) 
-		whole_slide.extract_tiles()
+		whole_slide.extract_tiles(normalizer='macenko')
 		print("\t...OK")
 
 	def test_training(self, categorical=True, linear=True):
