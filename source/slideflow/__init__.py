@@ -743,12 +743,16 @@ class SlideflowProject:
 		
 		extracting_dataset.update_manifest()
 
-	def tfrecord_report(self, tile_px, tile_um, filters=None, filter_blank=None, destination='auto', dataset=None):
+	def tfrecord_report(self, tile_px, tile_um, filters=None, filter_blank=None, destination='auto',
+						 normalizer=None, normalizer_source=None, dataset=None):
 		from slideflow.slide import ExtractionReport, SlideReport, StainNormalizer
 		import tensorflow as tf
 
 		if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
 		else:		datasets = self.PROJECT['datasets']
+
+		if normalizer: log.info(f"Using realtime {normalizer} normalization", 2)
+		normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
 		tfrecord_dataset = self.get_dataset(filters=filters, filter_blank=filter_blank, tile_px=tile_px, tile_um=tile_um)
 		log.header("Generating TFRecords report...")
@@ -764,6 +768,9 @@ class SlideflowProject:
 					if i > 9: break
 					features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION)
 					image_raw_data = features['image_raw'].numpy()
+
+					if normalizer:
+						image_raw_data = normalizer.jpeg_to_jpeg(image_raw_data)
 
 					sample_tiles += [image_raw_data]
 				reports += [SlideReport(sample_tiles, tfr)]
