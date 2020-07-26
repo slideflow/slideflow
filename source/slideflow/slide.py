@@ -18,7 +18,6 @@ from __future__ import print_function
 import os
 import sys
 import io
-
 import tensorflow as tf
 import numpy as np
 import imageio
@@ -32,6 +31,8 @@ import json
 import time
 import multiprocessing
 import random
+import tempfile
+import warnings
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -50,8 +51,10 @@ from slideflow.util.fastim import FastImshow
 from slideflow.io.tfrecords import image_example
 from statistics import mean, median
 from pathlib import Path
+from fpdf import FPDF
+from datetime import datetime
 
-
+warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
 DEFAULT_JPG_MPP = 0.25
 OPS_LEVEL_COUNT = 'openslide.level-count'
@@ -89,6 +92,47 @@ def vips2numpy(vi):
 	return np.ndarray(buffer=vi.write_to_memory(),
 					  dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
 					  shape=[vi.height, vi.width, vi.bands])
+
+class SlideReport:
+	def __init__(self, images, path, data=None):
+		self.images = images
+		self.data = data
+		self.path = path
+
+class ExtractionPDF(FPDF):
+	def footer(self):
+		self.set_y(-15)
+		self.set_font('Arial', 'I', 8)
+		self.cell(0, 10, 'Page ' + str(self.page_no()) + '/{nb}', 0, 0, 'C')
+
+class ExtractionReport:
+	def __init__(self, reports, tile_px=None, tile_um=None):
+		pdf = ExtractionPDF()
+		pdf.alias_nb_pages()
+		pdf.add_page()
+		pdf.set_font('Arial', 'B', 16)
+		pdf.cell(40, 10, 'Tile extraction report', 0, 1)
+		pdf.set_font('Arial', '', 12)
+		if tile_px and tile_um:
+			pdf.cell(20, 10, f'Tile size: {tile_px}px, {tile_um}um', 0, 1)
+		pdf.cell(20, 10, f'Generated: {datetime.now()}', 0, 1)
+
+
+		for report in reports:
+			pdf.set_font('Arial', '', 8)
+			pdf.cell(10, 10, report.path, 0, 1)
+			for i, image in enumerate(report.images):
+				with tempfile.NamedTemporaryFile() as temp:
+					temp.write(image)
+					x = pdf.get_x()
+					y = pdf.get_y()
+					pdf.image(temp.name, x+(19*i), y, w=19, h=19, type='jpg')
+			pdf.ln(20)
+			
+		self.pdf = pdf
+
+	def save(self, filename):
+		self.pdf.output(filename)
 
 class InvalidTileSplitException(Exception):
 	'''Raised when invalid tile splitting parameters are given to SlideReader.'''
@@ -207,7 +251,6 @@ class JPGslideToVIPS(OpenslideToVIPS):
 		# MPP data
 		self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
 
-
 class ROIObject:
 	'''Object container for ROI annotations.'''
 	def __init__(self, name):
@@ -248,20 +291,12 @@ class SlideLoader:
 		if thumb_folder and not exists(thumb_folder): os.makedirs(thumb_folder)
 		filetype = sfutil.path_to_ext(path)
 
-		# Initiate supported slide (SVS, TIF) or JPG slide reader
+		# Initiate supported slide reader
 		if filetype.lower() in sfutil.SUPPORTED_FORMATS:
-			#try:
 			if filetype.lower() == 'jpg':
 				self.slide = JPGslideToVIPS(path)
 			else:
 				self.slide = OpenslideToVIPS(path, buffer=buffer)
-			#except:
-			#	log.warn(f" Unable to read slide from {path} , skipping", 1, self.print)
-			#	self.shape = None
-			#	self.load_error = True
-			#	return
-		#elif filetype == "jpg":
-		#	self.slide = JPGSlide(path, mpp=DEFAULT_JPG_MPP)
 		else:
 			log.error(f"Unsupported file type '{filetype}' for slide {self.name}.", 1, self.print)
 			self.load_error = True
@@ -535,7 +570,7 @@ class TMAReader(SlideLoader):
 
 		return generator, None, None, None
 
-	def export_tiles(self, augment=False, export_full_core=False):
+	def extract_tiles(self, augment=False, export_full_core=False):
 		'''Exports all tiles.'''
 		if not self.loaded_correctly():
 			log.error(f"Unable to extract tiles; unable to load slide {sfutil.green(self.name)}", 1)
@@ -670,48 +705,45 @@ class SlideReader(SlideLoader):
 
 		return generator
 
-	def export_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None):
+	def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None):
 		'''Exports tiles.'''
-		if not tfrecord_dir and not tiles_dir:
-			log.error(f"Must supply either tfrecord or tiles_dir to extract tiles for slide {sfutil.green(self.name)}", 1, self.print)
-			return
-
 		# Make base directories
 		if tfrecord_dir:
 			if not exists(tfrecord_dir): os.makedirs(tfrecord_dir)
 		if tiles_dir:
 			if not os.path.exists(tiles_dir): os.makedirs(tiles_dir)
 
-		# Log to keep track of when tiles have finished extracting
-		# To be used in case tile extraction is interrupted, so the slide can be flagged for re-extraction
-		unfinished_marker = join((tfrecord_dir if tfrecord_dir else tiles_dir), f'{self.name}.unfinished')
-		with open(unfinished_marker, 'w') as marker_file:
-			marker_file.write(' ')
+		if tfrecord_dir or tiles_dir:
+			# Log to keep track of when tiles have finished extracting
+			# To be used in case tile extraction is interrupted, so the slide can be flagged for re-extraction
+			unfinished_marker = join((tfrecord_dir if tfrecord_dir else tiles_dir), f'{self.name}.unfinished')
+			with open(unfinished_marker, 'w') as marker_file:
+				marker_file.write(' ')
 
-		if split_fraction and split_names:
-			# Tile splitting error checking
-			if len(split_fraction) != len(split_names):
-				raise InvalidTileSplitException(f'When splitting tiles, length of "fraction" ({len(fraction)}) should equal length of "names" ({len(names)})')
-			if sum([i for i in split_fraction if i != -1]) > 1:
-				raise InvalidTileSplitException("Unable to split tiles; sum of split_fraction is greater than 1")
-			# Calculate dynamic splitting
-			if -1 in split_fraction:
-				num_to_dynamic_split = sum([i for i in split_fraction if i == -1])
-				dynamic_fraction = (1 - sum([i for i in split_fraction if i != -1])) / num_to_dynamic_split
-				split_fraction = [s if s != -1 else dynamic_fraction for s in split_fraction]
-			# Prepare subfolders for splitting
-			if tfrecord_dir:
-				tfrecord_writers = []
-				for name in split_names:
-					if not exists(join(tfrecord_dir, name)):
-						os.makedirs(join(tfrecord, name))
-						tfrecord_writers += [tf.io.TFRecordWriter(join(tfrecord_dir, name, self.name+".tfrecords"))]
-			if tiles_dir:
-				for name in split_names:
-					if not exists(join(tiles_dir, name)):
-						os.makedirs(join(tiles_dir, name))
-		elif tfrecord_dir:
-			tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
+			if split_fraction and split_names:
+				# Tile splitting error checking
+				if len(split_fraction) != len(split_names):
+					raise InvalidTileSplitException(f'When splitting tiles, length of "fraction" ({len(fraction)}) should equal length of "names" ({len(names)})')
+				if sum([i for i in split_fraction if i != -1]) > 1:
+					raise InvalidTileSplitException("Unable to split tiles; sum of split_fraction is greater than 1")
+				# Calculate dynamic splitting
+				if -1 in split_fraction:
+					num_to_dynamic_split = sum([i for i in split_fraction if i == -1])
+					dynamic_fraction = (1 - sum([i for i in split_fraction if i != -1])) / num_to_dynamic_split
+					split_fraction = [s if s != -1 else dynamic_fraction for s in split_fraction]
+				# Prepare subfolders for splitting
+				if tfrecord_dir:
+					tfrecord_writers = []
+					for name in split_names:
+						if not exists(join(tfrecord_dir, name)):
+							os.makedirs(join(tfrecord, name))
+							tfrecord_writers += [tf.io.TFRecordWriter(join(tfrecord_dir, name, self.name+".tfrecords"))]
+				if tiles_dir:
+					for name in split_names:
+						if not exists(join(tiles_dir, name)):
+							os.makedirs(join(tiles_dir, name))
+			elif tfrecord_dir:
+				tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
 
 		generator = self.build_generator()
 		slidename_bytes = bytes(self.name, 'utf-8')
@@ -720,8 +752,13 @@ class SlideReader(SlideLoader):
 			log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1, self.print)
 			return
 
+		sample_tiles = []
 		for index, tile in enumerate(generator()):
 			image_string = tile.jpegsave_buffer(Q=100)
+			if len(sample_tiles) < 10:
+				sample_tiles += [image_string]
+			elif not tiles_dir and not tfrecord_dir:
+				break
 			if tiles_dir:
 				if split_fraction and split_names:
 					save_dir = join(tiles_dir, random.choices(split_names, weights=split_fraction))
@@ -737,16 +774,22 @@ class SlideReader(SlideLoader):
 				tf_example = image_example(slidename_bytes, image_string)
 				writer.write(tf_example.SerializeToString())
 		
-		# Mark extraction of current slide as finished
-		try:
-			os.remove(unfinished_marker)
-		except:
-			log.error(f"Unable to mark slide {self.name} as tile extraction complete", 1)
+		if tfrecord_dir or tiles_dir:
+			# Mark extraction of current slide as finished
+			try:
+				os.remove(unfinished_marker)
+			except:
+				log.error(f"Unable to mark slide {self.name} as tile extraction complete", 1)
 
 		# Unbuffer slide
 		self.slide.unbuffer()
 
+		# Generate extraction report
+		report = SlideReport(sample_tiles, self.slide.path)
+
 		log.complete(f"Finished tile extraction for slide {sfutil.green(self.shortname)}", 1, self.print)
+
+		return report
 
 	def load_csv_roi(self, path):
 		'''Loads CSV ROI from a given path.'''
