@@ -48,6 +48,7 @@ from slideflow.io import tfrecords
 
 import slideflow.util as sfutil
 import slideflow.statistics as sfstats
+from slideflow.slide import StainNormalizer
 
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
@@ -233,7 +234,8 @@ class HyperParameters:
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
-	def __init__(self, data_directory, image_size, slide_annotations, train_tfrecords, validation_tfrecords, manifest=None, use_fp16=True, model_type='categorical'):
+	def __init__(self, data_directory, image_size, slide_annotations, train_tfrecords, validation_tfrecords, 
+					manifest=None, use_fp16=True, model_type='categorical', normalizer=None, normalizer_source=None):
 		self.DATA_DIR = data_directory # Directory where to write event logs and checkpoints.
 		self.MANIFEST = manifest
 		self.IMAGE_SIZE = image_size
@@ -246,6 +248,9 @@ class SlideflowModel:
 		self.SLIDES = list(slide_annotations.keys())
 		self.DATASETS = {}
 		outcomes = [slide_annotations[slide]['outcome'] for slide in self.SLIDES]
+
+		# Normalization setup
+		self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
 		if model_type == 'categorical':
 			try:
@@ -536,6 +541,10 @@ class SlideflowModel:
 
 	def _process_image(self, image_string, augment):
 		image = tf.image.decode_jpeg(image_string, channels = 3)
+
+		if self.normalizer:
+			image = tf.py_function(self.normalizer.normalize_array_to_cv, [image], tf.int8)
+
 		image = tf.image.per_image_standardization(image)
 
 		if augment:
