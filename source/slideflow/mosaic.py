@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import slideflow.util as sfutil
 import slideflow.io as sfio
+from slideflow.slide import StainNormalizer
 
 from random import shuffle
 from matplotlib import patches
@@ -21,7 +22,7 @@ class Mosaic:
 	points = []
 
 	def __init__(self, umap, focus=None, leniency=1.5, expanded=False, tile_zoom=15, num_tiles_x=50, resolution='high', 
-					export=True, relative_size=False, tile_select='nearest', tile_meta=None, normalize='color'):
+					export=True, relative_size=False, tile_select='nearest', tile_meta=None, normalizer=None, normalizer_source=None):
 		'''Generate a mosaic map.
 
 		Args:
@@ -42,6 +43,10 @@ class Mosaic:
 		self.umap = umap
 		self.num_tiles_x = num_tiles_x
 		self.tfrecords_paths = umap.tfrecords
+
+		# Setup normalization
+		if normalizer: log.info(f"Using realtime {normalizer} normalization", 2)
+		self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 		
 		# Initialize figure
 		log.empty("Initializing figure...", 1)
@@ -196,7 +201,7 @@ class Mosaic:
 
 				_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
 				self.mapped_tiles.update({point['tfrecord']: point['tfrecord_index']})
-				tile_image = self._decode_image_string(tile_image.numpy(), normalize=normalize)
+				tile_image = self._decode_image_string(tile_image.numpy())
 				
 				tile_alpha, num_slide, num_other = 1, 0, 0
 				display_size = tile_size
@@ -231,7 +236,7 @@ class Mosaic:
 
 					_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
 					self.mapped_tiles.update({point['tfrecord']: point['tfrecord_index']})
-					tile_image = self._decode_image_string(tile_image.numpy(), normalize=normalize)					
+					tile_image = self._decode_image_string(tile_image.numpy())					
 
 					if not export:
 						tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
@@ -256,27 +261,13 @@ class Mosaic:
 				return tfr
 		log.error(f"Unable to find TFRecord path for slide {sfutil.green(slide)}", 1)
 
-	def _decode_image_string(self, string, normalize='color'):
-
-		def normalize(x, color=True):
-			norm = np.array((x - np.min(x)) / (np.max(x) - np.min(x)))
-			if not color:
-				gray = np.dot(norm[...,:3], [0.333, 0.333, 0.333])
-				return (0.5 / np.mean(gray)) * gray
-			else:
-				orig_dim = norm.shape
-				reshaped = norm.reshape([-1, 3])
-				colornorm = reshaped * (0.5 / np.mean(reshaped, axis=0))
-				return colornorm.reshape(orig_dim)
-
-		image_arr = np.fromstring(string, np.uint8)
-		tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
-		
-		if normalize:
-			tile_image_bgr = np.array(normalize(tile_image_bgr, color=(normalize=='color')) * 255, dtype=np.uint8)
-		
-		tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
-			
+	def _decode_image_string(self, string):	
+		if self.normalizer:
+			tile_image = self.normalizer.jpeg_to_rgb(string)
+		else:
+			image_arr = np.fromstring(string, np.uint8)
+			tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
+			tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
 		return tile_image
 
 	def focus(self, tfrecords):
