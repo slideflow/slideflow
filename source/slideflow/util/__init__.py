@@ -5,6 +5,7 @@ import time
 import os
 import shutil
 import datetime
+import threading
 
 import tensorflow as tf
 
@@ -270,6 +271,18 @@ class TCGA:
 	patient = 'submitter_id'
 	project = 'project_id'
 	slide = 'slide'
+
+class ThreadSafeList:
+	def __init__(self):
+		self.lock = threading.Lock()
+		self.items = []
+	def add(self, item):
+		with self.lock:
+			self.items.append(item)
+	def getAll(self):
+		with self.lock:
+			items, self.items = self.items, []
+		return items
 
 def make_dir(_dir):
 	'''Makes a directory if one does not already exist, in a manner compatible with multithreading. '''
