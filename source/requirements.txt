@@ -12,3 +12,4 @@ comet-ml
 pandas
 tabulate
 pyvips==2.1.11
+fpdf

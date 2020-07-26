@@ -201,7 +201,7 @@ class TestSuite:
 		self.SFP.extract_tiles()
 		print("\t...OK")
 
-	def test_single_extraction(self, buffered=True):
+	def test_single_extraction(self, buffer=True):
 		log.header("Testing single slide extraction...")
 		extracting_dataset = Dataset(config_file=self.SFP.PROJECT['dataset_config'], sources=self.SFP.PROJECT['datasets'])
 		extracting_dataset.load_annotations(self.SFP.PROJECT['annotations'])
@@ -210,8 +210,8 @@ class TestSuite:
 		roi_dir = extracting_dataset.datasets[dataset_name]['roi'] 
 		tiles_dir = extracting_dataset.datasets[dataset_name]['tiles']
 		pb = None#ProgressBar(bar_length=5, counter_text='tiles')
-		whole_slide = sf.slide.SlideReader(slide_list[0], 299, 302, 1, enable_downsample=False, export_folder=tiles_dir, roi_dir=roi_dir, roi_list=None, buffered=buffered, pb=pb) 
-		whole_slide.export_tiles()
+		whole_slide = sf.slide.SlideReader(slide_list[0], 299, 302, 1, enable_downsample=False, export_folder=tiles_dir, roi_dir=roi_dir, roi_list=None, buffer=buffer, pb=pb) 
+		whole_slide.extract_tiles()
 		print("\t...OK")
 
 	def test_training(self, categorical=True, linear=True):

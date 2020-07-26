@@ -6,7 +6,6 @@ import logging
 import gc
 import atexit
 import itertools
-import warnings
 import csv
 import queue, threading
 import subprocess
@@ -23,6 +22,7 @@ from random import shuffle, choice
 from string import ascii_lowercase
 from multiprocessing.dummy import Pool as DPool
 from functools import partial
+from datetime import datetime
 
 import slideflow.model as sfmodel
 import slideflow.util as sfutil
@@ -686,10 +686,6 @@ class SlideflowProject:
 		import tensorflow as tf
 		from PIL import Image
 
-		# Filter out warnings and allow loading large images
-		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
-		Image.MAX_IMAGE_PIXELS = 100000000000
-
 		log.header("Extracting dual-image tiles...")
 		extracting_dataset = self.get_dataset(filters=filters, tile_px=tile_px, tile_um=tile_um)
 
@@ -743,8 +739,80 @@ class SlideflowProject:
 		
 		extracting_dataset.update_manifest()
 
-	def extract_tiles(self, tile_px, tile_um, filters=None, stride_div=1, tma=False, save_tiles=False, save_tfrecord=True, delete_tiles=True,
-						enable_downsample=False, roi_method='inside', skip_missing_roi=True, skip_extracted=True, dataset=None, buffer=True):
+	def tfrecord_report(self, tile_px, tile_um, filters=None, filter_blank=None, destination='auto', dataset=None):
+		from slideflow.slide import ExtractionReport, SlideReport
+		import tensorflow as tf
+
+		if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
+		else:		datasets = self.PROJECT['datasets']
+
+		tfrecord_dataset = self.get_dataset(filters=filters, filter_blank=filter_blank, tile_px=tile_px, tile_um=tile_um)
+		log.header("Generating TFRecords report...")
+		reports = []
+		for dataset_name in datasets:
+			roi_dir = tfrecord_dataset.datasets[dataset_name]['roi']
+			tfrecord_list = tfrecord_dataset.get_tfrecords(dataset=dataset_name)
+			for tfr in tfrecord_list:
+				dataset = tf.data.TFRecordDataset(tfr)
+				sample_tiles = []
+				for i, record in enumerate(dataset):
+					if i > 10: break
+					features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION)
+					image_raw_data = features['image_raw'].numpy()
+					sample_tiles += [image_raw_data]
+				reports += [SlideReport(sample_tiles, tfr)]
+		log.empty("Generating PDF...")
+		pdf_report = ExtractionReport(reports, tile_px=tile_px, tile_um=tile_um)
+		timestring = datetime.now().strftime("%Y%m%d-%H%M%S")
+		filename = destination if destination != 'auto' else join(self.PROJECT['root'], f'tfrecord_report-{timestring}.pdf')
+		pdf_report.save(filename)
+		log.complete(f"TFRecord report saved to {sfutil.green(filename)}")
+
+	def slide_report(self, tile_px, tile_um, filters=None, filter_blank=None, stride_div=1, destination='auto', dataset=None, tma=False,
+						enable_downsample=False, roi_method='inside', skip_missing_roi=True):
+		import slideflow.slide as sfslide
+
+		if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
+		else:		datasets = self.PROJECT['datasets']
+
+		extracting_dataset = self.get_dataset(filters=filters, filter_blank=filter_blank, tile_px=tile_px, tile_um=tile_um)
+
+		log.header("Generating slide report...")
+		reports = []
+		for dataset_name in datasets:
+			roi_dir = extracting_dataset.datasets[dataset_name]['roi']
+			slide_list = extracting_dataset.get_slide_paths(dataset=dataset_name)
+
+			# Function to extract tiles from a slide
+			def get_slide_report(slide_path):
+				print(f"\r\033[KGenerating report for slide {sfutil.green(sfutil.path_to_name(slide_path))}...", end="")
+
+				if tma:
+					whole_slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample, silent=True)
+				else:
+					whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample, 
+																			roi_dir=roi_dir,
+																			roi_method=roi_method,
+																			silent=True,
+																			skip_missing_roi=skip_missing_roi)
+				if not whole_slide.loaded_correctly():
+					return
+
+				report = whole_slide.extract_tiles()
+				return report
+
+			for slide_path in slide_list:
+				report = get_slide_report(slide_path)
+				reports += [report]
+		print()
+		pdf_report = sfslide.ExtractionReport(reports, tile_px=tile_px, tile_um=tile_um)
+		timestring = datetime.now().strftime("%Y%m%d-%H%M%S")
+		filename = destination if destination != 'auto' else join(self.PROJECT['root'], f'tile_extraction_report-{timestring}.pdf')
+		pdf_report.save(filename)
+		log.complete(f"Slide report saved to {sfutil.green(filename)}")
+
+	def extract_tiles(self, tile_px, tile_um, filters=None, filter_blank=None, stride_div=1, tma=False, save_tiles=False, save_tfrecord=True, delete_tiles=True,
+						enable_downsample=False, roi_method='inside', skip_missing_roi=True, skip_extracted=True, dataset=None, buffer=None):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.
 		
@@ -763,10 +831,6 @@ class SlideflowProject:
 		import slideflow.slide as sfslide
 		from PIL import Image
 
-		# Filter out warnings and allow loading large images
-		warnings.simplefilter('ignore', Image.DecompressionBombWarning)
-		Image.MAX_IMAGE_PIXELS = 100000000000
-
 		log.header("Extracting image tiles...")
 
 		if not save_tiles and not save_tfrecord:
@@ -777,7 +841,7 @@ class SlideflowProject:
 		else:		datasets = self.PROJECT['datasets']
 
 		# Load dataset for evaluation
-		extracting_dataset = self.get_dataset(filters=filters, tile_px=tile_px, tile_um=tile_um)
+		extracting_dataset = self.get_dataset(filters=filters, filter_blank=filter_blank, tile_px=tile_px, tile_um=tile_um)
 
 		# Prepare validation/training subsets if per-tile validation is being used
 		if self.PROJECT['validation_target'] == 'per-tile':
@@ -848,41 +912,44 @@ class SlideflowProject:
 				print_func = print if not pb else pb.print
 				log.empty(f"Exporting tiles for slide {sfutil.path_to_name(slide_path)}", 1, print_func)
 
-				if not tma:
-					whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample, 
-																								roi_dir=roi_dir,
-																								roi_method=roi_method,
-																								skip_missing_roi=skip_missing_roi,
-																								buffer=buffer,
-																								pb=pb)
-				else:
+				if tma:
 					whole_slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample,
-																							  export_folder=tiles_folder, 
-																							  buffer=buffer,
-																							  pb=pb)
-
+																			export_folder=tiles_folder, 
+																			buffer=buffer,
+																			pb=pb)
+				else:
+					whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample, 
+																			roi_dir=roi_dir,
+																			roi_method=roi_method,
+																			skip_missing_roi=skip_missing_roi,
+																			buffer=buffer,
+																			pb=pb)
 				if not whole_slide.loaded_correctly():
 					return
 
-				whole_slide.export_tiles(tfrecord_dir=tfrecord_dir if save_tfrecord else None,
-										 tiles_dir=tiles_folder if save_tiles else None,
-										 split_fraction=split_fraction,
-										 split_names=split_names)
+				report = whole_slide.extract_tiles(tfrecord_dir=tfrecord_dir if save_tfrecord else None,
+										 		   tiles_dir=tiles_folder if save_tiles else None,
+										 		   split_fraction=split_fraction,
+												   split_names=split_names)
+				return report
 
 			# Use multithreading if specified, extracting tiles from all slides in the filtered list
 			if self.FLAGS['num_threads'] > 1 and len(slide_list):
 				q = queue.Queue()
-
+				reports = sfutil.ThreadSafeList()
+				
 				def worker():
 					while True:
 						path = q.get()
-						if buffer != 'vmtouch':
-							buffered_path = join(buffer, sfutil.path_to_name(path)+".svs")
-							extract_tiles_from_slide(buffered_path, pb)
+						if buffer and buffer != 'vmtouch':
+							buffered_path = join(buffer, os.path.basename(path))
+							report = extract_tiles_from_slide(buffered_path, pb)
+							reports.add(report)
 							command = f'rm "{buffered_path}"'
 							rm_proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 						else:
-							extract_tiles_from_slide(path, pb)
+							report = extract_tiles_from_slide(path, pb)
+							reports.add(report)
 						q.task_done()
 
 				threads = [threading.Thread(target=worker, daemon=True) for t in range(self.FLAGS['num_threads'])]
@@ -892,7 +959,7 @@ class SlideflowProject:
 				for slide_path in slide_list:
 					if buffer and buffer != 'vmtouch':
 						while True:
-							command = f'cp "{slide_path}" "{join(buffer, sfutil.path_to_name(slide_path)+".svs")}"'
+							command = f'cp "{slide_path}" "{join(buffer, os.path.basename(slide_path))}"'
 							cp_proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 							commandResult = cp_proc.wait()
 							if commandResult:
@@ -903,11 +970,18 @@ class SlideflowProject:
 								break
 					else:
 						q.put(slide_path)
-
 				q.join()
+				pdf_report = sfslide.ExtractionReport(reports.getAll(), tile_px=tile_px, tile_um=tile_um)
+				timestring = datetime.now().strftime("%Y%m%d-%H%M%S")
+				pdf_report.save(join(self.PROJECT['root'], f'tile_extraction_report-{timestring}.pdf'))
 			else:
+				reports = []
 				for slide_path in slide_list:
-					extract_tiles_from_slide(slide_path, pb)
+					report = extract_tiles_from_slide(slide_path, pb)
+					reports += [report]
+				pdf_report = sfslide.ExtractionReport(reports, tile_px=tile_px, tile_um=tile_um)
+				timestring = datetime.now().strftime("%Y%m%d-%H%M%S")
+				pdf_report.save(join(self.PROJECT['root'], f'tile_extraction_report-{timestring}.pdf'))
 
 			# Update manifest
 			extracting_dataset.update_manifest()
@@ -1296,9 +1370,8 @@ class SlideflowProject:
 			log.warn("No datasets configured.")
 
 		if verification:
-			log.header("Verifying Annotations...")
+			log.header("Verifying annotations and manifest...")
 			dataset.verify_annotations_slides()
-			log.header("Verifying TFRecord manifest...")
 			dataset.update_manifest()
 
 		return dataset
