@@ -192,7 +192,7 @@ class StainNormalizer:
 		cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
 		return cv_image
 
-	def peg_to_jpeg(self, jpeg_string):
+	def jpeg_to_jpeg(self, jpeg_string):
 		cv_image = self.jpeg_to_rgb(jpeg_string)
 		with io.BytesIO() as output:
 			Image.fromarray(cv_image).save(output, format="JPEG", quality=75)
@@ -813,7 +813,8 @@ class SlideReader(SlideLoader):
 			elif tfrecord_dir:
 				tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
 
-		if normalizer: log.info(f"Extracting tiles using {normalizer} normalization", 1)
+		if normalizer: log.info("Extracting tiles using {} normalization", 1)
+
 		generator = self.build_generator(normalizer=normalizer, normalizer_source=normalizer_source)
 		slidename_bytes = bytes(self.name, 'utf-8')
 
