@@ -49,10 +49,13 @@ from matplotlib import pyplot as plt
 from slideflow.util import log
 from slideflow.util.fastim import FastImshow
 from slideflow.io.tfrecords import image_example
+from slideflow.slide import stainNorm_Macenko, stainNorm_Reinhard, stainNorm_Vahadane
 from statistics import mean, median
 from pathlib import Path
 from fpdf import FPDF
 from datetime import datetime
+
+from slideflow import package_directory
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -92,6 +95,10 @@ def vips2numpy(vi):
 	return np.ndarray(buffer=vi.write_to_memory(),
 					  dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
 					  shape=[vi.height, vi.width, vi.bands])
+
+class InvalidTileSplitException(Exception):
+	'''Raised when invalid tile splitting parameters are given to SlideReader.'''
+	pass
 
 class SlideReport:
 	def __init__(self, images, path, data=None, compress=True):
@@ -138,7 +145,7 @@ class ExtractionReport:
 			pdf.cell(20, 10, f'Tile size: {tile_px}px, {tile_um}um', 0, 1)
 		pdf.cell(20, 10, f'Generated: {datetime.now()}', 0, 1)
 
-		for report in reports:
+		for i, report in enumerate(reports):
 			pdf.set_font('Arial', '', 7)
 			pdf.cell(10, 10, report.path, 0, 1)
 			with tempfile.NamedTemporaryFile() as temp:
@@ -153,9 +160,25 @@ class ExtractionReport:
 	def save(self, filename):
 		self.pdf.output(filename)
 
-class InvalidTileSplitException(Exception):
-	'''Raised when invalid tile splitting parameters are given to SlideReader.'''
-	pass
+class StainNormalizer:
+	normalizers = {
+		'macenko':  stainNorm_Macenko.Normalizer,
+		'reinhard': stainNorm_Reinhard.Normalizer,
+		'vahadane': stainNorm_Vahadane.Normalizer
+	}
+	def __init__(self, method='macenko', source=None):
+		if not source:
+			source = join(package_directory, 'slide', 'norm_tile.jpg')
+		self.n = self.normalizers[method]()
+		self.n.fit(cv2.imread(source))
+
+	def normalize_jpeg(self, jpeg_string):
+		cv_image = cv2.imdecode(np.fromstring(jpeg_string, dtype=np.uint8), cv2.IMREAD_COLOR)
+		cv_image = self.n.transform(cv_image)
+		cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+		with io.BytesIO() as output:
+			Image.fromarray(cv_image).save(output, format="JPEG", quality=75)
+			return output.getvalue()
 
 class OpenslideToVIPS:
 	'''Wrapper for VIPS to preserve openslide-like functions.'''

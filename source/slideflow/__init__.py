@@ -1,5 +1,4 @@
 import os
-import io
 import sys
 import shutil
 import logging
@@ -36,6 +35,7 @@ from slideflow.mosaic import Mosaic
 from comet_ml import Experiment
 
 __version__ = "1.9.0a"
+package_directory = os.path.dirname(os.path.abspath(__file__))
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -706,7 +706,7 @@ class SlideflowProject:
 				for image_label in image_dict:
 					np_image = image_dict[image_label]
 					image = Image.fromarray(np_image).convert('RGB')
-					with io.BytesIO() as output:
+					with BytesIO() as output:
 						image.save(output, format="JPEG")
 						image_string = output.getvalue()
 						image_string_dict.update({
@@ -739,12 +739,15 @@ class SlideflowProject:
 		
 		extracting_dataset.update_manifest()
 
-	def tfrecord_report(self, tile_px, tile_um, filters=None, filter_blank=None, destination='auto', dataset=None):
-		from slideflow.slide import ExtractionReport, SlideReport
+	def tfrecord_report(self, tile_px, tile_um, filters=None, filter_blank=None, destination='auto', dataset=None, normalize='macenko', normalizer_source=None):
+		from slideflow.slide import ExtractionReport, SlideReport, StainNormalizer
 		import tensorflow as tf
 
 		if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
 		else:		datasets = self.PROJECT['datasets']
+
+		# Setup normalization
+		normalizer = None if not normalize else StainNormalizer(method=normalize, source=normalizer_source)
 
 		tfrecord_dataset = self.get_dataset(filters=filters, filter_blank=filter_blank, tile_px=tile_px, tile_um=tile_um)
 		log.header("Generating TFRecords report...")
@@ -760,6 +763,10 @@ class SlideflowProject:
 					if i > 9: break
 					features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION)
 					image_raw_data = features['image_raw'].numpy()
+
+					if normalizer:
+						image_raw_data = normalizer.normalize_jpeg(image_raw_data)
+
 					sample_tiles += [image_raw_data]
 				reports += [SlideReport(sample_tiles, tfr)]
 		print("\r\033[K", end="")
