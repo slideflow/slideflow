@@ -53,8 +53,9 @@ class ActivationsVisualizer:
 		Will also read/write processed activations to a PKL cache file to save time in future iterations.'''
 	
 	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_header=None, 
-					focus_nodes=[], use_fp16=True, use_activations_cache=False, activations_cache='default',
-					batch_size=16, activations_export=None, max_tiles_per_slide=100):
+					focus_nodes=[], use_fp16=True, normalizer=None, normalizer_source=None, 
+					use_activations_cache=False, activations_cache='default', batch_size=16,
+					activations_export=None, max_tiles_per_slide=100):
 		self.missing_slides = []
 		self.categories = []
 		self.used_categories = []
@@ -90,7 +91,7 @@ class ActivationsVisualizer:
 				self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
 		# Otherwise will need to generate new activations from a given model
 		else:
-			self.generate_activations_from_model(model, use_fp16=use_fp16, batch_size=batch_size, export=activations_export)
+			self.generate_activations_from_model(model, use_fp16=use_fp16, batch_size=batch_size, export=activations_export, normalizer=normalizer, normalizer_source=normalizer_source)
 			self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
 
 		# Now delete slides not included in our filtered TFRecord list
@@ -254,7 +255,7 @@ class ActivationsVisualizer:
 		
 		return self.nodes
 
-	def generate_activations_from_model(self, model, use_fp16=True, batch_size=16, export=None):
+	def generate_activations_from_model(self, model, use_fp16=True, batch_size=16, export=None, normalizer=None, normalizer_source=None):
 		'''Calculates activations from a given model.
 
 		Args:
@@ -276,6 +277,10 @@ class ActivationsVisualizer:
 
 		unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in self.tfrecords]))
 
+		# Prepare normalizer
+		if normalizer: log.info(f"Using realtime {normalizer} normalization", 2)
+		normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
+
 		# Prepare PKL export dictionary
 		self.slide_node_dict = {}
 		self.slide_logits_dict = {}
@@ -288,6 +293,10 @@ class ActivationsVisualizer:
 			slide = features['slide']
 			image_string = features['image_raw']
 			raw_image = tf.image.decode_jpeg(image_string, channels=3)
+
+			if normalizer:
+				raw_image = tf.py_function(normalizer.tf_to_rgb, [image], tf.int8)
+
 			processed_image = tf.image.per_image_standardization(raw_image)
 			processed_image = tf.image.convert_image_dtype(processed_image, tf.float16 if use_fp16 else tf.float32)
 			processed_image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])

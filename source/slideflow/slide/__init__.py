@@ -715,6 +715,7 @@ class SlideReader(SlideLoader):
 
 		# Create mask for indicating whether tile was extracted
 		tile_mask = np.asarray([0 for i in range(len(self.coord))])
+		
 		# Shuffle coordinates to randomize extraction order
 		if shuffle:
 			random.shuffle(self.coord)
@@ -772,7 +773,7 @@ class SlideReader(SlideLoader):
 
 		return generator
 
-	def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None):
+	def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None, normalizer=None, normalizer_source=None):
 		'''Exports tiles.'''
 		# Make base directories
 		if tfrecord_dir:
@@ -812,7 +813,8 @@ class SlideReader(SlideLoader):
 			elif tfrecord_dir:
 				tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
 
-		generator = self.build_generator()
+		if normalizer: log.info(f"Extracting tiles using {normalizer} normalization", 1)
+		generator = self.build_generator(normalizer=normalizer, normalizer_source=normalizer_source)
 		slidename_bytes = bytes(self.name, 'utf-8')
 
 		if not generator:
