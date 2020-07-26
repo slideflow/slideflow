@@ -171,19 +171,29 @@ class StainNormalizer:
 		self.n = self.normalizers[method]()
 		self.n.fit(cv2.imread(source))
 
-	def normalize_array_to_cv(self, image):
-		cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+	def pil_to_pil(self, image):
+		cv_image = np.array(image.convert('RGB'))
+		cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
+		cv_image = self.n.transform(cv_image)
+		cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+		return Image.fromarray(cv_image)
+
+	def tf_to_rgb(self, image):
+		return self.rgb_to_rgb(np.array(image))
+
+	def rgb_to_rgb(self, image):
+		cv_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 		cv_image = self.n.transform(cv_image)
 		return cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
 
-	def normalize_jpeg_to_cv(self, jpeg_string):
+	def jpeg_to_rgb(self, jpeg_string):
 		cv_image = cv2.imdecode(np.fromstring(jpeg_string, dtype=np.uint8), cv2.IMREAD_COLOR)
 		cv_image = self.n.transform(cv_image)
 		cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
 		return cv_image
 
-	def normalize_jpeg_to_jpeg(self, jpeg_string):
-		cv_image = self.normalize_jpeg_to_cv(jpeg_string)
+	def peg_to_jpeg(self, jpeg_string):
+		cv_image = self.jpeg_to_rgb(jpeg_string)
 		with io.BytesIO() as output:
 			Image.fromarray(cv_image).save(output, format="JPEG", quality=75)
 			return output.getvalue()
@@ -612,6 +622,7 @@ class TMAReader(SlideLoader):
 					
 			if self.pb: 
 				self.pb.end(self.pb_id)
+
 			log.empty("Summary of extracted core areas (microns):", 1)
 			log.info(f"Min: {min(box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2)
 			log.info(f"Max: {max(box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2)
@@ -691,7 +702,7 @@ class SlideReader(SlideLoader):
 			log.error(f'Skipping slide {sfutil.green(self.name)} due to slide image or ROI loading error', 1, self.print)
 			return
 
-	def build_generator(self, dual_extract=False, shuffle=True, return_numpy=False):
+	def build_generator(self, dual_extract=False, shuffle=True, normalizer=None, normalizer_source=None):
 		'''Builds generator to supervise extraction of tiles across the slide.
 		
 		Args:
@@ -707,6 +718,9 @@ class SlideReader(SlideLoader):
 		# Shuffle coordinates to randomize extraction order
 		if shuffle:
 			random.shuffle(self.coord)
+
+		# Setup normalization
+		normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
 		def generator():
 			for c in self.coord:
@@ -743,12 +757,15 @@ class SlideReader(SlideLoader):
 						surrounding_region = surrounding_region.resize(float(self.size_px) / (self.extract_px*3))
 					except:
 						continue
-					yield {"input_1": vips2numpy(region)[:,:,:-1], "input_2": vips2numpy(surrounding_region)[:,:,:-1]}, index
+					inner_region = vips2numpy(region)[:,:,:-1]
+					outer_region = vips2numpy(surrounding_region)[:,:,:-1]
+					if normalizer:
+						inner_region = normalizer.rgb_to_rgb(inner_region)
+						outer_region = normalizer.rgb_to_rgb(outer_region)
+					yield {"input_1": inner_region, "input_2": outer_region}, index
 				else:
-					if return_numpy:
-						yield vips2numpy(region)[:,:,:-1]
-					else:
-						yield region
+					np_image = vips2numpy(region)[:,:,:-1]
+					yield normalizer.rgb_to_rgb(np_image) if normalizer else np_image
 
 			log.label(self.shortname, f"Finished tile extraction for {sfutil.green(self.shortname)} ({sum(tile_mask)} tiles of {len(self.coord)} possible)", 2, self.print)
 			self.tile_mask = tile_mask
@@ -804,7 +821,8 @@ class SlideReader(SlideLoader):
 
 		sample_tiles = []
 		for index, tile in enumerate(generator()):
-			image_string = tile.jpegsave_buffer(Q=100)
+			# Convert numpy array (in RGB) to jpeg string using CV2 (which first requires BGR format)
+			image_string = cv2.imencode('.jpg', cv2.cvtColor(tile, cv2.COLOR_RGB2BGR), [int(cv2.IMWRITE_JPEG_QUALITY), 100])[1].tostring()
 			if len(sample_tiles) < 10:
 				sample_tiles += [image_string]
 			elif not tiles_dir and not tfrecord_dir:
