@@ -21,6 +21,7 @@ from io import StringIO
 from slideflow.util import log, ProgressBar, TCGA
 from slideflow.mosaic import Mosaic
 from slideflow.statistics import TFRecordUMAP
+from slideflow.slide import StainNormalizer
 from os.path import join, isfile, exists
 from random import sample
 from statistics import mean
@@ -568,11 +569,13 @@ class ActivationsVisualizer:
 				extract_by_index(highest, highest_dir)
 
 class TileVisualizer:
-	def __init__(self, model, node, shape, tile_width=None, interactive=False):
+	def __init__(self, model, node, shape, tile_width=None, interactive=False, normalizer=None, normalizer_source=None):
 		self.NODE = node
 		self.IMAGE_SHAPE = shape
 		self.TILE_WIDTH = tile_width if tile_width else int(self.IMAGE_SHAPE[0]/6)
 		self.interactive = interactive
+		self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
+
 		log.info("Initializing tile visualizer", 1)
 		log.info(f"Node: {sfutil.bold(str(node))} | Shape: ({shape[0]}, {shape[1]}, {shape[2]}) | Window size: {self.TILE_WIDTH}", 1)
 		log.info(f"Loading Tensorflow model at {sfutil.green(model)}...", 1)
@@ -584,7 +587,6 @@ class TileVisualizer:
 		if image_jpg:
 			log.info(f"Processing tile at {sfutil.green(image_jpg)}...", 1)
 			tilename = sfutil.path_to_name(image_jpg)
-			# First, open tile image
 			self.tile_image = Image.open(image_jpg)
 			image_file = open(image_jpg, 'rb')
 			tf_decoded_image = tf.image.decode_jpeg(image_file.read(), channels=3)
@@ -592,6 +594,11 @@ class TileVisualizer:
 			slide, tf_decoded_image = sfio.tfrecords.get_tfrecord_by_index(tfrecord, index, decode=True)
 			tilename = f'{slide.numpy().decode("utf-8")}-{index}'
 			self.tile_image = Image.fromarray(tf_decoded_image.numpy())
+
+		# Normalize PIL image & TF image
+		if self.normalizer: 
+			self.tile_image = self.normalizer.pil_to_pil(self.tile_image)
+			tf_decoded_image = tf.py_function(self.normalizer.tf_to_rgb, [image], tf.int8)
 
 		# Next, process image with Tensorflow
 		self.tf_processed_image = tf.image.per_image_standardization(tf_decoded_image)
@@ -704,7 +711,8 @@ class Heatmap:
 	'''Generates heatmap by calculating predictions from a sliding scale window across a slide.'''
 
 	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, save_folder='', 
-					roi_dir=None, roi_list=None, roi_method='inside', thumb_folder=None, buffer=True):
+					roi_dir=None, roi_list=None, roi_method='inside', thumb_folder=None, buffer=True,
+					normalizer=None, normalizer_source=None):
 		from slideflow.slide import SlideReader
 
 		self.save_folder = save_folder
@@ -712,6 +720,10 @@ class Heatmap:
 		self.DTYPE_INT = tf.int16 if use_fp16 else tf.int32
 		self.MODEL_DIR = model_path
 		self.logits = None
+
+		# Setup normalization
+		self.normalizer = normalizer
+		self.normalizer_source = normalizer_source
 
 		# Create progress bar
 		shortname = sfutil._shortname(sfutil.path_to_name(slide_path))
@@ -730,6 +742,7 @@ class Heatmap:
 																		   buffer=buffer,
 																		   pb=pb)
 		pb.BARS[0].end_value = self.slide.estimated_num_tiles
+
 		# First, load the designated model
 		_model = tf.keras.models.load_model(self.MODEL_DIR)
 
@@ -758,7 +771,8 @@ class Heatmap:
 			thumb_process.start()
 
 		# Create tile coordinate generator
-		gen_slice = self.slide.build_generator(return_numpy=True)
+		gen_slice = self.slide.build_generator(normalizer=self.normalizer,
+											   normalizer_source=self.normalizer_source)
 
 		if not gen_slice:
 			log.error(f"No tiles extracted from slide {sfutil.green(self.slide.name)}", 1)
