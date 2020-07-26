@@ -763,12 +763,12 @@ class SlideflowProject:
 					sample_tiles += [image_raw_data]
 				reports += [SlideReport(sample_tiles, tfr)]
 		print("\r\033[K", end="")
-		log.empty("Generating PDF (this may take some time)...")
+		log.empty("Generating PDF (this may take some time)...", 1)
 		pdf_report = ExtractionReport(reports, tile_px=tile_px, tile_um=tile_um)
 		timestring = datetime.now().strftime("%Y%m%d-%H%M%S")
 		filename = destination if destination != 'auto' else join(self.PROJECT['root'], f'tfrecord_report-{timestring}.pdf')
 		pdf_report.save(filename)
-		log.complete(f"TFRecord report saved to {sfutil.green(filename)}")
+		log.complete(f"TFRecord report saved to {sfutil.green(filename)}", 1)
 
 	def slide_report(self, tile_px, tile_um, filters=None, filter_blank=None, stride_div=1, destination='auto', dataset=None, tma=False,
 						enable_downsample=False, roi_method='inside', skip_missing_roi=True):
@@ -807,12 +807,12 @@ class SlideflowProject:
 				report = get_slide_report(slide_path)
 				reports += [report]
 		print("\r\033[K", end="")
-		log.empty("Generating PDF (this may take some time)...")
+		log.empty("Generating PDF (this may take some time)...", )
 		pdf_report = sfslide.ExtractionReport(reports, tile_px=tile_px, tile_um=tile_um)
 		timestring = datetime.now().strftime("%Y%m%d-%H%M%S")
 		filename = destination if destination != 'auto' else join(self.PROJECT['root'], f'tile_extraction_report-{timestring}.pdf')
 		pdf_report.save(filename)
-		log.complete(f"Slide report saved to {sfutil.green(filename)}")
+		log.complete(f"Slide report saved to {sfutil.green(filename)}", 1)
 
 	def extract_tiles(self, tile_px, tile_um, filters=None, filter_blank=None, stride_div=1, tma=False, save_tiles=False, save_tfrecord=True, delete_tiles=True,
 						enable_downsample=False, roi_method='inside', skip_missing_roi=True, skip_extracted=True, dataset=None, buffer=None):
@@ -974,7 +974,7 @@ class SlideflowProject:
 					else:
 						q.put(slide_path)
 				q.join()
-				log.empty("Generating PDF (this may take some time)...")
+				log.empty("Generating PDF (this may take some time)...", )
 				pdf_report = sfslide.ExtractionReport(reports.getAll(), tile_px=tile_px, tile_um=tile_um)
 				timestring = datetime.now().strftime("%Y%m%d-%H%M%S")
 				pdf_report.save(join(self.PROJECT['root'], f'tile_extraction_report-{timestring}.pdf'))
@@ -983,7 +983,7 @@ class SlideflowProject:
 				for slide_path in slide_list:
 					report = extract_tiles_from_slide(slide_path, pb)
 					reports += [report]
-				log.empty("Generating PDF (this may take some time)...")
+				log.empty("Generating PDF (this may take some time)...", )
 				pdf_report = sfslide.ExtractionReport(reports, tile_px=tile_px, tile_um=tile_um)
 				timestring = datetime.now().strftime("%Y%m%d-%H%M%S")
 				pdf_report.save(join(self.PROJECT['root'], f'tile_extraction_report-{timestring}.pdf'))
