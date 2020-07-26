@@ -55,8 +55,6 @@ from pathlib import Path
 from fpdf import FPDF
 from datetime import datetime
 
-from slideflow import package_directory
-
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
 DEFAULT_JPG_MPP = 0.25
@@ -168,14 +166,24 @@ class StainNormalizer:
 	}
 	def __init__(self, method='macenko', source=None):
 		if not source:
-			source = join(package_directory, 'slide', 'norm_tile.jpg')
+			package_directory = os.path.dirname(os.path.abspath(__file__))
+			source = join(package_directory, 'norm_tile.jpg')
 		self.n = self.normalizers[method]()
 		self.n.fit(cv2.imread(source))
 
-	def normalize_jpeg(self, jpeg_string):
+	def normalize_array_to_cv(self, image):
+		cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+		cv_image = self.n.transform(cv_image)
+		return cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+
+	def normalize_jpeg_to_cv(self, jpeg_string):
 		cv_image = cv2.imdecode(np.fromstring(jpeg_string, dtype=np.uint8), cv2.IMREAD_COLOR)
 		cv_image = self.n.transform(cv_image)
 		cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+		return cv_image
+
+	def normalize_jpeg_to_jpeg(self, jpeg_string):
+		cv_image = self.normalize_jpeg_to_cv(jpeg_string)
 		with io.BytesIO() as output:
 			Image.fromarray(cv_image).save(output, format="JPEG", quality=75)
 			return output.getvalue()
