@@ -94,10 +94,31 @@ def vips2numpy(vi):
 					  shape=[vi.height, vi.width, vi.bands])
 
 class SlideReport:
-	def __init__(self, images, path, data=None):
-		self.images = images
+	def __init__(self, images, path, data=None, compress=True):
 		self.data = data
 		self.path = path
+		if not compress:
+			self.images = images
+		else:
+			self.images = []
+			for image in images:
+				with io.BytesIO() as output:
+					Image.open(io.BytesIO(image)).save(output, format="JPEG", quality=75)
+					self.images += [output.getvalue()]
+					
+	def image_row(self):
+		pil_images = [Image.open(io.BytesIO(i)) for i in self.images]
+		widths, heights = zip(*(pi.size for pi in pil_images))
+		total_width = sum(widths)
+		max_height = max(heights)
+		row_image = Image.new('RGB', (total_width, max_height))
+		x_offset = 0
+		for image in pil_images:
+			row_image.paste(image, (x_offset, 0))
+			x_offset += image.size[0]
+		with io.BytesIO() as output:
+			row_image.save(output, format="JPEG", quality=75)
+			return output.getvalue()
 
 class ExtractionPDF(FPDF):
 	def footer(self):
@@ -117,16 +138,14 @@ class ExtractionReport:
 			pdf.cell(20, 10, f'Tile size: {tile_px}px, {tile_um}um', 0, 1)
 		pdf.cell(20, 10, f'Generated: {datetime.now()}', 0, 1)
 
-
 		for report in reports:
-			pdf.set_font('Arial', '', 8)
+			pdf.set_font('Arial', '', 7)
 			pdf.cell(10, 10, report.path, 0, 1)
-			for i, image in enumerate(report.images):
-				with tempfile.NamedTemporaryFile() as temp:
-					temp.write(image)
-					x = pdf.get_x()
-					y = pdf.get_y()
-					pdf.image(temp.name, x+(19*i), y, w=19, h=19, type='jpg')
+			with tempfile.NamedTemporaryFile() as temp:
+				temp.write(report.image_row())
+				x = pdf.get_x()
+				y = pdf.get_y()
+				pdf.image(temp.name, x, y, w=19*len(report.images), h=19, type='jpg')
 			pdf.ln(20)
 			
 		self.pdf = pdf
