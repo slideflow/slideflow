@@ -295,7 +295,7 @@ class ActivationsVisualizer:
 			raw_image = tf.image.decode_jpeg(image_string, channels=3)
 
 			if normalizer:
-				raw_image = tf.py_function(normalizer.tf_to_rgb, [image], tf.int8)
+				raw_image = tf.py_function(normalizer.tf_to_rgb, [raw_image], tf.int8)
 
 			processed_image = tf.image.per_image_standardization(raw_image)
 			processed_image = tf.image.convert_image_dtype(processed_image, tf.float16 if use_fp16 else tf.float32)
