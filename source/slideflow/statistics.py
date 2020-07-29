@@ -111,7 +111,7 @@ class TFRecordUMAP:
 					'prediction': prediction,
 				}]
 
-		coordinates = gen_umap(np.array(node_activations))
+		coordinates = gen_umap(np.array(node_activations), n_neighbors=100, min_dist=0.5)
 		self.x = np.array([c[0] for c in coordinates])
 		self.y = np.array([c[1] for c in coordinates])
 		self.save_cache()
@@ -378,10 +378,10 @@ def normalize_layout(layout, min_percentile=1, max_percentile=99, relative_margi
 
 	return clipped
 
-def gen_umap(array):
+def gen_umap(array, n_components=2, n_neighbors=20, min_dist=0.01, metric='cosine'):
 	'''Generates and returns a umap from a given array.'''
 	try:
-		layout = umap.UMAP(n_components=2, verbose=True, n_neighbors=20, min_dist=0.01, metric="cosine").fit_transform(array)
+		layout = umap.UMAP(n_components=n_components, verbose=True, n_neighbors=n_neighbors, min_dist=min_dist, metric=metric).fit_transform(array)
 	except ValueError:
 		log.error("Error performing UMAP. Please make sure you are supplying a non-empty TFRecord array and that the TFRecords are not empty.")
 		sys.exit()
