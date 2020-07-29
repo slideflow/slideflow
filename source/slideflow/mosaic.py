@@ -16,6 +16,7 @@ from os.path import join
 from slideflow.util import log
 from slideflow.statistics import get_centroid_index
 from multiprocessing.dummy import Pool as DPool
+from functools import partial
 
 class Mosaic:
 	GRID = []
@@ -151,7 +152,7 @@ class Mosaic:
 		else:
 			log.info(f"Tile selection method: {tile_select}", 2)
 
-		def calc_distance(tile):
+		def calc_distance(tile, global_point_coords):
 			if mapping_method == 'strict':
 				# Calculate distance for each point within the grid tile from center of the grid tile
 				point_coords = np.asarray([self.points[global_index]['coord'] for global_index in tile['points']])
@@ -164,8 +165,7 @@ class Mosaic:
 						tile['nearest_index'] = tile['points'][centroid_index]
 			elif mapping_method == 'expanded':
 				# Calculate distance for each point within the entire grid from center of the grid tile
-				point_coords = np.asarray([p['coord'] for p in self.points])
-				distances = np.linalg.norm(point_coords - tile['coord'], ord=2, axis=1.)
+				distances = np.linalg.norm(global_point_coords - tile['coord'], ord=2, axis=1.)
 				for i, distance in enumerate(distances):
 					if distance <= max_distance:
 						tile_point_distances.append({'distance': distance,
@@ -174,8 +174,9 @@ class Mosaic:
 
 		log.empty("Calculating tile-point distances...", 1)
 		tile_point_start = time.time()
+		global_point_coords = np.asarray([p['coord'] for p in self.points])
 		pool = DPool(8)
-		for i, _ in enumerate(pool.imap_unordered(calc_distance, self.GRID), 1):
+		for i, _ in enumerate(pool.imap_unordered(partial(calc_distance, global_point_coords=global_point_coords), self.GRID), 1):
 			sys.stderr.write(f'\rCompleted {i/len(self.GRID):.2%}')
 		pool.close()
 		pool.join()
