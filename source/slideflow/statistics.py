@@ -404,9 +404,14 @@ def generate_histogram(y_true, y_pred, data_dir, name='histogram'):
 
 def generate_roc(y_true, y_pred, save_dir=None, name='ROC'):
 	'''Generates and saves an ROC with a given set of y_true, y_pred values.'''
-	# Statistics
+	# ROC
 	fpr, tpr, threshold = metrics.roc_curve(y_true, y_pred)
 	roc_auc = metrics.auc(fpr, tpr)
+
+	# Precision recall
+	precision, recall, pr_thresholds = metrics.precision_recall_curve(y_true, y_pred)
+	average_precision = metrics.average_precision_score(y_true, y_pred)
+
 	# Calculate optimal cutoff via maximizing Youden's J statistic (sens+spec-1, or TPR - FPR)
 	try:
 		optimal_threshold = threshold[list(zip(tpr,fpr)).index(max(zip(tpr,fpr), key=lambda x: x[0]-x[1]))]
@@ -415,6 +420,7 @@ def generate_roc(y_true, y_pred, save_dir=None, name='ROC'):
 
 	# Plot
 	if save_dir:
+		# ROC
 		plt.clf()
 		plt.title('ROC Curve')
 		plt.plot(fpr, tpr, 'b', label = 'AUC = %0.2f' % roc_auc)
@@ -425,9 +431,20 @@ def generate_roc(y_true, y_pred, save_dir=None, name='ROC'):
 		plt.ylabel('TPR')
 		plt.xlabel('FPR')
 		plt.savefig(os.path.join(save_dir, f'{name}.png'))
-	return roc_auc, optimal_threshold
+		
+		# Precision recall
+		plt.clf()
+		plt.title('Precision-Recall Curve')
+		plt.plot(precision, recall, 'b', label = 'AP = %0.2f' % average_precision)
+		plt.legend(loc = 'lower right')
+		plt.plot([0, 1], [0, 1],'r--')
+		plt.xlim([0, 1])
+		plt.ylim([0, 1])
+		plt.ylabel('Recall')
+		plt.xlabel('Precision')
+		plt.savefig(os.path.join(save_dir, f'{name}-PRC.png'))
+	return roc_auc, average_precision, optimal_threshold
 
-# The below function is deprecated and will be removed in the next version
 def generate_combined_roc(y_true, y_pred, save_dir, labels, name='ROC'):
 	# Generates and saves overlapping ROCs with a given combination of y_true and y_pred.
 	# Plot
@@ -527,8 +544,14 @@ def generate_basic_performance_metrics(y_true, y_pred):
 	accuracy = (TP + TN) / (TP + TN + FP + FN)
 	sensitivity = TP / (TP + FN)
 	specificity = TN / (TN + FP)
-	
-	return accuracy, sensitivity, specificity
+
+	# Additional metrics with sklearn
+	precision = metrics.precision_score(y_true, y_pred)
+	recall = metrics.recall_score(y_true, y_pred)
+	f1_score = metrics.f1_score(y_true, y_pred)
+	kappa = metrics.cohen_kappa_score(y_true, y_pred)
+
+	return accuracy, sensitivity, specificity, precision, recall, f1_score, kappa
 
 def generate_performance_metrics(model, dataset_with_slidenames, annotations, model_type, data_dir, label=None, manifest=None, min_tiles_per_slide=0):
 	'''Evaluate performance of a given model on a given TFRecord dataset, 
@@ -676,10 +699,10 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		# Generate tile-level ROC
 		for i in range(num_cat):
 			try:
-				auc, optimal_threshold = generate_roc(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_ROC{i}')
+				roc_auc, average_precision, optimal_threshold = generate_roc(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_ROC{i}')
 				generate_histogram(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_histogram{i}')
-				tile_auc += [auc]
-				log.info(f"Tile-level AUC (cat #{i}): {auc} (opt. threshold: {optimal_threshold})", 1)
+				tile_auc += [roc_auc]
+				log.info(f"Tile-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold})", 1)
 			except IndexError:
 				log.warn(f"Unable to generate tile-level stats for outcome {i}", 1)
 
@@ -708,9 +731,9 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 			try:
 				slide_y_pred = percent_calls_by_slide[:, i]
 				slide_y_true = [y_true_slide[slide][i] for slide in unique_slides]
-				auc, optimal_threshold = generate_roc(slide_y_true, slide_y_pred, data_dir, f'{label_start}slide_ROC{i}')
-				slide_auc += [auc]
-				log.info(f"Slide-level AUC (cat #{i}): {auc} (opt. threshold: {optimal_threshold})", 1)
+				roc_auc, average_precision, optimal_threshold = generate_roc(slide_y_true, slide_y_pred, data_dir, f'{label_start}slide_ROC{i}')
+				slide_auc += [roc_auc]
+				log.info(f"Slide-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold})", 1)
 			except IndexError:
 				log.warn(f"Unable to generate slide-level stats for outcome {i}", 1)
 
@@ -723,9 +746,9 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 				try:
 					patient_y_pred = percent_calls_by_patient[:, i]
 					patient_y_true = [y_true_patient[patient][i] for patient in patients]
-					auc, optimal_threshold = generate_roc(patient_y_true, patient_y_pred, data_dir, f'{label_start}patient_ROC{i}')
-					patient_auc += [auc]
-					log.info(f"Patient-level AUC (cat #{i}): {auc} (opt. threshold: {optimal_threshold})", 1)
+					roc_auc, average_precision, optimal_threshold = generate_roc(patient_y_true, patient_y_pred, data_dir, f'{label_start}patient_ROC{i}')
+					patient_auc += [roc_auc]
+					log.info(f"Patient-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold})", 1)
 				except IndexError:
 					log.warn(f"Unable to generate patient-level stats for outcome {i}", 1)
 
