@@ -736,7 +736,7 @@ class Heatmap:
 
 		# Create progress bar
 		shortname = sfutil._shortname(sfutil.path_to_name(slide_path))
-		pb = None#ProgressBar(bar_length=5, counter_text='tiles', leadtext=f"Making heatmap for {sfutil.green(shortname)}, {roi_method} ROI")
+		#pb = None#ProgressBar(bar_length=5, counter_text='tiles', leadtext=f"Making heatmap for {sfutil.green(shortname)}, {roi_method} ROI")
 		#self.print = pb.print
 		pb = ProgressBar(1, counter_text='tiles', leadtext="Generating heatmap... ", show_counter=True, show_eta=True)
 		self.print = pb.print

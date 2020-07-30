@@ -128,8 +128,8 @@ class ProgressBar:
 		self.refresh()
 		return len(self.BARS)-1
 
-	def increase_bar_value(self, id=0):
-		self.BARS[id].value = min(self.BARS[id].value + 1, self.BARS[id].end_value)
+	def increase_bar_value(self, amount=1, id=0):
+		self.BARS[id].value = min(self.BARS[id].value + amount, self.BARS[id].end_value)
 		self.refresh()
 
 	def set_bar_value(self, value, id=0):
