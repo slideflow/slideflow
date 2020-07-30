@@ -23,8 +23,10 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import pyplot as plt
 from matplotlib.widgets import LassoSelector
 
-class TFRecordUMAP:
+class StatisticsError(Exception):
+	pass
 
+class TFRecordUMAP:
 	def __init__(self, slides, tfrecords, cache=None):
 		''' slides = self.slides_to_include '''
 		self.slides = slides
@@ -403,6 +405,11 @@ def generate_histogram(y_true, y_pred, data_dir, name='histogram'):
 	plt.legend()
 	plt.savefig(os.path.join(data_dir, f'{name}.png'))
 
+def to_onehot(val, num_cat):
+	onehot = [0] * num_cat
+	onehot[val] = 1
+	return onehot
+
 def generate_roc(y_true, y_pred, save_dir=None, name='ROC'):
 	'''Generates and saves an ROC with a given set of y_true, y_pred values.'''
 	# ROC
@@ -586,19 +593,23 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		y_true += [batch[1].numpy()]
 		y_pred += [model.predict_on_batch(batch[0])]
 		if not detected_batch_size: detected_batch_size = len(batch[1].numpy())
+	if pb: 
+		pb.end()
+	else:
+		sys.stdout.write("\r\033[K")
+		sys.stdout.flush()
 	patients = list(set([annotations[slide][sfutil.TCGA.patient] for slide in tile_to_slides]))
-	sys.stdout.write("\r\033[K")
-	sys.stdout.flush()
+	tile_to_patients = [annotations[tile_to_slides[t]][sfutil.TCGA.patient] for t in tile_to_slides]
+	num_tiles = len(tile_to_slides)
+	unique_slides = list(set(tile_to_slides))
 	y_pred = np.concatenate(y_pred)
 	y_true = np.concatenate(y_true)
 
+	# Ensure that the number of outcome categories in the predictions matches the number of categories in the labels
 	if model_type == 'categorical':
 		num_true_outcome_categories = max(y_true)+1
 		if num_true_outcome_categories != len(y_pred[0]):
 			log.warn(f"Model predictions have different number of outcome categories ({len(y_pred[0])}) than provided annotations ({num_true_outcome_categories})!", 1)
-
-	num_tiles = len(tile_to_slides)
-	unique_slides = list(set(tile_to_slides))
 
 	# Filter out slides not meeting minimum tile number criteria, if specified
 	slides_to_filter = []
@@ -612,97 +623,65 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	unique_slides = [us for us in unique_slides if us not in slides_to_filter]
 	log.info(f"Filtered out {num_total_slides - len(unique_slides)} of {num_total_slides} slides in evaluation set (minimum tiles per slide: {min_tiles_per_slide})", 1)
 
-	tile_auc = []
-	slide_auc = []
-	patient_auc = []
+	# Empty lists to store performance metrics
+	tile_auc, slide_auc, patient_auc = [], [], []
 	r_squared = None
 
-	if model_type == 'categorical':
-		# Convert y_true to one_hot encoding
-		num_cat = max(num_true_outcome_categories, len(y_pred[0]))
-		def to_onehot(val):
-			onehot = [0] * num_cat
-			onehot[val] = 1
-			return onehot
-		y_true = np.array([to_onehot(i) for i in y_true])
+	# Detect number of outcome categories
+	num_cat = len(y_pred[0]) if model_type == 'linear' else max(num_true_outcome_categories, len(y_pred[0]))
 
-	if model_type == 'linear':
-		#y_true = np.array([[i] for i in y_true])
-		num_cat = len(y_pred[0])
-		r_squared = generate_scatter(y_true, y_pred, data_dir, label_end)
+	# For categorical models, convert to one-hot encoding
+	if model_type == 'categorical':
+		y_true = np.array([to_onehot(i, num_cat) for i in y_true])
 
 	# Create dictionary mapping slides to one_hot category encoding
-	y_true_slide = {}
-	y_true_patient = {}
+	#  and check for data integrity problems (slide assigned to multiple outcomes, etc)
+	y_true_slide, y_true_patient = {}, {}
 	patient_error = False
 	for i in range(len(tile_to_slides)):
 		slidename = tile_to_slides[i]
 		patient = annotations[slidename][sfutil.TCGA.patient]
 		if slidename not in y_true_slide:
 			y_true_slide.update({slidename: y_true[i]})
-		# Now check for data integrity problems (slide assigned to multiple different outcomes)
 		elif not np.array_equal(y_true_slide[slidename], y_true[i]):
 			log.error("Data integrity failure when generating ROCs; slide assigned to multiple different one-hot outcomes", 1)
-			sys.exit()
+			raise StatisticsError("Data integrity failure when generating ROCs; slide assigned to multiple different one-hot outcomes")
 		if patient not in y_true_patient:
 			y_true_patient.update({patient: y_true[i]})
 		elif not patient_error and not np.array_equal(y_true_patient[patient], y_true[i]):
 			log.error("Data integrity failure when generating ROCs; patient assigned to multiple slides with different outcomes", 1)
 			patient_error = True
 
-	def get_average_by_slide(prediction_array, prediction_label):
-		'''For a given tile-level prediction array, calculate percent predictions in each outcome by patient and save predictions to CSV'''
-		avg_by_slide = []
-		save_path = join(data_dir, f"slide_predictions{label_end}.csv")
-		cat_index_warn = []
-		for slide in unique_slides:
+	# Function to generate group-level averages (e.g. slide-level or patient-level)
+	def get_average_by_group(prediction_array, prediction_label, unique_groups, tile_to_group, y_true_group, label='group'):
+		'''For a given tile-level prediction array, calculate percent predictions in each outcome by group (e.g. patient, slide) and save to CSV.'''
+		avg_by_group, cat_index_warn = [], []
+		save_path = join(data_dir, f"{group}_predictions{label_end}.csv")
+		for group in unique_groups:
 			percent_predictions = []
 			for cat_index in range(num_cat):
 				try:
-					sum_of_outcome = sum([ prediction_array[i][cat_index] for i in range (num_tiles) if tile_to_slides[i] == slide ])
-					num_total_tiles = len([i for i in range(len(tile_to_slides)) if tile_to_slides[i] == slide])
-					percent_predictions += [sum_of_outcome / num_total_tiles] 
+					sum_of_outcome = sum([ prediction_array[i][cat_index] for i in range(num_tiles) if tile_to_group[i] == group ])
+					num_total_tiles = len([i for i in range(len(tile_to_group)) if tile_to_group[i] == group])
+					percent_predictions += [sum_of_outcome / num_total_tiles]
 				except IndexError:
 					if cat_index not in cat_index_warn:
 						log.warn(f"Unable to generate slide-level stats for category index {cat_index}", 1)
 						cat_index_warn += [cat_index]
-			avg_by_slide += [percent_predictions]
-		avg_by_slide = np.array(avg_by_slide)
+			avg_by_group += [percent_predictions]
+		avg_by_group = np.array(avg_by_group)
 		with open(save_path, 'w') as outfile:
 			writer = csv.writer(outfile)
-			header = ['slide'] + [f"y_true{i}" for i in range(num_cat)] + [f"{prediction_label}{j}" for j in range(num_cat)]
+			header = [label] + [f"y_true{i}" for i in range(num_cat)] + [f"{prediction_label}{j}" for j in range(num_cat)]
 			writer.writerow(header)
-			for i, slide in enumerate(unique_slides):
-				row = np.concatenate([ [slide], y_true_slide[slide], avg_by_slide[i] ])
+			for i, group in enumerate(unique_groups):
+				row = np.concatenate([ [group], y_true_group[group], avg_by_group[i] ])
 				writer.writerow(row)
-		return avg_by_slide
+		return avg_by_group
 
-	def get_average_by_patient(prediction_array, prediction_label):
-		'''For a given tile-level prediction array, calculate percent predictions in each outcome by patient and save predictions to CSV'''
-		avg_by_patient = []
-		save_path = join(data_dir, f"patient_predictions{label_end}.csv")
-		cat_index_warn = []
-		for patient in patients:
-			percent_predictions = []
-			for cat_index in range(num_cat):
-				try:
-					sum_of_outcome = sum([ prediction_array[i][cat_index] for i in range (num_tiles) if annotations[tile_to_slides[i]][sfutil.TCGA.patient] == patient ])
-					num_total_tiles = len([i for i in range(len(tile_to_slides)) if annotations[tile_to_slides[i]][sfutil.TCGA.patient] == patient])
-					percent_predictions += [sum_of_outcome / num_total_tiles]
-				except IndexError:
-					if cat_index not in cat_index_warn:
-						log.warn(f"Unable to generate patient-level stats for category index {cat_index}", 1)
-						cat_index_warn += [cat_index]
-			avg_by_patient += [percent_predictions]
-		avg_by_patient = np.array(avg_by_patient)
-		with open(save_path, 'w') as outfile:
-			writer = csv.writer(outfile)
-			header = ['patient'] + [f"y_true{i}" for i in range(num_cat)] + [f"{prediction_label}{j}" for j in range(num_cat)]
-			writer.writerow(header)
-			for i, patient in enumerate(patients):
-				row = np.concatenate([ [patient], y_true_patient[patient], avg_by_patient[i] ])
-				writer.writerow(row)
-		return avg_by_patient
+	# Generate slide-level and group-level averages
+	avg_by_slide = get_average_by_group(prediction_array, prediction_label, unique_slides, tile_to_slides, y_true_slide, "slide")
+	avg_by_patient = get_average_by_group(prediction_array, prediction_label, patients, tile_to_patients, y_true_patient, "slide")
 	
 	if model_type == 'categorical':
 		# Generate tile-level ROC
@@ -762,6 +741,9 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 					log.warn(f"Unable to generate patient-level stats for outcome {i}", 1)
 
 	if model_type == 'linear':
+		# Generate R-squared
+		r_squared = generate_scatter(y_true, y_pred, data_dir, label_end)
+		
 		# Generate and save slide-level averages of each outcome
 		averages_by_slide = get_average_by_slide(y_pred, "average")
 		y_true_by_slide = np.array([y_true_slide[slide] for slide in unique_slides])
