@@ -274,7 +274,7 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True):
 		return list(split(patient_list, n))
 
 def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, model_type, validation_target, validation_strategy, 
-											validation_fraction, validation_k_fold=None, k_fold_iter=None):
+											validation_fraction, validation_k_fold=None, k_fold_iter=None, read_only=False):
 	'''From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
 	If a validation plan has already been prepared (e.g. K-fold iterations were already determined), the previously generated plan will be used.
 	Otherwise, create a new plan and log the result in the TFRecord directory so future models may use the same plan for consistency.
@@ -456,7 +456,8 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 					sys.exit()
 				# Write the new plan to log
 				validation_plans += [new_plan]
-				sfutil.write_json(validation_plans, validation_log)
+				if not read_only:
+					sfutil.write_json(validation_plans, validation_log)
 			else:
 				# Use existing plan
 				if validation_strategy == 'fixed':
@@ -575,6 +576,12 @@ def shuffle_tfrecords_by_dir(directory):
 def get_tfrecord_by_index(tfrecord, index, decode=True):
 	'''Reads and returns an individual record from a tfrecord by index, including slide name and JPEG-processed image data.'''
 
+	if type(index) != int:
+		try:
+			index = int(index)
+		except:
+			raise IndexError(f"index must be an integer, not {type(index)} (provided {index}).")
+
 	def _decode(record):
 		features = _parse_tfrecord_function(record)
 		slide = features['slide']
@@ -586,13 +593,29 @@ def get_tfrecord_by_index(tfrecord, index, decode=True):
 			return slide, raw_image
 
 	dataset = tf.data.TFRecordDataset(tfrecord)
+	total = 0
 	for i, data in enumerate(dataset):
+		total += 1
 		if i == index:
 			return _decode(data)
 		else: continue
 
-	log.error(f"Unable to find record at index {index} in {sfutil.green(tfrecord)}", 1)
+	log.error(f"Unable to find record at index {index} in {sfutil.green(tfrecord)} ({total} total records)", 1)
 	return False, False
+
+def get_tfrecords_from_model_manifest(manifest, dataset='validation'):
+	slides = []
+	with open(manifest, 'r') as manifest_file:
+		reader = csv.reader(manifest_file)
+		header = next(reader)
+		dataset_index = header.index('dataset')
+		slide_index = header.index('slide')
+		for row in reader:
+			dataset_name = row[dataset_index]
+			slide_name = row[slide_index]
+			if dataset_name == dataset or not dataset:
+				slides += [slide_name]
+	return slides
 
 def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION, feature_label='image_raw'):
 	'''Reads and saves images from a TFRecord to a destination folder.'''
