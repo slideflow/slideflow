@@ -3,6 +3,7 @@ import sys
 import os
 import csv
 import argparse
+import copy
 import slideflow.util as sfutil
 
 from glob import glob
@@ -120,112 +121,59 @@ class Dataset:
 	'''Object to supervise organization of slides, tfrecords, and tiles across a one or more datasets in a stored configuration file.'''
 
 	ANNOTATIONS = []
+	filters = None
+	filter_blank = None
 
-	def __init__(self, config_file, sources):
+	def __init__(self, config_file, sources, annotations=None, filters=None, filter_blank=None):
 		config = sfutil.load_json(config_file)
-		sources = sources if type(sources) == list else [sources]
+		sources = sources if isinstance(sources, list) else [sources]
 		try:
 			self.datasets = {k:v for (k,v) in config.items() if k in sources}
 		except KeyError:
 			sources_list = ", ".join(sources)
 			log.error(f"Unable to find datasets named {sfutil.bold(sources_list)} in config file {sfutil.green(config_file)}", 1)
 			sys.exit()
+		
+		if annotations:
+			self.load_annotations(annotations)
+			
+		if filters or filter_blank:
+			self.apply_filters(filters=filters, filter_blank=filter_blank)
 
-	def get_tfrecords(self, ask_to_merge_subdirs=False):
-		'''Returns a list of all tfrecords.'''
-		tfrecords_list = []
-		folders_to_search = []
-		for d in self.datasets:
-			tfrecords = self.datasets[d]['tfrecords']
-			label = self.datasets[d]['label']
-			tfrecord_path = join(tfrecords, label)
-			subdirs = [sd for sd in listdir(tfrecord_path) if isdir(join(tfrecord_path, sd))]
-
-			# Check if given subfolder contains split data (tiles split into multiple TFRecords, likely for validation testing)
-			# If true, can merge inputs and to use all data, likely for evaluation
-			if len(subdirs) and ask_to_merge_subdirs:
-				if sfutil.yes_no_input(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} contains data split into sub-directories ({', '.join([sfutil.green(s) for s in subdirs])}); merge and use? [y/N] ", default='no'):
-					folders_to_search += [join(tfrecord_path, subdir) for subdir in subdirs]
-				else:
-					sys.exit()
-			else:
-				if len(subdirs):
-					log.warn(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} contains data split into sub-directories; ignoring sub-directories", 1)
-				folders_to_search += [tfrecord_path]
-		for folder in folders_to_search:
-			tfrecords_list += glob(join(folder, "*.tfrecords"))
-		return tfrecords_list
-
-	def get_filtered_tfrecords(self, filters):
-		'''Returns a list of tfrecords according to a set of filters.'''
-		tfrecords_list = self.get_tfrecords()
-		filtered_list = self.filter_tfrecords_paths(tfrecords_list, filters=filters)
-		return filtered_list
-
-	def get_rois(self):
-		'''Returns a list of all ROIs.'''
-		rois_list = []
-		for d in self.datasets:
-			rois_list += glob(join(self.datasets[d]['roi'], "*.csv"))
-		return rois_list
-
-	def get_tfrecords_by_subfolder(self, subfolder):
-		'''Returns a list of tfrecords in a specific subfolder.'''
-		tfrecords_list = []
-		folders_to_search = []
-		for d in self.datasets:
-			base_dir = join(self.datasets[d]['tfrecords'], self.datasets[d]['label'])
-			tfrecord_path = join(base_dir, subfolder)
-			if not exists(tfrecord_path):
-				log.error(f"Unable to find subfolder {sfutil.bold(subfolder)} in dataset {sfutil.bold(d)}, tfrecord directory: {sfutil.green(base_dir)}")
-				sys.exit()
-			folders_to_search += [tfrecord_path]
-		for folder in folders_to_search:
-			tfrecords_list += glob(join(folder, "*.tfrecords"))
-		return tfrecords_list
-
-	def get_slides_by_dataset(self, name):
-		'''Returns a list of slides belonging to a specific sub-dataset.'''
-		if name not in self.datasets.keys():
-			log.error(f"Dataset {name} not found.")
-			sys.exit()
-		return sfutil.get_slide_paths(self.datasets[name]['slides'])
-
-	def get_slide_paths(self):
-		'''Returns a list of paths to all slides.'''
-		paths = []
-		for d in self.datasets:
-			paths += sfutil.get_slide_paths(self.datasets[d]['slides'])
-		return paths
+	def apply_filters(self, filters=None, filter_blank=None):
+		self.filters = filters
+		self.filter_blank = filter_blank
 
 	def get_manifest(self):
 		'''Generates a manifest of all tfrecords.'''
 		combined_manifest = {}
 		for d in self.datasets:
 			tfrecord_dir = join(self.datasets[d]['tfrecords'], self.datasets[d]['label'])
-			combined_manifest.update(self.get_global_manifest(tfrecord_dir))
+			manifest_path = join(tfrecord_dir, "manifest.json")
+			if not exists(manifest_path):
+				log.info(f"No manifest file detected in {tfrecord_dir}; will create now", 1)
+				self.update_manifest_at_dir(tfrecord_dir)
+			relative_manifest = sfutil.load_json(manifest_path)
+			global_manifest = {}
+			for record in relative_manifest:
+				global_manifest.update({join(tfrecord_dir, record): relative_manifest[record]})
+			combined_manifest.update(global_manifest)
 		return combined_manifest
 
-	def get_tfrecords_folders(self):
-		'''Returns folders containing tfrecords.'''
-		return [join(self.datasets[d]['tfrecords'], self.datasets[d]['label']) for d in self.datasets]
+	def get_rois(self):
+		'''Returns a list of all ROIs.'''
+		rois_list = []
+		for d in self.datasets:
+			rois_list += glob(join(self.datasets[d]['roi'], "*.csv"))
+		rois_list = list(set(rois_list))
+		return rois_list
 
-	def filter_slide_paths(self, slide_list, filters, filter_blank=[]):
-		'''Filters a given list of slide paths according to a set of filters.'''
-		filtered_slide_names = self.get_slides_from_annotations(filters=filters, filter_blank=filter_blank)
-		filtered_slide_list = [slide for slide in slide_list if sfutil.path_to_name(slide) in filtered_slide_names]
-		return filtered_slide_list
-
-	def filter_tfrecords_paths(self, tfrecords_list, filters, filter_blank=[]):
-		'''Filters a given list of tfrecord paths according to a set of filters.'''
-		filtered_slide_names = self.get_slides_from_annotations(filters=filters, filter_blank=filter_blank)
-		filtered_tfrecords_list = [tfrecord for tfrecord in tfrecords_list if tfrecord.split('/')[-1][:-10] in filtered_slide_names]
-		return filtered_tfrecords_list
-
-	def get_slides_from_annotations(self, filters=None, filter_blank=[]):
+	def get_slides(self):
 		'''Returns a list of slide names from the annotations file using a given set of filters.'''
-		result = []
-		filter_blank = [filter_blank] if type(filter_blank) != list else filter_blank
+		
+		# Begin filtering slides with annotations
+		slides = []
+		self.filter_blank = [self.filter_blank] if not isinstance(self.filter_blank, list) else self.filter_blank
 		slide_patient_dict = {}
 		if not len(self.ANNOTATIONS):
 			log.error("No annotations loaded; is the annotations file empty?")
@@ -244,22 +192,22 @@ class Dataset:
 				slide_patient_dict.update({ann[TCGA.slide]: ann[TCGA.patient]})
 			elif slide_patient_dict[ann[TCGA.slide]] != ann[TCGA.patient]:
 				log.error(f"Multiple patients assigned to slide {sfutil.green(ann[TCGA.slide])}.")
-				sys.exit()
+				return None
 
 			# Only return slides with annotation values specified in "filters"
-			if filters:
-				for filter_key in filters.keys():
+			if self.filters:
+				for filter_key in self.filters.keys():
 					if filter_key not in ann.keys():
 						log.error(f"Filter header {sfutil.bold(filter_key)} not found in annotations file.")
 						raise IndexError(f"Filter header {filter_key} not found in annotations file.")
-					if    ((type(filters[filter_key]) == list and ann[filter_key] not in filters[filter_key]) 
-						or (type(filters[filter_key]) != list and filters[filter_key] != ann[filter_key])):
+					if    ((isinstance(self.filters[filter_key], list) and ann[filter_key] not in self.filters[filter_key]) 
+						or (not isinstance(self.filters[filter_key], list) and self.filters[filter_key] != ann[filter_key])):
 						skip_annotation = True
 						break
 
 			# Filter out slides that are blank in a given annotation column ("filter_blank")
-			if filter_blank:
-				for fb in filter_blank:
+			if self.filter_blank and self.filter_blank != [None]:
+				for fb in self.filter_blank:
 					if fb not in ann.keys():
 						log.error(f"Unable to filter blank slides from header {fb}; this header was not found in the annotations file.")
 						sys.exit()
@@ -267,26 +215,109 @@ class Dataset:
 						skip_annotation = True
 						break
 			if skip_annotation: continue
-			result += [ann[TCGA.slide]]
-		return result
+			slides += [ann[TCGA.slide]]
+		
+		return slides
 
-	def get_outcomes_from_annotations(self, headers, filters=None, filter_blank=[], use_float=False):
+	def get_slide_paths(self, dataset=None, filter=True):
+		'''Returns a list of paths to all slides.'''
+		if dataset and dataset not in self.datasets.keys():
+			log.error(f"Dataset {dataset} not found.")
+			return None
+
+		# Get unfiltered paths
+		if dataset:
+			paths = sfutil.get_slide_paths(self.datasets[dataset]['slides'])
+		else:
+			paths = []
+			for d in self.datasets:
+				paths += sfutil.get_slide_paths(self.datasets[d]['slides'])
+
+		# Filter paths
+		if filter:
+			filtered_slides = self.get_slides()
+			filtered_paths = [path for path in paths if sfutil.path_to_name(path) in filtered_slides]
+			return filtered_paths
+		else:
+			return paths
+
+	def get_tfrecords(self, dataset=None, merge_subdirs=False, ask_to_merge_subdirs=False):
+		'''Returns a list of all tfrecords.'''
+		if dataset and dataset not in self.datasets.keys():
+			log.error(f"Dataset {dataset} not found.")
+			return None
+
+		datasets_to_search = list(self.datasets.keys()) if not dataset else [dataset]
+
+		tfrecords_list = []
+		folders_to_search = []
+		for d in datasets_to_search:
+			tfrecords = self.datasets[d]['tfrecords']
+			label = self.datasets[d]['label']
+			tfrecord_path = join(tfrecords, label)
+			if not exists(tfrecord_path):
+				log.warn(f"TFRecords path not found: {sfutil.green(tfrecord_path)}", 1)
+				return []
+			subdirs = [sd for sd in listdir(tfrecord_path) if isdir(join(tfrecord_path, sd))]
+
+			# Check if given subfolder contains split data (tiles split into multiple TFRecords, likely for validation testing)
+			# If true, can merge inputs and to use all data, likely for evaluation
+			if len(subdirs) and merge_subdirs:
+				log.info(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} contains data split into sub-directories ({', '.join([sfutil.green(s) for s in subdirs])}); will use TFRecords from all", 1)
+				folders_to_search += [join(tfrecord_path, subdir) for subdir in subdirs]
+			elif len(subdirs) and ask_to_merge_subdirs:
+				if sfutil.yes_no_input(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} contains data split into sub-directories ({', '.join([sfutil.green(s) for s in subdirs])}); merge and use? [y/N] ", default='no'):
+					folders_to_search += [join(tfrecord_path, subdir) for subdir in subdirs]
+				else:
+					sys.exit()
+			else:
+				if len(subdirs):
+					log.warn(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} contains data split into sub-directories; ignoring sub-directories", 1)
+				folders_to_search += [tfrecord_path]
+		for folder in folders_to_search:
+			tfrecords_list += glob(join(folder, "*.tfrecords"))
+
+		# Now filter the list
+		if self.ANNOTATIONS:
+			filtered_tfrecords_list = [tfrecord for tfrecord in tfrecords_list if tfrecord.split('/')[-1][:-10] in self.get_slides()]
+			return filtered_tfrecords_list
+		else:
+			log.warn("No annotations loaded; unable to filter TFRecords list. Is the annotations file empty?", 1)
+			return tfrecords_list			
+
+	def get_tfrecords_by_subfolder(self, subfolder):
+		'''Returns a list of tfrecords in a specific subfolder.'''
+		tfrecords_list = []
+		folders_to_search = []
+		for d in self.datasets:
+			base_dir = join(self.datasets[d]['tfrecords'], self.datasets[d]['label'])
+			tfrecord_path = join(base_dir, subfolder)
+			if not exists(tfrecord_path):
+				log.error(f"Unable to find subfolder {sfutil.bold(subfolder)} in dataset {sfutil.bold(d)}, tfrecord directory: {sfutil.green(base_dir)}")
+				sys.exit()
+			folders_to_search += [tfrecord_path]
+		for folder in folders_to_search:
+			tfrecords_list += glob(join(folder, "*.tfrecords"))
+		return tfrecords_list
+
+	def get_tfrecords_folders(self):
+		'''Returns folders containing tfrecords.'''
+		return [join(self.datasets[d]['tfrecords'], self.datasets[d]['label']) for d in self.datasets]
+
+	def get_outcomes_from_annotations(self, headers, use_float=False):
 		'''Returns a dictionary of slide names mapping to patient id and [an] outcome variable(s).
 
 		Args:
 			headers			annotation header(s) that specifies outcome variable. May be a list.
-			filters			dictionary of filters to use when selecting slides from annotations file
-			filter_blank	will filter out slides that are blank in the specified column(s)
 			use_float		If true, will try to convert data into float
 
 		Returns:
 			Dictionary with slides as keys and dictionaries as values. The value dictionaries contain both "TCGA.patient" and "outcome" keys.
 		'''
-		slides = self.get_slides_from_annotations(filters, filter_blank)
+		slides = self.get_slides()
 		filtered_annotations = [a for a in self.ANNOTATIONS if a[TCGA.slide] in slides]
 		results = {}
-		headers = [headers] if type(headers) != list else headers
-		filter_blank = [filter_blank] if type(filter_blank) != list else filter_blank
+		headers = [headers] if not isinstance(headers, list) else headers
 		assigned_headers = {}
 		unique_outcomes = None
 		for header in headers:
@@ -321,10 +352,13 @@ class Dataset:
 
 			# Assemble results dictionary
 			patient_outcomes = {}
+			num_warned = 0
+			warn_threshold = 3
 			for annotation in filtered_annotations:
 				slide = annotation[TCGA.slide]
 				patient = annotation[TCGA.patient]
 				annotation_outcome = _process_outcome(annotation[header])
+				print_func = print if num_warned < warn_threshold else None
 
 				# Mark this slide as having been already assigned an outcome with his header
 				assigned_headers[header][slide] = True
@@ -333,19 +367,21 @@ class Dataset:
 				if patient not in patient_outcomes:
 					patient_outcomes[patient] = annotation_outcome
 				elif patient_outcomes[patient] != annotation_outcome:
-					log.error(f"Multiple different outcomes in header {header} found for patient {patient} ({patient_outcomes[patient]}, {annotation_outcome})", 1)
-					sys.exit()
+					log.error(f"Multiple different outcomes in header {header} found for patient {patient} ({patient_outcomes[patient]}, {annotation_outcome})", 1, print_func)
+					num_warned += 1
 				elif (slide in slides) and (slide in results) and (slide in assigned_headers[header]):
 					continue
 
 				if slide in slides:
 					if slide in results:
 						so = results[slide]['outcome']
-						results[slide]['outcome'] = [so] if type(so) != list else so
+						results[slide]['outcome'] = [so] if not isinstance(so, list) else so
 						results[slide]['outcome'] += [annotation_outcome]
 					else:
 						results[slide] = {'outcome': annotation_outcome if not use_float else [annotation_outcome]}
 						results[slide][TCGA.patient] = patient
+			if num_warned >= warn_threshold:
+				log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
 		return results, unique_outcomes
 
 	def load_annotations(self, annotations_file):
@@ -366,7 +402,8 @@ class Dataset:
 		try:
 			patient_index = header.index(TCGA.patient)
 		except:
-			log.error(f"Check annotations file for header '{TCGA.patient}'.", 1)
+			print(header)
+			log.error(f"Check that annotations file is formatted correctly and contains header '{TCGA.patient}'.", 1)
 			sys.exit()
 
 		# Verify that a slide header exists; if not, offer to make one and automatically associate slide names with patients
@@ -378,7 +415,7 @@ class Dataset:
 				self.update_annotations_with_slidenames(annotations_file)
 				header, current_annotations = sfutil.read_annotations(annotations_file)
 			else:
-				sys.exit()
+				log.warn("No slide annotations found in annotations file.", 1)
 		self.ANNOTATIONS = current_annotations
 
 	def verify_annotations_slides(self):
@@ -386,7 +423,7 @@ class Dataset:
 		slide_list = self.get_slide_paths()
 
 		# Verify no duplicate slide names are found
-		slide_list_from_annotations = self.get_slides_from_annotations()
+		slide_list_from_annotations = self.get_slides()
 		if len(slide_list_from_annotations) != len(list(set(slide_list_from_annotations))):
 			log.error("Duplicate slide names detected in the annotation file.")
 			sys.exit()
@@ -408,7 +445,13 @@ class Dataset:
 		if not num_warned:
 			log.info(f"Slides successfully verified, no errors found.", 1)
 
-	def update_tfrecord_manifest(self, directory, force_update=False):
+	def update_manifest(self, force_update=False):
+		tfrecords_folders = self.get_tfrecords_folders()
+		for tfr_folder in tfrecords_folders:
+			self.update_manifest_at_dir(directory=tfr_folder, 
+										force_update=force_update)
+
+	def update_manifest_at_dir(self, directory, force_update=False):
 		'''Log number of tiles in each TFRecord file present in the given directory and all subdirectories, 
 		saving manifest to file within the parent directory.'''
 		import tensorflow as tf
@@ -416,14 +459,24 @@ class Dataset:
 		slide_list = []
 		manifest_path = join(directory, "manifest.json")
 		manifest = {} if not exists(manifest_path) else sfutil.load_json(manifest_path)
+		prior_manifest = copy.deepcopy(manifest)
 		try:
 			relative_tfrecord_paths = sfutil.get_relative_tfrecord_paths(directory)
 		except FileNotFoundError:
-			log.warn(f"Unable to find TFRecords in the directory {directory}")
+			log.warn(f"Unable to find TFRecords in the directory {directory}", 1)
 			return
-		slide_names_from_annotations = self.get_slides_from_annotations()
+		slide_names_from_annotations = self.get_slides()
 
+		# Verify all tfrecords in manifest exist
+		for rel_tfr in prior_manifest.keys():
+			tfr = join(directory, rel_tfr)
+			if not exists(tfr):
+				log.warn(f"TFRecord in manifest was not found at {tfr}; removing", 1)
+				del(manifest[rel_tfr])
+
+		# Verify detected TFRecords are in manifest, recording number of tiles if not
 		slide_list_errors = []
+		
 		for rel_tfr in relative_tfrecord_paths:
 			tfr = join(directory, rel_tfr)
 
@@ -431,20 +484,33 @@ class Dataset:
 				continue
 
 			manifest.update({rel_tfr: {}})
-			raw_dataset = tf.data.TFRecordDataset(tfr)
-			print(f" + Verifying tiles in {sfutil.green(rel_tfr)}...", end="\r\033[K")
+			try:
+				raw_dataset = tf.data.TFRecordDataset(tfr)
+			except Exception as e:
+				log.error(f"Unable to open TFRecords file with Tensorflow: {str(e)}")
+				return
+			print(f"\r\033[K + Verifying tiles in {sfutil.green(rel_tfr)}...", end="")
 			total = 0
-			for raw_record in raw_dataset:
-				example = tf.train.Example()
-				example.ParseFromString(raw_record.numpy())
-				slide = example.features.feature['slide'].bytes_list.value[0].decode('utf-8')
-				if slide not in manifest[rel_tfr]:
-					manifest[rel_tfr][slide] = 1
-				else:
-					manifest[rel_tfr][slide] += 1
-				total += 1
+			try:
+				for raw_record in raw_dataset:
+					example = tf.train.Example()
+					example.ParseFromString(raw_record.numpy())
+					slide = example.features.feature['slide'].bytes_list.value[0].decode('utf-8')
+					if slide not in manifest[rel_tfr]:
+						manifest[rel_tfr][slide] = 1
+					else:
+						manifest[rel_tfr][slide] += 1
+					total += 1
+			except tf.python.framework.errors_impl.DataLossError:
+				print('\r\033[K', end="")
+				log.error(f"Corrupt or incomplete TFRecord at {tfr}", 1)
+				log.info(f"Deleting and removing corrupt TFRecord from manifest...", 1)
+				del(raw_dataset)
+				os.remove(tfr)
+				del(manifest[rel_tfr])
+				continue
 			manifest[rel_tfr]['total'] = total
-		print()
+			print('\r\033[K', end="")
 
 		# Find slides that have TFRecords
 		for man_rel_tfr in manifest:
@@ -462,38 +528,23 @@ class Dataset:
 		error_threshold = 3
 		for s, slide in enumerate(slide_list_errors):
 			print_func = print if s < error_threshold else None
-			log.warn(f"Failed TFRecord integrity check: annotation not found for slide {sfutil.green(slide)}", 1, print_func)
+			log.warn(f"No corresponding slide annotation found for TFRecord {sfutil.green(slide)}; TFRecord will be ignored", 1, print_func)
 
 		if len(slide_list_errors) >= error_threshold:
 			log.warn(f"...{len(slide_list_errors)} total TFRecord integrity check failures, see {sfutil.green(log.logfile)} for details", 1)
 		if len(slide_list_errors) == 0:
 			log.info("TFRecords verified, no errors found.", 1)
 
-		sys.stdout.write("\r\033[K")
-		sys.stdout.flush()
-
 		# Write manifest file
-		sfutil.write_json(manifest, manifest_path)
+		if manifest != prior_manifest:
+			sfutil.write_json(manifest, manifest_path)
 
 		return manifest
-
-	def get_global_manifest(self, directory):
-		'''Loads a saved relative manifest at a directory and returns a dict containing
-		absolute/global path and file names.'''
-		manifest_path = join(directory, "manifest.json")
-		if not exists(manifest_path):
-			log.info(f"No manifest file detected in {directory}; will create now", 1)
-			self.update_tfrecord_manifest(directory)
-		relative_manifest = sfutil.load_json(manifest_path)
-		global_manifest = {}
-		for record in relative_manifest:
-			global_manifest.update({join(directory, record): relative_manifest[record]})
-		return global_manifest
 		
 	def update_annotations_with_slidenames(self, annotations_file):
 		'''Attempts to automatically associate slide names from a directory with patients in a given annotations file.'''
 		header, _ = sfutil.read_annotations(annotations_file)
-		slide_list = self.get_slide_paths()
+		slide_list = self.get_slide_paths(filter=False)
 
 		# First, load all patient names from the annotations file
 		try:
@@ -508,7 +559,9 @@ class Dataset:
 			header = next(csv_reader, None)
 			for row in csv_reader:
 				patients.extend([row[patient_index]])
-		patients = list(set(patients)) 
+		patients = list(set(patients))
+		log.info(f"Number of patients in annotations: {len(patients)}", 1)
+		log.info(f"Slides found: {len(slide_list)}", 1)
 
 		# Then, check for sets of slides that would match to the same patient; due to ambiguity, these will be skipped.
 		num_occurrences = {}

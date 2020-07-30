@@ -1,5 +1,5 @@
-gast==0.2.2
-tensorflow-gpu>=2.0.1
+gast>=0.3.3
+tensorflow>=2.1
 scipy
 sklearn
 matplotlib
@@ -11,4 +11,4 @@ seaborn
 comet-ml
 pandas
 tabulate
-pyvips
+pyvips==2.1.11
