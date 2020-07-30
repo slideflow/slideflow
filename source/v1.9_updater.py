@@ -6,7 +6,7 @@ import slideflow.util as sfutil
 from os.path import join, isdir, exists
 
 def update(root):
-	# Updates slideflow projects from version 1.8 -> 1.9
+	# Updates slideflow projects from version 1.6-1.8 to 1.9
 	project_folders = [f for f in os.listdir(root) if isdir(join(root, f)) and exists(join(root, f, 'settings.json'))]
 	for folder in project_folders:
 		project_folder = join(root, folder)
