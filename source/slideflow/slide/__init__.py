@@ -739,7 +739,7 @@ class SlideReader(SlideLoader):
 				elif bool(self.annPolys) and (self.roi_method == EXTRACT_OUTSIDE) and any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in self.annPolys]):
 					continue
 				if self.pb:
-					self.pb.increase_bar_value(self.pb_id)
+					self.pb.increase_bar_value(id=self.pb_id)
 
 				# Read the region and resize to target size
 				region = self.slide.read_region((c[0], c[1]), self.downsample_level, [self.extract_px, self.extract_px])
