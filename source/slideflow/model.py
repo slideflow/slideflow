@@ -623,7 +623,7 @@ class SlideflowModel:
 		# Generate performance metrics
 		log.info("Calculating performance metrics...", 1)
 		tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, dataset_with_slidenames, self.SLIDE_ANNOTATIONS, 
-																						   model_type, self.DATA_DIR, label="eval", manifest=self.MANIFEST)
+																						   model_type, self.DATA_DIR, label="eval", manifest=self.MANIFEST, num_tiles=num_tiles)
 
 		log.info(f"Tile AUC: {tile_auc}", 1)
 		log.info(f"Slide AUC: {slide_auc}", 1)
@@ -798,7 +798,7 @@ class SlideflowModel:
 					train_acc = logs[hp.loss]
 				tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, validation_data_with_slidenames, 
 																									parent.SLIDE_ANNOTATIONS, hp.model_type(), 
-																									parent.DATA_DIR, label=epoch_label, manifest=parent.MANIFEST)
+																									parent.DATA_DIR, label=epoch_label, manifest=parent.MANIFEST, num_tiles=num_tiles)
 				val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 				log.info(f"Validation loss: {val_loss:.4f} | accuracy: {val_acc:.4f}", 1)
 				results['epochs'][f'epoch{epoch}'] = {}
