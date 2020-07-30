@@ -10,6 +10,7 @@ import pandas as pd
 
 import slideflow.util as sfutil
 
+from slideflow.util import ProgressBar
 from os.path import join
 from slideflow.util import log
 from scipy import stats
@@ -553,7 +554,7 @@ def generate_basic_performance_metrics(y_true, y_pred):
 
 	return accuracy, sensitivity, specificity, precision, recall, f1_score, kappa
 
-def generate_performance_metrics(model, dataset_with_slidenames, annotations, model_type, data_dir, label=None, manifest=None, min_tiles_per_slide=0):
+def generate_performance_metrics(model, dataset_with_slidenames, annotations, model_type, data_dir, label=None, manifest=None, min_tiles_per_slide=0, num_tiles=0):
 	'''Evaluate performance of a given model on a given TFRecord dataset, 
 	generating a variety of statistical outcomes and graphs.
 
@@ -566,17 +567,25 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		label						optional label with which to annotation saved files and graphs
 	'''
 	
-	# Get predictions and performance metrics
+	# Initial preparations
 	sys.stdout.write("\rGenerating predictions...")
 	label_end = "" if not label else f"_{label}"
 	label_start = "" if not label else f"{label}_"
 	y_true, y_pred, tile_to_slides = [], [], []
+	detected_batch_size = 0
+	pb = ProgressBar(num_tiles, counter_text='images', leadtext="Generating predictions... ", show_counter=True, show_eta=True) if num_tiles else None
+	
+	# Get predictions and performance metrics
 	for i, batch in enumerate(dataset_with_slidenames):
-		sys.stdout.write(f"\rGenerating predictions (batch {i})...")
-		sys.stdout.flush()
+		if pb:
+			pb.increase_bar_value(detected_batch_size)
+		else:
+			sys.stdout.write(f"\rGenerating predictions (batch {i})...")
+			sys.stdout.flush()
 		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in batch[2].numpy()]
 		y_true += [batch[1].numpy()]
 		y_pred += [model.predict_on_batch(batch[0])]
+		if not detected_batch_size: detected_batch_size = len(batch[1].numpy())
 	patients = list(set([annotations[slide][sfutil.TCGA.patient] for slide in tile_to_slides]))
 	sys.stdout.write("\r\033[K")
 	sys.stdout.flush()
@@ -702,7 +711,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 				roc_auc, average_precision, optimal_threshold = generate_roc(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_ROC{i}')
 				generate_histogram(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_histogram{i}')
 				tile_auc += [roc_auc]
-				log.info(f"Tile-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold})", 1)
+				log.info(f"Tile-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold:.3f})", 1)
 			except IndexError:
 				log.warn(f"Unable to generate tile-level stats for outcome {i}", 1)
 
@@ -733,7 +742,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 				slide_y_true = [y_true_slide[slide][i] for slide in unique_slides]
 				roc_auc, average_precision, optimal_threshold = generate_roc(slide_y_true, slide_y_pred, data_dir, f'{label_start}slide_ROC{i}')
 				slide_auc += [roc_auc]
-				log.info(f"Slide-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold})", 1)
+				log.info(f"Slide-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold:.3f})", 1)
 			except IndexError:
 				log.warn(f"Unable to generate slide-level stats for outcome {i}", 1)
 
@@ -748,7 +757,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 					patient_y_true = [y_true_patient[patient][i] for patient in patients]
 					roc_auc, average_precision, optimal_threshold = generate_roc(patient_y_true, patient_y_pred, data_dir, f'{label_start}patient_ROC{i}')
 					patient_auc += [roc_auc]
-					log.info(f"Patient-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold})", 1)
+					log.info(f"Patient-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold:.3f})", 1)
 				except IndexError:
 					log.warn(f"Unable to generate patient-level stats for outcome {i}", 1)
 
