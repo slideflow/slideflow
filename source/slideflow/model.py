@@ -81,6 +81,12 @@ def add_regularization(model, regularizer):
 	model.load_weights(tmp_weights_path, by_name=True)
 	return model
 
+class HyperParameterError(Exception):
+	pass
+
+class ManifestError(Exception):
+	pass
+
 class HyperParameters:
 	'''Object to supervise construction of a set of hyperparameters for Slideflow models.'''
 	_OptDict = {
@@ -105,6 +111,7 @@ class HyperParameters:
 		#'ResNeXt50': tf.keras.applications.ResNeXt50,
 		#'ResNeXt101': tf.keras.applications.ResNeXt101,
 		'InceptionV3': tf.keras.applications.InceptionV3,
+		'NASNetLarge': tf.keras.applications.NASNetLarge,
 		'InceptionResNetV2': tf.keras.applications.InceptionResNetV2,
 		'MobileNet': tf.keras.applications.MobileNet,
 		'MobileNetV2': tf.keras.applications.MobileNetV2,
@@ -128,7 +135,7 @@ class HyperParameters:
 		epsilon 1.0
 		batch_norm_decay 0.99
 		'''
-		# Assert hyperparameters are valid
+		# Assert provided hyperparameters are valid
 		assert isinstance(toplayer_epochs, int)
 		assert (isinstance(finetune_epochs, list) and all([isinstance(t, int) for t in finetune_epochs])) or isinstance(finetune_epochs, int)
 		assert model in self._ModelDict.keys()
@@ -166,8 +173,11 @@ class HyperParameters:
 		self.trainable_layers = trainable_layers
 		self.L2_weight = float(L2_weight)
 
+		# Perform check to ensure combination of HPs are valid
+		self.validate()
+
 	def _get_args(self):
-		return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt', 'get_model', 'model_type']]
+		return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt', 'get_model', 'model_type', 'validate']]
 
 	def _get_dict(self):
 		d = {}
@@ -190,6 +200,13 @@ class HyperParameters:
 			value = getattr(self, arg)
 			output += log.empty(f"{sfutil.header(arg)} = {value}\n", 2, None)
 		return output
+
+	def validate(self):
+		if (self.model_type() != 'categorical' and ((self.balanced_training == BALANCE_BY_CATEGORY) or 
+											        (self.balanced_validation == BALANCE_BY_CATEGORY))):
+			raise HyperParameterError(f'Invalid hyperparameter combination: balancing type "{BALANCE_BY_CATEGORY}" and model type "{self.model_type()}".')
+			return False
+		return True
 
 	def get_opt(self):
 		'''Returns optimizer with appropriate learning rate.'''
@@ -403,7 +420,7 @@ class SlideflowModel:
 				tiles = self.MANIFEST[filename]['total']
 			except KeyError:
 				log.error(f"Manifest not finished, unable to find {sfutil.green(filename)}", 1)
-				sys.exit()
+				raise ManifestError(f"Manifest not finished, unable to find {filename}")
 			
 			# Ensure TFRecord has minimum number of tiles; otherwise, skip
 			if not min_tiles and tiles == 0:
@@ -614,11 +631,6 @@ class SlideflowModel:
 			}
 		}
 		sfutil.update_results_log(results_log, 'eval_model', results_dict)
-
-		#with open(results_log, "w") as results_file:
-		#	writer = csv.writer(results_file)
-		#	writer.writerow(['val_loss', 'val_acc', 'tile_auc', 'slide_auc', 'patient_auc', 'r_squared'])
-		#	writer.writerow([val_loss, val_acc, tile_auc, slide_auc, patient_auc, r_squared])
 		
 		return val_acc
 
