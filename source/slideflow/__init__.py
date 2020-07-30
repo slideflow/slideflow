@@ -29,7 +29,7 @@ import slideflow.io as sfio
 from slideflow.io.datasets import Dataset
 from slideflow.util import TCGA, ProgressBar, log
 from slideflow.activations import ActivationsVisualizer, TileVisualizer, Heatmap
-from slideflow.statistics import TFRecordUMAP, calculate_centroid
+from slideflow.statistics import TFRecordMap, calculate_centroid
 from slideflow.mosaic import Mosaic
 from comet_ml import Experiment
 
@@ -1156,7 +1156,7 @@ class SlideflowProject:
 								   max_tiles_per_slide=max_tiles_per_slide,
 								   activations_cache=activations_cache)
 
-		umap = TFRecordUMAP.from_activations(AV, use_centroid=map_centroid, prediction_filter=restrict_prediction, cache=umap_cache)
+		umap = TFRecordMap.from_activations(AV, use_centroid=map_centroid, prediction_filter=restrict_prediction, cache=umap_cache)
 
 		# If displaying centroid AND predictions, then show slide-level predictions rather than tile-level predictions
 		if map_centroid and show_prediction is not None:
@@ -1240,7 +1240,7 @@ class SlideflowProject:
 
 		umap_x, umap_y, umap_meta = AV.get_mapped_predictions(x, y)
 
-		umap = TFRecordUMAP.from_precalculated(tfrecords=dataset.get_tfrecords(),
+		umap = TFRecordMap.from_precalculated(tfrecords=dataset.get_tfrecords(),
 											   slides=dataset.get_slides(),
 											   x=umap_x,
 											   y=umap_y,
@@ -1315,7 +1315,7 @@ class SlideflowProject:
 			# Take the first tile from each slide/TFRecord
 			umap_meta = [{'slide': slide, 'index': 0} for slide in slides]
 
-		umap = TFRecordUMAP.from_precalculated(tfrecords=dataset.get_tfrecords(),
+		umap = TFRecordMap.from_precalculated(tfrecords=dataset.get_tfrecords(),
 											   slides=slides,
 											   x=umap_x,
 											   y=umap_y,
