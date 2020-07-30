@@ -392,7 +392,7 @@ class SlideflowProject:
 					else:
 						setattr(hp, arg, arg_type(value))
 				else:
-					epochs = [int(i) for i in value.split(',')]
+					epochs = [int(i) for i in value.translate(str.maketrans({'[':'', ']':''})).split(',')]
 					setattr(hp, arg, epochs)
 			else:
 				log.error(f"Unknown argument '{arg}' found in training config file.", 0)
@@ -1081,7 +1081,7 @@ class SlideflowProject:
 				log.empty(f"Spawning heatmaps process (PID: {process.pid})")
 				process.join()
 
-	def generate_mosaic(self, model, header_category=None, filters=None, focus_filters=None, resolution="low", num_tiles_x=50, max_tiles_per_slide=100,
+	def generate_mosaic(self, model, header_category=None, filters=None, filter_blank=None, focus_filters=None, resolution="low", num_tiles_x=50, max_tiles_per_slide=100,
 						expanded=False, map_centroid=False, show_prediction=None, restrict_prediction=None, outcome_labels=None, cmap=None, model_type=None,
 						umap_cache='default', activations_cache='default', mosaic_filename=None, umap_filename=None, activations_export=None, umap_export=None,
 						use_float=False, normalizer=None, normalizer_source=None):
@@ -1109,6 +1109,7 @@ class SlideflowProject:
 		# Prepare dataset & model
 		hp_data = sfutil.load_json(join(dirname(model_path), 'hyperparameters.json'))
 		mosaic_dataset = self.get_dataset(filters=filters,
+										  filter_blank=filter_blank,
 										  tile_px=hp_data['hp']['tile_px'],
 										  tile_um=hp_data['hp']['tile_um'])
 		tfrecords_list = mosaic_dataset.get_tfrecords()
