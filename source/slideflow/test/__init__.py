@@ -84,7 +84,7 @@ SAVED_MODEL = join(PROJECT_CONFIG['models_dir'], 'category1-performance-kfold1',
 
 class TestSuite:
 	'''Class to supervise standardized testing of slideflow pipeline.'''
-	def __init__(self, reset=True, silent=True):
+	def __init__(self, reset=True, silent=True, buffer=None):
 		'''Initialize testing models.'''
 			
 		# Reset test progress
@@ -100,6 +100,9 @@ class TestSuite:
 
 		# Prepare batch training
 		self.setup_hp("categorical")
+
+		# Setup buffering
+		self.buffer = buffer
 
 	def reset(self):
 		log.header("Resetting test project...")
@@ -128,7 +131,6 @@ class TestSuite:
 											   roi=TEST_DATASETS[dataset_name]['roi'],
 											   tiles=TEST_DATASETS[dataset_name]['tiles'],
 											   tfrecords=TEST_DATASETS[dataset_name]['tfrecords'],
-											   label=TEST_DATASETS[dataset_name]['label'],
 											   path=PROJECT_CONFIG['dataset_config'])
 		print("\t...DONE")
 
@@ -139,7 +141,8 @@ class TestSuite:
 			csv_writer = csv.writer(csv_outfile, delimiter=',')
 			for an in ANNOTATIONS:
 				csv_writer.writerow(an)
-		project_dataset = Dataset(config_file=PROJECT_CONFIG['dataset_config'],
+		project_dataset = Dataset(tile_px=299, tile_um=302,
+								  config_file=PROJECT_CONFIG['dataset_config'],
 								  sources=PROJECT_CONFIG['datasets'],
 								  annotations=PROJECT_CONFIG['annotations'])
 		project_dataset.update_annotations_with_slidenames(PROJECT_CONFIG['annotations'])
@@ -167,7 +170,8 @@ class TestSuite:
 		elif model_type == 'linear':
 			loss = 'mean_squared_error'
 		# Create batch train file
-		self.SFP.create_hyperparameter_sweep(finetune_epochs=[1],
+		self.SFP.create_hyperparameter_sweep(tile_px=299, tile_um=302,
+											 finetune_epochs=[1],
 											 toplayer_epochs=[0],
 											 model=["InceptionV3"],
 											 pooling=["max"],
@@ -198,12 +202,12 @@ class TestSuite:
 	def test_extraction(self):
 		# Test tile extraction, default parameters
 		log.header("Testing multiple slides extraction...")
-		self.SFP.extract_tiles()
+		self.SFP.extract_tiles(tile_px=299, tile_um=302, buffer=self.buffer)
 		print("\t...OK")
 
 	def test_single_extraction(self, buffer=True):
 		log.header("Testing single slide extraction...")
-		extracting_dataset = Dataset(config_file=self.SFP.PROJECT['dataset_config'], sources=self.SFP.PROJECT['datasets'])
+		extracting_dataset = Dataset(tile_px=299, tile_um=302, config_file=self.SFP.PROJECT['dataset_config'], sources=self.SFP.PROJECT['datasets'])
 		extracting_dataset.load_annotations(self.SFP.PROJECT['annotations'])
 		dataset_name = self.SFP.PROJECT['datasets'][0]
 		slide_list = extracting_dataset.get_slide_paths(dataset=dataset_name)
