@@ -20,7 +20,7 @@ import shapely.geometry as sg
 from io import StringIO
 from slideflow.util import log, ProgressBar, TCGA
 from slideflow.mosaic import Mosaic
-from slideflow.statistics import TFRecordUMAP
+from slideflow.statistics import TFRecordMap
 from slideflow.slide import StainNormalizer
 from os.path import join, isfile, exists
 from random import sample
