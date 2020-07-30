@@ -7,6 +7,7 @@ import shutil
 
 from slideflow.io.datasets import Dataset
 from slideflow.util import TCGA, log, ProgressBar
+from slideflow.statistics import TFRecordUMAP
 
 from glob import glob
 from os.path import join
@@ -218,7 +219,7 @@ class TestSuite:
 			# Test categorical outcome
 			hp = self.setup_hp('categorical')
 			print("Training to single categorical outcome from specified hyperparameters...")
-			results_dict = self.SFP.train(models = 'manual_hp', outcome_header='category1', hyperparameters=hp, k_fold_iter=1, validate_on_batch=10)
+			results_dict = self.SFP.train(models = 'manual_hp', outcome_header='category1', hyperparameters=hp, k_fold_iter=1, validate_on_batch=50)
 			
 			if not results_dict or 'history' not in results_dict[results_dict.keys()[0]]:
 				print("\tFAIL: Keras results object not received from training")
@@ -234,7 +235,7 @@ class TestSuite:
 			hp = self.setup_hp('linear')
 			# Test multiple linear outcome
 			print("Training to multiple linear outcomes...")
-			self.SFP.train(outcome_header=['linear1', 'linear2'], multi_outcome=True, model_type='linear', k_fold_iter=1, validate_on_batch=10)
+			self.SFP.train(outcome_header=['linear1', 'linear2'], multi_outcome=True, k_fold_iter=1, validate_on_batch=50)
 			print("\t...OK")
 		print("\t...OK")
 
@@ -256,7 +257,7 @@ class TestSuite:
 
 	def test_mosaic(self):
 		log.header("Testing mosaic generation...")
-		self.SFP.generate_mosaic(SAVED_MODEL, export_activations=True)
+		self.SFP.generate_mosaic(SAVED_MODEL)
 		print("\t...OK")
 
 	def test_activations(self):
@@ -265,11 +266,11 @@ class TestSuite:
 													outcome_header='category1', 
 													focus_nodes=[0])
 		AV.generate_box_plots()
-		umap = AV.calculate_umap()
+		umap = TFRecordUMAP.from_activations(AV)
 		umap.save_2d_plot(join(PROJECT_CONFIG['root'], 'stats', '2d_umap.png'))
 		top_nodes = AV.get_top_nodes_by_slide()
 		for node in top_nodes[:5]:
-			AV.plot_3d_umap(node)
+			umap.save_3d_node_plot(node, join(PROJECT_CONFIG['root'], 'stats', f'3d_node{node}.png'))
 		print("\t...OK")
 
 	def test(self):
