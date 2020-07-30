@@ -159,7 +159,7 @@ class ProgressBar:
 	def end(self, id=-1):
 		if id == -1:
 			bars_keys = list(self.BARS.keys())
-			for bar_id in bars_keys:
+			for bar_id in range(len(self.BARS)):
 				del(self.BARS[bar_id])
 			sys.stdout.write(self.text)
 		else:
