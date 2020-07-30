@@ -17,14 +17,13 @@ import slideflow.util as sfutil
 import slideflow.io as sfio
 import shapely.geometry as sg
 
+from io import StringIO
 from slideflow.util import log, ProgressBar, TCGA
 from slideflow.mosaic import Mosaic
 from slideflow.statistics import TFRecordUMAP
 from os.path import join, isfile, exists
 from random import sample
 from statistics import mean
-from sklearn.cluster import KMeans
-from sklearn.metrics import pairwise_distances_argmin_min
 from math import isnan
 from copy import deepcopy
 from mpl_toolkits.mplot3d import Axes3D
@@ -34,6 +33,7 @@ from PIL import Image
 
 # TODO: add check that cached PKL corresponds to current and correct model & slides
 # TODO: re-calculate new activations if some slides not present in cache
+# TODO: fix missing slide handling, recalculating activations as needed
 
 def create_bool_mask(x, y, w, sx, sy):
 	l = max(0,  int(x-(w/2.)))
@@ -50,30 +50,28 @@ def create_bool_mask(x, y, w, sx, sy):
 class ActivationsVisualizer:
 	'''Loads annotations, saved layer activations, and prepares output saving directories.
 		Will also read/write processed activations to a PKL cache file to save time in future iterations.'''
-
-	missing_slides = []
-	categories = []
-	used_categories = []
-	slide_category_dict = {}
-	slide_node_dict = {}
-	umap = None
 	
 	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_header=None, 
-					focus_nodes=[], use_fp16=True, batch_size=16, export_csv=False, max_tiles_per_slide=100):
+					focus_nodes=[], use_fp16=True, use_activations_cache=False, activations_cache='default',
+					batch_size=16, activations_export=None, max_tiles_per_slide=100):
+		self.missing_slides = []
+		self.categories = []
+		self.used_categories = []
+		self.slide_category_dict = {}
+		self.slide_node_dict = {}
+		self.umap = None
+
 		self.focus_nodes = focus_nodes
 		self.MAX_TILES_PER_SLIDE = max_tiles_per_slide
 		self.IMAGE_SIZE = image_size
 		self.tfrecords = np.array(tfrecords)
-		self.slides = [sfutil.path_to_name(tfr) for tfr in self.tfrecords]
+		self.slides = sorted([sfutil.path_to_name(tfr) for tfr in self.tfrecords])
 
-		self.FLA = join(root_dir, "stats", "final_layer_activations.csv")
 		self.STATS_CSV_FILE = join(root_dir, "stats", "slide_level_summary.csv")
-		self.PT_NODE_DICT_PKL = join(root_dir, "stats", "activation_node_dict.pkl")
-		self.PT_LOGITS_DICT_PKL = join(root_dir, "stats", "logits_dict.pkl")
-		self.UMAP_CACHE = join(root_dir, "stats", "umap_cache.pkl")
 		self.EXAMPLE_TILES_DIR = join(root_dir, "stats", "example_tiles")
 		self.SORTED_DIR = join(root_dir, "stats", "sorted_tiles")
 		self.STATS_ROOT = join(root_dir, "stats")
+		self.ACTIVATIONS_CACHE = join(root_dir, "stats", "activations_cache.pkl") if activations_cache=='default' else join(root_dir, 'stats', activations_cache)
 		if not exists(join(root_dir, "stats")):
 			os.makedirs(join(root_dir, "stats"))
 
@@ -83,17 +81,15 @@ class ActivationsVisualizer:
 
 		# Load activations
 		# Load from PKL (cache) if present
-		if exists(self.PT_NODE_DICT_PKL) and exists(self.PT_LOGITS_DICT_PKL): 
+		if self.ACTIVATIONS_CACHE and exists(self.ACTIVATIONS_CACHE): 
 			# Load saved PKL cache
-			log.info("Loading pre-calculated predictions and activations from cache...", 1)
-			with open(self.PT_NODE_DICT_PKL, 'rb') as pt_pkl_file:
-				self.slide_node_dict = pickle.load(pt_pkl_file)
+			log.empty("Loading pre-calculated predictions and activations from cache...", 1)
+			with open(self.ACTIVATIONS_CACHE, 'rb') as pt_pkl_file:
+				self.slide_node_dict, self.slide_logits_dict = pickle.load(pt_pkl_file)
 				self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
-			with open(self.PT_LOGITS_DICT_PKL, 'rb') as pt_logits_file:
-				self.slide_logits_dict = pickle.load(pt_logits_file)
 		# Otherwise will need to generate new activations from a given model
 		else:
-			self.generate_activations_from_model(model, use_fp16=use_fp16, batch_size=batch_size, export_csv=export_csv)
+			self.generate_activations_from_model(model, use_fp16=use_fp16, batch_size=batch_size, export=activations_export)
 			self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
 
 		# Now delete slides not included in our filtered TFRecord list
@@ -101,6 +97,7 @@ class ActivationsVisualizer:
 		for loaded_slide in loaded_slides:
 			if loaded_slide not in self.slides:
 				del self.slide_node_dict[loaded_slide]
+				del self.slide_logits_dict[loaded_slide]
 
 		# Now screen for missing slides in activations
 		for slide in self.slides:
@@ -113,16 +110,16 @@ class ActivationsVisualizer:
 			except KeyError:
 				log.warn(f"Skipping unknown slide {slide}", 1)
 				self.missing_slides += [slide]
-		log.info(f"Loaded activations from {(len(self.slides)-len(self.missing_slides))}/{len(self.slides)} slides ({len(self.missing_slides)} missing)", 1)
-		log.info(f"Observed categories (total: {len(self.used_categories)}):", 1)
+		log.info(f"Loaded activations from {(len(self.slides)-len(self.missing_slides))}/{len(self.slides)} slides ({len(self.missing_slides)} missing)", 2)
+		log.info(f"Observed categories (total: {len(self.used_categories)}):", 2)
 		for c in self.used_categories:
 			log.empty(f"\t{c}", 2)
 
-	def _save_node_statistics_to_csv(self, nodes_avg_pt, tile_stats=None, slide_stats=None):
+	def _save_node_statistics_to_csv(self, nodes_avg_pt, filename, tile_stats=None, slide_stats=None):
 		'''Exports statistics (ANOVA p-values and slide-level averages) to CSV.'''
 		# Save results to CSV
-		log.empty(f"Writing results to {sfutil.green(self.STATS_CSV_FILE)}...", 1)
-		with open(self.STATS_CSV_FILE, 'w') as outfile:
+		log.empty(f"Writing results to {sfutil.green(filename)}...", 1)
+		with open(filename, 'w') as outfile:
 			csv_writer = csv.writer(outfile)
 			header = ['slide', 'category'] + [f"FLNode{n}" for n in nodes_avg_pt]
 			csv_writer.writerow(header)
@@ -138,28 +135,26 @@ class ActivationsVisualizer:
 				csv_writer.writerow(['Slide-level statistic', 'ANOVA P-value'] + [slide_stats[n]['p'] for n in nodes_avg_pt])
 				csv_writer.writerow(['Slide-level statistic', 'ANOVA F-value'] + [slide_stats[n]['f'] for n in nodes_avg_pt])
 
-	def calculate_centroid_indices(self):
-		log.info("Calculating centroid indices...", 1)
-		optimal_indices = {}
-		for slide in self.slide_node_dict:
-			slide_nodes = self.slide_node_dict[slide]
-			coordinates = [[slide_nodes[n][i] for n in self.nodes] for i in range(len(slide_nodes[0]))]
-			km = KMeans(n_clusters=1).fit(coordinates)
-			closest, _ = pairwise_distances_argmin_min(km.cluster_centers_, coordinates)
-			optimal_indices.update({slide: closest[0]})
-		return optimal_indices
+	def slide_tile_dict(self):
+		result = {}
+		for slide in self.slides:
+			if slide in self.missing_slides: continue
+			num_tiles = len(self.slide_node_dict[slide][0])
+			result.update({slide: [[self.slide_node_dict[slide][node][tile_index] for node in self.nodes] for tile_index in range(num_tiles)]})
+		return result
 
-	def get_mapped_predictions(self):
+	def get_mapped_predictions(self, x=0, y=0):
 		umap_x = []
 		umap_y = []
 		umap_meta = []
-		for slide in self.slide_logits_dict:
-			for tfr in range(len(self.slide_logits_dict[slide][0])):
-				umap_x += [self.slide_logits_dict[slide][0][tfr]]
-				umap_y += [self.slide_logits_dict[slide][1][tfr]]
+		for slide in self.slides:
+			if slide in self.missing_slides: continue
+			for tile_index in range(len(self.slide_logits_dict[slide][0])):
+				umap_x += [self.slide_logits_dict[slide][x][tile_index]]
+				umap_y += [self.slide_logits_dict[slide][y][tile_index]]
 				umap_meta += [{
 					'slide': slide,
-					'index': tfr
+					'index': tile_index
 				}]
 		return np.array(umap_x), np.array(umap_y), umap_meta
 
@@ -168,6 +163,36 @@ class ActivationsVisualizer:
 
 	def get_predictions(self):
 		return self.slide_logits_dict
+
+	def get_slide_level_predictions(self, model_type='linear', prediction_filter=None):
+		slide_predictions = {}
+		slide_percentages = {}
+		if model_type == 'categorical':
+			first_slide = list(self.slide_logits_dict.keys())[0]
+			logits = sorted(list(self.slide_logits_dict[first_slide].keys()))
+			for slide in self.slide_logits_dict:
+				num_tiles = len(self.slide_logits_dict[slide][0])
+				tile_predictions = []
+				for i in range(num_tiles):
+					calculated_logits = [self.slide_logits_dict[slide][l][i] for l in logits]
+					if prediction_filter:
+						filtered_calculated_logits = [calculated_logits[l] for l in prediction_filter]
+					else:
+						filtered_calculated_logits = calculated_logits
+					tile_predictions += [calculated_logits.index(max(filtered_calculated_logits))]
+				slide_prediction_values = {l:(tile_predictions.count(l)/len(tile_predictions)) for l in logits}
+				slide_percentages.update({slide: slide_prediction_values})
+				slide_predictions.update({slide: max(slide_prediction_values, key=lambda l: slide_prediction_values[l])})
+		elif model_type == 'linear':
+			first_slide = list(self.slide_logits_dict.keys())[0]
+			for slide in self.slide_logits_dict:
+				num_tiles = len(self.slide_logits_dict[slide][0])
+				tile_predictions = []
+				for i in range(num_tiles):
+					tile_predictions += [self.slide_logits_dict[slide][0][i]]
+				slide_percentages[slide] = [sum(tile_predictions) / len(tile_predictions)]
+				slide_predictions[slide] = [sum(tile_predictions) / len(tile_predictions)]
+		return slide_predictions, slide_percentages
 
 	def load_annotations(self, annotations, outcome_header):
 		'''Loads annotations from a given file with the specified outcome header.'''
@@ -228,14 +253,14 @@ class ActivationsVisualizer:
 		
 		return self.nodes
 
-	def generate_activations_from_model(self, model, use_fp16=True, batch_size=16, export_csv=True):
+	def generate_activations_from_model(self, model, use_fp16=True, batch_size=16, export=None):
 		'''Calculates activations from a given model.
 
 		Args:
 			model:		Path to .h5 file from which to calculate final layer activations.
 			use_fp16:	If true, uses Float16 (default) instead of Float32.
 			batch_size:	Batch size for model predictions.
-			export_csv:	If true, will export calculated activations to a CSV.'''
+			export:		String (default: None). If provided, will export CSV of activations with this filename.'''
 
 		# Rename tfrecord_array to tfrecords
 		log.info(f"Calculating layer activations from {sfutil.green(model)}, max {self.MAX_TILES_PER_SLIDE} tiles per slide.", 1)
@@ -270,8 +295,8 @@ class ActivationsVisualizer:
 		# Calculate final layer activations for each tfrecord
 		fla_start_time = time.time()
 		nodes_names, logits_names = [], []
-		if export_csv:
-			outfile = open(self.FLA, 'w')
+		if export:
+			outfile = open(export, 'w')
 			csvwriter = csv.writer(outfile)
 
 		for t, tfrecord in enumerate(self.tfrecords):
@@ -302,7 +327,7 @@ class ActivationsVisualizer:
 				nodes_names = [f"FLNode{f}" for f in range(fl_activations_combined.shape[1])]
 				logits_names = [f"Logits{l}" for l in range(logits_combined.shape[1])]
 				header = ["Slide"] + logits_names + nodes_names
-				if export_csv:
+				if export:
 					csvwriter.writerow(header)
 				for n in range(len(nodes_names)):
 					for slide in unique_slides:
@@ -322,7 +347,7 @@ class ActivationsVisualizer:
 				activations_vals = fl_activations_combined[i].tolist()
 				logits_vals = logits_combined[i].tolist()
 				# Write to CSV
-				if export_csv:
+				if export:
 					row = [slide] + logits_vals + activations_vals
 					csvwriter.writerow(row)
 				# Write to memory
@@ -333,32 +358,30 @@ class ActivationsVisualizer:
 					val = logits_vals[l]
 					self.slide_logits_dict[slide][l] += [val]
 
-		if export_csv:
+		if export:
 			outfile.close()
 
 		fla_calc_time = time.time()
 		print()
 		log.info(f"Activation calculation time: {fla_calc_time-fla_start_time:.0f} sec", 1)
-		if export_csv:
-			log.complete(f"Final layer activations saved to {sfutil.green(self.FLA)}", 1)
+		if export:
+			log.complete(f"Final layer activations saved to {sfutil.green(export)}", 1)
 		
 		# Dump PKL dictionary to file
-		with open(self.PT_NODE_DICT_PKL, 'wb') as pt_pkl_file:
-			pickle.dump(self.slide_node_dict, pt_pkl_file)
-		with open(self.PT_LOGITS_DICT_PKL, 'wb') as pt_logits_file:
-			pickle.dump(self.slide_logits_dict, pt_logits_file)
-		log.complete(f"Predictions cached to {sfutil.green(self.PT_LOGITS_DICT_PKL)}", 1)
-		log.complete(f"Final layer activations cached to {sfutil.green(self.PT_NODE_DICT_PKL)}", 1)
+		if self.ACTIVATIONS_CACHE:
+			with open(self.ACTIVATIONS_CACHE, 'wb') as pt_pkl_file:
+				pickle.dump([self.slide_node_dict, self.slide_logits_dict], pt_pkl_file)
+			log.complete(f"Predictions and activations cached to {sfutil.green(self.ACTIVATIONS_CACHE)}", 1)
 
 		return self.slide_node_dict, self.slide_logits_dict
 
-	def export_activations_to_csv(self, nodes=None):
+	def export_activations_to_csv(self, filename, nodes=None):
 		'''Exports calculated activations to csv.
 
 		Args:
 			nodes:		Exports activations of the given nodes. If None, will export activations for all nodes.'''
 
-		with open(self.FLA, 'w') as outfile:
+		with open(filename, 'w') as outfile:
 			csvwriter = csv.writer(outfile)
 			nodes = self.nodes if not nodes else nodes
 			header = ["Slide"] + [f"FLNode{f}" for f in nodes]
@@ -369,7 +392,7 @@ class ActivationsVisualizer:
 					row += [self.slide_node_dict[slide][n]]
 				csvwriter.writewrow(row)
 
-	def calculate_activation_averages_and_stats(self, export_csv=True):
+	def calculate_activation_averages_and_stats(self, filename=None):
 		'''Calculates activation averages across categories, as well as tile-level and patient-level statistics using ANOVA, exporting to CSV if desired.'''
 
 		if not self.categories:
@@ -427,10 +450,13 @@ class ActivationsVisualizer:
 			except:
 				log.warn(f"No stats calculated for node {node}", 1)
 			if (not self.focus_nodes) and i>9: break
-		if not exists(self.STATS_CSV_FILE):
-			self._save_node_statistics_to_csv(self.nodes_avg_pt, tile_stats=node_stats, slide_stats=node_stats_avg_pt)
+
+		# Export results
+		export_file = self.STATS_CSV_FILE if not filename else filename
+		if not exists(export_file):
+			self._save_node_statistics_to_csv(self.nodes_avg_pt, filename=export_file, tile_stats=node_stats, slide_stats=node_stats_avg_pt)
 		else:
-			log.info(f"Stats file already generated at {sfutil.green(self.STATS_CSV_FILE)}; not regenerating", 1)
+			log.info(f"Stats file already generated at {sfutil.green(export_file)}; not regenerating", 1)
 
 	def generate_box_plots(self, annotations=None, outcome_header=None, interactive=False):
 		'''Generates box plots comparing nodal activations at the slide-level and tile-level.'''
@@ -473,60 +499,6 @@ class ActivationsVisualizer:
 			boxplot_filename = join(self.STATS_ROOT, f"boxplot_{title}.png")
 			plt.savefig(boxplot_filename, bbox_inches='tight')
 			if (not self.focus_nodes) and i>4: break
-
-	def calculate_umap(self, exclude_node=None):
-		'''Calculates UMAP, loading from PKL cache if available. May exclude a single node if desired.
-		
-		Returns:
-			Dictionary containing umap data'''
-		slides = [slide for slide in self.slides if slide not in self.missing_slides]
-		nodes_to_include = [n for n in self.nodes if n != exclude_node]
-		self.umap = TFRecordUMAP(self.tfrecords, slides, cache=self.UMAP_CACHE)
-		self.umap.calculate_from_nodes(self.slide_node_dict, self.slide_logits_dict, nodes=nodes_to_include,
-																					 exclude_slides=self.missing_slides)
-		return self.umap
-
-	def generate_mosaic(self, focus=None, leniency=1.5, expanded=False, tile_zoom=15, num_tiles_x=50, resolution='high', 
-					export=True, save_dir=None):
-		'''Generate a mosaic map.
-
-		Args:
-			umap:			Dictionary containing umap data, as generated by calculate_umap()
-			focus:			List of tfrecords to highlight on the mosaic
-			leniency:		UMAP leniency
-			expanded:		If true, will try to fill in blank spots on the UMAP with nearby tiles. Takes exponentially longer to generate.
-			tile_zoom:		Zoom level
-			num_tiles_x:	Mosaic map grid size
-			resolution:		Resolution of exported figure; either 'high', 'medium', or 'low'
-			export:			Bool, whether to save calculated mosaic map to a file.
-			save_dir:		Directory in which to save results.'''
-
-		if not self.umap: self.calculate_umap()
-
-		mosaic = Mosaic(self.umap, leniency=leniency,
-								   expanded=expanded,
-								   tile_zoom=tile_zoom,
-								   num_tiles_x=num_tiles_x,
-								   resolution=resolution)
-		mosaic.focus(focus)
-
-		if export:
-			mosaic.save(self.STATS_ROOT if not save_dir else save_dir)
-			
-		return mosaic
-	
-	def plot_3d_umap(self, node, filename=None, subsample=1000):
-		umap_name = "3d_umap.png" if not node else f"3d_umap_{node}.png"
-		filename = join(self.STATS_ROOT, umap_name) if not filename else filename
-		title = f"UMAP with node {node} focus"
-
-		if not self.umap: self.calculate_umap()
-
-		z = np.array([self.slide_node_dict[m['slide']][node][m['index']] for m in self.umap.point_meta])
-
-		self.umap.save_3d_plot(z, filename=filename,
-								  title=title,
-								  subsample=subsample)
 
 	def save_example_tiles_gradient(self, nodes=None, tile_filter=None):
 		if not nodes:
@@ -608,16 +580,20 @@ class TileVisualizer:
 		self.loaded_model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
 												  outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
 
-	def visualize_tile(self, tile, save_dir=None, zoomed=True):
-		log.info(f"Processing tile at {sfutil.green(tile)}...", 1)
-		tilename = sfutil.path_to_name(tile)
-		# First, open tile image
-		self.tile_image = Image.open(tile)
-		image_file = open(tile, 'rb')
-		self.tf_raw_image = image_file.read()
+	def visualize_tile(self, tfrecord=None, index=None, image_jpg=None, save_dir=None, zoomed=True):
+		if image_jpg:
+			log.info(f"Processing tile at {sfutil.green(image_jpg)}...", 1)
+			tilename = sfutil.path_to_name(image_jpg)
+			# First, open tile image
+			self.tile_image = Image.open(image_jpg)
+			image_file = open(image_jpg, 'rb')
+			tf_decoded_image = tf.image.decode_jpeg(image_file.read(), channels=3)
+		else:
+			slide, tf_decoded_image = sfio.tfrecords.get_tfrecord_by_index(tfrecord, index, decode=True)
+			tilename = f'{slide.numpy().decode("utf-8")}-{index}'
+			self.tile_image = Image.fromarray(tf_decoded_image.numpy())
 
 		# Next, process image with Tensorflow
-		tf_decoded_image = tf.image.decode_jpeg(self.tf_raw_image, channels=3)
 		self.tf_processed_image = tf.image.per_image_standardization(tf_decoded_image)
 		self.tf_processed_image = tf.image.convert_image_dtype(self.tf_processed_image, tf.float16)
 		self.tf_processed_image.set_shape(self.IMAGE_SHAPE)
@@ -773,11 +749,12 @@ class Heatmap:
 		parsed_image.set_shape([299, 299, 3])
 		return parsed_image
 
-	def generate(self, batch_size=16):
+	def generate(self, batch_size=16, skip_thumb=False):
 		'''Convolutes across a whole slide, calculating logits and saving predictions internally for later use.'''
 		# Pre-load thumbnail in separate thread
-		thumb_process = DProcess(target=self.slide.thumb)
-		thumb_process.start()
+		if not skip_thumb:
+			thumb_process = DProcess(target=self.slide.thumb)
+			thumb_process.start()
 
 		# Create tile coordinate generator
 		gen_slice = self.slide.build_generator(return_numpy=True)
@@ -797,10 +774,11 @@ class Heatmap:
 		for batch_images in tile_dataset:
 			prelogits, logits = self.model.predict_on_batch([batch_images, batch_images])
 			logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
-		print('\r\033[KFinished predictions. Waiting on thumbnail...', end="")
-		thumb_process.join()
+		if not skip_thumb:
+			print('\r\033[KFinished predictions. Waiting on thumbnail...', end="")
+			thumb_process.join()
 
-		if self.slide.tile_mask is not None and self.slide.extracted_x_size and self.slide.extracted_y_size and self.slide.full_stride:
+		if (self.slide.tile_mask is not None) and (self.slide.extracted_x_size) and (self.slide.extracted_y_size) and (self.slide.full_stride):
 			# Expand logits back to a full 2D map spanning the whole slide,
 			#  supplying values of "0" where tiles were skipped by the tile generator
 			x_logits_len = int(self.slide.extracted_x_size / self.slide.full_stride) + 1
@@ -835,7 +813,7 @@ class Heatmap:
 		cmMap = cm.nipy_spectral(jetMap)
 		self.newMap = mcol.ListedColormap(cmMap)
 
-	def display(self, interpolation='none'):
+	def display(self, interpolation='none', logit_cmap=None):
 		'''Interactively displays calculated logits as a heatmap.'''
 		self.prepare_figure()
 		heatmap_dict = {}
@@ -856,38 +834,49 @@ class Heatmap:
 		implot.show()
 		plt.show()
 
-	def save(self, show_roi=True, interpolation='none'):
+	def save(self, show_roi=True, interpolation='none', logit_cmap=None, skip_thumb=False):
 		'''Saves calculated logits as heatmap overlays.'''
 		print("\r\033[KPreparing figure...", end="")
 		self.prepare_figure()
-		print("\r\033[KPreparing plot...", end="")
-		implot = self.ax.imshow(self.slide.thumb(), zorder=0)
-
+		
 		# Plot ROIs
-		print("\r\033[KPlotting ROIs...", end="")
 		if show_roi:
+			print("\r\033[KPlotting ROIs...", end="")
 			ROI_SCALE = self.slide.full_shape[0]/2048
 			annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.slide.rois]
 			for poly in annPolys:
 				x,y = poly.exterior.xy
 				plt.plot(x, y, zorder=20, color='k', linewidth=5)
 
-		# Save plot without heatmaps
-		print("\r\033[KSaving base figure...", end="")
-		plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-raw.png'), bbox_inches='tight')
+		if not skip_thumb:
+			# Save plot without heatmaps
+			print("\r\033[KSaving base figure...", end="")
+			implot = self.ax.imshow(self.slide.thumb(), zorder=0)
+			plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-raw.png'), bbox_inches='tight')
 
-		# Make heatmap plots and sliders
-		for i in range(self.NUM_CLASSES):
-			print(f"\r\033[KMaking heatmap {i+1} of {self.NUM_CLASSES}...", end="")
-			heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.get_extent(),
-														   cmap=self.newMap,
-														   vmin=0,
-														   vmax=1,
-														   alpha=0.6,
-														   interpolation=interpolation, #bicubic
-														   zorder=10)
-			plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-{i}.png'), bbox_inches='tight')
-			heatmap.remove()
+		if logit_cmap:
+			if callable(logit_cmap):
+				map_logit = logit_cmap
+			else:
+				def map_logit(l): 
+					# Make heatmap with specific logit predictions mapped to r, g, and b
+					return (l[logit_cmap['r']], l[logit_cmap['g']], l[logit_cmap['b']])
+			extent = None if skip_thumb else implot.get_extent()
+			heatmap = self.ax.imshow([[map_logit(l) for l in row] for row in self.logits], extent=extent, zorder=10)
+			plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-custom.png'), bbox_inches='tight')
+		else:
+			# Make heatmap plots and sliders for each outcome category
+			for i in range(self.NUM_CLASSES):
+				print(f"\r\033[KMaking heatmap {i+1} of {self.NUM_CLASSES}...", end="")
+				heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.get_extent(),
+															cmap=self.newMap,
+															vmin=0,
+															vmax=1,
+															alpha=0.6,
+															interpolation=interpolation, #bicubic
+															zorder=10)
+				plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-{i}.png'), bbox_inches='tight')
+				heatmap.remove()
 
 		plt.close()
 		print("\r\033[K", end="")

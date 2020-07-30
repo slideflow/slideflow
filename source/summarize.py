@@ -539,13 +539,21 @@ def get_compatible_dataset(project, datasets):
 			return dataset
 	return False
 
-def load_from_directory(search_directory, nested=False, starttime=None, shownames=False, roc_level='slide'):
-	if nested:
-		project_folders = []
-		for _dir in [join(search_directory, d) for d in os.listdir(search_directory) if isdir(join(search_directory, d))]:
-			project_folders += get_projects_from_folder(_dir)
-	else:
-		project_folders = get_projects_from_folder(search_directory)
+def load_from_directory(project_directory=None, search_directory=None, nested=False, starttime=None, shownames=False, roc_level='slide'):
+	if not (project_directory or search_directory):
+		raise argparse.ArgumentTypeError("Must supply either project directory of search directory.")
+	elif project_directory and search_directory:
+		raise argparse.ArgumentTypeError("Cannot supply both a project directory and search directory.")
+
+	if search_directory:
+		if nested:
+			project_folders = []
+			for _dir in [join(search_directory, d) for d in os.listdir(search_directory) if isdir(join(search_directory, d))]:
+				project_folders += get_projects_from_folder(_dir)
+		else:
+			project_folders = get_projects_from_folder(search_directory)
+	elif project_directory:
+		project_folders = [project_directory]
 
 	datasets = []
 
@@ -614,7 +622,8 @@ def valid_date(s):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description = "Summarizes Slideflow project results.")
-	parser.add_argument('-d', '--dir', required=True, type=str, help='Path to parent directory containings slideflow projects.')
+	parser.add_argument('-p', '--project', required=False, type=str, help='Path to a single project directory.')
+	parser.add_argument('-d', '--dir', required=False, type=str, help='Path to parent directory containings slideflow projects.')
 	parser.add_argument('-n', '--nested', action="store_true", help='Whether directory specified contains further nested directories to search.')
 	parser.add_argument('-s', '--since', type=valid_date, help='Print results from this starting date (Format: YYYY-mm-dd or YYYY-mm-dd-HH-MM-SS)')
 	parser.add_argument('--names', action="store_true", help='Print model names with results.')
@@ -623,4 +632,4 @@ if __name__ == '__main__':
 
 	roc_level = 'tile' if args.tile else 'slide'
 
-	load_from_directory(args.dir, args.nested, args.since, args.names, roc_level)
+	load_from_directory(args.project, args.dir, args.nested, args.since, args.names, roc_level)

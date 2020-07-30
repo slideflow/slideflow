@@ -2,6 +2,7 @@ import math
 import time
 import cv2
 import sys
+import csv
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,7 +13,7 @@ from random import shuffle
 from matplotlib import patches
 from os.path import join
 from slideflow.util import log
-
+from slideflow.statistics import get_centroid_index
 from multiprocessing.dummy import Pool as DPool
 
 class Mosaic:
@@ -20,7 +21,7 @@ class Mosaic:
 	points = []
 
 	def __init__(self, umap, focus=None, leniency=1.5, expanded=False, tile_zoom=15, num_tiles_x=50, resolution='high', 
-					export=True):
+					export=True, relative_size=False, tile_select='nearest', tile_meta=None, normalize=False):
 		'''Generate a mosaic map.
 
 		Args:
@@ -37,7 +38,7 @@ class Mosaic:
 		max_distance_factor = leniency
 		mapping_method = 'expanded' if expanded else 'strict'
 		tile_zoom_factor = tile_zoom
-		export = export
+		self.mapped_tiles = {}
 		self.umap = umap
 		self.num_tiles_x = num_tiles_x
 		self.tfrecords_paths = umap.tfrecords
@@ -69,7 +70,8 @@ class Mosaic:
 								'slide':slide,
 								'tfrecord':self._get_tfrecords_from_slide(slide),
 								'tfrecord_index':umap.point_meta[i]['index'],
-								'paired_tile':None })
+								'paired_tile':None,
+								'meta':None if not tile_meta else tile_meta[slide][umap.point_meta[i]['index']]})
 		x_points = [p['coord'][0] for p in self.points]
 		y_points = [p['coord'][1] for p in self.points]
 		_x_width = max(x_points) - min(x_points)
@@ -135,17 +137,26 @@ class Mosaic:
 
 		# Then, calculate distances from each point to each spot on the grid
 		if mapping_method not in ('strict', 'expanded'):
-			raise TypeError("Unknown mapping method")
+			raise TypeError("Unknown mapping method; must be strict or expanded")
 		else:
 			log.info(f"Mapping method: {mapping_method}", 2)
+
+		if tile_select not in ('nearest', 'centroid'):
+			raise TypeError("Unknown tile selection method; must be nearest or centroid")
+		else:
+			log.info(f"Tile selection method: {tile_select}", 2)
 
 		def calc_distance(tile):
 			if mapping_method == 'strict':
 				# Calculate distance for each point within the grid tile from center of the grid tile
 				point_coords = np.asarray([self.points[global_index]['coord'] for global_index in tile['points']])
 				if len(point_coords):
-					distances = np.linalg.norm(point_coords - tile['coord'], ord=2, axis=1.)
-					tile['nearest_index'] = tile['points'][np.argmin(distances)]
+					if tile_select == 'nearest':
+						distances = np.linalg.norm(point_coords - tile['coord'], ord=2, axis=1.)
+						tile['nearest_index'] = tile['points'][np.argmin(distances)]
+					else:
+						centroid_index = get_centroid_index([self.points[global_index]['meta'] for global_index in tile['points']])
+						tile['nearest_index'] = tile['points'][centroid_index]
 			elif mapping_method == 'expanded':
 				# Calculate distance for each point within the entire grid from center of the grid tile
 				point_coords = np.asarray([p['coord'] for p in self.points])
@@ -179,27 +190,33 @@ class Mosaic:
 				closest_point = tile['nearest_index']
 				point = self.points[closest_point]
 
-				_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
-				image_arr = np.fromstring(tile_image.numpy(), np.uint8)
-				tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
-				tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)				
+				if not point['tfrecord']:
+					log.error(f"The tfrecord {point['slide']} was not found in the list of paths provided by the input umap; please ensure the TFRecord exists.", 1)
+					continue
 
+				_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
+				self.mapped_tiles.update({point['tfrecord']: point['tfrecord_index']})
+				tile_image = self._decode_image_string(tile_image.numpy(), normalize=normalize)
+				
 				tile_alpha, num_slide, num_other = 1, 0, 0
-				if FOCUS_SLIDE and len(tile['points']):
-					for point_index in tile['points']:
-						point = self.points[point_index]
-						if point['slide'] == FOCUS_SLIDE:
-							num_slide += 1
-						else:
-							num_other += 1
-					fraction_slide = num_slide / (num_other + num_slide)
-					tile_alpha = fraction_slide
+				display_size = tile_size
+				if relative_size:
+					if FOCUS_SLIDE and len(tile['points']):
+						for point_index in tile['points']:
+							point = self.points[point_index]
+							if point['slide'] == FOCUS_SLIDE:
+								num_slide += 1
+							else:
+								num_other += 1
+						fraction_slide = num_slide / (num_other + num_slide)
+						tile_alpha = fraction_slide
+					display_size = tile['size']
 				if not export:
 					tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
-				image = ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['coord'][0]-tile['size']/2, 
-																						tile['coord'][0]+tile['size']/2,
-																						tile['coord'][1]-tile['size']/2,
-																						tile['coord'][1]+tile['size']/2], zorder=99, alpha=tile_alpha)
+				image = ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['coord'][0]-display_size/2, 
+																						tile['coord'][0]+display_size/2,
+																						tile['coord'][1]-display_size/2,
+																						tile['coord'][1]+display_size/2], zorder=99, alpha=tile_alpha)
 				tile['image'] = image
 				num_placed += 1
 		elif mapping_method == 'expanded':
@@ -213,9 +230,8 @@ class Mosaic:
 					tile['paired_point'] = True
 
 					_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
-					image_arr = np.fromstring(tile_image.numpy(), np.uint8)
-					tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
-					tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
+					self.mapped_tiles.update({point['tfrecord']: point['tfrecord_index']})
+					tile_image = self._decode_image_string(tile_image.numpy(), normalize=normalize)					
 
 					if not export:
 						tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
@@ -225,7 +241,7 @@ class Mosaic:
 																					tile['coord'][1]+tile_size/2], zorder=99)
 					tile['image'] = image
 					num_placed += 1
-			print("\r\033[K")
+			print("\r\033[K", end="")
 		log.info(f"Num placed: {num_placed}", 2)
 
 		# Focus on a subset of TFRecords if desired
@@ -240,11 +256,33 @@ class Mosaic:
 				return tfr
 		log.error(f"Unable to find TFRecord path for slide {sfutil.green(slide)}", 1)
 
+	def _decode_image_string(self, string, normalize='color'):
+
+		def normalize_func(x, color=True):
+			norm = np.array((x - np.min(x)) / (np.max(x) - np.min(x)))
+			if not color:
+				gray = np.dot(norm[...,:3], [0.333, 0.333, 0.333])
+				return (0.5 / np.mean(gray)) * gray
+			else:
+				orig_dim = norm.shape
+				reshaped = norm.reshape([-1, 3])
+				colornorm = reshaped * (0.5 / np.mean(reshaped, axis=0))
+				return colornorm.reshape(orig_dim)
+
+		image_arr = np.fromstring(string, np.uint8)
+		tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
+		if normalize:
+			tile_image_bgr = np.array(normalize_func(tile_image_bgr, color=(normalize=='color')) * 255, dtype=np.uint8)
+		
+		tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
+			
+		return tile_image
+
 	def focus(self, tfrecords):
 		# If desired, highlight certain tiles according to a focus list
 		if tfrecords:
 			for tile in self.GRID:
-				if not len(tile['points']): continue
+				if not len(tile['points']) or not tile['image']: continue
 				num_cat, num_other = 0, 0
 				for point_index in tile['points']:
 					point = self.points[point_index]
@@ -256,15 +294,22 @@ class Mosaic:
 				tile['image'].set_alpha(alpha)
 		else:
 			for tile in self.GRID:
-				if not len(tile['points']): continue
+				if not len(tile['points']) or not tile['image']: continue
 				tile['image'].set_alpha(1)
 
-	def save(self, directory):
+	def save(self, filename):
 		log.empty("Exporting figure...", 1)
-		save_path = join(directory, f'Mosaic-{self.num_tiles_x}.png')
-		plt.savefig(save_path, bbox_inches='tight')
-		log.complete(f"Saved figure to {sfutil.green(save_path)}", 1)
+		plt.savefig(filename, bbox_inches='tight')
+		log.complete(f"Saved figure to {sfutil.green(filename)}", 1)
 		plt.close()
+
+	def save_report(self, filename):
+		with open(filename, 'w') as f:
+			writer = csv.writer(f)
+			writer.writerow(['slide', 'index'])
+			for tfr in self.mapped_tiles:
+				writer.writerow([tfr, self.mapped_tiles[tfr]])
+		log.complete(f"Mosaic report saved to {sfutil.green(filename)}", 1)
 
 	def display(self):
 		log.empty("Displaying figure...")

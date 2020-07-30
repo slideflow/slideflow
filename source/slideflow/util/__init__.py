@@ -12,6 +12,8 @@ from glob import glob
 from tensorflow.keras import backend as K
 from os.path import join, isdir, exists
 
+# TODO: re-enable logging with maximum log file size
+
 # Enable color sequences on Windows
 try:
 	import ctypes
@@ -504,3 +506,31 @@ def update_results_log(results_log_path, model_name, results_dict):
 	# Delete the old results log file
 	if exists(f"{results_log_path}.temp"):
 		os.remove(f"{results_log_path}.temp")
+
+def read_predictions_from_csv(path, outcome_labels=None, restrict_outcomes=None, outcome_type='categorical'):
+	'''Function to assist with loading predictions from files.
+
+	Returns:
+		Dictionary mapping slides to nested dictionary, which maps outcome labels to predictions.'''
+
+	predictor_label = 'percent_tiles_positive' if outcome_type == 'categorical' else 'average'
+
+	predictions = {}
+
+	with open(path, 'r') as csv_file:
+		reader = csv.reader(csv_file)
+		header = next(reader)
+		slide_i = header.index('slide')
+
+		outcomes = restrict_outcomes if restrict_outcomes else [int(h.split('y_true')[-1]) for h in header if 'y_true' in h]
+
+		for row in reader:
+			slide = row[slide_i]
+			predictions_dict = {}
+			for outcome in outcomes:
+				prediction_index = header.index(f'{predictor_label}{outcome}')
+				outcome_label = outcome if not outcome_labels else outcome_labels[outcome]
+				predictions_dict.update({outcome_label: row[prediction_index]})
+			predictions.update({slide: predictions_dict})
+
+	return predictions
