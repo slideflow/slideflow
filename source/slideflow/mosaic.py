@@ -27,7 +27,7 @@ class Mosaic:
 		'''Generate a mosaic map.
 
 		Args:
-			umap:			TFRecordUMAP object
+			umap:			TFRecordMap object
 			focus:			List of tfrecords to highlight on the mosaic
 			leniency:		UMAP leniency
 			expanded:		If true, will try to fill in blank spots on the UMAP with nearby tiles. Takes exponentially longer to generate.

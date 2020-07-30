@@ -26,9 +26,9 @@ from matplotlib.widgets import LassoSelector
 class StatisticsError(Exception):
 	pass
 
-class TFRecordUMAP:
+class TFRecordMap:
 	def __init__(self, slides, tfrecords, cache=None):
-		''' slides = self.slides_to_include '''
+		''' Backend for '''
 		self.slides = slides
 		self.tfrecords = tfrecords
 		self.cache = cache
@@ -527,7 +527,7 @@ def generate_scatter(y_true, y_pred, data_dir, name='_plot'):
 
 	return r_squared
 
-def generate_basic_performance_metrics(y_true, y_pred):
+def generate_metrics_from_predictions(y_true, y_pred):
 	'''Generates basic performance metrics, including sensitivity, specificity, and accuracy.'''
 	assert(len(y_true) == len(y_pred))
 	assert([y in [0,1] for y in y_true])
@@ -738,13 +738,13 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		r_squared = generate_scatter(y_true, y_pred, data_dir, label_end)
 
 		# Generate and save slide-level averages of each outcome
-		averages_by_slide = get_average_by_slide(y_pred, "average")
+		averages_by_slide = get_average_by_group(y_pred, "average", unique_slides, tile_to_slides, y_true_slide, "slide")
 		y_true_by_slide = np.array([y_true_slide[slide] for slide in unique_slides])
 		r_squared_slide = generate_scatter(y_true_by_slide, averages_by_slide, data_dir, label_end+"_by_slide")			
 
 		if not patient_error:
 			# Generate and save patient-level averages of each outcome
-			averages_by_patient = get_average_by_patient(y_pred, "average")
+			averages_by_patient = get_average_by_group(y_pred, "average", patients, tile_to_patients, y_true_patient, "slide")
 			y_true_by_patient = np.array([y_true_patient[patient] for patient in patients])
 			r_squared_patient = generate_scatter(y_true_by_patient, averages_by_patient, data_dir, label_end+"_by_patient")			
 

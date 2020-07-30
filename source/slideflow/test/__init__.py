@@ -7,7 +7,7 @@ import shutil
 
 from slideflow.io.datasets import Dataset
 from slideflow.util import TCGA, log, ProgressBar
-from slideflow.statistics import TFRecordUMAP
+from slideflow.statistics import TFRecordMap
 
 from glob import glob
 from os.path import join
@@ -270,7 +270,7 @@ class TestSuite:
 													outcome_header='category1', 
 													focus_nodes=[0])
 		AV.generate_box_plots()
-		umap = TFRecordUMAP.from_activations(AV)
+		umap = TFRecordMap.from_activations(AV)
 		umap.save_2d_plot(join(PROJECT_CONFIG['root'], 'stats', '2d_umap.png'))
 		top_nodes = AV.get_top_nodes_by_slide()
 		for node in top_nodes[:5]:
