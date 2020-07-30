@@ -593,13 +593,10 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		y_true += [batch[1].numpy()]
 		y_pred += [model.predict_on_batch(batch[0])]
 		if not detected_batch_size: detected_batch_size = len(batch[1].numpy())
-	if pb: 
-		pb.end()
-	else:
-		sys.stdout.write("\r\033[K")
-		sys.stdout.flush()
-	patients = list(set([annotations[slide][sfutil.TCGA.patient] for slide in tile_to_slides]))
-	tile_to_patients = [annotations[tile_to_slides[t]][sfutil.TCGA.patient] for t in tile_to_slides]
+	sys.stdout.write("\r\033[K")
+	sys.stdout.flush()
+	tile_to_patients = [annotations[slide][sfutil.TCGA.patient] for slide in tile_to_slides]
+	patients = list(set(tile_to_patients))
 	num_tiles = len(tile_to_slides)
 	unique_slides = list(set(tile_to_slides))
 	y_pred = np.concatenate(y_pred)
@@ -656,7 +653,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	def get_average_by_group(prediction_array, prediction_label, unique_groups, tile_to_group, y_true_group, label='group'):
 		'''For a given tile-level prediction array, calculate percent predictions in each outcome by group (e.g. patient, slide) and save to CSV.'''
 		avg_by_group, cat_index_warn = [], []
-		save_path = join(data_dir, f"{group}_predictions{label_end}.csv")
+		save_path = join(data_dir, f"{label}_predictions{label_end}.csv")
 		for group in unique_groups:
 			percent_predictions = []
 			for cat_index in range(num_cat):
@@ -679,10 +676,6 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 				writer.writerow(row)
 		return avg_by_group
 
-	# Generate slide-level and group-level averages
-	avg_by_slide = get_average_by_group(prediction_array, prediction_label, unique_slides, tile_to_slides, y_true_slide, "slide")
-	avg_by_patient = get_average_by_group(prediction_array, prediction_label, patients, tile_to_patients, y_true_patient, "slide")
-	
 	if model_type == 'categorical':
 		# Generate tile-level ROC
 		for i in range(num_cat):
@@ -712,7 +705,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 				log.warn(f"Unable to generate category-level accuracy stats for category index {cat_index}", 1)
 
 		# Generate slide-level percent calls
-		percent_calls_by_slide = get_average_by_slide(onehot_predictions, "percent_tiles_positive")
+		percent_calls_by_slide = get_average_by_group(onehot_predictions, "percent_tiles_positive", unique_slides, tile_to_slides, y_true_slide, "slide")
 
 		# Generate slide-level ROC
 		for i in range(num_cat):
@@ -727,7 +720,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 
 		if not patient_error:
 			# Generate patient-level percent calls
-			percent_calls_by_patient = get_average_by_patient(onehot_predictions, "percent_tiles_positive")
+			percent_calls_by_patient = get_average_by_group(onehot_predictions, "percent_tiles_positive", patients, tile_to_patients, y_true_patient, "slide")
 
 			# Generate patient-level ROC
 			for i in range(num_cat):
@@ -743,7 +736,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	if model_type == 'linear':
 		# Generate R-squared
 		r_squared = generate_scatter(y_true, y_pred, data_dir, label_end)
-		
+
 		# Generate and save slide-level averages of each outcome
 		averages_by_slide = get_average_by_slide(y_pred, "average")
 		y_true_by_slide = np.array([y_true_slide[slide] for slide in unique_slides])
