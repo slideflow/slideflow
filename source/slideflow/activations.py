@@ -19,6 +19,7 @@ import shapely.geometry as sg
 
 from io import StringIO
 from slideflow.util import log, ProgressBar, TCGA
+from slideflow.util.fastim import FastImshow
 from slideflow.mosaic import Mosaic
 from slideflow.statistics import TFRecordMap
 from slideflow.slide import StainNormalizer
@@ -28,6 +29,7 @@ from statistics import mean
 from math import isnan
 from copy import deepcopy
 from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.widgets import Slider
 from functools import partial
 from multiprocessing.dummy import Process as DProcess
 from PIL import Image
@@ -47,6 +49,9 @@ def create_bool_mask(x, y, w, sx, sy):
 			if (t < yi < b) and (l < xi < r):
 				m[yi][xi] = [False, False, False]
 	return m
+
+class ActivationsError(Exception):
+	pass
 
 class ActivationsVisualizer:
 	'''Loads annotations, saved layer activations, and prepares output saving directories.
@@ -89,8 +94,6 @@ class ActivationsVisualizer:
 		self.slides = sorted([sfutil.path_to_name(tfr) for tfr in self.tfrecords])
 
 		self.STATS_CSV_FILE = join(root_dir, "stats", "slide_level_summary.csv")
-		self.EXAMPLE_TILES_DIR = join(root_dir, "stats", "example_tiles")
-		self.SORTED_DIR = join(root_dir, "stats", "sorted_tiles")
 		self.STATS_ROOT = join(root_dir, "stats")
 		self.ACTIVATIONS_CACHE = join(root_dir, "stats", "activations_cache.pkl") if activations_cache=='default' else join(root_dir, 'stats', activations_cache)
 		if not exists(join(root_dir, "stats")):
@@ -220,38 +223,71 @@ class ActivationsVisualizer:
 		'''
 		return self.slide_logits_dict
 
-	def get_slide_level_predictions(self, model_type='linear', prediction_filter=None):
+	def get_slide_level_linear_predictions(self):
+		'''Returns slide-level predictions assuming the model is predicting a linear outcome.
+
+		Returns:
+			slide_predictions:	Dictionary mapping slide names to final slide-level predictions
+									for each outcome cateogry, calculated as the average predicted value
+									in the outcome category for all tiles in the slide.
+									Example:
+										{ 'slide1': {
+											0: 0.24,	# Outcome category 0
+											1: 0.15,	# Outcome category 1
+											2: 0.61 }}	# Outcome category 2
+		'''
+		first_slide = list(self.slide_logits_dict.keys())[0]
+		outcomes = sorted(list(self.slide_logits_dict[first_slide].keys()))
+		slide_predictions = {slide: {o: mean(self.slide_logits_dict[slide][o]) for o in outcomes}
+																			   for slide in self.slide_logits_dict}
+		return slide_predictions
+
+	def get_slide_level_categorical_predictions(self, prediction_filter=None):
+		'''Returns slide-level predictions assuming the model is predicting a categorical outcome.
+
+		Args:
+			prediction_filter:	(optional) List of int. If provided, will restrict predictions to only these
+									categories, with final prediction being based based on highest logit
+									among these categories.
+
+		Returns:
+			slide_predictions:	Dictionary mapping slide names to final slide-level predictions.
+			slide_percentages:	This is a dictionary mapping slide names to a dictionary for each category,
+									which maps the category id to the percent of tiles in the slide
+									predicted to be this category.
+									Example:
+										{ 'slide1': {
+											0: 0.24,
+											1: 0.15,
+											2: 0.61 }}
+								If linear model, this is the same as slide_predictions.
+		'''
 		slide_predictions = {}
 		slide_percentages = {}
-		if model_type == 'categorical':
-			first_slide = list(self.slide_logits_dict.keys())[0]
-			logits = sorted(list(self.slide_logits_dict[first_slide].keys()))
-			for slide in self.slide_logits_dict:
-				num_tiles = len(self.slide_logits_dict[slide][0])
-				tile_predictions = []
-				for i in range(num_tiles):
-					calculated_logits = [self.slide_logits_dict[slide][l][i] for l in logits]
-					if prediction_filter:
-						filtered_calculated_logits = [calculated_logits[l] for l in prediction_filter]
-					else:
-						filtered_calculated_logits = calculated_logits
-					tile_predictions += [calculated_logits.index(max(filtered_calculated_logits))]
-				slide_prediction_values = {l:(tile_predictions.count(l)/len(tile_predictions)) for l in logits}
-				slide_percentages.update({slide: slide_prediction_values})
-				slide_predictions.update({slide: max(slide_prediction_values, key=lambda l: slide_prediction_values[l])})
-		elif model_type == 'linear':
-			first_slide = list(self.slide_logits_dict.keys())[0]
-			for slide in self.slide_logits_dict:
-				num_tiles = len(self.slide_logits_dict[slide][0])
-				tile_predictions = []
-				for i in range(num_tiles):
-					tile_predictions += [self.slide_logits_dict[slide][0][i]]
-				slide_percentages[slide] = [sum(tile_predictions) / len(tile_predictions)]
-				slide_predictions[slide] = [sum(tile_predictions) / len(tile_predictions)]
+		first_slide = list(self.slide_logits_dict.keys())[0]
+		outcomes = sorted(list(self.slide_logits_dict[first_slide].keys()))
+		for slide in self.slide_logits_dict:
+			num_tiles = len(self.slide_logits_dict[slide][0])
+			tile_predictions = []
+			for i in range(num_tiles):
+				calculated_logits = [self.slide_logits_dict[slide][o][i] for o in outcomes]
+				if prediction_filter:
+					filtered_calculated_logits = [calculated_logits[o] for o in prediction_filter]
+				else:
+					filtered_calculated_logits = calculated_logits
+				tile_predictions += [calculated_logits.index(max(filtered_calculated_logits))]
+			slide_prediction_values = {o: (tile_predictions.count(o)/len(tile_predictions)) for o in outcomes}
+			slide_percentages.update({slide: slide_prediction_values})
+			slide_predictions.update({slide: max(slide_prediction_values, key=lambda l: slide_prediction_values[l])})
 		return slide_predictions, slide_percentages
 
 	def load_annotations(self, annotations, outcome_header):
-		'''Loads annotations from a given file with the specified outcome header.'''
+		'''Loads annotations from a given file with the specified outcome header.
+		
+		Args:
+			annotations:		Path to CSV annotations file.
+			outcome_header:		String, name of column header from which to read outcome variables.
+		'''
 		with open(annotations, 'r') as ann_file:
 			log.info("Reading annotations...", 1)
 			ann_reader = csv.reader(ann_file)
@@ -281,7 +317,18 @@ class ActivationsVisualizer:
 				log.empty(f"\t{c}", 2)
 
 	def get_tile_node_activations_by_category(self, node):
-		'''For each outcome category, calculates activations of a given node across all tiles in the category. Returns a list of these activations separated by category.'''
+		'''For each outcome category, calculates activations of a given node across all tiles in the category.
+		Requires annotations to have been loaded with load_annotations()
+
+		Args:
+			node:		Int, id of node.
+		
+		Returns:
+			List of node activations separated by category.
+				Example:
+				[[0.1, 0.2, 0.7, 0.1, 0.0], # Activations for node "N" across all tiles from slides in category 1
+				 [0.8, 0.2, 0.1]] 			# Activations for node "N" across all tiles from slides in category 2
+		'''
 		if not self.categories: 
 			log.warn("Unable to calculate node activations by category; annotations not loaded. Please load with load_annotations()")
 			return
@@ -292,8 +339,11 @@ class ActivationsVisualizer:
 		return tile_node_activations_by_category
 
 	def get_top_nodes_by_slide(self):
-		'''First, slide-level average node activations are calculated for all slides. Then, the significance of the difference in average node activations between for slides belonging to the different outcome categories is calculated using ANOVA.
-		This function then returns a list of all nodes, sorted by ANOVA p-value (most significant first).'''
+		'''First, slide-level average node activations are calculated for all slides. 
+			Then, the significance of the difference in average node activations between for slides
+			belonging to the different outcome categories is calculated using ANOVA.
+			This function then returns a list of all nodes, sorted by ANOVA p-value (most significant first).
+		'''
 		# First ensure basic stats have been calculated
 		if not hasattr(self, 'nodes_avg_pt'):
 			self.calculate_activation_averages_and_stats()
@@ -301,8 +351,11 @@ class ActivationsVisualizer:
 		return self.nodes_avg_pt
 
 	def get_top_nodes_by_tile(self):
-		'''First, tile-level average node activations are calculated for all tiles. Then, the significance of the difference in node activations for tiles belonging to the different outcome categories is calculated using ANOVA.
-		This function then returns a list of all nodes, sorted by ANOVA p-value (most significant first).'''
+		'''First, tile-level average node activations are calculated for all tiles.
+			Then, the significance of the difference in node activations for tiles
+			belonging to the different outcome categories is calculated using ANOVA.
+			This function then returns a list of all nodes, sorted by ANOVA p-value (most significant first).
+		'''
 		# First ensure basic stats have been calculated
 		if not hasattr(self, 'nodes_avg_pt'):
 			self.calculate_activation_averages_and_stats()
@@ -443,8 +496,10 @@ class ActivationsVisualizer:
 		'''Exports calculated activations to csv.
 
 		Args:
-			nodes:		Exports activations of the given nodes. If None, will export activations for all nodes.'''
-
+			filename:	Path to CSV file for export.
+			nodes:		(optional) List of int. Activations of these nodes will be exported. 
+							If None, activations for all nodes will be exported.
+		'''
 		with open(filename, 'w') as outfile:
 			csvwriter = csv.writer(outfile)
 			nodes = self.nodes if not nodes else nodes
@@ -457,7 +512,12 @@ class ActivationsVisualizer:
 				csvwriter.writewrow(row)
 
 	def calculate_activation_averages_and_stats(self, filename=None):
-		'''Calculates activation averages across categories, as well as tile-level and patient-level statistics using ANOVA, exporting to CSV if desired.'''
+		'''Calculates activation averages across categories, 
+			as well as tile-level and patient-level statistics using ANOVA, 
+			exporting to CSV if desired.
+			
+		Args:
+			filename:		(optional) Path to CSV file for export.'''
 
 		if not self.categories:
 			log.warn("Unable to calculate activations statistics; annotations not loaded. Please load with load_annotations().'")
@@ -522,8 +582,13 @@ class ActivationsVisualizer:
 		else:
 			log.info(f"Stats file already generated at {sfutil.green(export_file)}; not regenerating", 1)
 
-	def generate_box_plots(self, annotations=None, interactive=False):
-		'''Generates box plots comparing nodal activations at the slide-level and tile-level.'''
+	def generate_box_plots(self, export_folder=None):
+		'''Generates box plots comparing nodal activations at the slide-level and tile-level.
+		
+		Args:
+			export_folder:	(optional) Path to directory in which to save box plots.
+								If None, will save boxplots to STATS_ROOT directory.
+		'''
 
 		if not self.categories:
 			log.warn("Unable to generate box plots; annotations not loaded. Please load with load_annotations().")
@@ -532,6 +597,7 @@ class ActivationsVisualizer:
 		# First ensure basic stats have been calculated
 		if not hasattr(self, 'nodes_avg_pt'):
 			self.calculate_activation_averages_and_stats()
+		if not export_folder: export_folder = self.STATS_ROOT
 
 		# Display tile-level box plots & stats
 		log.empty("Generating box plots...")
@@ -543,9 +609,7 @@ class ActivationsVisualizer:
 			snsbox.set_title(title)
 			snsbox.set(xlabel="Category", ylabel="Activation")
 			plt.xticks(plt.xticks()[0], self.used_categories)
-			if interactive:
-				plt.show()
-			boxplot_filename = join(self.STATS_ROOT, f"boxplot_{title}.png")
+			boxplot_filename = join(export_folder, f"boxplot_{title}.png")
 			plt.savefig(boxplot_filename, bbox_inches='tight')
 			if (not self.focus_nodes) and i>4: break
 
@@ -558,18 +622,29 @@ class ActivationsVisualizer:
 			snsbox.set_title(title)
 			snsbox.set(xlabel="Category",ylabel="Average tile activation")
 			plt.xticks(plt.xticks()[0], self.used_categories)
-			if interactive:
-				plt.show()
-			boxplot_filename = join(self.STATS_ROOT, f"boxplot_{title}.png")
+			boxplot_filename = join(export_folder, f"boxplot_{title}.png")
 			plt.savefig(boxplot_filename, bbox_inches='tight')
 			if (not self.focus_nodes) and i>4: break
 
-	def save_example_tiles_gradient(self, nodes=None, tile_filter=None):
-		if not nodes:
-			nodes = self.focus_nodes
+	def save_example_tiles_gradient(self, nodes=None, export_folder=None, tile_filter=None):
+		'''For a given set of activation nodes, saves image tiles named according 
+			to their corresponding node activations, for easy sorting and visualization.
+			Duplicate image tiles will be saved for each node, organized into subfolders named according to node id.
+
+		Args:
+			nodes:			List of int, nodes to evaluate
+			export_folder:	Path to folder in which to save examples tiles
+			tile_filter:	(optional) Dict mapping slide names to tile indices.
+								If provided, will only save image tiles from this list.
+								Example:
+								{'slide1': [0, 16, 200]}
+		'''
+		if not export_folder: export_folder = self.SORTED_DIR = join(self.STATS_ROOT, "sorted_tiles")
+		if not nodes: nodes = self.focus_nodes
+
 		for node in nodes:
-			if not exists(join(self.SORTED_DIR, node)):
-				os.makedirs(join(self.SORTED_DIR, node))
+			if not exists(join(export_folder, node)):
+				os.makedirs(join(export_folder, node))
 			
 			gradient = []
 			for slide in self.slides:
@@ -591,24 +666,29 @@ class ActivationsVisualizer:
 				if not tfr_dir:
 					log.warn(f"TFRecord location not found for slide {g['slide']}", 1)
 				slide, image = sfio.tfrecords.get_tfrecord_by_index(tfr_dir, g['index'], decode=False)
-				slide = slide.numpy()
-				image = image.numpy()
 				tile_filename = f"{i}-tfrecord{g['slide']}-{g['index']}-{g['val']:.2f}.jpg"
-				image_string = open(join(self.SORTED_DIR, node, tile_filename), 'wb')
-				image_string.write(image)
+				image_string = open(join(export_folder, node, tile_filename), 'wb')
+				image_string.write(image.numpy())
 				image_string.close()
 			print()
 
-	def save_example_tiles_high_low(self, focus_slides):
-		# Extract samples of tiles with highest and lowest values in a particular node
-		# for a subset of slides
-		for fn in self.focus_nodes:
-			for slide in focus_slides:
-				sorted_index = np.argsort(self.slide_node_dict[slide][fn])
+	def save_example_tiles_high_low(self, nodes, slides, export_folder=None):
+		'''For a given set of activation nodes, saves images of tiles with the highest and lowest
+		activations in these nodes, restricted to the set of slides designated.
+
+		Args:
+			nodes:			List of int. Nodes with which to perform this function.
+			slides:			List of slide names. Will load tile images from these slides. 
+			export_folder:	Path to directory in which to save image tiles.
+		'''
+		if not export_folder: export_folder = join(self.STATS_ROOT, "example_tiles")
+		for node in nodes:
+			for slide in slides:
+				sorted_index = np.argsort(self.slide_node_dict[slide][node])
 				lowest = sorted_index[:10]
 				highest = sorted_index[-10:]
-				lowest_dir = join(self.EXAMPLE_TILES_DIR, fn, slide, 'lowest')
-				highest_dir = join(self.EXAMPLE_TILES_DIR, fn, slide, 'highest')
+				lowest_dir = join(export_folder, node, slide, 'lowest')
+				highest_dir = join(export_folder, node, slide, 'highest')
 				if not exists(lowest_dir): os.makedirs(lowest_dir)
 				if not exists(highest_dir): os.makedirs(highest_dir)
 
@@ -621,84 +701,51 @@ class ActivationsVisualizer:
 				def extract_by_index(indices, directory):
 					for index in indices:
 						slide, image = sfio.tfrecords.get_tfrecord_by_index(tfr_dir, index, decode=False)
-						slide = slide.numpy()
-						image = image.numpy()
-						tile_filename = f"tfrecord{slide}-tile{index}.jpg"
+						tile_filename = f"tfrecord{slide.numpy()}-tile{index}.jpg"
 						image_string = open(join(directory, tile_filename), 'wb')
-						image_string.write(image)
+						image_string.write(image.numpy())
 						image_string.close()
 
 				extract_by_index(lowest, lowest_dir)
 				extract_by_index(highest, highest_dir)
 
 class TileVisualizer:
-	def __init__(self, model, node, shape, tile_width=None, interactive=False, normalizer=None, normalizer_source=None):
+	'''Class to supervize visualization of node activations across an image tile.
+	Visualization is accomplished by performing sequential convolutional masking 
+		and determining impact of masking on node activation. In this way,
+		the masking reveals spatial importance with respect to activation of the given node.
+	'''
+
+	def __init__(self, model, node, tile_px, mask_width=None, normalizer=None, normalizer_source=None):
+		'''Object initializer.
+
+		Args:
+			model:				Path to .h5 model file
+			node:				Int, activation node to analyze
+			tile_px:			Int, width/height of image tiles
+			mask_width:			Width of mask to convolutionally apply. Defaults to 1/6 of tile_px
+			normalizer:			String, normalizer to apply to tiles in real-time.
+			normalizer_source:	Path to normalizer source image.
+		'''
 		self.NODE = node
-		self.IMAGE_SHAPE = shape
-		self.TILE_WIDTH = tile_width if tile_width else int(self.IMAGE_SHAPE[0]/6)
-		self.interactive = interactive
+		self.IMAGE_SHAPE = (tile_px, tile_px, 3)
+		self.MASK_WIDTH = mask_width if mask_width else int(self.IMAGE_SHAPE[0]/6)
 		self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
 		log.info("Initializing tile visualizer", 1)
-		log.info(f"Node: {sfutil.bold(str(node))} | Shape: ({shape[0]}, {shape[1]}, {shape[2]}) | Window size: {self.TILE_WIDTH}", 1)
+		log.info(f"Node: {sfutil.bold(str(node))} | Shape: ({self.IMAGE_SHAPE}) | Window size: {self.MASK_WIDTH}", 1)
 		log.info(f"Loading Tensorflow model at {sfutil.green(model)}...", 1)
 		_model = tf.keras.models.load_model(model)
 		self.loaded_model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
 												  outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
 
-	def visualize_tile(self, tfrecord=None, index=None, image_jpg=None, save_dir=None, zoomed=True):
-		if image_jpg:
-			log.info(f"Processing tile at {sfutil.green(image_jpg)}...", 1)
-			tilename = sfutil.path_to_name(image_jpg)
-			self.tile_image = Image.open(image_jpg)
-			image_file = open(image_jpg, 'rb')
-			tf_decoded_image = tf.image.decode_jpeg(image_file.read(), channels=3)
-		else:
-			slide, tf_decoded_image = sfio.tfrecords.get_tfrecord_by_index(tfrecord, index, decode=True)
-			tilename = f'{slide.numpy().decode("utf-8")}-{index}'
-			self.tile_image = Image.fromarray(tf_decoded_image.numpy())
-
-		# Normalize PIL image & TF image
-		if self.normalizer: 
-			self.tile_image = self.normalizer.pil_to_pil(self.tile_image)
-			tf_decoded_image = tf.py_function(self.normalizer.tf_to_rgb, [image], tf.int8)
-
-		# Next, process image with Tensorflow
-		self.tf_processed_image = tf.image.per_image_standardization(tf_decoded_image)
-		self.tf_processed_image = tf.image.convert_image_dtype(self.tf_processed_image, tf.float16)
-		self.tf_processed_image.set_shape(self.IMAGE_SHAPE)
-		image_batch = np.array([self.tf_processed_image.numpy()])
-
-		# Calculate baseline activations/predictions
-		base_activations, base_logits = self.loaded_model.predict([image_batch, image_batch])
-
-		# Now create the figure
-		self.fig = plt.figure()
-		self.ax = self.fig.add_subplot(111)
-		self.implot = plt.imshow(self.tile_image)
-
-		if self.interactive:
-			self.rect = patches.Rectangle((0, 0), self.TILE_WIDTH, self.TILE_WIDTH, facecolor='white', zorder=20)
-			self.ax.add_patch(self.rect)
-
-		activation_map, max_center_x, max_center_y = self.calculate_activation_map()
-
-		self.generate_figure(tilename, activation_map, max_x=max_center_x,
-													   max_y=max_center_y,
-													   save_dir=save_dir,
-													   zoomed_extent=zoomed)
-
-	def predict_masked(self, x, y, index):
-		mask = create_bool_mask(x, y, self.TILE_WIDTH, self.IMAGE_SHAPE[0], self.IMAGE_SHAPE[1])
-		masked = self.tf_processed_image.numpy() * mask
-		act, _ = self.loaded_model.predict([np.array([masked]), np.array([masked])])
-		return act[0][index]	
-
-	def calculate_activation_map(self, stride_div=4):
+	def _calculate_activation_map(self, stride_div=4):
+		'''Creates map of importance through convolutional masking and
+		examining changes in node activations.'''
 		sx = self.IMAGE_SHAPE[0]
 		sy = self.IMAGE_SHAPE[1]
-		w  = self.TILE_WIDTH
-		stride = int(self.TILE_WIDTH / stride_div)
+		w  = self.MASK_WIDTH
+		stride = int(self.MASK_WIDTH / stride_div)
 		min_x  = int(w/2)
 		max_x  = int(sx - w/2)
 		min_y  = int(w/2)
@@ -717,29 +764,92 @@ class TileVisualizer:
 		reshaped_array = np.reshape(np.array(act_array), [len(range(min_x, max_x, stride)), 
 														  len(range(min_y, max_y, stride))])
 		print()
-
 		return reshaped_array, max_center_x, max_center_y
 
-	def generate_figure(self, name, activation_map=None, max_x=None, max_y=None, save_dir=None, zoomed_extent=False):
+	def _predict_masked(self, x, y, index):
+		mask = create_bool_mask(x, y, self.MASK_WIDTH, self.IMAGE_SHAPE[0], self.IMAGE_SHAPE[1])
+		masked = self.tf_processed_image.numpy() * mask
+		act, _ = self.loaded_model.predict([np.array([masked]), np.array([masked])])
+		return act[0][index]	
+
+	def visualize_tile(self, tfrecord=None, index=None, image_jpg=None, export_folder=None, zoomed=True, interactive=False):
+		'''Visualizes tiles, either interactively or saving to directory.
+		
+		Args:
+			tfrecord:			If provided, will visualize tile from the designated tfrecord.
+									Must supply either a tfrecord and index or image_jpg
+			index:				Index of tile to visualize within tfrecord, if provided
+			image_jpeg:			JPG image to perform analysis on
+			export_folder:		Folder in which to save heatmap visualization
+			zoomed:				Bool. I can't remember what this does. TODO: revisit this... lol
+			interactive:		If true, will display as interactive map using matplotlib
+		'''
+		if not (image_jpg or tfrecord):
+			raise ActivationsError("Must supply either tfrecord or image_jpg")
+
+		if image_jpg:
+			log.info(f"Processing tile at {sfutil.green(image_jpg)}...", 1)
+			tilename = sfutil.path_to_name(image_jpg)
+			self.tile_image = Image.open(image_jpg)
+			image_file = open(image_jpg, 'rb')
+			tf_decoded_image = tf.image.decode_jpeg(image_file.read(), channels=3)
+		else:
+			slide, tf_decoded_image = sfio.tfrecords.get_tfrecord_by_index(tfrecord, index, decode=True)
+			tilename = f'{slide.numpy().decode("utf-8")}-{index}'
+			self.tile_image = Image.fromarray(tf_decoded_image.numpy())
+
+		# Normalize PIL image & TF image
+		if self.normalizer: 
+			self.tile_image = self.normalizer.pil_to_pil(self.tile_image)
+			tf_decoded_image = tf.py_function(self.normalizer.tf_to_rgb, [self.tile_image], tf.int8)
+
+		# Next, process image with Tensorflow
+		self.tf_processed_image = tf.image.per_image_standardization(tf_decoded_image)
+		self.tf_processed_image = tf.image.convert_image_dtype(self.tf_processed_image, tf.float16)
+		self.tf_processed_image.set_shape(self.IMAGE_SHAPE)
+
+		# Now create the figure
+		self.fig = plt.figure()
+		self.ax = self.fig.add_subplot(111)
+		self.implot = plt.imshow(self.tile_image)
+
+		if interactive:
+			self.rect = patches.Rectangle((0, 0), self.MASK_WIDTH, self.MASK_WIDTH, facecolor='white', zorder=20)
+			self.ax.add_patch(self.rect)
+
+		activation_map, max_center_x, max_center_y = self._calculate_activation_map()
+
+		self.generate_figure(activation_map, max_x=max_center_x,
+											 max_y=max_center_y,
+											 filename=join(export_folder, f'{tilename}-heatmap.png'),
+											 zoomed_extent=zoomed)
+
+	def generate_figure(self, activation_map=None, max_x=None, max_y=None, filename=None, zoomed_extent=False, interactive=False):
+		'''Generates figure for display or saving.
+
+		Args:
+			activation_map:		Map of importance as calculated by _calculate_activations_map()
+			max_x:				???
+		'''
 		# Create hover and click events
 		def hover(event):
 			if event.xdata:
-				self.rect.set_xy((event.xdata-self.TILE_WIDTH/2, event.ydata-self.TILE_WIDTH/2))
-				print(self.predict_masked(event.xdata, event.ydata, index=self.NODE), end='\r')
+				self.rect.set_xy((event.xdata-self.MASK_WIDTH/2, event.ydata-self.MASK_WIDTH/2))
+				print(self._predict_masked(event.xdata, event.ydata, index=self.NODE), end='\r')
 				self.fig.canvas.draw_idle()
 
 		def click(event):
 			if event.button == 1:
-				self.TILE_WIDTH = min(min(self.IMAGE_SHAPE[0], self.IMAGE_SHAPE[1]), self.TILE_WIDTH + 25)
-				self.rect.set_width(self.TILE_WIDTH)
-				self.rect.set_height(self.TILE_WIDTH)
+				self.MASK_WIDTH = min(min(self.IMAGE_SHAPE[0], self.IMAGE_SHAPE[1]), self.MASK_WIDTH + 25)
+				self.rect.set_width(self.MASK_WIDTH)
+				self.rect.set_height(self.MASK_WIDTH)
 			else:
-				self.TILE_WIDTH = max(0, self.TILE_WIDTH - 25)
-				self.rect.set_width(self.TILE_WIDTH)
-				self.rect.set_height(self.TILE_WIDTH)
+				self.MASK_WIDTH = max(0, self.MASK_WIDTH - 25)
+				self.rect.set_width(self.MASK_WIDTH)
+				self.rect.set_height(self.MASK_WIDTH)
 			self.fig.canvas.draw_idle()	
 
-		if self.interactive:
+		if interactive:
 			self.fig.canvas.mpl_connect('motion_notify_event', hover)
 			self.fig.canvas.mpl_connect('button_press_event', click)
 		
@@ -750,7 +860,7 @@ class TileVisualizer:
 			newMap = mcol.ListedColormap(cmMap)
 
 			# Calculate boundaries of heatmap
-			hw = int(self.TILE_WIDTH/2)
+			hw = int(self.MASK_WIDTH/2)
 			if zoomed_extent:
 				extent = (hw, max_x, max_y, hw)
 			else:
@@ -759,14 +869,13 @@ class TileVisualizer:
 			# Heatmap
 			self.ax.imshow(activation_map, extent=extent,
 										   cmap=newMap,
-										   alpha=0.6 if not self.interactive else 0.0,
+										   alpha=0.6 if not interactive else 0.0,
 										   interpolation='bicubic',
 										   zorder=10)
-		if save_dir:
-			heatmap_loc = join(save_dir, f'{name}-heatmap.png')
-			plt.savefig(heatmap_loc, bbox_inches='tight')
-			log.complete(f"Heatmap saved to {heatmap_loc}", 1)
-		if self.interactive:
+		if filename:
+			plt.savefig(filename, bbox_inches='tight')
+			log.complete(f"Heatmap saved to {filename}", 1)
+		if interactive:
 			print()
 			plt.show()
 
@@ -789,9 +898,6 @@ class Heatmap:
 		self.normalizer_source = normalizer_source
 
 		# Create progress bar
-		shortname = sfutil._shortname(sfutil.path_to_name(slide_path))
-		#pb = None#ProgressBar(bar_length=5, counter_text='tiles', leadtext=f"Making heatmap for {sfutil.green(shortname)}, {roi_method} ROI")
-		#self.print = pb.print
 		pb = ProgressBar(1, counter_text='tiles', leadtext="Generating heatmap... ", show_counter=True, show_eta=True)
 		self.print = pb.print
 

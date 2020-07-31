@@ -1166,7 +1166,10 @@ class SlideflowProject:
 			model_type = model_type if model_type else 'categorical'
 
 			# Get predictions
-			slide_predictions, slide_percentages = AV.get_slide_level_predictions(model_type=model_type, prediction_filter=restrict_prediction)
+			if model_type == 'categorical':
+				slide_predictions, slide_percentages = AV.get_slide_level_categorical_predictions(prediction_filter=restrict_prediction)
+			else:
+				slide_predictions = slide_percentages = AV.get_slide_level_linear_predictions()
 
 			# Assign outcome label to prediction
 			# If show_prediction is provided (either a number or string), then display ONLY the prediction for the provided category, as a colormap
@@ -1618,8 +1621,8 @@ class SlideflowProject:
 		tile_px = hp_data['hp']['tile_px']
 		TV = TileVisualizer(model=model, 
 							node=node,
-							shape=[tile_px, tile_px, 3],
-							tile_width=window,
+							tile_px=tile_px,
+							mask_width=window,
 							normalizer=normalizer,
 							normalizer_source=normalizer_source)
 
