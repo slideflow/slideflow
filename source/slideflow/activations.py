@@ -157,7 +157,14 @@ class ActivationsVisualizer:
 				csv_writer.writerow(['Slide-level statistic', 'ANOVA F-value'] + [slide_stats[n]['f'] for n in nodes_avg_pt])
 
 	def slide_tile_dict(self):
-		'''Generates dictionary mapping 
+		'''Generates dictionary mapping slides to list of node activations for each tile.
+
+		Example (3 nodes):
+			{ 'Slide1': [[0.1, 0.2, 0.4], # Slide1, node activations for tile1
+						 [0.5, 0.1, 0.7], # Slide1, node activations for tile2
+						 [0.6, 0.9, 0.1]] # Slide1, node activations for tile3
+			}
+		'''
 		result = {}
 		for slide in self.slides:
 			if slide in self.missing_slides: continue
@@ -166,6 +173,18 @@ class ActivationsVisualizer:
 		return result
 
 	def get_mapped_predictions(self, x=0, y=0):
+		'''Returns coordinates and metadata for tile-level predictions for all tiles,
+		which can be used to create a TFRecordMap.
+		
+		Args:
+			x:			Int, identifies the outcome category id for which predictions will be mapped to the X-axis
+			y:			Int, identifies the outcome category id for which predictions will be mapped to the Y-axis
+		
+		Returns:
+			mapped_x:	List of x-axis coordinates (predictions for the category 'x')
+			mapped_y:	List of y-axis coordinates (predictions for the category 'y')
+			umap_meta:	List of dictionaries containing tile-level metadata (used for TFRecordMap)
+		'''
 		umap_x = []
 		umap_y = []
 		umap_meta = []
@@ -181,9 +200,24 @@ class ActivationsVisualizer:
 		return np.array(umap_x), np.array(umap_y), umap_meta
 
 	def get_activations(self):
+		'''Returns dictionary mapping slides to tile-level node activations.
+
+		Example (3 nodes):
+			{ 'Slide1': [[0.1, 0.5, 0.6], # Slide1, node1 activations for all tiles
+						 [0.2, 0.1, 0.7], # Slide1, node2 activations for all tiles
+						 [0.4, 0.7, 0.1]] # Slide1, node3 activations for all tiles
+			}
+		'''
 		return self.slide_node_dict
 
 	def get_predictions(self):
+		'''Returns dictionary mapping slides to tile-level logit predictions.
+
+		Example (2 outcome categories):
+			{ 'Slide1': [[0.1, 0.9, 0.6], # Slide1, logit predictions for category 1 for all tiles
+						 [0.9, 0.1, 0.4], # Slide1, logit predictions for category 2 for all tiles
+			}
+		'''
 		return self.slide_logits_dict
 
 	def get_slide_level_predictions(self, model_type='linear', prediction_filter=None):
