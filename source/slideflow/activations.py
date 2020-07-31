@@ -781,7 +781,7 @@ class TileVisualizer:
 			index:				Index of tile to visualize within tfrecord, if provided
 			image_jpeg:			JPG image to perform analysis on
 			export_folder:		Folder in which to save heatmap visualization
-			zoomed:				Bool. I can't remember what this does. TODO: revisit this... lol
+			zoomed:				Bool. If true, will crop image to space containing heatmap (otherwise a small border will be seen)
 			interactive:		If true, will display as interactive map using matplotlib
 		'''
 		if not (image_jpg or tfrecord):
@@ -819,19 +819,9 @@ class TileVisualizer:
 
 		activation_map, max_center_x, max_center_y = self._calculate_activation_map()
 
-		self.generate_figure(activation_map, max_x=max_center_x,
-											 max_y=max_center_y,
-											 filename=join(export_folder, f'{tilename}-heatmap.png'),
-											 zoomed_extent=zoomed)
+		# Prepare figure
+		filename = join(export_folder, f'{tilename}-heatmap.png')
 
-	def generate_figure(self, activation_map=None, max_x=None, max_y=None, filename=None, zoomed_extent=False, interactive=False):
-		'''Generates figure for display or saving.
-
-		Args:
-			activation_map:		Map of importance as calculated by _calculate_activations_map()
-			max_x:				???
-		'''
-		# Create hover and click events
 		def hover(event):
 			if event.xdata:
 				self.rect.set_xy((event.xdata-self.MASK_WIDTH/2, event.ydata-self.MASK_WIDTH/2))
@@ -861,10 +851,10 @@ class TileVisualizer:
 
 			# Calculate boundaries of heatmap
 			hw = int(self.MASK_WIDTH/2)
-			if zoomed_extent:
-				extent = (hw, max_x, max_y, hw)
+			if zoomed:
+				extent = (hw, max_center_x, max_center_y, hw)
 			else:
-				extent = (0, max_x+hw, max_y+hw, 0)
+				extent = (0, max_center_x+hw, max_center_y+hw, 0)
 			
 			# Heatmap
 			self.ax.imshow(activation_map, extent=extent,
@@ -882,12 +872,30 @@ class TileVisualizer:
 class Heatmap:
 	'''Generates heatmap by calculating predictions from a sliding scale window across a slide.'''
 
-	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, save_folder='', 
-					roi_dir=None, roi_list=None, roi_method='inside', thumb_folder=None, buffer=True,
+	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, roi_dir=None, 
+					roi_list=None, roi_method='inside', thumb_folder=None, buffer=True,
 					normalizer=None, normalizer_source=None):
+		'''Object initializer.
+
+		Args:
+			slide_path:			Path to slide
+			model_path:			Path to .h5 model file
+			size_px:			Size of image tiles, in pixels
+			size_um:			Size of image tiles, in microns
+			use_fp16:			Bool, whether to use FP16 (vs FP32)
+			stride_div:			Divisor for stride when convoluting across slide
+			roi_dir:			Directory in which slide ROI is contained
+			roi_list:			If a roi_dir is not supplied, a list of paths to ROI CSVs can be provided
+			roi_method:			Either 'inside' or 'outside'. If inside, tiles will be extracted inside ROI region
+									If outside, tiles will be extracted outside ROI region
+			thumb_folder:		Folder for caching thumbnail files of slides
+			buffer:				Either 'vmtouch' or path to directory to use for buffering slides
+									Significantly improves performance for slides on HDDs
+			normalizer:			Normalization strategy to use on image tiles
+			normalizer_source:	Path to normalizer source image
+		'''
 		from slideflow.slide import SlideReader
 
-		self.save_folder = save_folder
 		self.DTYPE = tf.float16 if use_fp16 else tf.float32
 		self.DTYPE_INT = tf.int16 if use_fp16 else tf.int32
 		self.MODEL_DIR = model_path
@@ -932,8 +940,32 @@ class Heatmap:
 		parsed_image.set_shape([299, 299, 3])
 		return parsed_image
 
+	def _prepare_figure(self, show_roi=True):
+		self.fig = plt.figure(figsize=(18, 16))
+		self.ax = self.fig.add_subplot(111)
+		self.fig.subplots_adjust(bottom = 0.25, top=0.95)
+		gca = plt.gca()
+		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
+		jetMap = np.linspace(0.45, 0.95, 255)
+		cmMap = cm.nipy_spectral(jetMap)
+		self.newMap = mcol.ListedColormap(cmMap)
+		
+		# Plot ROIs
+		if show_roi:
+			print("\r\033[KPlotting ROIs...", end="")
+			ROI_SCALE = self.slide.full_shape[0]/2048
+			annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.slide.rois]
+			for poly in annPolys:
+				x,y = poly.exterior.xy
+				plt.plot(x, y, zorder=20, color='k', linewidth=5)
+
 	def generate(self, batch_size=16, skip_thumb=False):
-		'''Convolutes across a whole slide, calculating logits and saving predictions internally for later use.'''
+		'''Convolutes across a whole slide, calculating logits and saving predictions internally for later use.
+		
+		Args:
+			batch_size:		Batch size when calculating predictions
+			skip_thumb:		If true, will skip thumbnail generation (can save time if saving heatmap without thumbnail image)
+		'''
 		# Pre-load thumbnail in separate thread
 		if not skip_thumb:
 			thumb_process = DProcess(target=self.slide.thumb)
@@ -987,56 +1019,89 @@ class Heatmap:
 			log.error(f"Unable to create heatmap for slide {sfutil.green(self.slide.name)}", 1)
 			return
 
-	def prepare_figure(self):
-		self.fig = plt.figure(figsize=(18, 16))
-		self.ax = self.fig.add_subplot(111)
-		self.fig.subplots_adjust(bottom = 0.25, top=0.95)
-		gca = plt.gca()
-		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
-		jetMap = np.linspace(0.45, 0.95, 255)
-		cmMap = cm.nipy_spectral(jetMap)
-		self.newMap = mcol.ListedColormap(cmMap)
-
-	def display(self, interpolation='none', logit_cmap=None):
-		'''Interactively displays calculated logits as a heatmap.'''
-		self.prepare_figure()
+	def display(self, show_roi=True, interpolation='none', logit_cmap=None, skip_thumb=False):
+		'''Interactively displays calculated logits as a heatmap.
+		
+		Args:
+			show_roi:			Bool, whether to overlay ROIs onto heatmap image
+			interpolation:		Interpolation strategy to use for smoothing heatmap
+			logit_cmap:			Either function or a dictionary use to create heatmap colormap.
+									Each image tile will generate a list of predictions of length O, 
+									where O is the number of outcome categories.
+									If logit_cmap is a function, then this logit prediction list will be passed to the function,
+										and the function is expected to return [R, G, B] values which will be displayed.
+									If the logit_cmap is a dictionary, it should map 'r', 'g', and 'b' to outcome indices;
+										The prediction for these outcome categories will be mapped to the corresponding colors.
+										Thus, the corresponding color will only reflect predictions of up to three outcome categories.
+										Example (this would map prediction for outcome 0 to the red colorspace, outcome 3 to green colorspace, and so on):
+										{
+											'r': 0,
+											'g': 3,
+											'b': 1
+										}
+			skip_thumb:			Bool, whether to skip thumbnail (vs displaying with heatmap)
+		'''
+		self._prepare_figure(show_roi=show_roi)
 		heatmap_dict = {}
-		implot = FastImshow(self.slide.thumb(), self.ax, extent=None, tgt_res=1024)
+
+		if not skip_thumb:
+			implot = FastImshow(self.slide.thumb(), self.ax, extent=None, tgt_res=1024)
 
 		def slider_func(val):
 			for h, s in heatmap_dict.values():
 				h.set_alpha(s.val)
 
-		for i in range(self.NUM_CLASSES):
-			heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.extent, cmap=self.newMap, alpha = 0.0, interpolation=interpolation, zorder=10) #bicubic
-			ax_slider = self.fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor='lightgoldenrodyellow')
-			slider = Slider(ax_slider, f'Class {i}', 0, 1, valinit = 0)
-			heatmap_dict.update({f"Class{i}": [heatmap, slider]})
-			slider.on_changed(slider_func)
+		if logit_cmap:
+			if callable(logit_cmap):
+				map_logit = logit_cmap
+			else:
+				def map_logit(l): 
+					# Make heatmap with specific logit predictions mapped to r, g, and b
+					return (l[logit_cmap['r']], l[logit_cmap['g']], l[logit_cmap['b']])
+			extent = None if skip_thumb else implot.extent
+			heatmap = self.ax.imshow([[map_logit(l) for l in row] for row in self.logits], extent=extent, interpolation=interpolation, zorder=10)
+		else:
+			for i in range(self.NUM_CLASSES):
+				heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.extent, cmap=self.newMap, alpha = 0.0, interpolation=interpolation, zorder=10) #bicubic
+				ax_slider = self.fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor='lightgoldenrodyellow')
+				slider = Slider(ax_slider, f'Class {i}', 0, 1, valinit = 0)
+				heatmap_dict.update({f"Class{i}": [heatmap, slider]})
+				slider.on_changed(slider_func)
 
 		self.fig.canvas.set_window_title(self.slide.name)
 		implot.show()
 		plt.show()
 
-	def save(self, show_roi=True, interpolation='none', logit_cmap=None, skip_thumb=False):
-		'''Saves calculated logits as heatmap overlays.'''
-		print("\r\033[KPreparing figure...", end="")
-		self.prepare_figure()
+	def save(self, save_folder, show_roi=True, interpolation='none', logit_cmap=None, skip_thumb=False):
+		'''Saves calculated logits as heatmap overlays.
 		
-		# Plot ROIs
-		if show_roi:
-			print("\r\033[KPlotting ROIs...", end="")
-			ROI_SCALE = self.slide.full_shape[0]/2048
-			annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.slide.rois]
-			for poly in annPolys:
-				x,y = poly.exterior.xy
-				plt.plot(x, y, zorder=20, color='k', linewidth=5)
+		Args:
+			show_roi:			Bool, whether to overlay ROIs onto heatmap image
+			interpolation:		Interpolation strategy to use for smoothing heatmap
+			logit_cmap:			Either function or a dictionary use to create heatmap colormap.
+									Each image tile will generate a list of predictions of length O, 
+									where O is the number of outcome categories.
+									If logit_cmap is a function, then this logit prediction list will be passed to the function,
+										and the function is expected to return [R, G, B] values which will be displayed.
+									If the logit_cmap is a dictionary, it should map 'r', 'g', and 'b' to outcome indices;
+										The prediction for these outcome categories will be mapped to the corresponding colors.
+										Thus, the corresponding color will only reflect predictions of up to three outcome categories.
+										Example (this would map prediction for outcome 0 to the red colorspace, outcome 3 to green colorspace, and so on):
+										{
+											'r': 0,
+											'g': 3,
+											'b': 1
+										}
+			skip_thumb:			Bool, whether to skip thumbnail (vs displaying with heatmap)
+		'''
+		print("\r\033[KPreparing figure...", end="")
+		self._prepare_figure(show_roi=show_roi)
 
 		if not skip_thumb:
 			# Save plot without heatmaps
 			print("\r\033[KSaving base figure...", end="")
 			implot = self.ax.imshow(self.slide.thumb(), zorder=0)
-			plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-raw.png'), bbox_inches='tight')
+			plt.savefig(os.path.join(save_folder, f'{self.slide.name}-raw.png'), bbox_inches='tight')
 
 		if logit_cmap:
 			if callable(logit_cmap):
@@ -1046,8 +1111,8 @@ class Heatmap:
 					# Make heatmap with specific logit predictions mapped to r, g, and b
 					return (l[logit_cmap['r']], l[logit_cmap['g']], l[logit_cmap['b']])
 			extent = None if skip_thumb else implot.get_extent()
-			heatmap = self.ax.imshow([[map_logit(l) for l in row] for row in self.logits], extent=extent, zorder=10)
-			plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-custom.png'), bbox_inches='tight')
+			heatmap = self.ax.imshow([[map_logit(l) for l in row] for row in self.logits], extent=extent, interpolation=interpolation, zorder=10)
+			plt.savefig(os.path.join(save_folder, f'{self.slide.name}-custom.png'), bbox_inches='tight')
 		else:
 			# Make heatmap plots and sliders for each outcome category
 			for i in range(self.NUM_CLASSES):
@@ -1059,7 +1124,7 @@ class Heatmap:
 															alpha=0.6,
 															interpolation=interpolation, #bicubic
 															zorder=10)
-				plt.savefig(os.path.join(self.save_folder, f'{self.slide.name}-{i}.png'), bbox_inches='tight')
+				plt.savefig(os.path.join(save_folder, f'{self.slide.name}-{i}.png'), bbox_inches='tight')
 				heatmap.remove()
 
 		plt.close()

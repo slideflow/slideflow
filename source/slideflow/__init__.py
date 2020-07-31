@@ -163,7 +163,6 @@ def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, show
 
 	heatmap = Heatmap(slide, model_path, hp_data['tile_px'], hp_data['tile_um'],use_fp16=project_config['use_fp16'],
 																				stride_div=stride_div,
-																				save_folder=save_folder,
 																				roi_list=roi_list,
 																				thumb_folder=join(project_config['root'], 'thumbs'),
 																				buffer=True,
@@ -171,7 +170,7 @@ def heatmap_generator(slide, model_name, model_path, save_folder, roi_list, show
 																				normalizer_source=normalizer_source)
 
 	heatmap.generate(batch_size=flags['eval_batch_size'], skip_thumb=skip_thumb)
-	heatmap.save(show_roi=show_roi, interpolation=interpolation, logit_cmap=logit_cmap, skip_thumb=skip_thumb)
+	heatmap.save(save_folder, show_roi=show_roi, interpolation=interpolation, logit_cmap=logit_cmap, skip_thumb=skip_thumb)
 
 def trainer(outcome_headers, model_name, project_config, results_dict, hp, validation_strategy, 
 			validation_target, validation_fraction, validation_k_fold, validation_log, validation_dataset=None, 
