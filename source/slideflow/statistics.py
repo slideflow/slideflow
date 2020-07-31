@@ -28,7 +28,14 @@ class StatisticsError(Exception):
 
 class TFRecordMap:
 	def __init__(self, slides, tfrecords, cache=None):
-		''' Backend for '''
+		''' Backend for mapping TFRecords into two dimensional space. Can use an ActivationsVisualizer object
+		to map TFRecords according to UMAP of activations, or map according to pre-specified coordinates. 
+		
+		Args:
+			slides:		List of slide names
+			tfrecords:	List of paths to tfrecords
+			cache:		(optional) String, path name. If provided, will cache activations to this PKL file.'''
+
 		self.slides = slides
 		self.tfrecords = tfrecords
 		self.cache = cache
@@ -45,6 +52,16 @@ class TFRecordMap:
 
 	@classmethod
 	def from_precalculated(cls, slides, x, y, meta, tfrecords=None, cache=None):
+		''' Initializes map from precalculated coordinates.
+
+		Args:
+			slides:		List of slide names
+			x:			X coordinates for tfrecords
+			y:			Y coordinates for tfrecords
+			meta:		List of dicts. Metadata for each point on the map (representing a single tfrecord). 
+			tfrecords:	(optional) List of paths to tfrecords. Not required, just used to store for use by other objects. *** TODO: REMOVE ***
+			cache:		(optional) String, path name. If provided, will cache umap coordinates to this PKL file. '''
+
 		obj = cls(slides, tfrecords)
 		obj.x = x
 		obj.y = y
@@ -55,6 +72,16 @@ class TFRecordMap:
 
 	@classmethod
 	def from_activations(cls, activations, exclude_slides=None, prediction_filter=None, force_recalculate=False, use_centroid=False, cache=None):
+		'''Initializes map from an activations visualizer.
+
+		Args:
+			activations:		ActivationsVisualizer class
+			exclude_slides:		(optional) List of names of slides to exclude from map.
+			prediction_filter:	(optional) List. Will restrict predictions to only these provided categories.
+			force_recalculate:	(optional) Will force recalculation of umap despite presence of cache.
+			use_centroid:		(optional) Will calculate and map centroid activations.
+			cache:				(optional) String, path name. If provided, will cache umap coordinates to this PKL file. '''
+
 		slides = activations.slides if not exclude_slides else [slide for slide in activations.slides if slide not in exclude_slides]
 		tfrecords = activations.tfrecords if not exclude_slides else [tfr for tfr in activations.tfrecords if sfutil.path_to_name(tfr) not in exclude_slides]
 
@@ -67,6 +94,7 @@ class TFRecordMap:
 		return obj
 
 	def _calculate_from_nodes(self, prediction_filter=None, force_recalculate=False):
+		''' Internal function to guide calculation of UMAP from final layer activations, as provided via ActivationsVisualizer nodes.'''
 		if len(self.x) and len(self.y) and not force_recalculate:
 			log.info("UMAP loaded from cache, will not recalculate", 1)
 
@@ -120,6 +148,9 @@ class TFRecordMap:
 		self.save_cache()
 
 	def _calculate_from_centroid(self, prediction_filter=None, force_recalculate=False):
+		''' Internal function to guide calculation of UMAP from final layer activations, as provided via ActivationsVisualizer nodes,
+			for each tile and then map only the centroid tile for each slide. '''
+
 		log.info("Calculating centroid indices for slide-level UMAP...", 1)
 		optimal_slide_indices, centroid_activations = calculate_centroid(self.AV.slide_node_dict)
 		
@@ -181,6 +212,7 @@ class TFRecordMap:
 			self.save_cache()
 
 	def cluster(self, n_clusters):
+		'''Performs clustering on data and adds to metadata labels. Requires an ActivationsVisualizer backend. '''
 		activations = [[self.AV.slide_node_dict[pm['slide']][n][pm['index']] for n in self.AV.nodes] for pm in self.point_meta]
 		log.info(f"Calculating K-means clustering (n={n_clusters})", 1)
 		kmeans = KMeans(n_clusters=n_clusters).fit(activations)
@@ -205,6 +237,18 @@ class TFRecordMap:
 
 	def save_2d_plot(self, filename, slide_labels=None, slide_filter=None, show_tile_meta=None,
 						outcome_labels=None, subsample=None, title=None, cmap=None, use_float=False):
+		'''Saves plot of data to a provided filename.
+
+		Args:
+			filename:		Saves image of plot to this file.
+			slide_labels:	(optional) Dictionary mapping slide names to labels.
+			slide_filter:	(optional) List, restricts map to the provided slides.
+			show_tile_meta:	(optional) String (key), if provided, will label tiles according to this key as provided in the tile-level meta (self.point_meta)
+			outcome_labels:	(optional) Dictionary to translate outcomes (provided via show_tile_meta and point_meta) to human readable label.
+			subsample:		(optional) Int, if provided, will only include this number of tiles on plot (randomly selected)
+			title:			(optional) String, title for plot
+			cmap:			(optional) Dicionary mapping labels to colors
+			use_float:		(optional) Interpret labels as float for linear coloring'''
 
 		# Warn the user if both slide_labels (manual category labeling) and show_tile_meta are supplied
 		if slide_labels and show_tile_meta:
@@ -274,7 +318,12 @@ class TFRecordMap:
 		lasso = LassoSelector(plt.gca(), onselect)
 
 	def save_3d_node_plot(self, node, filename, subsample=None):
-		'''Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument "z" '''
+		'''Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument "z" 
+		
+		Args: 
+			node:		Int, node to plot on 3rd axis
+			filename:	Filename to save image of plot
+			subsample:	(optionanl) int, if provided will subsample data to include only this number of tiles as maximum'''
 
 		title = f"UMAP with node {node} focus"
 
@@ -339,11 +388,13 @@ class TFRecordMap:
 		return False
 
 def get_centroid_index(input_array):
+	'''Calculate index of centroid from a given two-dimensional input array.'''
 	km = KMeans(n_clusters=1).fit(input_array)
 	closest, _ = pairwise_distances_argmin_min(km.cluster_centers_, input_array)
 	return closest[0]
 
 def calculate_centroid(slide_node_dict):
+	'''Calcultes slide-level centroid indices for a provided slide-node dict.'''
 	optimal_indices = {}
 	centroid_activations = {}
 	nodes = list(slide_node_dict[list(slide_node_dict.keys())[0]].keys())
@@ -406,6 +457,12 @@ def generate_histogram(y_true, y_pred, data_dir, name='histogram'):
 	plt.savefig(os.path.join(data_dir, f'{name}.png'))
 
 def to_onehot(val, num_cat):
+	'''Converts value to one-hot encoding
+	
+	Args:
+		val:		Value to encode
+		num_cat:	Maximum value (length of onehot encoding)'''
+
 	onehot = [0] * num_cat
 	onehot[val] = 1
 	return onehot
@@ -454,7 +511,7 @@ def generate_roc(y_true, y_pred, save_dir=None, name='ROC'):
 	return roc_auc, average_precision, optimal_threshold
 
 def generate_combined_roc(y_true, y_pred, save_dir, labels, name='ROC'):
-	# Generates and saves overlapping ROCs with a given combination of y_true and y_pred.
+	'''Generates and saves overlapping ROCs with a given combination of y_true and y_pred.'''
 	# Plot
 	plt.clf()
 	plt.title(name)
@@ -479,6 +536,7 @@ def generate_combined_roc(y_true, y_pred, save_dir, labels, name='ROC'):
 	return rocs
 
 def read_predictions(predictions_file, level):
+	'''Reads predictions from a previously saved CSV file.'''
 	predictions = {}
 	y_pred_label = "percent_tiles_positive" if level in ("patient", "slide") else "y_pred"
 	with open(predictions_file, 'r') as csvfile:
@@ -571,7 +629,10 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		annotations					dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
 		model_type					'linear' or 'categorical'
 		data_dir					directory in which to save performance metrics and graphs
-		label						optional label with which to annotation saved files and graphs
+		label						(optional) label with which to annotation saved files and graphs
+		manifest					(optional) manifest as provided by Dataset, used to filter slides that do not have minimum number of tiles
+		min_tiles_per_slide			(optional) if provided, will only perform calculations on slides that have a given minimum number of tiles
+		num_tiles					(optional) total number of tiles across dataset, used for progress bar.
 	'''
 	
 	# Initial preparations

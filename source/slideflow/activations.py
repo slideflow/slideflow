@@ -56,6 +56,25 @@ class ActivationsVisualizer:
 					focus_nodes=[], use_fp16=True, normalizer=None, normalizer_source=None, 
 					use_activations_cache=False, activations_cache='default', batch_size=16,
 					activations_export=None, max_tiles_per_slide=100):
+		'''Object initializer.
+
+		Args:
+			model:					Path to model from which to calculate activations
+			tfrecords:				List of tfrecords paths
+			root_dir:				Root directory in which to save cache files and output files
+			image_size:				Int, width/height of input images in pixels
+			annotations:			Path to CSV file containing slide annotations
+			outcome_header:			String, name of outcome header in annotations file, used to compare activations between categories
+			focus_nodes:			List of int, nodes on which to focus when generating cross-category statistics
+			use_fp16:				Bool, whether to use FP16 (rather than FP32)
+			normalizer:				String, which real-time normalization to use on images taken from TFRecords
+			noramlizer_source:		String, path to image to use as source for real-time normalization
+			use_activations_cache:	Bool, if true, will store activations in a PKL cache file for rapid re-use
+			activations_cache:		File in which to store activations PKL cache
+			batch_size:				Batch size to use during activations calculations
+			activations_export:		Filename for CSV export of activations
+			max_tiles_per_slide:	Maximum number of tiles from which to generate activations for each slide
+		'''
 		self.missing_slides = []
 		self.categories = []
 		self.used_categories = []
@@ -118,7 +137,7 @@ class ActivationsVisualizer:
 			log.empty(f"\t{c}", 2)
 
 	def _save_node_statistics_to_csv(self, nodes_avg_pt, filename, tile_stats=None, slide_stats=None):
-		'''Exports statistics (ANOVA p-values and slide-level averages) to CSV.'''
+		'''Internal function to exports statistics (ANOVA p-values and slide-level averages) to CSV.'''
 		# Save results to CSV
 		log.empty(f"Writing results to {sfutil.green(filename)}...", 1)
 		with open(filename, 'w') as outfile:
@@ -138,6 +157,7 @@ class ActivationsVisualizer:
 				csv_writer.writerow(['Slide-level statistic', 'ANOVA F-value'] + [slide_stats[n]['f'] for n in nodes_avg_pt])
 
 	def slide_tile_dict(self):
+		'''Generates dictionary mapping 
 		result = {}
 		for slide in self.slides:
 			if slide in self.missing_slides: continue
@@ -468,7 +488,7 @@ class ActivationsVisualizer:
 		else:
 			log.info(f"Stats file already generated at {sfutil.green(export_file)}; not regenerating", 1)
 
-	def generate_box_plots(self, annotations=None, outcome_header=None, interactive=False):
+	def generate_box_plots(self, annotations=None, interactive=False):
 		'''Generates box plots comparing nodal activations at the slide-level and tile-level.'''
 
 		if not self.categories:
