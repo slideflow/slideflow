@@ -23,23 +23,31 @@ class Mosaic:
 	points = []
 
 	def __init__(self, umap, focus=None, leniency=1.5, expanded=False, tile_zoom=15, num_tiles_x=50, resolution='high', 
-					export=True, relative_size=False, tile_select='nearest', tile_meta=None, normalizer=None, normalizer_source=None):
+					relative_size=False, tile_select='nearest', tile_meta=None, normalizer=None, normalizer_source=None):
 		'''Generate a mosaic map.
 
 		Args:
-			umap:			TFRecordMap object
-			focus:			List of tfrecords to highlight on the mosaic
-			leniency:		UMAP leniency
-			expanded:		If true, will try to fill in blank spots on the UMAP with nearby tiles. Takes exponentially longer to generate.
-			tile_zoom:		Zoom level
-			num_tiles_x:	Mosaic map grid size
-			resolution:		Resolution of exported figure; either 'high', 'medium', or 'low'.'''
+			umap:				TFRecordMap object
+			focus:				List of tfrecords (paths) to highlight on the mosaic
+			leniency:			UMAP leniency
+			expanded:			If true, will try to fill in blank spots on the UMAP with nearby tiles. Takes exponentially longer to generate.
+			tile_zoom:			Zoom level
+			num_tiles_x:		Mosaic map grid size
+			resolution:			Resolution of exported figure; either 'high', 'medium', or 'low'.
+			relative_size:		If True, will physically size grid images in proportion to the number of tiles within the grid space.
+			tile_select:		Determines how to choose a tile for display on each grid space. Either 'nearest' or 'centroid'. 
+									If nearest, will display tile nearest to center of grid.
+									If centroid, for each grid, will calculate which tile is nearest to centroid using data in tile_meta
+			tile_meta:			Dictionary. Metadata for tiles, used if tile_select. Dictionary should have slide names as keys, mapped to
+									List of metadata (length of list = number of tiles in slide)
+			normalizer:			String. Normalizer to apply to images taken from TFRecords.
+			normalizer_source:	String, path. Path to image to use as normalizer source.'''
 
 		FOCUS_SLIDE = None
 		tile_point_distances = []	
 		max_distance_factor = leniency
 		mapping_method = 'expanded' if expanded else 'strict'
-		tile_zoom_factor = tile_zoom
+		tile_zoom_factor = tile_zoom # TODO: investigate if this argument is required
 		self.mapped_tiles = {}
 		self.umap = umap
 		self.num_tiles_x = num_tiles_x
@@ -217,8 +225,6 @@ class Mosaic:
 						fraction_slide = num_slide / (num_other + num_slide)
 						tile_alpha = fraction_slide
 					display_size = tile['size']
-				if not export:
-					tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
 				image = ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['coord'][0]-display_size/2, 
 																						tile['coord'][0]+display_size/2,
 																						tile['coord'][1]-display_size/2,
@@ -239,8 +245,6 @@ class Mosaic:
 					self.mapped_tiles.update({point['tfrecord']: point['tfrecord_index']})
 					tile_image = self._decode_image_string(tile_image.numpy())					
 
-					if not export:
-						tile_image = cv2.resize(tile_image, (0,0), fx=0.25, fy=0.25)
 					image = ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['coord'][0]-tile_size/2,
 																					tile['coord'][0]+tile_size/2,
 																					tile['coord'][1]-tile_size/2,
@@ -257,12 +261,14 @@ class Mosaic:
 		ax.autoscale(enable=True, tight=None)
 
 	def _get_tfrecords_from_slide(self, slide):
+		'''Using the internal list of TFRecord paths, returns the path to a TFRecord for a given corresponding slide.'''
 		for tfr in self.tfrecords_paths:
 			if sfutil.path_to_name(tfr) == slide:
 				return tfr
 		log.error(f"Unable to find TFRecord path for slide {sfutil.green(slide)}", 1)
 
 	def _decode_image_string(self, string):	
+		'''Internal method to convert a JPEG string (as stored in TFRecords) to an RGB array.'''
 		if self.normalizer:
 			tile_image = self.normalizer.jpeg_to_rgb(string)
 		else:
@@ -272,14 +278,14 @@ class Mosaic:
 		return tile_image
 
 	def focus(self, tfrecords):
-		# If desired, highlight certain tiles according to a focus list
+		'''Highlights certain tiles according to a focus list if list provided, or resets highlighting if no tfrecords provided.'''
 		if tfrecords:
 			for tile in self.GRID:
 				if not len(tile['points']) or not tile['image']: continue
 				num_cat, num_other = 0, 0
 				for point_index in tile['points']:
 					point = self.points[point_index]
-					if point['tfrecord'] in focus:
+					if point['tfrecord'] in tfrecords:
 						num_cat += 1
 					else:
 						num_other += 1
@@ -291,12 +297,14 @@ class Mosaic:
 				tile['image'].set_alpha(1)
 
 	def save(self, filename):
+		'''Saves the mosaic map figure to the given filename.'''
 		log.empty("Exporting figure...", 1)
 		plt.savefig(filename, bbox_inches='tight')
 		log.complete(f"Saved figure to {sfutil.green(filename)}", 1)
 		plt.close()
 
 	def save_report(self, filename):
+		'''Saves a report of which tiles (and their corresponding slide) were displayed on the Mosaic map, in CSV format.'''
 		with open(filename, 'w') as f:
 			writer = csv.writer(f)
 			writer.writerow(['slide', 'index'])
@@ -305,6 +313,7 @@ class Mosaic:
 		log.complete(f"Mosaic report saved to {sfutil.green(filename)}", 1)
 
 	def display(self):
+		'''Displays the mosaic map as an interactive matplotlib figure.'''
 		log.empty("Displaying figure...")
 		while True:
 			try:

@@ -9,8 +9,6 @@
 # Update 5/29/2019: Supports both loose image tiles and TFRecords, 
 #   annotations supplied by separate annotation file upon initial model call
 
-'''Builds a CNN model.'''
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -54,11 +52,12 @@ BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
 NO_BALANCE = 'NO_BALANCE'
 
+# Fix for broken batch normalization in TF 1.14
 #tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
 
 def add_regularization(model, regularizer):
-	# this function is from "https://sthalles.github.io/keras-regularizer/"
-	# adds regularizer to layers where you can set such an attribute, in this case, L2 regularization.
+	'''Adds regularization (e.g. L2) to all eligible layers of a model.
+	This function is from "https://sthalles.github.io/keras-regularizer/" '''
 	if not isinstance(regularizer, tf.keras.regularizers.Regularizer):
 		print("Regularizer must be a subclass of tf.keras.regularizers.Regularizer")
 		return model
@@ -130,12 +129,12 @@ class HyperParameters:
 				 learning_rate=0.0001, batch_size=16, hidden_layers=1, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, early_stop_method='loss', balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
 				 hidden_layer_width=500, trainable_layers=0, L2_weight=0, augment=True):
-		''' Additional hyperparameters to consider:
-		beta1 0.9
-		beta2 0.999
-		epsilon 1.0
-		batch_norm_decay 0.99
-		'''
+		# Additional hyperparameters to consider:
+		# beta1 0.9
+		# beta2 0.999
+		# epsilon 1.0
+		# batch_norm_decay 0.99
+
 		# Assert provided hyperparameters are valid
 		assert isinstance(tile_px, int)
 		assert isinstance(tile_um, int)
@@ -207,6 +206,7 @@ class HyperParameters:
 		return output
 
 	def validate(self):
+		'''Ensures that hyperparameter combinations are valid.'''
 		if (self.model_type() != 'categorical' and ((self.balanced_training == BALANCE_BY_CATEGORY) or 
 											        (self.balanced_validation == BALANCE_BY_CATEGORY))):
 			raise HyperParameterError(f'Invalid hyperparameter combination: balancing type "{BALANCE_BY_CATEGORY}" and model type "{self.model_type()}".')
@@ -236,12 +236,26 @@ class SlideflowModel:
 	build a training and validation set model, and monitor and execute training.'''
 	def __init__(self, data_directory, image_size, slide_annotations, train_tfrecords, validation_tfrecords, 
 					manifest=None, use_fp16=True, model_type='categorical', normalizer=None, normalizer_source=None):
-		self.DATA_DIR = data_directory # Directory where to write event logs and checkpoints.
+		'''Model initializer.
+
+		Args:
+			data_directory:			Location where event logs and checkpoints will be written
+			image_size:				Int, width/height of input image in pixels.
+			slide_annotations:		Dictionary mapping slide names to both patient names and outcome
+			train_tfrecords:		List of tfrecord paths for training
+			validation_tfrecords:	List of tfrecord paths for validation
+			manifest:				Manifest dictionary mapping TFRecords to number of tiles
+			use_fp16:				Bool, if True, will use FP16 (rather than FP32)
+			model_type:				Type of model outcome, either 'categorical' or 'linear'
+			normalizer:				Tile image normalization to perform in real-time during training
+			normalizer_source:		Source image for normalization if being performed in real-time
+		'''
+		self.DATA_DIR = data_directory
 		self.MANIFEST = manifest
 		self.IMAGE_SIZE = image_size
 		self.USE_FP16 = use_fp16
 		self.DTYPE = tf.float16 if self.USE_FP16 else tf.float32
-		self.SLIDE_ANNOTATIONS = slide_annotations # Dictionary mapping slide names to both patient names and outcome
+		self.SLIDE_ANNOTATIONS = slide_annotations
 		self.TRAIN_TFRECORDS = train_tfrecords
 		self.VALIDATION_TFRECORDS = validation_tfrecords
 		self.MODEL_TYPE = model_type
@@ -306,9 +320,17 @@ class SlideflowModel:
 		'''Assembles dataset inputs from tfrecords.
 		
 		Args:
-			folders:		Array of directories in which to search for slides (subfolders) containing tfrecords
-			balance:		Whether to use input balancing; options are BALANCE_BY_PATIENT, BALANCE_BY_CATEGORY, NO_BALANCE
-								 (only available if TFRECORDS_BY_PATIENT=True)'''
+			tfrecords:				List of tfrecords paths
+			batch_size:				Batch size
+			balance:				Whether to use input balancing; options are BALANCE_BY_PATIENT, BALANCE_BY_CATEGORY, NO_BALANCE
+								 		(only available if TFRECORDS_BY_PATIENT=True)
+			augment:				Bool, whether to perform image augmentation (random flipping/rotating)
+			finite:					Bool, whether dataset should be finite or infinite (with dataset.repeat())
+			max_tiles:				Int, limits number of tiles to use for each TFRecord if supplied
+			min_tiles:				Int, only includes TFRecords with this minimum number of tiles
+			include_slidenames:		Bool, if True, dataset will include slidename (each entry will return image, label, and slidename)
+			multi_input:			Bool, if True, will read multiple images from each TFRecord record.
+		'''
 		self.AUGMENT = augment
 		with tf.name_scope('input'):
 			dataset, dataset_with_slidenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, max_tiles=max_tiles,
@@ -318,7 +340,13 @@ class SlideflowModel:
 		return dataset, dataset_with_slidenames, num_tiles
 
 	def _build_model(self, hp, pretrain=None, checkpoint=None):
-		# Assemble base model, using pretraining (imagenet) or the base layers of a supplied model
+		''' Assembles base model, using pretraining (imagenet) or the base layers of a supplied model.
+
+		Args:
+			hp:			HyperParameters object
+			pretrain:	Either 'imagenet' or path to model to use as pretraining
+			checkpoint:	Path to checkpoint from which to resume model training
+		'''
 		if pretrain:
 			log.info(f"Using pretraining from {sfutil.green(pretrain)}", 1)
 		if pretrain and pretrain!='imagenet':
@@ -369,6 +397,13 @@ class SlideflowModel:
 		return model
 	
 	def _build_multi_input_model(self, hp, pretrain=None, checkpoint=None):
+		'''Builds a model that reads multiple images from each TFRecord entry.
+
+		Args:
+			hp:			HyperParameters object
+			pretrain:	Either 'imagenet' or path to model to use as pretraining
+			checkpoint:	Path to checkpoint from which to resume model training
+		'''
 		base_model = tf.keras.applications.Xception(input_shape=(299,299,3),
 													include_top=False,
 													pooling='max',
@@ -395,17 +430,19 @@ class SlideflowModel:
 		Requires self.MANIFEST. Assumes TFRecord files are named by slide.
 
 		Args:
-			tfrecords			Array of paths to TFRecord files
-			batch_size			Batch size
-			balance				Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,
-									BALANCE_BY_PATIENT, and NO_BALANCE. If finite option is used, will drop
-									tiles in order to maintain proportions across the interleaved dataset.
-			augment				Whether to use data augmentation (random flip/rotate)
-			finite				Whether create finite or infinite datasets. WARNING: If finite option is 
-									used with balancing, some tiles will be skipped.
-			max_tiles			Maximum number of tiles to use per slide.
-			min_tiles			Minimum number of tiles that each slide must have to be included. '''
-							 
+			tfrecords:				Array of paths to TFRecord files
+			batch_size:				Batch size
+			balance:				Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,
+										BALANCE_BY_PATIENT, and NO_BALANCE. If finite option is used, will drop
+										tiles in order to maintain proportions across the interleaved dataset.
+			augment:					Whether to use data augmentation (random flip/rotate)
+			finite:					Whether create finite or infinite datasets. WARNING: If finite option is 
+										used with balancing, some tiles will be skipped.
+			max_tiles:				Maximum number of tiles to use per slide.
+			min_tiles:				Minimum number of tiles that each slide must have to be included.
+			include_slidenames:		Bool, if True, dataset will include slidename (each entry will return image, label, and slidename)
+			multi_input:			Bool, if True, will read multiple images from each TFRecord record.
+		'''				 
 		log.info(f"Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min_tiles={min_tiles}", 1)
 		datasets = []
 		datasets_categories = []
@@ -512,6 +549,7 @@ class SlideflowModel:
 		return dataset, dataset_with_slidenames, global_num_tiles
 
 	def _parse_tfrecord_function(self, record, include_slidenames=True, multi_input=False):
+		'''Parses raw entry read from TFRecord.'''
 		feature_description = tfrecords.FEATURE_DESCRIPTION if not multi_input else tfrecords.FEATURE_DESCRIPTION_MULTI
 		features = tf.io.parse_single_example(record, feature_description)
 		slide = features['slide']
@@ -541,6 +579,7 @@ class SlideflowModel:
 				return image, label
 
 	def _process_image(self, image_string, augment):
+		'''Converts a JPEG-encoded image string into RGB array, using normalization if specified.'''
 		image = tf.image.decode_jpeg(image_string, channels = 3)
 
 		if self.normalizer:
@@ -563,6 +602,7 @@ class SlideflowModel:
 		return image
 
 	def _retrain_top_layers(self, hp, train_data, validation_data, steps_per_epoch, callbacks=None, epochs=1):
+		'''Retrains only the top layer of this object's model, while leaving all other layers frozen.'''
 		log.info("Retraining top layer", 1)
 		# Freeze the base layer
 		self.model.layers[0].trainable = False
@@ -655,14 +695,18 @@ class SlideflowModel:
 		
 		Args:
 			hp:						HyperParameters object
-			pretrain				Either None, 'imagenet' or path to .h5 file for pretrained weights
-			resume_training			If True, will attempt to resume previously aborted training
-			checkpoint				Path to cp.cpkt checkpoint file. If provided, will load checkpoint weights
-			log_frequency			How frequent to update Tensorboard logs
-			multi_input				If True, will train model with multi-image inputs
-			validate_on_batch		Validation will be performed every X batches.
-			max_tiles_per_slide		If provided, will select only up to this maximum number of tiles from each slide.
-			min_tiles_per_slide		If provided, will only evaluate slides with a given minimum number of tiles.
+			pretrain:				Either None, 'imagenet' or path to .h5 file for pretrained weights
+			resume_training:		If True, will attempt to resume previously aborted training
+			checkpoint:				Path to cp.cpkt checkpoint file. If provided, will load checkpoint weights
+			log_frequency:			How frequent to update Tensorboard logs
+			multi_input:			If True, will train model with multi-image inputs
+			validate_on_batch:		Validation will be performed every X batches
+			val_batch_size:			Batch size to use during validation
+			max_tiles_per_slide:	If provided, will select only up to this maximum number of tiles from each slide
+			min_tiles_per_slide:	If provided, will only evaluate slides with a given minimum number of tiles
+			starting_epoch:			Starts training at the specified epoch
+			ema_observations:		Number of observations over which to perform exponential moving average smoothing
+			ema_smoothing:			Exponential average smoothing value
 			
 		Returns:
 			Results dictionary, Keras history object'''
