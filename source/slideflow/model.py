@@ -702,6 +702,7 @@ class SlideflowModel:
 			multi_input:			If True, will train model with multi-image inputs
 			validate_on_batch:		Validation will be performed every X batches
 			val_batch_size:			Batch size to use during validation
+			validation_steps:		Number of batches to use for each instance of validation
 			max_tiles_per_slide:	If provided, will select only up to this maximum number of tiles from each slide
 			min_tiles_per_slide:	If provided, will only evaluate slides with a given minimum number of tiles
 			starting_epoch:			Starts training at the specified epoch
