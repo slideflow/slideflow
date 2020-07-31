@@ -421,6 +421,289 @@ class SlideLoader:
 		except:
 			return False
 		return loaded_correctly
+
+class SlideReader(SlideLoader):
+	ROI_SCALE = 10
+
+	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
+	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, roi_dir=None, roi_list=None,
+					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, thumb_folder=None, silent=False, buffer=None, pb=None, pb_id=0):
+
+		super().__init__(path, size_px, size_um, stride_div, enable_downsample, thumb_folder, silent, buffer, pb)
+
+		# Initialize calculated variables
+		self.extracted_x_size = 0
+		self.extracted_y_size = 0
+		self.estimated_num_tiles = 0
+		self.coord = []
+		self.annPolys = []
+		self.pb_id = pb_id
+
+		if not self.loaded_correctly():
+			return
+
+		# Establish ROIs
+		self.rois = []
+		self.roi_method = roi_method
+
+		# Look in ROI directory if available
+		if roi_dir and exists(join(roi_dir, self.name + ".csv")):
+			self.load_csv_roi(join(roi_dir, self.name + ".csv"))
+
+		# Else try loading ROI from same folder as slide
+		elif exists(self.name + ".csv"):
+			self.load_csv_roi(sfutil.path_to_name(path) + ".csv")
+		elif roi_list and self.name in [sfutil.path_to_name(r) for r in roi_list]:
+			matching_rois = []
+			for rp in roi_list:
+				rn = sfutil.path_to_name(rp)
+				if rn == self.name:
+					matching_rois += [rp]
+			if len(matching_rois) > 1:
+				log.warn(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}", 1)
+			self.load_csv_roi(matching_rois[0])
+		else:
+			if skip_missing_roi:
+				log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.print)
+				self.shape = None
+				self.load_error = True
+				return
+			else:
+				log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
+
+		log.label(self.shortname, f"Slide info: {self.MPP} um/px | {len(self.rois)} ROI(s) | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
+
+		# Abort if errors were raised during ROI loading
+		if self.load_error:
+			log.error(f'Skipping slide {sfutil.green(self.name)} due to slide image or ROI loading error', 1, self.print)
+			return
+
+	def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=50, whitespace_threshold=220,
+							normalizer=None, normalizer_source=None):
+		'''Builds generator to supervise extraction of tiles across the slide.
+		
+		Args:
+			dual_extract:		If true, will extract base image and the surrounding region.'''
+		super().build_generator()
+
+		if self.estimated_num_tiles == 0:
+			log.warn(f"No tiles were able to be extracted at the given micron size for slide {sfutil.green(self.name)}", 1, self.print)
+			return None
+
+		# Create mask for indicating whether tile was extracted
+		tile_mask = np.asarray([0 for i in range(len(self.coord))])
+		
+		# Shuffle coordinates to randomize extraction order
+		if shuffle:
+			random.shuffle(self.coord)
+
+		# Setup normalization
+		normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
+
+		def generator():
+			for c in self.coord:
+				index = c[2]
+
+				# Check if the center of the current window lies within any annotation; if not, skip
+				x_coord = int((c[0]+self.full_extract_px/2)/self.ROI_SCALE)
+				y_coord = int((c[1]+self.full_extract_px/2)/self.ROI_SCALE)
+
+				# If the extraction method is EXTRACT_INSIDE, skip the tile if it's not in an ROI
+				if bool(self.annPolys) and (self.roi_method == EXTRACT_INSIDE) and not any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in self.annPolys]):
+					continue
+				# If the extraction method is EXTRACT_OUTSIDE, skip the tile if it's in an ROI
+				elif bool(self.annPolys) and (self.roi_method == EXTRACT_OUTSIDE) and any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in self.annPolys]):
+					continue
+				if self.pb:
+					self.pb.increase_bar_value(id=self.pb_id)
+
+				# Read the region and resize to target size
+				region = self.slide.read_region((c[0], c[1]), self.downsample_level, [self.extract_px, self.extract_px])
+				region = region.resize(float(self.size_px) / self.extract_px)
+
+				# White fraction
+				# Reduce RGB -> brightness, count # tiles above brightness level > threshold (e.g. 220), exclude if >50% of pixels meet criteria
+				if region.colourspace("b-w").percent(whitespace_fraction) > whitespace_threshold:
+					continue
+
+				#if region.avg() > 220:
+				#	# Discard tile; median brightness (average RGB pixel) > 220
+				#	continue
+
+				# Mark as extracted
+				tile_mask[index] = 1
+
+				if dual_extract:
+					try:
+						surrounding_region = self.slide.read_region((c[0]-self.full_stride, c[1]-self.full_stride), self.downsample_level, [self.extract_px*3, self.extract_px*3])
+						surrounding_region = surrounding_region.resize(float(self.size_px) / (self.extract_px*3))
+					except:
+						continue
+					inner_region = vips2numpy(region)[:,:,:-1]
+					outer_region = vips2numpy(surrounding_region)[:,:,:-1]
+					if normalizer:
+						inner_region = normalizer.rgb_to_rgb(inner_region)
+						outer_region = normalizer.rgb_to_rgb(outer_region)
+					yield {"input_1": inner_region, "input_2": outer_region}, index
+				else:
+					np_image = vips2numpy(region)[:,:,:-1]
+					yield normalizer.rgb_to_rgb(np_image) if normalizer else np_image
+
+			log.label(self.shortname, f"Finished tile extraction for {sfutil.green(self.shortname)} ({sum(tile_mask)} tiles of {len(self.coord)} possible)", 2, self.print)
+			self.tile_mask = tile_mask
+
+		return generator
+
+	def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None, normalizer=None, normalizer_source=None):
+		'''Exports tiles.'''
+		# Make base directories
+		if tfrecord_dir:
+			if not exists(tfrecord_dir): os.makedirs(tfrecord_dir)
+		if tiles_dir:
+			if not os.path.exists(tiles_dir): os.makedirs(tiles_dir)
+
+		if tfrecord_dir or tiles_dir:
+			# Log to keep track of when tiles have finished extracting
+			# To be used in case tile extraction is interrupted, so the slide can be flagged for re-extraction
+			unfinished_marker = join((tfrecord_dir if tfrecord_dir else tiles_dir), f'{self.name}.unfinished')
+			with open(unfinished_marker, 'w') as marker_file:
+				marker_file.write(' ')
+
+			if split_fraction and split_names:
+				# Tile splitting error checking
+				if len(split_fraction) != len(split_names):
+					raise InvalidTileSplitException(f'When splitting tiles, length of "fraction" ({len(fraction)}) should equal length of "names" ({len(names)})')
+				if sum([i for i in split_fraction if i != -1]) > 1:
+					raise InvalidTileSplitException("Unable to split tiles; sum of split_fraction is greater than 1")
+				# Calculate dynamic splitting
+				if -1 in split_fraction:
+					num_to_dynamic_split = sum([i for i in split_fraction if i == -1])
+					dynamic_fraction = (1 - sum([i for i in split_fraction if i != -1])) / num_to_dynamic_split
+					split_fraction = [s if s != -1 else dynamic_fraction for s in split_fraction]
+				# Prepare subfolders for splitting
+				if tfrecord_dir:
+					tfrecord_writers = []
+					for name in split_names:
+						if not exists(join(tfrecord_dir, name)):
+							os.makedirs(join(tfrecord, name))
+							tfrecord_writers += [tf.io.TFRecordWriter(join(tfrecord_dir, name, self.name+".tfrecords"))]
+				if tiles_dir:
+					for name in split_names:
+						if not exists(join(tiles_dir, name)):
+							os.makedirs(join(tiles_dir, name))
+			elif tfrecord_dir:
+				tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
+
+		if normalizer: log.info("Extracting tiles using {} normalization", 1)
+
+		generator = self.build_generator(normalizer=normalizer, normalizer_source=normalizer_source)
+		slidename_bytes = bytes(self.name, 'utf-8')
+
+		if not generator:
+			log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1, self.print)
+			return
+
+		sample_tiles = []
+		for index, tile in enumerate(generator()):
+			# Convert numpy array (in RGB) to jpeg string using CV2 (which first requires BGR format)
+			image_string = cv2.imencode('.jpg', cv2.cvtColor(tile, cv2.COLOR_RGB2BGR), [int(cv2.IMWRITE_JPEG_QUALITY), 100])[1].tostring()
+			if len(sample_tiles) < 10:
+				sample_tiles += [image_string]
+			elif not tiles_dir and not tfrecord_dir:
+				break
+			if tiles_dir:
+				if split_fraction and split_names:
+					save_dir = join(tiles_dir, random.choices(split_names, weights=split_fraction))
+				else:
+					save_dir = tiles_dir
+				with open(join(tiles_dir, f'{self.shortname}_{index}.jpg'), 'wb') as outfile:
+					outfile.write(image_string)
+			if tfrecord_dir:
+				if split_fraction and split_names:
+					writer = random.choices(tfrecord_writers, weights=split_fraction)
+				else:
+					writer = tfrecord_writer
+				tf_example = image_example(slidename_bytes, image_string)
+				writer.write(tf_example.SerializeToString())
+		
+		if tfrecord_dir or tiles_dir:
+			# Mark extraction of current slide as finished
+			try:
+				os.remove(unfinished_marker)
+			except:
+				log.error(f"Unable to mark slide {self.name} as tile extraction complete", 1)
+
+		# Unbuffer slide
+		self.slide.unbuffer()
+
+		# Generate extraction report
+		report = SlideReport(sample_tiles, self.slide.path)
+
+		log.complete(f"Finished tile extraction for slide {sfutil.green(self.shortname)}", 1, self.print)
+
+		return report
+
+	def load_csv_roi(self, path):
+		'''Loads CSV ROI from a given path.'''
+		roi_dict = {}
+		with open(path, "r") as csvfile:
+			reader = csv.reader(csvfile, delimiter=',')
+			try:
+				headers = next(reader, None)
+				headers = [h.lower() for h in headers]
+				index_name = headers.index("roi_name")
+				index_x = headers.index("x_base")
+				index_y = headers.index("y_base")
+			except:
+				log.error(f'Unable to read CSV ROI file {sfutil.green(path)}, please check file integrity and ensure headers contain "ROI_name", "X_base", and "Y_base".', 1, self.print)
+				self.load_error = True
+				return
+			for row in reader:
+				roi_name = row[index_name]
+				x_coord = int(float(row[index_x]))
+				y_coord = int(float(row[index_y]))
+				
+				if roi_name not in roi_dict:
+					roi_dict.update({roi_name: ROIObject(roi_name)})
+				roi_dict[roi_name].add_coord((x_coord, y_coord))
+
+			for roi_object in roi_dict.values():
+				self.rois.append(roi_object)
+
+		# Calculate window sizes, strides, and coordinates for windows
+		self.extracted_x_size = self.full_shape[0] - self.full_extract_px
+		self.extracted_y_size = self.full_shape[1] - self.full_extract_px
+
+		# Coordinates must be in level 0 (full) format for the read_region function
+		index = 0
+		for y in np.arange(0, (self.full_shape[1]+1) - self.full_extract_px, self.full_stride):
+			for x in np.arange(0, (self.full_shape[0]+1) - self.full_extract_px, self.full_stride):
+				y = int(y)
+				x = int(x)
+				is_unique = ((y % self.full_extract_px == 0) and (x % self.full_extract_px == 0))
+				self.coord.append([x, y, index, is_unique])
+				index += 1
+
+		# Load annotations as shapely.geometry objects
+		if self.roi_method != IGNORE_ROI:
+			self.annPolys = [sg.Polygon(annotation.scaled_area(self.ROI_SCALE)) for annotation in self.rois]
+		roi_area = sum([poly.area for poly in self.annPolys])
+		total_area = (self.full_shape[0]/self.ROI_SCALE) * (self.full_shape[1]/self.ROI_SCALE)
+		roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
+
+		self.estimated_num_tiles = int(len(self.coord) * roi_area_fraction) if self.roi_method == EXTRACT_INSIDE else int(len(self.coord) * (1-roi_area_fraction))
+
+		return len(self.rois)
+
+	def load_json_roi(self, path, scale=10):
+		'''Loads ROI from a JSON file.'''
+		with open(path, "r") as json_file:
+			json_data = json.load(json_file)['shapes']
+		for shape in json_data:
+			area_reduced = np.multiply(shape['points'], scale)
+			self.rois.append(ROIObject(f"Object{len(self.rois)}"))
+			self.rois[-1].add_shape(area_reduced)
+		return len(self.rois)
 		
 class TMAReader(SlideLoader):
 	'''Helper object that loads a TMA-formatted slide, detects tissue cores, and sets up a tile generator.'''
@@ -645,281 +928,3 @@ class TMAReader(SlideLoader):
 
 		for tile in generator():
 			pass
-
-class SlideReader(SlideLoader):
-	ROI_SCALE = 10
-
-	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
-	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, roi_dir=None, roi_list=None,
-					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, thumb_folder=None, silent=False, buffer=None, pb=None, pb_id=0):
-
-		super().__init__(path, size_px, size_um, stride_div, enable_downsample, thumb_folder, silent, buffer, pb)
-
-		# Initialize calculated variables
-		self.extracted_x_size = 0
-		self.extracted_y_size = 0
-		self.estimated_num_tiles = 0
-		self.coord = []
-		self.annPolys = []
-		self.pb_id = pb_id
-
-		if not self.loaded_correctly():
-			return
-
-		# Establish ROIs
-		self.rois = []
-		self.roi_method = roi_method
-
-		# Look in ROI directory if available
-		if roi_dir and exists(join(roi_dir, self.name + ".csv")):
-			self.load_csv_roi(join(roi_dir, self.name + ".csv"))
-
-		# Else try loading ROI from same folder as slide
-		elif exists(self.name + ".csv"):
-			self.load_csv_roi(sfutil.path_to_name(path) + ".csv")
-		elif roi_list and self.name in [sfutil.path_to_name(r) for r in roi_list]:
-			matching_rois = []
-			for rp in roi_list:
-				rn = sfutil.path_to_name(rp)
-				if rn == self.name:
-					matching_rois += [rp]
-			if len(matching_rois) > 1:
-				log.warn(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}", 1)
-			self.load_csv_roi(matching_rois[0])
-		else:
-			if skip_missing_roi:
-				log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.print)
-				self.shape = None
-				self.load_error = True
-				return
-			else:
-				log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
-
-		log.label(self.shortname, f"Slide info: {self.MPP} um/px | {len(self.rois)} ROI(s) | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
-
-		# Abort if errors were raised during ROI loading
-		if self.load_error:
-			log.error(f'Skipping slide {sfutil.green(self.name)} due to slide image or ROI loading error', 1, self.print)
-			return
-
-	def build_generator(self, dual_extract=False, shuffle=True, normalizer=None, normalizer_source=None):
-		'''Builds generator to supervise extraction of tiles across the slide.
-		
-		Args:
-			dual_extract:		If true, will extract base image and the surrounding region.'''
-		super().build_generator()
-
-		if self.estimated_num_tiles == 0:
-			log.warn(f"No tiles were able to be extracted at the given micron size for slide {sfutil.green(self.name)}", 1, self.print)
-			return None
-
-		# Create mask for indicating whether tile was extracted
-		tile_mask = np.asarray([0 for i in range(len(self.coord))])
-		
-		# Shuffle coordinates to randomize extraction order
-		if shuffle:
-			random.shuffle(self.coord)
-
-		# Setup normalization
-		normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
-
-		def generator():
-			for c in self.coord:
-				index = c[2]
-				is_unique = c[3]
-
-				# Check if the center of the current window lies within any annotation; if not, skip
-				x_coord = int((c[0]+self.full_extract_px/2)/self.ROI_SCALE)
-				y_coord = int((c[1]+self.full_extract_px/2)/self.ROI_SCALE)
-
-				# If the extraction method is EXTRACT_INSIDE, skip the tile if it's not in an ROI
-				if bool(self.annPolys) and (self.roi_method == EXTRACT_INSIDE) and not any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in self.annPolys]):
-					continue
-				# If the extraction method is EXTRACT_OUTSIDE, skip the tile if it's in an ROI
-				elif bool(self.annPolys) and (self.roi_method == EXTRACT_OUTSIDE) and any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in self.annPolys]):
-					continue
-				if self.pb:
-					self.pb.increase_bar_value(id=self.pb_id)
-
-				# Read the region and resize to target size
-				region = self.slide.read_region((c[0], c[1]), self.downsample_level, [self.extract_px, self.extract_px])
-				region = region.resize(float(self.size_px) / self.extract_px)
-
-				if region.avg() > 220:
-					# Discard tile; median brightness (average RGB pixel) > 220
-					continue
-
-				# Mark as extracted
-				tile_mask[index] = 1
-
-				if dual_extract:
-					try:
-						surrounding_region = self.slide.read_region((c[0]-self.full_stride, c[1]-self.full_stride), self.downsample_level, [self.extract_px*3, self.extract_px*3])
-						surrounding_region = surrounding_region.resize(float(self.size_px) / (self.extract_px*3))
-					except:
-						continue
-					inner_region = vips2numpy(region)[:,:,:-1]
-					outer_region = vips2numpy(surrounding_region)[:,:,:-1]
-					if normalizer:
-						inner_region = normalizer.rgb_to_rgb(inner_region)
-						outer_region = normalizer.rgb_to_rgb(outer_region)
-					yield {"input_1": inner_region, "input_2": outer_region}, index
-				else:
-					np_image = vips2numpy(region)[:,:,:-1]
-					yield normalizer.rgb_to_rgb(np_image) if normalizer else np_image
-
-			log.label(self.shortname, f"Finished tile extraction for {sfutil.green(self.shortname)} ({sum(tile_mask)} tiles of {len(self.coord)} possible)", 2, self.print)
-			self.tile_mask = tile_mask
-
-		return generator
-
-	def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None, normalizer=None, normalizer_source=None):
-		'''Exports tiles.'''
-		# Make base directories
-		if tfrecord_dir:
-			if not exists(tfrecord_dir): os.makedirs(tfrecord_dir)
-		if tiles_dir:
-			if not os.path.exists(tiles_dir): os.makedirs(tiles_dir)
-
-		if tfrecord_dir or tiles_dir:
-			# Log to keep track of when tiles have finished extracting
-			# To be used in case tile extraction is interrupted, so the slide can be flagged for re-extraction
-			unfinished_marker = join((tfrecord_dir if tfrecord_dir else tiles_dir), f'{self.name}.unfinished')
-			with open(unfinished_marker, 'w') as marker_file:
-				marker_file.write(' ')
-
-			if split_fraction and split_names:
-				# Tile splitting error checking
-				if len(split_fraction) != len(split_names):
-					raise InvalidTileSplitException(f'When splitting tiles, length of "fraction" ({len(fraction)}) should equal length of "names" ({len(names)})')
-				if sum([i for i in split_fraction if i != -1]) > 1:
-					raise InvalidTileSplitException("Unable to split tiles; sum of split_fraction is greater than 1")
-				# Calculate dynamic splitting
-				if -1 in split_fraction:
-					num_to_dynamic_split = sum([i for i in split_fraction if i == -1])
-					dynamic_fraction = (1 - sum([i for i in split_fraction if i != -1])) / num_to_dynamic_split
-					split_fraction = [s if s != -1 else dynamic_fraction for s in split_fraction]
-				# Prepare subfolders for splitting
-				if tfrecord_dir:
-					tfrecord_writers = []
-					for name in split_names:
-						if not exists(join(tfrecord_dir, name)):
-							os.makedirs(join(tfrecord, name))
-							tfrecord_writers += [tf.io.TFRecordWriter(join(tfrecord_dir, name, self.name+".tfrecords"))]
-				if tiles_dir:
-					for name in split_names:
-						if not exists(join(tiles_dir, name)):
-							os.makedirs(join(tiles_dir, name))
-			elif tfrecord_dir:
-				tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
-
-		if normalizer: log.info("Extracting tiles using {} normalization", 1)
-
-		generator = self.build_generator(normalizer=normalizer, normalizer_source=normalizer_source)
-		slidename_bytes = bytes(self.name, 'utf-8')
-
-		if not generator:
-			log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1, self.print)
-			return
-
-		sample_tiles = []
-		for index, tile in enumerate(generator()):
-			# Convert numpy array (in RGB) to jpeg string using CV2 (which first requires BGR format)
-			image_string = cv2.imencode('.jpg', cv2.cvtColor(tile, cv2.COLOR_RGB2BGR), [int(cv2.IMWRITE_JPEG_QUALITY), 100])[1].tostring()
-			if len(sample_tiles) < 10:
-				sample_tiles += [image_string]
-			elif not tiles_dir and not tfrecord_dir:
-				break
-			if tiles_dir:
-				if split_fraction and split_names:
-					save_dir = join(tiles_dir, random.choices(split_names, weights=split_fraction))
-				else:
-					save_dir = tiles_dir
-				with open(join(tiles_dir, f'{self.shortname}_{index}.jpg'), 'wb') as outfile:
-					outfile.write(image_string)
-			if tfrecord_dir:
-				if split_fraction and split_names:
-					writer = random.choices(tfrecord_writers, weights=split_fraction)
-				else:
-					writer = tfrecord_writer
-				tf_example = image_example(slidename_bytes, image_string)
-				writer.write(tf_example.SerializeToString())
-		
-		if tfrecord_dir or tiles_dir:
-			# Mark extraction of current slide as finished
-			try:
-				os.remove(unfinished_marker)
-			except:
-				log.error(f"Unable to mark slide {self.name} as tile extraction complete", 1)
-
-		# Unbuffer slide
-		self.slide.unbuffer()
-
-		# Generate extraction report
-		report = SlideReport(sample_tiles, self.slide.path)
-
-		log.complete(f"Finished tile extraction for slide {sfutil.green(self.shortname)}", 1, self.print)
-
-		return report
-
-	def load_csv_roi(self, path):
-		'''Loads CSV ROI from a given path.'''
-		roi_dict = {}
-		with open(path, "r") as csvfile:
-			reader = csv.reader(csvfile, delimiter=',')
-			try:
-				headers = next(reader, None)
-				headers = [h.lower() for h in headers]
-				index_name = headers.index("roi_name")
-				index_x = headers.index("x_base")
-				index_y = headers.index("y_base")
-			except:
-				log.error(f'Unable to read CSV ROI file {sfutil.green(path)}, please check file integrity and ensure headers contain "ROI_name", "X_base", and "Y_base".', 1, self.print)
-				self.load_error = True
-				return
-			for row in reader:
-				roi_name = row[index_name]
-				x_coord = int(float(row[index_x]))
-				y_coord = int(float(row[index_y]))
-				
-				if roi_name not in roi_dict:
-					roi_dict.update({roi_name: ROIObject(roi_name)})
-				roi_dict[roi_name].add_coord((x_coord, y_coord))
-
-			for roi_object in roi_dict.values():
-				self.rois.append(roi_object)
-
-		# Calculate window sizes, strides, and coordinates for windows
-		self.extracted_x_size = self.full_shape[0] - self.full_extract_px
-		self.extracted_y_size = self.full_shape[1] - self.full_extract_px
-
-		# Coordinates must be in level 0 (full) format for the read_region function
-		index = 0
-		for y in np.arange(0, (self.full_shape[1]+1) - self.full_extract_px, self.full_stride):
-			for x in np.arange(0, (self.full_shape[0]+1) - self.full_extract_px, self.full_stride):
-				y = int(y)
-				x = int(x)
-				is_unique = ((y % self.full_extract_px == 0) and (x % self.full_extract_px == 0))
-				self.coord.append([x, y, index, is_unique])
-				index += 1
-
-		# Load annotations as shapely.geometry objects
-		if self.roi_method != IGNORE_ROI:
-			self.annPolys = [sg.Polygon(annotation.scaled_area(self.ROI_SCALE)) for annotation in self.rois]
-		roi_area = sum([poly.area for poly in self.annPolys])
-		total_area = (self.full_shape[0]/self.ROI_SCALE) * (self.full_shape[1]/self.ROI_SCALE)
-		roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
-
-		self.estimated_num_tiles = int(len(self.coord) * roi_area_fraction) if self.roi_method == EXTRACT_INSIDE else int(len(self.coord) * (1-roi_area_fraction))
-
-		return len(self.rois)
-
-	def load_json_roi(self, path, scale=10):
-		'''Loads ROI from a JSON file.'''
-		with open(path, "r") as json_file:
-			json_data = json.load(json_file)['shapes']
-		for shape in json_data:
-			area_reduced = np.multiply(shape['points'], scale)
-			self.rois.append(ROIObject(f"Object{len(self.rois)}"))
-			self.rois[-1].add_shape(area_reduced)
-		return len(self.rois)
