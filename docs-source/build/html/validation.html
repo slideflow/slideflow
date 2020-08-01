@@ -1,0 +1,272 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Validation Planning &mdash; slideflow 1.6.2 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Tile extraction" href="extract_tiles.html" />
+    <link rel="prev" title="Setting up a Project" href="project.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="root.html" class="icon icon-home" alt="Documentation Home"> slideflow
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.6
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project.html">Setting up a Project</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Validation Planning</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#configuring-a-validation-plan">Configuring a validation plan</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#validation-target">validation_target</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#validation-strategy">validation_strategy</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#selecting-an-evaluation-cohort">Selecting an evaluation cohort</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.html">Source</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="root.html">slideflow</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="root.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Validation Planning</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/validation.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="validation-planning">
+<span id="id1"></span><h1>Validation Planning<a class="headerlink" href="#validation-planning" title="Permalink to this headline">¶</a></h1>
+<p>An important first step in creating a new project is to determine the validation plan. When training neural networks, data is segregated into three groups:</p>
+<ol class="arabic simple">
+<li><p><strong>Training data</strong> - data used for learning during training</p></li>
+<li><p><strong>Validation data</strong> - data used for performance testing during training</p></li>
+<li><p><strong>Evaluation data</strong> - data used for final evaluation once training has completed. Preferably an external cohort.</p></li>
+</ol>
+<p>Validation data is used to assess model performance during training. Good performance on validation data generally indicates that your model is learning generalizable features. Poor performance on validation data despite good training performance is a sign of overfitting.</p>
+<p>Over the course of a project, you will perform many model training iterations as you test different hyperparameter combinations. Throughout all of these training iterations, you will be using the same validation data to assess performance. Ideally, you will end up choosing hyperparameters which result in the best performance on your validation data.</p>
+<p>Once you have finished training models on all of your hyperparameter combinations, pick the best hyperparameters and train one last model on <em>both</em> your training data and validation data. Assess this final model’s performance on your reserved evaluation dataset; this is your model’s final performance.</p>
+<p>Saving a subset of data for final evaluation testing reduces the risk of bias and ensures a more accurate assessment of model generalizability.</p>
+<div class="section" id="configuring-a-validation-plan">
+<h2>Configuring a validation plan<a class="headerlink" href="#configuring-a-validation-plan" title="Permalink to this headline">¶</a></h2>
+<p>There are several ways you can plan to validate your data. The project configuration options in slideflow are the following:</p>
+<ul class="simple">
+<li><p><strong>validation_target</strong>:  <em>‘per-patient’</em> or <em>‘per-tile’</em></p></li>
+<li><p><strong>validation_strategy</strong>:  <em>‘bootstrap’</em>, <em>‘k-fold’</em>, <em>‘fixed’</em>, <em>‘none’</em></p></li>
+<li><p><strong>validation_fraction</strong>:  (float between 0-1)</p></li>
+<li><p><strong>validation_k_fold</strong>:  int</p></li>
+</ul>
+<p>These options can be supplied either via your global project configuration (stored in <code class="docutils literal notranslate"><span class="pre">settings.json</span></code>) or at the time of training by passing the arguments directly. Arguments passed at the time of training will override any project settings.</p>
+<div class="section" id="validation-target">
+<h3>validation_target<a class="headerlink" href="#validation-target" title="Permalink to this headline">¶</a></h3>
+<p>The first consideration is whether you will be separating validation data on a <strong>tile-level</strong> (setting aside a certain % of tiles from every slide for validation) or <strong>slide-level</strong> (setting aside a certain number of slides). In most instances, it is best to use slide-level validation separation, as this will offer the best insight into whether your model is generalizable on a different set of slides.</p>
+<p><em>Note: if using tile-level validation, this must be configured at the time of tile extraction due to the way TFRecord tile data is stored. If you change validation_target mid-project, you may need to re-extract tiles.</em></p>
+</div>
+<div class="section" id="validation-strategy">
+<h3>validation_strategy<a class="headerlink" href="#validation-strategy" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">validation_strategy</span></code> option determines how the validation data is selected.</p>
+<p>If <strong>fixed</strong>, a certain percentage of your training data is set aside for testing (determined by <code class="docutils literal notranslate"><span class="pre">validation_fraction</span></code>). The chosen validation subset is saved to a log file and will be re-used for all training iterations.</p>
+<p>If <strong>bootstrap</strong>, validation data will be selected at random (percentage determined by <code class="docutils literal notranslate"><span class="pre">validation_fraction</span></code>), and all training iterations will be repeated a number of times equal to <code class="docutils literal notranslate"><span class="pre">validation_k_fold</span></code>. The saved and reported model training metrics will be an average of all bootstrap iterations.</p>
+<p>If <strong>k-fold</strong>, training data will be separated into <em>k</em> number of groups (where <em>k</em> is equal to <code class="docutils literal notranslate"><span class="pre">validation_k_fold</span></code>), and all training iterations will be repeated <em>k</em> number of times using k-fold cross validation. The saved and reported model training metrics will be an average of all k-fold iterations.</p>
+<p>If <strong>none</strong>, no validation testing will be performed.</p>
+</div>
+</div>
+<div class="section" id="selecting-an-evaluation-cohort">
+<h2>Selecting an evaluation cohort<a class="headerlink" href="#selecting-an-evaluation-cohort" title="Permalink to this headline">¶</a></h2>
+<p>Unlike validation testing, selecting a final evaluation dataset is more straightforward. Ideally, your evaluation data will come from an external source; e.g. slides from another institution, or from an entirely different group of patients, or slides taken during a different time period. If you do not have an external evaluation dataset, you may instead choose to set aside a certain proportion of your original dataset. There is no magic number for how much data to set aside, but I generally recommend setting aside about 30% for final evaluation.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="extract_tiles.html" class="btn btn-neutral float-right" title="Tile extraction" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="project.html" class="btn btn-neutral float-left" title="Setting up a Project" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, James M Dolezal
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
