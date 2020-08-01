@@ -1138,20 +1138,16 @@ class SlideflowProject:
 									"high" uses a stride equal to 1/4 tile width.
 			interpolation:		Interpolation strategy for smoothing heatmap predictions (matplotlib imshow interpolation options). 
 			show_roi:			Bool. If True, will show ROI on heatmaps.
-			logit_cmap:			Either function or a dictionary use to create heatmap colormap.
+			logit_cmap:			Either a function or a dictionary used to create heatmap colormap.
 									Each image tile will generate a list of predictions of length O, 
 									where O is the number of outcome categories.
 									If logit_cmap is a function, then this logit prediction list will be passed to the function,
-										and the function is expected to return [R, G, B] values which will be displayed.
+									and the function is expected to return [R, G, B] values which will be displayed.
 									If the logit_cmap is a dictionary, it should map 'r', 'g', and 'b' to outcome indices;
-										The prediction for these outcome categories will be mapped to the corresponding colors.
-										Thus, the corresponding color will only reflect predictions of up to three outcome categories.
-										Example (this would map prediction for outcome 0 to the red colorspace, outcome 3 to green colorspace, and so on):
-										{
-											'r': 0,
-											'g': 3,
-											'b': 1
-										}
+									The prediction for these outcome categories will be mapped to the corresponding colors.
+									Thus, the corresponding color will only reflect predictions of up to three outcome categories.
+										Example (this would map prediction for outcome 0 to the red colorspace, outcome 3 to green colorspace, etc):
+										{'r': 0, 'g': 3, 'b': 1 }
 			skip_thumb:			Bool, whether to skip thumbnail (vs displaying with heatmap)
 			normalizer:			Normalization strategy to use on image tiles
 			normalizer_source:	Path to normalizer source image

@@ -1,4 +1,4 @@
-import sys
+slide_predictionsimport sys
 import os
 import csv
 import pickle
@@ -227,14 +227,14 @@ class ActivationsVisualizer:
 		'''Returns slide-level predictions assuming the model is predicting a linear outcome.
 
 		Returns:
-			slide_predictions:	Dictionary mapping slide names to final slide-level predictions
-									for each outcome cateogry, calculated as the average predicted value
-									in the outcome category for all tiles in the slide.
-									Example:
-										{ 'slide1': {
-											0: 0.24,	# Outcome category 0
-											1: 0.15,	# Outcome category 1
-											2: 0.61 }}	# Outcome category 2
+			dict:		Dictionary mapping slide names to final slide-level predictions
+							for each outcome cateogry, calculated as the average predicted value
+							in the outcome category for all tiles in the slide.
+							Example:
+								{ 'slide1': {
+									0: 0.24,	# Outcome category 0
+									1: 0.15,	# Outcome category 1
+									2: 0.61 }}	# Outcome category 2
 		'''
 		first_slide = list(self.slide_logits_dict.keys())[0]
 		outcomes = sorted(list(self.slide_logits_dict[first_slide].keys()))
