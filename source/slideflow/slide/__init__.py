@@ -90,6 +90,7 @@ def polyArea(x, y):
 	return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
 
 def vips2numpy(vi):
+	'''Converts a VIPS image into a numpy array'''
 	return np.ndarray(buffer=vi.write_to_memory(),
 					  dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
 					  shape=[vi.height, vi.width, vi.bands])
@@ -99,7 +100,18 @@ class InvalidTileSplitException(Exception):
 	pass
 
 class SlideReport:
+	'''Report to summarize tile extraction from a slide,
+	including example images of extracted tiles.'''
+
 	def __init__(self, images, path, data=None, compress=True):
+		'''Initializer.
+
+		Args:
+			images:		List of JPEG image strings (example tiles)
+			path:		Path to slide
+			data:		Dictionary of slide extraction report metadata
+			compress:	Bool, if True, compresses images to reduce image sizes
+		'''
 		self.data = data
 		self.path = path
 		if not compress:
@@ -112,6 +124,7 @@ class SlideReport:
 					self.images += [output.getvalue()]
 					
 	def image_row(self):
+		'''Merges images into a single row of images'''
 		pil_images = [Image.open(io.BytesIO(i)) for i in self.images]
 		widths, heights = zip(*(pi.size for pi in pil_images))
 		total_width = sum(widths)
@@ -132,7 +145,16 @@ class ExtractionPDF(FPDF):
 		self.cell(0, 10, 'Page ' + str(self.page_no()) + '/{nb}', 0, 0, 'C')
 
 class ExtractionReport:
+	'''Creates a PDF report summarizing extracted tiles, 
+		from a collection of tile extraction reports.'''
 	def __init__(self, reports, tile_px=None, tile_um=None):
+		'''Initializer.
+
+		Args:
+			reports:	List of SlideReport objects
+			tile_px:	Tile size in pixels.
+			tile_um:	Tile size in microns.
+		'''
 		pdf = ExtractionPDF()
 		pdf.alias_nb_pages()
 		pdf.add_page()
@@ -159,12 +181,22 @@ class ExtractionReport:
 		self.pdf.output(filename)
 
 class StainNormalizer:
+	'''Object to supervise stain normalization for images and 
+	efficiently convert between common image types.'''
+
 	normalizers = {
 		'macenko':  stainNorm_Macenko.Normalizer,
 		'reinhard': stainNorm_Reinhard.Normalizer,
 		'vahadane': stainNorm_Vahadane.Normalizer
 	}
 	def __init__(self, method='macenko', source=None):
+		'''Initializer. Establishes normalization method.
+
+		Args:
+			method:		Either 'macenko', 'reinhard', or 'vahadane'.
+			source:		Path to source image for normalizer. 
+							If not provided, defaults to an internal example image.
+		'''
 		if not source:
 			package_directory = os.path.dirname(os.path.abspath(__file__))
 			source = join(package_directory, 'norm_tile.jpg')
@@ -172,6 +204,7 @@ class StainNormalizer:
 		self.n.fit(cv2.imread(source))
 
 	def pil_to_pil(self, image):
+		'''Non-normalized PIL.Image -> normalized PIL.Image'''
 		cv_image = np.array(image.convert('RGB'))
 		cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
 		cv_image = self.n.transform(cv_image)
@@ -179,20 +212,24 @@ class StainNormalizer:
 		return Image.fromarray(cv_image)
 
 	def tf_to_rgb(self, image):
+		'''Non-normalized tensorflow image array -> normalized RGB numpy array'''
 		return self.rgb_to_rgb(np.array(image))
 
 	def rgb_to_rgb(self, image):
+		'''Non-normalized RGB numpy array -> normalized RGB numpy array'''
 		cv_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 		cv_image = self.n.transform(cv_image)
 		return cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
 
 	def jpeg_to_rgb(self, jpeg_string):
+		'''Non-normalized compressed JPG string data -> normalized RGB numpy array'''
 		cv_image = cv2.imdecode(np.fromstring(jpeg_string, dtype=np.uint8), cv2.IMREAD_COLOR)
 		cv_image = self.n.transform(cv_image)
 		cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
 		return cv_image
 
 	def jpeg_to_jpeg(self, jpeg_string):
+		'''Non-normalized compressed JPG string data -> normalized compressed JPG string data'''
 		cv_image = self.jpeg_to_rgb(jpeg_string)
 		with io.BytesIO() as output:
 			Image.fromarray(cv_image).save(output, format="JPEG", quality=75)
@@ -423,12 +460,33 @@ class SlideLoader:
 		return loaded_correctly
 
 class SlideReader(SlideLoader):
+	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
+
 	ROI_SCALE = 10
 
-	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
 	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, roi_dir=None, roi_list=None,
 					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, thumb_folder=None, silent=False, buffer=None, pb=None, pb_id=0):
+		'''Initializer.
 
+		Args:
+			path:				Path to slide
+			size_px:			Size of tiles to extract, in pixels
+			size_um:			Size of tiles to extract, in microns
+			stride_div:			Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc)
+			enable_downsample:	Bool, if True, allows use of downsampled intermediate layers in the slide image pyramid,
+									which greatly improves tile extraction speed.
+			roi_dir:			Directory in which to search for ROI CSV files
+			roi_list:			Alternatively, a list of ROI paths can be explicitly provided
+			roi_method:			Either inside or outside. Determines how ROIs are used to extract tiles
+			skip_missing_roi:	Bool, if True, will skip tiles that are missing a ROI file
+			thumb_folder:		If provided, will save image thumbnails to this folder as a buffer
+			silent:				Bool, if True, will hide logging output
+			buffer:				Either 'vmtouch' or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
+									If a directory, slides will be copied to the directory as a buffer before extraction.
+									Either method vastly improves tile extraction for slides on HDDs by maximizing sequential read speed
+			pb:					ProgressBar instance; will update progress bar during tile extraction if provided
+			pb_id:				ID of bar in ProgressBar, defaults to 0
+		'''
 		super().__init__(path, size_px, size_um, stride_div, enable_downsample, thumb_folder, silent, buffer, pb)
 
 		# Initialize calculated variables
@@ -467,7 +525,7 @@ class SlideReader(SlideLoader):
 				log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.print)
 				self.shape = None
 				self.load_error = True
-				return
+				return None
 			else:
 				log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
 
@@ -476,14 +534,21 @@ class SlideReader(SlideLoader):
 		# Abort if errors were raised during ROI loading
 		if self.load_error:
 			log.error(f'Skipping slide {sfutil.green(self.name)} due to slide image or ROI loading error', 1, self.print)
-			return
+			return None
 
 	def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=50, whitespace_threshold=220,
 							normalizer=None, normalizer_source=None):
 		'''Builds generator to supervise extraction of tiles across the slide.
 		
 		Args:
-			dual_extract:		If true, will extract base image and the surrounding region.'''
+			dual_extract:			If true, will extract base image and the surrounding region.
+			shuffle:				If true, will shuffle images during extraction
+			whitespace_fraction:	Int from 0-100, representing a percent. Tiles with this percent of pixels classified as "whitespace" 
+										will be skipped during extraction.
+			whitespace_threshold:	Int from 0-255, pixel brightness above which a pixel is considered whitespace
+			normalizer:				Normalization strategy to use on image tiles
+			normalizer_source:		Path to normalizer source image
+		'''
 		super().build_generator()
 
 		if self.estimated_num_tiles == 0:
@@ -554,8 +619,21 @@ class SlideReader(SlideLoader):
 
 		return generator
 
-	def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None, normalizer=None, normalizer_source=None):
-		'''Exports tiles.'''
+	def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None, 
+						whitespace_fraction=50, whitespace_threshold=220, normalizer=None, normalizer_source=None):
+		'''Extractes tiles from slide and saves into a TFRecord file or as loose JPG tiles in a directory.
+		Args:
+			tfrecord_dir:			If provided, saves tiles into a TFRecord file (named according to slide name) in this directory.
+			tiles_dir:				If provided, saves loose JPG tiles into a subdirectory (named according to slide name) in this directory.
+			split_fraction:			List of float. If provided, splits the extracted tiles into subsets (e.g. for validation set) using these fractions.
+										Should add up to 1 (except for fractions of -1). Remaining tiles are split between fractions of "-1".
+			split_names:			List of names to label the split fractions
+			whitespace_fraction:	Int from 0-100, representing a percent. Tiles with this percent of pixels classified as "whitespace" 
+										will be skipped during extraction.
+			whitespace_threshold:	Int from 0-255, pixel brightness above which a pixel is considered whitespace
+			normalizer:				Normalization strategy to use on image tiles
+			normalizer_source:		Path to normalizer source image
+		'''
 		# Make base directories
 		if tfrecord_dir:
 			if not exists(tfrecord_dir): os.makedirs(tfrecord_dir)
@@ -572,7 +650,7 @@ class SlideReader(SlideLoader):
 			if split_fraction and split_names:
 				# Tile splitting error checking
 				if len(split_fraction) != len(split_names):
-					raise InvalidTileSplitException(f'When splitting tiles, length of "fraction" ({len(fraction)}) should equal length of "names" ({len(names)})')
+					raise InvalidTileSplitException(f'When splitting tiles, length of "fraction" ({len(split_fraction)}) should equal length of "names" ({len(split_names)})')
 				if sum([i for i in split_fraction if i != -1]) > 1:
 					raise InvalidTileSplitException("Unable to split tiles; sum of split_fraction is greater than 1")
 				# Calculate dynamic splitting
@@ -585,7 +663,7 @@ class SlideReader(SlideLoader):
 					tfrecord_writers = []
 					for name in split_names:
 						if not exists(join(tfrecord_dir, name)):
-							os.makedirs(join(tfrecord, name))
+							os.makedirs(join(tfrecord_dir, name))
 							tfrecord_writers += [tf.io.TFRecordWriter(join(tfrecord_dir, name, self.name+".tfrecords"))]
 				if tiles_dir:
 					for name in split_names:
@@ -596,7 +674,10 @@ class SlideReader(SlideLoader):
 
 		if normalizer: log.info("Extracting tiles using {} normalization", 1)
 
-		generator = self.build_generator(normalizer=normalizer, normalizer_source=normalizer_source)
+		generator = self.build_generator(normalizer=normalizer,
+										 normalizer_source=normalizer_source,
+										 whitespace_fraction=whitespace_fraction,
+										 whitespace_threshold=whitespace_threshold)
 		slidename_bytes = bytes(self.name, 'utf-8')
 
 		if not generator:
