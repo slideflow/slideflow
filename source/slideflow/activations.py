@@ -1,4 +1,4 @@
-slide_predictionsimport sys
+import sys
 import os
 import csv
 import pickle
