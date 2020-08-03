@@ -887,31 +887,34 @@ class SlideflowProject:
 		log.complete(f"Slide report saved to {sfutil.green(filename)}", 1)
 
 	def extract_tiles(self, tile_px, tile_um, filters=None, filter_blank=None, stride_div=1, tma=False, save_tiles=False, save_tfrecord=True, delete_tiles=True,
-						enable_downsample=False, roi_method='inside', skip_missing_roi=True, skip_extracted=True, dataset=None, normalizer=None, normalizer_source=None, buffer=None):
+						enable_downsample=False, roi_method='inside', skip_missing_roi=True, skip_extracted=True, dataset=None,
+						normalizer=None, normalizer_source=None, whitespace_fraction=0.6, whitespace_threshold=230, buffer=None):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.
 		
 		Args:
-			tile_px:			Tile size in pixels.
-			tile_um:			Tile size in microns.
-			filters:			Dataset filters to use when selecting slides for tile extraction.
-			stride_div:			Stride divisor to use when extracting tiles. A stride of 1 will extract non-overlapping tiles. 
-									A stride_div of 2 will extract overlapping tiles, with a stride equal to 50% of the tile width.
-			tma:				Bool. If True, reads slides as Tumor Micro-Arrays (TMAs), detecting and extracting tumor cores.
-			save_tiles:			Bool. If True, will save JPEG images of extracted tiles to corresponding tile directory.
-			save_tfrecord:		Bool. If True, will save JPEG-compressed image data from extracted tiles into TFRecords in the corresponding TFRecord directory.
-			delete_tiles:		Bool. If True, will delete loose tile images after storing into TFRecords.
-			enable_downsample:	Bool. If True, enables the use of downsampling while reading slide images. This may result in corrupted image tiles
-									if downsampled slide layers are corrupted or not fully generated. Manual confirmation of tile integrity is recommended.
-			roi_method:			Either 'inside' or 'outside'. Whether to extract tiles inside or outside the ROIs.
-			skip_missing_roi:	Bool. If True, will skip slides that are missing ROIs
-			skip_extracted:		Bool. If True, will skip slides that have already been fully extracted
-			dataset:			Name of dataset from which to select slides for extraction. If not provided, will default to all datasets in project
-			normalizer:			Normalization strategy to use on image tiles
-			normalizer_source:	Path to normalizer source image
-			buffer:				Either 'vmtouch' or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
-									If a directory, slides will be copied to the directory as a buffer before extraction.
-									Either method vastly improves tile extraction for slides on HDDs by maximizing sequential read speed
+			tile_px:				Tile size in pixels.
+			tile_um:				Tile size in microns.
+			filters:				Dataset filters to use when selecting slides for tile extraction.
+			stride_div:				Stride divisor to use when extracting tiles. A stride of 1 will extract non-overlapping tiles. 
+										A stride_div of 2 will extract overlapping tiles, with a stride equal to 50% of the tile width.
+			tma:					Bool. If True, reads slides as Tumor Micro-Arrays (TMAs), detecting and extracting tumor cores.
+			save_tiles:				Bool. If True, will save JPEG images of extracted tiles to corresponding tile directory.
+			save_tfrecord:			Bool. If True, will save JPEG-compressed image data from extracted tiles into TFRecords in the corresponding TFRecord directory.
+			delete_tiles:			Bool. If True, will delete loose tile images after storing into TFRecords.
+			enable_downsample:		Bool. If True, enables the use of downsampling while reading slide images. This may result in corrupted image tiles
+										if downsampled slide layers are corrupted or not fully generated. Manual confirmation of tile integrity is recommended.
+			roi_method:				Either 'inside' or 'outside'. Whether to extract tiles inside or outside the ROIs.
+			skip_missing_roi:		Bool. If True, will skip slides that are missing ROIs
+			skip_extracted:			Bool. If True, will skip slides that have already been fully extracted
+			dataset:				Name of dataset from which to select slides for extraction. If not provided, will default to all datasets in project
+			normalizer:				Normalization strategy to use on image tiles
+			normalizer_source:		Path to normalizer source image
+			whitespace_fraction:	Float 0-1. Fraction of whitespace which causes a tile to be discarded.
+			whitespace_threshold:	Int 0-255. Threshold above which a pixel (averaged across R,G,B) is considered whitespace.
+			buffer:					Either 'vmtouch' or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
+										If a directory, slides will be copied to the directory as a buffer before extraction.
+										Either method vastly improves tile extraction for slides on HDDs by maximizing sequential read speed
 		'''
 
 		import slideflow.slide as sfslide
@@ -943,6 +946,10 @@ class SlideflowProject:
 		else:
 			split, split_fraction, split_names = None, None, None
 
+		# Info logging
+		if normalizer: log.info(f"Extracting tiles using {sfutil.bold(normalizer)} normalization", 1)
+		if whitespace_fraction < 1: log.info(f"Filtering tiles by whitespace fraction (exclude if >={whitespace_fraction*100:.0f}% whitespace, whitespace = RGB avg > {whitespace_threshold})", 1)
+
 		for dataset_name in datasets:
 			log.empty(f"Working on dataset {sfutil.bold(dataset_name)}", 1)
 
@@ -962,7 +969,7 @@ class SlideflowProject:
 				# First, check for interrupted extraction
 				interrupted = [sfutil.path_to_name(marker) for marker in glob(join((tfrecord_dir if tfrecord_dir else tiles_folder), '*.unfinished'))]
 				if len(interrupted):
-					log.info(f'Interrupted tile extraction detected in {len(interrupted)} tfrecords, will re-extract these slides')
+					log.info(f'Interrupted tile extraction detected in {len(interrupted)} tfrecords, will re-extract these slides', 1)
 					for interrupted_slide in interrupted:
 						log.empty(interrupted_slide, 2)
 						if interrupted_slide in already_extracted_tfrecords:
@@ -988,23 +995,20 @@ class SlideflowProject:
 			print("\r\033[K", end='')
 			log.complete(f"Verification complete. Total estimated tiles to extract: {total_tiles}", 1)
 			
-			if total_tiles:
-				pb = ProgressBar(total_tiles, counter_text='tiles', leadtext="Extracting tiles... ", show_counter=True, show_eta=True)
-			else:
-				pb = None
+			pb = ProgressBar(total_tiles, counter_text='tiles', leadtext="Extracting tiles... ", show_counter=True, show_eta=True) if total_tiles else None
 
 			# Function to extract tiles from a slide
-			def extract_tiles_from_slide(slide_path, pb):
+			def extract_tiles_from_slide(slide_path, pb, downsample):
 				print_func = print if not pb else pb.print
 				log.empty(f"Exporting tiles for slide {sfutil.path_to_name(slide_path)}", 1, print_func)
 
 				if tma:
-					whole_slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample,
+					whole_slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=downsample,
 																			export_folder=tiles_folder, 
 																			buffer=buffer,
 																			pb=pb)
 				else:
-					whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=enable_downsample, 
+					whole_slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=downsample, 
 																			roi_dir=roi_dir,
 																			roi_method=roi_method,
 																			skip_missing_roi=skip_missing_roi,
@@ -1013,12 +1017,22 @@ class SlideflowProject:
 				if not whole_slide.loaded_correctly():
 					return
 
-				report = whole_slide.extract_tiles(tfrecord_dir=tfrecord_dir if save_tfrecord else None,
-										 		   tiles_dir=tiles_folder if save_tiles else None,
-										 		   split_fraction=split_fraction,
-												   split_names=split_names,
-												   normalizer=normalizer,
-												   normalizer_source=normalizer_source)
+				try:
+					report = whole_slide.extract_tiles(tfrecord_dir=tfrecord_dir if save_tfrecord else None,
+													tiles_dir=tiles_folder if save_tiles else None,
+													split_fraction=split_fraction,
+													split_names=split_names,
+													normalizer=normalizer,
+													normalizer_source=normalizer_source,
+													whitespace_fraction=whitespace_fraction,
+													whitespace_threshold=whitespace_threshold)
+				except sfslide.TileCorruptionError:
+					if downsample:
+						log.warn(f"Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; will try re-extraction with downsampling disabled", 1, print_func)
+						report = extract_tiles_from_slide(slide_path, pb, downsample=False)
+					else:
+						log.error(f"Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; skipping slide", 1, print_func)
+						return None
 				return report
 
 			# Use multithreading if specified, extracting tiles from all slides in the filtered list
@@ -1031,12 +1045,12 @@ class SlideflowProject:
 						path = q.get()
 						if buffer and buffer != 'vmtouch':
 							buffered_path = join(buffer, os.path.basename(path))
-							report = extract_tiles_from_slide(buffered_path, pb)
-							reports.add(report)
+							report = extract_tiles_from_slide(buffered_path, pb, enable_downsample)
+							if report: reports.add(report)
 							os.remove(buffered_path)
 						else:
-							report = extract_tiles_from_slide(path, pb)
-							reports.add(report)
+							report = extract_tiles_from_slide(path, pb, enable_downsample)
+							if report: reports.add(report)
 						q.task_done()
 
 				threads = [threading.Thread(target=worker, daemon=True) for t in range(self.FLAGS['num_threads'])]
@@ -1062,8 +1076,8 @@ class SlideflowProject:
 			else:
 				reports = []
 				for slide_path in slide_list:
-					report = extract_tiles_from_slide(slide_path, pb)
-					reports += [report]
+					report = extract_tiles_from_slide(slide_path, pb, enable_downsample)
+					if report: reports += [report]
 				log.empty("Generating PDF (this may take some time)...", )
 				pdf_report = sfslide.ExtractionReport(reports, tile_px=tile_px, tile_um=tile_um)
 				timestring = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -1117,7 +1131,7 @@ class SlideflowProject:
 								   use_fp16=self.PROJECT['use_fp16'],
 								   normalizer=normalizer,
 								   normalizer_source=normalizer_source,
-								   activations_export=join(stats_root, activations_export),
+								   activations_export=None if not activations_export else join(stats_root, activations_export),
 								   activations_cache=activations_cache)
 
 		return AV
@@ -1197,7 +1211,7 @@ class SlideflowProject:
 
 	def generate_mosaic(self, model, mosaic_filename=None, umap_filename=None, outcome_header=None, filters=None, filter_blank=None, focus_filters=None, 
 						resolution="low", num_tiles_x=50, max_tiles_per_slide=100, expanded=False, map_centroid=False, show_prediction=None, 
-						restrict_prediction=None, predict_on_axes=None, outcome_labels=None, cmap=None, model_type=None, umap_cache='default', activations_cache='default', 
+						restrict_prediction=None, predict_on_axes=None, whitespace_on_axes=False, outcome_labels=None, cmap=None, model_type=None, umap_cache='default', activations_cache='default', 
 						activations_export=None, umap_export=None, use_float=False, normalizer=None, normalizer_source=None):
 		'''Generates a mosaic map by overlaying images onto a set of mapped tiles.
 			Image tiles are extracted from the provided set of TFRecords, and predictions + penultimate node activations are calculated using the specified model.
@@ -1298,13 +1312,21 @@ class SlideflowProject:
 								   normalizer=normalizer,
 								   normalizer_source=normalizer_source,
 								   batch_size=self.FLAGS['eval_batch_size'],
-								   activations_export=join(stats_root, activations_export),
+								   activations_export=None if not activations_export else join(stats_root, activations_export),
 								   max_tiles_per_slide=max_tiles_per_slide,
-								   activations_cache=activations_cache)
+								   activations_cache=activations_cache,
+								   manifest=mosaic_dataset.get_manifest())
 
 		if predict_on_axes:
 			# Create mosaic using x- and y- axis corresponding to outcome predictions
-			umap_x, umap_y, umap_meta = AV.get_mapped_predictions(predict_on_axes[0], predict_on_axes[1])
+			umap_x, umap_y, umap_meta = AV.map_to_predictions(predict_on_axes[0], predict_on_axes[1])
+			umap = TFRecordMap.from_precalculated(tfrecords=mosaic_dataset.get_tfrecords(),
+												slides=mosaic_dataset.get_slides(),
+												x=umap_x,
+												y=umap_y,
+												meta=umap_meta)
+		elif whitespace_on_axes:
+			umap_x, umap_y, umap_meta = AV.map_to_whitespace(whitespace_threshold=230)
 			umap = TFRecordMap.from_precalculated(tfrecords=mosaic_dataset.get_tfrecords(),
 												slides=mosaic_dataset.get_slides(),
 												x=umap_x,
