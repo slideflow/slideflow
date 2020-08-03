@@ -54,6 +54,7 @@ from statistics import mean, median
 from pathlib import Path
 from fpdf import FPDF
 from datetime import datetime
+from skimage.transform import resize as skresize
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -99,6 +100,10 @@ class InvalidTileSplitException(Exception):
 	'''Raised when invalid tile splitting parameters are given to SlideReader.'''
 	pass
 
+class TileCorruptionError(Exception):
+	'''Raised when image normalization fails due to tile corruption.'''
+	pass
+
 class SlideReport:
 	'''Report to summarize tile extraction from a slide,
 	including example images of extracted tiles.'''
@@ -125,6 +130,8 @@ class SlideReport:
 					
 	def image_row(self):
 		'''Merges images into a single row of images'''
+		if not self.images:
+			return None
 		pil_images = [Image.open(io.BytesIO(i)) for i in self.images]
 		widths, heights = zip(*(pi.size for pi in pil_images))
 		total_width = sum(widths)
@@ -168,11 +175,13 @@ class ExtractionReport:
 		for i, report in enumerate(reports):
 			pdf.set_font('Arial', '', 7)
 			pdf.cell(10, 10, report.path, 0, 1)
-			with tempfile.NamedTemporaryFile() as temp:
-				temp.write(report.image_row())
-				x = pdf.get_x()
-				y = pdf.get_y()
-				pdf.image(temp.name, x, y, w=19*len(report.images), h=19, type='jpg')
+			image_row = report.image_row()
+			if image_row:
+				with tempfile.NamedTemporaryFile() as temp:
+					temp.write(image_row)
+					x = pdf.get_x()
+					y = pdf.get_y()
+					pdf.image(temp.name, x, y, w=19*len(report.images), h=19, type='jpg')
 			pdf.ln(20)
 			
 		self.pdf = pdf
@@ -536,14 +545,14 @@ class SlideReader(SlideLoader):
 			log.error(f'Skipping slide {sfutil.green(self.name)} due to slide image or ROI loading error', 1, self.print)
 			return None
 
-	def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=50, whitespace_threshold=220,
+	def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=0.6, whitespace_threshold=230,
 							normalizer=None, normalizer_source=None):
 		'''Builds generator to supervise extraction of tiles across the slide.
 		
 		Args:
 			dual_extract:			If true, will extract base image and the surrounding region.
 			shuffle:				If true, will shuffle images during extraction
-			whitespace_fraction:	Int from 0-100, representing a percent. Tiles with this percent of pixels classified as "whitespace" 
+			whitespace_fraction:	Float from 0-1, representing a percent. Tiles with this percent of pixels (or more) classified as "whitespace" 
 										will be skipped during extraction.
 			whitespace_threshold:	Int from 0-255, pixel brightness above which a pixel is considered whitespace
 			normalizer:				Normalization strategy to use on image tiles
@@ -584,16 +593,11 @@ class SlideReader(SlideLoader):
 
 				# Read the region and resize to target size
 				region = self.slide.read_region((c[0], c[1]), self.downsample_level, [self.extract_px, self.extract_px])
-				region = region.resize(float(self.size_px) / self.extract_px)
+				#region = region.resize(float(self.size_px) / self.extract_px)
 
-				# White fraction
-				# Reduce RGB -> brightness, count # tiles above brightness level > threshold (e.g. 220), exclude if >50% of pixels meet criteria
-				if region.colourspace("b-w").percent(whitespace_fraction) > whitespace_threshold:
-					continue
-
-				#if region.avg() > 220:
-				#	# Discard tile; median brightness (average RGB pixel) > 220
-				#	continue
+				# Read regions into memory and convert to numpy arrays
+				np_image = vips2numpy(region)[:,:,:-1]
+				np_image = skresize(np_image, (self.size_px, self.size_px))
 
 				# Mark as extracted
 				tile_mask[index] = 1
@@ -602,17 +606,30 @@ class SlideReader(SlideLoader):
 					try:
 						surrounding_region = self.slide.read_region((c[0]-self.full_stride, c[1]-self.full_stride), self.downsample_level, [self.extract_px*3, self.extract_px*3])
 						surrounding_region = surrounding_region.resize(float(self.size_px) / (self.extract_px*3))
+						outer_region = vips2numpy(surrounding_region)[:,:,:-1]
 					except:
 						continue
-					inner_region = vips2numpy(region)[:,:,:-1]
-					outer_region = vips2numpy(surrounding_region)[:,:,:-1]
+					
+					# Apply normalization
 					if normalizer:
-						inner_region = normalizer.rgb_to_rgb(inner_region)
+						np_image = normalizer.rgb_to_rgb(np_image)
 						outer_region = normalizer.rgb_to_rgb(outer_region)
-					yield {"input_1": inner_region, "input_2": outer_region}, index
+
+					yield {"input_1": np_image, "input_2": outer_region}, index
 				else:
-					np_image = vips2numpy(region)[:,:,:-1]
-					yield normalizer.rgb_to_rgb(np_image) if normalizer else np_image
+					# Perform whitespace filtering
+					fraction = (np.mean(np_image, axis=2) > whitespace_threshold).sum() / (self.size_px**2)
+					if fraction > whitespace_fraction: continue
+
+					# Apply normalization
+					if normalizer:
+						try:
+							np_image = normalizer.rgb_to_rgb(np_image)
+						except:
+							# The image could not be normalized, which happens when a tile is primarily one solid color (background)
+							continue
+
+					yield np_image
 
 			log.label(self.shortname, f"Finished tile extraction for {sfutil.green(self.shortname)} ({sum(tile_mask)} tiles of {len(self.coord)} possible)", 2, self.print)
 			self.tile_mask = tile_mask
@@ -620,7 +637,7 @@ class SlideReader(SlideLoader):
 		return generator
 
 	def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None, 
-						whitespace_fraction=50, whitespace_threshold=220, normalizer=None, normalizer_source=None):
+						whitespace_fraction=0.6, whitespace_threshold=230, normalizer=None, normalizer_source=None):
 		'''Extractes tiles from slide and saves into a TFRecord file or as loose JPG tiles in a directory.
 		Args:
 			tfrecord_dir:			If provided, saves tiles into a TFRecord file (named according to slide name) in this directory.
@@ -671,8 +688,6 @@ class SlideReader(SlideLoader):
 							os.makedirs(join(tiles_dir, name))
 			elif tfrecord_dir:
 				tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
-
-		if normalizer: log.info("Extracting tiles using {} normalization", 1)
 
 		generator = self.build_generator(normalizer=normalizer,
 										 normalizer_source=normalizer_source,
@@ -969,7 +984,7 @@ class TMAReader(SlideLoader):
 				else:
 					if self.pb:
 						self.pb.update(self.pb_id, queue_progress)
-						self.pb.update_counter(1)
+						self.pb.increase_bar_value(1)
 
 					sub_id = 0
 					resized_core = self._resize_to_target(image_core)
