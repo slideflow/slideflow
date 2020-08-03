@@ -32,6 +32,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.widgets import Slider
 from functools import partial
 from multiprocessing.dummy import Process as DProcess
+from multiprocessing.dummy import Pool as DPool
 from PIL import Image
 
 # TODO: add check that cached PKL corresponds to current and correct model & slides
@@ -60,7 +61,7 @@ class ActivationsVisualizer:
 	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_header=None, 
 					focus_nodes=[], use_fp16=True, normalizer=None, normalizer_source=None, 
 					use_activations_cache=False, activations_cache='default', batch_size=16,
-					activations_export=None, max_tiles_per_slide=100):
+					activations_export=None, max_tiles_per_slide=100, manifest=None):
 		'''Object initializer.
 
 		Args:
@@ -79,6 +80,7 @@ class ActivationsVisualizer:
 			batch_size:				Batch size to use during activations calculations
 			activations_export:		Filename for CSV export of activations
 			max_tiles_per_slide:	Maximum number of tiles from which to generate activations for each slide
+			manifest:				Optional, dict mapping tfrecords to number of tiles contained. Used for progress bars.
 		'''
 		self.missing_slides = []
 		self.categories = []
@@ -86,8 +88,9 @@ class ActivationsVisualizer:
 		self.slide_category_dict = {}
 		self.slide_node_dict = {}
 		self.umap = None
-
+		
 		self.focus_nodes = focus_nodes
+		self.manifest = manifest
 		self.MAX_TILES_PER_SLIDE = max_tiles_per_slide
 		self.IMAGE_SIZE = image_size
 		self.tfrecords = np.array(tfrecords)
@@ -113,6 +116,7 @@ class ActivationsVisualizer:
 				self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
 		# Otherwise will need to generate new activations from a given model
 		else:
+			return
 			self.generate_activations_from_model(model, use_fp16=use_fp16, batch_size=batch_size, export=activations_export, normalizer=normalizer, normalizer_source=normalizer_source)
 			self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
 
@@ -175,7 +179,53 @@ class ActivationsVisualizer:
 			result.update({slide: [[self.slide_node_dict[slide][node][tile_index] for node in self.nodes] for tile_index in range(num_tiles)]})
 		return result
 
-	def get_mapped_predictions(self, x=0, y=0):
+	def map_to_whitespace(self, whitespace_threshold=230):
+
+		def _parse_function(record):
+			features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION)
+			slide = features['slide']
+			image_string = features['image_raw']
+			raw_image = tf.image.decode_jpeg(image_string, channels=3)
+			return raw_image, slide
+
+		def map_to_tfrecord(tfrecord, pb=None):
+			umap_x, umap_y, umap_meta = [], [], []
+			dataset = tf.data.TFRecordDataset(tfrecord)
+			dataset = dataset.map(_parse_function, num_parallel_calls=8)
+			for i, data in enumerate(dataset):
+				if self.MAX_TILES_PER_SLIDE and i >= self.MAX_TILES_PER_SLIDE: break
+				image, slide = data
+				if pb: pb.increase_bar_value()
+				fraction = (np.mean(image.numpy(), axis=2) > whitespace_threshold).sum() / (self.IMAGE_SIZE**2)
+				avg = np.mean(image)
+				umap_x += [fraction]
+				umap_y += [avg]
+				umap_meta += [{
+					'slide': slide.numpy().decode('utf-8'),
+					'index': i
+				}]
+			return np.array(umap_x), np.array(umap_y), np.array(umap_meta)
+
+		total_tiles = 0
+		if self.manifest:
+			try:
+				total_tiles = sum([min(self.manifest[tfrecord]['total'], self.MAX_TILES_PER_SLIDE) if self.MAX_TILES_PER_SLIDE else self.manifest[tfrecord]['total'] for tfrecord in self.tfrecords])
+			except:
+				pass
+		
+		pb = ProgressBar(total_tiles, counter_text='tiles', leadtext="Calculating whitespace... ", show_counter=True, show_eta=True) if total_tiles else None
+		
+		pool = DPool(48)
+		result = pool.map(partial(map_to_tfrecord, pb=pb), self.tfrecords)
+		pool.close()
+		print("\r\033[K", end="")
+		log.empty("Finished whitespace calculations", 1)
+		umap_x = np.concatenate([r[0] for r in result])
+		umap_y = np.concatenate([r[1] for r in result])
+		umap_meta = np.concatenate([r[2] for r in result]).tolist()
+		return umap_x, umap_y, umap_meta
+
+	def map_to_predictions(self, x=0, y=0):
 		'''Returns coordinates and metadata for tile-level predictions for all tiles,
 		which can be used to create a TFRecordMap.
 		
@@ -188,9 +238,7 @@ class ActivationsVisualizer:
 			mapped_y:	List of y-axis coordinates (predictions for the category 'y')
 			umap_meta:	List of dictionaries containing tile-level metadata (used for TFRecordMap)
 		'''
-		umap_x = []
-		umap_y = []
-		umap_meta = []
+		umap_x, umap_y, umap_meta = [], [], []
 		for slide in self.slides:
 			if slide in self.missing_slides: continue
 			for tile_index in range(len(self.slide_logits_dict[slide][0])):
