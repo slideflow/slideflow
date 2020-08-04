@@ -196,10 +196,17 @@ class ActivationsVisualizer:
 				if self.MAX_TILES_PER_SLIDE and i >= self.MAX_TILES_PER_SLIDE: break
 				image, slide = data
 				if pb: pb.increase_bar_value()
-				fraction = (np.mean(image.numpy(), axis=2) > whitespace_threshold).sum() / (self.IMAGE_SIZE**2)
-				avg = np.mean(image)
+				#fraction = (np.mean(image.numpy(), axis=2) > whitespace_threshold).sum() / (self.IMAGE_SIZE**2)
+				#avg = np.mean(image)
+				#umap_x += [fraction]
+				#umap_y += [avg]
+				grayspace_threshold = 0.05
+				hsv_image = mcol.rgb_to_hsv(image.numpy())
+				fraction = (hsv_image[:,:,1] < grayspace_threshold).sum() / (self.IMAGE_SIZE**2)
+				hue = np.mean(hsv_image[:,:,0])
 				umap_x += [fraction]
-				umap_y += [avg]
+				umap_y += [hue]
+
 				umap_meta += [{
 					'slide': slide.numpy().decode('utf-8'),
 					'index': i
