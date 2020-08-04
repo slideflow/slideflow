@@ -54,7 +54,6 @@ from statistics import mean, median
 from pathlib import Path
 from fpdf import FPDF
 from datetime import datetime
-from skimage.transform import resize as skresize
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -307,7 +306,8 @@ class OpenslideToVIPS:
 
 	def get_thumbnail(self, width, enable_downsample=False):
 		'''Returns a PIL thumbnail Image of the whole slide of the given dimensions.'''
-		thumbnail = self.full_image.thumbnail_image(width) 
+		#thumbnail = self.full_image.thumbnail_image(width)
+		thumbnail = self.get_downsampled_image(self.level_count-1).thumbnail_image(width)
 		np_thumb = vips2numpy(thumbnail)
 		pil_thumb = Image.fromarray(np_thumb)
 		return pil_thumb
@@ -593,11 +593,10 @@ class SlideReader(SlideLoader):
 
 				# Read the region and resize to target size
 				region = self.slide.read_region((c[0], c[1]), self.downsample_level, [self.extract_px, self.extract_px])
-				#region = region.resize(float(self.size_px) / self.extract_px)
+				region = region.resize(float(self.size_px) / self.extract_px)
 
 				# Read regions into memory and convert to numpy arrays
 				np_image = vips2numpy(region)[:,:,:-1]
-				np_image = skresize(np_image, (self.size_px, self.size_px))
 
 				# Mark as extracted
 				tile_mask[index] = 1
@@ -618,7 +617,13 @@ class SlideReader(SlideLoader):
 					yield {"input_1": np_image, "input_2": outer_region}, index
 				else:
 					# Perform whitespace filtering
-					fraction = (np.mean(np_image, axis=2) > whitespace_threshold).sum() / (self.size_px**2)
+					#fraction = (np.mean(np_image, axis=2) > whitespace_threshold).sum() / (self.size_px**2)
+					#if fraction > whitespace_fraction: continue
+
+					# Perform grayspace filtering
+					grayspace_threshold = 0.05
+					hsv_image = mcol.rgb_to_hsv(np_image)
+					fraction = (hsv_image[:,:,1] < grayspace_threshold).sum() / (self.size_px**2)
 					if fraction > whitespace_fraction: continue
 
 					# Apply normalization
@@ -637,7 +642,7 @@ class SlideReader(SlideLoader):
 		return generator
 
 	def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None, 
-						whitespace_fraction=0.6, whitespace_threshold=230, normalizer=None, normalizer_source=None):
+						whitespace_fraction=0.6, whitespace_threshold=230, normalizer=None, normalizer_source=None, shuffle=True):
 		'''Extractes tiles from slide and saves into a TFRecord file or as loose JPG tiles in a directory.
 		Args:
 			tfrecord_dir:			If provided, saves tiles into a TFRecord file (named according to slide name) in this directory.
@@ -651,6 +656,11 @@ class SlideReader(SlideLoader):
 			normalizer:				Normalization strategy to use on image tiles
 			normalizer_source:		Path to normalizer source image
 		'''
+		# TESTING
+		# Get image of slide with ROIs overlaid
+		#self.annotated_thumb()
+		#shuffle=False
+
 		# Make base directories
 		if tfrecord_dir:
 			if not exists(tfrecord_dir): os.makedirs(tfrecord_dir)
@@ -689,7 +699,8 @@ class SlideReader(SlideLoader):
 			elif tfrecord_dir:
 				tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
 
-		generator = self.build_generator(normalizer=normalizer,
+		generator = self.build_generator(shuffle=shuffle,
+										 normalizer=normalizer,
 										 normalizer_source=normalizer_source,
 										 whitespace_fraction=whitespace_fraction,
 										 whitespace_threshold=whitespace_threshold)
@@ -738,6 +749,20 @@ class SlideReader(SlideLoader):
 		log.complete(f"Finished tile extraction for slide {sfutil.green(self.shortname)}", 1, self.print)
 
 		return report
+
+	def annotated_thumb(self):
+		'''Returns PIL Image of thumbnail with ROI overlay.'''
+		fig = plt.figure()
+		ax = fig.add_subplot(111)
+		gca = plt.gca()
+		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
+		ROI_SCALE = self.full_shape[0]/2048
+		annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.rois]
+		for poly in annPolys:
+			x,y = poly.exterior.xy
+			plt.plot(x, y, zorder=20, color='k', linewidth=5)
+		ax.imshow(self.thumb(), zorder=0)
+		plt.savefig(f'{self.name}-roi.png', bbox_inches='tight')
 
 	def load_csv_roi(self, path):
 		'''Loads CSV ROI from a given path.'''
