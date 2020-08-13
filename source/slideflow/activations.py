@@ -21,7 +21,6 @@ from io import StringIO
 from slideflow.util import log, ProgressBar, TCGA
 from slideflow.util.fastim import FastImshow
 from slideflow.mosaic import Mosaic
-from slideflow.statistics import TFRecordMap
 from slideflow.slide import StainNormalizer
 from os.path import join, isfile, exists
 from random import sample
@@ -112,12 +111,24 @@ class ActivationsVisualizer:
 			# Load saved PKL cache
 			log.empty("Loading pre-calculated predictions and activations from cache...", 1)
 			with open(self.ACTIVATIONS_CACHE, 'rb') as pt_pkl_file:
+				
 				self.slide_node_dict, self.slide_logits_dict = pickle.load(pt_pkl_file)
-				self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
+				first_slide = list(self.slide_node_dict.keys())[0]
+				logits = 	  list(self.slide_logits_dict[first_slide].keys())
+				self.nodes =  list(self.slide_node_dict[first_slide].keys())
+				if max_tiles_per_slide:
+					log.info(f"Filtering activations to maximum {max_tiles_per_slide} tiles per slide", 1)
+					for slide in self.slide_node_dict.keys():
+						for n in self.nodes:
+							if len(self.slide_node_dict[slide][n]) > max_tiles_per_slide:
+								self.slide_node_dict[slide][n] = self.slide_node_dict[slide][n][:max_tiles_per_slide]
+						for l in logits:
+							if len(self.slide_logits_dict[slide][l]) > max_tiles_per_slide:
+								self.slide_logits_dict[slide][l] = self.slide_logits_dict[slide][l][:max_tiles_per_slide]
+
 		# Otherwise will need to generate new activations from a given model
 		else:
-			return
-			self.generate_activations_from_model(model, use_fp16=use_fp16, batch_size=batch_size, export=activations_export, normalizer=normalizer, normalizer_source=normalizer_source)
+			self.generate_activations_from_model(model, tfrecords, use_fp16=use_fp16, batch_size=batch_size, export=activations_export, normalizer=normalizer, normalizer_source=normalizer_source)
 			self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
 
 		# Now delete slides not included in our filtered TFRecord list
@@ -128,17 +139,22 @@ class ActivationsVisualizer:
 				del self.slide_logits_dict[loaded_slide]
 
 		# Now screen for missing slides in activations
+		missing_slides = []
 		for slide in self.slides:
-			try:
-				if self.slide_node_dict[slide][0] == []:
-					self.missing_slides += [slide]
-				elif self.categories:
-					self.used_categories = list(set(self.used_categories + [self.slide_category_dict[slide]]))
-					self.used_categories.sort()
-			except KeyError:
-				log.warn(f"Skipping unknown slide {slide}", 1)
-				self.missing_slides += [slide]
-		log.info(f"Loaded activations from {(len(self.slides)-len(self.missing_slides))}/{len(self.slides)} slides ({len(self.missing_slides)} missing)", 2)
+			if slide not in self.slide_node_dict:
+				missing_slides += [slide]
+			elif self.slide_node_dict[slide][0] == []:
+				missing_slides += [slide]
+		log.info(f"Loaded activations from {(len(self.slides)-len(missing_slides))}/{len(self.slides)} slides ({len(missing_slides)} missing)", 2)
+		if len(missing_slides):
+			missing_tfrecords = [tfr for tfr in self.tfrecords if sfutil.path_to_name(tfr) in missing_slides]
+			log.empty(f"Generating activations for {len(missing_slides)} missing slides...", 1)
+			self.generate_activations_from_model(model, missing_tfrecords, use_fp16=use_fp16, batch_size=batch_size, export=activations_export, normalizer=normalizer, normalizer_source=normalizer_source)
+		
+		# Record which categories have been included in the specified tfrecords
+		if self.categories:
+			self.used_categories = list(set([self.slide_category_dict[slide] for slide in self.slides]))
+			self.used_categories.sort()
 		log.info(f"Observed categories (total: {len(self.used_categories)}):", 2)
 		for c in self.used_categories:
 			log.empty(f"\t{c}", 2)
@@ -174,7 +190,6 @@ class ActivationsVisualizer:
 		'''
 		result = {}
 		for slide in self.slides:
-			if slide in self.missing_slides: continue
 			num_tiles = len(self.slide_node_dict[slide][0])
 			result.update({slide: [[self.slide_node_dict[slide][node][tile_index] for node in self.nodes] for tile_index in range(num_tiles)]})
 		return result
@@ -247,7 +262,6 @@ class ActivationsVisualizer:
 		'''
 		umap_x, umap_y, umap_meta = [], [], []
 		for slide in self.slides:
-			if slide in self.missing_slides: continue
 			for tile_index in range(len(self.slide_logits_dict[slide][0])):
 				umap_x += [self.slide_logits_dict[slide][x][tile_index]]
 				umap_y += [self.slide_logits_dict[slide][y][tile_index]]
@@ -389,7 +403,7 @@ class ActivationsVisualizer:
 			return
 		tile_node_activations_by_category = []
 		for c in self.used_categories:
-			nodelist = [self.slide_node_dict[pt][node] for pt in self.slides if (pt not in self.missing_slides and self.slide_category_dict[pt] == c)]
+			nodelist = [self.slide_node_dict[pt][node] for pt in self.slides if self.slide_category_dict[pt] == c]
 			tile_node_activations_by_category += [[nodeval for nl in nodelist for nodeval in nl]]
 		return tile_node_activations_by_category
 
@@ -400,10 +414,10 @@ class ActivationsVisualizer:
 			This function then returns a list of all nodes, sorted by ANOVA p-value (most significant first).
 		'''
 		# First ensure basic stats have been calculated
-		if not hasattr(self, 'nodes_avg_pt'):
+		if not hasattr(self, 'sorted_nodes'):
 			self.calculate_activation_averages_and_stats()
 		
-		return self.nodes_avg_pt
+		return self.sorted_nodes
 
 	def get_top_nodes_by_tile(self):
 		'''First, tile-level average node activations are calculated for all tiles.
@@ -412,7 +426,7 @@ class ActivationsVisualizer:
 			This function then returns a list of all nodes, sorted by ANOVA p-value (most significant first).
 		'''
 		# First ensure basic stats have been calculated
-		if not hasattr(self, 'nodes_avg_pt'):
+		if not hasattr(self, 'sorted_nodes'):
 			self.calculate_activation_averages_and_stats()
 		
 		return self.nodes
@@ -650,7 +664,7 @@ class ActivationsVisualizer:
 			return
 
 		# First ensure basic stats have been calculated
-		if not hasattr(self, 'nodes_avg_pt'):
+		if not hasattr(self, 'sorted_nodes'):
 			self.calculate_activation_averages_and_stats()
 		if not export_folder: export_folder = self.STATS_ROOT
 
@@ -669,10 +683,10 @@ class ActivationsVisualizer:
 			if (not self.focus_nodes) and i>4: break
 
 		# Print slide_level box plots & stats
-		for i, node in enumerate(self.nodes_avg_pt):
+		for i, node in enumerate(self.sorted_nodes):
 			if self.focus_nodes and (node not in self.focus_nodes): continue
 			plt.clf()
-			snsbox = sns.boxplot(data=[self.node_dict_avg_pt[node][c] for c in self.used_categories])
+			snsbox = sns.boxplot(data=[self.node_cat_dict[node][c] for c in self.used_categories])
 			title = f"{node} (slide-level)"
 			snsbox.set_title(title)
 			snsbox.set(xlabel="Category",ylabel="Average tile activation")
@@ -703,7 +717,6 @@ class ActivationsVisualizer:
 			
 			gradient = []
 			for slide in self.slides:
-				if slide in self.missing_slides: continue
 				for i, tile in enumerate(self.slide_node_dict[slide][node]):
 					if tile_filter and (slide not in tile_filter) or (i not in tile_filter[slide]):
 						continue
@@ -928,7 +941,7 @@ class Heatmap:
 	'''Generates heatmap by calculating predictions from a sliding scale window across a slide.'''
 
 	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, roi_dir=None, 
-					roi_list=None, roi_method='inside', thumb_folder=None, buffer=True,
+					roi_list=None, roi_method='inside', buffer=True,
 					normalizer=None, normalizer_source=None):
 		'''Object initializer.
 
@@ -943,7 +956,6 @@ class Heatmap:
 			roi_list:			If a roi_dir is not supplied, a list of paths to ROI CSVs can be provided
 			roi_method:			Either 'inside' or 'outside'. If inside, tiles will be extracted inside ROI region
 									If outside, tiles will be extracted outside ROI region
-			thumb_folder:		Folder for caching thumbnail files of slides
 			buffer:				Either 'vmtouch' or path to directory to use for buffering slides
 									Significantly improves performance for slides on HDDs
 			normalizer:			Normalization strategy to use on image tiles
@@ -969,7 +981,6 @@ class Heatmap:
 																		   roi_dir=roi_dir, 
 																		   roi_list=roi_list,
 																		   roi_method=roi_method,
-																		   thumb_folder=thumb_folder if thumb_folder else join(save_folder, 'thumbs'),
 																		   silent=True,
 																		   buffer=buffer,
 																		   pb=pb)
