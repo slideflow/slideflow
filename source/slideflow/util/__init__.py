@@ -158,13 +158,11 @@ class ProgressBar:
 
 	def end(self, id=-1):
 		if id == -1:
-			bars_keys = list(self.BARS.keys())
-			for bar_id in range(len(self.BARS)):
-				del(self.BARS[bar_id])
-			sys.stdout.write(self.text)
+			self.BARS = []
+			print(f"\r\033[K", end="")
 		else:
 			del(self.BARS[id])
-			sys.stdout.write(f"\r\033[K{self.text}\n")
+			print(f"\r\033[K{self.text}", end="")
 
 	def print(self, string):
 		sys.stdout.write(f"\r\033[K{string}\n")
