@@ -33,7 +33,7 @@ from slideflow.statistics import TFRecordMap, calculate_centroid
 from slideflow.mosaic import Mosaic
 from comet_ml import Experiment
 
-__version__ = "1.9.0a"
+__version__ = "1.9.0a2"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -165,7 +165,6 @@ def _heatmap_generator(slide, model_name, model_path, save_folder, roi_list, sho
 	heatmap = Heatmap(slide, model_path, hp_data['tile_px'], hp_data['tile_um'],use_fp16=project_config['use_fp16'],
 																				stride_div=stride_div,
 																				roi_list=roi_list,
-																				thumb_folder=join(project_config['root'], 'thumbs'),
 																				buffer=True,
 																				normalizer=normalizer,
 																				normalizer_source=normalizer_source)
@@ -964,9 +963,10 @@ class SlideflowProject:
 
 			# Prepare list of slides for extraction
 			slide_list = extracting_dataset.get_slide_paths(dataset=dataset_name)
-			already_extracted_tfrecords = [sfutil.path_to_name(tfr) for tfr in extracting_dataset.get_tfrecords(dataset=dataset_name)]
-			if skip_extracted:
-				# First, check for interrupted extraction
+			
+			# Check for interrupted or already-extracted tfrecords
+			if skip_extracted and save_tfrecord:
+				already_extracted_tfrecords = [sfutil.path_to_name(tfr) for tfr in extracting_dataset.get_tfrecords(dataset=dataset_name)]
 				interrupted = [sfutil.path_to_name(marker) for marker in glob(join((tfrecord_dir if tfrecord_dir else tiles_folder), '*.unfinished'))]
 				if len(interrupted):
 					log.info(f'Interrupted tile extraction detected in {len(interrupted)} tfrecords, will re-extract these slides', 1)
@@ -1087,7 +1087,7 @@ class SlideflowProject:
 			extracting_dataset.update_manifest()
 
 	def generate_activations_analytics(self, model, outcome_header=None, filters=None, filter_blank=None, focus_nodes=[], node_exclusion=False, activations_export=None,
-										activations_cache='default', normalizer=None, normalizer_source=None):
+										activations_cache='default', normalizer=None, normalizer_source=None, max_tiles_per_slide=100):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.
 		Note: GPU memory will remain in use, as the Keras model associated with the visualizer is active.
 		
@@ -1132,7 +1132,8 @@ class SlideflowProject:
 								   normalizer=normalizer,
 								   normalizer_source=normalizer_source,
 								   activations_export=None if not activations_export else join(stats_root, activations_export),
-								   activations_cache=activations_cache)
+								   activations_cache=activations_cache,
+								   max_tiles_per_slide=max_tiles_per_slide)
 
 		return AV
 
@@ -1508,21 +1509,33 @@ class SlideflowProject:
 		if umap_filename:
 			umap.save_2d_plot(join(stats_root, umap_filename), slide_to_category)
 
-	def generate_thumbnails(self, filters=None, filter_blank=None, enable_downsample=False):
-		'''Generates slide thumbnails and saves to project folder.'''
+	def generate_thumbnails(self, size=512, filters=None, filter_blank=None, enable_downsample=False):
+		'''Generates square slide thumbnails with black box borders of a fixed size, and saves to project folder.
+		
+		Args:
+			size:				Int. Width/height of thumbnail in pixels.
+			filters:			Dataset filters.
+			filter_blank:		Header columns in annotations by which to filter slides, if the slides are blank in this column.
+			enable_downsample:	Bool. If True and a thumbnail is not embedded in the slide file, downsampling is permitted in order
+									to accelerate thumbnail calculation.
+		'''
 		import slideflow.slide as sfslide
 		log.header('Generating thumbnails...')
 
 		thumb_folder = join(self.PROJECT['root'], 'thumbs')
+		if not exists(thumb_folder): os.makedirs(thumb_folder)
 		dataset = self.get_dataset(filters=filters, filter_blank=filter_blank, tile_px=0, tile_um=0)
 		slide_list = dataset.get_slide_paths()
+		roi_list = dataset.get_rois()
 		log.info(f"Saving thumbnails to {sfutil.green(thumb_folder)}", 1)
 
 		for slide_path in slide_list:
 			log.empty(f"Working on {sfutil.green(sfutil.path_to_name(slide_path))}...", 1)
-			whole_slide = sfslide.SlideReader(slide_path, 0, 0, 1, enable_downsample=enable_downsample,
+			whole_slide = sfslide.SlideReader(slide_path, 1, 1, 1, enable_downsample=enable_downsample,
+																   roi_list=roi_list,
 																   skip_missing_roi=False,
 																   buffer=None)
+			whole_slide.square_thumb(size).save(join(thumb_folder, f'{whole_slide.name}.png'))
 
 	def generate_tfrecords_from_tiles(self, tile_px, tile_um, delete_tiles=True):
 		'''Create tfrecord files from a collection of raw images, as stored in project tiles directory'''
