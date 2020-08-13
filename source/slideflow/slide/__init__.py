@@ -41,7 +41,7 @@ import slideflow.util as sfutil
 
 from os.path import join, isfile, exists
 from math import sqrt
-from PIL import Image
+from PIL import Image, ImageDraw
 from multiprocessing.dummy import Pool as DPool
 from multiprocessing import Process, Pool, Queue
 from matplotlib.widgets import Slider
@@ -304,14 +304,6 @@ class OpenslideToVIPS:
 		else:
 			return False
 
-	def get_thumbnail(self, width, enable_downsample=False):
-		'''Returns a PIL thumbnail Image of the whole slide of the given dimensions.'''
-		#thumbnail = self.full_image.thumbnail_image(width)
-		thumbnail = self.get_downsampled_image(self.level_count-1).thumbnail_image(width)
-		np_thumb = vips2numpy(thumbnail)
-		pil_thumb = Image.fromarray(np_thumb)
-		return pil_thumb
-
 	def read_region(self, base_level_dim, downsample_level, extract_size):
 		'''Extracts a region from the image at the given downsample level.'''
 		base_level_x, base_level_y = base_level_dim
@@ -376,7 +368,7 @@ class SlideLoader:
 	'''Object that loads an SVS slide and makes preparations for tile extraction.
 	Should not be used directly; this class must be inherited and extended by a child class!'''
 	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False,
-					thumb_folder=None, silent=False, buffer=None, pb=None):
+					silent=False, buffer=None, pb=None):
 		self.load_error = False
 		self.silent = silent
 		if pb and not silent:
@@ -393,8 +385,6 @@ class SlideLoader:
 		self.tile_mask = None
 		self.enable_downsample = enable_downsample
 		self.thumb_image = None
-		self.thumb_folder = thumb_folder
-		if thumb_folder and not exists(thumb_folder): os.makedirs(thumb_folder)
 		filetype = sfutil.path_to_ext(path)
 
 		# Initiate supported slide reader
@@ -410,7 +400,7 @@ class SlideLoader:
 
 		# Collect basic slide information
 		try:
-			self.MPP = float(self.slide.properties[OPS_MPP_X])#ops.PROPERTY_NAME_MPP_X])
+			self.MPP = float(self.slide.properties[OPS_MPP_X])
 		except KeyError:
 			log.error(f"Corrupted SVS ({sfutil.green(self.name)}), skipping slide", 1, self.print)
 			self.load_error = True
@@ -437,20 +427,57 @@ class SlideLoader:
 		self.filter_magnification = self.filter_dimensions[0] / self.full_shape[0]
 		self.filter_px = int(self.full_extract_px * self.filter_magnification)
 	
-	def thumb(self):
-		'''Returns thumbnail of the slide.'''
-		if self.thumb_folder:
-			thumbs = os.listdir(self.thumb_folder)
-			matching_thumbs = [tb for tb in thumbs if sfutil.path_to_name(tb) == self.name]
-			if matching_thumbs:
-				self.thumb_image = Image.open(join(self.thumb_folder, matching_thumbs[0]))
-				return self.thumb_image
+	def square_thumb(self, width=512):
+		'''Returns a square thumbnail of the slide, with black bar borders.
+
+		Args:
+			width:		Width/height of thumbnail in pixels.
+
+		Returns:
+			PIL image
+		'''
+		# Get thumbnail image and dimensions via fastest method available
+		if 'slide-associated-images' in self.slide.properties and 'thumbnail' in self.slide.properties['slide-associated-images']:
+			vips_thumb = vips.Image.openslideload(self.slide.path, associated='thumbnail')
+		else:
+			level = max(0, self.slide.level_count-2)
+			vips_thumb = self.slide.get_downsampled_image(level)
+
+		height = int(width / (vips_thumb.width / vips_thumb.height))
+		np_thumb = vips2numpy(vips_thumb)
+		thumb = Image.fromarray(np_thumb).resize((width, height))
+
+		# Standardize to square with black borders as needed
+		square_thumb = Image.new("RGB", (width, width))
+		square_thumb.paste(thumb, (0, int((width-height)/2)))
+		return square_thumb
+
+	def thumb(self, mpp=55):
+		'''Returns PIL thumbnail of the slide.
+		
+		Args:
+			mpp:	Microns-per-pixel of thumbnail (determines size of thumbnail to return)
+			
+		Returns:
+			PIL image
+		'''
 		if not self.thumb_image:
-			print("Calculating thumbnail from slide...", end="")
-			self.thumb_image = self.slide.get_thumbnail(2048, enable_downsample=self.enable_downsample)
-			print("\r\033[K", end="")
-			if self.thumb_folder:
-				self.thumb_image.convert('RGB').save(join(self.thumb_folder, self.name+'.jpg'))
+			# Get thumbnail image and dimensions via fastest method available
+			if 'slide-associated-images' in self.slide.properties and 'thumbnail' in self.slide.properties['slide-associated-images']:
+				thumbnail = vips.Image.openslideload(self.slide.path, associated='thumbnail')
+			elif self.enable_downsample:
+				level = max(0, self.slide.level_count-2)
+				thumbnail = self.slide.get_downsampled_image(level)
+			else:
+				thumbnail = self.slide.full_image.thumbnail_image(width)
+
+			# Calculate goal width/height according to specified microns-per-pixel (MPP)
+			width = int((self.MPP * self.full_shape[0]) / mpp)
+			height = int((self.MPP * self.full_shape[1]) / mpp)
+
+			# Convert thumb image to PIL
+			np_thumb = vips2numpy(thumbnail)
+			self.thumb_image = Image.fromarray(np_thumb).resize((width, height))
 		return self.thumb_image
 
 	def build_generator(self):
@@ -473,8 +500,8 @@ class SlideReader(SlideLoader):
 
 	ROI_SCALE = 10
 
-	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, roi_dir=None, roi_list=None,
-					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, thumb_folder=None, silent=False, buffer=None, pb=None, pb_id=0):
+	def __init__(self, path, size_px, size_um, stride_div=1, enable_downsample=False, roi_dir=None, roi_list=None,
+					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, silent=False, buffer=None, pb=None, pb_id=0):
 		'''Initializer.
 
 		Args:
@@ -488,7 +515,6 @@ class SlideReader(SlideLoader):
 			roi_list:			Alternatively, a list of ROI paths can be explicitly provided
 			roi_method:			Either inside or outside. Determines how ROIs are used to extract tiles
 			skip_missing_roi:	Bool, if True, will skip tiles that are missing a ROI file
-			thumb_folder:		If provided, will save image thumbnails to this folder as a buffer
 			silent:				Bool, if True, will hide logging output
 			buffer:				Either 'vmtouch' or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
 									If a directory, slides will be copied to the directory as a buffer before extraction.
@@ -496,7 +522,7 @@ class SlideReader(SlideLoader):
 			pb:					ProgressBar instance; will update progress bar during tile extraction if provided
 			pb_id:				ID of bar in ProgressBar, defaults to 0
 		'''
-		super().__init__(path, size_px, size_um, stride_div, enable_downsample, thumb_folder, silent, buffer, pb)
+		super().__init__(path, size_px, size_um, stride_div, enable_downsample, silent, buffer, pb)
 
 		# Initialize calculated variables
 		self.extracted_x_size = 0
@@ -656,10 +682,6 @@ class SlideReader(SlideLoader):
 			normalizer:				Normalization strategy to use on image tiles
 			normalizer_source:		Path to normalizer source image
 		'''
-		# TESTING
-		# Get image of slide with ROIs overlaid
-		#self.annotated_thumb()
-		#shuffle=False
 
 		# Make base directories
 		if tfrecord_dir:
@@ -750,19 +772,24 @@ class SlideReader(SlideLoader):
 
 		return report
 
-	def annotated_thumb(self):
-		'''Returns PIL Image of thumbnail with ROI overlay.'''
-		fig = plt.figure()
-		ax = fig.add_subplot(111)
-		gca = plt.gca()
-		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
-		ROI_SCALE = self.full_shape[0]/2048
+	def annotated_thumb(self, mpp=55):
+		'''Returns PIL Image of thumbnail with ROI overlay.
+		
+		Args:
+			mpp:	Microns-per-pixel, used to determine thumbnail size
+			
+		Returns:
+			PIL image
+		'''
+		ROI_SCALE = self.full_shape[0]/(int((self.MPP * self.full_shape[0]) / mpp))
 		annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.rois]
+		annotated_thumb = self.thumb(mpp=mpp).copy()
+		draw = ImageDraw.Draw(annotated_thumb)
 		for poly in annPolys:
-			x,y = poly.exterior.xy
-			plt.plot(x, y, zorder=20, color='k', linewidth=5)
-		ax.imshow(self.thumb(), zorder=0)
-		plt.savefig(f'{self.name}-roi.png', bbox_inches='tight')
+			x,y = poly.exterior.coords.xy
+			zipped = list(zip(x.tolist(),y.tolist()))
+			draw.polygon(zipped, outline="#000000")
+		return annotated_thumb
 
 	def load_csv_roi(self, path):
 		'''Loads CSV ROI from a given path.'''
