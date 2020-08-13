@@ -93,7 +93,7 @@ class TFRecordMap:
 			obj._calculate_from_nodes(prediction_filter=prediction_filter, force_recalculate=force_recalculate)
 		return obj
 
-	def _calculate_from_nodes(self, prediction_filter=None, force_recalculate=False):
+	def _calculate_from_nodes(self, prediction_filter=None, force_recalculate=False, low_memory=False, max_tiles_per_slide=0):
 		''' Internal function to guide calculation of UMAP from final layer activations, as provided via ActivationsVisualizer nodes.'''
 		if len(self.x) and len(self.y) and not force_recalculate:
 			log.info("UMAP loaded from cache, will not recalculate", 1)
@@ -115,7 +115,23 @@ class TFRecordMap:
 					logits = [self.AV.slide_logits_dict[slide][l][tile_index] for l in range(num_logits)]
 					filtered_logits = [logits[l] for l in prediction_filter]
 					prediction = logits.index(max(filtered_logits))
+					self.point_meta[i]['logits'] = logits
 					self.point_meta[i]['prediction'] = prediction
+
+			if max_tiles_per_slide:
+				log.info(f"Restricting map to maximum of {max_tiles_per_slide} tiles per slide", 1)
+				new_x, new_y, new_meta = [], [], []
+				slide_tile_count = {}
+				for i, pm in enumerate(self.point_meta):
+					slide = pm['slide']
+					if slide not in slide_tile_count:
+						slide_tile_count.update({slide: 1})
+					elif slide_tile_count[slide] < max_tiles_per_slide:
+						new_x += [self.x[i]]
+						new_y += [self.y[i]]
+						new_meta += [pm]
+						slide_tile_count[slide] += 1
+				self.x, self.y, self.point_meta = np.array(new_x), np.array(new_y), np.array(new_meta)
 			return
 
 		# Calculate UMAP
@@ -140,14 +156,15 @@ class TFRecordMap:
 					'slide': slide,
 					'index': i,
 					'prediction': prediction,
+					'logits': logits
 				}]
 
-		coordinates = gen_umap(np.array(node_activations), n_neighbors=100, min_dist=0.5)
+		coordinates = gen_umap(np.array(node_activations), n_neighbors=100, min_dist=0.5, low_memory=low_memory)
 		self.x = np.array([c[0] for c in coordinates])
 		self.y = np.array([c[1] for c in coordinates])
 		self.save_cache()
 
-	def _calculate_from_centroid(self, prediction_filter=None, force_recalculate=False):
+	def _calculate_from_centroid(self, prediction_filter=None, force_recalculate=False, low_memory=False):
 		''' Internal function to guide calculation of UMAP from final layer activations, as provided via ActivationsVisualizer nodes,
 			for each tile and then map only the centroid tile for each slide. '''
 
@@ -186,6 +203,7 @@ class TFRecordMap:
 						meta = {
 							'slide': slide,
 							'index': tile_index,
+							'logits': logits,
 							'prediction': prediction,
 						}
 					else:
@@ -203,10 +221,14 @@ class TFRecordMap:
 				self.point_meta += [{
 					'slide': slide,
 					'index': optimal_slide_indices[slide],
+					'logits': [],
 					'prediction': 0
 				}]
 
-			coordinates = gen_umap(np.array(umap_input))
+			coordinates = gen_umap(np.array(umap_input), low_memory=low_memory)
+			self.x = np.array([c[0] for c in coordinates])
+			self.y = np.array([c[1] for c in coordinates])
+			self.save_cache()
 			self.x = np.array([c[0] for c in coordinates])
 			self.y = np.array([c[1] for c in coordinates])
 			self.save_cache()
@@ -403,6 +425,7 @@ def calculate_centroid(slide_node_dict):
 		# Reorganize "slide_nodes" into an array of node activations for each tile
 		# Final size of array should be (num_nodes, num_tiles_in_slide) 
 		activations = [[slide_nodes[n][i] for n in nodes] for i in range(len(slide_nodes[0]))]
+		if not len(activations): continue
 		km = KMeans(n_clusters=1).fit(activations)
 		closest, _ = pairwise_distances_argmin_min(km.cluster_centers_, activations)
 		closest_index = closest[0]
@@ -432,10 +455,10 @@ def normalize_layout(layout, min_percentile=1, max_percentile=99, relative_margi
 
 	return clipped
 
-def gen_umap(array, n_components=2, n_neighbors=20, min_dist=0.01, metric='cosine'):
+def gen_umap(array, n_components=2, n_neighbors=20, min_dist=0.01, metric='cosine', low_memory=False):
 	'''Generates and returns a umap from a given array.'''
 	try:
-		layout = umap.UMAP(n_components=n_components, verbose=True, n_neighbors=n_neighbors, min_dist=min_dist, metric=metric).fit_transform(array)
+		layout = umap.UMAP(n_components=n_components, verbose=True, n_neighbors=n_neighbors, min_dist=min_dist, metric=metric, low_memory=low_memory).fit_transform(array)
 	except ValueError:
 		log.error("Error performing UMAP. Please make sure you are supplying a non-empty TFRecord array and that the TFRecords are not empty.")
 		sys.exit()
@@ -642,7 +665,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	y_true, y_pred, tile_to_slides = [], [], []
 	detected_batch_size = 0
 	pb = ProgressBar(num_tiles, counter_text='images', leadtext="Generating predictions... ", show_counter=True, show_eta=True) if num_tiles else None
-	
+
 	# Get predictions and performance metrics
 	for i, batch in enumerate(dataset_with_slidenames):
 		if pb:
