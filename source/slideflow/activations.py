@@ -536,6 +536,7 @@ class ActivationsVisualizer:
 		#	print(slide, mean(filtered_predictions[slide]))
 		return neighbors
 
+	def generate_activations_from_model(self, model, tfrecords, use_fp16=True, batch_size=16, export=None, normalizer=None, normalizer_source=None):
 		'''Calculates activations from a given model.
 
 		Args:
@@ -555,18 +556,18 @@ class ActivationsVisualizer:
 		model_output = loaded_model([model_input, model_input])
 		combined_model = tf.keras.Model(model_input, model_output)
 
-		unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in self.tfrecords]))
+		unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in tfrecords]))
 
 		# Prepare normalizer
 		if normalizer: log.info(f"Using realtime {normalizer} normalization", 2)
 		normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
 		# Prepare PKL export dictionary
-		self.slide_node_dict = {}
-		self.slide_logits_dict = {}
 		for slide in unique_slides:
-			self.slide_node_dict.update({slide: {}})
-			self.slide_logits_dict.update({slide: {}})
+			if slide not in self.slide_node_dict:
+				self.slide_node_dict.update({slide: {}})
+			if slide not in self.slide_logits_dict:
+				self.slide_logits_dict.update({slide: {}})
 
 		def _parse_function(record):
 			features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION)
@@ -589,7 +590,7 @@ class ActivationsVisualizer:
 			outfile = open(export, 'w')
 			csvwriter = csv.writer(outfile)
 
-		for t, tfrecord in enumerate(self.tfrecords):
+		for t, tfrecord in enumerate(tfrecords):
 			dataset = tf.data.TFRecordDataset(tfrecord)
 
 			dataset = dataset.map(_parse_function, num_parallel_calls=8)
@@ -600,24 +601,31 @@ class ActivationsVisualizer:
 			for i, data in enumerate(dataset):
 				batch_processed_images, batch_slides = data
 				batch_slides = batch_slides.numpy()
+				batch_slides = np.array([unique_slides.index(bs.decode('utf-8')) for bs in batch_slides], dtype=np.uint8)
 
 				fl_activations, logits = combined_model.predict(batch_processed_images)
+
 				
 				fl_activations_combined = fl_activations if fl_activations_combined == [] else np.concatenate([fl_activations_combined, fl_activations])
 				logits_combined = logits if logits_combined == [] else np.concatenate([logits_combined, logits])
 				slides_combined = batch_slides if slides_combined == [] else np.concatenate([slides_combined, batch_slides])
 
-				sys.stdout.write(f"\r(TFRecord {t+1:>3}/{len(self.tfrecords):>3}) (Batch {i+1:>3}) ({len(fl_activations_combined):>5} images): {sfutil.green(sfutil.path_to_name(tfrecord))}")
+				sys.stdout.write(f"\r(TFRecord {t+1:>3}/{len(tfrecords):>3}) (Batch {i+1:>3}) ({len(fl_activations_combined):>5} images): {sfutil.green(sfutil.path_to_name(tfrecord))}")
 				sys.stdout.flush()
 
 				if self.MAX_TILES_PER_SLIDE and (len(fl_activations_combined) >= self.MAX_TILES_PER_SLIDE):
 					break
+			
+			# Check if TFRecord was empty
+			if fl_activations_combined == []:
+				log.warn(f"Unable to calculate activations from {sfutil.green(sfutil.path_to_name(tfrecord))}; is the TFRecord empty?", 1)
+				continue
 
 			if not nodes_names and not logits_names:
 				nodes_names = [f"FLNode{f}" for f in range(fl_activations_combined.shape[1])]
 				logits_names = [f"Logits{l}" for l in range(logits_combined.shape[1])]
-				header = ["Slide"] + logits_names + nodes_names
 				if export:
+					header = ["Slide"] + logits_names + nodes_names
 					csvwriter.writerow(header)
 				for n in range(len(nodes_names)):
 					for slide in unique_slides:
@@ -633,7 +641,7 @@ class ActivationsVisualizer:
 
 			# Export to memory and CSV
 			for i in range(len(fl_activations_combined)):
-				slide = slides_combined[i].decode('utf-8')
+				slide = unique_slides[slides_combined[i]]
 				activations_vals = fl_activations_combined[i].tolist()
 				logits_vals = logits_combined[i].tolist()
 				# Write to CSV
