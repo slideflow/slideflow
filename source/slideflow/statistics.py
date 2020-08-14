@@ -106,6 +106,7 @@ class TFRecordMap:
 			self.x = np.array([self.x[i] for i in range(len(self.x)) if self.point_meta[i]['slide'] in self.AV.slides])
 			self.y = np.array([self.y[i] for i in range(len(self.y)) if self.point_meta[i]['slide'] in self.AV.slides])
 			self.point_meta = np.array([self.point_meta[i] for i in range(len(self.point_meta)) if self.point_meta[i]['slide'] in self.AV.slides])
+			self.values = np.array(['None' for i in range(len(self.point_meta)) if self.point_meta[i]['slide'] in self.AV.slides])
 			
 			# If UMAP already calculated, only update predictions if prediction filter is provided
 			if prediction_filter:
@@ -136,6 +137,7 @@ class TFRecordMap:
 						new_meta += [pm]
 						slide_tile_count[slide] += 1
 				self.x, self.y, self.point_meta = np.array(new_x), np.array(new_y), np.array(new_meta)
+				self.values = np.array(['None' for i in range(len(self.point_meta))])
 			return
 
 		# Calculate UMAP
@@ -166,6 +168,7 @@ class TFRecordMap:
 		coordinates = gen_umap(np.array(node_activations), n_neighbors=100, min_dist=0.5, low_memory=low_memory)
 		self.x = np.array([c[0] for c in coordinates])
 		self.y = np.array([c[1] for c in coordinates])
+		self.values = np.array(['None' for i in range(len(self.point_meta))])
 		self.save_cache()
 
 	def _calculate_from_slides(self, method='centroid', prediction_filter=None, force_recalculate=False, low_memory=False):
@@ -225,6 +228,7 @@ class TFRecordMap:
 			self.x = np.array(new_x)
 			self.y = np.array(new_y)
 			self.point_meta = np.array(new_meta)
+			self.values = np.array(['None' for i in range(len(self.point_meta))])
 		else:
 			log.empty(f"Calculating UMAP from slide-level {method}...", 1)
 			umap_input = []
@@ -244,6 +248,7 @@ class TFRecordMap:
 			coordinates = gen_umap(np.array(umap_input), n_neighbors=50, min_dist=0.1, low_memory=low_memory)
 			self.x = np.array([c[0] for c in coordinates])
 			self.y = np.array([c[1] for c in coordinates])
+			self.values = np.array(['None' for i in range(len(self.point_meta))])
 			self.save_cache()
 
 	def cluster(self, n_clusters):
@@ -299,7 +304,7 @@ class TFRecordMap:
 			# Restore backed up full coordinates
 			self.x, self.y, self.point_meta = self.full_x, self.full_y, self.full_meta
 		
-		self.point_meta = [pm for pm in self.point_meta if pm['slide'] in slides]
+		self.point_meta = np.array([pm for pm in self.point_meta if pm['slide'] in slides])
 		self.x = np.array([self.x[xi] for xi in range(len(self.x)) if self.point_meta[xi]['slide'] in slides])
 		self.y = np.array([self.y[yi] for yi in range(len(self.y)) if self.point_meta[yi]['slide'] in slides])
 
