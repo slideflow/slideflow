@@ -71,7 +71,7 @@ class TFRecordMap:
 		return obj
 
 	@classmethod
-	def from_activations(cls, activations, exclude_slides=None, prediction_filter=None, force_recalculate=False, use_centroid=False, cache=None):
+	def from_activations(cls, activations, exclude_slides=None, prediction_filter=None, force_recalculate=False, map_slide=None, cache=None, low_memory=False, max_tiles_per_slide=0):
 		'''Initializes map from an activations visualizer.
 
 		Args:
@@ -82,18 +82,21 @@ class TFRecordMap:
 			use_centroid:		(optional) Will calculate and map centroid activations.
 			cache:				(optional) String, path name. If provided, will cache umap coordinates to this PKL file. '''
 
+		if map_slide is not None and map_slide not in ('centroid', 'average'):
+			raise StatisticsError(f"Argument map_slide must be either None (default), 'centroid', or 'average', not '{map_slide}'")
+
 		slides = activations.slides if not exclude_slides else [slide for slide in activations.slides if slide not in exclude_slides]
 		tfrecords = activations.tfrecords if not exclude_slides else [tfr for tfr in activations.tfrecords if sfutil.path_to_name(tfr) not in exclude_slides]
 
 		obj = cls(slides, tfrecords, cache=cache)
 		obj.AV = activations
-		if use_centroid:
-			obj._calculate_from_centroid(prediction_filter=prediction_filter, force_recalculate=force_recalculate)
+		if map_slide:
+			obj._calculate_from_slides(method=map_slide, prediction_filter=prediction_filter, force_recalculate=force_recalculate, low_memory=low_memory)
 		else:
-			obj._calculate_from_nodes(prediction_filter=prediction_filter, force_recalculate=force_recalculate)
+			obj._calculate_from_tiles(prediction_filter=prediction_filter, force_recalculate=force_recalculate, low_memory=low_memory, max_tiles_per_slide=max_tiles_per_slide)
 		return obj
 
-	def _calculate_from_nodes(self, prediction_filter=None, force_recalculate=False, low_memory=False, max_tiles_per_slide=0):
+	def _calculate_from_tiles(self, prediction_filter=None, force_recalculate=False, low_memory=False, max_tiles_per_slide=0):
 		''' Internal function to guide calculation of UMAP from final layer activations, as provided via ActivationsVisualizer nodes.'''
 		if len(self.x) and len(self.y) and not force_recalculate:
 			log.info("UMAP loaded from cache, will not recalculate", 1)
@@ -164,11 +167,23 @@ class TFRecordMap:
 		self.y = np.array([c[1] for c in coordinates])
 		self.save_cache()
 
-	def _calculate_from_centroid(self, prediction_filter=None, force_recalculate=False, low_memory=False):
+	def _calculate_from_slides(self, method='centroid', prediction_filter=None, force_recalculate=False, low_memory=False):
 		''' Internal function to guide calculation of UMAP from final layer activations, as provided via ActivationsVisualizer nodes,
-			for each tile and then map only the centroid tile for each slide. '''
+			for each tile and then map only the centroid tile for each slide.
+			
+		Args:
+			method:					Either 'centroid' or 'average'. If centroid, will calculate UMAP only from centroid tiles for each slide.
+										If average, will calculate UMAP based on average node activations across all tiles within the slide, 
+										then display the centroid tile for each slide.
+			prediction_filter:		(optional) List of int. If provided, will restrict predictions to only these categories.
+			force_recalculate:		Bool, default=False. If true, will force recalculation of UMAP despite loading from cache.
+			low_memory:				Bool, if True, will calculate UMAP in low-memory mode (less memory allocation, more CPU computations)
+		'''
 
-		log.info("Calculating centroid indices for slide-level UMAP...", 1)
+		if method not in ('centroid', 'average'):
+			raise StatisticsError(f'Method must be either "centroid" or "average", not {method}')
+
+		log.info("Calculating centroid indices...", 1)
 		optimal_slide_indices, centroid_activations = calculate_centroid(self.AV.slide_node_dict)
 		
 		# Restrict mosaic to only slides that had enough tiles to calculate an optimal index from centroid
@@ -185,15 +200,12 @@ class TFRecordMap:
 
 		if len(self.x) and len(self.y) and not force_recalculate:
 			log.info("UMAP loaded from cache, will filter to include only provided tiles", 1)
-			new_x = []
-			new_y = []
-			new_meta = []
+			new_x, new_y, new_meta = [], [], []
 			for i in range(len(self.point_meta)):
 				slide = self.point_meta[i]['slide']
 				if slide in optimal_slide_indices and self.point_meta[i]['index'] == optimal_slide_indices[slide]:
 					new_x += [self.x[i]]
 					new_y += [self.y[i]]
-					
 					if prediction_filter:
 						num_logits = len(self.AV.slide_logits_dict[slide])
 						tile_index = self.point_meta[i]['index']
@@ -208,16 +220,19 @@ class TFRecordMap:
 						}
 					else:
 						meta = self.point_meta[i]
-						
 					new_meta += [meta]
 			self.x = np.array(new_x)
 			self.y = np.array(new_y)
 			self.point_meta = np.array(new_meta)
 		else:
-			log.empty("Calculating UMAP...", 1)
+			log.empty(f"Calculating UMAP from slide-level {method}...", 1)
 			umap_input = []
 			for slide in self.slides:
-				umap_input += [centroid_activations[slide]]
+				if method == 'centroid':
+					umap_input += [centroid_activations[slide]]
+				elif method == 'average':
+					activation_averages = [np.mean(self.AV.slide_node_dict[slide][n]) for n in self.AV.nodes]
+					umap_input += [activation_averages]
 				self.point_meta += [{
 					'slide': slide,
 					'index': optimal_slide_indices[slide],
@@ -225,10 +240,7 @@ class TFRecordMap:
 					'prediction': 0
 				}]
 
-			coordinates = gen_umap(np.array(umap_input), low_memory=low_memory)
-			self.x = np.array([c[0] for c in coordinates])
-			self.y = np.array([c[1] for c in coordinates])
-			self.save_cache()
+			coordinates = gen_umap(np.array(umap_input), n_neighbors=50, min_dist=0.1, low_memory=low_memory)
 			self.x = np.array([c[0] for c in coordinates])
 			self.y = np.array([c[1] for c in coordinates])
 			self.save_cache()
