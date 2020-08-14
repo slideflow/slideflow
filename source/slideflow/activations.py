@@ -32,6 +32,7 @@ from matplotlib.widgets import Slider
 from functools import partial
 from multiprocessing.dummy import Process as DProcess
 from multiprocessing.dummy import Pool as DPool
+from sklearn.neighbors import NearestNeighbors
 from PIL import Image
 
 # TODO: add check that cached PKL corresponds to current and correct model & slides
@@ -59,7 +60,7 @@ class ActivationsVisualizer:
 	
 	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_header=None, 
 					focus_nodes=[], use_fp16=True, normalizer=None, normalizer_source=None, 
-					use_activations_cache=False, activations_cache='default', batch_size=16,
+					use_activations_cache=False, activations_cache='default', batch_size=32,
 					activations_export=None, max_tiles_per_slide=100, manifest=None):
 		'''Object initializer.
 
@@ -85,6 +86,7 @@ class ActivationsVisualizer:
 		self.used_categories = []
 		self.slide_category_dict = {}
 		self.slide_node_dict = {}
+		self.slide_logits_dict = {}
 		self.umap = None
 		
 		self.focus_nodes = focus_nodes
@@ -158,25 +160,37 @@ class ActivationsVisualizer:
 		for c in self.used_categories:
 			log.empty(f"\t{c}", 2)
 
-	def _save_node_statistics_to_csv(self, nodes_avg_pt, filename, tile_stats=None, slide_stats=None):
-		'''Internal function to exports statistics (ANOVA p-values and slide-level averages) to CSV.'''
+	def _save_node_statistics_to_csv(self, sorted_nodes, slide_node_dict, filename, tile_stats=None, slide_stats=None):
+		'''Internal function to exports statistics (ANOVA p-values and slide-level averages) to CSV.
+		
+		Args:
+			sorted_nodes:		List of node IDs (int) sorted in order of significance.
+			slide_node_dict:	Dict mapping slides to dict of nodes mapping to slide-level values as calculated elsewhere.
+									Slide-level node values could be mean, median, thresholded, or other.
+			filename:			Filename
+			tile_stats:			Dictionary mapping nodes to a dict of tile-level stats containing 'p' (ANOVA P-value) and 'f' (ANOVA F-value) for each node
+									As calculated elsewhere by comparing node activations between categories
+			slide_stats:		Dictionary mapping nodes to a dict of slide-level stats containing 'p' (ANOVA P-value), 'f' (ANOVA F-value),
+									and 'num_above_threshold' for each node
+									As calculated elsewhere by comparing node activations between categories
+		'''
 		# Save results to CSV
 		log.empty(f"Writing results to {sfutil.green(filename)}...", 1)
 		with open(filename, 'w') as outfile:
 			csv_writer = csv.writer(outfile)
-			header = ['slide', 'category'] + [f"FLNode{n}" for n in nodes_avg_pt]
+			header = ['slide', 'category'] + [f"FLNode{n}" for n in sorted_nodes]
 			csv_writer.writerow(header)
 			for slide in self.slides:
-				if slide in self.missing_slides: continue
 				category = self.slide_category_dict[slide]
-				row = [slide, category] + [mean(self.slide_node_dict[slide][n]) for n in nodes_avg_pt]
+				row = [slide, category] + [slide_node_dict[slide][n] for n in sorted_nodes]
 				csv_writer.writerow(row)
 			if tile_stats:
-				csv_writer.writerow(['Tile-level statistic', 'ANOVA P-value'] + [tile_stats[n]['p'] for n in nodes_avg_pt])
-				csv_writer.writerow(['Tile-level statistic', 'ANOVA F-value'] + [tile_stats[n]['f'] for n in nodes_avg_pt])
+				csv_writer.writerow(['Tile-level statistic', 'ANOVA P-value'] + [tile_stats[n]['p'] for n in sorted_nodes])
+				csv_writer.writerow(['Tile-level statistic', 'ANOVA F-value'] + [tile_stats[n]['f'] for n in sorted_nodes])
 			if slide_stats:
-				csv_writer.writerow(['Slide-level statistic', 'ANOVA P-value'] + [slide_stats[n]['p'] for n in nodes_avg_pt])
-				csv_writer.writerow(['Slide-level statistic', 'ANOVA F-value'] + [slide_stats[n]['f'] for n in nodes_avg_pt])
+				csv_writer.writerow(['Slide-level statistic', 'ANOVA P-value'] + [slide_stats[n]['p'] for n in sorted_nodes])
+				csv_writer.writerow(['Slide-level statistic', 'ANOVA F-value'] + [slide_stats[n]['f'] for n in sorted_nodes])
+				csv_writer.writerow(['Slide-level statistic', 'Num above threshold'] + [slide_stats[n]['num_above_thresh'] for n in sorted_nodes])
 
 	def slide_tile_dict(self):
 		'''Generates dictionary mapping slides to list of node activations for each tile.
@@ -670,76 +684,123 @@ class ActivationsVisualizer:
 					row += [self.slide_node_dict[slide][n]]
 				csvwriter.writewrow(row)
 
-	def calculate_activation_averages_and_stats(self, filename=None):
+	def calculate_activation_averages_and_stats(self, filename=None, node_method='avg', threshold=0.5):
 		'''Calculates activation averages across categories, 
 			as well as tile-level and patient-level statistics using ANOVA, 
 			exporting to CSV if desired.
 			
 		Args:
-			filename:		(optional) Path to CSV file for export.'''
+			filename:		Path to CSV file for export.
+			node_method:	Either 'avg' (default) or 'threshold'. If avg, slide-level node data is calculated by averaging
+								node activations across all tiles. If threshold, slide-level node data is calculated by counting
+								the number of tiles with node activations > threshold and dividing by the total number of tiles.
 
+		Returns:
+			Dict mapping slides to dict of nodes mapping to slide-level node values;
+			Dict mapping nodes to tile-level dict of statistics ('p', 'f');
+			Dict mapping nodes to slide-level dict of statistics ('p', 'f');
+		'''
 		if not self.categories:
 			log.warn("Unable to calculate activations statistics; annotations not loaded. Please load with load_annotations().'")
 			return
+		if node_method not in ('avg', 'threshold'):
+			raise ActivationsError(f"'node_method' must be either 'avg' or 'threshold', not {node_method}")
+
 		empty_category_dict = {}
-		self.node_dict_avg_pt = {}
-		node_stats = {}
-		node_stats_avg_pt = {}
+		self.node_cat_dict = {}
+		slide_node_dict = {}
+		tile_node_stats = {}
+		slide_node_stats = {}
 		for category in self.categories:
 			empty_category_dict.update({category: []})
+		if not hasattr(self, 'nodes'):
+			log.error("Activations have not been generated, unable to calculate averages")
+			return
 		for node in self.nodes:
-			self.node_dict_avg_pt.update({node: deepcopy(empty_category_dict)})
+			self.node_cat_dict.update({node: deepcopy(empty_category_dict)})
 
+		threshold_category = 'PTC-follicular'
+		#threshold_category = 'Braf-like'
+		self.categories = self.categories[::-1]
+
+		log.empty("Calculating activation averages & stats across nodes...", 1)
 		for node in self.nodes:
 			# For each node, calculate average across tiles found in a slide
-			print(f"Calculating activation averages & stats for node {node}...", end="\r")
 			for slide in self.slides:
-				if slide in self.missing_slides: continue
+				if slide not in slide_node_dict: slide_node_dict.update({slide: {}})
 				pt_cat = self.slide_category_dict[slide]
-				avg = mean(self.slide_node_dict[slide][node])
-				self.node_dict_avg_pt[node][pt_cat] += [avg]
+				if node_method == 'avg':
+					node_val = mean(self.slide_node_dict[slide][node])
+				elif node_method == 'threshold':
+					node_val = sum([1 for t in self.slide_node_dict[slide][node] if t > threshold]) / len(self.slide_node_dict[slide][node])
+				self.node_cat_dict[node][pt_cat] += [node_val]
+				slide_node_dict[slide][node] = node_val
 			
 			# Tile-level ANOVA
 			fvalue, pvalue = stats.f_oneway(*self.get_tile_node_activations_by_category(node))
 			if not isnan(fvalue) and not isnan(pvalue): 
-				node_stats.update({node: {'f': fvalue,
+				tile_node_stats.update({node: {'f': fvalue,
 										  'p': pvalue} })
 			else:
-				node_stats.update({node: {'f': -1,
+				tile_node_stats.update({node: {'f': -1,
 										  'p': 1} })
 
 			# Patient-level ANOVA
-			fvalue, pvalue = stats.f_oneway(*[self.node_dict_avg_pt[node][c] for c in self.used_categories])
+			fvalue, pvalue = stats.f_oneway(*[self.node_cat_dict[node][c] for c in self.used_categories])
 			if not isnan(fvalue) and not isnan(pvalue): 
-				node_stats_avg_pt.update({node: {'f': fvalue,
+				slide_node_stats.update({node: {'f': fvalue,
 												 'p': pvalue} })
 			else:
-				node_stats_avg_pt.update({node: {'f': -1,
+				slide_node_stats.update({node: {'f': -1,
 										  		 'p': 1} })
-		print()
+
+			# Thresholding
+			pt_vals = []
+			for c in [c for c in self.used_categories if c != threshold_category]:
+				pt_vals += self.node_cat_dict[node][c]
+			cat_thresh = max(pt_vals)
+			num_above_thresh = len([v for v in self.node_cat_dict[node][threshold_category] if v > cat_thresh])
+			slide_node_stats[node]['num_above_thresh'] = num_above_thresh
 
 		try:
-			self.nodes = sorted(self.nodes, key=lambda n: node_stats[n]['p'])
-			self.nodes_avg_pt = sorted(self.nodes, key=lambda n: node_stats_avg_pt[n]['p'])
+			self.nodes = sorted(self.nodes, key=lambda n: tile_node_stats[n]['p'])
+			if node_method == 'avg':
+				self.sorted_nodes = sorted(self.nodes, key=lambda n: slide_node_stats[n]['p'])
+			elif node_method == 'threshold':
+				self.sorted_nodes = sorted(self.nodes, key=lambda n: slide_node_stats[n]['num_above_thresh'], reverse=True)
 		except:
 			log.warn("No stats calculated; unable to sort nodes.", 1)
-			self.nodes_avg_pt = self.nodes
+			self.sorted_nodes = self.nodes
 			
 		for i, node in enumerate(self.nodes):
 			if self.focus_nodes and (node not in self.focus_nodes): continue
 			try:
-				log.info(f"Tile-level P-value ({node}): {node_stats[node]['p']}", 1)
-				log.info(f"Patient-level P-value: ({node}): {node_stats_avg_pt[node]['p']}", 1)
+				log.info(f"Tile-level P-value ({node}): {tile_node_stats[node]['p']}", 1)
+				log.info(f"Patient-level P-value: ({node}): {slide_node_stats[node]['p']}", 1)
 			except:
 				log.warn(f"No stats calculated for node {node}", 1)
 			if (not self.focus_nodes) and i>9: break
 
 		# Export results
 		export_file = self.STATS_CSV_FILE if not filename else filename
-		if not exists(export_file):
-			self._save_node_statistics_to_csv(self.nodes_avg_pt, filename=export_file, tile_stats=node_stats, slide_stats=node_stats_avg_pt)
-		else:
-			log.info(f"Stats file already generated at {sfutil.green(export_file)}; not regenerating", 1)
+		self._save_node_statistics_to_csv(self.sorted_nodes, slide_node_dict, filename=export_file, tile_stats=tile_node_stats, slide_stats=slide_node_stats)
+		return slide_node_dict, tile_node_stats, slide_node_stats
+
+	def logistic_regression(self, slide_method='avg', node_threshold=0.5):
+		'''Experimental function, creates a logistic regression model to generate slide-level predictions from slide-level statistics.'''
+		from sklearn.linear_model import LogisticRegression
+		from sklearn.metrics import classification_report, confusion_matrix
+
+		slide_node_dict, _, _ = self.calculate_activation_averages_and_stats(None, slide_method, node_threshold)
+
+		log.empty("Working on logistic regression...", 1)
+		x = np.array([[slide_node_dict[slide][n] for n in self.nodes] for slide in self.slides])
+		y = np.array([self.categories.index(self.slide_category_dict[slide]) for slide in self.slides])
+		
+		model = LogisticRegression(solver='lbfgs', max_iter=100, multi_class='ovr').fit(x, y)
+		yhat = model.predict(x)
+		log.complete(f"Regression complete, accuracy: {model.score(x, y):.3f}", 1)
+		return model
 
 	def generate_box_plots(self, export_folder=None):
 		'''Generates box plots comparing nodal activations at the slide-level and tile-level.
