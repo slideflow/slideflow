@@ -43,6 +43,7 @@ class TFRecordMap:
 		self.x = []
 		self.y = []
 		self.point_meta = []
+		self.values = []
 		self.map_meta = {}
 
 		# Try to load from cache
@@ -269,8 +270,100 @@ class TFRecordMap:
 				row = [slide, index, x, y]
 				csvwriter.writerow(row)
 
-	def save_2d_plot(self, filename, slide_labels=None, slide_filter=None, show_tile_meta=None,
-						outcome_labels=None, subsample=None, title=None, cmap=None, use_float=False):
+	def calculate_neighbors(self, slide_categories=None, algorithm='kd_tree'):
+		'''Calculates neighbors among tiles in this map, assigning neighboring statistics to tile metadata 'num_unique_neighbors' and 'percent_matching_categories'.
+		
+		Args:
+			slide_categories:	Optional, dict mapping slides to categories. If provided, will be used to calculate 'percent_matching_categories' statistic.
+			algorithm:			NearestNeighbor algorithm, either 'kd_tree', 'ball_tree', or 'brute'
+		'''
+		from sklearn.neighbors import NearestNeighbors
+		log.empty("Initializing neighbor search...", 1)
+		X = np.array([[self.AV.slide_node_dict[self.point_meta[i]['slide']][n][self.point_meta[i]['index']] for n in self.AV.nodes] for i in range(len(self.x))])
+		nbrs = NearestNeighbors(n_neighbors=100, algorithm=algorithm, n_jobs=-1).fit(X)
+		log.empty("Calculating nearest neighbors...", 1)
+		distances, indices = nbrs.kneighbors(X)
+		for i, ind in enumerate(indices):
+			num_unique_slides = len(list(set([self.point_meta[_i]['slide'] for _i in ind])))
+			self.point_meta[i]['num_unique_neighbors'] = num_unique_slides
+			if slide_categories:
+				percent_matching_categories = len([_i for _i in ind if slide_categories[self.point_meta[_i]['slide']] == slide_categories[self.point_meta[i]['slide']]])/len(ind)
+				self.point_meta[i]['percent_matching_categories'] = percent_matching_categories
+
+	def filter(self, slides):
+		'''Filters map to only show tiles from the given slides.'''
+		if not hasattr(self, 'full_x'):
+			# Backup full coordinates
+			self.full_x, self.full_y, self.full_meta = self.x, self.y, self.point_meta
+		else:
+			# Restore backed up full coordinates
+			self.x, self.y, self.point_meta = self.full_x, self.full_y, self.full_meta
+		
+		self.point_meta = [pm for pm in self.point_meta if pm['slide'] in slides]
+		self.x = np.array([self.x[xi] for xi in range(len(self.x)) if self.point_meta[xi]['slide'] in slides])
+		self.y = np.array([self.y[yi] for yi in range(len(self.y)) if self.point_meta[yi]['slide'] in slides])
+
+	def show_neighbors(self, neighbor_AV, slide):
+		'''Filters map to only show neighbors with a corresponding neighbor ActivationsVisualizer and neighbor slide.
+
+		Args:
+			neighbor_AV:		ActivationsVisualizer containing activations for neighboring slide
+			slide:				Name of neighboring slide
+		'''
+		if slide not in neighbor_AV.slide_node_dict:
+			raise StatisticsError(f"Slide {slide} not found in the provided ActivationsVisualizer, unable to find neighbors")
+		if not hasattr(self, 'AV'):
+			raise StatisticsError(f"TFRecordMap does not have a linked ActivationsVisualizer, unable to calculate neighbors")
+
+		tile_neighbors = self.AV.find_neighbors(neighbor_AV, slide, n_neighbors=5)
+
+		if not hasattr(self, 'full_x'):
+			# Backup full coordinates
+			self.full_x, self.full_y, self.full_meta = self.x, self.y, self.point_meta
+		else:
+			# Restore backed up full coordinates
+			self.x, self.y, self.point_meta = self.full_x, self.full_y, self.full_meta
+
+		self.x = np.array([self.x[i] for i in range(len(self.x)) if self.point_meta[i]['slide'] in tile_neighbors and self.point_meta[i]['index'] in tile_neighbors[self.point_meta[i]['slide']]])
+		self.y = np.array([self.y[i] for i in range(len(self.y)) if self.point_meta[i]['slide'] in tile_neighbors and self.point_meta[i]['index'] in tile_neighbors[self.point_meta[i]['slide']]])
+		self.meta = np.array([self.point_meta[i] for i in range(len(self.point_meta)) if self.point_meta[i]['slide'] in tile_neighbors and self.point_meta[i]['index'] in tile_neighbors[self.point_meta[i]['slide']]])
+
+	def label_by_logits(self, index):
+		'''Displays each point with label equal to the logits (linear from 0-1)
+
+		Args:
+			index:				Logit index
+		'''
+		self.values = np.array([m['logits'][index] for m in self.point_meta])
+
+	def label_by_slide(self, slide_labels=None):
+		'''Displays each point as the name of the corresponding slide. If slide_labels is provided, will use this dictionary to label slides.
+
+		Args:
+			slide_labels:		(Optional) Dict mapping slide names to labels.
+		'''
+		if slide_labels:
+			self.values = np.array([slide_labels[m['slide']] for m in self.point_meta])
+		else:
+			self.values = np.array([m['slide'] for m in self.point_meta])
+
+	def label_by_tile_meta(self, tile_meta, translation_dict=None):
+		'''Displays each point with label equal a value in tile metadata (e.g. 'prediction')
+
+		Args:
+			tile_meta:			String, key to metadata from which to read
+			translation_dict:	Optional, if provided, will translate the read metadata through this dictionary
+		'''
+		if translation_dict:
+			try:
+				self.values = np.array([translation_dict[m[tile_meta]] for m in self.point_meta])
+			except KeyError:
+				# Try by converting metadata to string
+				self.values = np.array([translation_dict[str(m[tile_meta])] for m in self.point_meta])
+		else:
+			self.values = np.array([m[tile_meta] for m in self.point_meta])
+
+	def save_2d_plot(self, filename, subsample=None, title=None, cmap=None, use_float=False, dpi=150):
 		'''Saves plot of data to a provided filename.
 
 		Args:
@@ -282,68 +375,43 @@ class TFRecordMap:
 			subsample:		(optional) Int, if provided, will only include this number of tiles on plot (randomly selected)
 			title:			(optional) String, title for plot
 			cmap:			(optional) Dicionary mapping labels to colors
-			use_float:		(optional) Interpret labels as float for linear coloring'''
-
-		# Warn the user if both slide_labels (manual category labeling) and show_tile_meta are supplied
-		if slide_labels and show_tile_meta:
-			log.warn("Both `slide_labels` and `show_tile_meta` provided; will ignore the former and show only tile metadata", 2)
-		
-		# Filter out slides
-		if slide_labels and not slide_filter:
-			slide_filter = list(slide_labels.keys())
-		if slide_filter:
-			meta = [pm for pm in self.point_meta if pm['slide'] in slide_filter]
-			x = np.array([self.x[xi] for xi in range(len(self.x)) if self.point_meta[xi]['slide'] in slide_filter])
-			y = np.array([self.y[yi] for yi in range(len(self.y)) if self.point_meta[yi]['slide'] in slide_filter])
-		else:
-			meta, x, y = self.point_meta, self.x, self.y
-
-		# Establish category labeling
-		if show_tile_meta:
-			if outcome_labels:
-				try:
-					categories = np.array([outcome_labels[m[show_tile_meta]] for m in meta])
-				except KeyError:
-					# Try by converting metadata to string
-					categories = np.array([outcome_labels[str(m[show_tile_meta])] for m in meta])
-			else:
-				categories = np.array([m[show_tile_meta] for m in meta])
-		elif slide_labels:
-			categories = np.array([slide_labels[m['slide']] for m in meta])		
-		else:
-			categories = np.array(["None" for m in meta])
+			use_float:		(optional) Interpret labels as float for linear coloring'''	
 
 		# Subsampling
 		if subsample:
-			ri = sample(range(len(x)), min(len(x), subsample))
+			ri = sample(range(len(self.x)), min(len(self.x), subsample))
 		else:
-			ri = list(range(len(x)))
-		x = x[ri]
-		y = y[ri]
+			ri = list(range(len(self.x)))
+		x = self.x[ri]
+		y = self.y[ri]
+		values = self.values[ri]
 
 		# Prepare pandas dataframe
 		df = pd.DataFrame()
 		df['umap_x'] = x
 		df['umap_y'] = y
-		df['category'] = categories[ri] if use_float else pd.Series(categories[ri], dtype='category')
+		df['category'] = values if use_float else pd.Series(values, dtype='category')
 
 		# Prepare color palette
 		if use_float:
 			cmap = None
 			palette = None
 		else:
-			unique_categories = list(set(categories[ri]))
+			unique_categories = list(set(values))
 			unique_categories.sort()
 			seaborn_palette = sns.color_palette("Paired", len(unique_categories)) if len(unique_categories) <= 12 else sns.color_palette('hls', len(unique_categories))
 			palette = {unique_categories[i]:seaborn_palette[i] for i in range(len(unique_categories))}
 
 		# Make plot
 		plt.clf()
-		umap_2d = sns.scatterplot(x=x, y=y, data=df, hue='category', palette=cmap if cmap else palette)
+		umap_2d = sns.scatterplot(x=x, y=y, data=df, hue='category', s=30, palette=cmap if cmap else palette)
+		plt.gca().set_ylim(0,1)
+		plt.gca().set_xlim(0,1)
 		umap_2d.legend(loc='center left', bbox_to_anchor=(1.25, 0.5), ncol=1)
 		umap_figure = umap_2d.get_figure()
+		umap_figure.set_size_inches(16, 12)
 		if title: umap_figure.axes[0].set_title(title)
-		umap_figure.savefig(filename, bbox_inches='tight')
+		umap_figure.savefig(filename, bbox_inches='tight', dpi=dpi)
 		log.complete(f"Saved 2D UMAP to {sfutil.green(filename)}", 1)
 
 		def onselect(verts):
