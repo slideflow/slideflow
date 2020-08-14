@@ -1212,9 +1212,14 @@ class Heatmap:
 
 		# Iterate through generator to calculate logits +/- final layer activations for all tiles
 		logits_arr = []	# Logits (predictions)
+		prelogits_arr = []	# Prelogits (penultimate activations)
 		for batch_images in tile_dataset:
 			prelogits, logits = self.model.predict_on_batch([batch_images, batch_images])
 			logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
+			prelogits_arr = prelogits if prelogits_arr == [] else np.concatenate([prelogits_arr, prelogits])
+
+		num_prelogit_nodes = prelogits_arr.shape[2]
+
 		if not skip_thumb:
 			print('\r\033[KFinished predictions. Waiting on thumbnail...', end="")
 			thumb_process.join()
@@ -1225,20 +1230,25 @@ class Heatmap:
 			x_logits_len = int(self.slide.extracted_x_size / self.slide.full_stride) + 1
 			y_logits_len = int(self.slide.extracted_y_size / self.slide.full_stride) + 1
 			expanded_logits = [[0] * self.NUM_CLASSES] * len(self.slide.tile_mask)
+			expanded_prelogits = [[0] * num_prelogit_nodes] * len(self.slide.tile_mask)
 			li = 0
 			for i in range(len(expanded_logits)):
 				if self.slide.tile_mask[i] == 1:
 					expanded_logits[i] = logits_arr[li]
+					expanded_prelogits[i] = prelogits_arr[li]
 					li += 1
 			try:
 				expanded_logits = np.asarray(expanded_logits, dtype=float)
+				expanded_prelogits = np.asarray(expanded_prelogits, dtype=float)
 			except ValueError:
-				log.error("Mismatch with number of categories in model output and expected number of categories", 1)
+				raise ActivationsError("Mismatch with number of categories in model output and expected number of categories")
 
 			# Resize logits array into a two-dimensional array for heatmap display
 			self.logits = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.NUM_CLASSES])
+			self.prelogits = np.resize(expanded_prelogits, [y_logits_len, x_logits_len, num_prelogit_nodes])
 		else:
 			self.logits = logits_arr
+			self.prelogits = prelogits_arr
 
 		if (type(self.logits) == bool) and (not self.logits):
 			log.error(f"Unable to create heatmap for slide {sfutil.green(self.slide.name)}", 1)
