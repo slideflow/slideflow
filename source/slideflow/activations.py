@@ -207,7 +207,7 @@ class ActivationsVisualizer:
 			result.update({slide: [[self.slide_node_dict[slide][node][tile_index] for node in self.nodes] for tile_index in range(num_tiles)]})
 		return result
 
-	def map_to_whitespace(self, whitespace_threshold=230):
+	def map_to_whitespace(self, whitespace_threshold=230, num_threads=16):
 
 		def _parse_function(record):
 			features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION)
@@ -250,7 +250,7 @@ class ActivationsVisualizer:
 		
 		pb = ProgressBar(total_tiles, counter_text='tiles', leadtext="Calculating whitespace... ", show_counter=True, show_eta=True) if total_tiles else None
 		
-		pool = DPool(48)
+		pool = DPool(num_threads)
 		result = pool.map(partial(map_to_tfrecord, pb=pb), self.tfrecords)
 		pool.close()
 		print("\r\033[K", end="")
@@ -1100,9 +1100,9 @@ class Heatmap:
 	'''Generates heatmap by calculating predictions from a sliding scale window across a slide.'''
 
 	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16=True, stride_div=2, roi_dir=None, 
-					roi_list=None, roi_method='inside', buffer=True,
-					normalizer=None, normalizer_source=None):
-		'''Object initializer.
+					roi_list=None, roi_method='inside', buffer=True, normalizer=None, normalizer_source=None,
+					batch_size=16, skip_thumb=False):
+		'''Convolutes across a whole slide, calculating logits and saving predictions internally for later use.
 
 		Args:
 			slide_path:			Path to slide
@@ -1119,6 +1119,8 @@ class Heatmap:
 									Significantly improves performance for slides on HDDs
 			normalizer:			Normalization strategy to use on image tiles
 			normalizer_source:	Path to normalizer source image
+			batch_size:			Batch size when calculating predictions
+			skip_thumb:			If true, will skip thumbnail generation (can save time if saving heatmap without thumbnail image)
 		'''
 		from slideflow.slide import SlideReader
 
@@ -1158,38 +1160,6 @@ class Heatmap:
 		if not self.slide.loaded_correctly():
 			raise ActivationsError(f"Unable to load slide {self.slide.name} for heatmap generation")
 
-	def _parse_function(self, image):
-		parsed_image = tf.image.per_image_standardization(image)
-		parsed_image = tf.image.convert_image_dtype(parsed_image, self.DTYPE)
-		parsed_image.set_shape([299, 299, 3])
-		return parsed_image
-
-	def _prepare_figure(self, show_roi=True):
-		self.fig = plt.figure(figsize=(18, 16))
-		self.ax = self.fig.add_subplot(111)
-		self.fig.subplots_adjust(bottom = 0.25, top=0.95)
-		gca = plt.gca()
-		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
-		jetMap = np.linspace(0.45, 0.95, 255)
-		cmMap = cm.nipy_spectral(jetMap)
-		self.newMap = mcol.ListedColormap(cmMap)
-		
-		# Plot ROIs
-		if show_roi:
-			print("\r\033[KPlotting ROIs...", end="")
-			ROI_SCALE = self.slide.full_shape[0]/2048
-			annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.slide.rois]
-			for poly in annPolys:
-				x,y = poly.exterior.xy
-				plt.plot(x, y, zorder=20, color='k', linewidth=5)
-
-	def generate(self, batch_size=16, skip_thumb=False):
-		'''Convolutes across a whole slide, calculating logits and saving predictions internally for later use.
-		
-		Args:
-			batch_size:		Batch size when calculating predictions
-			skip_thumb:		If true, will skip thumbnail generation (can save time if saving heatmap without thumbnail image)
-		'''
 		# Pre-load thumbnail in separate thread
 		if not skip_thumb:
 			thumb_process = DProcess(target=self.slide.thumb)
@@ -1201,7 +1171,6 @@ class Heatmap:
 
 		if not gen_slice:
 			log.error(f"No tiles extracted from slide {sfutil.green(self.slide.name)}", 1)
-			return False, False, False, False
 
 		# Generate dataset from the generator
 		with tf.name_scope('dataset_input'):
@@ -1229,8 +1198,8 @@ class Heatmap:
 			#  supplying values of "0" where tiles were skipped by the tile generator
 			x_logits_len = int(self.slide.extracted_x_size / self.slide.full_stride) + 1
 			y_logits_len = int(self.slide.extracted_y_size / self.slide.full_stride) + 1
-			expanded_logits = [[0] * self.NUM_CLASSES] * len(self.slide.tile_mask)
-			expanded_prelogits = [[0] * num_prelogit_nodes] * len(self.slide.tile_mask)
+			expanded_logits = [[-1] * self.NUM_CLASSES] * len(self.slide.tile_mask)
+			expanded_prelogits = [[-1] * num_prelogit_nodes] * len(self.slide.tile_mask)
 			li = 0
 			for i in range(len(expanded_logits)):
 				if self.slide.tile_mask[i] == 1:
@@ -1252,7 +1221,31 @@ class Heatmap:
 
 		if (type(self.logits) == bool) and (not self.logits):
 			log.error(f"Unable to create heatmap for slide {sfutil.green(self.slide.name)}", 1)
-			return
+
+	def _parse_function(self, image):
+		parsed_image = tf.image.per_image_standardization(image)
+		parsed_image = tf.image.convert_image_dtype(parsed_image, self.DTYPE)
+		parsed_image.set_shape([299, 299, 3])
+		return parsed_image
+
+	def _prepare_figure(self, show_roi=True):
+		self.fig = plt.figure(figsize=(18, 16))
+		self.ax = self.fig.add_subplot(111)
+		self.fig.subplots_adjust(bottom = 0.25, top=0.95)
+		gca = plt.gca()
+		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
+		jetMap = np.linspace(0.45, 0.95, 255)
+		cmMap = cm.nipy_spectral(jetMap)
+		self.newMap = mcol.ListedColormap(cmMap)
+		
+		# Plot ROIs
+		if show_roi:
+			print("\r\033[KPlotting ROIs...", end="")
+			ROI_SCALE = self.slide.full_shape[0]/2048
+			annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.slide.rois]
+			for poly in annPolys:
+				x,y = poly.exterior.xy
+				plt.plot(x, y, zorder=20, color='k', linewidth=5)
 
 	def display(self, show_roi=True, interpolation='none', logit_cmap=None, skip_thumb=False):
 		'''Interactively displays calculated logits as a heatmap.
@@ -1276,11 +1269,13 @@ class Heatmap:
 										}
 			skip_thumb:			Bool, whether to skip thumbnail (vs displaying with heatmap)
 		'''
-		self._prepare_figure(show_roi=show_roi)
+		self._prepare_figure(show_roi=False)
 		heatmap_dict = {}
 
 		if not skip_thumb:
-			implot = FastImshow(self.slide.thumb(), self.ax, extent=None, tgt_res=1024)
+			if show_roi: thumb = self.slide.annotated_thumb()
+			else: thumb = self.slide.thumb()
+			implot = FastImshow(thumb, self.ax, extent=None, tgt_res=1024)
 
 		def slider_func(val):
 			for h, s in heatmap_dict.values():
@@ -1330,12 +1325,14 @@ class Heatmap:
 			skip_thumb:			Bool, whether to skip thumbnail (vs displaying with heatmap)
 		'''
 		print("\r\033[KPreparing figure...", end="")
-		self._prepare_figure(show_roi=show_roi)
+		self._prepare_figure(show_roi=False)
 
 		if not skip_thumb:
 			# Save plot without heatmaps
 			print("\r\033[KSaving base figure...", end="")
-			implot = self.ax.imshow(self.slide.thumb(), zorder=0)
+			if show_roi: thumb = self.slide.annotated_thumb()
+			else: thumb = self.slide.thumb()
+			implot = self.ax.imshow(thumb, zorder=0)
 			plt.savefig(os.path.join(save_folder, f'{self.slide.name}-raw.png'), bbox_inches='tight')
 
 		if logit_cmap:

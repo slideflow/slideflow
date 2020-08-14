@@ -167,9 +167,10 @@ def _heatmap_generator(slide, model_name, model_path, save_folder, roi_list, sho
 																				roi_list=roi_list,
 																				buffer=True,
 																				normalizer=normalizer,
-																				normalizer_source=normalizer_source)
+																				normalizer_source=normalizer_source,
+																				batch_size=flags['eval_batch_size'],
+																				skip_thumb=skip_thumb)
 
-	heatmap.generate(batch_size=flags['eval_batch_size'], skip_thumb=skip_thumb)
 	heatmap.save(save_folder, show_roi=show_roi, interpolation=interpolation, logit_cmap=logit_cmap, skip_thumb=skip_thumb)
 
 def _trainer(outcome_headers, model_name, project_config, results_dict, hp, validation_strategy, 
@@ -1070,6 +1071,7 @@ class SlideflowProject:
 					else:
 						q.put(slide_path)
 				q.join()
+				pb.end()
 				log.empty("Generating PDF (this may take some time)...", )
 				pdf_report = sfslide.ExtractionReport(reports.getAll(), tile_px=tile_px, tile_um=tile_um)
 				timestring = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -1079,6 +1081,7 @@ class SlideflowProject:
 				for slide_path in slide_list:
 					report = extract_tiles_from_slide(slide_path, pb, enable_downsample)
 					if report: reports += [report]
+				pb.end()
 				log.empty("Generating PDF (this may take some time)...", )
 				pdf_report = sfslide.ExtractionReport(reports, tile_px=tile_px, tile_um=tile_um)
 				timestring = datetime.now().strftime("%Y%m%d-%H%M%S")
