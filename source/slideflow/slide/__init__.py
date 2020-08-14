@@ -624,9 +624,6 @@ class SlideReader(SlideLoader):
 				# Read regions into memory and convert to numpy arrays
 				np_image = vips2numpy(region)[:,:,:-1]
 
-				# Mark as extracted
-				tile_mask[index] = 1
-
 				if dual_extract:
 					try:
 						surrounding_region = self.slide.read_region((c[0]-self.full_stride, c[1]-self.full_stride), self.downsample_level, [self.extract_px*3, self.extract_px*3])
@@ -639,6 +636,9 @@ class SlideReader(SlideLoader):
 					if normalizer:
 						np_image = normalizer.rgb_to_rgb(np_image)
 						outer_region = normalizer.rgb_to_rgb(outer_region)
+					
+					# Mark as extracted
+					tile_mask[index] = 1
 
 					yield {"input_1": np_image, "input_2": outer_region}, index
 				else:
@@ -659,6 +659,9 @@ class SlideReader(SlideLoader):
 						except:
 							# The image could not be normalized, which happens when a tile is primarily one solid color (background)
 							continue
+
+					# Mark as extracted
+					tile_mask[index] = 1
 
 					yield np_image
 
