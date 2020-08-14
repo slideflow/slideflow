@@ -1099,7 +1099,7 @@ class TileVisualizer:
 class Heatmap:
 	'''Generates heatmap by calculating predictions from a sliding scale window across a slide.'''
 
-	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16, stride_div=2, roi_dir=None, 
+	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16=True, stride_div=2, roi_dir=None, 
 					roi_list=None, roi_method='inside', buffer=True,
 					normalizer=None, normalizer_source=None):
 		'''Object initializer.
@@ -1156,8 +1156,7 @@ class Heatmap:
 		self.NUM_CLASSES = _model.layers[-1].output_shape[-1]
 
 		if not self.slide.loaded_correctly():
-			log.error(f"Unable to load slide {self.slide.name} for heatmap generation", 1)
-			return
+			raise ActivationsError(f"Unable to load slide {self.slide.name} for heatmap generation")
 
 	def _parse_function(self, image):
 		parsed_image = tf.image.per_image_standardization(image)
@@ -1209,6 +1208,7 @@ class Heatmap:
 			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (tf.uint8))
 			tile_dataset = tile_dataset.map(self._parse_function, num_parallel_calls=8)
 			tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
+			tile_dataset = tile_dataset.prefetch(8)
 
 		# Iterate through generator to calculate logits +/- final layer activations for all tiles
 		logits_arr = []	# Logits (predictions)
@@ -1218,7 +1218,7 @@ class Heatmap:
 			logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
 			prelogits_arr = prelogits if prelogits_arr == [] else np.concatenate([prelogits_arr, prelogits])
 
-		num_prelogit_nodes = prelogits_arr.shape[2]
+		num_prelogit_nodes = prelogits_arr.shape[1]
 
 		if not skip_thumb:
 			print('\r\033[KFinished predictions. Waiting on thumbnail...', end="")
