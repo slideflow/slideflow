@@ -291,8 +291,9 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 		if flags['use_comet']: experiment.log_metrics(results['epochs'][f'epoch{max(logged_epochs)}'])
 		del(SFM)
 		return history
-	except tf.errors.ResourceExhaustedError:
+	except tf.errors.ResourceExhaustedError as e:
 		log.empty("\n")
+		print(e)
 		log.error(f"Training failed for {sfutil.bold(model_name)}, GPU memory exceeded.", 0)
 		del(SFM)
 		return None
@@ -1213,7 +1214,7 @@ class SlideflowProject:
 	def generate_mosaic(self, model, mosaic_filename=None, umap_filename=None, outcome_header=None, filters=None, filter_blank=None, focus_filters=None, 
 						resolution="low", num_tiles_x=50, max_tiles_per_slide=100, expanded=False, map_slide=None, show_prediction=None, 
 						restrict_prediction=None, predict_on_axes=None, whitespace_on_axes=False, outcome_labels=None, cmap=None, model_type=None, umap_cache='default', activations_cache='default', 
-						activations_export=None, umap_export=None, use_float=False, normalizer=None, normalizer_source=None):
+						activations_export=None, umap_export=None, use_float=False, normalizer=None, normalizer_source=None, low_memory=False):
 		'''Generates a mosaic map by overlaying images onto a set of mapped tiles.
 			Image tiles are extracted from the provided set of TFRecords, and predictions + penultimate node activations are calculated using the specified model.
 			Tiles are mapped either with dimensionality reduction on penultimate layer activations (default behavior), 
@@ -1254,6 +1255,7 @@ class SlideflowProject:
 			use_float:				Bool, if True, assumes outcome values are float / linear (as opposed to category labels)
 			normalizer:				Normalization strategy to use on image tiles
 			normalizer_source:		Path to normalizer source image
+			low_memory:				Bool, if True, will attempt to limit memory during UMAP calculations at the cost of increased computational complexity
 		'''
 		log.header("Generating mosaic map...")
 
@@ -1263,9 +1265,9 @@ class SlideflowProject:
 		if not exists(stats_root): os.makedirs(stats_root)
 		if not exists(mosaic_root): os.makedirs(mosaic_root)
 		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
-		if umap_cache == 'default':
+		if umap_cache and umap_cache == 'default':
 			umap_cache = join(stats_root, 'umap_cache.pkl')
-		else:
+		elif umap_cache:
 			umap_cache = join(stats_root, umap_cache)
 
 		# Prepare dataset & model
@@ -1293,7 +1295,7 @@ class SlideflowProject:
 			slide_labels = {}
 
 		# If showing predictions, try to automatically load prediction labels
-		if (show_prediction is not None) and (not outcome_labels):
+		if (show_prediction is not None) and (not use_float) and (not outcome_labels):
 			if exists(join(dirname(model_path), 'hyperparameters.json')):
 				model_hyperparameters = sfutil.load_json(join(dirname(model_path), 'hyperparameters.json'))
 				outcome_labels = model_hyperparameters['outcome_labels']
@@ -1378,12 +1380,12 @@ class SlideflowProject:
 					slide_labels = {k:outcome_labels[str(v)] for (k,v) in slide_predictions.items()}
 
 		if umap_filename:
-			umap.save_2d_plot(join(stats_root, umap_filename), slide_labels=slide_labels,
-																slide_filter=mosaic_dataset.get_slides(),
-																show_tile_meta=show_prediction if (show_prediction and (map_slide != 'centroid')) else None,
-																outcome_labels=outcome_labels,
-																cmap=cmap,
-																use_float=use_float)
+			if slide_labels:
+				umap.label_by_slide(slide_labels)
+			if show_prediction and (map_slide != 'centroid'):
+				umap.label_by_tile_meta('prediction', translation_dict=outcome_labels)
+			umap.filter(mosaic_dataset.get_slides())
+			umap.save_2d_plot(join(stats_root, umap_filename), cmap=cmap, use_float=use_float)
 		if umap_export:
 			umap.export_to_csv(join(stats_root, umap_export))
 

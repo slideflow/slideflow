@@ -81,7 +81,6 @@ class ActivationsVisualizer:
 			max_tiles_per_slide:	Maximum number of tiles from which to generate activations for each slide
 			manifest:				Optional, dict mapping tfrecords to number of tiles contained. Used for progress bars.
 		'''
-		self.missing_slides = []
 		self.categories = []
 		self.used_categories = []
 		self.slide_category_dict = {}
@@ -431,7 +430,98 @@ class ActivationsVisualizer:
 		
 		return self.nodes
 
-	def generate_activations_from_model(self, model, use_fp16=True, batch_size=16, export=None, normalizer=None, normalizer_source=None):
+	def find_neighbors(self, neighbor_AV, neighbor_slides, n_neighbors, algorithm='ball_tree'):
+		'''Finds neighboring tiles for a given ActivationsVisualizer and list of slides.
+
+		Args:
+			neighbor_AV:		ActivationsVisualizer, will be used to look for neighbors
+			neighbor_slides:	Either a single slide name or a list of slide names. Corresponds to slides in the provided neighboring AV.
+									Will look for neighbors to all tiles in these slides.
+			n_neighbors:		Number of neighbors to find for each tile
+			algorithm:			NearestNeighbors algorithm, either 'kd_tree', 'ball_tree', or 'brute'
+
+		Returns:
+			Dict mapping slide names (from self.slides) to tile indices for tiles that were found to be neighbors to the provided neighbor_AV and neighbor_slides.
+		'''
+		if type(neighbor_slides) != list: neighbor_slides = [neighbor_slides]
+		
+		# Setup source slide-tile indices
+		slide_tile_indices = []
+		for slide in self.slide_node_dict:
+			for tile_index in range(len(self.slide_node_dict[slide][0])):
+				slide_tile_indices += [(slide, tile_index)]
+
+		# Setup neighbor slide-tile indices
+		neighbor_slide_tile_indices = []
+		for slide in neighbor_slides:
+			if slide not in neighbor_AV.slide_node_dict:
+				raise ActivationsError(f"Slide {slide} not found in neighboring ActivationsVisualizer")
+			for tile_index in range(len(neighbor_AV.slide_node_dict[slide][0])):
+				neighbor_slide_tile_indices += [(slide, tile_index)]
+		
+		log.empty("Initializing nearest neighbor search...", 1)
+		X = np.array([[self.slide_node_dict[slide][n][tile_index] for n in self.nodes] for (slide, tile_index) in slide_tile_indices])
+		nbrs = NearestNeighbors(n_neighbors=5, algorithm=algorithm, n_jobs=-1).fit(X)
+		neighbors = {}
+
+		log.empty("Searching for nearest neighbors...", 1)
+		neighbor_activations = [[neighbor_AV.slide_node_dict[slide][n][tile_index] for n in neighbor_AV.nodes] for (slide, tile_index) in neighbor_slide_tile_indices]
+		distances, all_indices = nbrs.kneighbors(neighbor_activations)
+
+		for indices_by_tile in all_indices:
+			for index in indices_by_tile:
+				neighboring_slide, tile_index = slide_tile_indices[index]
+				if neighboring_slide in neighbors and tile_index not in neighbors[neighboring_slide]:
+					neighbors[neighboring_slide] += [tile_index]
+				else:
+					neighbors.update({neighboring_slide: [tile_index]})
+
+		#filtered_predictions = {}
+		#filtered_predictions[neighbor_slide] = []
+		#sentinel = {}
+		
+		#for tile_index, neighbor_indices in enumerate(all_indices):
+			#neighbor_indices = neighbor_indices[:50]
+			#prediction = 'Ras-like' if self.slide_logits_dict[slide][0][tile_index] > 0.5 else ('Braf-like' if self.slide_logits_dict[slide][0][tile_index] < -0.5 else 'None')
+			#neighbor_categories = [tumap.slide_labels[tumap.point_meta[_i]['slide']] for _i in neighbor_indices]
+			#most_common_category_in_neighbors = max(set(neighbor_categories), key=neighbor_categories.count)
+			#percent_matching_categories = len([_i for _i in neighbor_indices if tumap.slide_labels[tumap.point_meta[_i]['slide']] == most_common_category_in_neighbors])/len(neighbor_indices)
+		#	for neighbor_index in neighbor_indices:
+		#		neighbor_slide = tumap.point_meta[neighbor_index]['slide']
+		#		neighbor_index = tumap.point_meta[neighbor_index]['index']
+		#		if neighbor_slide in neighbors:
+		#			neighbors[neighbor_slide] += [neighbor_index]
+		#		else:
+		#			neighbors.update({neighbor_slide: [neighbor_index]})
+			
+			# Hotspot / sentinel zone defined by:
+			#  - 99% of neighbors belong to the category that the tile is predicted to be
+			#  - At least 10 different slides in this category can be found among the neighbors
+			
+			#if percent_matching_categories > 0.95 and most_common_category_in_neighbors == prediction:
+			#	filtered_predictions[slide] += [self.slide_logits_dict[slide][0][tile_index]]
+			#	num_unique_matching_slides = len(list(set([tumap.point_meta[_i]['slide'] for _i in neighbor_indices if tumap.slide_labels[tumap.point_meta[_i]['slide']] == prediction])))
+			#	if num_unique_matching_slides >= 10:
+			#		if slide in sentinel:
+			#			if prediction in sentinel[slide]:
+			#				sentinel[slide][prediction] += 1
+			#			else:
+			#				sentinel[slide].update({prediction: 1})
+			#		else:
+			#			sentinel.update({slide: {prediction: 1}})
+
+		#if not exists('neighbor_dump.pkl'):
+		#	with open('neighbor_dump.pkl', 'wb') as dumpfile:
+		#		pickle.dump(neighbors, dumpfile)
+
+		#for slide in sentinel:
+		#	for cat in sentinel[slide]:
+		#		print(slide, cat, sentinel[slide][cat])
+		#for slide in filtered_predictions:
+		#	if not filtered_predictions[slide]: continue
+		#	print(slide, mean(filtered_predictions[slide]))
+		return neighbors
+
 		'''Calculates activations from a given model.
 
 		Args:
