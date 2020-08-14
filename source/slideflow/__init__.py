@@ -1211,7 +1211,7 @@ class SlideflowProject:
 				process.join()
 
 	def generate_mosaic(self, model, mosaic_filename=None, umap_filename=None, outcome_header=None, filters=None, filter_blank=None, focus_filters=None, 
-						resolution="low", num_tiles_x=50, max_tiles_per_slide=100, expanded=False, map_centroid=False, show_prediction=None, 
+						resolution="low", num_tiles_x=50, max_tiles_per_slide=100, expanded=False, map_slide=None, show_prediction=None, 
 						restrict_prediction=None, predict_on_axes=None, whitespace_on_axes=False, outcome_labels=None, cmap=None, model_type=None, umap_cache='default', activations_cache='default', 
 						activations_export=None, umap_export=None, use_float=False, normalizer=None, normalizer_source=None):
 		'''Generates a mosaic map by overlaying images onto a set of mapped tiles.
@@ -1233,7 +1233,8 @@ class SlideflowProject:
 			max_tiles_per_slide:	Limits the number of tiles taken from each slide. Too high of a number may introduce memory issues.
 			expanded:				Bool. If False, will limit tile assignment to the corresponding grid space (strict display).
 										If True, allows for display of nearby tiles if a given grid is empty.
-			map_centroid:			Bool. If True, maps only centroid tiles for each slide.
+			map_slide:				None (default), 'centroid', or 'average'. If provided, will map slides using slide-level calculations, either mapping centroid tiles if 'centroid',
+										or calculating node averages across all tiles in a slide and mapping slide-level node averages, if 'average'
 			show_prediction:		May be either int or string, corresponding to outcome category. Predictions for this category will be displayed
 										On the exported UMAP plot.
 			restrict_prediction:	List of int, if provided, will restrict predictions to only these categories
@@ -1335,10 +1336,10 @@ class SlideflowProject:
 												meta=umap_meta)
 		else:
 			# Create mosaic map from dimensionality reduction on penultimate layer activations
-			umap = TFRecordMap.from_activations(AV, use_centroid=map_centroid, prediction_filter=restrict_prediction, cache=umap_cache)
+			umap = TFRecordMap.from_activations(AV, map_slide=map_slide, prediction_filter=restrict_prediction, cache=umap_cache, low_memory=low_memory, max_tiles_per_slide=max_tiles_per_slide)
 
 		# If displaying centroid AND predictions, then show slide-level predictions rather than tile-level predictions
-		if map_centroid and show_prediction is not None:
+		if (map_slide=='centroid') and show_prediction is not None:
 			log.info("Showing slide-level predictions at point of centroid", 1)
 
 			# If not model has not been assigned, assume categorical model
@@ -1379,7 +1380,7 @@ class SlideflowProject:
 		if umap_filename:
 			umap.save_2d_plot(join(stats_root, umap_filename), slide_labels=slide_labels,
 																slide_filter=mosaic_dataset.get_slides(),
-																show_tile_meta='prediction' if (show_prediction and not map_centroid) else None,
+																show_tile_meta=show_prediction if (show_prediction and (map_slide != 'centroid')) else None,
 																outcome_labels=outcome_labels,
 																cmap=cmap,
 																use_float=use_float)
