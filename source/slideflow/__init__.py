@@ -9,8 +9,6 @@ import csv
 import queue, threading
 import time
 import numpy as np
-logging.getLogger("tensorflow").setLevel(logging.ERROR)
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import multiprocessing
 
 from os.path import join, isfile, exists, isdir, dirname
@@ -22,23 +20,23 @@ from multiprocessing.dummy import Pool as DPool
 from functools import partial
 from datetime import datetime
 
-import slideflow.model as sfmodel
 import slideflow.util as sfutil
 import slideflow.io as sfio
 
 from slideflow.io.datasets import Dataset
 from slideflow.util import TCGA, ProgressBar, log
-from slideflow.activations import ActivationsVisualizer, TileVisualizer, Heatmap
 from slideflow.statistics import TFRecordMap, calculate_centroid
 from slideflow.mosaic import Mosaic
 from comet_ml import Experiment
 
-__version__ = "1.9.0a2"
+__version__ = "1.9.0b1"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
 SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
 COMET_API_KEY = "A3VWRcPaHgqc4H5K0FoCtRXbp"
+logging.getLogger("tensorflow").setLevel(logging.ERROR)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 DEFAULT_FLAGS = {
 	'use_comet': False,
@@ -51,6 +49,7 @@ def _evaluator(outcome_header, model, project_config, results_dict, filters=None
 				hyperparameters=None, checkpoint=None, eval_k_fold=None, max_tiles_per_slide=0,
 				min_tiles_per_slide=0, normalizer=None, normalizer_source=None, flags=None):
 	'''Internal function to execute model evaluation process.'''
+	import slideflow.model as sfmodel
 	if not flags: flags = DEFAULT_FLAGS
 
 	model_root = dirname(model)
@@ -147,6 +146,8 @@ def _heatmap_generator(slide, model_name, model_path, save_folder, roi_list, sho
 						logit_cmap=None, skip_thumb=False, buffer=True, normalizer=None, normalizer_source=None, flags=None):
 	'''Internal function to execute heatmap generator process.'''
 	import slideflow.slide as sfslide
+	from slideflow.activations import Heatmap
+
 	if not flags: flags = DEFAULT_FLAGS
 
 	resolutions = {'low': 1, 'medium': 2, 'high': 4}
@@ -179,6 +180,7 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 			resume_training=None, checkpoint=None, validate_on_batch=0, validation_steps=200, max_tiles_per_slide=0, 
 			min_tiles_per_slide=0, starting_epoch=0, normalizer=None, normalizer_source=None, flags=None):
 	'''Internal function to execute model training process.'''
+	import slideflow.model as sfmodel
 	import tensorflow as tf
 
 	if not flags: flags = DEFAULT_FLAGS
@@ -388,10 +390,11 @@ class SlideflowProject:
 		
 	def _get_hp(self, row, header):
 		'''Internal function used to convert a row in the batch_train CSV file into a HyperParameters object.'''
+		from slideflow.model import HyperParameters
 		model_name_i = header.index('model_name')
 		args = header[0:model_name_i] + header[model_name_i+1:]
 		model_name = row[model_name_i]
-		hp = sfmodel.HyperParameters()
+		hp = HyperParameters()
 		for arg in args:
 			value = row[header.index(arg)]
 			if arg in hp._get_args():
@@ -426,6 +429,7 @@ class SlideflowProject:
 		Returns:
 			List of (Hyperparameter, model_name) for each HP combination
 		'''
+		from slideflow.model import HyperParameterError
 		if not hyperparameters:
 			hp_models_to_train = self._get_valid_models(batch_train_file, models)
 		else:
@@ -445,7 +449,7 @@ class SlideflowProject:
 				# Read hyperparameters
 				try:
 					hp, hp_model_name = self._get_hp(row, header)
-				except sfmodel.HyperParameterError as e:
+				except HyperParameterError as e:
 					log.error("Invalid Hyperparameter combination: " + str(e))
 					return
 
@@ -532,6 +536,7 @@ class SlideflowProject:
 
 	def create_blank_train_config(self, filename=None):
 		'''Creates a CSV file with the batch training hyperparameter structure.'''
+		from slideflow.model import HyperParameters
 		if not filename:
 			filename = self.PROJECT['batch_train_config']
 		with open(filename, 'w') as csv_outfile:
@@ -539,7 +544,7 @@ class SlideflowProject:
 			# Create headers and first row
 			header = ['model_name']
 			firstrow = ['model1']
-			default_hp = sfmodel.HyperParameters()
+			default_hp = HyperParameters()
 			for arg in default_hp._get_args():
 				header += [arg]
 				firstrow += [getattr(default_hp, arg)]
@@ -551,7 +556,6 @@ class SlideflowProject:
 									augment, hidden_layer_width, trainable_layers, L2_weight, filename=None):
 		'''Prepares a hyperparameter sweep, saving to a batch train TSV file.'''
 		log.header("Preparing hyperparameter sweep...")
-		# Assemble all possible combinations of provided hyperparameters
 		pdict = locals()
 		del(pdict['self'])
 		del(pdict['filename'])
@@ -562,6 +566,8 @@ class SlideflowProject:
 				pdict[arg] = [pdict[arg]]
 		argsv = list(pdict.values())
 		sweep = list(itertools.product(*argsv))
+
+		from slideflow.model import HyperParameters
 
 		if not filename:
 			filename = self.PROJECT['batch_train_config']
@@ -576,7 +582,7 @@ class SlideflowProject:
 			for i, params in enumerate(sweep):
 				row = [f'HPSweep{i}', ','.join([str(f) for f in finetune_epochs])]
 				full_params = dict(zip(['finetune_epochs'] + args, [finetune_epochs] + list(params)))
-				hp = sfmodel.HyperParameters(**full_params)
+				hp = HyperParameters(**full_params)
 				for arg in args:
 					row += [getattr(hp, arg)]
 				writer.writerow(row)
@@ -1071,7 +1077,7 @@ class SlideflowProject:
 					else:
 						q.put(slide_path)
 				q.join()
-				pb.end()
+				if pb: pb.end()
 				log.empty("Generating PDF (this may take some time)...", )
 				pdf_report = sfslide.ExtractionReport(reports.getAll(), tile_px=tile_px, tile_um=tile_um)
 				timestring = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -1081,7 +1087,7 @@ class SlideflowProject:
 				for slide_path in slide_list:
 					report = extract_tiles_from_slide(slide_path, pb, enable_downsample)
 					if report: reports += [report]
-				pb.end()
+				if pb: pb.end()
 				log.empty("Generating PDF (this may take some time)...", )
 				pdf_report = sfslide.ExtractionReport(reports, tile_px=tile_px, tile_um=tile_um)
 				timestring = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -1108,6 +1114,8 @@ class SlideflowProject:
 			normalizer:			Normalization strategy to use on image tiles
 			normalizer_source:	Path to normalizer source image
 		'''
+		from slideflow.activations import ActivationsVisualizer
+
 		log.header("Generating final layer activation analytics...")
 
 		# Setup directories
@@ -1260,6 +1268,8 @@ class SlideflowProject:
 			normalizer_source:		Path to normalizer source image
 			low_memory:				Bool, if True, will attempt to limit memory during UMAP calculations at the cost of increased computational complexity
 		'''
+		from slideflow.activations import ActivationsVisualizer
+
 		log.header("Generating mosaic map...")
 
 		# Set up paths
@@ -1437,6 +1447,7 @@ class SlideflowProject:
 			normalizer:			Normalization strategy to use on image tiles
 			normalizer_source:	Path to normalizer source image
 		'''
+		from slideflow.activations import ActivationsVisualizer
 		# Setup paths
 		stats_root = join(self.PROJECT['root'], 'stats')
 		mosaic_root = join(self.PROJECT['root'], 'mosaic')
@@ -1850,6 +1861,7 @@ class SlideflowProject:
 			normalizer:				Normalization strategy to use on image tiles.
 			normalizer_source:		Path to normalizer source image.
 		'''
+		from slideflow.activations import TileVisualizer
 		hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
 		tile_px = hp_data['hp']['tile_px']
 		TV = TileVisualizer(model=model, 
