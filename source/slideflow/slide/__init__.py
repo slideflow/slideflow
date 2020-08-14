@@ -553,7 +553,7 @@ class SlideReader(SlideLoader):
 				if rn == self.name:
 					matching_rois += [rp]
 			if len(matching_rois) > 1:
-				log.warn(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}", 1)
+				log.warn(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}", 1, self.print)
 			self.load_csv_roi(matching_rois[0])
 		else:
 			if skip_missing_roi:
