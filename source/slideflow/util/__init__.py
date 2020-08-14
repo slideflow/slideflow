@@ -7,8 +7,6 @@ import shutil
 import datetime
 import threading
 
-import tensorflow as tf
-
 from glob import glob
 from tensorflow.keras import backend as K
 from os.path import join, isdir, exists
@@ -43,12 +41,12 @@ LOGGING_PREFIXES_WARN = ['', ' ! ', '    ! ']
 LOGGING_PREFIXES_EMPTY = ['', '   ', '     ']
 
 # Old BatchNorm fix for bug in TF v1.14
-class UpdatedBatchNormalization(tf.keras.layers.BatchNormalization):
-	def call(self, inputs, training=None):
-		true_phase = int(K.get_session().run(K.learning_phase()))
-		trainable = int(self.trainable)
-		with K.learning_phase_scope(trainable * true_phase):
-			return super(tf.keras.layers.BatchNormalization, self).call(inputs, training)
+#class UpdatedBatchNormalization(tf.keras.layers.BatchNormalization):
+#	def call(self, inputs, training=None):
+#		true_phase = int(K.get_session().run(K.learning_phase()))
+#		trainable = int(self.trainable)
+#		with K.learning_phase_scope(trainable * true_phase):
+#			return super(tf.keras.layers.BatchNormalization, self).call(inputs, training)
 
 class Bar:
 	def __init__(self, ending_value, starting_value=0, bar_length=20, label='',
@@ -414,11 +412,6 @@ def write_json(data, filename):
 	'''Writes data to JSON file.'''
 	with open(filename, "w") as data_file:
 		json.dump(data, data_file, indent=1)
-
-def _parse_function(example_proto):
-	feature_description = {'slide':     tf.io.FixedLenFeature([], tf.string),
-						   'image_raw':	tf.io.FixedLenFeature([], tf.string)}
-	return tf.io.parse_single_example(example_proto, feature_description)
 
 def get_slide_paths(slides_dir):
 	'''Get all slide paths from a given directory containing slides.'''
