@@ -1,15 +1,18 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8">
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Training &mdash; slideflow 1.6.2 documentation</title>
+  <title>Training &mdash; slideflow 1.9.0 documentation</title>
   
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
 
   
   
@@ -17,7 +20,9 @@
   
 
   
-  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
@@ -29,10 +34,6 @@
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
     
-
-  
-  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Evaluation" href="evaluation.html" />
@@ -50,7 +51,7 @@
           
 
           
-            <a href="root.html" class="icon icon-home"> slideflow
+            <a href="root.html" class="icon icon-home" alt="Documentation Home"> slideflow
           
 
           
@@ -60,7 +61,7 @@
             
             
               <div class="version">
-                1.6
+                1.9
               </div>
             
           
@@ -77,6 +78,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -106,6 +108,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -144,7 +147,7 @@
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="root.html">Docs</a> &raquo;</li>
+      <li><a href="root.html" class="icon icon-home"></a> &raquo;</li>
         
       <li>Training</li>
     
@@ -185,6 +188,8 @@
 </div>
 <p>Available hyperparameters include:</p>
 <ul class="simple">
+<li><p><strong>tile_px</strong> - size of extracted tiles in pixels</p></li>
+<li><p><strong>tile_um</strong> - size of extracted tiles in microns</p></li>
 <li><p><strong>finetune_epochs</strong> - number of epochs to spend training the full model</p></li>
 <li><p><strong>toplayer_epochs</strong> - number of epochs to spend training just the final layer, with all convolutional layers “locked” (sometimes used for transfer learning)</p></li>
 <li><p><strong>model</strong> - model architecture; please see <a class="reference external" href="https://keras.io/applications/">Keras application documentation</a> for all options</p></li>
@@ -193,21 +198,25 @@
 <li><p><strong>learning_rate</strong> - learning rate for training</p></li>
 <li><p><strong>batch_size</strong> - batch size for training</p></li>
 <li><p><strong>hidden_layers</strong> - number of fully-connected final hidden layers before softmax prediction</p></li>
+<li><p><strong>hidden_layer_width</strong> - width of hidden layers</p></li>
 <li><p><strong>optimizer</strong> - training optimizer; please see <a class="reference external" href="https://www.tensorflow.org/api_docs/python/tf/keras/optimizers">Keras opt documentation</a> for all options</p></li>
 <li><p><strong>early_stop</strong> - whether to use early stopping if validation loss is not decreasing</p></li>
 <li><p><strong>early_stop_patience</strong> - number of epochs to wait before allowing early stopping</p></li>
+<li><p><strong>early_stop_method</strong> - metric to use for early stopping, e.g. ‘loss’ or ‘accuracy’</p></li>
 <li><p><strong>balanced_training</strong> - training input balancing strategy; please see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a> for more details</p></li>
 <li><p><strong>balanced_validation</strong> - validation input balancing strategy; please see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a> for more details</p></li>
+<li><p><strong>trainable_layers</strong> - number of layers available for training, other layers will be frozen. If 0, all layers are trained</p></li>
+<li><p><strong>L2_weight</strong> - if provided, adds L2 regularization to all layers with this weight</p></li>
 <li><p><strong>augment</strong> - whether to augment data with random flipping/rotating during training</p></li>
 </ul>
 </div>
 <div class="section" id="begin-training">
 <h2>Begin training<a class="headerlink" href="#begin-training" title="Permalink to this headline">¶</a></h2>
 <p>Once your hyperparameter settings have been chosen you may begin training using the <code class="docutils literal notranslate"><span class="pre">train</span></code> function. Documentation of the function is given below:</p>
-<dl class="function">
+<dl class="py function">
 <dt>
-<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">models=None</em>, <em class="sig-param">outcome_header='category'</em>, <em class="sig-param">multi_outcome=False</em>, <em class="sig-param">filters=None</em>, <em class="sig-param">resume_training=None</em>, <em class="sig-param">checkpoint=None</em>, <em class="sig-param">pretrain='imagenet'</em>, <em class="sig-param">batch_file=None</em>, <em class="sig-param">hyperparameters=None</em>, <em class="sig-param">model_type='categorical'</em>, <em class="sig-param">validation_target=None</em>, <em class="sig-param">validation_strategy=None</em>, <em class="sig-param">validation_fraction=None</em>, <em class="sig-param">validation_k_fold=None</em>, <em class="sig-param">k_fold_iter=None</em>, <em class="sig-param">validation_dataset=None</em>, <em class="sig-param">validation_annotations=None</em>, <em class="sig-param">validation_filters=None</em>, <em class="sig-param">min_tiles_per_slide=0</em><span class="sig-paren">)</span></dt>
-<dd><p>Train model(s) given configurations found in batch_train.tsv.</p>
+<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">self</span></em>, <em class="sig-param"><span class="n">models</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">outcome_header</span><span class="o">=</span><span class="default_value">'category'</span></em>, <em class="sig-param"><span class="n">multi_outcome</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">filters</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">resume_training</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">checkpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">pretrain</span><span class="o">=</span><span class="default_value">'imagenet'</span></em>, <em class="sig-param"><span class="n">batch_file</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">hyperparameters</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">validation_target</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">validation_strategy</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">validation_fraction</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">validation_k_fold</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">k_fold_iter</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">validation_dataset</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">validation_annotations</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">validation_filters</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">validate_on_batch</span><span class="o">=</span><span class="default_value">256</span></em>, <em class="sig-param"><span class="n">validation_steps</span><span class="o">=</span><span class="default_value">200</span></em>, <em class="sig-param"><span class="n">max_tiles_per_slide</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">min_tiles_per_slide</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">starting_epoch</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">auto_extract</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">normalizer</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">normalizer_source</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">normalizer_strategy</span><span class="o">=</span><span class="default_value">'tfrecord'</span></em><span class="sig-paren">)</span></dt>
+<dd><p>Train model(s).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -225,7 +234,6 @@ list of outcomes in “outcome_header”. Defaults to False.</p></li>
 <li><p><strong>pretrain</strong> – Pretrained weights to load. Default is imagenet. May supply a compatible .h5 file from which to load weights.</p></li>
 <li><p><strong>batch_file</strong> – Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.</p></li>
 <li><p><strong>hyperparameters</strong> – Manually specify hyperparameter combination to use for training. If specified, will ignore batch training file.</p></li>
-<li><p><strong>model_type</strong> – Type of output variable, either categorical (default) or linear.</p></li>
 <li><p><strong>validation_target</strong> – Whether to select validation data on a ‘per-patient’ or ‘per-tile’ basis. If not specified, will use project default.</p></li>
 <li><p><strong>validation_strategy</strong> – Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.</p></li>
 <li><p><strong>validation_fraction</strong> – Fraction of data to use for validation testing. If not specified, will use project default.</p></li>
@@ -234,8 +242,16 @@ list of outcomes in “outcome_header”. Defaults to False.</p></li>
 <li><p><strong>validation_dataset</strong> – If specified, will use a separate dataset on which to perform validation.</p></li>
 <li><p><strong>validation_annotations</strong> – If using a separate dataset for validation, the annotations CSV must be supplied.</p></li>
 <li><p><strong>validation_filters</strong> – If using a separate dataset for validation, these filters are used to select a subset of slides for validation.</p></li>
-<li><p><strong>min_tiles_per_slide</strong> – Minimum number of tiles a slide must have to be included in evaluation. Default is 0, but
-for best slide-level AUC, a minimum of at least 10 tiles per slide is recommended.</p></li>
+<li><p><strong>validate_on_batch</strong> – Validation will be performed every X batches.</p></li>
+<li><p><strong>validation_steps</strong> – Number of batches to use for each instance of validation</p></li>
+<li><p><strong>max_tiles_per_slide</strong> – Will only use up to this many tiles from each slide for training. If zero, will include all tiles.</p></li>
+<li><p><strong>min_tiles_per_slide</strong> – Minimum number of tiles a slide must have to be included in training.</p></li>
+<li><p><strong>starting_epoch</strong> – Starts training at the specified epoch</p></li>
+<li><p><strong>auto_extract</strong> – Bool. If True, will automatically extract tiles as needed for training, without needing to explicitly call extract_tiles()</p></li>
+<li><p><strong>normalizer</strong> – Normalization strategy to use on image tiles</p></li>
+<li><p><strong>normalizer_source</strong> – Path to normalizer source image</p></li>
+<li><p><strong>normalizer_strategy</strong> – Either ‘tfrecord’ or ‘realtime’. If TFrecord and auto_extract is True, then tiles will be extracted to TFRecords and stored normalized.
+If realtime, then normalization is performed during training.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -255,7 +271,7 @@ for best slide-level AUC, a minimum of at least 10 tiles per slide is recommende
 </pre></div>
 </div>
 <p>To begin training, save your <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file and execute the <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script in the slideflow directory.</p>
-<p>Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the <code class="docutils literal notranslate"><span class="pre">results.log</span></code> file in the project directory. Additional analytic data, including ROCs and scatter plots, are saved in the model directories.</p>
+<p>Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the <code class="docutils literal notranslate"><span class="pre">results_log.csv</span></code> file in the project directory. Additional analytic data, including ROCs and scatter plots, are saved in the model directories.</p>
 </div>
 <div class="section" id="monitoring-performance">
 <h2>Monitoring performance<a class="headerlink" href="#monitoring-performance" title="Permalink to this headline">¶</a></h2>
@@ -287,11 +303,19 @@ for best slide-level AUC, a minimum of at least 10 tiles per slide is recommende
 
   <div role="contentinfo">
     <p>
+        
         &copy; Copyright 2020, James M Dolezal
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -302,7 +326,6 @@ for best slide-level AUC, a minimum of at least 10 tiles per slide is recommende
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {

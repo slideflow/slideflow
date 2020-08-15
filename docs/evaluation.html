@@ -1,15 +1,18 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8">
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Evaluation &mdash; slideflow 1.6.2 documentation</title>
+  <title>Evaluation &mdash; slideflow 1.9.0 documentation</title>
   
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
 
   
   
@@ -17,7 +20,9 @@
   
 
   
-  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
@@ -29,10 +34,6 @@
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
     
-
-  
-  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Layer activations" href="activations.html" />
@@ -50,7 +51,7 @@
           
 
           
-            <a href="root.html" class="icon icon-home"> slideflow
+            <a href="root.html" class="icon icon-home" alt="Documentation Home"> slideflow
           
 
           
@@ -60,7 +61,7 @@
             
             
               <div class="version">
-                1.6
+                1.9
               </div>
             
           
@@ -77,6 +78,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -104,6 +106,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -142,7 +145,7 @@
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="root.html">Docs</a> &raquo;</li>
+      <li><a href="root.html" class="icon icon-home"></a> &raquo;</li>
         
       <li>Evaluation</li>
     
@@ -171,9 +174,9 @@
                 <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;evaluation&quot;</span><span class="p">]})</span>
 </pre></div>
 </div>
-<dl class="function">
+<dl class="py function">
 <dt>
-<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">evaluate</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">model</em>, <em class="sig-param">outcome_header</em>, <em class="sig-param">hyperparameters=None</em>, <em class="sig-param">filters=None</em>, <em class="sig-param">checkpoint=None</em>, <em class="sig-param">eval_k_fold=None</em>, <em class="sig-param">min_tiles_per_slide=0</em><span class="sig-paren">)</span></dt>
+<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">evaluate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">self</span></em>, <em class="sig-param"><span class="n">model</span></em>, <em class="sig-param"><span class="n">outcome_header</span></em>, <em class="sig-param"><span class="n">hyperparameters</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">filters</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">checkpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">eval_k_fold</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">max_tiles_per_slide</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">min_tiles_per_slide</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">normalizer</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">normalizer_source</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span></dt>
 <dd><p>Evaluates a saved model on a given set of tfrecords.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -184,8 +187,11 @@
 <li><p><strong>filters</strong> – Filters to use when selecting tfrecords on which to perform evaluation.</p></li>
 <li><p><strong>checkpoint</strong> – Path to cp.ckpt file to load, if evaluating a saved checkpoint.</p></li>
 <li><p><strong>eval_k_fold</strong> – K-fold iteration number to evaluate. If None, will evaluate all tfrecords irrespective of K-fold.</p></li>
+<li><p><strong>max_tiles_per_slide</strong> – Will only use up to this many tiles from each slide for evaluation. If zero, will include all tiles.</p></li>
 <li><p><strong>min_tiles_per_slide</strong> – Minimum number of tiles a slide must have to be included in evaluation. Default is 0, but
 for best slide-level AUC, a minimum of at least 10 tiles per slide is recommended.</p></li>
+<li><p><strong>normalizer</strong> – Normalization strategy to use on image tiles.</p></li>
+<li><p><strong>normalizer_source</strong> – Path to normalizer source image.</p></li>
 </ul>
 </dd>
 </dl>
@@ -193,30 +199,61 @@ for best slide-level AUC, a minimum of at least 10 tiles per slide is recommende
 
 <div class="section" id="generate-heatmaps">
 <h2>Generate heatmaps<a class="headerlink" href="#generate-heatmaps" title="Permalink to this headline">¶</a></h2>
-<p>To generate a predictive heatmap for a set of slides, use the <code class="docutils literal notranslate"><span class="pre">generate_heatmaps()</span></code> function as below:</p>
+<p>To generate a predictive heatmap for a set of slides, use the <code class="docutils literal notranslate"><span class="pre">generate_heatmaps()</span></code> function as below, which will automatically save heatmap images in your project directory:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">generate_heatmaps</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;/path/to/trained_model.h5&quot;</span><span class="p">,</span>
                         <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;evaluation&quot;</span><span class="p">]})</span>
 </pre></div>
 </div>
-<dl class="function">
+<dl class="py function">
 <dt>
-<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">generate_heatmaps</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">model</em>, <em class="sig-param">filters=None</em>, <em class="sig-param">resolution='low'</em><span class="sig-paren">)</span></dt>
+<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">generate_heatmaps</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">self</span></em>, <em class="sig-param"><span class="n">model</span></em>, <em class="sig-param"><span class="n">filters</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">filter_blank</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">directory</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">resolution</span><span class="o">=</span><span class="default_value">'low'</span></em>, <em class="sig-param"><span class="n">interpolation</span><span class="o">=</span><span class="default_value">'none'</span></em>, <em class="sig-param"><span class="n">show_roi</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">logit_cmap</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">skip_thumb</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">normalizer</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">normalizer_source</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">buffer</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">single_thread</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span></dt>
 <dd><p>Creates predictive heatmap overlays on a set of slides.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> – Path to .h5 model with which predictions will be generated.</p></li>
 <li><p><strong>filters</strong> – Dataset filters to use when selecting slides for which to generate heatmaps.</p></li>
+<li><p><strong>filter_blank</strong> – List of outcome headers; slides that have blank entries in this outcome header
+in the annotations file will be excluded</p></li>
+<li><p><strong>directory</strong> – Directory in which to save heatmap images.</p></li>
 <li><p><strong>resolution</strong> – Heatmap resolution (determines stride of tile predictions).
 “low” uses a stride equal to tile width.
 “medium” uses a stride equal 1/2 tile width.
 “high” uses a stride equal to 1/4 tile width.</p></li>
+<li><p><strong>interpolation</strong> – Interpolation strategy for smoothing heatmap predictions (matplotlib imshow interpolation options).</p></li>
+<li><p><strong>show_roi</strong> – Bool. If True, will show ROI on heatmaps.</p></li>
+<li><p><strong>logit_cmap</strong> – <p>Either a function or a dictionary used to create heatmap colormap.
+Each image tile will generate a list of predictions of length O,
+where O is the number of outcome categories.
+If logit_cmap is a function, then this logit prediction list will be passed to the function,
+and the function is expected to return [R, G, B] values which will be displayed.
+If the logit_cmap is a dictionary, it should map ‘r’, ‘g’, and ‘b’ to outcome indices;
+The prediction for these outcome categories will be mapped to the corresponding colors.
+Thus, the corresponding color will only reflect predictions of up to three outcome categories.</p>
+<blockquote>
+<div><p>Example (this would map prediction for outcome 0 to the red colorspace, outcome 3 to green colorspace, etc):
+{‘r’: 0, ‘g’: 3, ‘b’: 1 }</p>
+</div></blockquote>
+</p></li>
+<li><p><strong>skip_thumb</strong> – Bool, whether to skip thumbnail (vs displaying with heatmap)</p></li>
+<li><p><strong>normalizer</strong> – Normalization strategy to use on image tiles</p></li>
+<li><p><strong>normalizer_source</strong> – Path to normalizer source image</p></li>
+<li><p><strong>buffer</strong> – Either ‘vmtouch’ or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
+If a directory, slides will be copied to the directory as a buffer before extraction.
+Either method vastly improves tile extraction for slides on HDDs by maximizing sequential read speed</p></li>
+<li><p><strong>single_thread</strong> – Bool. If True, will perform as single thread (GPU memory may not be freed after completion).
+Allows use for functions being passed to logit_cmap.
+If False, will wrap function in separate process, allowing GPU memory to be freed after completion.</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
-<p>Heatmaps will be saved in your project directory.</p>
+<p>If you would like to directly interact with the calculated heatmap data, create a <code class="docutils literal notranslate"><span class="pre">sf.activations.Heatmap</span></code> object by providing a path to a slide, a path to a model, and tile size information:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">heatmap</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">activations</span><span class="o">.</span><span class="n">Heatmap</span><span class="p">(</span><span class="s1">&#39;/path/to/slide.svs&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/model.h5&#39;</span><span class="p">,</span> <span class="n">size_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">size_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The spatial map of logits, as calculated across the input slide, can be accessed through <code class="docutils literal notranslate"><span class="pre">heatmap.logits</span></code>. The spatial map of penultimate activations can be accessed through <code class="docutils literal notranslate"><span class="pre">heatmap.prelogits</span></code>. The heatmap can be saved with <code class="docutils literal notranslate"><span class="pre">heatmap.save('/path/')</span></code>.</p>
 </div>
 </div>
 
@@ -240,11 +277,19 @@ for best slide-level AUC, a minimum of at least 10 tiles per slide is recommende
 
   <div role="contentinfo">
     <p>
+        
         &copy; Copyright 2020, James M Dolezal
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -255,7 +300,6 @@ for best slide-level AUC, a minimum of at least 10 tiles per slide is recommende
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {
