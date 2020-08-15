@@ -124,15 +124,20 @@ class Dataset:
 	filters = None
 	filter_blank = None
 
-	def __init__(self, config_file, sources, annotations=None, filters=None, filter_blank=None):
+	def __init__(self, config_file, sources, tile_px, tile_um, annotations=None, filters=None, filter_blank=None):
 		config = sfutil.load_json(config_file)
 		sources = sources if isinstance(sources, list) else [sources]
+
 		try:
 			self.datasets = {k:v for (k,v) in config.items() if k in sources}
 		except KeyError:
 			sources_list = ", ".join(sources)
 			log.error(f"Unable to find datasets named {sfutil.bold(sources_list)} in config file {sfutil.green(config_file)}", 1)
 			sys.exit()
+
+		label = f"{tile_px}px_{tile_um}um"
+		for dataset in self.datasets:
+			self.datasets[dataset]['label'] = label
 		
 		if annotations:
 			self.load_annotations(annotations)
@@ -411,11 +416,9 @@ class Dataset:
 			slide_index = header.index(TCGA.slide)
 		except:
 			log.error(f"Header column '{TCGA.slide}' not found.", 1)
-			if sfutil.yes_no_input('\nSearch slides directory and automatically associate patients with slides? [Y/n] ', default='yes'):
-				self.update_annotations_with_slidenames(annotations_file)
-				header, current_annotations = sfutil.read_annotations(annotations_file)
-			else:
-				log.warn("No slide annotations found in annotations file.", 1)
+			log.info("Attempting to automatically associate patients with slides...", 1)
+			self.update_annotations_with_slidenames(annotations_file)
+			header, current_annotations = sfutil.read_annotations(annotations_file)
 		self.ANNOTATIONS = current_annotations
 
 	def verify_annotations_slides(self):
@@ -532,17 +535,16 @@ class Dataset:
 
 		if len(slide_list_errors) >= error_threshold:
 			log.warn(f"...{len(slide_list_errors)} total TFRecord integrity check failures, see {sfutil.green(log.logfile)} for details", 1)
-		if len(slide_list_errors) == 0:
-			log.info("TFRecords verified, no errors found.", 1)
 
 		# Write manifest file
-		if manifest != prior_manifest:
+		if (manifest != prior_manifest) or (manifest == {}):
 			sfutil.write_json(manifest, manifest_path)
 
 		return manifest
 		
 	def update_annotations_with_slidenames(self, annotations_file):
-		'''Attempts to automatically associate slide names from a directory with patients in a given annotations file.'''
+		'''Attempts to automatically associate slide names from a directory with patients in a given annotations file,
+			skipping any slide names that are already present in the annotations file.'''
 		header, _ = sfutil.read_annotations(annotations_file)
 		slide_list = self.get_slide_paths(filter=False)
 
@@ -633,7 +635,7 @@ class Dataset:
 							row.extend([""])
 							num_missing += 1
 						csv_writer.writerow(row)
-		log.info(f"Successfully associated slides with {num_updated_annotations} annotation entries. Slides not found for {num_missing} annotations.", 1)
+		log.complete(f"Successfully associated slides with {num_updated_annotations} annotation entries. Slides not found for {num_missing} annotations.", 1)
 
 		# Finally, backup the old annotation file and overwrite existing with the new data
 		backup_file = f"{annotations_file}.backup"

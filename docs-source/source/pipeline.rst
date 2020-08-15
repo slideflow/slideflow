@@ -23,22 +23,22 @@ Step 2: Data Preparation
 
 .. image:: tile_extraction.png
 
-2) **Extract tiles**. Once ROIs have been created, tiles will need to be extracted from the ROIs across all of your slides. Tiles will be extracted at a given magnification size in microns, and saved at a given resolution in pixels. The optimal extraction size in both microns and pixels will depend on your dataset and model architecture.
-
 .. image:: saving_tfrecords.png
 
-3) **Create TFRecords**. Tiles should then be collected and stored as TFRecords, a binary file format used to improve dataset reading performance during training. Each slide should have its own TFRecord file containing its extracted tiles. 
+2) **Extract tiles**. Once ROIs have been created, tiles will need to be extracted from the ROIs across all of your slides. Tiles will be extracted at a given magnification size in microns, and saved at a given resolution in pixels. The optimal extraction size in both microns and pixels will depend on your dataset and model architecture. Poor quality tiles - including background tiles or tiles with high whitespace content - will be automatically discarded. Tiles will be stored as TFRecords, a binary file format used to improve dataset reading performance during training. Each slide will have its own TFRecord file containing its extracted tiles. 
 
 .. image:: dataset_assembly.png
 
-4) **Create validation set**. After TFrecords have been saved, a certain number of slides should be set aside for validation testing during training; slideflow will default to setting aside 20% of your slides for validation.
+3) **Set aside final evaluation set**. After TFrecords have been saved, a certain number of slides should be set aside for final evaluation testing after training is complete. Slides may be "earmarked" for final evaluation by using an annotations file. Model performance should only be assessed on these slides once the final model is complete and no further training will be done, in order to reduce bias.
+
+4) **Establish training and validation dataset**. A certain number of training slides should be set aside for validation testing during training. By default, the pipeline will recommend splitting your training data into thirds and training with three-fold cross-validation. Model performance on the left-out-third will help guide model fine-tuning.
 
 Step 3: Model Training
 **********************
 
-5) **Choose hyperparameters**. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). One often does not know the best model architecture and hyperparameters to use for a given dataset; training will often need to occur across a variety of models and different combinations of hyperaparameters in order to find the combination with the best performance. You may either choose to train a single model and hyperparameter set one at a time, or you can setup an automatic hyperparameter sweep to test many combinations at once. 
+5) **Choose hyperparameters**. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). One often does not know the best model architecture and hyperparameters to use for a given dataset; training will often need to occur across a variety of models and different combinations of hyperparameters in order to find the combination with the best performance. You may either choose to train a single model and hyperparameter set one at a time, or you can setup an automatic hyperparameter sweep to test many combinations at once. 
 
-6) **Initiate training**. After the hyperparameters have been set up, training can commence. Traing your model across all desired hyperparameters and select a hyperparameter combination for final model training and external evaluation testing.
+6) **Initiate training**. After the hyperparameters have been set up, training can commence. Train your model across all desired hyperparameters and select the best-performing hyperparameter combination for final evaluation testing.
 
 Step 4: Analytics
 *****************
