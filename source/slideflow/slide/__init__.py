@@ -571,8 +571,8 @@ class SlideReader(SlideLoader):
 			log.error(f'Skipping slide {sfutil.green(self.name)} due to slide image or ROI loading error', 1, self.print)
 			return None
 
-	def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=0.6, whitespace_threshold=230,
-							normalizer=None, normalizer_source=None):
+	def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=1.0, whitespace_threshold=230,
+							grayspace_fraction=0.6, grayspace_threshold=0.05, normalizer=None, normalizer_source=None):
 		'''Builds generator to supervise extraction of tiles across the slide.
 		
 		Args:
@@ -643,14 +643,15 @@ class SlideReader(SlideLoader):
 					yield {"input_1": np_image, "input_2": outer_region}, index
 				else:
 					# Perform whitespace filtering
-					#fraction = (np.mean(np_image, axis=2) > whitespace_threshold).sum() / (self.size_px**2)
-					#if fraction > whitespace_fraction: continue
+					if whitespace_fraction < 1:
+						fraction = (np.mean(np_image, axis=2) > whitespace_threshold).sum() / (self.size_px**2)
+						if fraction > whitespace_fraction: continue
 
 					# Perform grayspace filtering
-					grayspace_threshold = 0.05
-					hsv_image = mcol.rgb_to_hsv(np_image)
-					fraction = (hsv_image[:,:,1] < grayspace_threshold).sum() / (self.size_px**2)
-					if fraction > whitespace_fraction: continue
+					if grayspace_fraction < 1:
+						hsv_image = mcol.rgb_to_hsv(np_image)
+						fraction = (hsv_image[:,:,1] < grayspace_threshold).sum() / (self.size_px**2)
+						if fraction > grayspace_fraction: continue
 
 					# Apply normalization
 					if normalizer:
@@ -671,7 +672,8 @@ class SlideReader(SlideLoader):
 		return generator
 
 	def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None, 
-						whitespace_fraction=0.6, whitespace_threshold=230, normalizer=None, normalizer_source=None, shuffle=True):
+						whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05,
+						normalizer=None, normalizer_source=None, shuffle=True):
 		'''Extractes tiles from slide and saves into a TFRecord file or as loose JPG tiles in a directory.
 		Args:
 			tfrecord_dir:			If provided, saves tiles into a TFRecord file (named according to slide name) in this directory.
@@ -728,7 +730,9 @@ class SlideReader(SlideLoader):
 										 normalizer=normalizer,
 										 normalizer_source=normalizer_source,
 										 whitespace_fraction=whitespace_fraction,
-										 whitespace_threshold=whitespace_threshold)
+										 whitespace_threshold=whitespace_threshold,
+										 grayspace_fraction=grayspace_fraction,
+										 grayspace_threshold=grayspace_threshold)
 		slidename_bytes = bytes(self.name, 'utf-8')
 
 		if not generator:

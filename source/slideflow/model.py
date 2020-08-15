@@ -126,9 +126,9 @@ class HyperParameters:
 
 
 	def __init__(self, tile_px=299, tile_um=302, finetune_epochs=10, toplayer_epochs=0, model='Xception', pooling='max', loss='sparse_categorical_crossentropy',
-				 learning_rate=0.0001, batch_size=16, hidden_layers=1, optimizer='Adam', early_stop=False, 
+				 learning_rate=0.0001, batch_size=16, hidden_layers=1, hidden_layer_width=500, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, early_stop_method='loss', balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
-				 hidden_layer_width=500, trainable_layers=0, L2_weight=0, augment=True):
+				 trainable_layers=0, L2_weight=0, augment=True):
 		# Additional hyperparameters to consider:
 		# beta1 0.9
 		# beta2 0.999
