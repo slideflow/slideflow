@@ -5,7 +5,7 @@ import tensorflow as tf
 import csv
 import shutil
 
-from slideflow.io.datasets import Dataset
+from slideflow.io import Dataset
 from slideflow.util import TCGA, log, ProgressBar
 from slideflow.statistics import TFRecordMap
 
