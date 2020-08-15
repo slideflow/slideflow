@@ -895,7 +895,7 @@ class SlideflowProject:
 
 	def extract_tiles(self, tile_px, tile_um, filters=None, filter_blank=None, stride_div=1, tma=False, save_tiles=False, save_tfrecord=True, delete_tiles=True,
 						enable_downsample=False, roi_method='inside', skip_missing_roi=True, skip_extracted=True, dataset=None,
-						normalizer=None, normalizer_source=None, whitespace_fraction=0.6, whitespace_threshold=230, buffer=None):
+						normalizer=None, normalizer_source=None, whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05, buffer=None):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.
 		
@@ -917,8 +917,10 @@ class SlideflowProject:
 			dataset:				Name of dataset from which to select slides for extraction. If not provided, will default to all datasets in project
 			normalizer:				Normalization strategy to use on image tiles
 			normalizer_source:		Path to normalizer source image
-			whitespace_fraction:	Float 0-1. Fraction of whitespace which causes a tile to be discarded.
+			whitespace_fraction:	Float 0-1. Fraction of whitespace which causes a tile to be discarded. If 1, will not perform whitespace filtering.
 			whitespace_threshold:	Int 0-255. Threshold above which a pixel (averaged across R,G,B) is considered whitespace.
+			grayspace_fraction:		Float 0-1. Fraction of grayspace which causes a tile to be discarded. If 1, will not perform grayspace filtering.
+			grayspace_threshold:	Int 0-1. HSV (hue, saturation, value) is calculated for each pixel. If a pixel's saturation is below this threshold, it is considered grayspace.
 			buffer:					Either 'vmtouch' or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
 										If a directory, slides will be copied to the directory as a buffer before extraction.
 										Either method vastly improves tile extraction for slides on HDDs by maximizing sequential read speed
@@ -1033,7 +1035,9 @@ class SlideflowProject:
 													normalizer=normalizer,
 													normalizer_source=normalizer_source,
 													whitespace_fraction=whitespace_fraction,
-													whitespace_threshold=whitespace_threshold)
+													whitespace_threshold=whitespace_threshold,
+													grayspace_fraction=grayspace_fraction,
+													grayspace_threshold=grayspace_threshold)
 				except sfslide.TileCorruptionError:
 					if downsample:
 						log.warn(f"Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; will try re-extraction with downsampling disabled", 1, print_func)
