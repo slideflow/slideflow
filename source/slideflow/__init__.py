@@ -893,7 +893,7 @@ class SlideflowProject:
 		pdf_report.save(filename)
 		log.complete(f"Slide report saved to {sfutil.green(filename)}", 1)
 
-	def extract_tiles(self, tile_px, tile_um, filters=None, filter_blank=None, stride_div=1, tma=False, save_tiles=False, save_tfrecord=True, delete_tiles=True,
+	def extract_tiles(self, tile_px, tile_um, filters=None, filter_blank=None, stride_div=1, tma=False, save_tiles=False, save_tfrecord=True,
 						enable_downsample=False, roi_method='inside', skip_missing_roi=True, skip_extracted=True, dataset=None,
 						normalizer=None, normalizer_source=None, whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05, buffer=None):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
@@ -908,7 +908,6 @@ class SlideflowProject:
 			tma:					Bool. If True, reads slides as Tumor Micro-Arrays (TMAs), detecting and extracting tumor cores.
 			save_tiles:				Bool. If True, will save JPEG images of extracted tiles to corresponding tile directory.
 			save_tfrecord:			Bool. If True, will save JPEG-compressed image data from extracted tiles into TFRecords in the corresponding TFRecord directory.
-			delete_tiles:			Bool. If True, will delete loose tile images after storing into TFRecords.
 			enable_downsample:		Bool. If True, enables the use of downsampling while reading slide images. This may result in corrupted image tiles
 										if downsampled slide layers are corrupted or not fully generated. Manual confirmation of tile integrity is recommended.
 			roi_method:				Either 'inside' or 'outside'. Whether to extract tiles inside or outside the ROIs.
