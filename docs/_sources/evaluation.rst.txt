@@ -15,7 +15,7 @@ Once you have finished your hyperparameter selection and would like to test your
 Generate heatmaps
 *****************
 
-To generate a predictive heatmap for a set of slides, use the ``generate_heatmaps()`` function as below:
+To generate a predictive heatmap for a set of slides, use the ``generate_heatmaps()`` function as below, which will automatically save heatmap images in your project directory:
 
 .. code-block:: python
 
@@ -25,4 +25,10 @@ To generate a predictive heatmap for a set of slides, use the ``generate_heatmap
 .. autofunction:: slideflow.SlideflowProject.generate_heatmaps
    :noindex:
 
-Heatmaps will be saved in your project directory.
+If you would like to directly interact with the calculated heatmap data, create a ``sf.activations.Heatmap`` object by providing a path to a slide, a path to a model, and tile size information:
+
+.. code-block:: python
+
+	heatmap = sf.activations.Heatmap('/path/to/slide.svs', '/path/to/model.h5', size_px=299, size_um=302)
+
+The spatial map of logits, as calculated across the input slide, can be accessed through ``heatmap.logits``. The spatial map of penultimate activations can be accessed through ``heatmap.prelogits``. The heatmap can be saved with ``heatmap.save('/path/')``.
