@@ -5,7 +5,7 @@ Slideflow is a Python package which aims to provide an easy and intuitive way of
  
 The overarching goal of the package is to provide tools to train and test models on histology slides, apply these models to new slides, and analyze performance by generating predictive heatmaps, ROCs, and mosaic maps.
 
-Slideflow requires Python 3.6+ and [libvips](https://libvips.github.io/libvips/).
+Slideflow requires Python 3.7+ and [libvips](https://libvips.github.io/libvips/).
 
 To get started, ensure you have the latest version of pip, setuptools, and wheel installed:
 
@@ -35,20 +35,13 @@ SFP.add_dataset( name="NAME",
                  slides="/slides/directory",
                  roi="/roi/directory",
                  tiles="/tiles/directory",
-                 tfrecords="/tfrecords/directory",
-                 label="LABEL" )
+                 tfrecords="/tfrecords/directory" )
 ```
 
-If your patient names and slide names follow standard naming conventions as used in [The Cancer Genome Atlas](https://portal.gdc.cancer.gov/), you can have slideflow search through your slides directory and attempt to match patients in your annotations files with their corresponding slides with the following function:
+Once your annotations file has been set up and you have a dataset to work with, begin extracting tiles at specified pixel and micron size:
 
 ```python
-SFP.associate_slide_names()
-```
-
-Once your annotations file has been set up, begin extracting tiles:
-
-```python
-SFP.extract_tiles()
+SFP.extract_tiles(tile_px=299, tile_um=302)
 ```
 
 Following tile extraction, you can begin model training:
