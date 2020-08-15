@@ -36,6 +36,12 @@ slide
 
 .. automodule:: slideflow.slide
 	:members:
+	
+mosaic
+******
+
+.. automodule:: slideflow.mosaic
+	:members:
 
 statistics
 **********
