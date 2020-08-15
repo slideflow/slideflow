@@ -38,7 +38,7 @@ slide
 	:members:
 	
 mosaic
-*****
+******
 
 .. automodule:: slideflow.mosaic
 	:members:

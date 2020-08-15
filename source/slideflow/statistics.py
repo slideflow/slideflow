@@ -27,6 +27,8 @@ class StatisticsError(Exception):
 	pass
 
 class TFRecordMap:
+	'''Map of tiles from TFRecords, mapped either explicitly with pre-specified coordinates, or mapped
+			with dimensionality reduction from penultimate layer weights, as provided from sf.activations.ActivationsVisualizer.'''
 	def __init__(self, slides, tfrecords, cache=None):
 		''' Backend for mapping TFRecords into two dimensional space. Can use an ActivationsVisualizer object
 		to map TFRecords according to UMAP of activations, or map according to pre-specified coordinates. 

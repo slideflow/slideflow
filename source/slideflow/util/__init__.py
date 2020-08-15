@@ -109,6 +109,7 @@ class Bar:
 		return self.text
 
 class ProgressBar:
+	'''Flexible progress bar with dynamic ETA monitoring.'''
 	tail = ''
 	text = ''
 

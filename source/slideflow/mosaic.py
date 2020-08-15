@@ -19,6 +19,7 @@ from multiprocessing.dummy import Pool as DPool
 from functools import partial
 
 class Mosaic:
+	'''Visualization of tiles as mapped using dimensionality reduction.'''
 	GRID = []
 	points = []
 
