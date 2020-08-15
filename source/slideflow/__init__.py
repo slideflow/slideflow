@@ -23,7 +23,7 @@ from datetime import datetime
 import slideflow.util as sfutil
 import slideflow.io as sfio
 
-from slideflow.io.datasets import Dataset
+from slideflow.io import Dataset
 from slideflow.util import TCGA, ProgressBar, log
 from slideflow.statistics import TFRecordMap, calculate_centroid
 from slideflow.mosaic import Mosaic
@@ -1169,23 +1169,24 @@ class SlideflowProject:
 			interpolation:		Interpolation strategy for smoothing heatmap predictions (matplotlib imshow interpolation options). 
 			show_roi:			Bool. If True, will show ROI on heatmaps.
 			logit_cmap:			Either a function or a dictionary used to create heatmap colormap.
+									If None (default), separate heatmaps will be generated for each outcome category, with color representing likelihood of category prediction.
 									Each image tile will generate a list of predictions of length O, 
 									where O is the number of outcome categories.
 									If logit_cmap is a function, then this logit prediction list will be passed to the function,
-									and the function is expected to return [R, G, B] values which will be displayed.
+									and the function is expected to return [R, G, B] values which will be displayed. single_thread must be true if a function is passed.
 									If the logit_cmap is a dictionary, it should map 'r', 'g', and 'b' to outcome indices;
 									The prediction for these outcome categories will be mapped to the corresponding colors.
 									Thus, the corresponding color will only reflect predictions of up to three outcome categories.
 										Example (this would map prediction for outcome 0 to the red colorspace, outcome 3 to green colorspace, etc):
 										{'r': 0, 'g': 3, 'b': 1 }
-			skip_thumb:			Bool, whether to skip thumbnail (vs displaying with heatmap)
+			skip_thumb:			Bool. If True, will not display thumbnail with heatmap.
 			normalizer:			Normalization strategy to use on image tiles
 			normalizer_source:	Path to normalizer source image
 			buffer:				Either 'vmtouch' or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
 									If a directory, slides will be copied to the directory as a buffer before extraction.
 									Either method vastly improves tile extraction for slides on HDDs by maximizing sequential read speed
 			single_thread:		Bool. If True, will perform as single thread (GPU memory may not be freed after completion). 
-									Allows use for functions being passed to logit_cmap.
+									Allows use for functions being passed to logit_cmap (functions are not pickleable).
 									If False, will wrap function in separate process, allowing GPU memory to be freed after completion.
 		'''
 		log.header("Generating heatmaps...")
@@ -1593,7 +1594,7 @@ class SlideflowProject:
 				shutil.rmtree(tiles_dir)
 	
 	def get_dataset(self, tile_px=None, tile_um=None, filters=None, filter_blank=None, verification=True):
-		'''Returns slideflow.io.datasets.Dataset object using project settings.
+		'''Returns slideflow.io.Dataset object using project settings.
 
 		Args:
 			tile_px:		Tile size in pixels
