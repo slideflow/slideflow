@@ -371,12 +371,10 @@ class SlideLoader:
 					silent=False, buffer=None, pb=None):
 		self.load_error = False
 		self.silent = silent
-		if pb and not silent:
-			self.print = pb.print
-		elif silent:
-			self.print = None
-		else:
-			self.print = print
+
+		self.print = None if silent else (print if not pb else pb.print)
+		self.error_print = print if not pb else pb.print
+
 		self.pb = pb
 		self.name = sfutil.path_to_name(path)
 		self.shortname = sfutil._shortname(self.name)
@@ -394,7 +392,7 @@ class SlideLoader:
 			else:
 				self.slide = OpenslideToVIPS(path, buffer=buffer)
 		else:
-			log.error(f"Unsupported file type '{filetype}' for slide {self.name}.", 1, self.print)
+			log.error(f"Unsupported file type '{filetype}' for slide {self.name}.", 1, self.error_print)
 			self.load_error = True
 			return
 
@@ -402,7 +400,7 @@ class SlideLoader:
 		try:
 			self.MPP = float(self.slide.properties[OPS_MPP_X])
 		except KeyError:
-			log.error(f"Corrupted SVS ({sfutil.green(self.name)}), skipping slide", 1, self.print)
+			log.error(f"Corrupted SVS ({sfutil.green(self.name)}), skipping slide", 1, self.error_print)
 			self.load_error = True
 			return
 		self.full_shape = self.slide.dimensions
@@ -555,20 +553,21 @@ class SlideReader(SlideLoader):
 			if len(matching_rois) > 1:
 				log.warn(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}", 1, self.print)
 			self.load_csv_roi(matching_rois[0])
-		else:
-			if skip_missing_roi:
-				log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.print)
-				self.shape = None
-				self.load_error = True
-				return None
-			else:
+
+		# Handle missing ROIs
+		if not len(self.rois) and skip_missing_roi:
+			log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.error_print)
+			self.shape = None
+			self.load_error = True
+			return None
+		elif not len(self.rois):
 				log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
 
 		log.label(self.shortname, f"Slide info: {self.MPP} um/px | {len(self.rois)} ROI(s) | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
 
 		# Abort if errors were raised during ROI loading
 		if self.load_error:
-			log.error(f'Skipping slide {sfutil.green(self.name)} due to slide image or ROI loading error', 1, self.print)
+			log.error(f'Skipping slide {sfutil.green(self.name)} due to slide image or ROI loading error', 1, self.error_print)
 			return None
 
 	def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=1.0, whitespace_threshold=230,
@@ -810,7 +809,7 @@ class SlideReader(SlideLoader):
 				index_x = headers.index("x_base")
 				index_y = headers.index("y_base")
 			except:
-				log.error(f'Unable to read CSV ROI file {sfutil.green(path)}, please check file integrity and ensure headers contain "ROI_name", "X_base", and "Y_base".', 1, self.print)
+				log.error(f'Unable to read CSV ROI file {sfutil.green(path)}, please check file integrity and ensure headers contain "ROI_name", "X_base", and "Y_base".', 1, self.error_print)
 				self.load_error = True
 				return
 			for row in reader:
