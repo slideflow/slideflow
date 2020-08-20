@@ -895,7 +895,8 @@ class SlideflowProject:
 
 	def extract_tiles(self, tile_px, tile_um, filters=None, filter_blank=None, stride_div=1, tma=False, save_tiles=False, save_tfrecord=True,
 						enable_downsample=False, roi_method='inside', skip_missing_roi=True, skip_extracted=True, dataset=None,
-						normalizer=None, normalizer_source=None, whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05, buffer=None):
+						normalizer=None, normalizer_source=None, whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05, 
+						buffer=None, num_threads=-1):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.
 		
@@ -923,6 +924,7 @@ class SlideflowProject:
 			buffer:					Either 'vmtouch' or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
 										If a directory, slides will be copied to the directory as a buffer before extraction.
 										Either method vastly improves tile extraction for slides on HDDs by maximizing sequential read speed
+			num_threads:			Number of threads to use during tile extraction. If -1 (default), will use project default thread count.
 		'''
 
 		import slideflow.slide as sfslide
@@ -1047,7 +1049,8 @@ class SlideflowProject:
 				return report
 
 			# Use multithreading if specified, extracting tiles from all slides in the filtered list
-			if self.FLAGS['num_threads'] > 1 and len(slide_list):
+			if num_threads == -1: num_threads = self.FLAGS['num_threads']
+			if num_threads > 1 and len(slide_list):
 				q = queue.Queue()
 				reports = sfutil.ThreadSafeList()
 				
@@ -1064,7 +1067,7 @@ class SlideflowProject:
 							if report: reports.add(report)
 						q.task_done()
 
-				threads = [threading.Thread(target=worker, daemon=True) for t in range(self.FLAGS['num_threads'])]
+				threads = [threading.Thread(target=worker, daemon=True) for t in range(num_threads)]
 				for thread in threads:
 					thread.start()
 
@@ -1530,7 +1533,7 @@ class SlideflowProject:
 		if umap_filename:
 			umap.save_2d_plot(join(stats_root, umap_filename), slide_to_category)
 
-	def generate_thumbnails(self, size=512, filters=None, filter_blank=None, enable_downsample=False):
+	def generate_thumbnails(self, size=512, filters=None, filter_blank=None, roi=False, enable_downsample=False):
 		'''Generates square slide thumbnails with black box borders of a fixed size, and saves to project folder.
 		
 		Args:
@@ -1551,12 +1554,18 @@ class SlideflowProject:
 		log.info(f"Saving thumbnails to {sfutil.green(thumb_folder)}", 1)
 
 		for slide_path in slide_list:
-			log.empty(f"Working on {sfutil.green(sfutil.path_to_name(slide_path))}...", 1)
-			whole_slide = sfslide.SlideReader(slide_path, 1, 1, 1, enable_downsample=enable_downsample,
+			print(f"\r\033[KWorking on {sfutil.green(sfutil.path_to_name(slide_path))}...", end="")
+			whole_slide = sfslide.SlideReader(slide_path, 1000, 1000, 1, enable_downsample=enable_downsample,
 																   roi_list=roi_list,
-																   skip_missing_roi=False,
-																   buffer=None)
-			whole_slide.square_thumb(size).save(join(thumb_folder, f'{whole_slide.name}.png'))
+																   skip_missing_roi=roi,
+																   buffer=None,
+																   silent=True)
+			if roi:
+				thumb = whole_slide.annotated_thumb()
+			else:
+				thumb = whole_slide.square_thumb(size)
+			thumb.save(join(thumb_folder, f'{whole_slide.name}.png'))
+		print("\r\033[KThumbnail generation complete.")
 
 	def generate_tfrecords_from_tiles(self, tile_px, tile_um, delete_tiles=True):
 		'''Create tfrecord files from a collection of raw images, as stored in project tiles directory'''
