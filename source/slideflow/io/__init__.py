@@ -12,6 +12,9 @@ from os import listdir, makedirs
 from os.path import isfile, isdir, join, exists
 from slideflow.util import log, TCGA, _shortname, make_dir
 
+class DatasetError(Exception):
+	pass
+
 def split_tiles(folder, fraction, names):
 	'''Split a directory of .jpg files into subdirectories.
 
@@ -388,6 +391,15 @@ class Dataset:
 			if num_warned >= warn_threshold:
 				log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
 		return results, unique_outcomes
+
+	def slide_to_outcome(self, headers, use_float=False):
+		outcomes, unique_outcomes = self.get_outcomes_from_annotations(headers=headers, use_float=use_float)
+		if not use_float and not unique_outcomes:
+			raise DatasetError(f"No outcomes were detected for header {headers} in this dataset")
+		elif not use_float:
+			return {k:unique_outcomes[v['outcome']] for k, v in outcomes.items()}
+		else:
+			return {k:outcomes[k]['outcome'] for k,v in outcomes.items()}
 
 	def load_annotations(self, annotations_file):
 		'''Load annotations from a given CSV file.'''
