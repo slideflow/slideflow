@@ -1113,7 +1113,7 @@ class Heatmap:
 			stride_div:			Divisor for stride when convoluting across slide
 			roi_dir:			Directory in which slide ROI is contained
 			roi_list:			If a roi_dir is not supplied, a list of paths to ROI CSVs can be provided
-			roi_method:			Either 'inside' or 'outside'. If inside, tiles will be extracted inside ROI region
+			roi_method:			Either 'inside', 'outside', or 'ignore'. If inside, tiles will be extracted inside ROI region
 									If outside, tiles will be extracted outside ROI region
 			buffer:				Either 'vmtouch' or path to directory to use for buffering slides
 									Significantly improves performance for slides on HDDs
