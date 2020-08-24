@@ -846,7 +846,7 @@ class SlideflowProject:
 			destination:			Either 'auto' or explicit filename at which to save the PDF report
 			tma:					Bool, if True, interprets slides to be TMA (tumor microarrays)
 			enable_downsample:		Bool, if True, enables downsampling during tile extraction
-			roi_method:				Either 'inside' or 'outside'. Determines how ROIs will guide tile extraction
+			roi_method:				Either 'inside', 'outside', or 'ignore'. Determines how ROIs will guide tile extraction
 			skip_missing_roi:		Bool, if True, will skip tiles that are missing ROIs
 			normalizer:				Normalization strategy to use on image tiles
 			normalizer_source:		Path to normalizer source image
@@ -911,7 +911,7 @@ class SlideflowProject:
 			save_tfrecord:			Bool. If True, will save JPEG-compressed image data from extracted tiles into TFRecords in the corresponding TFRecord directory.
 			enable_downsample:		Bool. If True, enables the use of downsampling while reading slide images. This may result in corrupted image tiles
 										if downsampled slide layers are corrupted or not fully generated. Manual confirmation of tile integrity is recommended.
-			roi_method:				Either 'inside' or 'outside'. Whether to extract tiles inside or outside the ROIs.
+			roi_method:				Either 'inside', 'outside', or 'ignore'. Whether to extract tiles inside or outside the ROIs.
 			skip_missing_roi:		Bool. If True, will skip slides that are missing ROIs
 			skip_extracted:			Bool. If True, will skip slides that have already been fully extracted
 			dataset:				Name of dataset from which to select slides for extraction. If not provided, will default to all datasets in project
