@@ -18,6 +18,9 @@ from slideflow.statistics import get_centroid_index
 from multiprocessing.dummy import Pool as DPool
 from functools import partial
 
+class MosaicError(Exception):
+	pass
+
 class Mosaic:
 	'''Visualization of tiles as mapped using dimensionality reduction.'''
 	GRID = []
@@ -169,6 +172,8 @@ class Mosaic:
 					if tile_select == 'nearest':
 						distances = np.linalg.norm(point_coords - tile['coord'], ord=2, axis=1.)
 						tile['nearest_index'] = tile['points'][np.argmin(distances)]
+					elif not tile_meta:
+						raise MosaicError("Unable to calculate centroid for mosaic if tile_meta not provided.")
 					else:
 						centroid_index = get_centroid_index([self.points[global_index]['meta'] for global_index in tile['points']])
 						tile['nearest_index'] = tile['points'][centroid_index]
