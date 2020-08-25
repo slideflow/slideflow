@@ -29,7 +29,7 @@ from slideflow.statistics import TFRecordMap, calculate_centroid
 from slideflow.mosaic import Mosaic
 from comet_ml import Experiment
 
-__version__ = "1.9.0b1"
+__version__ = "1.9.0"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -1531,7 +1531,8 @@ class SlideflowProject:
 			mosaic_map.save(join(mosaic_root, mosaic_filename))
 			mosaic_map.save_report(join(stats_root, sfutil.path_to_name(mosaic_filename)+'-mosaic_report.csv'))
 		if umap_filename:
-			umap.save_2d_plot(join(stats_root, umap_filename), slide_to_category)
+			umap.label_by_slide(slide_to_category)
+			umap.save_2d_plot(join(stats_root, umap_filename))
 
 	def generate_thumbnails(self, size=512, filters=None, filter_blank=None, roi=False, enable_downsample=False):
 		'''Generates square slide thumbnails with black box borders of a fixed size, and saves to project folder.

@@ -167,7 +167,7 @@ class TFRecordMap:
 					'logits': logits
 				}]
 
-		coordinates = gen_umap(np.array(node_activations), n_neighbors=100, min_dist=0.5, low_memory=low_memory)
+		coordinates = gen_umap(np.array(node_activations), n_neighbors=100, min_dist=0.1, low_memory=low_memory)
 		self.x = np.array([c[0] for c in coordinates])
 		self.y = np.array([c[1] for c in coordinates])
 		self.values = np.array(['None' for i in range(len(self.point_meta))])
@@ -370,7 +370,7 @@ class TFRecordMap:
 		else:
 			self.values = np.array([m[tile_meta] for m in self.point_meta])
 
-	def save_2d_plot(self, filename, subsample=None, title=None, cmap=None, use_float=False, dpi=150):
+	def save_2d_plot(self, filename, subsample=None, title=None, cmap=None, use_float=False, xlim=(-0.05, 1.05), ylim=(-0.05, 1.05), dpi=300):
 		'''Saves plot of data to a provided filename.
 
 		Args:
@@ -412,11 +412,11 @@ class TFRecordMap:
 		# Make plot
 		plt.clf()
 		umap_2d = sns.scatterplot(x=x, y=y, data=df, hue='category', s=30, palette=cmap if cmap else palette)
-		plt.gca().set_ylim(0,1)
-		plt.gca().set_xlim(0,1)
+		plt.gca().set_ylim(*((None, None) if not ylim else ylim))
+		plt.gca().set_xlim(*((None, None) if not xlim else xlim))
 		umap_2d.legend(loc='center left', bbox_to_anchor=(1.25, 0.5), ncol=1)
 		umap_figure = umap_2d.get_figure()
-		umap_figure.set_size_inches(16, 12)
+		umap_figure.set_size_inches(6, 4.5)
 		if title: umap_figure.axes[0].set_title(title)
 		umap_figure.savefig(filename, bbox_inches='tight', dpi=dpi)
 		log.complete(f"Saved 2D UMAP to {sfutil.green(filename)}", 1)
