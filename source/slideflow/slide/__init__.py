@@ -511,7 +511,7 @@ class SlideReader(SlideLoader):
 									which greatly improves tile extraction speed.
 			roi_dir:			Directory in which to search for ROI CSV files
 			roi_list:			Alternatively, a list of ROI paths can be explicitly provided
-			roi_method:			Either inside or outside. Determines how ROIs are used to extract tiles
+			roi_method:			Either inside, outside, or ignore. Determines how ROIs are used to extract tiles
 			skip_missing_roi:	Bool, if True, will skip tiles that are missing a ROI file
 			silent:				Bool, if True, will hide logging output
 			buffer:				Either 'vmtouch' or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
@@ -607,12 +607,13 @@ class SlideReader(SlideLoader):
 				x_coord = int((c[0]+self.full_extract_px/2)/self.ROI_SCALE)
 				y_coord = int((c[1]+self.full_extract_px/2)/self.ROI_SCALE)
 
-				# If the extraction method is EXTRACT_INSIDE, skip the tile if it's not in an ROI
-				if bool(self.annPolys) and (self.roi_method == EXTRACT_INSIDE) and not any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in self.annPolys]):
-					continue
-				# If the extraction method is EXTRACT_OUTSIDE, skip the tile if it's in an ROI
-				elif bool(self.annPolys) and (self.roi_method == EXTRACT_OUTSIDE) and any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in self.annPolys]):
-					continue
+				if self.roi_method != IGNORE_ROI and bool(self.annPolys):
+					# If the extraction method is EXTRACT_INSIDE, skip the tile if it's not in an ROI
+					if (self.roi_method == EXTRACT_INSIDE) and not any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in self.annPolys]):
+						continue
+					# If the extraction method is EXTRACT_OUTSIDE, skip the tile if it's in an ROI
+					elif (self.roi_method == EXTRACT_OUTSIDE) and any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in self.annPolys]):
+						continue
 				if self.pb:
 					self.pb.increase_bar_value(id=self.pb_id)
 
