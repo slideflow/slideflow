@@ -1707,7 +1707,7 @@ class SlideflowProject:
 	def train(self, models=None, outcome_header='category', multi_outcome=False, filters=None, resume_training=None, checkpoint=None, 
 				pretrain='imagenet', batch_file=None, hyperparameters=None, validation_target=None, validation_strategy=None,
 				validation_fraction=None, validation_k_fold=None, k_fold_iter=None, validation_dataset=None, 
-				validation_annotations=None, validation_filters=None, validate_on_batch=256, validation_steps=200,
+				validation_annotations=None, validation_filters=None, validate_on_batch=512, validation_steps=200,
 				max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, auto_extract=False, normalizer=None, 
 				normalizer_source=None, normalizer_strategy='tfrecord'):
 		'''Train model(s).
