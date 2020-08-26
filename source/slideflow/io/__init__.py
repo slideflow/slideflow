@@ -312,7 +312,7 @@ class Dataset:
 		'''Returns folders containing tfrecords.'''
 		return [join(self.datasets[d]['tfrecords'], self.datasets[d]['label']) for d in self.datasets]
 
-	def get_outcomes_from_annotations(self, headers, use_float=False):
+	def get_outcomes_from_annotations(self, headers, use_float=False, assigned_outcome=None):
 		'''Returns a dictionary of slide names mapping to patient id and [an] outcome variable(s).
 
 		Args:
@@ -349,12 +349,19 @@ class Dataset:
 				unique_outcomes.sort()
 				for i, uo in enumerate(unique_outcomes):
 					num_matching_slides_filtered = sum(o == uo for o in filtered_outcomes)
-					log.empty(f"{header} '{sfutil.info(uo)}' assigned to value '{i}' [{sfutil.bold(str(num_matching_slides_filtered))} slides]", 2)
+					if assigned_outcome and uo not in assigned_outcome:
+						raise KeyError(f"assigned_outcome was provided, but outcome {uo} not found in this dict")
+					elif assigned_outcome:
+						log.empty(f"{header} '{sfutil.info(uo)}' assigned to value '{assigned_outcome[uo]}' [{sfutil.bold(str(num_matching_slides_filtered))} slides]", 2)
+					else:
+						log.empty(f"{header} '{sfutil.info(uo)}' assigned to value '{i}' [{sfutil.bold(str(num_matching_slides_filtered))} slides]", 2)
 			
 			# Create function to process/convert outcome
 			def _process_outcome(o):
 				if use_float:
 					return float(o)
+				elif assigned_outcome:
+					return assigned_outcome[o]
 				else:
 					return unique_outcomes.index(o)
 
