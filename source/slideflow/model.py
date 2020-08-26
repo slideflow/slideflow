@@ -453,27 +453,29 @@ class SlideflowModel:
 
 		# Create sequential tile model: 
 		# 	tile image --> convolutions --> pooling/flattening --> hidden layers ---> prelogits --> softmax/logits
-		#                                                additional slide input --/
+		#                             additional slide input --/
 		post_convolution_identity_layer = tf.keras.layers.Lambda(lambda x: x, name="post_convolution") # This is an identity layer that simply returns the last layer, allowing us to name and access this layer later
 		layers = [tile_input_tensor, base_model]
 		if not hp.pooling:
 			layers += [tf.keras.layers.Flatten()]
 		layers += [post_convolution_identity_layer]
-		for i in range(hp.hidden_layers):
-				layers += [tf.keras.layers.Dense(hp.hidden_layer_width, activation='relu', kernel_regularizer=regularizer)]
 		tile_image_model = tf.keras.Sequential(layers)
 		model_inputs = [tile_image_model.input]
 
 		# Merge layers
 		if self.NUM_SLIDE_INPUT:
-			merged = tf.keras.layers.Concatenate(name="input_merge")([slide_input_tensor, tile_image_model.output])
+			merged_model = tf.keras.layers.Concatenate(name="input_merge")([slide_input_tensor, tile_image_model.output])
 			model_inputs += [slide_input_tensor]
 		else:
-			merged = tile_image_model.output
+			merged_model = tile_image_model.output
+
+		# Add hidden layers
+		for i in range(hp.hidden_layers):
+			merged_model = tf.keras.layers.Dense(hp.hidden_layer_width, name=f"hidden_{i}", activation='relu', kernel_regularizer=regularizer)(merged_model)
 
 		# Add the softmax prediction layer
 		activation = 'linear' if hp.model_type() == 'linear' else 'softmax'
-		final_dense_layer = tf.keras.layers.Dense(self.NUM_CLASSES, kernel_regularizer=regularizer, name="prelogits")(merged)
+		final_dense_layer = tf.keras.layers.Dense(self.NUM_CLASSES, kernel_regularizer=regularizer, name="prelogits")(merged_model)
 		softmax_output = tf.keras.layers.Activation(activation, dtype='float32', name='logits')(final_dense_layer)
 
 		# Assemble final model
