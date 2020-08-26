@@ -402,7 +402,7 @@ class SlideflowModel:
 																															 multi_image=multi_image)
 		return dataset, dataset_with_slidenames, num_tiles
 
-	def _build_model(self, hp, pretrain=None, checkpoint=None):
+	def _build_model(self, hp, pretrain=None, pretrain_model_format=None, checkpoint=None):
 		''' Assembles base model, using pretraining (imagenet) or the base layers of a supplied model.
 
 		Args:
@@ -420,17 +420,19 @@ class SlideflowModel:
 		if self.NUM_SLIDE_INPUT:
 			slide_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_INPUT), name="slide_input")
 
-		# Load core model
-		if pretrain:
-			log.info(f"Using pretraining from {sfutil.green(pretrain)}", 1)
+		# Load pretrained model if applicable
+		if pretrain: log.info(f"Using pretraining from {sfutil.green(pretrain)}", 1)
 		if pretrain and pretrain!='imagenet':
-			# Load pretrained model
 			pretrained_model = tf.keras.models.load_model(pretrain)
-			pretrained_input = pretrained_model.get_layer(name="tile_image") # This is the tile_image input
-			pretrained_output = pretrained_model.get_layer(name="post_convolution").output # This is the post-convolution layer
-			base_model = tf.keras.Model(inputs=pretrained_input, outputs=pretrained_output)
+			if not pretrain_model_format or pretrain_model_format == MODEL_FORMAT_CURRENT:
+				pretrained_input = pretrained_model.get_layer(name="tile_image").input # This is the tile_image input
+				pretrained_name = pretrained_model.get_layer(index=1).name # Name of the pretrained model core, which should be at layer 1
+				pretrained_output = pretrained_model.get_layer(name="post_convolution").output # This is the post-convolution layer
+				base_model = tf.keras.Model(inputs=pretrained_input, outputs=pretrained_output, name=f"pretrained_{pretrained_name}")
+			elif pretrain_model_format == MODEL_FORMAT_LEGACY:
+				base_model = pretrained_model.get_layer(index=0)
 		else:
-			# Create model using ImageNet if specified
+			# Create core model
 			base_model = hp.get_model(input_tensor=tile_input_tensor,
 									  weights=pretrain)
 
@@ -790,7 +792,7 @@ class SlideflowModel:
 		
 		return val_acc
 
-	def train(self, hp, pretrain='imagenet', resume_training=None, checkpoint=None, log_frequency=100, multi_image=False, 
+	def train(self, hp, pretrain='imagenet', pretrain_model_format=None, resume_training=None, checkpoint=None, log_frequency=100, multi_image=False, 
 				validate_on_batch=512, val_batch_size=32, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
 				ema_observations=20, ema_smoothing=2):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
@@ -972,7 +974,7 @@ class SlideflowModel:
 		elif multi_image:
 			self.model = self._build_multi_image_model(hp, pretrain=pretrain, checkpoint=checkpoint)
 		else:
-			self.model = self._build_model(hp, pretrain=pretrain, checkpoint=checkpoint)
+			self.model = self._build_model(hp, pretrain=pretrain, pretrain_model_format=pretrain_model_format, checkpoint=checkpoint)
 
 		# Retrain top layer only if using transfer learning and not resuming training
 		if hp.toplayer_epochs:

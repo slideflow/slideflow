@@ -180,8 +180,8 @@ def _heatmap_generator(slide, model_name, model_path, save_folder, roi_list, sho
 def _trainer(outcome_headers, model_name, project_config, results_dict, hp, validation_strategy, 
 			validation_target, validation_fraction, validation_k_fold, validation_log, validation_dataset=None, 
 			validation_annotations=None, validation_filters=None, k_fold_i=None, input_header=None, filters=None, pretrain=None, 
-			resume_training=None, checkpoint=None, validate_on_batch=0, validation_steps=200, max_tiles_per_slide=0, 
-			min_tiles_per_slide=0, starting_epoch=0, normalizer=None, normalizer_source=None, flags=None):
+			pretrain_model_format=None, resume_training=None, checkpoint=None, validate_on_batch=0, validation_steps=200,
+			 max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, normalizer=None, normalizer_source=None, flags=None):
 	'''Internal function to execute model training process.'''
 	import slideflow.model as sfmodel
 	import tensorflow as tf
@@ -315,6 +315,7 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 	# Execute training
 	try:
 		results, history = SFM.train(hp, pretrain=pretrain, 
+										 pretrain_model_format=pretrain_model_format,
 										 resume_training=resume_training, 
 										 checkpoint=checkpoint,
 										 validate_on_batch=validate_on_batch,
@@ -1032,7 +1033,7 @@ class SlideflowProject:
 			for slide_path in slide_list:
 				slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, roi_dir=roi_dir,
 																					  roi_method=roi_method,
-																					  skip_missing_roi=skip_missing_roi,
+																					  skip_missing_roi=False,
 																					  silent=True,
 																					  buffer=None)
 				print(f"\r\033[KVerified {sfutil.green(slide.name)} (approx. {slide.estimated_num_tiles} tiles)", end="")
@@ -1755,7 +1756,7 @@ class SlideflowProject:
 		sfutil.write_json(self.PROJECT, join(self.PROJECT['root'], 'settings.json'))
 
 	def train(self, models=None, outcome_header='category', input_header=None, multi_outcome=False, filters=None, resume_training=None, checkpoint=None, 
-				pretrain='imagenet', batch_file=None, hyperparameters=None, validation_target=None, validation_strategy=None,
+				pretrain='imagenet', pretrain_model_format=None, batch_file=None, hyperparameters=None, validation_target=None, validation_strategy=None,
 				validation_fraction=None, validation_k_fold=None, k_fold_iter=None, validation_dataset=None, 
 				validation_annotations=None, validation_filters=None, validate_on_batch=512, validation_steps=200,
 				max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, auto_extract=False, normalizer=None, 
@@ -1775,6 +1776,9 @@ class SlideflowProject:
 			resume_training:		Path to .h5 model to continue training
 			checkpoint:				Path to cp.ckpt from which to load weights
 			pretrain:				Pretrained weights to load. Default is imagenet. May supply a compatible .h5 file from which to load weights.
+			pretrain_model_format:	Optional. May supply format of pretrained Slideflow Keras model if the model was made with a legacy version.
+										Default value will be slideflow.model.MODEL_FORMAT_CURRENT,
+										but slideflow.model.MODEL_FORMAT_LEGACY may be supplied.
 			batch_file:				Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.
 			hyperparameters:		Manually specify hyperparameter combination to use for training. If specified, will ignore batch training file.
 			validation_target: 		Whether to select validation data on a 'per-patient' or 'per-tile' basis. If not specified, will use project default.
@@ -1879,8 +1883,8 @@ class SlideflowProject:
 																results_dict, hp, validation_strategy, 
 																validation_target, validation_fraction, validation_k_fold, 
 																validation_log, validation_dataset, validation_annotations,
-																validation_filters, k, input_header, filters, pretrain, resume_training, 
-																checkpoint, validate_on_batch, validation_steps, max_tiles_per_slide,
+																validation_filters, k, input_header, filters, pretrain, pretrain_model_format, 
+																resume_training, checkpoint, validate_on_batch, validation_steps, max_tiles_per_slide,
 																min_tiles_per_slide, starting_epoch, train_normalizer, train_normalizer_source, self.FLAGS))
 					process.start()
 					log.empty(f"Spawning training process (PID: {process.pid})")
