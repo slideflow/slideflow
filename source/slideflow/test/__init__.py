@@ -5,9 +5,9 @@ import tensorflow as tf
 import csv
 import shutil
 
-from slideflow.io.datasets import Dataset
+from slideflow.io import Dataset
 from slideflow.util import TCGA, log, ProgressBar
-from slideflow.statistics import TFRecordUMAP
+from slideflow.statistics import TFRecordMap
 
 from glob import glob
 from os.path import join
@@ -29,14 +29,12 @@ TEST_DATASETS = {
 		'roi': '/home/shawarma/data/HNSC/train_slides',
 		'tiles': '/home/shawarma/data/test_project/tiles/TEST1',
 		'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST1',
-		'label': sf.NO_LABEL
 	},
 	'TEST2': {
-		'slides': '/media/Backup/SLIDES/THCA/UCH_OLD',
-		'roi': '/media/Backup/SLIDES/THCA/UCH_OLD',
+		'slides': '/media/Backup/SLIDES/THCA/UCH',
+		'roi': '/media/Backup/SLIDES/THCA/UCH',
 		'tiles': '/home/shawarma/data/test_project/tiles/TEST2',
 		'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST2',
-		'label': sf.NO_LABEL
 	}
 }
 PROJECT_CONFIG = {
@@ -84,7 +82,7 @@ SAVED_MODEL = join(PROJECT_CONFIG['models_dir'], 'category1-performance-kfold1',
 
 class TestSuite:
 	'''Class to supervise standardized testing of slideflow pipeline.'''
-	def __init__(self, reset=True, silent=True):
+	def __init__(self, reset=True, silent=True, buffer=None):
 		'''Initialize testing models.'''
 			
 		# Reset test progress
@@ -100,6 +98,9 @@ class TestSuite:
 
 		# Prepare batch training
 		self.setup_hp("categorical")
+
+		# Setup buffering
+		self.buffer = buffer
 
 	def reset(self):
 		log.header("Resetting test project...")
@@ -128,7 +129,6 @@ class TestSuite:
 											   roi=TEST_DATASETS[dataset_name]['roi'],
 											   tiles=TEST_DATASETS[dataset_name]['tiles'],
 											   tfrecords=TEST_DATASETS[dataset_name]['tfrecords'],
-											   label=TEST_DATASETS[dataset_name]['label'],
 											   path=PROJECT_CONFIG['dataset_config'])
 		print("\t...DONE")
 
@@ -139,7 +139,8 @@ class TestSuite:
 			csv_writer = csv.writer(csv_outfile, delimiter=',')
 			for an in ANNOTATIONS:
 				csv_writer.writerow(an)
-		project_dataset = Dataset(config_file=PROJECT_CONFIG['dataset_config'],
+		project_dataset = Dataset(tile_px=299, tile_um=302,
+								  config_file=PROJECT_CONFIG['dataset_config'],
 								  sources=PROJECT_CONFIG['datasets'],
 								  annotations=PROJECT_CONFIG['annotations'])
 		project_dataset.update_annotations_with_slidenames(PROJECT_CONFIG['annotations'])
@@ -167,7 +168,8 @@ class TestSuite:
 		elif model_type == 'linear':
 			loss = 'mean_squared_error'
 		# Create batch train file
-		self.SFP.create_hyperparameter_sweep(finetune_epochs=[1],
+		self.SFP.create_hyperparameter_sweep(tile_px=299, tile_um=302,
+											 finetune_epochs=[1],
 											 toplayer_epochs=[0],
 											 model=["InceptionV3"],
 											 pooling=["max"],
@@ -198,23 +200,23 @@ class TestSuite:
 	def test_extraction(self):
 		# Test tile extraction, default parameters
 		log.header("Testing multiple slides extraction...")
-		self.SFP.extract_tiles()
+		self.SFP.extract_tiles(tile_px=299, tile_um=302, buffer=self.buffer)
 		print("\t...OK")
 
-	def test_single_extraction(self):
+	def test_single_extraction(self, buffer=True):
 		log.header("Testing single slide extraction...")
-		extracting_dataset = Dataset(config_file=self.SFP.PROJECT['dataset_config'], sources=self.SFP.PROJECT['datasets'])
+		extracting_dataset = Dataset(tile_px=299, tile_um=302, config_file=self.SFP.PROJECT['dataset_config'], sources=self.SFP.PROJECT['datasets'])
 		extracting_dataset.load_annotations(self.SFP.PROJECT['annotations'])
 		dataset_name = self.SFP.PROJECT['datasets'][0]
 		slide_list = extracting_dataset.get_slide_paths(dataset=dataset_name)
 		roi_dir = extracting_dataset.datasets[dataset_name]['roi'] 
 		tiles_dir = extracting_dataset.datasets[dataset_name]['tiles']
 		pb = None#ProgressBar(bar_length=5, counter_text='tiles')
-		whole_slide = sf.slide.SlideReader(slide_list[0], 299, 302, 1, enable_downsample=False, export_folder=tiles_dir, roi_dir=roi_dir, roi_list=None, pb=pb) 
-		whole_slide.export_tiles()
+		whole_slide = sf.slide.SlideReader(slide_list[0], 299, 302, 1, enable_downsample=False, export_folder=tiles_dir, roi_dir=roi_dir, roi_list=None, buffer=buffer, pb=pb) 
+		whole_slide.extract_tiles(normalizer='macenko')
 		print("\t...OK")
 
-	def test_training(self, categorical=True, linear=True):
+	def test_training(self, categorical=True, linear=True, multi_input=True):
 		if categorical:
 			# Test categorical outcome
 			hp = self.setup_hp('categorical')
@@ -237,6 +239,10 @@ class TestSuite:
 			print("Training to multiple linear outcomes...")
 			self.SFP.train(outcome_header=['linear1', 'linear2'], multi_outcome=True, k_fold_iter=1, validate_on_batch=50)
 			print("\t...OK")
+		if multi_input:
+			hp = self.setup_hp('categorical')
+			print("Training with multiple input types...")
+			self.SFP.train(outcome_header='category1', input_header='category2', k_fold_iter=1, validate_on_batch=50)
 		print("\t...OK")
 
 	def test_training_performance(self):
@@ -266,20 +272,19 @@ class TestSuite:
 													outcome_header='category1', 
 													focus_nodes=[0])
 		AV.generate_box_plots()
-		umap = TFRecordUMAP.from_activations(AV)
+		umap = TFRecordMap.from_activations(AV)
 		umap.save_2d_plot(join(PROJECT_CONFIG['root'], 'stats', '2d_umap.png'))
 		top_nodes = AV.get_top_nodes_by_slide()
 		for node in top_nodes[:5]:
 			umap.save_3d_node_plot(node, join(PROJECT_CONFIG['root'], 'stats', f'3d_node{node}.png'))
 		print("\t...OK")
 
-	def test(self):
+	def test(self, extract=True, train=True, train_performance=True, evaluate=True, heatmap=True, mosaic=True, activations=True):
 		'''Perform and report results of all available testing.'''
-		self.test_extraction()
-		self.test_training()
-		self.test_training_performance()
-		self.test_evaluation()
-		self.test_heatmap()
-		self.test_mosaic()
-		self.test_activations()
-		#self.test_input_stream()
+		if extract: 			self.test_extraction()
+		if train:				self.test_training()
+		if train_performance: 	self.test_training_performance()
+		if evaluate:			self.test_evaluation()
+		if heatmap:				self.test_heatmap()
+		if mosaic:				self.test_mosaic()
+		if activations:			self.test_activations()
