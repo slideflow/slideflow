@@ -29,14 +29,12 @@ TEST_DATASETS = {
 		'roi': '/home/shawarma/data/HNSC/train_slides',
 		'tiles': '/home/shawarma/data/test_project/tiles/TEST1',
 		'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST1',
-		'label': sf.NO_LABEL
 	},
 	'TEST2': {
-		'slides': '/media/Backup/SLIDES/THCA/UCH_OLD',
-		'roi': '/media/Backup/SLIDES/THCA/UCH_OLD',
+		'slides': '/media/Backup/SLIDES/THCA/UCH',
+		'roi': '/media/Backup/SLIDES/THCA/UCH',
 		'tiles': '/home/shawarma/data/test_project/tiles/TEST2',
 		'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST2',
-		'label': sf.NO_LABEL
 	}
 }
 PROJECT_CONFIG = {
@@ -218,7 +216,7 @@ class TestSuite:
 		whole_slide.extract_tiles(normalizer='macenko')
 		print("\t...OK")
 
-	def test_training(self, categorical=True, linear=True):
+	def test_training(self, categorical=True, linear=True, multi_input=True):
 		if categorical:
 			# Test categorical outcome
 			hp = self.setup_hp('categorical')
@@ -241,6 +239,10 @@ class TestSuite:
 			print("Training to multiple linear outcomes...")
 			self.SFP.train(outcome_header=['linear1', 'linear2'], multi_outcome=True, k_fold_iter=1, validate_on_batch=50)
 			print("\t...OK")
+		if multi_input:
+			hp = self.setup_hp('categorical')
+			print("Training with multiple input types...")
+			self.SFP.train(outcome_header='category1', input_header='category2', k_fold_iter=1, validate_on_batch=50)
 		print("\t...OK")
 
 	def test_training_performance(self):
@@ -277,13 +279,12 @@ class TestSuite:
 			umap.save_3d_node_plot(node, join(PROJECT_CONFIG['root'], 'stats', f'3d_node{node}.png'))
 		print("\t...OK")
 
-	def test(self):
+	def test(self, extract=True, train=True, train_performance=True, evaluate=True, heatmap=True, mosaic=True, activations=True):
 		'''Perform and report results of all available testing.'''
-		self.test_extraction()
-		self.test_training()
-		self.test_training_performance()
-		self.test_evaluation()
-		self.test_heatmap()
-		self.test_mosaic()
-		self.test_activations()
-		#self.test_input_stream()
+		if extract: 			self.test_extraction()
+		if train:				self.test_training()
+		if train_performance: 	self.test_training_performance()
+		if evaluate:			self.test_evaluation()
+		if heatmap:				self.test_heatmap()
+		if mosaic:				self.test_mosaic()
+		if activations:			self.test_activations()
