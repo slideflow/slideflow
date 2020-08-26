@@ -29,7 +29,7 @@ from slideflow.statistics import TFRecordMap, calculate_centroid
 from slideflow.mosaic import Mosaic
 from comet_ml import Experiment
 
-__version__ = "1.9.0"
+__version__ = "1.9.1"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -143,7 +143,7 @@ def _evaluator(outcome_header, model, project_config, results_dict, filters=None
 	return results_dict
 
 def _heatmap_generator(slide, model_name, model_path, save_folder, roi_list, show_roi, resolution, interpolation, project_config, 
-						logit_cmap=None, skip_thumb=False, buffer=True, normalizer=None, normalizer_source=None, flags=None):
+						logit_cmap=None, skip_thumb=False, buffer=True, normalizer=None, normalizer_source=None, model_format=None, flags=None):
 	'''Internal function to execute heatmap generator process.'''
 	import slideflow.slide as sfslide
 	from slideflow.activations import Heatmap
@@ -170,18 +170,20 @@ def _heatmap_generator(slide, model_name, model_path, save_folder, roi_list, sho
 																				normalizer=normalizer,
 																				normalizer_source=normalizer_source,
 																				batch_size=flags['eval_batch_size'],
-																				skip_thumb=skip_thumb)
+																				skip_thumb=skip_thumb,
+																				model_format=model_format)
 
 	heatmap.save(save_folder, show_roi=show_roi, interpolation=interpolation, logit_cmap=logit_cmap, skip_thumb=skip_thumb)
 
 def _trainer(outcome_headers, model_name, project_config, results_dict, hp, validation_strategy, 
 			validation_target, validation_fraction, validation_k_fold, validation_log, validation_dataset=None, 
-			validation_annotations=None, validation_filters=None, k_fold_i=None, filters=None, pretrain=None, 
+			validation_annotations=None, validation_filters=None, k_fold_i=None, input_header=None, filters=None, pretrain=None, 
 			resume_training=None, checkpoint=None, validate_on_batch=0, validation_steps=200, max_tiles_per_slide=0, 
 			min_tiles_per_slide=0, starting_epoch=0, normalizer=None, normalizer_source=None, flags=None):
 	'''Internal function to execute model training process.'''
 	import slideflow.model as sfmodel
 	import tensorflow as tf
+	from slideflow.statistics import to_onehot
 
 	if not flags: flags = DEFAULT_FLAGS
 
@@ -220,14 +222,10 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 
 	# Get TFRecords for training and validation
 	manifest = training_dataset.get_manifest()
-	training_tfrecords, validation_tfrecords = sfio.tfrecords.get_training_and_validation_tfrecords(training_dataset, validation_log, outcomes, hp.model_type(),
-																									validation_target=validation_target,
-																									validation_strategy=validation_strategy,
-																									validation_fraction=validation_fraction,
-																									validation_k_fold=validation_k_fold,
-																									k_fold_iter=k_fold_i)
+
 	# Use external validation dataset if specified
 	if validation_dataset:
+		training_tfrecords = training_dataset.get_tfrecords()
 		validation_dataset = Dataset(config_file=project_config['dataset_config'],
 									 sources=validation_dataset,
 									 annotations=validation_annotations,
@@ -237,6 +235,37 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 		manifest.update(validation_dataset.get_manifest())
 		validation_outcomes, _ = validation_dataset.get_outcomes_from_annotations(outcome_headers, use_float=(hp.model_type() == 'linear'))
 		outcomes.update(validation_outcomes)
+	else:
+		training_tfrecords, validation_tfrecords = sfio.tfrecords.get_training_and_validation_tfrecords(training_dataset, validation_log, outcomes, hp.model_type(),
+																								validation_target=validation_target,
+																								validation_strategy=validation_strategy,
+																								validation_fraction=validation_fraction,
+																								validation_k_fold=validation_k_fold,
+																								k_fold_iter=k_fold_i)
+
+	# Prepare additional slide-level input
+	if input_header:
+		log.info("Preparing additional slide-level categorical input", 1)
+
+		# First, harmonize categories in training and validation datasets
+		if validation_dataset:
+			train_input_outcomes, unique_train_input_outcomes = training_dataset.get_outcomes_from_annotations(input_header)
+			val_input_outcomes, unique_val_input_outcomes = validation_dataset.get_outcomes_from_annotations(input_header)
+			unique_input_outcomes = sorted(list(set(unique_train_input_outcomes + unique_val_input_outcomes)))
+			input_outcome_to_int = dict(zip(unique_input_outcomes, range(len(unique_input_outcomes))))
+			input_outcomes, _ = training_dataset.get_outcomes_from_annotations(input_header, assigned_outcome=input_outcome_to_int)
+			val_input_outcomes, _ = validation_dataset.get_outcomes_from_annotations(input_header, assigned_outcome=input_outcome_to_int)
+			input_outcomes.update(val_input_outcomes)
+		else:
+			input_outcomes, unique_input_outcomes = training_dataset.get_outcomes_from_annotations(input_header)
+
+		num_slide_input = len(unique_input_outcomes)
+		for slide in outcomes:
+			outcomes[slide]['input'] = to_onehot(input_outcomes[slide]['outcome'], num_slide_input)
+		input_labels = dict(zip(range(len(unique_input_outcomes)), unique_input_outcomes))
+	else:
+		num_slide_input = 0
+		input_labels = None
 
 	# Initialize model
 	# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
@@ -248,7 +277,8 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 																			use_fp16=project_config['use_fp16'],
 																			model_type=hp.model_type(),
 																			normalizer=normalizer,
-																			normalizer_source=normalizer_source)
+																			normalizer_source=normalizer_source,
+																			num_slide_input=num_slide_input)
 
 	# Log model settings and hyperparameters
 	hp_file = join(project_config['models_dir'], full_model_name, 'hyperparameters.json')
@@ -259,6 +289,8 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 		"tile_um": hp.tile_um,
 		"model_type": hp.model_type(),
 		"outcome_headers": outcome_headers,
+		"slide_input_headers": input_header,
+		"slide_input_labels": input_labels,
 		"outcome_labels": outcome_labels,
 		"dataset_config": project_config['dataset_config'],
 		"datasets": project_config['datasets'],
@@ -1103,7 +1135,7 @@ class SlideflowProject:
 			extracting_dataset.update_manifest()
 
 	def generate_activations_analytics(self, model, outcome_header=None, filters=None, filter_blank=None, focus_nodes=[], node_exclusion=False, activations_export=None,
-										activations_cache='default', normalizer=None, normalizer_source=None, max_tiles_per_slide=100):
+										activations_cache='default', normalizer=None, normalizer_source=None, max_tiles_per_slide=100, model_format=None):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.
 		Note: GPU memory will remain in use, as the Keras model associated with the visualizer is active.
 		
@@ -1119,6 +1151,9 @@ class SlideflowProject:
 			activations_cache:	Either 'default' or path to 'PKL' file; will save activations to this file in PKL format as cache
 			normalizer:			Normalization strategy to use on image tiles
 			normalizer_source:	Path to normalizer source image
+			model_format:		Optional. May supply format of saved Slideflow Keras model if the model was made with a legacy version.
+									Default value will be slideflow.model.MODEL_FORMAT_CURRENT,
+									but slideflow.model.MODEL_FORMAT_LEGACY may be supplied.
 		'''
 		from slideflow.activations import ActivationsVisualizer
 
@@ -1151,12 +1186,13 @@ class SlideflowProject:
 								   normalizer_source=normalizer_source,
 								   activations_export=None if not activations_export else join(stats_root, activations_export),
 								   activations_cache=activations_cache,
-								   max_tiles_per_slide=max_tiles_per_slide)
+								   max_tiles_per_slide=max_tiles_per_slide,
+								   model_format=model_format)
 
 		return AV
 
 	def generate_heatmaps(self, model, filters=None, filter_blank=None, directory=None, resolution='low', interpolation='none', show_roi=True, logit_cmap=None,
-							skip_thumb=False, normalizer=None, normalizer_source=None, buffer=True, single_thread=False):
+							skip_thumb=False, normalizer=None, normalizer_source=None, buffer=True, single_thread=False, model_format=None):
 		'''Creates predictive heatmap overlays on a set of slides. 
 
 		Args:
@@ -1191,6 +1227,9 @@ class SlideflowProject:
 			single_thread:		Bool. If True, will perform as single thread (GPU memory may not be freed after completion). 
 									Allows use for functions being passed to logit_cmap (functions are not pickleable).
 									If False, will wrap function in separate process, allowing GPU memory to be freed after completion.
+			model_format:		Optional. May supply format of saved Slideflow Keras model if the model was made with a legacy version.
+									Default value will be slideflow.model.MODEL_FORMAT_CURRENT,
+									but slideflow.model.MODEL_FORMAT_LEGACY may be supplied.
 		'''
 		log.header("Generating heatmaps...")
 
@@ -1221,10 +1260,10 @@ class SlideflowProject:
 		for slide in slide_list:
 			if single_thread:
 				_heatmap_generator(slide, model, model_path, heatmaps_folder, roi_list, show_roi,
-									resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb, buffer, normalizer, normalizer_source, self.FLAGS)
+									resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb, buffer, normalizer, normalizer_source, model_format, self.FLAGS)
 			else:
 				process = ctx.Process(target=_heatmap_generator, args=(slide, model, model_path, heatmaps_folder, roi_list, show_roi, 
-																		resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb, buffer, normalizer, normalizer_source, self.FLAGS))
+																		resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb, buffer, normalizer, normalizer_source, model_format, self.FLAGS))
 				process.start()
 				log.empty(f"Spawning heatmaps process (PID: {process.pid})")
 				process.join()
@@ -1232,7 +1271,7 @@ class SlideflowProject:
 	def generate_mosaic(self, model, mosaic_filename=None, umap_filename=None, outcome_header=None, filters=None, filter_blank=None, focus_filters=None, 
 						resolution="low", num_tiles_x=50, max_tiles_per_slide=100, expanded=False, map_slide=None, show_prediction=None, 
 						restrict_prediction=None, predict_on_axes=None, whitespace_on_axes=False, outcome_labels=None, cmap=None, model_type=None, umap_cache='default', activations_cache='default', 
-						activations_export=None, umap_export=None, use_float=False, normalizer=None, normalizer_source=None, low_memory=False):
+						activations_export=None, umap_export=None, use_float=False, normalizer=None, normalizer_source=None, low_memory=False, model_format=None):
 		'''Generates a mosaic map by overlaying images onto a set of mapped tiles.
 			Image tiles are extracted from the provided set of TFRecords, and predictions + penultimate node activations are calculated using the specified model.
 			Tiles are mapped either with dimensionality reduction on penultimate layer activations (default behavior), 
@@ -1274,6 +1313,9 @@ class SlideflowProject:
 			normalizer:				Normalization strategy to use on image tiles
 			normalizer_source:		Path to normalizer source image
 			low_memory:				Bool, if True, will attempt to limit memory during UMAP calculations at the cost of increased computational complexity
+			model_format:			Optional. May supply format of saved Slideflow Keras model if the model was made with a legacy version.
+										Default value will be slideflow.model.MODEL_FORMAT_CURRENT,
+										but slideflow.model.MODEL_FORMAT_LEGACY may be supplied.
 		'''
 		from slideflow.activations import ActivationsVisualizer
 
@@ -1339,7 +1381,8 @@ class SlideflowProject:
 								   activations_export=None if not activations_export else join(stats_root, activations_export),
 								   max_tiles_per_slide=max_tiles_per_slide,
 								   activations_cache=activations_cache,
-								   manifest=mosaic_dataset.get_manifest())
+								   manifest=mosaic_dataset.get_manifest(),
+								   model_format=model_format)
 
 		if predict_on_axes:
 			# Create mosaic using x- and y- axis corresponding to outcome predictions
@@ -1425,7 +1468,7 @@ class SlideflowProject:
 
 	def generate_mosaic_from_annotations(self, header_x, header_y, tile_px, tile_um, model=None, mosaic_filename=None, umap_filename=None, outcome_header=None, 
 											filters=None, focus_filters=None, resolution='low', num_tiles_x=50, max_tiles_per_slide=100, 
-											expanded=False, use_optimal_tile=False, activations_cache='default', normalizer=None, normalizer_source=None):
+											expanded=False, use_optimal_tile=False, activations_cache='default', normalizer=None, normalizer_source=None, model_format=None):
 		'''Generates a mosaic map by overlaying images onto a set of mapped tiles. 
 			Slides are mapped using slide-level annotations, with x-axis value determined from header_x, and y-axis from header_y. 
 			If use_optimal_tile is False and no model is provided, the first image tile in a slide's TFRecord is used for display.
@@ -1451,8 +1494,11 @@ class SlideflowProject:
 			use_optimal_tile:		Bool. If True, will use model to create penultimate layer activations for all tiles in each slide,
 										and choosing tile nearest to centroid for each slide for display.
 			activations_cache:		Either 'default' or path to PKL file in which to save/cache nodal activations
-			normalizer:			Normalization strategy to use on image tiles
-			normalizer_source:	Path to normalizer source image
+			normalizer:				Normalization strategy to use on image tiles
+			normalizer_source:		Path to normalizer source image
+			model_format:			Optional. May supply format of saved Slideflow Keras model if the model was made with a legacy version.
+										Default value will be slideflow.model.MODEL_FORMAT_CURRENT,
+										but slideflow.model.MODEL_FORMAT_LEGACY may be supplied.
 		'''
 		from slideflow.activations import ActivationsVisualizer
 		# Setup paths
@@ -1491,7 +1537,8 @@ class SlideflowProject:
 									   normalizer_source=normalizer_source,
 									   batch_size=self.FLAGS['eval_batch_size'],
 									   max_tiles_per_slide=max_tiles_per_slide,
-									   activations_cache='default')
+									   activations_cache='default',
+									   model_format=model_format)
 
 			optimal_slide_indices, _ = calculate_centroid(AV.slide_node_dict)
 
@@ -1704,7 +1751,7 @@ class SlideflowProject:
 		'''Saves current project configuration as "settings.json".'''
 		sfutil.write_json(self.PROJECT, join(self.PROJECT['root'], 'settings.json'))
 
-	def train(self, models=None, outcome_header='category', multi_outcome=False, filters=None, resume_training=None, checkpoint=None, 
+	def train(self, models=None, outcome_header='category', input_header=None, multi_outcome=False, filters=None, resume_training=None, checkpoint=None, 
 				pretrain='imagenet', batch_file=None, hyperparameters=None, validation_target=None, validation_strategy=None,
 				validation_fraction=None, validation_k_fold=None, k_fold_iter=None, validation_dataset=None, 
 				validation_annotations=None, validation_filters=None, validate_on_batch=512, validation_steps=200,
@@ -1764,6 +1811,9 @@ class SlideflowProject:
 		if normalizer and normalizer_strategy not in ('tfrecord', 'realtime'):
 			log.error(f"Unknown normalizer strategy {normalizer_strategy}, must be either 'tfrecord' or 'realtime'", 1)
 			return
+		if validation_strategy in ('k-fold', 'bootstrap') and validation_dataset:
+			log.error(f"Unable to use {validation_strategy} if validation_dataset has been provided.", 1)
+			return
 
 		# Setup normalization
 		tfrecord_normalizer = normalizer if (normalizer and normalizer_strategy == 'tfrecord') else None
@@ -1822,11 +1872,11 @@ class SlideflowProject:
 
 				def start_training_process(k):
 					# Using a separate process ensures memory is freed once training has completed
-					process = ctx.Process(target=_trainer, args=(selected_outcome_headers, model_name,self.PROJECT,
+					process = ctx.Process(target=_trainer, args=(selected_outcome_headers, model_name, self.PROJECT,
 																results_dict, hp, validation_strategy, 
 																validation_target, validation_fraction, validation_k_fold, 
 																validation_log, validation_dataset, validation_annotations,
-																validation_filters, k, filters, pretrain, resume_training, 
+																validation_filters, k, input_header, filters, pretrain, resume_training, 
 																checkpoint, validate_on_batch, validation_steps, max_tiles_per_slide,
 																min_tiles_per_slide, starting_epoch, train_normalizer, train_normalizer_source, self.FLAGS))
 					process.start()
@@ -1863,7 +1913,7 @@ class SlideflowProject:
 
 		return results_dict
 
-	def visualize_tiles(self, model, node, tfrecord_dict=None, directory=None, mask_width=None, normalizer=None, normalizer_source=None):
+	def visualize_tiles(self, model, node, tfrecord_dict=None, directory=None, mask_width=None, normalizer=None, normalizer_source=None, model_format=None):
 		'''Visualizes node activations across a set of image tiles through progressive convolutional masking.
 
 		Args:
@@ -1874,6 +1924,9 @@ class SlideflowProject:
 			mask_width:			Width of mask to convolutionally apply. Defaults to 1/6 of tile_px
 			normalizer:				Normalization strategy to use on image tiles.
 			normalizer_source:		Path to normalizer source image.
+			model_format:		Optional. May supply format of saved Slideflow Keras model if the model was made with a legacy version.
+									Default value will be slideflow.model.MODEL_FORMAT_CURRENT,
+									but slideflow.model.MODEL_FORMAT_LEGACY may be supplied.
 		'''
 		from slideflow.activations import TileVisualizer
 		hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
@@ -1883,7 +1936,8 @@ class SlideflowProject:
 							tile_px=tile_px,
 							mask_width=mask_width,
 							normalizer=normalizer,
-							normalizer_source=normalizer_source)
+							normalizer_source=normalizer_source,
+							model_format=model_format)
 
 		if tfrecord_dict:
 			for tfrecord in tfrecord_dict:
