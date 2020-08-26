@@ -318,7 +318,7 @@ class SlideflowModel:
 		if num_slide_input:
 			try:
 				self.SLIDE_INPUT_TABLE = {slide: slide_annotations[slide]['input'] for slide in self.SLIDES}
-				log.info(f"Training with both images and {num_slide_input} categories of slide-level input", 2)
+				log.info(f"Training with both images and {num_slide_input} categories of slide-level input", 1)
 			except KeyError:
 				raise ModelError("If num_slide_input > 0, slide-level input must be provided via 'input' key in slide_annotations")
 			for slide in self.SLIDES:
@@ -451,11 +451,14 @@ class SlideflowModel:
 			for layer in base_model.layers[:freezeIndex]:
 				layer.trainable = False
 
-		# Create sequential tile model: tile input -> convolutions -> pooling -> hidden layers
+		# Create sequential tile model: 
+		# 	tile image --> convolutions --> pooling/flattening --> hidden layers ---> prelogits --> softmax/logits
+		#                                                additional slide input --/
 		post_convolution_identity_layer = tf.keras.layers.Lambda(lambda x: x, name="post_convolution") # This is an identity layer that simply returns the last layer, allowing us to name and access this layer later
-		layers = [tile_input_tensor, base_model, post_convolution_identity_layer]
+		layers = [tile_input_tensor, base_model]
 		if not hp.pooling:
 			layers += [tf.keras.layers.Flatten()]
+		layers += [post_convolution_identity_layer]
 		for i in range(hp.hidden_layers):
 				layers += [tf.keras.layers.Dense(hp.hidden_layer_width, activation='relu', kernel_regularizer=regularizer)]
 		tile_image_model = tf.keras.Sequential(layers)
