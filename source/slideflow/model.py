@@ -492,7 +492,7 @@ class SlideflowModel:
 		return model
 	
 	def _build_multi_image_model(self, hp, pretrain=None, checkpoint=None):
-		'''Builds a model that reads multiple images from each TFRecord entry.
+		'''Builds a sample test model that reads multiple images from each TFRecord entry.
 
 		Args:
 			hp:			HyperParameters object
@@ -874,8 +874,8 @@ class SlideflowModel:
 				self.early_stop = False
 				self.last_ema = -1
 				self.moving_average = []
-				self.ema_two_checks_prior = 0
-				self.ema_one_check_prior = 0
+				self.ema_two_checks_prior = -1
+				self.ema_one_check_prior = -1
 				self.epoch_count = starting_epoch
 				self.model_type = hp.model_type()
 
@@ -923,8 +923,9 @@ class SlideflowModel:
 
 						# If early stopping and our patience criteria has been met, check if validation accuracy is still improving 
 						if hp.early_stop and (self.last_ema != -1) and (float(batch)/steps_per_epoch)+self.epoch_count > hp.early_stop_patience:
-							if ((hp.early_stop_method == 'accuracy' and self.last_ema <= self.ema_two_checks_prior) or 
-								(hp.early_stop_method == 'loss' and self.last_ema >= self.ema_two_checks_prior)):
+							if (self.ema_two_checks_prior != -1 and
+								((hp.early_stop_method == 'accuracy' and self.last_ema <= self.ema_two_checks_prior) or 
+								 (hp.early_stop_method == 'loss' and self.last_ema >= self.ema_two_checks_prior))):
 
 								log.info(f"Early stop triggered: epoch {self.epoch_count+1}, batch {batch}", 1)
 								self.model.stop_training = True
