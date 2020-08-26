@@ -53,6 +53,7 @@ def _evaluator(outcome_header, model, project_config, results_dict, filters=None
 	if not flags: flags = DEFAULT_FLAGS
 
 	model_root = dirname(model)
+	log.logfile = join(project_config['root'], "log.log")
 
 	# Load hyperparameters from saved model
 	hp_file = hyperparameters if hyperparameters else join(model_root, 'hyperparameters.json')
@@ -149,6 +150,7 @@ def _heatmap_generator(slide, model_name, model_path, save_folder, roi_list, sho
 	from slideflow.activations import Heatmap
 
 	if not flags: flags = DEFAULT_FLAGS
+	log.logfile = join(project_config['root'], "log.log")
 
 	resolutions = {'low': 1, 'medium': 2, 'high': 4}
 	try:
@@ -186,6 +188,7 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 	from slideflow.statistics import to_onehot
 
 	if not flags: flags = DEFAULT_FLAGS
+	log.logfile = join(project_config['root'], "log.log")
 
 	# First, clear prior Tensorflow graph to free memory
 	tf.keras.backend.clear_session()
