@@ -206,7 +206,7 @@ for best slide-level AUC, a minimum of at least 10 tiles per slide is recommende
 </div>
 <dl class="py function">
 <dt>
-<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">generate_heatmaps</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">self</span></em>, <em class="sig-param"><span class="n">model</span></em>, <em class="sig-param"><span class="n">filters</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">filter_blank</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">directory</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">resolution</span><span class="o">=</span><span class="default_value">'low'</span></em>, <em class="sig-param"><span class="n">interpolation</span><span class="o">=</span><span class="default_value">'none'</span></em>, <em class="sig-param"><span class="n">show_roi</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">logit_cmap</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">skip_thumb</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">normalizer</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">normalizer_source</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">buffer</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">single_thread</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span></dt>
+<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">generate_heatmaps</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">self</span></em>, <em class="sig-param"><span class="n">model</span></em>, <em class="sig-param"><span class="n">filters</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">filter_blank</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">directory</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">resolution</span><span class="o">=</span><span class="default_value">'low'</span></em>, <em class="sig-param"><span class="n">interpolation</span><span class="o">=</span><span class="default_value">'none'</span></em>, <em class="sig-param"><span class="n">show_roi</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">logit_cmap</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">skip_thumb</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">normalizer</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">normalizer_source</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">buffer</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">single_thread</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">model_format</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span></dt>
 <dd><p>Creates predictive heatmap overlays on a set of slides.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -223,10 +223,11 @@ in the annotations file will be excluded</p></li>
 <li><p><strong>interpolation</strong> – Interpolation strategy for smoothing heatmap predictions (matplotlib imshow interpolation options).</p></li>
 <li><p><strong>show_roi</strong> – Bool. If True, will show ROI on heatmaps.</p></li>
 <li><p><strong>logit_cmap</strong> – <p>Either a function or a dictionary used to create heatmap colormap.
+If None (default), separate heatmaps will be generated for each outcome category, with color representing likelihood of category prediction.
 Each image tile will generate a list of predictions of length O,
 where O is the number of outcome categories.
 If logit_cmap is a function, then this logit prediction list will be passed to the function,
-and the function is expected to return [R, G, B] values which will be displayed.
+and the function is expected to return [R, G, B] values which will be displayed. single_thread must be true if a function is passed.
 If the logit_cmap is a dictionary, it should map ‘r’, ‘g’, and ‘b’ to outcome indices;
 The prediction for these outcome categories will be mapped to the corresponding colors.
 Thus, the corresponding color will only reflect predictions of up to three outcome categories.</p>
@@ -235,15 +236,18 @@ Thus, the corresponding color will only reflect predictions of up to three outco
 {‘r’: 0, ‘g’: 3, ‘b’: 1 }</p>
 </div></blockquote>
 </p></li>
-<li><p><strong>skip_thumb</strong> – Bool, whether to skip thumbnail (vs displaying with heatmap)</p></li>
+<li><p><strong>skip_thumb</strong> – Bool. If True, will not display thumbnail with heatmap.</p></li>
 <li><p><strong>normalizer</strong> – Normalization strategy to use on image tiles</p></li>
 <li><p><strong>normalizer_source</strong> – Path to normalizer source image</p></li>
 <li><p><strong>buffer</strong> – Either ‘vmtouch’ or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
 If a directory, slides will be copied to the directory as a buffer before extraction.
 Either method vastly improves tile extraction for slides on HDDs by maximizing sequential read speed</p></li>
 <li><p><strong>single_thread</strong> – Bool. If True, will perform as single thread (GPU memory may not be freed after completion).
-Allows use for functions being passed to logit_cmap.
+Allows use for functions being passed to logit_cmap (functions are not pickleable).
 If False, will wrap function in separate process, allowing GPU memory to be freed after completion.</p></li>
+<li><p><strong>model_format</strong> – Optional. May supply format of saved Slideflow Keras model if the model was made with a legacy version.
+Default value will be slideflow.model.MODEL_FORMAT_CURRENT,
+but slideflow.model.MODEL_FORMAT_LEGACY may be supplied.</p></li>
 </ul>
 </dd>
 </dl>
@@ -253,7 +257,7 @@ If False, will wrap function in separate process, allowing GPU memory to be free
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">heatmap</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">activations</span><span class="o">.</span><span class="n">Heatmap</span><span class="p">(</span><span class="s1">&#39;/path/to/slide.svs&#39;</span><span class="p">,</span> <span class="s1">&#39;/path/to/model.h5&#39;</span><span class="p">,</span> <span class="n">size_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">size_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>The spatial map of logits, as calculated across the input slide, can be accessed through <code class="docutils literal notranslate"><span class="pre">heatmap.logits</span></code>. The spatial map of penultimate activations can be accessed through <code class="docutils literal notranslate"><span class="pre">heatmap.prelogits</span></code>. The heatmap can be saved with <code class="docutils literal notranslate"><span class="pre">heatmap.save('/path/')</span></code>.</p>
+<p>The spatial map of logits, as calculated across the input slide, can be accessed through <code class="docutils literal notranslate"><span class="pre">heatmap.logits</span></code>. The spatial map of post-convolution, penultimate activations can be accessed through <code class="docutils literal notranslate"><span class="pre">heatmap.postconv</span></code>. The heatmap can be saved with <code class="docutils literal notranslate"><span class="pre">heatmap.save('/path/')</span></code>.</p>
 </div>
 </div>
 
