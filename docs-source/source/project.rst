@@ -9,7 +9,18 @@ Before we start, make sure you have each of the following:
 2.    A collection of ROIs in CSV format, generated using QuPath.
 3.    A plan for which slides will be used for training and which will be used for final testing.
 
-We will use the ``run_project.py`` script in the slideflow directory to both create and manage our project. To create a new project (or run commands on an existing project), use the following syntax:
+There are two ways to interact with the pipeline. The first is to manually initialize a SlideflowProject object in a python script. For example, to initialize a new project, your script might start with:
+
+.. code-block:: python
+
+	import slideflow as sf
+	SFP = sf.SlideflowProject('/path/to/project/directory')
+
+You could then call pipeline functions on the SFP object.
+
+Alternatively, you can use the bundled ``run_project.py`` script to execute project functions. This script, which we will be using in this tutorial, helps by setting some useful environmental variables and can be used to easily manage GPU allocations.
+
+To create a new project with this script, or run commands on an existing project, use the following syntax:
 
 .. code-block:: console
 
@@ -34,13 +45,7 @@ Upon first executing the script, you will be asked a series of questions regardi
 +-------------------------------+-------------------------------------------------------+
 | **Datasets**                  | Which dataset(s) to use as input.                     |
 +-------------------------------+-------------------------------------------------------+
-| **Delete tiles**              | Whether tiles should be deleted after extraction.     |
-+-------------------------------+-------------------------------------------------------+
 | **Models directory**          | Path to where model files and results should be saved.|
-+-------------------------------+-------------------------------------------------------+
-| **Tile microns**              | Size of extracted tiles, in microns.                  |
-+-------------------------------+-------------------------------------------------------+
-| **Tile pixels**               | Size of extracted tiles, in pixels.                   |
 +-------------------------------+-------------------------------------------------------+
 | **Use FP16**                  | Whether models should be trained using                |
 |                               | 16-bit (vs. 32-bit) precision.                        |
@@ -58,66 +63,6 @@ Upon first executing the script, you will be asked a series of questions regardi
 +-------------------------------+-------------------------------------------------------+
 
 For more information about setting up a validation plan, see :ref:`validation_planning`.
-
-Configuring Datasets
-********************
-
-Once initial project settings are established, you will then need to either create or load a dataset configuration, which will specify directory locations for slides, ROIs, tiles, and TFRecords for each group of slides. Each dataset has a name (e.g. BRCA) and may have an associated label (e.g. 604um).
-
-Dataset configurations are saved in a JSON file with the below syntax. Dataset configuration files can be shared and used across multiple projects, or saved locally within a project directory. 
-
-.. code-block:: json
-
-    { 
-        "DATASET_NAME": 
-        {
-            "slides": "./directory",
-            "roi": "./directory",
-            "tiles": "./directory",
-            "tfrecords": "./directory",
-            "label": "DATASET_LABEL"
-        } 
-    }
-
-Datasets are configured either interactively at the time of project initialization, or may be added by calling ``SlideflowProject.add_dataset()``:
-
-.. code-block:: python
-
-    SFP.add_dataset( name="NAME",
-                     slides="/slides/directory",
-                     roi="/roi/directory",
-                     tiles="/tiles/directory",
-                     tfrecords="/tfrecords/directory",
-                     label="LABEL" )
-
-.. autofunction:: slideflow.SlideflowProject.add_dataset
-   :noindex:
-
-Setting up annotations
-**********************
-
-Your annotations CSV file is used to label patients and slides with clinical data and/or other outcome variables that will be used for training.
-Each line in the annotations file should correspond to a unique slide.
-
-The annotations file may contain as many columns as you would like, but it must contain the following headers at minimum:
-
-- **submitter_id**: patient identifier
-- **slide**: slide name (without the .jpg/.svs extension)
-- **category**: some outcome variable
-
-An example annotations file is given below:
-
-+-----------------------+---------------+-----------+-----------------------------------+
-| *submitter_id*        | *category*    | *dataset* | *slide*                           |
-+-----------------------+---------------+-----------+-----------------------------------+
-| TCGA-EL-A23A          | EGFR-mutant   | train     | TCGA-EL-A3CO-01Z-00-DX1-7BF5F     |
-+-----------------------+---------------+-----------+-----------------------------------+
-| TCGA-EL-A35B          | EGFR-mutant   | eval      | TCGA-EL-A35B-01Z-00-DX1-89FCD     |
-+-----------------------+---------------+-----------+-----------------------------------+
-| TCGA-EL-A26X          | non-mutant    | train     | TCGA-EL-A26X-01Z-00-DX1-4HA2C     |
-+-----------------------+---------------+-----------+-----------------------------------+
-| TCGA-EL-B83L          | non-mutant    | eval      | TCGA-EL-B83L-01Z-00-DX1-6BC5L     |
-+-----------------------+---------------+-----------+-----------------------------------+
 
 .. _execute:
 
@@ -147,7 +92,7 @@ After the project has been setup, open the ``actions.py`` file located in the pr
         #SFP.generate_mosaic('HPSweep0')
         pass
 
-The ``main()`` function contains several example commands, commented out with "#". These serve as examples to help remind you of arguments you can use when executing project functions.
+The ``main()`` function contains several example commands, commented out with "#". These serve as examples to help remind you of functions and arguments you can use when executing project functions.
 
 To set up a project command, either uncomment an existing command or type a new command (specific commands will be discussed in more detail in the following sections).
 
@@ -156,3 +101,62 @@ To execute the commands you have prepared, save the ``actions.py`` file and go t
 .. code-block:: console
 
     james@example:~/slideflow/source$ python3 run_project.py -g 1 -p /path/to/project/directory
+
+Configuring Datasets
+********************
+
+Once initial project settings are established, you will then need to either create or load a dataset configuration, which will specify directory locations for slides, ROIs, tiles, and TFRecords for each group of slides.
+
+Dataset configurations are saved in a JSON file with the below syntax. Dataset configuration files can be shared and used across multiple projects, or saved locally within a project directory. 
+
+.. code-block:: json
+
+    { 
+        "DATASET_NAME": 
+        {
+            "slides": "./directory",
+            "roi": "./directory",
+            "tiles": "./directory",
+            "tfrecords": "./directory",
+        } 
+    }
+
+Datasets are configured either interactively at the time of project initialization, or may be added by calling ``SlideflowProject.add_dataset()``, which can be called through the ``actions.py`` project script:
+
+.. code-block:: python
+
+    SFP.add_dataset( name="NAME",
+                     slides="/slides/directory",
+                     roi="/roi/directory",
+                     tiles="/tiles/directory",
+                     tfrecords="/tfrecords/directory")
+
+.. autofunction:: slideflow.SlideflowProject.add_dataset
+   :noindex:
+
+Setting up annotations
+**********************
+
+Your annotations CSV file is used to label patients and slides with clinical data and/or other outcome variables that will be used for training.
+Each line in the annotations file should correspond to a unique slide.
+
+The annotations file may contain as many columns as you would like, but it must contain the following headers at minimum:
+
+- **submitter_id**: patient identifier
+- **slide**: slide name (without the .jpg/.svs extension)
+
+An example annotations file is given below:
+
++-----------------------+---------------+-----------+-----------------------------------+
+| *submitter_id*        | *category*    | *dataset* | *slide*                           |
++-----------------------+---------------+-----------+-----------------------------------+
+| TCGA-EL-A23A          | EGFR-mutant   | train     | TCGA-EL-A3CO-01Z-00-DX1-7BF5F     |
++-----------------------+---------------+-----------+-----------------------------------+
+| TCGA-EL-A35B          | EGFR-mutant   | eval      | TCGA-EL-A35B-01Z-00-DX1-89FCD     |
++-----------------------+---------------+-----------+-----------------------------------+
+| TCGA-EL-A26X          | non-mutant    | train     | TCGA-EL-A26X-01Z-00-DX1-4HA2C     |
++-----------------------+---------------+-----------+-----------------------------------+
+| TCGA-EL-B83L          | non-mutant    | eval      | TCGA-EL-B83L-01Z-00-DX1-6BC5L     |
++-----------------------+---------------+-----------+-----------------------------------+
+
+Slide names do not need to be explicitly set in the annotations file by the user. Rather, once a dataset has been set up, the slideflow pipeline will search through the linked slide directories and attempt to match slides to entries in the annotations file using **submitter_id**. Entries that are blank in the **slide** column will be auto-populated with any detected and matching slides, if available.
