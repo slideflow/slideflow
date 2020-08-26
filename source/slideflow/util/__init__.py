@@ -200,7 +200,7 @@ class Logger:
 	ERROR_LEVEL = 3
 	COMPLETE_LEVEL = 3
 	SILENT = False
-	WRITE = False
+	ENABLE_WRITE = True
 
 	def __init__(self):
 		pass
@@ -255,7 +255,7 @@ class Logger:
 		return message
 	def log(self, text):
 		st = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-		if self.logfile and self.WRITE:
+		if self.logfile and self.ENABLE_WRITE:
 			for s in FORMATTING_OPTIONS:
 				text = text.replace(s, "")
 			outfile = open(self.logfile, 'a')
