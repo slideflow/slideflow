@@ -58,5 +58,11 @@ def update(root):
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description = "Update utility (1.8 -> 1.9)")
 	parser.add_argument('-pr', required=True, help='Path to root directory containing projects.')
+	parser.add_argument('--nested', action="store_true", help='Whether to search recursively through a parent directory into nested sub-directories.')
 	args = parser.parse_args()
-	update(args.pr)
+	if not args.nested:
+		update(args.pr)
+	else:
+		nested_folders = [f for f in os.listdir(args.pr) if isdir(join(args.pr, f))]
+		for nested_folder in nested_folders:
+			update(join(args.pr, nested_folder))
