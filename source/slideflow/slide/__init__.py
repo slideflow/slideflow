@@ -411,7 +411,7 @@ class SlideLoader:
 		try:
 			self.MPP = float(self.slide.properties[OPS_MPP_X])
 		except KeyError:
-			log.error(f"Corrupted SVS ({sfutil.green(self.name)}), skipping slide", 1, self.error_print)
+			log.error(f"Slide {sfutil.green(self.name)} missing microns-per-pixel property ({OPS_MPP_X}), unable to process", 1, self.error_print)
 			self.load_error = True
 			return
 		self.full_shape = self.slide.dimensions
