@@ -56,7 +56,7 @@ def update(root):
 							print(f"Moved tiles in dataset {dataset} into new label directory, {new_label}")
 					dataset_config[dataset]['label'] = new_label
 			sfutil.write_json(dataset_config, dataset_config_file)
-			print(f"Completed update evaluation project {sfutil.bold(project_settings['name'])} using dataset configuration JSON at {sfutil.green(dataset_config_file)}")
+			print(f"Completed update of project {sfutil.bold(project_settings['name'])} using dataset configuration JSON at {sfutil.green(dataset_config_file)}")
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description = "Update utility (1.8 -> 1.9)")
