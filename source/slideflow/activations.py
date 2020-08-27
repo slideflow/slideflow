@@ -37,8 +37,6 @@ from sklearn.neighbors import NearestNeighbors
 from PIL import Image
 
 # TODO: add check that cached PKL corresponds to current and correct model & slides
-# TODO: re-calculate new activations if some slides not present in cache
-# TODO: fix missing slide handling, recalculating activations as needed
 
 def create_bool_mask(x, y, w, sx, sy):
 	l = max(0,  int(x-(w/2.)))
