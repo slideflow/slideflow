@@ -853,7 +853,9 @@ class SlideReader(SlideLoader):
 		# Load annotations as shapely.geometry objects
 		if self.roi_method != IGNORE_ROI:
 			self.annPolys = [sg.Polygon(annotation.scaled_area(self.ROI_SCALE)) for annotation in self.rois]
-		roi_area = sum([poly.area for poly in self.annPolys])
+			roi_area = sum([poly.area for poly in self.annPolys])
+		else:
+			roi_area = 1
 		total_area = (self.full_shape[0]/self.ROI_SCALE) * (self.full_shape[1]/self.ROI_SCALE)
 		roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
 
