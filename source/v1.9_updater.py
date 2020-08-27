@@ -29,6 +29,9 @@ def update(root):
 							sfutil.write_json(hp, hp_file)
 							print(f"Updated model {model} in project {folder}")
 			# Scan datasets to ensure dataset organization follows 1.9 labeling conventions, renaming accordingly
+			if 'dataset_config' not in project_settings:
+				print(f"Warning: unable to update old (v1.3 or earlier) project at {project_folder}")
+				continue
 			dataset_config_file = project_settings['dataset_config']
 			if not exists(dataset_config_file): continue
 			shutil.copy(dataset_config_file, dataset_config_file+'.backup')
