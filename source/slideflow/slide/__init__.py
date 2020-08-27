@@ -852,7 +852,12 @@ class SlideReader(SlideLoader):
 
 		# Load annotations as shapely.geometry objects
 		if self.roi_method != IGNORE_ROI:
-			self.annPolys = [sg.Polygon(annotation.scaled_area(self.ROI_SCALE)) for annotation in self.rois]
+			self.annPolys = []
+			for i, annotation in enumerate(self.rois):
+				try:
+					self.annPolys += [sg.Polygon(annotation.scaled_area(self.ROI_SCALE))]
+				except ValueError:
+					log.warn(f"Unable to use ROI {i} in slide {sfutil.green(self.name)}, at least 3 points required to create a geometric shape.", 1, self.print)
 			roi_area = sum([poly.area for poly in self.annPolys])
 		else:
 			roi_area = 1
