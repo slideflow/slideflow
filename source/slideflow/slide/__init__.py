@@ -49,7 +49,6 @@ from matplotlib import pyplot as plt
 from slideflow.util import log
 from slideflow.util.fastim import FastImshow
 from slideflow.io.tfrecords import image_example
-from slideflow.slide import stainNorm_Macenko, stainNorm_Reinhard, stainNorm_Vahadane
 from statistics import mean, median
 from pathlib import Path
 from fpdf import FPDF
@@ -192,11 +191,6 @@ class StainNormalizer:
 	'''Object to supervise stain normalization for images and 
 	efficiently convert between common image types.'''
 
-	normalizers = {
-		'macenko':  stainNorm_Macenko.Normalizer,
-		'reinhard': stainNorm_Reinhard.Normalizer,
-		'vahadane': stainNorm_Vahadane.Normalizer
-	}
 	def __init__(self, method='macenko', source=None):
 		'''Initializer. Establishes normalization method.
 
@@ -205,6 +199,14 @@ class StainNormalizer:
 			source:		Path to source image for normalizer. 
 							If not provided, defaults to an internal example image.
 		'''
+		from slideflow.slide import stainNorm_Macenko, stainNorm_Reinhard, stainNorm_Vahadane
+
+		self.normalizers = {
+			'macenko':  stainNorm_Macenko.Normalizer,
+			'reinhard': stainNorm_Reinhard.Normalizer,
+			'vahadane': stainNorm_Vahadane.Normalizer
+		}
+
 		if not source:
 			package_directory = os.path.dirname(os.path.abspath(__file__))
 			source = join(package_directory, 'norm_tile.jpg')
