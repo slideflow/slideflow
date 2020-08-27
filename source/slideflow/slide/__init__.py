@@ -260,23 +260,32 @@ class OpenslideToVIPS:
 		for field in loaded_image.get_fields():
 			self.properties.update({field: loaded_image.get(field)})
 		self.dimensions = (int(self.properties[OPS_WIDTH]), int(self.properties[OPS_HEIGHT]))
-		self.level_count = int(self.properties[OPS_LEVEL_COUNT])
 		self.loaded_downsample_levels = {
 			0: self.full_image,
 		}
-
-		# Calculate level metadata
-		self.levels = []
-		for l in range(self.level_count):
-			width = int(loaded_image.get(OPS_LEVEL_WIDTH(l)))
-			height = int(loaded_image.get(OPS_LEVEL_HEIGHT(l)))
-			downsample = float(loaded_image.get(OPS_LEVEL_DOWNSAMPLE(l)))
-			self.levels += [{
-				'dimensions': (width, height),
-				'width': width,
-				'height': height,
-				'downsample': downsample
-			}]
+		if OPS_LEVEL_COUNT in self.properties:
+			self.level_count = int(self.properties[OPS_LEVEL_COUNT])
+			# Calculate level metadata
+			self.levels = []
+			for l in range(self.level_count):
+				width = int(loaded_image.get(OPS_LEVEL_WIDTH(l)))
+				height = int(loaded_image.get(OPS_LEVEL_HEIGHT(l)))
+				downsample = float(loaded_image.get(OPS_LEVEL_DOWNSAMPLE(l)))
+				self.levels += [{
+					'dimensions': (width, height),
+					'width': width,
+					'height': height,
+					'downsample': downsample
+				}]
+		else:
+			self.level_count = 1
+			self.levels = [{
+					'dimensions': self.dimensions,
+					'width': self.dimensions[0],
+					'height': self.dimensions[1],
+					'downsample': 1
+				}]
+		
 		self.level_downsamples = [l['downsample'] for l in self.levels]
 		self.level_dimensions = [l['dimensions'] for l in self.levels]
 
