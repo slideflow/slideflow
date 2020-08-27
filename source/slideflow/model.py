@@ -113,14 +113,17 @@ class ModelActivationsInterface:
 		_model = tf.keras.models.load_model(path)
 		
 		if model_format == MODEL_FORMAT_1_9:
-			loaded_model = tf.keras.models.Model(inputs=[_model.input],
-												outputs=[_model.get_layer(name="post_convolution").output, _model.output])
-			model_input = tf.keras.layers.Input(shape=loaded_model.input_shape[1:])
-			model_output = loaded_model(model_input)
-			self.model = tf.keras.Model(model_input, model_output)
-			
+			try:
+				loaded_model = tf.keras.models.Model(inputs=[_model.input],
+													outputs=[_model.get_layer(name="post_convolution").output, _model.output])
+				model_input = tf.keras.layers.Input(shape=loaded_model.input_shape[1:])
+				model_output = loaded_model(model_input)
+				self.model = tf.keras.Model(model_input, model_output)
+			except ValueError:
+				log.warn("Unable to read model using modern format, will try legacy model format", 1)
+				model_format = MODEL_FORMAT_LEGACY
 
-		elif model_format == MODEL_FORMAT_LEGACY:
+		if model_format == MODEL_FORMAT_LEGACY:
 			loaded_model = tf.keras.models.Model(inputs=[_model.input, _model.layers[0].layers[0].input],
 											outputs=[_model.layers[0].layers[-1].output, _model.layers[-1].output])
 			model_input = tf.keras.layers.Input(shape=loaded_model.input_shape[0][1:])
@@ -425,11 +428,15 @@ class SlideflowModel:
 		if pretrain and pretrain!='imagenet':
 			pretrained_model = tf.keras.models.load_model(pretrain)
 			if not pretrain_model_format or pretrain_model_format == MODEL_FORMAT_CURRENT:
-				pretrained_input = pretrained_model.get_layer(name="tile_image").input # This is the tile_image input
-				pretrained_name = pretrained_model.get_layer(index=1).name # Name of the pretrained model core, which should be at layer 1
-				pretrained_output = pretrained_model.get_layer(name="post_convolution").output # This is the post-convolution layer
-				base_model = tf.keras.Model(inputs=pretrained_input, outputs=pretrained_output, name=f"pretrained_{pretrained_name}")
-			elif pretrain_model_format == MODEL_FORMAT_LEGACY:
+				try:
+					pretrained_input = pretrained_model.get_layer(name="tile_image").input # This is the tile_image input
+					pretrained_name = pretrained_model.get_layer(index=1).name # Name of the pretrained model core, which should be at layer 1
+					pretrained_output = pretrained_model.get_layer(name="post_convolution").output # This is the post-convolution layer
+					base_model = tf.keras.Model(inputs=pretrained_input, outputs=pretrained_output, name=f"pretrained_{pretrained_name}")
+				except ValueError:
+					log.warn("Unable to read pretrained model using modern format, will try legacy model format", 1)
+					pretrain_model_format = MODEL_FORMAT_LEGACY
+			if pretrain_model_format == MODEL_FORMAT_LEGACY:
 				base_model = pretrained_model.get_layer(index=0)
 		else:
 			# Create core model
