@@ -35,7 +35,7 @@ def main(SFP):
 	# 					 filters = {'dataset': ['eval']}, 
 	# 					 resolution='high')
 
-	# Visualize and analyze penultimate layer activations
+	# Visualize and analyze post-convolutional layer activations
 	# ---------------------------------------------------
 	#from slideflow.statistics import TFRecordMap
 	#from os.path import join
