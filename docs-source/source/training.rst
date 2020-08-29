@@ -24,6 +24,8 @@ Alternatively, if you intend to perform a sweep across multiple hyperparameter c
 
 Available hyperparameters include:
 
+- **tile_px** - size of extracted tiles in pixels
+- **tile_um** - size of extracted tiles in microns
 - **finetune_epochs** - number of epochs to spend training the full model
 - **toplayer_epochs** - number of epochs to spend training just the final layer, with all convolutional layers "locked" (sometimes used for transfer learning)
 - **model** - model architecture; please see `Keras application documentation <https://keras.io/applications/>`_ for all options
@@ -32,11 +34,15 @@ Available hyperparameters include:
 - **learning_rate** - learning rate for training
 - **batch_size** - batch size for training
 - **hidden_layers** - number of fully-connected final hidden layers before softmax prediction
+- **hidden_layer_width** - width of hidden layers
 - **optimizer** - training optimizer; please see `Keras opt documentation <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers>`_ for all options
 - **early_stop** - whether to use early stopping if validation loss is not decreasing
 - **early_stop_patience** - number of epochs to wait before allowing early stopping
+- **early_stop_method** - metric to use for early stopping, e.g. 'loss' or 'accuracy'
 - **balanced_training** - training input balancing strategy; please see :ref:`balancing` for more details
 - **balanced_validation** - validation input balancing strategy; please see :ref:`balancing` for more details
+- **trainable_layers** - number of layers available for training, other layers will be frozen. If 0, all layers are trained
+- **L2_weight** - if provided, adds L2 regularization to all layers with this weight
 - **augment** - whether to augment data with random flipping/rotating during training
 
 Begin training
@@ -66,7 +72,7 @@ For example, to train using only slides labeled as "train" in the "dataset" colu
 
 To begin training, save your ``actions.py`` file and execute the ``run_project.py`` script in the slideflow directory.
 
-Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the ``results.log`` file in the project directory. Additional analytic data, including ROCs and scatter plots, are saved in the model directories.
+Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the ``results_log.csv`` file in the project directory. Additional analytic data, including ROCs and scatter plots, are saved in the model directories.
 
 Monitoring performance
 **********************
