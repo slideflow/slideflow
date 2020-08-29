@@ -929,7 +929,7 @@ class SlideflowProject:
 		pdf_report.save(filename)
 		log.complete(f"Slide report saved to {sfutil.green(filename)}", 1)
 
-	def extract_tiles(self, tile_px, tile_um, filters=None, filter_blank=None, stride_div=1, tma=False, save_tiles=False, save_tfrecord=True,
+	def extract_tiles(self, tile_px, tile_um, filters=None, filter_blank=None, stride_div=1, tma=False, full_core=False, save_tiles=False, save_tfrecord=True,
 						enable_downsample=False, roi_method='inside', skip_missing_roi=True, skip_extracted=True, dataset=None,
 						normalizer=None, normalizer_source=None, whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05, 
 						buffer=None, num_threads=-1):
@@ -943,6 +943,8 @@ class SlideflowProject:
 			stride_div:				Stride divisor to use when extracting tiles. A stride of 1 will extract non-overlapping tiles. 
 										A stride_div of 2 will extract overlapping tiles, with a stride equal to 50% of the tile width.
 			tma:					Bool. If True, reads slides as Tumor Micro-Arrays (TMAs), detecting and extracting tumor cores.
+			full_core:				Bool. Only used if extracting from TMA. If True, will save entire TMA core as image. Otherwise, will extract sub-images
+										from each core using the given tile micron size.
 			save_tiles:				Bool. If True, will save JPEG images of extracted tiles to corresponding tile directory.
 			save_tfrecord:			Bool. If True, will save JPEG-compressed image data from extracted tiles into TFRecords in the corresponding TFRecord directory.
 			enable_downsample:		Bool. If True, enables the use of downsampling while reading slide images. This may result in corrupted image tiles
@@ -1031,11 +1033,14 @@ class SlideflowProject:
 			log.empty("Verifying slides...", 1)
 			total_tiles = 0
 			for slide_path in slide_list:
-				slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, roi_dir=roi_dir,
-																					  roi_method=roi_method,
-																					  skip_missing_roi=False,
-																					  silent=True,
-																					  buffer=None)
+				if tma:
+					slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, silent=True, buffer=None)
+				else:
+					slide = sfslide.SlideReader(slide_path, tile_px, tile_um, stride_div, roi_dir=roi_dir,
+																						roi_method=roi_method,
+																						skip_missing_roi=False,
+																						silent=True,
+																						buffer=None)
 				print(f"\r\033[KVerified {sfutil.green(slide.name)} (approx. {slide.estimated_num_tiles} tiles)", end="")
 				total_tiles += slide.estimated_num_tiles
 				del(slide)
@@ -1051,7 +1056,7 @@ class SlideflowProject:
 
 				if tma:
 					whole_slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, enable_downsample=downsample,
-																			export_folder=tiles_folder, 
+																			report_dir=self.PROJECT['root'],
 																			buffer=buffer,
 																			pb=pb)
 				else:
@@ -1074,7 +1079,8 @@ class SlideflowProject:
 													whitespace_fraction=whitespace_fraction,
 													whitespace_threshold=whitespace_threshold,
 													grayspace_fraction=grayspace_fraction,
-													grayspace_threshold=grayspace_threshold)
+													grayspace_threshold=grayspace_threshold,
+													full_core=full_core)
 				except sfslide.TileCorruptionError:
 					if downsample:
 						log.warn(f"Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; will try re-extraction with downsampling disabled", 1, print_func)
