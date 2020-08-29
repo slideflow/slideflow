@@ -435,6 +435,14 @@ class SlideLoader:
 		self.filter_dimensions = self.slide.level_dimensions[-1]
 		self.filter_magnification = self.filter_dimensions[0] / self.full_shape[0]
 		self.filter_px = int(self.full_extract_px * self.filter_magnification)
+
+	def mpp_to_dim(self, mpp):
+		width = int((self.MPP * self.full_shape[0]) / mpp)
+		height = int((self.MPP * self.full_shape[1]) / mpp)
+		return (width, height)
+
+	def dim_to_mpp(self, dimensions):
+		return (self.full_shape[0] * self.MPP) / dimensions[0]
 	
 	def square_thumb(self, width=512):
 		'''Returns a square thumbnail of the slide, with black bar borders.
@@ -503,6 +511,115 @@ class SlideLoader:
 		except:
 			return False
 		return loaded_correctly
+
+	def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None, 
+						whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05,
+						normalizer=None, normalizer_source=None, shuffle=True, **kwargs):
+		'''Extractes tiles from slide and saves into a TFRecord file or as loose JPG tiles in a directory.
+		Args:
+			tfrecord_dir:			If provided, saves tiles into a TFRecord file (named according to slide name) in this directory.
+			tiles_dir:				If provided, saves loose JPG tiles into a subdirectory (named according to slide name) in this directory.
+			split_fraction:			List of float. If provided, splits the extracted tiles into subsets (e.g. for validation set) using these fractions.
+										Should add up to 1 (except for fractions of -1). Remaining tiles are split between fractions of "-1".
+			split_names:			List of names to label the split fractions
+			whitespace_fraction:	Int from 0-100, representing a percent. Tiles with this percent of pixels classified as "whitespace" 
+										will be skipped during extraction.
+			whitespace_threshold:	Int from 0-255, pixel brightness above which a pixel is considered whitespace
+			normalizer:				Normalization strategy to use on image tiles
+			normalizer_source:		Path to normalizer source image
+			full_core:				Bool. Only used for TMAReader. If true, will extract full image cores regardless of supplied tile micron size.
+		'''
+		# Make base directories
+		if tfrecord_dir:
+			if not exists(tfrecord_dir): os.makedirs(tfrecord_dir)
+		if tiles_dir:
+			if not os.path.exists(tiles_dir): os.makedirs(tiles_dir)
+
+		if tfrecord_dir or tiles_dir:
+			# Log to keep track of when tiles have finished extracting
+			# To be used in case tile extraction is interrupted, so the slide can be flagged for re-extraction
+			unfinished_marker = join((tfrecord_dir if tfrecord_dir else tiles_dir), f'{self.name}.unfinished')
+			with open(unfinished_marker, 'w') as marker_file:
+				marker_file.write(' ')
+
+			if split_fraction and split_names:
+				# Tile splitting error checking
+				if len(split_fraction) != len(split_names):
+					raise InvalidTileSplitException(f'When splitting tiles, length of "fraction" ({len(split_fraction)}) should equal length of "names" ({len(split_names)})')
+				if sum([i for i in split_fraction if i != -1]) > 1:
+					raise InvalidTileSplitException("Unable to split tiles; sum of split_fraction is greater than 1")
+				# Calculate dynamic splitting
+				if -1 in split_fraction:
+					num_to_dynamic_split = sum([i for i in split_fraction if i == -1])
+					dynamic_fraction = (1 - sum([i for i in split_fraction if i != -1])) / num_to_dynamic_split
+					split_fraction = [s if s != -1 else dynamic_fraction for s in split_fraction]
+				# Prepare subfolders for splitting
+				if tfrecord_dir:
+					tfrecord_writers = []
+					for name in split_names:
+						if not exists(join(tfrecord_dir, name)):
+							os.makedirs(join(tfrecord_dir, name))
+							tfrecord_writers += [tf.io.TFRecordWriter(join(tfrecord_dir, name, self.name+".tfrecords"))]
+				if tiles_dir:
+					for name in split_names:
+						if not exists(join(tiles_dir, name)):
+							os.makedirs(join(tiles_dir, name))
+			elif tfrecord_dir:
+				tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
+
+		generator = self.build_generator(shuffle=shuffle,
+										 normalizer=normalizer,
+										 normalizer_source=normalizer_source,
+										 whitespace_fraction=whitespace_fraction,
+										 whitespace_threshold=whitespace_threshold,
+										 grayspace_fraction=grayspace_fraction,
+										 grayspace_threshold=grayspace_threshold,
+										 **kwargs)
+		slidename_bytes = bytes(self.name, 'utf-8')
+
+		if not generator:
+			log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1, self.print)
+			return
+
+		sample_tiles = []
+		for index, tile in enumerate(generator()):
+			# Convert numpy array (in RGB) to jpeg string using CV2 (which first requires BGR format)
+			image_string = cv2.imencode('.jpg', cv2.cvtColor(tile, cv2.COLOR_RGB2BGR), [int(cv2.IMWRITE_JPEG_QUALITY), 100])[1].tostring()
+			if len(sample_tiles) < 10:
+				sample_tiles += [image_string]
+			elif not tiles_dir and not tfrecord_dir:
+				break
+			if tiles_dir:
+				if split_fraction and split_names:
+					save_dir = join(tiles_dir, random.choices(split_names, weights=split_fraction))
+				else:
+					save_dir = tiles_dir
+				with open(join(tiles_dir, f'{self.shortname}_{index}.jpg'), 'wb') as outfile:
+					outfile.write(image_string)
+			if tfrecord_dir:
+				if split_fraction and split_names:
+					writer = random.choices(tfrecord_writers, weights=split_fraction)
+				else:
+					writer = tfrecord_writer
+				tf_example = image_example(slidename_bytes, image_string)
+				writer.write(tf_example.SerializeToString())
+		
+		if tfrecord_dir or tiles_dir:
+			# Mark extraction of current slide as finished
+			try:
+				os.remove(unfinished_marker)
+			except:
+				log.error(f"Unable to mark slide {self.name} as tile extraction complete", 1)
+
+		# Unbuffer slide
+		self.slide.unbuffer()
+
+		# Generate extraction report
+		report = SlideReport(sample_tiles, self.slide.path)
+
+		log.complete(f"Finished tile extraction for slide {sfutil.green(self.shortname)}", 1, self.print)
+
+		return report
 
 class SlideReader(SlideLoader):
 	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
@@ -582,7 +699,7 @@ class SlideReader(SlideLoader):
 			return None
 
 	def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=1.0, whitespace_threshold=230,
-							grayspace_fraction=0.6, grayspace_threshold=0.05, normalizer=None, normalizer_source=None):
+							grayspace_fraction=0.6, grayspace_threshold=0.05, normalizer=None, normalizer_source=None, **kwargs):
 		'''Builds generator to supervise extraction of tiles across the slide.
 		
 		Args:
@@ -682,114 +799,6 @@ class SlideReader(SlideLoader):
 
 		return generator
 
-	def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None, 
-						whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05,
-						normalizer=None, normalizer_source=None, shuffle=True):
-		'''Extractes tiles from slide and saves into a TFRecord file or as loose JPG tiles in a directory.
-		Args:
-			tfrecord_dir:			If provided, saves tiles into a TFRecord file (named according to slide name) in this directory.
-			tiles_dir:				If provided, saves loose JPG tiles into a subdirectory (named according to slide name) in this directory.
-			split_fraction:			List of float. If provided, splits the extracted tiles into subsets (e.g. for validation set) using these fractions.
-										Should add up to 1 (except for fractions of -1). Remaining tiles are split between fractions of "-1".
-			split_names:			List of names to label the split fractions
-			whitespace_fraction:	Int from 0-100, representing a percent. Tiles with this percent of pixels classified as "whitespace" 
-										will be skipped during extraction.
-			whitespace_threshold:	Int from 0-255, pixel brightness above which a pixel is considered whitespace
-			normalizer:				Normalization strategy to use on image tiles
-			normalizer_source:		Path to normalizer source image
-		'''
-
-		# Make base directories
-		if tfrecord_dir:
-			if not exists(tfrecord_dir): os.makedirs(tfrecord_dir)
-		if tiles_dir:
-			if not os.path.exists(tiles_dir): os.makedirs(tiles_dir)
-
-		if tfrecord_dir or tiles_dir:
-			# Log to keep track of when tiles have finished extracting
-			# To be used in case tile extraction is interrupted, so the slide can be flagged for re-extraction
-			unfinished_marker = join((tfrecord_dir if tfrecord_dir else tiles_dir), f'{self.name}.unfinished')
-			with open(unfinished_marker, 'w') as marker_file:
-				marker_file.write(' ')
-
-			if split_fraction and split_names:
-				# Tile splitting error checking
-				if len(split_fraction) != len(split_names):
-					raise InvalidTileSplitException(f'When splitting tiles, length of "fraction" ({len(split_fraction)}) should equal length of "names" ({len(split_names)})')
-				if sum([i for i in split_fraction if i != -1]) > 1:
-					raise InvalidTileSplitException("Unable to split tiles; sum of split_fraction is greater than 1")
-				# Calculate dynamic splitting
-				if -1 in split_fraction:
-					num_to_dynamic_split = sum([i for i in split_fraction if i == -1])
-					dynamic_fraction = (1 - sum([i for i in split_fraction if i != -1])) / num_to_dynamic_split
-					split_fraction = [s if s != -1 else dynamic_fraction for s in split_fraction]
-				# Prepare subfolders for splitting
-				if tfrecord_dir:
-					tfrecord_writers = []
-					for name in split_names:
-						if not exists(join(tfrecord_dir, name)):
-							os.makedirs(join(tfrecord_dir, name))
-							tfrecord_writers += [tf.io.TFRecordWriter(join(tfrecord_dir, name, self.name+".tfrecords"))]
-				if tiles_dir:
-					for name in split_names:
-						if not exists(join(tiles_dir, name)):
-							os.makedirs(join(tiles_dir, name))
-			elif tfrecord_dir:
-				tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
-
-		generator = self.build_generator(shuffle=shuffle,
-										 normalizer=normalizer,
-										 normalizer_source=normalizer_source,
-										 whitespace_fraction=whitespace_fraction,
-										 whitespace_threshold=whitespace_threshold,
-										 grayspace_fraction=grayspace_fraction,
-										 grayspace_threshold=grayspace_threshold)
-		slidename_bytes = bytes(self.name, 'utf-8')
-
-		if not generator:
-			log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1, self.print)
-			return
-
-		sample_tiles = []
-		for index, tile in enumerate(generator()):
-			# Convert numpy array (in RGB) to jpeg string using CV2 (which first requires BGR format)
-			image_string = cv2.imencode('.jpg', cv2.cvtColor(tile, cv2.COLOR_RGB2BGR), [int(cv2.IMWRITE_JPEG_QUALITY), 100])[1].tostring()
-			if len(sample_tiles) < 10:
-				sample_tiles += [image_string]
-			elif not tiles_dir and not tfrecord_dir:
-				break
-			if tiles_dir:
-				if split_fraction and split_names:
-					save_dir = join(tiles_dir, random.choices(split_names, weights=split_fraction))
-				else:
-					save_dir = tiles_dir
-				with open(join(tiles_dir, f'{self.shortname}_{index}.jpg'), 'wb') as outfile:
-					outfile.write(image_string)
-			if tfrecord_dir:
-				if split_fraction and split_names:
-					writer = random.choices(tfrecord_writers, weights=split_fraction)
-				else:
-					writer = tfrecord_writer
-				tf_example = image_example(slidename_bytes, image_string)
-				writer.write(tf_example.SerializeToString())
-		
-		if tfrecord_dir or tiles_dir:
-			# Mark extraction of current slide as finished
-			try:
-				os.remove(unfinished_marker)
-			except:
-				log.error(f"Unable to mark slide {self.name} as tile extraction complete", 1)
-
-		# Unbuffer slide
-		self.slide.unbuffer()
-
-		# Generate extraction report
-		report = SlideReport(sample_tiles, self.slide.path)
-
-		log.complete(f"Finished tile extraction for slide {sfutil.green(self.shortname)}", 1, self.print)
-
-		return report
-
 	def annotated_thumb(self, mpp=55):
 		'''Returns PIL Image of thumbnail with ROI overlay.
 		
@@ -880,7 +889,6 @@ class SlideReader(SlideLoader):
 		
 class TMAReader(SlideLoader):
 	'''Helper object that loads a TMA-formatted slide, detects tissue cores, and sets up a tile generator.'''
-	THUMB_DOWNSCALE = 100
 	QUEUE_SIZE = 8
 	NUM_EXTRACTION_WORKERS = 8
 	HEIGHT_MIN = 20
@@ -892,15 +900,38 @@ class TMAReader(SlideLoader):
 	RED = (100, 100, 200)
 	WHITE = (255,255,255)
 
-	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False, export_folder=None, roi_dir=None, roi_list=None, buffer=None, pb=None):
-		super().__init__(path, size_px, size_um, stride_div, enable_downsample, buffer, pb)
+	def __init__(self, path, size_px, size_um, stride_div, annotations_dir=None, enable_downsample=False, silent=False, report_dir=None, buffer=None, pb=None, pb_id=0):
+		'''Initializer.
+
+		Args:
+			path:				Path to slide
+			size_px:			Size of tiles to extract, in pixels
+			size_um:			Size of tiles to extract, in microns
+			stride_div:			Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc)
+			enable_downsample:	Bool, if True, allows use of downsampled intermediate layers in the slide image pyramid,
+									which greatly improves tile extraction speed.
+			silent:				Bool, if True, will hide logging output
+			buffer:				Either 'vmtouch' or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
+									If a directory, slides will be copied to the directory as a buffer before extraction.
+									Either method vastly improves tile extraction for slides on HDDs by maximizing sequential read speed
+			pb:					ProgressBar instance; will update progress bar during tile extraction if provided
+			pb_id:				ID of bar in ProgressBar, defaults to 0
+		'''
+		super().__init__(path, size_px, size_um, stride_div, enable_downsample, silent, buffer, pb)
 
 		if not self.loaded_correctly():
 			return
 
-		self.annotations_dir = self.export_folder
-		self.tiles_dir = self.export_folder
+		self.object_rects = []
+		self.box_areas = []
 		self.DIM = self.slide.dimensions
+		target_thumb_width = self.DIM[0] / 100
+		target_thumb_mpp = self.dim_to_mpp((target_thumb_width, -1))
+		self.thumb_image = np.array(self.thumb(mpp=target_thumb_mpp))[:,:,:-1]
+		self.THUMB_DOWNSCALE = self.DIM[0] / self.mpp_to_dim(target_thumb_mpp)[0]
+		self.pb = pb
+		self.pb_id = pb_id
+		num_cores, self.estimated_num_tiles = self._detect_cores(report_dir=report_dir)
 		log.label(self.shortname, f"Slide info: {self.MPP} um/px | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
 
 	def _get_sub_image(self, rect):
@@ -919,7 +950,7 @@ class TMAReader(SlideLoader):
 		region_width  = int((region_x_max - region_x_min) / self.downsample_factor)
 		region_height = int((region_y_max - region_y_min) / self.downsample_factor)
 
-		extracted = vips2numpy(self.slide.read_region((region_x_min, region_y_min), self.downsample_level, (region_width, region_height)))
+		extracted = vips2numpy(self.slide.read_region((region_x_min, region_y_min), self.downsample_level, (region_width, region_height)))[:,:,:-1]
 		relative_box = (box - [region_x_min, region_y_min]) / self.downsample_factor
 
 		src_pts = relative_box.astype("float32")
@@ -967,24 +998,14 @@ class TMAReader(SlideLoader):
 
 		return subtiles
 
-	def build_generator(self, export=False, augment=False, export_full_core=False):
-		'''Builds generator to supervise extraction of tiles across the slide.
-		
-		Args:
-			export:				If true, will save tiles to the export_folder while extracting tiles.
-			augment:			If true, will save flipped/rotated tiles while extracting.
-			export_full_core:	If true, will also save a thumbnail of each fully extracted core.'''
-
-		super().build_generator()
-
-		log.empty(f"Extracting tiles from {sfutil.green(self.name)}, saving to {sfutil.green(self.tiles_dir)}", 1, self.print)
-		img_orig = np.array(self.slide.get_thumbnail(self.DIM[0]/self.THUMB_DOWNSCALE, enable_downsample=self.enable_downsample))
-		img_annotated = img_orig.copy()
+	def _detect_cores(self, report_dir=None):
+		# Prepare annotated image
+		img_annotated = self.thumb_image.copy()
 
 		# Create background mask for edge detection
 		white = np.array([255,255,255])
 		buffer = 28
-		mask = cv2.inRange(img_orig, np.array([0,0,0]), white-buffer)
+		mask = cv2.inRange(self.thumb_image, np.array([0,0,0]), white-buffer)
 
 		# Fill holes and dilate mask
 		closing_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
@@ -997,8 +1018,6 @@ class TMAReader(SlideLoader):
 
 		# Filter out small regions that likely represent background noise
 		# Also generate image showing identified cores
-		box_areas = []
-		object_rects = []
 		num_filtered = 0
 		for i, component in enumerate(zip(contours, heirarchy[0])):
 			cnt = component[0]
@@ -1008,7 +1027,7 @@ class TMAReader(SlideLoader):
 			height = rect[1][1]
 			if width > self.WIDTH_MIN and height > self.HEIGHT_MIN and heir[3] < 0:
 				moment = cv2.moments(cnt)
-				object_rects += [(len(object_rects), rect)]
+				self.object_rects += [(len(self.object_rects), rect)]
 				cX = int(moment["m10"] / moment["m00"])
 				cY = int(moment["m01"] / moment["m00"])
 				cv2.drawContours(img_annotated, contours, i, self.LIGHTBLUE)
@@ -1016,7 +1035,7 @@ class TMAReader(SlideLoader):
 				box = cv2.boxPoints(rect)
 				box = np.int0(box)
 				area = polyArea([b[0] for b in box], [b[1] for b in box])
-				box_areas += [area]
+				self.box_areas += [area]
 				cv2.drawContours(img_annotated, [box], 0, self.BLUE, 2)
 				num_filtered += 1   
 				#cv2.putText(img_annotated, f'{num_filtered}', (cX+10, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, self.BLACK, 2)
@@ -1025,12 +1044,41 @@ class TMAReader(SlideLoader):
 				box = np.int0(box)
 				cv2.drawContours(img_annotated, [box], 0, self.RED, 2)
 
-		log.info(f"Number of detected cores: {num_filtered}", 2)
+		log.info(f"Number of detected cores: {num_filtered}", 2, self.print)
 
-		# Write annotated image to file
-		cv2.imwrite(join(self.annotations_dir, "annotated.jpg"), cv2.resize(img_annotated, (1400, 1000)))
+		# Write annotated image to ExtractionReport
+		if report_dir:
+			cv2.imwrite(join(report_dir, "tma_extraction_report.jpg"), cv2.resize(img_annotated, (1400, 1000)))
 
-		self.pb_id = None if not self.pb else self.pb.add_bar(0, num_filtered, endtext=sfutil.green(self.shortname))
+		return num_filtered, num_filtered
+
+
+	def build_generator(self, shuffle=True, whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05,
+							normalizer=None, normalizer_source=None, **kwargs):
+		'''Builds generator to supervise extraction of tiles across the slide.
+		
+		Args:
+			shuffle:				If true, will shuffle images during extraction
+			whitespace_fraction:	Float from 0-1, representing a percent. Tiles with this percent of pixels (or more) classified as "whitespace" 
+										will be skipped during extraction.
+			whitespace_threshold:	Int from 0-255, pixel brightness above which a pixel is considered whitespace
+			normalizer:				Normalization strategy to use on image tiles
+			normalizer_source:		Path to normalizer source image
+			export_full_core:	If true, will also save a thumbnail of each fully extracted core.'''
+
+		super().build_generator()
+
+		# Process kwargs
+		full_core = None if 'full_core' not in kwargs else kwargs['full_core']
+
+		# Setup normalization
+		normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
+
+		# Shuffle TMAs
+		if shuffle:
+			random.shuffle(self.object_rects)
+
+		# Establish extraction queues
 		rectangle_queue = Queue()
 		extraction_queue = Queue(self.QUEUE_SIZE)
 
@@ -1048,7 +1096,7 @@ class TMAReader(SlideLoader):
 			unique_tile = True
 			extraction_pool = Pool(self.NUM_EXTRACTION_WORKERS, section_extraction_worker,(rectangle_queue, extraction_queue,))
 
-			for rect in object_rects:
+			for rect in self.object_rects:
 				rectangle_queue.put(rect)
 			rectangle_queue.put((-1, "DONE"))
 			
@@ -1056,48 +1104,46 @@ class TMAReader(SlideLoader):
 			while True:
 				queue_progress += 1
 				tile_id, image_core = extraction_queue.get()
-				if image_core == "DONE":
+				if type(image_core) == str and image_core == "DONE":
 					break
 				else:
 					if self.pb:
-						self.pb.update(self.pb_id, queue_progress)
-						self.pb.increase_bar_value(1)
+						self.pb.increase_bar_value(id=self.pb_id)
 
-					sub_id = 0
 					resized_core = self._resize_to_target(image_core)
-					subtiles = self._split_core(resized_core)
-					if export_full_core:
-						cv2.imwrite(join(self.tiles_dir, f"tile{tile_id}.jpg"), image_core)
-					for subtile in subtiles:
-						sub_id += 1
-						if export:
-							cv2.imwrite(join(self.tiles_dir, f"tile{tile_id}_{sub_id}.jpg"), subtile)
-						yield subtile#, tile_id, unique_tile
+					
+					if full_core:
+						yield cv2.resize(image_core, (self.size_px, self.size_px))
+					else:
+						subtiles = self._split_core(resized_core)
+						for subtile in subtiles:
+							# Perform whitespace filtering
+							if whitespace_fraction < 1:
+								fraction = (np.mean(subtile, axis=2) > whitespace_threshold).sum() / (self.size_px**2)
+								if fraction > whitespace_fraction: continue
+
+							# Perform grayspace filtering
+							if grayspace_fraction < 1:
+								hsv_image = mcol.rgb_to_hsv(subtile)
+								fraction = (hsv_image[:,:,1] < grayspace_threshold).sum() / (self.size_px**2)
+								if fraction > grayspace_fraction: continue
+
+							# Apply normalization
+							if normalizer:
+								try:
+									subtile = normalizer.rgb_to_rgb(subtile)
+								except:
+									# The image could not be normalized, which happens when a tile is primarily one solid color (background)
+									continue
+						
+							yield subtile
 					
 			extraction_pool.close()
 					
-			if self.pb: 
-				self.pb.end(self.pb_id)
+			#log.empty("Summary of extracted core areas (microns):", 1, self.print)
+			#log.info(f"Min: {min(self.box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2, self.print)
+			#log.info(f"Max: {max(self.box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2, self.print)
+			#log.info(f"Mean: {mean(self.box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2, self.print)
+			#log.info(f"Median: {median(self.box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2, self.print)
 
-			log.empty("Summary of extracted core areas (microns):", 1)
-			log.info(f"Min: {min(box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2)
-			log.info(f"Max: {max(box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2)
-			log.info(f"Mean: {mean(box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2)
-			log.info(f"Median: {median(box_areas) * self.THUMB_DOWNSCALE * self.MPP:.1f}", 2)
-
-		return generator, None, None, None
-
-	def extract_tiles(self, augment=False, export_full_core=False):
-		'''Exports all tiles.'''
-		if not self.loaded_correctly():
-			log.error(f"Unable to extract tiles; unable to load slide {sfutil.green(self.name)}", 1)
-			return
-
-		generator, _, = self.build_generator(export=True, augment=augment, export_full_core=export_full_core)
-
-		if not generator:
-			log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1, self.print)
-			return
-
-		for tile in generator():
-			pass
+		return generator
