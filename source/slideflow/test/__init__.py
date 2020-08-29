@@ -35,6 +35,12 @@ TEST_DATASETS = {
 		'roi': '/media/Backup/SLIDES/THCA/UCH',
 		'tiles': '/home/shawarma/data/test_project/tiles/TEST2',
 		'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST2',
+	},
+	'TMA': {
+		'slides': '/home/shawarma/data/test_slides',
+		'roi': '/home/shawarma/data/test_slides',
+		'tiles': '/home/shawarma/data/test_project/tiles/TMA',
+		'tfrecords': '/home/shawarma/data/test_project/tfrecords/TMA',
 	}
 }
 PROJECT_CONFIG = {
@@ -42,7 +48,7 @@ PROJECT_CONFIG = {
 	'name': 'TEST_PROJECT',
 	'annotations': '/home/shawarma/data/test_project/annotations.csv',
 	'dataset_config': '/home/shawarma/data/test_datasets.json',
-	'datasets': ['TEST2'],
+	'datasets': ['TEST2', 'TMA'],
 	'models_dir': '/home/shawarma/data/test_project/models',
 	'tile_um': 302,
 	'tile_px': 299,
@@ -72,6 +78,8 @@ ANNOTATIONS = [
 	['234843', 'TEST2', 'NIFTP', 'cat2a', '5.8', '4.4', ''],
 	['234851', 'TEST2', 'NIFTP', 'cat2b', '6.8', '4.2', ''],
 	['234867', 'TEST2', 'NIFTP', 'cat2a', '7.8', '4.1', ''],
+
+	['TMA_1185', 'TMA', 'PRAD', 'None', '7.8', '4.1', ''],
 ]
 
 SLIDES_TO_VERIFY = ['234834', '234840']
@@ -197,10 +205,14 @@ class TestSuite:
 		print("\t...DONE")
 		return hp
 
-	def test_extraction(self):
-		# Test tile extraction, default parameters
-		log.header("Testing multiple slides extraction...")
-		self.SFP.extract_tiles(tile_px=299, tile_um=302, buffer=self.buffer)
+	def test_extraction(self, regular=True, tma=True):
+		# Test tile extraction, default parameters, for regular slides
+		if regular:
+			log.header("Testing multiple slides extraction...")
+			self.SFP.extract_tiles(tile_px=299, tile_um=302, buffer=self.buffer, dataset=['TEST2'])
+		if tma:
+			log.header("Testing Tumor Micro-array (TMA) extraction...")
+			self.SFP.extract_tiles(tile_px=299, tile_um=302, buffer=self.buffer, dataset=['TMA'], tma=True)
 		print("\t...OK")
 
 	def test_single_extraction(self, buffer=True):
