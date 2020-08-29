@@ -29,6 +29,9 @@ def update(root):
 							sfutil.write_json(hp, hp_file)
 							print(f"Updated model {model} in project {folder}")
 			# Scan datasets to ensure dataset organization follows 1.9 labeling conventions, renaming accordingly
+			if 'dataset_config' not in project_settings:
+				print(f"Warning: unable to update old (v1.3 or earlier) project at {project_folder}")
+				continue
 			dataset_config_file = project_settings['dataset_config']
 			if not exists(dataset_config_file): continue
 			shutil.copy(dataset_config_file, dataset_config_file+'.backup')
@@ -53,10 +56,16 @@ def update(root):
 							print(f"Moved tiles in dataset {dataset} into new label directory, {new_label}")
 					dataset_config[dataset]['label'] = new_label
 			sfutil.write_json(dataset_config, dataset_config_file)
-			print(f"Completed update evaluation project {sfutil.bold(project_settings['name'])} using dataset configuration JSON at {sfutil.green(dataset_config_file)}")
+			print(f"Completed update of project {sfutil.bold(project_settings['name'])} using dataset configuration JSON at {sfutil.green(dataset_config_file)}")
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description = "Update utility (1.8 -> 1.9)")
 	parser.add_argument('-pr', required=True, help='Path to root directory containing projects.')
+	parser.add_argument('--nested', action="store_true", help='Whether to search recursively through a parent directory into nested sub-directories.')
 	args = parser.parse_args()
-	update(args.pr)
+	if not args.nested:
+		update(args.pr)
+	else:
+		nested_folders = [f for f in os.listdir(args.pr) if isdir(join(args.pr, f))]
+		for nested_folder in nested_folders:
+			update(join(args.pr, nested_folder))
