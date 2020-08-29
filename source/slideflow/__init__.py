@@ -1283,8 +1283,8 @@ class SlideflowProject:
 						restrict_prediction=None, predict_on_axes=None, whitespace_on_axes=False, outcome_labels=None, cmap=None, model_type=None, umap_cache='default', activations_cache='default', 
 						activations_export=None, umap_export=None, use_float=False, normalizer=None, normalizer_source=None, low_memory=False, model_format=None):
 		'''Generates a mosaic map by overlaying images onto a set of mapped tiles.
-			Image tiles are extracted from the provided set of TFRecords, and predictions + penultimate node activations are calculated using the specified model.
-			Tiles are mapped either with dimensionality reduction on penultimate layer activations (default behavior), 
+			Image tiles are extracted from the provided set of TFRecords, and predictions + post-convolutional node activations are calculated using the specified model.
+			Tiles are mapped either with dimensionality reduction on post-convolutional layer activations (default behavior), 
 			or by using outcome predictions for two categories, mapped to X- and Y-axis (via predict_on_axes).
 		
 		Args:
@@ -1410,7 +1410,7 @@ class SlideflowProject:
 												y=umap_y,
 												meta=umap_meta)
 		else:
-			# Create mosaic map from dimensionality reduction on penultimate layer activations
+			# Create mosaic map from dimensionality reduction on post-convolutional layer activations
 			umap = TFRecordMap.from_activations(AV, map_slide=map_slide, prediction_filter=restrict_prediction, cache=umap_cache, low_memory=low_memory, max_tiles_per_slide=max_tiles_per_slide)
 
 		# If displaying centroid AND predictions, then show slide-level predictions rather than tile-level predictions
@@ -1482,7 +1482,7 @@ class SlideflowProject:
 		'''Generates a mosaic map by overlaying images onto a set of mapped tiles. 
 			Slides are mapped using slide-level annotations, with x-axis value determined from header_x, and y-axis from header_y. 
 			If use_optimal_tile is False and no model is provided, the first image tile in a slide's TFRecord is used for display.
-			If optimal_tile is True, penultimate layer activations for all tiles in each slide are calculated using the provided model,
+			If optimal_tile is True, post-convolutional layer activations for all tiles in each slide are calculated using the provided model,
 			and the tile nearest to centroid is used for display.
 		
 		Args:
@@ -1501,7 +1501,7 @@ class SlideflowProject:
 			max_tiles_per_slide:	Limits the number of tiles taken from each slide. Too high of a number may introduce memory issues.
 			expanded:				Bool. If False, will limit tile assignment to the corresponding grid space (strict display).
 										If True, allows for display of nearby tiles if a given grid is empty.
-			use_optimal_tile:		Bool. If True, will use model to create penultimate layer activations for all tiles in each slide,
+			use_optimal_tile:		Bool. If True, will use model to create post-convolutional layer activations for all tiles in each slide,
 										and choosing tile nearest to centroid for each slide for display.
 			activations_cache:		Either 'default' or path to PKL file in which to save/cache nodal activations
 			normalizer:				Normalization strategy to use on image tiles

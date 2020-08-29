@@ -95,7 +95,7 @@ class ModelError(Exception):
 	pass
 
 class ModelActivationsInterface:
-	'''Provides an interface to obtain logits and penultimate activations from saved Slideflow Keras models.
+	'''Provides an interface to obtain logits and post-convolutional activations from saved Slideflow Keras models.
 	Provides support for newer models (v1.9.1+) and legacy slideflow models (1.9.0b and earlier)'''
 
 	def __init__(self, path, model_format=None):
@@ -133,7 +133,7 @@ class ModelActivationsInterface:
 		self.NUM_CLASSES = _model.layers[-1].output_shape[-1]
 
 	def predict(self, image_batch):
-		'''Given a batch of images, will return a batch of penultimate activations and a batch of logits.'''
+		'''Given a batch of images, will return a batch of post-convolutional activations and a batch of logits.'''
 		if self.model_format == MODEL_FORMAT_1_9:
 			return self.model.predict(image_batch)
 		elif self.model_format == MODEL_FORMAT_LEGACY:
