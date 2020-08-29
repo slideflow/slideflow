@@ -1176,7 +1176,7 @@ class Heatmap:
 
 		# Iterate through generator to calculate logits +/- final layer activations for all tiles
 		logits_arr = []		# Logits (predictions)
-		postconv_arr = []	# Post-convolutional layer (penultimate activations)
+		postconv_arr = []	# Post-convolutional layer (post-convolutional activations)
 		for batch_images in tile_dataset:
 			postconv, logits = self.model.predict(batch_images)
 			logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
