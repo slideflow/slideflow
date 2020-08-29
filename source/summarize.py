@@ -12,7 +12,7 @@ import slideflow.statistics as sfstats
 from statistics import mean
 from os.path import join, exists, isdir, getmtime
 from slideflow.util import log, TCGA
-from slideflow.io.datasets import Dataset
+from slideflow.io import Dataset
 from tabulate import tabulate
 
 # Organization heirarchy:
