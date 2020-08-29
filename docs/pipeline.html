@@ -1,15 +1,18 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8">
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Pipeline Overview &mdash; slideflow 1.6.2 documentation</title>
+  <title>Pipeline Overview &mdash; slideflow 1.9.0 documentation</title>
   
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
 
   
   
@@ -17,7 +20,9 @@
   
 
   
-  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
@@ -29,10 +34,6 @@
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
     
-
-  
-  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Setting up a Project" href="project.html" />
@@ -50,7 +51,7 @@
           
 
           
-            <a href="root.html" class="icon icon-home"> slideflow
+            <a href="root.html" class="icon icon-home" alt="Documentation Home"> slideflow
           
 
           
@@ -60,7 +61,7 @@
             
             
               <div class="version">
-                1.6
+                1.9
               </div>
             
           
@@ -77,6 +78,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -109,6 +111,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -147,7 +150,7 @@
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="root.html">Docs</a> &raquo;</li>
+      <li><a href="root.html" class="icon icon-home"></a> &raquo;</li>
         
       <li>Pipeline Overview</li>
     
@@ -185,23 +188,21 @@
 <div class="section" id="step-2-data-preparation">
 <h2>Step 2: Data Preparation<a class="headerlink" href="#step-2-data-preparation" title="Permalink to this headline">¶</a></h2>
 <img alt="_images/tile_extraction.png" src="_images/tile_extraction.png" />
-<ol class="arabic simple" start="2">
-<li><p><strong>Extract tiles</strong>. Once ROIs have been created, tiles will need to be extracted from the ROIs across all of your slides. Tiles will be extracted at a given magnification size in microns, and saved at a given resolution in pixels. The optimal extraction size in both microns and pixels will depend on your dataset and model architecture.</p></li>
-</ol>
 <img alt="_images/saving_tfrecords.png" src="_images/saving_tfrecords.png" />
-<ol class="arabic simple" start="3">
-<li><p><strong>Create TFRecords</strong>. Tiles should then be collected and stored as TFRecords, a binary file format used to improve dataset reading performance during training. Each slide should have its own TFRecord file containing its extracted tiles.</p></li>
+<ol class="arabic simple" start="2">
+<li><p><strong>Extract tiles</strong>. Once ROIs have been created, tiles will need to be extracted from the ROIs across all of your slides. Tiles will be extracted at a given magnification size in microns, and saved at a given resolution in pixels. The optimal extraction size in both microns and pixels will depend on your dataset and model architecture. Poor quality tiles - including background tiles or tiles with high whitespace content - will be automatically discarded. Tiles will be stored as TFRecords, a binary file format used to improve dataset reading performance during training. Each slide will have its own TFRecord file containing its extracted tiles.</p></li>
 </ol>
 <img alt="_images/dataset_assembly.png" src="_images/dataset_assembly.png" />
-<ol class="arabic simple" start="4">
-<li><p><strong>Create validation set</strong>. After TFrecords have been saved, a certain number of slides should be set aside for validation testing during training; slideflow will default to setting aside 20% of your slides for validation.</p></li>
+<ol class="arabic simple" start="3">
+<li><p><strong>Set aside final evaluation set</strong>. After TFrecords have been saved, a certain number of slides should be set aside for final evaluation testing after training is complete. Slides may be “earmarked” for final evaluation by using an annotations file. Model performance should only be assessed on these slides once the final model is complete and no further training will be done, in order to reduce bias.</p></li>
+<li><p><strong>Establish training and validation dataset</strong>. A certain number of training slides should be set aside for validation testing during training. By default, the pipeline will recommend splitting your training data into thirds and training with three-fold cross-validation. Model performance on the left-out-third will help guide model fine-tuning.</p></li>
 </ol>
 </div>
 <div class="section" id="step-3-model-training">
 <h2>Step 3: Model Training<a class="headerlink" href="#step-3-model-training" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple" start="5">
-<li><p><strong>Choose hyperparameters</strong>. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). One often does not know the best model architecture and hyperparameters to use for a given dataset; training will often need to occur across a variety of models and different combinations of hyperaparameters in order to find the combination with the best performance. You may either choose to train a single model and hyperparameter set one at a time, or you can setup an automatic hyperparameter sweep to test many combinations at once.</p></li>
-<li><p><strong>Initiate training</strong>. After the hyperparameters have been set up, training can commence. Traing your model across all desired hyperparameters and select a hyperparameter combination for final model training and external evaluation testing.</p></li>
+<li><p><strong>Choose hyperparameters</strong>. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). One often does not know the best model architecture and hyperparameters to use for a given dataset; training will often need to occur across a variety of models and different combinations of hyperparameters in order to find the combination with the best performance. You may either choose to train a single model and hyperparameter set one at a time, or you can setup an automatic hyperparameter sweep to test many combinations at once.</p></li>
+<li><p><strong>Initiate training</strong>. After the hyperparameters have been set up, training can commence. Train your model across all desired hyperparameters and select the best-performing hyperparameter combination for final evaluation testing.</p></li>
 </ol>
 </div>
 <div class="section" id="step-4-analytics">
@@ -250,11 +251,19 @@
 
   <div role="contentinfo">
     <p>
+        
         &copy; Copyright 2020, James M Dolezal
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -265,7 +274,6 @@
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {
