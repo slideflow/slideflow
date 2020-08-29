@@ -622,7 +622,7 @@ class SlideLoader:
 		return report
 
 class SlideReader(SlideLoader):
-	'''Helper object that loads a slide and its ROI annotations and sets up a tile generator.'''
+	'''Extension of slideflow.slide.SlideLoader. Loads a slide and its ROI annotations and sets up a tile generator.'''
 
 	ROI_SCALE = 10
 
@@ -888,7 +888,8 @@ class SlideReader(SlideLoader):
 		return len(self.rois)
 		
 class TMAReader(SlideLoader):
-	'''Helper object that loads a TMA-formatted slide, detects tissue cores, and sets up a tile generator.'''
+	'''Extension of slideflow.slide.SlideLoader. Loads a TMA-formatted slide, detects tissue cores, and sets up a tile generator.'''
+	
 	QUEUE_SIZE = 8
 	NUM_EXTRACTION_WORKERS = 8
 	HEIGHT_MIN = 20
