@@ -1,13 +1,13 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html4" lang="en" >
 <head>
   <meta charset="utf-8">
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Validation Planning &mdash; slideflow 1.9.0 documentation</title>
+  <title>Validation Planning &mdash; slideflow 1.9.1 documentation</title>
   
 
   
@@ -26,10 +26,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/doctools.js"></script>
-        <script src="_static/language_data.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -175,9 +175,9 @@
 <span id="id1"></span><h1>Validation Planning<a class="headerlink" href="#validation-planning" title="Permalink to this headline">¶</a></h1>
 <p>An important first step in creating a new project is to determine the validation plan. When training neural networks, data is segregated into three groups:</p>
 <ol class="arabic simple">
-<li><p><strong>Training data</strong> - data used for learning during training</p></li>
-<li><p><strong>Validation data</strong> - data used for performance testing during training</p></li>
-<li><p><strong>Evaluation data</strong> - data used for final evaluation once training has completed. Preferably an external cohort.</p></li>
+<li><strong>Training data</strong> - data used for learning during training</li>
+<li><strong>Validation data</strong> - data used for performance testing during training</li>
+<li><strong>Evaluation data</strong> - data used for final evaluation once training has completed. Preferably an external cohort.</li>
 </ol>
 <p>Validation data is used to assess model performance during training. Good performance on validation data generally indicates that your model is learning generalizable features. Poor performance on validation data despite good training performance is a sign of overfitting.</p>
 <p>Over the course of a project, you will perform many model training iterations as you test different hyperparameter combinations. Throughout all of these training iterations, you will be using the same validation data to assess performance. Ideally, you will end up choosing hyperparameters which result in the best performance on your validation data.</p>
@@ -187,10 +187,10 @@
 <h2>Configuring a validation plan<a class="headerlink" href="#configuring-a-validation-plan" title="Permalink to this headline">¶</a></h2>
 <p>There are several ways you can plan to validate your data. The project configuration options in slideflow are the following:</p>
 <ul class="simple">
-<li><p><strong>validation_target</strong>:  <em>‘per-patient’</em> or <em>‘per-tile’</em></p></li>
-<li><p><strong>validation_strategy</strong>:  <em>‘bootstrap’</em>, <em>‘k-fold’</em>, <em>‘fixed’</em>, <em>‘none’</em></p></li>
-<li><p><strong>validation_fraction</strong>:  (float between 0-1)</p></li>
-<li><p><strong>validation_k_fold</strong>:  int</p></li>
+<li><strong>validation_target</strong>:  <em>‘per-patient’</em> or <em>‘per-tile’</em></li>
+<li><strong>validation_strategy</strong>:  <em>‘bootstrap’</em>, <em>‘k-fold’</em>, <em>‘fixed’</em>, <em>‘none’</em></li>
+<li><strong>validation_fraction</strong>:  (float between 0-1)</li>
+<li><strong>validation_k_fold</strong>:  int</li>
 </ul>
 <p>These options can be supplied either via your global project configuration (stored in <code class="docutils literal notranslate"><span class="pre">settings.json</span></code>) or at the time of training by passing the arguments directly. Arguments passed at the time of training will override any project settings.</p>
 <div class="section" id="validation-target">
