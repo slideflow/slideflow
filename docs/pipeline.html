@@ -1,7 +1,7 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html4" lang="en" >
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8">
   
@@ -26,10 +26,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -181,7 +181,7 @@
 <div class="section" id="step-1-create-rois">
 <h2>Step 1: Create ROIs<a class="headerlink" href="#step-1-create-rois" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple">
-<li><strong>Label ROIs</strong>. Using <a class="reference external" href="https://qupath.github.io/">QuPath</a>, annotate whole-slide images with the Polygon tool. Then, click <strong>Automate</strong> -&gt; <strong>Show script editor</strong>. In the box that comes up, click <strong>File</strong> -&gt; <strong>Open</strong> and load the <code class="docutils literal notranslate"><span class="pre">qupath_roi.groovy</span></code> script. Press CTRL + R and wait for the script to finish.</li>
+<li><p><strong>Label ROIs</strong>. Using <a class="reference external" href="https://qupath.github.io/">QuPath</a>, annotate whole-slide images with the Polygon tool. Then, click <strong>Automate</strong> -&gt; <strong>Show script editor</strong>. In the box that comes up, click <strong>File</strong> -&gt; <strong>Open</strong> and load the <code class="docutils literal notranslate"><span class="pre">qupath_roi.groovy</span></code> script. Press CTRL + R and wait for the script to finish.</p></li>
 </ol>
 <p><em>You may choose to speed-up workflow by loading multiple SVS files into a QuPath project, and then running the script on the entire project using “Run for project.”</em></p>
 </div>
@@ -190,32 +190,32 @@
 <img alt="_images/tile_extraction.png" src="_images/tile_extraction.png" />
 <img alt="_images/saving_tfrecords.png" src="_images/saving_tfrecords.png" />
 <ol class="arabic simple" start="2">
-<li><strong>Extract tiles</strong>. Once ROIs have been created, tiles will need to be extracted from the ROIs across all of your slides. Tiles will be extracted at a given magnification size in microns, and saved at a given resolution in pixels. The optimal extraction size in both microns and pixels will depend on your dataset and model architecture. Poor quality tiles - including background tiles or tiles with high whitespace content - will be automatically discarded. Tiles will be stored as TFRecords, a binary file format used to improve dataset reading performance during training. Each slide will have its own TFRecord file containing its extracted tiles.</li>
+<li><p><strong>Extract tiles</strong>. Once ROIs have been created, tiles will need to be extracted from the ROIs across all of your slides. Tiles will be extracted at a given magnification size in microns, and saved at a given resolution in pixels. The optimal extraction size in both microns and pixels will depend on your dataset and model architecture. Poor quality tiles - including background tiles or tiles with high whitespace content - will be automatically discarded. Tiles will be stored as TFRecords, a binary file format used to improve dataset reading performance during training. Each slide will have its own TFRecord file containing its extracted tiles.</p></li>
 </ol>
 <img alt="_images/dataset_assembly.png" src="_images/dataset_assembly.png" />
 <ol class="arabic simple" start="3">
-<li><strong>Set aside final evaluation set</strong>. After TFrecords have been saved, a certain number of slides should be set aside for final evaluation testing after training is complete. Slides may be “earmarked” for final evaluation by using an annotations file. Model performance should only be assessed on these slides once the final model is complete and no further training will be done, in order to reduce bias.</li>
-<li><strong>Establish training and validation dataset</strong>. A certain number of training slides should be set aside for validation testing during training. By default, the pipeline will recommend splitting your training data into thirds and training with three-fold cross-validation. Model performance on the left-out-third will help guide model fine-tuning.</li>
+<li><p><strong>Set aside final evaluation set</strong>. After TFrecords have been saved, a certain number of slides should be set aside for final evaluation testing after training is complete. Slides may be “earmarked” for final evaluation by using an annotations file. Model performance should only be assessed on these slides once the final model is complete and no further training will be done, in order to reduce bias.</p></li>
+<li><p><strong>Establish training and validation dataset</strong>. A certain number of training slides should be set aside for validation testing during training. By default, the pipeline will recommend splitting your training data into thirds and training with three-fold cross-validation. Model performance on the left-out-third will help guide model fine-tuning.</p></li>
 </ol>
 </div>
 <div class="section" id="step-3-model-training">
 <h2>Step 3: Model Training<a class="headerlink" href="#step-3-model-training" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple" start="5">
-<li><strong>Choose hyperparameters</strong>. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). One often does not know the best model architecture and hyperparameters to use for a given dataset; training will often need to occur across a variety of models and different combinations of hyperparameters in order to find the combination with the best performance. You may either choose to train a single model and hyperparameter set one at a time, or you can setup an automatic hyperparameter sweep to test many combinations at once.</li>
-<li><strong>Initiate training</strong>. After the hyperparameters have been set up, training can commence. Train your model across all desired hyperparameters and select the best-performing hyperparameter combination for final evaluation testing.</li>
+<li><p><strong>Choose hyperparameters</strong>. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). One often does not know the best model architecture and hyperparameters to use for a given dataset; training will often need to occur across a variety of models and different combinations of hyperparameters in order to find the combination with the best performance. You may either choose to train a single model and hyperparameter set one at a time, or you can setup an automatic hyperparameter sweep to test many combinations at once.</p></li>
+<li><p><strong>Initiate training</strong>. After the hyperparameters have been set up, training can commence. Train your model across all desired hyperparameters and select the best-performing hyperparameter combination for final evaluation testing.</p></li>
 </ol>
 </div>
 <div class="section" id="step-4-analytics">
 <h2>Step 4: Analytics<a class="headerlink" href="#step-4-analytics" title="Permalink to this headline">¶</a></h2>
 <p>Validation testing is performed both during training - at specified intervals, or epochs - and after training has completed. Validation testing is used to assess model performance and anticipated generalizability. Various metrics are recorded in the project directory at these intervals to assist with model performance assessment, including:</p>
 <ul class="simple">
-<li><strong>Training loss</strong></li>
-<li><strong>Validation loss</strong></li>
-<li><strong>Training accuracy</strong> (for categorical outcomes)</li>
-<li><strong>Validation accuracy</strong> (for categorical outcomes)</li>
-<li><strong>Tile-level, slide-level, and patient-level ROC and AUC</strong> (for categorical outcomes)</li>
-<li><strong>Tile-level, slide-level, and patient-level scatter plots with R-squared</strong> (for continuous outcomes)</li>
-<li><strong>Histograms of predictions</strong> (for continuous outcomes)</li>
+<li><p><strong>Training loss</strong></p></li>
+<li><p><strong>Validation loss</strong></p></li>
+<li><p><strong>Training accuracy</strong> (for categorical outcomes)</p></li>
+<li><p><strong>Validation accuracy</strong> (for categorical outcomes)</p></li>
+<li><p><strong>Tile-level, slide-level, and patient-level ROC and AUC</strong> (for categorical outcomes)</p></li>
+<li><p><strong>Tile-level, slide-level, and patient-level scatter plots with R-squared</strong> (for continuous outcomes)</p></li>
+<li><p><strong>Histograms of predictions</strong> (for continuous outcomes)</p></li>
 </ul>
 </div>
 <div class="section" id="step-5-visualizing-results-with-heatmaps">
