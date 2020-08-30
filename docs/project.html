@@ -1,13 +1,13 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html4" lang="en" >
 <head>
   <meta charset="utf-8">
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Setting up a Project &mdash; slideflow 1.9.0 documentation</title>
+  <title>Setting up a Project &mdash; slideflow 1.9.1 documentation</title>
   
 
   
@@ -26,10 +26,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/doctools.js"></script>
-        <script src="_static/language_data.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -174,12 +174,12 @@
 <p>The easiest way to get the <code class="docutils literal notranslate"><span class="pre">slideflow</span></code> pipeline up and running is to use the bundled project management class, <code class="docutils literal notranslate"><span class="pre">SlideflowProject</span></code>. In this section, we will examine how to set up a new project and then use the project to execute each of the pipeline steps.</p>
 <p>Before we start, make sure you have each of the following:</p>
 <ol class="arabic simple">
-<li><p>A collection of slides in SVS format.</p></li>
-<li><p>A collection of ROIs in CSV format, generated using QuPath.</p></li>
-<li><p>A plan for which slides will be used for training and which will be used for final testing.</p></li>
+<li>A collection of slides in SVS format.</li>
+<li>A collection of ROIs in CSV format, generated using QuPath.</li>
+<li>A plan for which slides will be used for training and which will be used for final testing.</li>
 </ol>
 <p>There are two ways to interact with the pipeline. The first is to manually initialize a SlideflowProject object in a python script. For example, to initialize a new project, your script might start with:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="kn">as</span> <span class="nn">sf</span>
 <span class="n">SFP</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">SlideflowProject</span><span class="p">(</span><span class="s1">&#39;/path/to/project/directory&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -193,49 +193,49 @@
 <div class="section" id="project-configuration">
 <h2>Project Configuration<a class="headerlink" href="#project-configuration" title="Permalink to this headline">¶</a></h2>
 <p>Upon first executing the script, you will be asked a series of questions regarding your project. Default answers are given in brackets (if the question is a yes/no question, the default answer is the letter which is capitalized); if you press enter without typing anything, the default will be chosen. You can always change your answers later by editing <code class="docutils literal notranslate"><span class="pre">settings.json</span></code> in your project folder. Below is an overview of what you’ll be asked for.</p>
-<table class="docutils align-default">
+<table border="1" class="docutils">
 <colgroup>
-<col style="width: 36%" />
-<col style="width: 64%" />
+<col width="36%" />
+<col width="64%" />
 </colgroup>
-<tbody>
-<tr class="row-odd"><td><p><strong>Root</strong></p></td>
-<td><p>Root project directory.</p></td>
+<tbody valign="top">
+<tr class="row-odd"><td><strong>Root</strong></td>
+<td>Root project directory.</td>
 </tr>
-<tr class="row-even"><td><p><strong>Name</strong></p></td>
-<td><p>Project name.</p></td>
+<tr class="row-even"><td><strong>Name</strong></td>
+<td>Project name.</td>
 </tr>
-<tr class="row-odd"><td><p><strong>Annotations file</strong></p></td>
-<td><p>Path to CSV containing annotations.
-Each line is a unique slide.</p></td>
+<tr class="row-odd"><td><strong>Annotations file</strong></td>
+<td>Path to CSV containing annotations.
+Each line is a unique slide.</td>
 </tr>
-<tr class="row-even"><td><p><strong>Dataset config</strong></p></td>
-<td><p>Path to JSON file containing dataset configuration.</p></td>
+<tr class="row-even"><td><strong>Dataset config</strong></td>
+<td>Path to JSON file containing dataset configuration.</td>
 </tr>
-<tr class="row-odd"><td><p><strong>Datasets</strong></p></td>
-<td><p>Which dataset(s) to use as input.</p></td>
+<tr class="row-odd"><td><strong>Datasets</strong></td>
+<td>Which dataset(s) to use as input.</td>
 </tr>
-<tr class="row-even"><td><p><strong>Models directory</strong></p></td>
-<td><p>Path to where model files and results should be saved.</p></td>
+<tr class="row-even"><td><strong>Models directory</strong></td>
+<td>Path to where model files and results should be saved.</td>
 </tr>
-<tr class="row-odd"><td><p><strong>Use FP16</strong></p></td>
-<td><p>Whether models should be trained using
-16-bit (vs. 32-bit) precision.</p></td>
+<tr class="row-odd"><td><strong>Use FP16</strong></td>
+<td>Whether models should be trained using
+16-bit (vs. 32-bit) precision.</td>
 </tr>
-<tr class="row-even"><td><p><strong>Validation fraction</strong></p></td>
-<td><p>Fraction of data to save for validation testing.
-Default is 20%.</p></td>
+<tr class="row-even"><td><strong>Validation fraction</strong></td>
+<td>Fraction of data to save for validation testing.
+Default is 20%.</td>
 </tr>
-<tr class="row-odd"><td><p><strong>Validation target</strong></p></td>
-<td><p>How to select validation data; by tile or by slide.
-Default is ‘per-patient’</p></td>
+<tr class="row-odd"><td><strong>Validation target</strong></td>
+<td>How to select validation data; by tile or by slide.
+Default is ‘per-patient’</td>
 </tr>
-<tr class="row-even"><td><p><strong>Validation strategy</strong></p></td>
-<td><p>Type of validation testing (K-fold, fixed plan, none)
-Default is ‘k-fold’</p></td>
+<tr class="row-even"><td><strong>Validation strategy</strong></td>
+<td>Type of validation testing (K-fold, fixed plan, none)
+Default is ‘k-fold’</td>
 </tr>
-<tr class="row-odd"><td><p><strong>Validation K-fold</strong></p></td>
-<td><p>If k-fold validation, how many folds should be used.</p></td>
+<tr class="row-odd"><td><strong>Validation K-fold</strong></td>
+<td>If k-fold validation, how many folds should be used.</td>
 </tr>
 </tbody>
 </table>
@@ -294,24 +294,6 @@ Default is ‘k-fold’</p></td>
                  <span class="n">tfrecords</span><span class="o">=</span><span class="s2">&quot;/tfrecords/directory&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<dl class="py function">
-<dt>
-<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">add_dataset</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">self</span></em>, <em class="sig-param"><span class="n">name</span></em>, <em class="sig-param"><span class="n">slides</span></em>, <em class="sig-param"><span class="n">roi</span></em>, <em class="sig-param"><span class="n">tiles</span></em>, <em class="sig-param"><span class="n">tfrecords</span></em>, <em class="sig-param"><span class="n">path</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span></dt>
-<dd><p>Adds a dataset to the dataset configuration file.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>name</strong> – Dataset name.</p></li>
-<li><p><strong>slides</strong> – Path to directory containing slides.</p></li>
-<li><p><strong>roi</strong> – Path to directory containing CSV ROIs.</p></li>
-<li><p><strong>tiles</strong> – Path to directory in which to store extracted tiles.</p></li>
-<li><p><strong>tfrecords</strong> – Path to directory in which to store TFRecords of extracted tiles.</p></li>
-<li><p><strong>path</strong> – (optional) Path to dataset configuration file. If not provided, uses project default.</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
 </div>
 <div class="section" id="setting-up-annotations">
 <h2>Setting up annotations<a class="headerlink" href="#setting-up-annotations" title="Permalink to this headline">¶</a></h2>
@@ -319,42 +301,42 @@ Default is ‘k-fold’</p></td>
 Each line in the annotations file should correspond to a unique slide.</p>
 <p>The annotations file may contain as many columns as you would like, but it must contain the following headers at minimum:</p>
 <ul class="simple">
-<li><p><strong>submitter_id</strong>: patient identifier</p></li>
-<li><p><strong>slide</strong>: slide name (without the .jpg/.svs extension)</p></li>
+<li><strong>submitter_id</strong>: patient identifier</li>
+<li><strong>slide</strong>: slide name (without the .jpg/.svs extension)</li>
 </ul>
 <p>An example annotations file is given below:</p>
-<table class="docutils align-default">
+<table border="1" class="docutils">
 <colgroup>
-<col style="width: 27%" />
-<col style="width: 18%" />
-<col style="width: 13%" />
-<col style="width: 42%" />
+<col width="27%" />
+<col width="18%" />
+<col width="13%" />
+<col width="42%" />
 </colgroup>
-<tbody>
-<tr class="row-odd"><td><p><em>submitter_id</em></p></td>
-<td><p><em>category</em></p></td>
-<td><p><em>dataset</em></p></td>
-<td><p><em>slide</em></p></td>
+<tbody valign="top">
+<tr class="row-odd"><td><em>submitter_id</em></td>
+<td><em>category</em></td>
+<td><em>dataset</em></td>
+<td><em>slide</em></td>
 </tr>
-<tr class="row-even"><td><p>TCGA-EL-A23A</p></td>
-<td><p>EGFR-mutant</p></td>
-<td><p>train</p></td>
-<td><p>TCGA-EL-A3CO-01Z-00-DX1-7BF5F</p></td>
+<tr class="row-even"><td>TCGA-EL-A23A</td>
+<td>EGFR-mutant</td>
+<td>train</td>
+<td>TCGA-EL-A3CO-01Z-00-DX1-7BF5F</td>
 </tr>
-<tr class="row-odd"><td><p>TCGA-EL-A35B</p></td>
-<td><p>EGFR-mutant</p></td>
-<td><p>eval</p></td>
-<td><p>TCGA-EL-A35B-01Z-00-DX1-89FCD</p></td>
+<tr class="row-odd"><td>TCGA-EL-A35B</td>
+<td>EGFR-mutant</td>
+<td>eval</td>
+<td>TCGA-EL-A35B-01Z-00-DX1-89FCD</td>
 </tr>
-<tr class="row-even"><td><p>TCGA-EL-A26X</p></td>
-<td><p>non-mutant</p></td>
-<td><p>train</p></td>
-<td><p>TCGA-EL-A26X-01Z-00-DX1-4HA2C</p></td>
+<tr class="row-even"><td>TCGA-EL-A26X</td>
+<td>non-mutant</td>
+<td>train</td>
+<td>TCGA-EL-A26X-01Z-00-DX1-4HA2C</td>
 </tr>
-<tr class="row-odd"><td><p>TCGA-EL-B83L</p></td>
-<td><p>non-mutant</p></td>
-<td><p>eval</p></td>
-<td><p>TCGA-EL-B83L-01Z-00-DX1-6BC5L</p></td>
+<tr class="row-odd"><td>TCGA-EL-B83L</td>
+<td>non-mutant</td>
+<td>eval</td>
+<td>TCGA-EL-B83L-01Z-00-DX1-6BC5L</td>
 </tr>
 </tbody>
 </table>
