@@ -1,7 +1,7 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html4" lang="en" >
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8">
   
@@ -26,10 +26,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -175,45 +175,95 @@
 <p>There are two methods for configuring model hyperparameters. If you intend to train a model using a single combination of hyperparameters, use the <code class="docutils literal notranslate"><span class="pre">HyperParameters</span></code> class:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">HyperParameters</span>
 <span class="n">hp</span> <span class="o">=</span> <span class="n">HyperParameters</span><span class="p">(</span><span class="n">finetune_epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">toplayer_epochs</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s1">&#39;Xception&#39;</span><span class="p">,</span> <span class="n">pooling</span><span class="o">=</span><span class="s1">&#39;avg&#39;</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
-                        <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.00001</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">hidden_layers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="s1">&#39;Adam&#39;</span><span class="p">,</span> <span class="n">early_stop</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                        <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.00001</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">hidden_layers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="s1">&#39;Adam&#39;</span><span class="p">,</span> <span class="n">early_stop</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                         <span class="n">early_stop_patience</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">balanced_training</span><span class="o">=</span><span class="s1">&#39;BALANCE_BY_PATIENT&#39;</span><span class="p">,</span> <span class="n">balanced_validation</span><span class="o">=</span><span class="s1">&#39;NO_BALANCE&#39;</span><span class="p">,</span>
-                        <span class="n">augment</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                        <span class="n">augment</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the <code class="docutils literal notranslate"><span class="pre">create_hyperparameter_sweep</span></code> function to automatically configure a sweep to a batch_train CSV file. For example, the following code would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">create_hyperparameter_sweep</span><span class="p">(</span><span class="n">finetune_epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span> <span class="n">toplayer_epochs</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Xception&#39;</span><span class="p">],</span> <span class="n">pooling</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;avg&#39;</span><span class="p">],</span> <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
-                                <span class="n">learning_rate</span><span class="o">=</span><span class="p">[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">],</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">hidden_layers</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">optimizer</span><span class="o">=</span><span class="s1">&#39;Adam&#39;</span><span class="p">,</span> <span class="n">early_stop</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">early_stop_patience</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">balanced_training</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;BALANCE_BY_CATEGORY&#39;</span><span class="p">],</span>
-                                <span class="n">balanced_validation</span><span class="o">=</span><span class="s1">&#39;NO_BALANCE&#39;</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+                                <span class="n">learning_rate</span><span class="o">=</span><span class="p">[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">],</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">hidden_layers</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">optimizer</span><span class="o">=</span><span class="s1">&#39;Adam&#39;</span><span class="p">,</span> <span class="n">early_stop</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">early_stop_patience</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">balanced_training</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;BALANCE_BY_CATEGORY&#39;</span><span class="p">],</span>
+                                <span class="n">balanced_validation</span><span class="o">=</span><span class="s1">&#39;NO_BALANCE&#39;</span><span class="p">,</span> <span class="n">augment</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Available hyperparameters include:</p>
 <ul class="simple">
-<li><strong>tile_px</strong> - size of extracted tiles in pixels</li>
-<li><strong>tile_um</strong> - size of extracted tiles in microns</li>
-<li><strong>finetune_epochs</strong> - number of epochs to spend training the full model</li>
-<li><strong>toplayer_epochs</strong> - number of epochs to spend training just the final layer, with all convolutional layers “locked” (sometimes used for transfer learning)</li>
-<li><strong>model</strong> - model architecture; please see <a class="reference external" href="https://keras.io/applications/">Keras application documentation</a> for all options</li>
-<li><strong>pooling</strong> - pooling strategy to use before final fully-connected layers; either ‘max’, ‘avg’, or ‘none’</li>
-<li><strong>loss</strong> - loss function; please see <a class="reference external" href="https://www.tensorflow.org/api_docs/python/tf/keras/losses">Keras loss documentation</a> for all options</li>
-<li><strong>learning_rate</strong> - learning rate for training</li>
-<li><strong>batch_size</strong> - batch size for training</li>
-<li><strong>hidden_layers</strong> - number of fully-connected final hidden layers before softmax prediction</li>
-<li><strong>hidden_layer_width</strong> - width of hidden layers</li>
-<li><strong>optimizer</strong> - training optimizer; please see <a class="reference external" href="https://www.tensorflow.org/api_docs/python/tf/keras/optimizers">Keras opt documentation</a> for all options</li>
-<li><strong>early_stop</strong> - whether to use early stopping if validation loss is not decreasing</li>
-<li><strong>early_stop_patience</strong> - number of epochs to wait before allowing early stopping</li>
-<li><strong>early_stop_method</strong> - metric to use for early stopping, e.g. ‘loss’ or ‘accuracy’</li>
-<li><strong>balanced_training</strong> - training input balancing strategy; please see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a> for more details</li>
-<li><strong>balanced_validation</strong> - validation input balancing strategy; please see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a> for more details</li>
-<li><strong>trainable_layers</strong> - number of layers available for training, other layers will be frozen. If 0, all layers are trained</li>
-<li><strong>L2_weight</strong> - if provided, adds L2 regularization to all layers with this weight</li>
-<li><strong>augment</strong> - whether to augment data with random flipping/rotating during training</li>
+<li><p><strong>tile_px</strong> - size of extracted tiles in pixels</p></li>
+<li><p><strong>tile_um</strong> - size of extracted tiles in microns</p></li>
+<li><p><strong>finetune_epochs</strong> - number of epochs to spend training the full model</p></li>
+<li><p><strong>toplayer_epochs</strong> - number of epochs to spend training just the final layer, with all convolutional layers “locked” (sometimes used for transfer learning)</p></li>
+<li><p><strong>model</strong> - model architecture; please see <a class="reference external" href="https://keras.io/applications/">Keras application documentation</a> for all options</p></li>
+<li><p><strong>pooling</strong> - pooling strategy to use before final fully-connected layers; either ‘max’, ‘avg’, or ‘none’</p></li>
+<li><p><strong>loss</strong> - loss function; please see <a class="reference external" href="https://www.tensorflow.org/api_docs/python/tf/keras/losses">Keras loss documentation</a> for all options</p></li>
+<li><p><strong>learning_rate</strong> - learning rate for training</p></li>
+<li><p><strong>batch_size</strong> - batch size for training</p></li>
+<li><p><strong>hidden_layers</strong> - number of fully-connected final hidden layers before softmax prediction</p></li>
+<li><p><strong>hidden_layer_width</strong> - width of hidden layers</p></li>
+<li><p><strong>optimizer</strong> - training optimizer; please see <a class="reference external" href="https://www.tensorflow.org/api_docs/python/tf/keras/optimizers">Keras opt documentation</a> for all options</p></li>
+<li><p><strong>early_stop</strong> - whether to use early stopping if validation loss is not decreasing</p></li>
+<li><p><strong>early_stop_patience</strong> - number of epochs to wait before allowing early stopping</p></li>
+<li><p><strong>early_stop_method</strong> - metric to use for early stopping, e.g. ‘loss’ or ‘accuracy’</p></li>
+<li><p><strong>balanced_training</strong> - training input balancing strategy; please see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a> for more details</p></li>
+<li><p><strong>balanced_validation</strong> - validation input balancing strategy; please see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a> for more details</p></li>
+<li><p><strong>trainable_layers</strong> - number of layers available for training, other layers will be frozen. If 0, all layers are trained</p></li>
+<li><p><strong>L2_weight</strong> - if provided, adds L2 regularization to all layers with this weight</p></li>
+<li><p><strong>augment</strong> - whether to augment data with random flipping/rotating during training</p></li>
 </ul>
 <p>If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in <code class="docutils literal notranslate"><span class="pre">slideflow.model.HyperParameters._LinearLoss</span></code>, and all available loss functions are in <code class="docutils literal notranslate"><span class="pre">slideflow.model.HyperParameters._AllLoss</span></code>.</p>
 </div>
 <div class="section" id="begin-training">
 <h2>Begin training<a class="headerlink" href="#begin-training" title="Permalink to this headline">¶</a></h2>
 <p>Once your hyperparameter settings have been chosen you may begin training using the <code class="docutils literal notranslate"><span class="pre">train</span></code> function. Documentation of the function is given below:</p>
+<dl class="py function">
+<dt>
+<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">train</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">self</span></em>, <em class="sig-param"><span class="n">models</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">outcome_header</span><span class="o">=</span><span class="default_value">'category'</span></em>, <em class="sig-param"><span class="n">input_header</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">multi_outcome</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">filters</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">resume_training</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">checkpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">pretrain</span><span class="o">=</span><span class="default_value">'imagenet'</span></em>, <em class="sig-param"><span class="n">pretrain_model_format</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">batch_file</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">hyperparameters</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">validation_target</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">validation_strategy</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">validation_fraction</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">validation_k_fold</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">k_fold_iter</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">validation_dataset</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">validation_annotations</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">validation_filters</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">validate_on_batch</span><span class="o">=</span><span class="default_value">512</span></em>, <em class="sig-param"><span class="n">validation_steps</span><span class="o">=</span><span class="default_value">200</span></em>, <em class="sig-param"><span class="n">max_tiles_per_slide</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">min_tiles_per_slide</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">starting_epoch</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">auto_extract</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">normalizer</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">normalizer_source</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">normalizer_strategy</span><span class="o">=</span><span class="default_value">'tfrecord'</span></em><span class="sig-paren">)</span></dt>
+<dd><p>Train model(s).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>models</strong> – Either a string representing a model name, or an array of strings containing multiple model names.
+Required if training to a single hyperparameter combination with the “hyperparameters” argument.
+If performing a hyperparameter sweep, will only train models with these names in the batch_train.tsv config file.
+May supply None if performing a hyperparameter sweep, in which case all models in the batch_train.tsv config file will be trained.</p></li>
+<li><p><strong>outcome_header</strong> – String or list. Specifies which header(s) in the annotation file to use for the output category.
+Defaults to ‘category’. If a list is provided, will loop through all outcomes and perform HP sweep on each.</p></li>
+<li><p><strong>multi_outcome</strong> – If True, will train to multiple outcomes simultaneously instead of looping through the
+list of outcomes in “outcome_header”. Defaults to False.</p></li>
+<li><p><strong>filters</strong> – Dictionary of column names mapping to column values by which to filter slides using the annotation file.</p></li>
+<li><p><strong>resume_training</strong> – Path to .h5 model to continue training</p></li>
+<li><p><strong>checkpoint</strong> – Path to cp.ckpt from which to load weights</p></li>
+<li><p><strong>pretrain</strong> – Pretrained weights to load. Default is imagenet. May supply a compatible .h5 file from which to load weights.</p></li>
+<li><p><strong>pretrain_model_format</strong> – Optional. May supply format of pretrained Slideflow Keras model if the model was made with a legacy version.
+Default value will be slideflow.model.MODEL_FORMAT_CURRENT,
+but slideflow.model.MODEL_FORMAT_LEGACY may be supplied.</p></li>
+<li><p><strong>batch_file</strong> – Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.</p></li>
+<li><p><strong>hyperparameters</strong> – Manually specify hyperparameter combination to use for training. If specified, will ignore batch training file.</p></li>
+<li><p><strong>validation_target</strong> – Whether to select validation data on a ‘per-patient’ or ‘per-tile’ basis. If not specified, will use project default.</p></li>
+<li><p><strong>validation_strategy</strong> – Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.</p></li>
+<li><p><strong>validation_fraction</strong> – Fraction of data to use for validation testing. If not specified, will use project default.</p></li>
+<li><p><strong>validation_k_fold</strong> – K, if using k-fold validation. If not specified, will use project default.</p></li>
+<li><p><strong>k_fold_iter</strong> – Which iteration to train if using k-fold validation. Defaults to training all iterations.</p></li>
+<li><p><strong>validation_dataset</strong> – If specified, will use a separate dataset on which to perform validation.</p></li>
+<li><p><strong>validation_annotations</strong> – If using a separate dataset for validation, the annotations CSV must be supplied.</p></li>
+<li><p><strong>validation_filters</strong> – If using a separate dataset for validation, these filters are used to select a subset of slides for validation.</p></li>
+<li><p><strong>validate_on_batch</strong> – Validation will be performed every X batches.</p></li>
+<li><p><strong>validation_steps</strong> – Number of batches to use for each instance of validation</p></li>
+<li><p><strong>max_tiles_per_slide</strong> – Will only use up to this many tiles from each slide for training. If zero, will include all tiles.</p></li>
+<li><p><strong>min_tiles_per_slide</strong> – Minimum number of tiles a slide must have to be included in training.</p></li>
+<li><p><strong>starting_epoch</strong> – Starts training at the specified epoch</p></li>
+<li><p><strong>auto_extract</strong> – Bool. If True, will automatically extract tiles as needed for training, without needing to explicitly call extract_tiles()</p></li>
+<li><p><strong>normalizer</strong> – Normalization strategy to use on image tiles</p></li>
+<li><p><strong>normalizer_source</strong> – Path to normalizer source image</p></li>
+<li><p><strong>normalizer_strategy</strong> – Either ‘tfrecord’ or ‘realtime’. If TFrecord and auto_extract is True, then tiles will be extracted to TFRecords and stored normalized.
+If realtime, then normalization is performed during training.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A dictionary containing model names mapped to train_acc, val_loss, and val_acc</p>
+</dd>
+</dl>
+</dd></dl>
+
 <p>If you used the <code class="docutils literal notranslate"><span class="pre">HyperParameters</span></code> class to configure a single combination of parameters, pass this object via the <code class="docutils literal notranslate"><span class="pre">hyperparameters</span></code> argument. If you configured a hyperparameter sweep, set the <code class="docutils literal notranslate"><span class="pre">batch_file</span></code> argument to the name of your hyperparameter sweep file (saved by default to ‘batch_train.tsv’).</p>
 <p>Your outcome variable is specified with the <code class="docutils literal notranslate"><span class="pre">outcome_header</span></code> argument. You may filter slides for training using the <code class="docutils literal notranslate"><span class="pre">filter</span></code> argument, as previously described.</p>
 <p>The validation settings configured in the project settings file (<code class="docutils literal notranslate"><span class="pre">settings.json</span></code>) will be used by default. If you would like to use a different validation plan than the default configuration, you many manually pass the relevant variables as arguments (e.g. <code class="docutils literal notranslate"><span class="pre">validation_strategy</span></code>, <code class="docutils literal notranslate"><span class="pre">validation_fraction</span></code>, and <code class="docutils literal notranslate"><span class="pre">validation_k_fold</span></code>).</p>
