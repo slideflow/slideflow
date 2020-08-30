@@ -195,6 +195,7 @@ class TestSuite:
 											 balanced_training=["BALANCE_BY_PATIENT"],
 											 balanced_validation=["NO_BALANCE"],
 											 augment=[True],
+											 label='TEST',
 											 filename=PROJECT_CONFIG["batch_train_config"])
 
 		# Create single hyperparameter combination

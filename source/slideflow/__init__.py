@@ -588,14 +588,16 @@ class SlideflowProject:
 			writer.writerow(firstrow)
 
 	def create_hyperparameter_sweep(self, tile_px, tile_um, finetune_epochs, toplayer_epochs, model, pooling, loss, learning_rate, batch_size,
-									hidden_layers, optimizer, early_stop, early_stop_patience, early_stop_method, balanced_training, balanced_validation, 
-									augment, hidden_layer_width, trainable_layers, L2_weight, filename=None):
+									hidden_layers, hidden_layer_width, optimizer, early_stop, early_stop_patience, early_stop_method, balanced_training, balanced_validation, 
+									trainable_layers, L2_weight, augment, label=None, filename=None):
 		'''Prepares a hyperparameter sweep, saving to a batch train TSV file.'''
 		log.header("Preparing hyperparameter sweep...")
 		pdict = locals()
 		del(pdict['self'])
+		del(pdict['label'])
 		del(pdict['filename'])
 		del(pdict['finetune_epochs'])
+
 		args = list(pdict.keys())
 		for arg in args:
 			if not isinstance(pdict[arg], list):
@@ -607,6 +609,7 @@ class SlideflowProject:
 
 		if not filename:
 			filename = self.PROJECT['batch_train_config']
+		label = '' if not label else f'{label}-'
 		with open(filename, 'w') as csv_outfile:
 			writer = csv.writer(csv_outfile, delimiter='\t')
 			# Create headers
@@ -616,7 +619,7 @@ class SlideflowProject:
 			writer.writerow(header)
 			# Iterate through sweep
 			for i, params in enumerate(sweep):
-				row = [f'HPSweep{i}', ','.join([str(f) for f in finetune_epochs])]
+				row = [f'{label}HPSweep{i}', ','.join([str(f) for f in finetune_epochs])]
 				full_params = dict(zip(['finetune_epochs'] + args, [finetune_epochs] + list(params)))
 				hp = HyperParameters(**full_params)
 				for arg in args:
