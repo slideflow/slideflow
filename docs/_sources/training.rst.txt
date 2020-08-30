@@ -45,6 +45,8 @@ Available hyperparameters include:
 - **L2_weight** - if provided, adds L2 regularization to all layers with this weight
 - **augment** - whether to augment data with random flipping/rotating during training
 
+If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.HyperParameters._LinearLoss``, and all available loss functions are in ``slideflow.model.HyperParameters._AllLoss``.
+
 Begin training
 **************
 
@@ -58,8 +60,6 @@ If you used the ``HyperParameters`` class to configure a single combination of p
 Your outcome variable is specified with the ``outcome_header`` argument. You may filter slides for training using the ``filter`` argument, as previously described. 
 
 The validation settings configured in the project settings file (``settings.json``) will be used by default. If you would like to use a different validation plan than the default configuration, you many manually pass the relevant variables as arguments (e.g. ``validation_strategy``, ``validation_fraction``, and ``validation_k_fold``).
-
-If you are using a continuous variable as an outcome measure, set the argument ``model_type`` equal to 'linear'.
 
 For example, to train using only slides labeled as "train" in the "dataset" column, with the outcome variable defined by the column "category", use the following syntax:
 
