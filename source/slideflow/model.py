@@ -46,8 +46,8 @@ from slideflow.util import TCGA, log
 from slideflow.io import tfrecords
 
 import slideflow.util as sfutil
+from slideflow.util import StainNormalizer
 import slideflow.statistics as sfstats
-from slideflow.slide import StainNormalizer
 
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
@@ -111,6 +111,12 @@ class ModelActivationsInterface:
 
 		self.path = path
 		_model = tf.keras.models.load_model(path)
+
+		# CONSIDER IMPLEMENTING THIS MORE EFFICIENT VERSION: ===========
+		#inputs = xception.input
+		#outputs = [xception.get_layer(name=layer_name).output for layer_name in activation_layer_names]
+		#self.functor = tf.keras.backend.function(inputs, outputs)
+		# ===============================================================
 		
 		if model_format == MODEL_FORMAT_1_9:
 			try:
@@ -134,6 +140,9 @@ class ModelActivationsInterface:
 
 	def predict(self, image_batch):
 		'''Given a batch of images, will return a batch of post-convolutional activations and a batch of logits.'''
+		# ======================
+		#return self.functor(image_batch)
+		# ======================
 		if self.model_format == MODEL_FORMAT_1_9:
 			return self.model.predict(image_batch)
 		elif self.model_format == MODEL_FORMAT_LEGACY:
