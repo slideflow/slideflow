@@ -18,10 +18,9 @@ import slideflow.io as sfio
 import shapely.geometry as sg
 
 from io import StringIO
-from slideflow.util import log, ProgressBar, TCGA
+from slideflow.util import log, ProgressBar, TCGA, StainNormalizer
 from slideflow.util.fastim import FastImshow
 from slideflow.mosaic import Mosaic
-from slideflow.slide import StainNormalizer
 from slideflow.model import ModelActivationsInterface
 from os.path import join, isfile, exists
 from random import sample
@@ -577,7 +576,7 @@ class ActivationsVisualizer:
 			if normalizer:
 				raw_image = tf.py_function(normalizer.tf_to_rgb, [raw_image], tf.int8)
 
-			processed_image = tf.image.convert_image_dtype(raw_image, tf.float16 if use_fp16 else tf.float32)
+			processed_image = tf.image.convert_image_dtype(raw_image, tf.float32)
 			processed_image = tf.image.per_image_standardization(processed_image)
 			processed_image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
 			return processed_image, slide
