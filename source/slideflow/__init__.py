@@ -24,7 +24,7 @@ import slideflow.util as sfutil
 import slideflow.io as sfio
 
 from slideflow.io import Dataset
-from slideflow.util import TCGA, ProgressBar, log
+from slideflow.util import TCGA, ProgressBar, log, StainNormalizer
 from slideflow.statistics import TFRecordMap, calculate_centroid
 from slideflow.mosaic import Mosaic
 from comet_ml import Experiment
@@ -834,7 +834,7 @@ class SlideflowProject:
 			normalizer_source:		Path to normalizer source image
 			dataset:				Name of dataset from which to select TFRecords. If not provided, will use all project datasets
 		'''
-		from slideflow.slide import ExtractionReport, SlideReport, StainNormalizer
+		from slideflow.slide import ExtractionReport, SlideReport
 		import tensorflow as tf
 
 		if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset

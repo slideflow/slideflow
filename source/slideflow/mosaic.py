@@ -8,12 +8,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import slideflow.util as sfutil
 import slideflow.io as sfio
-from slideflow.slide import StainNormalizer
 
 from random import shuffle
 from matplotlib import patches
 from os.path import join
-from slideflow.util import log
+from slideflow.util import log, StainNormalizer
 from slideflow.statistics import get_centroid_index
 from multiprocessing.dummy import Pool as DPool
 from functools import partial
