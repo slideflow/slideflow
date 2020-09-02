@@ -27,7 +27,7 @@ from slideflow.io import Dataset
 from slideflow.util import TCGA, ProgressBar, log, StainNormalizer
 from slideflow.statistics import TFRecordMap, calculate_centroid
 from slideflow.mosaic import Mosaic
-from comet_ml import Experiment
+#from comet_ml import Experiment
 
 __version__ = "1.9.1"
 
@@ -200,12 +200,12 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 	full_model_name = model_name if not k_fold_i else model_name+f"-kfold{k_fold_i}"
 
 	# Initialize Comet experiment
-	if flags['use_comet']:
-		experiment = Experiment(COMET_API_KEY, project_name=project_config['name'])
-		experiment.log_parameters(hp._get_dict())
-		experiment.log_other('model_name', model_name)
-		if k_fold_i:
-			experiment.log_other('k_fold_iter', k_fold_i)
+	#if flags['use_comet']:
+	#	experiment = Experiment(COMET_API_KEY, project_name=project_config['name'])
+	#	experiment.log_parameters(hp._get_dict())
+	#	experiment.log_other('model_name', model_name)
+	#	if k_fold_i:
+	#		experiment.log_other('k_fold_iter', k_fold_i)
 
 	# Load dataset and annotations for training
 	training_dataset = Dataset(config_file=project_config['dataset_config'],
