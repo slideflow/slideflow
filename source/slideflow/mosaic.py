@@ -57,7 +57,7 @@ class Mosaic:
 		self.tfrecords_paths = umap.tfrecords
 
 		# Setup normalization
-		if normalizer: log.info(f"Using realtime {normalizer} normalization", 2)
+		if normalizer: log.info(f"Using realtime {normalizer} normalization", 1)
 		self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 		
 		# Initialize figure
