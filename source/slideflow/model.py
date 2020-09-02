@@ -423,6 +423,7 @@ class SlideflowModel:
 			checkpoint:	Path to checkpoint from which to resume model training
 		'''
 		if self.DTYPE == 'float16':
+			log.info("Training with mixed precision", 1)
 			policy = tf.keras.mixed_precision.experimental.Policy('mixed_float16')
 			mixed_precision.set_policy(policy)
 
