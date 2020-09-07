@@ -52,13 +52,14 @@ def generator_diversity_loss(
 	diversity_loss *= diversity_loss_weight
 	return diversity_loss
 
-def discriminator_loss(real_output, fake_output, add_summaries=False):
+def discriminator_real_loss(real_output, add_summaries=False):
+	cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+	return cross_entropy(tf.ones_like(real_output), real_output)
+
+def discriminator_fake_loss(fake_output, add_summaries=False):
 	'''Calculates adversarial loss for the discriminator.'''
 	cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-	real_loss = cross_entropy(tf.ones_like(real_output), real_output)
-	fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output)
-	total_loss = real_loss + fake_loss
-	return total_loss
+	return cross_entropy(tf.zeros_like(fake_output), fake_output)
 
 def generate_masks(mask_sizes, mask_order, conv_masks, image_size, batch_size, spatial_variation=False):
 	'''Generates random masks as described in https://semantic-pyramid.github.io.
@@ -243,8 +244,9 @@ def train(
 			gen_loss += div_loss
 
 			# Calculate discriminator loss
-			disc_loss = discriminator_loss(real_output, fake_output_first)
-			disc_loss += discriminator_loss(real_output, fake_output_sec)
+			disc_loss = discriminator_real_loss(real_output)
+			disc_loss += discriminator_fake_loss(fake_output_first)
+			disc_loss += discriminator_fake_loss(fake_output_sec)
 
 		# Calculate and apply gradients.
 		gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
