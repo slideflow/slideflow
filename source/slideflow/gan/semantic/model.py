@@ -60,7 +60,8 @@ def create_generator(
 	mask_sizes = {}
 
 	# First linear layer of generator
-	x = tf.keras.layers.Dense(feature_channels[-1], activation='relu')(x)
+	x = tf.keras.layers.Dense(feature_channels[-1])(x)
+	x = tf.keras.layers.LeakyReLU(alpha=0.2)(x)
 	x = ConditionalBatchNorm(feature_channels[-1])(x, c) # I think this would ideally be conditional spectral normalization?
 
 	# Feature input to first linear layer
@@ -74,7 +75,8 @@ def create_generator(
 	input_layers += [mask_fc8]
 
 	# Second linear layer of generator
-	x = tf.keras.layers.Dense(feature_channels[-2], activation='relu')(x)
+	x = tf.keras.layers.Dense(feature_channels[-2])(x)
+	x = tf.keras.layers.LeakyReLU(alpha=0.2)(x)
 	x = ConditionalBatchNorm(feature_channels[-2])(x, c)
 
 	# Feature input to second linear layer
@@ -99,14 +101,14 @@ def create_generator(
 		if block == 'r':
 			# ResNet Block
 			resblock = ConditionalBatchNorm(in_channel, name=f'block{b_id}_bn_0')(x, c)
-			resblock = tf.keras.layers.ReLU(name=f'block{b_id}_relu_0')(resblock)
+			resblock = tf.keras.layers.LeakyReLU(name=f'block{b_id}_relu_0', alpha=0.2)(resblock)
 			resblock = SpectralConv2DTranspose(filters=out_channel,
 										 kernel_size=3,
 										 strides=2,
 										 padding='same' if pad == 's' else 'valid',
 										 name=f'spec_block{b_id}_conv0')(resblock)
 			resblock = ConditionalBatchNorm(out_channel, name=f'block{b_id}_bn_1')(resblock, c)
-			resblock = tf.keras.layers.ReLU(name=f'block{b_id}_relu_1')(resblock)
+			resblock = tf.keras.layers.LeakyReLU(name=f'block{b_id}_relu_1', alpha=0.2)(resblock)
 			resblock = SpectralConv2DTranspose(filters=out_channel,
 										 kernel_size=3,
 										 strides=1,

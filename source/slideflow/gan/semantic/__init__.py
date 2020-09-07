@@ -37,7 +37,7 @@ def generator_diversity_loss(
 	noise,
 	generated_images,
 	diversity_loss_fn=tf.compat.v1.losses.absolute_difference,
-	diversity_loss_weight=0.1
+	diversity_loss_weight=0.0
 ):
 	'''Calculates diversity loss for the generator.'''
 	diversity_loss = diversity_loss_fn(*noise) / diversity_loss_fn(*generated_images)
@@ -52,7 +52,7 @@ def discriminator_loss(real_output, fake_output, add_summaries=False):
 	total_loss = real_loss + fake_loss
 	return total_loss
 
-def generate_masks(mask_sizes, valid_masks, image_size, batch_size, allow_all=False):
+def generate_masks(mask_sizes, valid_masks, image_size, batch_size, spatial_variation=False):
 	'''Generates random masks as described in https://semantic-pyramid.github.io.
 	Generated mask crops are only square.'''
 
@@ -78,16 +78,16 @@ def generate_masks(mask_sizes, valid_masks, image_size, batch_size, allow_all=Fa
 	for m, mask_label in enumerate(valid_masks):
 		size = mask_sizes[mask_label]
 		size = [size] if not (isinstance(size, list) or isinstance(size, tuple)) else size
-		if allow_all or (m == selected_layer):
+		if m == selected_layer:
 			mask_dict[mask_label] = np.ones((batch_size, *size), dtype=np.bool)
-		elif m < selected_layer:
-
+		elif not spatial_variation or (spatial_variation and (m < selected_layer)):
 			mask_dict[mask_label] = np.zeros((batch_size, *size), dtype=np.bool)
-		elif m > selected_layer:
+		elif spatial_variation and (m > selected_layer):
 			mask = _mask_helper(crop_x_l, crop_x_h, crop_y_l, crop_y_h, size[0])
 			image_mask = np.broadcast_to(mask[..., np.newaxis], (size[0], size[0], size[-1]))
 			batched_image_mask = np.broadcast_to(image_mask[np.newaxis, ...], (batch_size, *image_mask.shape))
 			mask_dict[mask_label] = batched_image_mask
+
 	return mask_dict, image_mask
 
 def mask_dataset(mask_sizes, valid_masks, image_size, batch_size, crop_prob=0.3):
@@ -95,8 +95,8 @@ def mask_dataset(mask_sizes, valid_masks, image_size, batch_size, crop_prob=0.3)
 	def mask_generator():
 		while True:
 			# Generate cropped masks at a rate of `crop_prob` probability
-			allow_all = random.random() < crop_prob
-			mask_dict, image_mask = generate_masks(mask_sizes, valid_masks, image_size, batch_size, allow_all)
+			spatial_variation = random.random() < crop_prob
+			mask_dict, image_mask = generate_masks(mask_sizes, valid_masks, image_size, batch_size, spatial_variation)
 			mask_dict['image_mask'] = image_mask
 			yield mask_dict
 	output_types = {m: tf.bool for m in mask_sizes}
@@ -143,7 +143,7 @@ def train(
 	@tf.function
 	def summary_step(images, labels, masks, step):
 		'''Step which saves summary statistics and sample images for display with Tensorboard.'''
-		generated_images, gen_loss, disc_loss = train_step(images, labels, masks)
+		generated_images, gen_loss, disc_loss, div_loss = train_step(images, labels, masks)
 		
 		with writer.as_default():
 			tf.summary.image(
@@ -169,6 +169,10 @@ def train(
 			tf.summary.scalar(
 				'discriminator_loss',
 				disc_loss,
+				step=step)
+			tf.summary.scalar(
+				'diversity_loss',
+				div_loss,
 				step=step)
 
 	@tf.function
@@ -215,8 +219,9 @@ def train(
 			gen_loss += generator_adv_rec_loss(fake_output_sec, real_feat_out_sec, recon_feat_out_sec)
 
 			# Calculate diversity loss
-			gen_loss += generator_diversity_loss(noise=[noise1, noise2],
+			div_loss = generator_diversity_loss(noise=[noise1, noise2],
 												generated_images=[fake_output_first, fake_output_sec])
+			gen_loss += div_loss
 
 			# Calculate discriminator loss
 			disc_loss = discriminator_loss(real_output, fake_output_first)
@@ -229,7 +234,7 @@ def train(
 		generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
 		discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
 
-		return generated_images_first, gen_loss, disc_loss
+		return generated_images_first, gen_loss, disc_loss, div_loss
 
 	for epoch in range(epochs):
 		print(f"Epoch {epoch}")
