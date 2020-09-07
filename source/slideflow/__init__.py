@@ -840,7 +840,7 @@ class SlideflowProject:
 		if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
 		else:		datasets = self.PROJECT['datasets']
 
-		if normalizer: log.info(f"Using realtime {normalizer} normalization", 2)
+		if normalizer: log.info(f"Using realtime {normalizer} normalization", 1)
 		normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
 		tfrecord_dataset = self.get_dataset(filters=filters, filter_blank=filter_blank, tile_px=tile_px, tile_um=tile_um)
