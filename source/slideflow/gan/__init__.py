@@ -97,16 +97,16 @@ def gan_test(batch_size=4, mixed_precision=False):
 
 	# Build the generator and discriminator
 	with tf.name_scope('Generator'):
-		generator, inputs, mask_sizes = semantic_model.create_generator(feature_tensors, n_classes=2)
+		generator, inputs, mask_sizes, mask_order = semantic_model.create_generator(feature_tensors, n_classes=2)
 
 	with tf.name_scope('Discriminator'):
 		discriminator = semantic_model.create_discriminator(image_size=299)	
 
 	# Setup the dataset which will be supplying the feature masks
 	with tf.name_scope('Masking'):
-		mask_order = ('mask_fc8', 'mask_fc7', 'mask_conv0', 'mask_conv1', 'mask_conv2', 'mask_conv3', 'mask_conv4')
+		conv_masks = ('mask_conv0', 'mask_conv1', 'mask_conv2', 'mask_conv3', 'mask_conv4')
 		mask_dataset = semantic.mask_dataset(mask_sizes, mask_order=mask_order,
-														 conv_masks=('mask_conv0', 'mask_conv1', 'mask_conv2', 'mask_conv3', 'mask_conv4'),
+														 conv_masks=conv_masks,
 														 image_size=299,
 														 batch_size=batch_size)
 
@@ -120,6 +120,7 @@ def gan_test(batch_size=4, mixed_precision=False):
 
 	# Begin training
 	semantic.train(dataset, generator, discriminator, mask_dataset, mask_order=mask_order,
+																	conv_masks=conv_masks,
 																	image_size=299, 
 																	batch_size=batch_size,
 																	steps_per_epoch=round(num_tiles/batch_size))

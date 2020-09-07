@@ -150,7 +150,9 @@ def create_generator(
 
 	x = tf.keras.layers.Activation('tanh', dtype=tf.float32)(x)
 
-	return tf.keras.models.Model(input_layers, [x] + real_features + reconstructed_features), input_layers, mask_sizes
+	mask_order = ('mask_fc8', 'mask_fc7', 'mask_conv0', 'mask_conv1', 'mask_conv2', 'mask_conv3', 'mask_conv4')
+
+	return tf.keras.models.Model(input_layers, [x] + real_features + reconstructed_features), input_layers, mask_sizes, mask_order
 
 
 def create_discriminator(image_size=64, filters=32, kernel_size=3):

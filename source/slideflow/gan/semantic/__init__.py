@@ -15,6 +15,7 @@ def generator_adv_rec_loss(
 	real_features,
 	reconstructed_features,
 	masks,
+	feature_type,
 	reconstruction_loss_fn=tf.compat.v1.losses.absolute_difference,
 	reconstruction_loss_weight=0.1,
 	add_summaries=False
@@ -26,11 +27,16 @@ def generator_adv_rec_loss(
 	adversarial_loss = cross_entropy(tf.ones_like(fake_output), fake_output)
 
 	# Semantic reconstruction loss
-	reconstruction_loss = tf.math.reduce_sum(
-		[reconstruction_loss_fn(tf.boolean_mask(real, mask), tf.boolean_mask(reconstructed, mask)) for (real, reconstructed, mask) in zip(real_features,
-																										reconstructed_features,
-																										masks)]
-	)
+	reconstruction_losses = []
+	for i, (real, reconstructed, is_conv, mask) in enumerate(zip(real_features, reconstructed_features, feature_type, masks)):
+		if is_conv:
+			reconstruction_losses += [reconstruction_loss_fn(tf.boolean_mask(real, tf.cast(tf.keras.layers.MaxPool2D((2,2))(tf.cast(mask, dtype=tf.uint8)), dtype=tf.bool)), 
+									  						 tf.boolean_mask(reconstructed, tf.cast(tf.keras.layers.MaxPool2D((2,2))(tf.cast(mask, dtype=tf.uint8)), dtype=tf.bool)))]
+		else:
+			reconstruction_losses += [reconstruction_loss_fn(tf.boolean_mask(real, mask),
+															 tf.boolean_mask(reconstructed, mask))]
+
+	reconstruction_loss = tf.math.reduce_sum(reconstruction_losses)
 
 	total_loss = adversarial_loss + (reconstruction_loss * reconstruction_loss_weight)
 	return total_loss
@@ -112,6 +118,7 @@ def train(
 	discriminator,
 	mask_dataset,
 	mask_order,
+	conv_masks,
 	image_size,
 	steps_per_epoch,
 	batch_size=4,
@@ -131,6 +138,8 @@ def train(
 									discriminator=discriminator)
 
 	writer = tf.summary.create_file_writer(checkpoint_dir)
+
+	is_conv = [True if m in conv_masks else False for m in mask_order]
 
 	def _gen_output_helper(input):
 		'''With a given input, uses a generator to calculate generated images, as well as both
@@ -220,10 +229,12 @@ def train(
 			gen_loss = generator_adv_rec_loss(fake_output=fake_output_first,
 											  real_features=real_feat_out_first,
 											  reconstructed_features=recon_feat_out_first,
+											  feature_type=is_conv,
 											  masks=[masks[m] for m in mask_order])
 			gen_loss += generator_adv_rec_loss(fake_output=fake_output_sec,
 											   real_features=real_feat_out_sec,
 											   reconstructed_features=recon_feat_out_sec,
+											   feature_type=is_conv,
 											   masks=[masks[m] for m in mask_order])
 
 			# Calculate diversity loss
