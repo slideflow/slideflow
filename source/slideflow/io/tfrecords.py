@@ -68,7 +68,19 @@ def _print_record(filename):
 		slide = str(features['slide'].numpy())
 		print(f"{sfutil.header(filename)}: Record {i}: Slide: {sfutil.green(slide)}")
 
-def example_to_image(record, size, include_slide=True, normalizer=None):
+def example_to_image(record, size, include_slide=True, image_format='raw', normalizer=None):
+	'''TFRecord parsing function, to be used with TFRecordDataset.map(). 
+	Parses a TFRecord into its constituent components. For each record, will return a processed and standardized image.
+
+	Args:
+		record			The TFRecord being processed (not explicitly supplied if this function is being used with TFRecordDataset.map())
+		size			Tile size in pixels
+		include_slide	Bool. If true, will return both the processed image as well as the slide name, as a tuple
+		format			Either 'raw' (default) or 'dict'. If 'dict', the image will be provided as a dictionary mapping the input layer name to the image.
+							This is the syntax used for models in slideflow version 1.9 and greater.
+		normalizer		Optional. Normalizer to use on images (e.g. 'macenko', 'reinhard', or 'vahadane')
+	'''
+
 	features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
 	slide = features['slide']
 	image_string = features['image_raw']
@@ -77,9 +89,13 @@ def example_to_image(record, size, include_slide=True, normalizer=None):
 	if normalizer:
 		raw_image = tf.py_function(normalizer.tf_to_rgb, [raw_image], tf.int8)
 
+	
 	processed_image = tf.image.convert_image_dtype(raw_image, tf.float32)
 	processed_image = tf.image.per_image_standardization(processed_image)
 	processed_image.set_shape([size, size, 3])
+
+	if image_format=='dict':
+		processed_image = {'tile_image': processed_image}
 
 	if include_slide:
 		return processed_image, slide
