@@ -14,6 +14,7 @@ def generator_adv_rec_loss(
 	fake_output,
 	real_features,
 	reconstructed_features,
+	masks,
 	reconstruction_loss_fn=tf.compat.v1.losses.absolute_difference,
 	reconstruction_loss_weight=0.1,
 	add_summaries=False
@@ -26,8 +27,9 @@ def generator_adv_rec_loss(
 
 	# Semantic reconstruction loss
 	reconstruction_loss = tf.math.reduce_sum(
-		[reconstruction_loss_fn(real, reconstructed) for real, reconstructed in zip(real_features,
-																					reconstructed_features)]
+		[reconstruction_loss_fn(tf.boolean_mask(real, mask), tf.boolean_mask(reconstructed, mask)) for (real, reconstructed, mask) in zip(real_features,
+																										reconstructed_features,
+																										masks)]
 	)
 
 	total_loss = adversarial_loss + (reconstruction_loss * reconstruction_loss_weight)
@@ -52,7 +54,7 @@ def discriminator_loss(real_output, fake_output, add_summaries=False):
 	total_loss = real_loss + fake_loss
 	return total_loss
 
-def generate_masks(mask_sizes, valid_masks, image_size, batch_size, spatial_variation=False):
+def generate_masks(mask_sizes, mask_order, conv_masks, image_size, batch_size, spatial_variation=False):
 	'''Generates random masks as described in https://semantic-pyramid.github.io.
 	Generated mask crops are only square.'''
 
@@ -62,41 +64,40 @@ def generate_masks(mask_sizes, valid_masks, image_size, batch_size, spatial_vari
 				for c in range(size)], dtype=np.bool)
 
 	mask_dict = {}
-	selected_layer = random.choice(range(len(valid_masks)))
+	selected_layer = random.choice(range(len(mask_order)))
 	crop_x_l = random.uniform(0, 0.9)
 	crop_x_h = random.uniform(crop_x_l, 1)
 	crop_y_l = random.uniform(0, 0.9)
 	crop_y_h = random.uniform(crop_x_l, 1)
 	mask = _mask_helper(crop_x_l, crop_x_h, crop_y_l, crop_y_h, image_size)
 	image_mask = np.broadcast_to(mask[..., np.newaxis], (image_size, image_size, 3))
+	layer_used = []
 
-	for mask_label in [m for m in mask_sizes if m not in valid_masks]:
+	for m, mask_label in enumerate(mask_order):
 		size = mask_sizes[mask_label]
 		size = [size] if not (isinstance(size, list) or isinstance(size, tuple)) else size
-		mask_dict[mask_label] = np.ones((batch_size, *size), dtype=np.bool)
-
-	for m, mask_label in enumerate(valid_masks):
-		size = mask_sizes[mask_label]
-		size = [size] if not (isinstance(size, list) or isinstance(size, tuple)) else size
-		if m == selected_layer:
+		if (m == selected_layer) or (spatial_variation and m > selected_layer and m not in conv_masks):
 			mask_dict[mask_label] = np.ones((batch_size, *size), dtype=np.bool)
+			layer_used += [True]
 		elif not spatial_variation or (spatial_variation and (m < selected_layer)):
 			mask_dict[mask_label] = np.zeros((batch_size, *size), dtype=np.bool)
-		elif spatial_variation and (m > selected_layer):
+			layer_used += [False]
+		elif spatial_variation and (m > selected_layer) and (m in conv_masks):
 			mask = _mask_helper(crop_x_l, crop_x_h, crop_y_l, crop_y_h, size[0])
 			image_mask = np.broadcast_to(mask[..., np.newaxis], (size[0], size[0], size[-1]))
 			batched_image_mask = np.broadcast_to(image_mask[np.newaxis, ...], (batch_size, *image_mask.shape))
 			mask_dict[mask_label] = batched_image_mask
+			layer_used += [True]
 
 	return mask_dict, image_mask
 
-def mask_dataset(mask_sizes, valid_masks, image_size, batch_size, crop_prob=0.3):
+def mask_dataset(mask_sizes, mask_order, conv_masks, image_size, batch_size, crop_prob=0.3):
 	'''Returns a tf.data.Dataset containing generated masks, using generate_masks()'''
 	def mask_generator():
 		while True:
 			# Generate cropped masks at a rate of `crop_prob` probability
 			spatial_variation = random.random() < crop_prob
-			mask_dict, image_mask = generate_masks(mask_sizes, valid_masks, image_size, batch_size, spatial_variation)
+			mask_dict, image_mask = generate_masks(mask_sizes, mask_order, conv_masks, image_size, batch_size, spatial_variation)
 			mask_dict['image_mask'] = image_mask
 			yield mask_dict
 	output_types = {m: tf.bool for m in mask_sizes}
@@ -110,6 +111,7 @@ def train(
 	generator,
 	discriminator,
 	mask_dataset,
+	mask_order,
 	image_size,
 	steps_per_epoch,
 	batch_size=4,
@@ -215,8 +217,14 @@ def train(
 			fake_output_sec = discriminator(generated_images_sec, training=True)
 
 			# Calculate adversarial and reconstruction generator loss
-			gen_loss = generator_adv_rec_loss(fake_output_first, real_feat_out_first, recon_feat_out_first)
-			gen_loss += generator_adv_rec_loss(fake_output_sec, real_feat_out_sec, recon_feat_out_sec)
+			gen_loss = generator_adv_rec_loss(fake_output=fake_output_first,
+											  real_features=real_feat_out_first,
+											  reconstructed_features=recon_feat_out_first,
+											  masks=[masks[m] for m in mask_order])
+			gen_loss += generator_adv_rec_loss(fake_output=fake_output_sec,
+											   real_features=real_feat_out_sec,
+											   reconstructed_features=recon_feat_out_sec,
+											   masks=[masks[m] for m in mask_order])
 
 			# Calculate diversity loss
 			div_loss = generator_diversity_loss(noise=[noise1, noise2],

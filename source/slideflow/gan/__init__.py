@@ -104,9 +104,11 @@ def gan_test(batch_size=4, mixed_precision=False):
 
 	# Setup the dataset which will be supplying the feature masks
 	with tf.name_scope('Masking'):
-		mask_dataset = semantic.mask_dataset(mask_sizes, valid_masks=('mask_conv0', 'mask_conv1', 'mask_conv2', 'mask_conv3', 'mask_conv4'),
-													  image_size=299,
-													  batch_size=batch_size)
+		mask_order = ('mask_fc8', 'mask_fc7', 'mask_conv0', 'mask_conv1', 'mask_conv2', 'mask_conv3', 'mask_conv4')
+		mask_dataset = semantic.mask_dataset(mask_sizes, mask_order=mask_order,
+														 conv_masks=('mask_conv0', 'mask_conv1', 'mask_conv2', 'mask_conv3', 'mask_conv4'),
+														 image_size=299,
+														 batch_size=batch_size)
 
 	# Print model summaries
 	print("Model summary")
@@ -117,6 +119,7 @@ def gan_test(batch_size=4, mixed_precision=False):
 	discriminator.summary()
 
 	# Begin training
-	semantic.train(dataset, generator, discriminator, mask_dataset, image_size=299, 
+	semantic.train(dataset, generator, discriminator, mask_dataset, mask_order=mask_order,
+																	image_size=299, 
 																	batch_size=batch_size,
 																	steps_per_epoch=round(num_tiles/batch_size))
