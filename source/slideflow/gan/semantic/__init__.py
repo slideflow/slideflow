@@ -10,8 +10,12 @@ from slideflow.util import ProgressBar
 
 from tensorflow_gan.python.eval import eval_utils
 
-def generator_adv_rec_loss(
-	fake_output,
+def generator_adversarial_loss(fake_output):
+	# Adversarial loss
+	cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+	return cross_entropy(tf.ones_like(fake_output), fake_output)
+
+def generator_reconstruction_loss(
 	real_features,
 	reconstructed_features,
 	masks,
@@ -20,12 +24,7 @@ def generator_adv_rec_loss(
 	reconstruction_loss_weight=0.1,
 	add_summaries=False
 ):
-	'''Calculates adversarial and reconstruction loss for the generator.'''
-
-	# Adversarial loss
-	cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-	adversarial_loss = cross_entropy(tf.ones_like(fake_output), fake_output)
-
+	'''Calculates reconstruction loss for the generator.'''
 	# Semantic reconstruction loss
 	reconstruction_losses = []
 	for i, (real, reconstructed, is_conv, mask) in enumerate(zip(real_features, reconstructed_features, feature_type, masks)):
@@ -36,10 +35,7 @@ def generator_adv_rec_loss(
 			reconstruction_losses += [reconstruction_loss_fn(tf.boolean_mask(real, mask),
 															 tf.boolean_mask(reconstructed, mask))]
 
-	reconstruction_loss = tf.math.reduce_sum(reconstruction_losses)
-
-	total_loss = adversarial_loss + (reconstruction_loss * reconstruction_loss_weight)
-	return total_loss
+	return tf.math.reduce_sum(reconstruction_losses) * reconstruction_loss_weight
 
 def generator_diversity_loss(
 	noise,
@@ -137,6 +133,7 @@ def train(
 									discriminator_optimizer=discriminator_optimizer,
 									generator=generator,
 									discriminator=discriminator)
+	checkpoint.restore(checkpoint_prefix+'-19')
 
 	writer = tf.summary.create_file_writer(checkpoint_dir)
 
@@ -155,7 +152,7 @@ def train(
 	@tf.function
 	def summary_step(images, labels, masks, step):
 		'''Step which saves summary statistics and sample images for display with Tensorboard.'''
-		generated_images, gen_loss, disc_loss, div_loss = train_step(images, labels, masks)
+		generated_images, gen_loss, disc_loss, gen_adv_loss, rec_loss, div_loss = train_step(images, labels, masks)
 		
 		with writer.as_default():
 			tf.summary.image(
@@ -175,7 +172,7 @@ def train(
 				max_outputs=1,
 				step=step)
 			tf.summary.scalar(
-				'generator_loss',
+				'generator_total_loss',
 				gen_loss,
 				step=step)
 			tf.summary.scalar(
@@ -185,6 +182,14 @@ def train(
 			tf.summary.scalar(
 				'diversity_loss',
 				div_loss,
+				step=step)
+			tf.summary.scalar(
+				'generator_adversarial_loss',
+				gen_adv_loss,
+				step=step)
+			tf.summary.scalar(
+				'reconstruction_loss',
+				rec_loss,
 				step=step)
 
 	@tf.function
@@ -226,22 +231,26 @@ def train(
 			fake_output_first = discriminator(generated_images_first, training=True)
 			fake_output_sec = discriminator(generated_images_sec, training=True)
 
-			# Calculate adversarial and reconstruction generator loss
-			gen_loss = generator_adv_rec_loss(fake_output=fake_output_first,
-											  real_features=real_feat_out_first,
-											  reconstructed_features=recon_feat_out_first,
-											  feature_type=is_conv,
-											  masks=[masks[m] for m in mask_order])
-			gen_loss += generator_adv_rec_loss(fake_output=fake_output_sec,
-											   real_features=real_feat_out_sec,
-											   reconstructed_features=recon_feat_out_sec,
-											   feature_type=is_conv,
-											   masks=[masks[m] for m in mask_order])
+			# Calculate adversarial generator loss
+			gen_adv_loss = generator_adversarial_loss(fake_output_first)
+			gen_adv_loss += generator_adversarial_loss(fake_output_sec)
+
+			# Calculate reconstruction generator loss
+			rec_loss = generator_reconstruction_loss(real_features=real_feat_out_first,
+													 reconstructed_features=recon_feat_out_first,
+													 feature_type=is_conv,
+													 masks=[masks[m] for m in mask_order])
+			rec_loss += generator_reconstruction_loss(real_features=real_feat_out_sec,
+													 reconstructed_features=recon_feat_out_sec,
+													 feature_type=is_conv,
+													 masks=[masks[m] for m in mask_order])
 
 			# Calculate diversity loss
 			div_loss = generator_diversity_loss(noise=[noise1, noise2],
 												generated_images=[fake_output_first, fake_output_sec])
-			gen_loss += div_loss
+
+			# Sum generator loss
+			gen_loss = div_loss + rec_loss + gen_adv_loss
 
 			# Calculate discriminator loss
 			disc_loss = discriminator_real_loss(real_output)
@@ -255,7 +264,7 @@ def train(
 		generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
 		discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
 
-		return generated_images_first, gen_loss, disc_loss, div_loss
+		return generated_images_first, gen_loss, disc_loss, gen_adv_loss, rec_loss, div_loss
 
 	for epoch in range(epochs):
 		print(f"Epoch {epoch}")
@@ -266,14 +275,14 @@ def train(
 			# Training step
 			train_step(image_batch, label_batch, mask_batch)
 			pb.increase_bar_value(batch_size)
-			pb.leadtext = f"Step {step:>5}"
+			pb.leadtext = f"Step {step+32000:>5}"
 
 			# Summary step
 			if step % 20 == 0:
-				summary_step(image_batch, label_batch, mask_batch, tf.constant(step, dtype=tf.int64))
+				summary_step(image_batch, label_batch, mask_batch, tf.constant(step+32000, dtype=tf.int64))
 				writer.flush()
 
 			# Save a checkpoint
-			if step % 1000 == 0:
+			if step % 2000 == 0:
 				checkpoint.save(file_prefix=checkpoint_prefix)
 		pb.end()
