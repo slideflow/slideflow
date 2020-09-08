@@ -152,7 +152,7 @@ def create_generator(
 
 	mask_order = ('mask_fc8', 'mask_fc7', 'mask_conv0', 'mask_conv1', 'mask_conv2', 'mask_conv3', 'mask_conv4')
 
-	return tf.keras.models.Model(input_layers, [x] + features_with_pool), mask_sizes, mask_order
+	return tf.keras.models.Model(input_layers, [x] + features_with_pool), input_layers, mask_sizes, mask_order
 
 
 def create_discriminator(image_size=64, filters=32, kernel_size=3):

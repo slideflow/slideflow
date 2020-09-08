@@ -41,7 +41,7 @@ def generator_diversity_loss(
 	noise,
 	generated_images,
 	diversity_loss_fn=tf.compat.v1.losses.absolute_difference,
-	diversity_loss_weight=0.0
+	diversity_loss_weight=0.1
 ):
 	'''Calculates diversity loss for the generator.'''
 	diversity_loss = diversity_loss_fn(*noise) / diversity_loss_fn(*generated_images)
@@ -134,7 +134,7 @@ def train(
 									discriminator_optimizer=discriminator_optimizer,
 									generator=generator,
 									discriminator=discriminator)
-	checkpoint.restore(checkpoint_prefix+'-19')
+	#checkpoint.restore(checkpoint_prefix+'-19')
 
 	writer = tf.summary.create_file_writer(checkpoint_dir)
 
@@ -220,14 +220,18 @@ def train(
 			# Images are generated in two groups with different noise inputs, 
 			#  in order to generate diversity loss
 
-			# Get first half of generated images
+			# Get first half of generated images and real image features
 			generated_images_first, real_feat_out_first = _gen_output_helper(generator_input)
-			recon_feat_out_first = reference_features(generated_images_first)
-
-			# Second half of generated images, using a different noise vector
+			
+			# Second half of generated images and real image features, using a different noise vector
 			generator_input['noise_input'] = noise2
 			generated_images_sec, real_feat_out_sec = _gen_output_helper(generator_input)
-			recon_feat_out_sec = reference_features(generated_images_sec)
+			
+			# Get reconstructed features from first generated images
+			recon_feat_out_first = reference_features({'tile_image': generated_images_first, 'input_1': generated_images_first})
+
+			# Get reconstructed features from second generated images
+			recon_feat_out_sec = reference_features({'tile_image': generated_images_sec, 'input_1': generated_images_sec})
 
 			# Get real and generated discriminator output
 			real_output = discriminator(images, training=True)
@@ -277,11 +281,11 @@ def train(
 			# Training step
 			train_step(image_batch, label_batch, mask_batch)
 			pb.increase_bar_value(batch_size)
-			pb.leadtext = f"Step {step+32000:>5}"
+			pb.leadtext = f"Step {step:>5}"
 
 			# Summary step
 			if step % 20 == 0:
-				summary_step(image_batch, label_batch, mask_batch, tf.constant(step+32000, dtype=tf.int64))
+				summary_step(image_batch, label_batch, mask_batch, tf.constant(step, dtype=tf.int64))
 				writer.flush()
 
 			# Save a checkpoint
