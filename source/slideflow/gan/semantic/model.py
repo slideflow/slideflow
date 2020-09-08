@@ -47,7 +47,7 @@ def create_generator(
 	noise_input = tf.keras.layers.Input((z_dim,), name='noise_input')
 	c = tf.keras.layers.Input((n_classes,), dtype=tf.bool, name='class_input')
 	input_layers = [noise_input, c, feature_tensors['image'], feature_tensors['image_vgg16']]
-	real_features = [feature_tensors['fc8'],
+	features_with_pool = [feature_tensors['fc8'],
 					 feature_tensors['fc7'],
 					 tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv0']),
 					 tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv1']),
@@ -55,7 +55,7 @@ def create_generator(
 					 tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv3']),
 					 tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv4']),
 	]
-	reconstructed_features = []
+	#reconstructed_features = []
 	x = noise_input
 	mask_sizes = {}
 
@@ -69,8 +69,8 @@ def create_generator(
 													  			input_shape=(feature_channels[-1],),
 													  			merge='dense',
 													  			suffix='fc8')
-	x = tf.keras.layers.Add(name=f"reconstructed_fc8")([x, masked_input_fc8])
-	reconstructed_features += [x]
+	x = tf.keras.layers.Add()([x, masked_input_fc8])
+	#reconstructed_features += [x]
 	mask_sizes['mask_fc8'] = mask_size
 	input_layers += [mask_fc8]
 
@@ -84,8 +84,8 @@ def create_generator(
 													  			input_shape=(feature_channels[-2],),
 													  			merge='dense',
 													  			suffix='fc7')
-	x = tf.keras.layers.Add(name=f"reconstructed_fc7")([x, masked_input_fc7])
-	reconstructed_features += [x]
+	x = tf.keras.layers.Add()([x, masked_input_fc7])
+	#reconstructed_features += [x]
 	mask_sizes['mask_fc7'] = mask_size
 	input_layers += [mask_fc7]
 
@@ -129,8 +129,8 @@ def create_generator(
 																		merge='conv',
 																		out_channels=out_channel,
 																		suffix=f'conv{b_id}')
-			x = tf.keras.layers.Add(name=f"reconstructed_conv{b_id}")([masked_output, x])
-			reconstructed_features += [tf.keras.layers.MaxPool2D((2,2))(x)]
+			x = tf.keras.layers.Add()([masked_output, x])
+			#reconstructed_features += [tf.keras.layers.MaxPool2D((2,2))(x)]
 			mask_sizes[f'mask_conv{b_id}'] = mask_size
 			input_layers += [mask_input]
 			in_channel = out_channel
@@ -152,7 +152,7 @@ def create_generator(
 
 	mask_order = ('mask_fc8', 'mask_fc7', 'mask_conv0', 'mask_conv1', 'mask_conv2', 'mask_conv3', 'mask_conv4')
 
-	return tf.keras.models.Model(input_layers, [x] + real_features + reconstructed_features), input_layers, mask_sizes, mask_order
+	return tf.keras.models.Model(input_layers, [x] + features_with_pool), mask_sizes, mask_order
 
 
 def create_discriminator(image_size=64, filters=32, kernel_size=3):
