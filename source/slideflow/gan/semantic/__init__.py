@@ -117,6 +117,7 @@ def train(
 	dataset, 
 	generator,
 	discriminator,
+	reference_features,
 	mask_dataset,
 	mask_order,
 	conv_masks,
@@ -148,9 +149,9 @@ def train(
 		   as well as the reconstructed features from the generator.'''
 		generator_output = generator(input, training=True)
 		generated_images = generator_output[0]
-		real_feature_output = generator_output[1:8]
-		reconstructed_feature_output = generator_output[8:]
-		return generated_images, real_feature_output, reconstructed_feature_output
+		feature_output = generator_output[1:]
+		#reconstructed_feature_output = generator_output[8:]
+		return generated_images, feature_output#, reconstructed_feature_output
 
 	@tf.function
 	def summary_step(images, labels, masks, step):
@@ -215,11 +216,13 @@ def train(
 			#  in order to generate diversity loss
 
 			# Get first half of generated images
-			generated_images_first, real_feat_out_first, recon_feat_out_first = _gen_output_helper(generator_input)
+			generated_images_first, real_feat_out_first = _gen_output_helper(generator_input)
+			recon_feat_out_first = reference_features(generated_images_first)
 
 			# Second half of generated images, using a different noise vector
 			generator_input['noise_input'] = noise2
-			generated_images_sec, real_feat_out_sec, recon_feat_out_sec = _gen_output_helper(generator_input)
+			generated_images_sec, real_feat_out_sec = _gen_output_helper(generator_input)
+			recon_feat_out_sec = reference_features(generated_images_sec)
 
 			# Get real and generated discriminator output
 			real_output = discriminator(images, training=True)
@@ -259,7 +262,6 @@ def train(
 
 	for epoch in range(epochs):
 		print(f"Epoch {epoch}")
-		start = time.time()
 
 		pb = ProgressBar(steps_per_epoch*batch_size, show_eta=True, show_counter=True, counter_text='images', leadtext="Step 0")
 		for step, ((image_batch, label_batch), mask_batch) in enumerate(zip(dataset, mask_dataset)):

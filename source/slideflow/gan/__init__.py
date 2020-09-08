@@ -61,7 +61,7 @@ def gan_test(batch_size=4, mixed_precision=False):
 	validation_tfrecords = None
 	manifest = sf_dataset.get_manifest()
 	SFM = SlideflowModel(checkpoint_dir, 299, slide_annotations, train_tfrecords, validation_tfrecords, manifest, model_type='linear')
-	dataset, dataset_with_slidenames, num_tiles = SFM._build_dataset_inputs(tfrecords, batch_size, 'NO_BALANCE', augment=False,
+	dataset, _, num_tiles = SFM._build_dataset_inputs(tfrecords, batch_size, 'NO_BALANCE', augment=False,
 																												 include_slidenames=False,
 																												 parse_fn=partial(_parse_tfrecord_brs, sf_model=SFM,
 																												   									   n_classes=2))
@@ -69,14 +69,7 @@ def gan_test(batch_size=4, mixed_precision=False):
 	
 	# Load the external model
 	with tf.name_scope('ExternalModel'):
-		model = tf.keras.models.load_model(vgg16_path)
-
-	# Legacy model format
-	vgg16_activation_layer_names = [	'block1_pool',			# 64 channels  (149x149)
-										'block2_pool',			# 128 channels (74x74)
-										'block3_pool',			# 256 channels (37x37)
-										'block4_pool',			# 512 channels (18x18)
-										'block5_pool' ] 		# 512 channels (9x9)
+		model = tf.keras.models.load_model(vgg16_path)	
 
 	# Set loaded model as non-trainable
 	for layer in model.layers:
@@ -88,19 +81,31 @@ def gan_test(batch_size=4, mixed_precision=False):
 		'image_vgg16': model.get_layer('vgg16').input,
 		'fc8':   model.get_layer('hidden_1').output,
 		'fc7':   model.get_layer('hidden_0').output,
-		'conv0': model.get_layer('vgg16').get_layer('block5_pool').output,
-		'conv1': model.get_layer('vgg16').get_layer('block4_pool').output,
-		'conv2': model.get_layer('vgg16').get_layer('block3_pool').output,
-		'conv3': model.get_layer('vgg16').get_layer('block2_pool').output,
-		'conv4': model.get_layer('vgg16').get_layer('block1_pool').output,
+		'conv0': model.get_layer('vgg16').get_layer('block5_pool').output, # 512 channels (9x9)
+		'conv1': model.get_layer('vgg16').get_layer('block4_pool').output, # 512 channels (18x18)
+		'conv2': model.get_layer('vgg16').get_layer('block3_pool').output, # 256 channels (37x37)
+		'conv3': model.get_layer('vgg16').get_layer('block2_pool').output, # 128 channels (74x74)
+		'conv4': model.get_layer('vgg16').get_layer('block1_pool').output, # 64 channels  (149x149)
 	}
 
 	# Build the generator and discriminator
 	with tf.name_scope('Generator'):
-		generator, inputs, mask_sizes, mask_order = semantic_model.create_generator(feature_tensors, n_classes=2)
+		generator, mask_sizes, mask_order = semantic_model.create_generator(feature_tensors, n_classes=2)
 
 	with tf.name_scope('Discriminator'):
 		discriminator = semantic_model.create_discriminator(image_size=299)	
+
+	# Build a model that will output pooled features from the reference model, to be used for reconstruction loss
+	features_with_pool = [feature_tensors['fc8'],
+					 	  feature_tensors['fc7'],
+						  tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv0']),
+						  tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv1']),
+						  tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv2']),
+						  tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv3']),
+						  tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv4']),
+	]
+	input_layers = [feature_tensors['image'], feature_tensors['image_vgg16']]
+	reference_features = tf.keras.models.Model(input_layers, features_with_pool)
 
 	# Setup the dataset which will be supplying the feature masks
 	with tf.name_scope('Masking'):
@@ -109,7 +114,6 @@ def gan_test(batch_size=4, mixed_precision=False):
 														 conv_masks=conv_masks,
 														 image_size=299,
 														 batch_size=batch_size)
-
 	# Print model summaries
 	print("Model summary")
 	model.summary()
@@ -119,7 +123,7 @@ def gan_test(batch_size=4, mixed_precision=False):
 	discriminator.summary()
 
 	# Begin training
-	semantic.train(dataset, generator, discriminator, mask_dataset, mask_order=mask_order,
+	semantic.train(dataset, generator, discriminator, reference_features, mask_dataset, mask_order=mask_order,
 																	conv_masks=conv_masks,
 																	image_size=299, 
 																	batch_size=batch_size,
