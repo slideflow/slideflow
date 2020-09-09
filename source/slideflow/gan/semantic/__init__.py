@@ -27,7 +27,7 @@ def generator_reconstruction_loss(
 	masks,
 	feature_type,
 	batchnorm,
-	reconstruction_loss_weight=0.1,
+	reconstruction_loss_weight=1e-6,
 ):
 	'''Calculates reconstruction loss for the generator.'''
 	# Semantic reconstruction loss
@@ -44,7 +44,8 @@ def generator_reconstruction_loss(
 		masked_real = tf.boolean_mask(real_norm, mask)
 		
 		# Now calculate L1 norm
-		reconstruction_losses += [tf.keras.regularizers.L1()(masked_real - masked_reconstructed)]
+		l1 = tf.keras.regularizers.L1()(masked_real - masked_reconstructed)
+		reconstruction_losses += [l1]
 
 	return tf.math.reduce_sum(reconstruction_losses) * reconstruction_loss_weight
 
@@ -270,7 +271,7 @@ def train(
 
 			# Calculate diversity loss
 			div_loss = generator_diversity_loss(noise=[noise1, noise2],
-												generated_images=[fake_output_first, fake_output_sec])
+												generated_images=[generated_images_first, generated_images_sec])
 
 			# Sum generator loss
 			gen_loss = div_loss + rec_loss + gen_adv_loss
