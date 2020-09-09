@@ -90,7 +90,7 @@ def gan_test(batch_size=4, use_mixed_precision=False):
 
 	# Build the generator and discriminator
 	with tf.name_scope('Generator'):
-		generator, generator_input_layers, mask_sizes, mask_order = semantic_model.create_generator(feature_tensors, n_classes=2)
+		generator, generator_input_layers, mask_sizes, mask_order = semantic_model.create_generator(feature_tensors, n_classes=2, z_dim=128)
 
 	with tf.name_scope('Discriminator'):
 		discriminator = semantic_model.create_discriminator(image_size=299)	

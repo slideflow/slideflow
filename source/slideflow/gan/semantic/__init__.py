@@ -216,8 +216,8 @@ def train(
 		#  Except with different noise inputs.
 		#  Using diversity loss, we are optimizing to increase output diversity
 		#  From differing noise inputs.
-		noise1 = tf.random.normal([batch_size, 100])
-		noise2 = tf.random.normal([batch_size, 100])
+		noise1 = tf.random.normal([batch_size, 128])
+		noise2 = tf.random.normal([batch_size, 128])
 
 		generator_input = {
 			'tile_image': images,
