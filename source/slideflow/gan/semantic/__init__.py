@@ -10,52 +10,63 @@ from slideflow.util import ProgressBar
 
 from tensorflow_gan.python.eval import eval_utils
 
-def generator_adversarial_loss(fake_output):
+def generator_adversarial_loss(fake_output, adversarial_loss_weight=1.0):
 	# Adversarial loss
-	cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-	return cross_entropy(tf.ones_like(fake_output), fake_output)
+	loss = tf.keras.losses.MeanSquaredError()
+	return loss(tf.ones_like(fake_output), fake_output) * adversarial_loss_weight
+
+def conormalize(tensors, batchnorm):
+	# Stack reconstructed and real feature maps for co-normalization
+	stacked_features = tf.stack(tensors, axis=0)
+	normalized_features = batchnorm(stacked_features)
+	return tf.unstack(normalized_features)
 
 def generator_reconstruction_loss(
 	real_features,
 	reconstructed_features,
 	masks,
 	feature_type,
-	reconstruction_loss_fn=tf.compat.v1.losses.absolute_difference,
+	batchnorm,
 	reconstruction_loss_weight=0.1,
-	add_summaries=False
 ):
 	'''Calculates reconstruction loss for the generator.'''
 	# Semantic reconstruction loss
 	reconstruction_losses = []
-	for i, (real, reconstructed, is_conv, mask) in enumerate(zip(real_features, reconstructed_features, feature_type, masks)):
+	for i, (real, reconstructed, is_conv, mask, bn) in enumerate(zip(real_features, reconstructed_features, feature_type, masks, batchnorm)):
+
+		# First, co-normalize real and reconstructed features
+		real_norm, reconstructed_norm = conormalize([real, reconstructed], bn)
+
+		# Then, apply masks
 		if is_conv:
-			reconstruction_losses += [reconstruction_loss_fn(tf.boolean_mask(real, tf.cast(tf.keras.layers.MaxPool2D((2,2))(tf.cast(mask, dtype=tf.uint8)), dtype=tf.bool)), 
-									  						 tf.boolean_mask(reconstructed, tf.cast(tf.keras.layers.MaxPool2D((2,2))(tf.cast(mask, dtype=tf.uint8)), dtype=tf.bool)))]
-		else:
-			reconstruction_losses += [reconstruction_loss_fn(tf.boolean_mask(real, mask),
-															 tf.boolean_mask(reconstructed, mask))]
+			mask = tf.cast(tf.keras.layers.MaxPool2D((2,2))(tf.cast(mask, dtype=tf.uint8)), dtype=tf.bool)
+		masked_reconstructed = tf.boolean_mask(reconstructed_norm, mask)
+		masked_real = tf.boolean_mask(real_norm, mask)
+		
+		# Now calculate L1 norm
+		reconstruction_losses += [tf.keras.regularizers.L1()(masked_real - masked_reconstructed)]
 
 	return tf.math.reduce_sum(reconstruction_losses) * reconstruction_loss_weight
 
 def generator_diversity_loss(
 	noise,
 	generated_images,
-	diversity_loss_fn=tf.compat.v1.losses.absolute_difference,
-	diversity_loss_weight=0.1
+	diversity_loss_weight=0.1,
+	epsilon=1e-4
 ):
 	'''Calculates diversity loss for the generator.'''
-	diversity_loss = diversity_loss_fn(*noise) / diversity_loss_fn(*generated_images)
+	diversity_loss = tf.keras.regularizers.L1()(noise[0] - noise[1]) / (tf.keras.regularizers.L1()(generated_images[0] - generated_images[1]) + epsilon)
 	diversity_loss *= diversity_loss_weight
 	return diversity_loss
 
-def discriminator_real_loss(real_output, add_summaries=False):
-	cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-	return cross_entropy(tf.ones_like(real_output), real_output)
+def discriminator_real_loss(real_output, adversarial_loss_weight=1.0):
+	loss = tf.keras.losses.MeanSquaredError()
+	return loss(tf.ones_like(real_output), real_output) * adversarial_loss_weight
 
-def discriminator_fake_loss(fake_output, add_summaries=False):
+def discriminator_fake_loss(fake_output, adversarial_loss_weight=1.0):
 	'''Calculates adversarial loss for the discriminator.'''
-	cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-	return cross_entropy(tf.zeros_like(fake_output), fake_output)
+	loss = tf.keras.losses.MeanSquaredError()
+	return loss(tf.zeros_like(fake_output), fake_output) * adversarial_loss_weight
 
 def generate_masks(mask_sizes, mask_order, conv_masks, image_size, batch_size, spatial_variation=False):
 	'''Generates random masks as described in https://semantic-pyramid.github.io.
@@ -123,6 +134,7 @@ def train(
 	gen_lr=1e-4,
 	disc_lr=1e-4,
 	epochs=10,
+	starting_step=0,
 	checkpoint_dir='/home/shawarma/test_log'
 ):
 	'''Trains a semantic pyramid GAN.'''
@@ -134,9 +146,11 @@ def train(
 									discriminator_optimizer=discriminator_optimizer,
 									generator=generator,
 									discriminator=discriminator)
-	#checkpoint.restore(checkpoint_prefix+'-19')
+	#checkpoint.restore(checkpoint_prefix+'-6')
 
 	writer = tf.summary.create_file_writer(checkpoint_dir)
+
+	reconstruction_batchnorm = [tf.keras.layers.BatchNormalization() for m in mask_order]
 
 	is_conv = [True if m in conv_masks else False for m in mask_order]
 
@@ -246,11 +260,13 @@ def train(
 			rec_loss = generator_reconstruction_loss(real_features=real_feat_out_first,
 													 reconstructed_features=recon_feat_out_first,
 													 feature_type=is_conv,
-													 masks=[masks[m] for m in mask_order])
+													 masks=[masks[m] for m in mask_order],
+													 batchnorm=reconstruction_batchnorm)
 			rec_loss += generator_reconstruction_loss(real_features=real_feat_out_sec,
 													 reconstructed_features=recon_feat_out_sec,
 													 feature_type=is_conv,
-													 masks=[masks[m] for m in mask_order])
+													 masks=[masks[m] for m in mask_order],
+													 batchnorm=reconstruction_batchnorm)
 
 			# Calculate diversity loss
 			div_loss = generator_diversity_loss(noise=[noise1, noise2],
@@ -281,14 +297,14 @@ def train(
 			# Training step
 			train_step(image_batch, label_batch, mask_batch)
 			pb.increase_bar_value(batch_size)
-			pb.leadtext = f"Step {step:>5}"
+			pb.leadtext = f"Step {step+starting_step:>5}"
 
 			# Summary step
-			if step % 20 == 0:
-				summary_step(image_batch, label_batch, mask_batch, tf.constant(step, dtype=tf.int64))
+			if step % 200 == 0:
+				summary_step(image_batch, label_batch, mask_batch, tf.constant(step+starting_step, dtype=tf.int64))
 				writer.flush()
 
 			# Save a checkpoint
-			if step % 2000 == 0:
+			if step % 4000 == 0:
 				checkpoint.save(file_prefix=checkpoint_prefix)
 		pb.end()

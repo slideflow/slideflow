@@ -38,10 +38,10 @@ def _parse_tfrecord_brs(record, sf_model, n_classes, include_slidenames=False, m
 	
 	return image, label
 
-def gan_test(batch_size=4, mixed_precision=False):
+def gan_test(batch_size=4, use_mixed_precision=False):
 	# Set mixed precision flag; it seems that mixed precision worsens GAN performance so 
 	#  I would recommend against its use for now
-	if mixed_precision:
+	if use_mixed_precision:
 		policy = tf.keras.mixed_precision.experimental.Policy('mixed_float16')
 		mixed_precision.set_policy(policy)
 
@@ -96,13 +96,13 @@ def gan_test(batch_size=4, mixed_precision=False):
 		discriminator = semantic_model.create_discriminator(image_size=299)	
 
 	# Build a model that will output pooled features from the reference model, to be used for reconstruction loss
-	features_with_pool = [feature_tensors['fc8'],
-					 	  feature_tensors['fc7'],
-						  tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv0']),
-						  tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv1']),
-						  tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv2']),
-						  tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv3']),
-						  tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv4']),
+	features_with_pool = [tf.cast(feature_tensors['fc8'], dtype=tf.float32),
+					 	  tf.cast(feature_tensors['fc7'], dtype=tf.float32),
+						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv0']), dtype=tf.float32),
+						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv1']), dtype=tf.float32),
+						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv2']), dtype=tf.float32),
+						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv3']), dtype=tf.float32),
+						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv4']), dtype=tf.float32)
 	]
 	input_layers = [feature_tensors['image'], feature_tensors['image_vgg16']]
 	reference_features = tf.keras.models.Model(input_layers, features_with_pool)
