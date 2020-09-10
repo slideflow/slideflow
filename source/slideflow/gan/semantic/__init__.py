@@ -10,11 +10,6 @@ from slideflow.util import ProgressBar
 
 from tensorflow_gan.python.eval import eval_utils
 
-def generator_adversarial_loss(fake_output, adversarial_loss_weight=1.0):
-	# Adversarial loss
-	loss = tf.keras.losses.MeanSquaredError()
-	return loss(tf.ones_like(fake_output), fake_output) * adversarial_loss_weight
-
 def conormalize(tensors, batchnorm):
 	# Stack reconstructed and real feature maps for co-normalization
 	stacked_features = tf.stack(tensors, axis=0)
@@ -60,14 +55,22 @@ def generator_diversity_loss(
 	diversity_loss *= diversity_loss_weight
 	return diversity_loss
 
+def generator_adversarial_loss(fake_output, adversarial_loss_weight=1.0):
+	# Adversarial loss
+	#loss = tf.keras.losses.MeanSquaredError()
+	#return loss(tf.ones_like(fake_output), fake_output) * adversarial_loss_weight
+	return tf.math.reduce_sum(tf.math.square(fake_output - tf.ones_like(fake_output))) * adversarial_loss_weight
+
 def discriminator_real_loss(real_output, adversarial_loss_weight=1.0):
-	loss = tf.keras.losses.MeanSquaredError()
-	return loss(tf.ones_like(real_output), real_output) * adversarial_loss_weight
+	#loss = tf.keras.losses.MeanSquaredError()
+	#return loss(tf.ones_like(real_output), real_output) * adversarial_loss_weight
+	return tf.math.reduce_sum(tf.math.square(real_output - tf.ones_like(real_output))) * adversarial_loss_weight
 
 def discriminator_fake_loss(fake_output, adversarial_loss_weight=1.0):
 	'''Calculates adversarial loss for the discriminator.'''
-	loss = tf.keras.losses.MeanSquaredError()
-	return loss(tf.zeros_like(fake_output), fake_output) * adversarial_loss_weight
+	#loss = tf.keras.losses.MeanSquaredError()
+	#return loss(tf.zeros_like(fake_output), fake_output) * adversarial_loss_weight
+	return tf.math.reduce_sum(tf.math.square(fake_output)) * adversarial_loss_weight
 
 def generate_masks(mask_sizes, mask_order, conv_masks, image_size, batch_size, spatial_variation=False):
 	'''Generates random masks as described in https://semantic-pyramid.github.io.
@@ -132,11 +135,14 @@ def train(
 	image_size,
 	steps_per_epoch,
 	batch_size=4,
+	z_dim=128,
 	gen_lr=1e-4,
 	disc_lr=1e-4,
 	epochs=10,
+	generator_training_ratio=2,
 	starting_step=0,
-	checkpoint_dir='/home/shawarma/test_log'
+	checkpoint_dir='/home/shawarma/test_log',
+	load_checkpoint=None
 ):
 	'''Trains a semantic pyramid GAN.'''
 	generator_optimizer = tf.keras.optimizers.Adam(gen_lr)
@@ -147,11 +153,15 @@ def train(
 									discriminator_optimizer=discriminator_optimizer,
 									generator=generator,
 									discriminator=discriminator)
-	#checkpoint.restore(checkpoint_prefix+'-6')
+	if load_checkpoint:
+		checkpoint.restore(checkpoint_prefix+f'-{load_checkpoint}')
 
 	writer = tf.summary.create_file_writer(checkpoint_dir)
 
 	reconstruction_batchnorm = [tf.keras.layers.BatchNormalization() for m in mask_order]
+
+	
+	discriminator.trainable = False
 
 	is_conv = [True if m in conv_masks else False for m in mask_order]
 
@@ -162,13 +172,13 @@ def train(
 		generator_output = generator(input, training=True)
 		generated_images = generator_output[0]
 		feature_output = generator_output[1:]
-		#reconstructed_feature_output = generator_output[8:]
-		return generated_images, feature_output#, reconstructed_feature_output
+		return generated_images, feature_output
 
 	@tf.function
 	def summary_step(images, labels, masks, step):
 		'''Step which saves summary statistics and sample images for display with Tensorboard.'''
-		generated_images, gen_loss, disc_loss, gen_adv_loss, rec_loss, div_loss = train_step(images, labels, masks)
+		generated_images, gen_loss, gen_adv_loss, rec_loss, div_loss = generator_step(images, labels, masks)
+		disc_loss = discriminator_step(images, labels, masks)
 		
 		with writer.as_default():
 			tf.summary.image(
@@ -209,15 +219,14 @@ def train(
 				step=step)
 
 	@tf.function
-	def train_step(images, labels, masks):
-		'''Training step.'''
+	def generator_step(images, labels, masks):
 		# Noise inputs. In order to calculate diversity loss, 
 		#  Identical pairs of input batches are processed together,
 		#  Except with different noise inputs.
 		#  Using diversity loss, we are optimizing to increase output diversity
 		#  From differing noise inputs.
-		noise1 = tf.random.normal([batch_size, 128])
-		noise2 = tf.random.normal([batch_size, 128])
+		noise1 = tf.random.normal([batch_size, z_dim])
+		noise2 = tf.random.normal([batch_size, z_dim])
 
 		generator_input = {
 			'tile_image': images,
@@ -229,9 +238,9 @@ def train(
 		#  Supposed to be applied to the final generator image, but I'm not sure how to use/implement this.
 		for m in masks:	
 			if m != 'image_mask': generator_input[m] = masks[m]
-	
+
 		# Calculate gradients from losses.
-		with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
+		with tf.GradientTape() as gen_tape:
 			# Images are generated in two groups with different noise inputs, 
 			#  in order to generate diversity loss
 
@@ -248,8 +257,7 @@ def train(
 			# Get reconstructed features from second generated images
 			recon_feat_out_sec = reference_features({'tile_image': generated_images_sec, 'input_1': generated_images_sec})
 
-			# Get real and generated discriminator output
-			real_output = discriminator(images, training=True)
+			# Get discriminator output from generated images
 			fake_output_first = discriminator(generated_images_first, training=True)
 			fake_output_sec = discriminator(generated_images_sec, training=True)
 
@@ -276,27 +284,69 @@ def train(
 			# Sum generator loss
 			gen_loss = div_loss + rec_loss + gen_adv_loss
 
+		# Calculate and apply gradients.
+		gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
+		generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
+
+		return generated_images_first, gen_loss, gen_adv_loss, rec_loss, div_loss
+
+	@tf.function
+	def discriminator_step(images, labels, masks):
+		'''Training step.'''
+		# Noise inputs. In order to calculate diversity loss, 
+		#  Identical pairs of input batches are processed together,
+		#  Except with different noise inputs.
+		#  Using diversity loss, we are optimizing to increase output diversity
+		#  From differing noise inputs.
+		noise = tf.random.normal([batch_size, z_dim])
+
+		generator_input = {
+			'tile_image': images,
+			'input_1': images,
+			'class_input': labels,
+			'noise_input': noise
+		}
+		# Supply all masks as input data apart from 'image_mask', which is is the mask
+		#  Supposed to be applied to the final generator image, but I'm not sure how to use/implement this.
+		for m in masks:	
+			if m != 'image_mask': generator_input[m] = masks[m]
+	
+		# Calculate gradients from losses.
+		with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
+			# Images are generated in two groups with different noise inputs, 
+			#  in order to generate diversity loss
+
+			# Get first half of generated images and real image features
+			generated_images, real_feat_out = _gen_output_helper(generator_input)
+
+			# Get real and generated discriminator output
+			real_output = discriminator(images, training=True)
+			fake_output_first = discriminator(generated_images, training=True)
+			fake_output_sec = discriminator(generated_images, training=True)
+
 			# Calculate discriminator loss
 			disc_loss = discriminator_real_loss(real_output)
 			disc_loss += discriminator_fake_loss(fake_output_first)
 			disc_loss += discriminator_fake_loss(fake_output_sec)
 
 		# Calculate and apply gradients.
-		gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
 		gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
-
-		generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
 		discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
 
-		return generated_images_first, gen_loss, disc_loss, gen_adv_loss, rec_loss, div_loss
+		return disc_loss
 
 	for epoch in range(epochs):
 		print(f"Epoch {epoch}")
 
 		pb = ProgressBar(steps_per_epoch*batch_size, show_eta=True, show_counter=True, counter_text='images', leadtext="Step 0")
 		for step, ((image_batch, label_batch), mask_batch) in enumerate(zip(dataset, mask_dataset)):
-			# Training step
-			train_step(image_batch, label_batch, mask_batch)
+			# Generator training step
+			generator_step(image_batch, label_batch, mask_batch)
+
+			# Discriminator training step
+			if step % generator_training_ratio == 0:
+				discriminator_step(image_batch, label_batch, mask_batch)
+
 			pb.increase_bar_value(batch_size)
 			pb.leadtext = f"Step {step+starting_step:>5}"
 

@@ -127,4 +127,5 @@ def gan_test(batch_size=4, use_mixed_precision=False):
 																	conv_masks=conv_masks,
 																	image_size=299, 
 																	batch_size=batch_size,
+																	z_dim=128,
 																	steps_per_epoch=round(num_tiles/batch_size))
