@@ -147,6 +147,7 @@ def train(
 	steps_per_epoch,
 	keras_strategy,
 	batch_size=4,
+	summary_step=200,
 	z_dim=128,
 	gen_lr=1e-4,
 	disc_lr=1e-4,
@@ -379,12 +380,12 @@ def train(
 			for step, ((image_batch, label_batch), mask_batch, noise_batch) in enumerate(zip(dataset, mask_dataset, noise_dataset)):
 				if step < starting_step: continue
 
-				if (step > 0) and step % 200 == 0:
+				if (step > 0) and step % summary_step == 0:
 					# Discriminator summary step
 					discriminator_summary_step(image_batch, label_batch, mask_batch, noise_batch, tf.constant(step, dtype=tf.int64))
 					writer.flush()
 
-				elif (step > 1) and (step+1) % 200 == 0:
+				elif (step > 1) and (step+1) % summary_step == 0:
 					# Generator summary step
 					generator_summary_step(image_batch, label_batch, mask_batch, noise_batch, tf.constant(step, dtype=tf.int64))
 					writer.flush()
