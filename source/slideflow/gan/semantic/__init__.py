@@ -134,6 +134,7 @@ def train(
 	conv_masks,
 	image_size,
 	steps_per_epoch,
+	keras_strategy,
 	batch_size=4,
 	z_dim=128,
 	gen_lr=1e-4,
@@ -174,7 +175,7 @@ def train(
 	@tf.function
 	def generator_summary_step(images, labels, masks, step):
 		'''Step which saves summary statistics and sample images for display with Tensorboard.'''
-		generated_images, gen_loss, gen_adv_loss, rec_loss, div_loss = generator_step(images, labels, masks)
+		generated_images, gen_loss, gen_adv_loss, rec_loss, div_loss = distributed_generator_step(images, labels, masks)
 
 		with writer.as_default():
 			tf.summary.image(
@@ -221,13 +222,28 @@ def train(
 	@tf.function
 	def discriminator_summary_step(images, labels, masks, step):
 		'''Step which saves summary statistics and sample images for display with Tensorboard.'''
-		disc_loss = discriminator_step(images, labels, masks)
+		disc_loss = distributed_discriminator_step(images, labels, masks)
 
 		with writer.as_default():
 			tf.summary.scalar(
 				'discriminator/total_loss',
 				disc_loss,
 				step=step)
+
+	@tf.function
+	def distributed_generator_step(dist_images, dist_labels, dist_masks):
+		gen_images, gen_loss, gen_adv_loss, rec_loss, div_loss = keras_strategy.run(generator_step, args=(dist_images, dist_labels, dist_masks))
+
+		sum_gen_loss = keras_strategy.reduce(tf.distribute.ReduceOp.SUM, gen_loss, axis=None)
+		sum_gen_adv_loss = keras_strategy.reduce(tf.distribute.ReduceOp.SUM, gen_adv_loss, axis=None)
+		sum_rec_loss = keras_strategy.reduce(tf.distribute.ReduceOp.SUM, rec_loss, axis=None)
+		sum_div_loss = keras_strategy.reduce(tf.distribute.ReduceOp.SUM, div_loss, axis=None)
+		return gen_images[0], sum_gen_loss, sum_gen_adv_loss, sum_rec_loss, sum_div_loss
+
+	@tf.function
+	def distributed_discriminator_step(dist_images, dist_labels, dist_masks):
+		disc_loss = keras_strategy.run(discriminator_step, args=(dist_images, dist_labels, dist_masks))
+		return keras_strategy.reduce(tf.distribute.ReduceOp.SUM, disc_loss, axis=None)
 
 	@tf.function
 	def generator_step(images, labels, masks):
@@ -352,11 +368,11 @@ def train(
 			
 			# Pure training steps
 			if s % training_divisor == 0:
-				discriminator_step(image_batch, label_batch, mask_batch)
+				distributed_discriminator_step(image_batch, label_batch, mask_batch)
 				pb.increase_bar_value(batch_size)
 				pb.leadtext = f"Step {step:>5}"
 			else:
-				generator_step(image_batch, label_batch, mask_batch)
+				distributed_generator_step(image_batch, label_batch, mask_batch)
 
 			# Summary + training steps
 			if step % 200 == 0:		

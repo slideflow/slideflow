@@ -65,6 +65,7 @@ def gan_test(project, model, checkpoint_dir, batch_size=4, use_mixed_precision=F
 																													parse_fn=partial(_parse_tfrecord_brs, sf_model=SFM,
 																																						n_classes=2))
 		dataset = dataset.prefetch(20)
+		dataset = keras_strategy.experimental_distribute_dataset(dataset)
 		
 		# Load the external model
 		with tf.name_scope('ExternalModel'):
@@ -113,6 +114,7 @@ def gan_test(project, model, checkpoint_dir, batch_size=4, use_mixed_precision=F
 															conv_masks=conv_masks,
 															image_size=299,
 															batch_size=batch_size)
+			mask_dataset = keras_strategy.experimental_distribute_dataset(mask_dataset)
 		# Print model summaries
 		print("Model summary")
 		model.summary()
@@ -122,12 +124,14 @@ def gan_test(project, model, checkpoint_dir, batch_size=4, use_mixed_precision=F
 		discriminator.summary()
 
 		# Begin training
-		semantic.train(dataset, generator, discriminator, reference_features, mask_dataset, mask_order=mask_order,
-																		conv_masks=conv_masks,
-																		checkpoint_dir=checkpoint_dir,
-																		load_checkpoint=0,
-																		starting_step=0,
-																		image_size=299, 
-																		batch_size=batch_size,
-																		z_dim=128,
-																		steps_per_epoch=round(num_tiles/batch_size))
+		semantic.train(dataset, generator, discriminator, reference_features, mask_dataset=mask_dataset,
+																			  mask_order=mask_order,
+																			  conv_masks=conv_masks,
+																			  image_size=299, 
+																			  steps_per_epoch=round(num_tiles/batch_size),
+																			  keras_strategy=keras_strategy,
+																			  checkpoint_dir=checkpoint_dir,
+																			  load_checkpoint=0,
+																			  starting_step=0,
+																			  batch_size=batch_size,
+																			  z_dim=128)
