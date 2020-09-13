@@ -187,7 +187,7 @@ def train(
 		@tf.function
 		def generator_summary_step(images, labels, masks, noise, step):
 			'''Step which saves summary statistics and sample images for display with Tensorboard.'''
-			generated_images, gen_loss, gen_adv_loss, rec_loss, div_loss = distributed_generator_step(images[:4], labels[:4], masks[:4], noise[:4])
+			generated_images, gen_loss, gen_adv_loss, rec_loss, div_loss = distributed_generator_step(next(iter(images)), next(iter(labels)), next(iter(masks)), next(iter(noise)))
 
 			with writer.as_default():
 				tf.summary.image(
@@ -234,7 +234,7 @@ def train(
 		@tf.function
 		def discriminator_summary_step(images, labels, masks, noise, step):
 			'''Step which saves summary statistics and sample images for display with Tensorboard.'''
-			disc_loss = discriminator_step(images[:4], labels[:4], masks[:4], noise[:4])
+			disc_loss = discriminator_step(next(iter(images)), next(iter(labels)), next(iter(masks)), next(iter(noise)))
 
 			with writer.as_default():
 				tf.summary.scalar(
