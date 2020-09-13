@@ -187,7 +187,7 @@ def train(
 		@tf.function
 		def generator_summary_step(images, labels, masks, noise, step):
 			'''Step which saves summary statistics and sample images for display with Tensorboard.'''
-			generated_images, gen_loss, gen_adv_loss, rec_loss, div_loss = distributed_generator_step(images, labels, masks, noise)
+			generated_images, gen_loss, gen_adv_loss, rec_loss, div_loss = distributed_generator_step(images[:4], labels[:4], masks[:4], noise[:4])
 
 			with writer.as_default():
 				tf.summary.image(
@@ -234,7 +234,7 @@ def train(
 		@tf.function
 		def discriminator_summary_step(images, labels, masks, noise, step):
 			'''Step which saves summary statistics and sample images for display with Tensorboard.'''
-			disc_loss = distributed_discriminator_step(images, labels, masks, noise)
+			disc_loss = discriminator_step(images[:4], labels[:4], masks[:4], noise[:4])
 
 			with writer.as_default():
 				tf.summary.scalar(
@@ -258,7 +258,7 @@ def train(
 			return keras_strategy.reduce(tf.distribute.ReduceOp.SUM, disc_loss, axis=None)
 
 		@tf.function
-		def generator_step(images, labels, masks, noise):
+		def generator_step(images, labels, masks, noise, apply_grads=True):
 			# Noise inputs. In order to calculate diversity loss, 
 			#  Identical pairs of input batches are processed together,
 			#  Except with different noise inputs.
@@ -322,13 +322,14 @@ def train(
 				gen_loss = div_loss + rec_loss + gen_adv_loss
 
 			# Calculate and apply gradients.
-			gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
-			generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
+			if apply_grads:
+				gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
+				generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
 
 			return [generated_images_first, generated_images_sec], gen_loss, gen_adv_loss, rec_loss, div_loss
 
 		@tf.function
-		def discriminator_step(images, labels, masks, noise):
+		def discriminator_step(images, labels, masks, noise, apply_grads=True):
 			'''Training step.'''
 			# Noise inputs. In order to calculate diversity loss, 
 			#  Identical pairs of input batches are processed together,
@@ -363,8 +364,9 @@ def train(
 				disc_loss += discriminator_fake_loss(fake_output_sec)
 
 			# Calculate and apply gradients.
-			gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
-			discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
+			if apply_grads:
+				gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
+				discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
 
 			return disc_loss
 
