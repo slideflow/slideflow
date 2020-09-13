@@ -222,7 +222,7 @@ def train(
 				#		image_shape=(299, 299)),
 				#	max_outputs=1,
 				#	step=step)
-				tf.summary.image('rea0', images, max_outputs=4, step=step)
+				tf.summary.image('real0', images, max_outputs=4, step=step)
 				tf.summary.image('fake-noise1', generated_images_first, max_outputs=4, step=step)
 				tf.summary.image('fake-noise2', generated_images_second, max_outputs=4, step=step)
 				tf.summary.scalar('generator/total_loss', gen_loss,	step=step)
@@ -384,7 +384,7 @@ def train(
 					discriminator_summary_step(image_batch, label_batch, mask_batch, noise_batch, tf.constant(step, dtype=tf.int64))
 					writer.flush()
 
-				elif (step > 1) and step+1 % 200 == 0:
+				elif (step > 1) and (step+1) % 200 == 0:
 					# Generator summary step
 					generator_summary_step(image_batch, label_batch, mask_batch, noise_batch, tf.constant(step, dtype=tf.int64))
 					writer.flush()

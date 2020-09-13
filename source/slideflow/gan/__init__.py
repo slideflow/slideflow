@@ -38,7 +38,7 @@ def _parse_tfrecord_brs(record, sf_model, n_classes, include_slidenames=False, m
 	
 	return image, label
 
-def gan_test(project, model, checkpoint_dir, batch_size=4, load_checkpoint=0, starting_step=0, use_mixed_precision=False):
+def gan_test(project, model, checkpoint_dir, batch_size=4, load_checkpoint=0, starting_step=0,use_mixed_precision=False):
 	# Set mixed precision flag; it seems that mixed precision worsens GAN performance so 
 	#  I would recommend against its use for now
 	if use_mixed_precision:
@@ -61,9 +61,9 @@ def gan_test(project, model, checkpoint_dir, batch_size=4, load_checkpoint=0, st
 		manifest = sf_dataset.get_manifest()
 		SFM = SlideflowModel(checkpoint_dir, 299, slide_annotations, train_tfrecords, validation_tfrecords, manifest, model_type='linear')
 		dataset, _, num_tiles = SFM._build_dataset_inputs(tfrecords, batch_size, 'NO_BALANCE', augment=False,
-																													include_slidenames=False,
-																													parse_fn=partial(_parse_tfrecord_brs, sf_model=SFM,
-																																						n_classes=2))
+																							   finite=True,
+																							   include_slidenames=False,
+																							   parse_fn=partial(_parse_tfrecord_brs, sf_model=SFM, n_classes=2))
 		dataset = dataset.prefetch(20)
 		dataset = keras_strategy.experimental_distribute_dataset(dataset)
 		
