@@ -49,7 +49,7 @@ def gan_test(project, model, checkpoint_dir, batch_size=4, num_distributed_gpu=1
 	with keras_strategy.scope():
 		# Setup project-specific details. This will eventually need to be replaced
 		#  With a more flexibile solution.
-		SFP = sf.SlideflowProject(project)
+		SFP = sf.SlideflowProject(project, ignore_gpu=True)
 		sf_dataset = SFP.get_dataset(tile_px=299, tile_um=302, filters={'brs_class': ['Braf-like', 'Ras-like']})
 		tfrecords = sf_dataset.get_tfrecords()
 		#xception_path = '/home/shawarma/Thyroid-Paper-Final/projects/TCGA/models/brs-BRS_FULL/trained_model_epoch1.h5'

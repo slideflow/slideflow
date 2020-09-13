@@ -341,7 +341,7 @@ class SlideflowProject:
 	FLAGS = DEFAULT_FLAGS
 	GPU_LOCK = None
 
-	def __init__(self, project_folder, num_gpu=1, reverse_select_gpu=True, force_gpu=None, interactive=True):
+	def __init__(self, project_folder, num_gpu=1, reverse_select_gpu=True, force_gpu=None, ignore_gpu=False, interactive=True):
 		'''Initializes project by creating project folder, prompting user for project settings, and project
 		settings to "settings.json" within the project directory.
 		
@@ -374,11 +374,12 @@ class SlideflowProject:
 			self.create_project(project_folder)
 
 		# Set up GPU
-		if force_gpu is not None:
-			self.select_gpu(force_gpu)
-		else:
-			self.autoselect_gpu(num_gpu, reverse=reverse_select_gpu)
-		atexit.register(self.release_gpu)
+		if not ignore_gpu:
+			if force_gpu is not None:
+				self.select_gpu(force_gpu)
+			else:
+				self.autoselect_gpu(num_gpu, reverse=reverse_select_gpu)
+			atexit.register(self.release_gpu)
 
 	def autoselect_gpu(self, number_available, reverse=True):
 		'''Automatically claims a free GPU and creates a lock file to prevent 
