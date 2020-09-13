@@ -151,10 +151,10 @@ def train(
 	gen_lr=1e-4,
 	disc_lr=1e-4,
 	epochs=10,
-	starting_step=28000,
+	starting_step=0,
 	checkpoint_dir='/home/shawarma/test_log',
 	training_divisor=6,
-	load_checkpoint=14
+	load_checkpoint=0
 ):
 	with keras_strategy.scope():
 		'''Trains a semantic pyramid GAN.'''
