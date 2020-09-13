@@ -376,30 +376,32 @@ def train(
 			print(f"Epoch {epoch}")
 
 			pb = ProgressBar(steps_per_epoch*batch_size, show_eta=True, show_counter=True, counter_text='images', leadtext="Step 0")
-			for s, ((image_batch, label_batch), mask_batch, noise_batch) in enumerate(zip(dataset, mask_dataset, noise_dataset)):
-				step = int(s / training_divisor) + starting_step
-				
-				# Pure training steps
-				if s % training_divisor == 0:
+			for step, ((image_batch, label_batch), mask_batch, noise_batch) in enumerate(zip(dataset, mask_dataset, noise_dataset)):
+				if step < starting_step: continue
+
+				if (step > 0) and step % 200 == 0:
+					# Discriminator summary step
+					discriminator_summary_step(image_batch, label_batch, mask_batch, noise_batch, tf.constant(step, dtype=tf.int64))
+					writer.flush()
+
+				elif (step > 1) and step+1 % 200 == 0:
+					# Generator summary step
+					generator_summary_step(image_batch, label_batch, mask_batch, noise_batch, tf.constant(step, dtype=tf.int64))
+					writer.flush()
+
+				elif step % training_divisor == 0:
+					# Discriminator training step
 					distributed_discriminator_step(image_batch, label_batch, mask_batch, noise_batch)
-					pb.increase_bar_value(batch_size)
-					pb.leadtext = f"Step {step:>5}"
 				else:
+					# Generator training step
 					distributed_generator_step(image_batch, label_batch, mask_batch, noise_batch)
 
-				# Summary + training steps
-				if step % 200 == 0:		
-					if s % training_divisor == 0:
-						discriminator_summary_step(image_batch, label_batch, mask_batch, noise_batch, tf.constant(step, dtype=tf.int64))
-						writer.flush()
-						pb.increase_bar_value(batch_size)
-						pb.leadtext = f"Step {step:>5}"
-					elif (s+1) % training_divisor == 0:
-						generator_summary_step(image_batch, label_batch, mask_batch, noise_batch, tf.constant(step, dtype=tf.int64))
-						writer.flush()
-
+				# Increase progress bar
+				pb.increase_bar_value(batch_size)
+				pb.leadtext = f"Step {step:>5}"
+			
 				# Save a checkpoint
-				if step > 0 and step % 4000 == 0 and s % training_divisor == 0:
+				if step > 0 and step % 4000 == 0:
 					checkpoint.save(file_prefix=checkpoint_prefix)
 					pb.print(f"Checkpoint at step {step} saved to {checkpoint_prefix}")
 			pb.end()
