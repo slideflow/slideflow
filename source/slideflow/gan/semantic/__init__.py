@@ -187,61 +187,54 @@ def train(
 		@tf.function
 		def generator_summary_step(images, labels, masks, noise, step):
 			'''Step which saves summary statistics and sample images for display with Tensorboard.'''
-			generated_images, gen_loss, gen_adv_loss, rec_loss, div_loss = distributed_generator_step(keras_strategy.experimental_local_results(images)
-																									  keras_strategy.experimental_local_results(labels),
-																									  keras_strategy.experimental_local_results(masks),
-																									  keras_strategy.experimental_local_results(noise))
+			generated_images, gen_loss, gen_adv_loss, rec_loss, div_loss = distributed_generator_step(images, labels, masks, noise, False)
+			
+			images = keras_strategy.experimental_local_results(images)[0]
+			generated_images_first = keras_strategy.experimental_local_results(generated_images[0])[0]
+			generated_images_second = keras_strategy.experimental_local_results(generated_images[1])[0]
+			gen_loss = keras_strategy.experimental_local_results(gen_loss)[0]
+			gen_adv_loss = keras_strategy.experimental_local_results(gen_adv_loss)[0]
+			rec_loss = keras_strategy.experimental_local_results(rec_loss)[0]
+			div_loss = keras_strategy.experimental_local_results(div_loss)[0]
 
 			with writer.as_default():
-				tf.summary.image(
-					'real_data',
-					eval_utils.image_grid(
-						images[:4],
-						grid_shape=(2, 2),
-						image_shape=(299, 299)),
-					max_outputs=1,
-					step=step)
-				tf.summary.image(
-					'generated/generated_images_noise1',
-					eval_utils.image_grid(
-						generated_images[0][:4],
-						grid_shape=(2, 2),
-						image_shape=(299, 299)),
-					max_outputs=1,
-					step=step)
-				tf.summary.image(
-					'generated/generated_images_noise2',
-					eval_utils.image_grid(
-						generated_images[1][:4],
-						grid_shape=(2, 2),
-						image_shape=(299, 299)),
-					max_outputs=1,
-					step=step)
-				tf.summary.scalar(
-					'generator/total_loss',
-					gen_loss,
-					step=step)
-				tf.summary.scalar(
-					'generator/diversity_loss',
-					div_loss,
-					step=step)
-				tf.summary.scalar(
-					'generator/adversarial_loss',
-					gen_adv_loss,
-					step=step)
-				tf.summary.scalar(
-					'generator/reconstruction_loss',
-					rec_loss,
-					step=step)
+				#tf.summary.image(
+				#	'real_data',
+				#	eval_utils.image_grid(
+				#		images[:4],
+				#		grid_shape=(2, 2),
+				#		image_shape=(299, 299)),
+				#	max_outputs=1,
+				#	step=step)
+				#tf.summary.image(
+				#	'generated/generated_images_noise1',
+				#	eval_utils.image_grid(
+				#		generated_images[0][:4],
+				#		grid_shape=(2, 2),
+				#		image_shape=(299, 299)),
+				#	max_outputs=1,
+				#	step=step)
+				#tf.summary.image(
+				#	'generated/generated_images_noise2',
+				#	eval_utils.image_grid(
+				#		generated_images[1][:4],
+				#		grid_shape=(2, 2),
+				#		image_shape=(299, 299)),
+				#	max_outputs=1,
+				#	step=step)
+				tf.summary.image('rea0', images, max_outputs=4, step=step)
+				tf.summary.image('fake-noise1', generated_images_first, max_outputs=4, step=step)
+				tf.summary.image('fake-noise2', generated_images_second, max_outputs=4, step=step)
+				tf.summary.scalar('generator/total_loss', gen_loss,	step=step)
+				tf.summary.scalar('generator/diversity_loss', div_loss,	step=step)
+				tf.summary.scalar('generator/adversarial_loss',	gen_adv_loss, step=step)
+				tf.summary.scalar('generator/reconstruction_loss', rec_loss, step=step)
 
 		@tf.function
 		def discriminator_summary_step(images, labels, masks, noise, step):
 			'''Step which saves summary statistics and sample images for display with Tensorboard.'''
-			disc_loss = discriminator_step(keras_strategy.experimental_local_results(images)
-										   keras_strategy.experimental_local_results(labels),
-										   keras_strategy.experimental_local_results(masks),
-										   keras_strategy.experimental_local_results(noise))
-																									  
+			disc_loss = distributed_discriminator_step(images, labels, masks, noise, False)
+			disc_loss = keras_strategy.experimental_local_results(disc_loss)[0]
 
 			with writer.as_default():
 				tf.summary.scalar(
@@ -250,18 +243,18 @@ def train(
 					step=step)
 
 		@tf.function
-		def distributed_generator_step(dist_images, dist_labels, dist_masks, dist_noise):
-			gen_images, gen_loss, gen_adv_loss, rec_loss, div_loss = keras_strategy.run(generator_step, args=(dist_images, dist_labels, dist_masks, dist_noise))
+		def distributed_generator_step(dist_images, dist_labels, dist_masks, dist_noise, apply_grads=True):
+			gen_images, gen_loss, gen_adv_loss, rec_loss, div_loss = keras_strategy.run(generator_step, args=(dist_images, dist_labels, dist_masks, dist_noise, apply_grads))
 
 			sum_gen_loss = keras_strategy.reduce(tf.distribute.ReduceOp.SUM, gen_loss, axis=None)
 			sum_gen_adv_loss = keras_strategy.reduce(tf.distribute.ReduceOp.SUM, gen_adv_loss, axis=None)
 			sum_rec_loss = keras_strategy.reduce(tf.distribute.ReduceOp.SUM, rec_loss, axis=None)
 			sum_div_loss = keras_strategy.reduce(tf.distribute.ReduceOp.SUM, div_loss, axis=None)
-			return gen_images[0], sum_gen_loss, sum_gen_adv_loss, sum_rec_loss, sum_div_loss
+			return gen_images, sum_gen_loss, sum_gen_adv_loss, sum_rec_loss, sum_div_loss
 
 		@tf.function
-		def distributed_discriminator_step(dist_images, dist_labels, dist_masks, dist_noise):
-			disc_loss = keras_strategy.run(discriminator_step, args=(dist_images, dist_labels, dist_masks, dist_noise))
+		def distributed_discriminator_step(dist_images, dist_labels, dist_masks, dist_noise, apply_grads=True):
+			disc_loss = keras_strategy.run(discriminator_step, args=(dist_images, dist_labels, dist_masks, dist_noise, apply_grads))
 			return keras_strategy.reduce(tf.distribute.ReduceOp.SUM, disc_loss, axis=None)
 
 		@tf.function
@@ -280,6 +273,7 @@ def train(
 			}
 			# Supply all masks as input data apart from 'image_mask', which is is the mask
 			#  Supposed to be applied to the final generator image, but I'm not sure how to use/implement this.
+			if type(masks) == tuple: masks = masks[0]
 			for m in masks:	
 				if m != 'image_mask': generator_input[m] = masks[m]
 
@@ -352,6 +346,7 @@ def train(
 			}
 			# Supply all masks as input data apart from 'image_mask', which is is the mask
 			#  Supposed to be applied to the final generator image, but I'm not sure how to use/implement this.
+			if type(masks) == tuple: masks = masks[0]
 			for m in masks:	
 				if m != 'image_mask': generator_input[m] = masks[m]
 
@@ -404,7 +399,7 @@ def train(
 						writer.flush()
 
 				# Save a checkpoint
-				if step % 4000 == 0 and s % training_divisor == 0:
+				if step > 0 and step % 4000 == 0 and s % training_divisor == 0:
 					checkpoint.save(file_prefix=checkpoint_prefix)
 					pb.print(f"Checkpoint at step {step} saved to {checkpoint_prefix}")
 			pb.end()

@@ -115,7 +115,7 @@ def gan_test(project, model, checkpoint_dir, batch_size=4, use_mixed_precision=F
 															image_size=299,
 															batch_size=batch_size)
 			mask_dataset = keras_strategy.experimental_distribute_dataset(mask_dataset)
-			noise_dataset = semantic.noise_dataset(z_dim, batch_size=batch_size)
+			noise_dataset = semantic.noise_dataset(z_dim=128, batch_size=batch_size)
 			noise_dataset = keras_strategy.experimental_distribute_dataset(noise_dataset)
 
 		# Print model summaries
