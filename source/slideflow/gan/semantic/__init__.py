@@ -315,7 +315,7 @@ def train(
 														batchnorm=reconstruction_batchnorm)
 
 				# Calculate diversity loss
-				div_loss = generator_diversity_loss(noise=[noise1, noise2],
+				div_loss = generator_diversity_loss(noise=noise,
 													generated_images=[generated_images_first, generated_images_sec])
 
 				# Sum generator loss
