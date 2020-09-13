@@ -122,7 +122,17 @@ def mask_dataset(mask_sizes, mask_order, conv_masks, image_size, batch_size, cro
 	output_types['image_mask'] = tf.bool
 	dataset = tf.data.Dataset.from_generator(mask_generator, output_types=output_types)
 	dataset.prefetch(2)
-	return dataset	
+	return dataset
+
+def noise_dataset(z_dim, batch_size):
+	def noise_generator():
+		while True:
+			noise1 = tf.random.normal([batch_size, z_dim])
+			noise2 = tf.random.normal([batch_size, z_dim])
+			yield noise1, noise2
+	dataset = tf.data.Dataset.from_generator(noise_generator, output_types=(tf.float32, tf.float32))
+	dataset.prefetch(2)
+	return dataset
 
 def train(
 	dataset, 
@@ -132,6 +142,7 @@ def train(
 	mask_dataset,
 	mask_order,
 	conv_masks,
+	noise_dataset,
 	image_size,
 	steps_per_epoch,
 	keras_strategy,
@@ -174,9 +185,9 @@ def train(
 			return generated_images, feature_output
 
 		@tf.function
-		def generator_summary_step(images, labels, masks, step):
+		def generator_summary_step(images, labels, masks, noise, step):
 			'''Step which saves summary statistics and sample images for display with Tensorboard.'''
-			generated_images, gen_loss, gen_adv_loss, rec_loss, div_loss = distributed_generator_step(images, labels, masks)
+			generated_images, gen_loss, gen_adv_loss, rec_loss, div_loss = distributed_generator_step(images, labels, masks, noise)
 
 			with writer.as_default():
 				tf.summary.image(
@@ -221,9 +232,9 @@ def train(
 					step=step)
 
 		@tf.function
-		def discriminator_summary_step(images, labels, masks, step):
+		def discriminator_summary_step(images, labels, masks, noise, step):
 			'''Step which saves summary statistics and sample images for display with Tensorboard.'''
-			disc_loss = distributed_discriminator_step(images, labels, masks)
+			disc_loss = distributed_discriminator_step(images, labels, masks, noise)
 
 			with writer.as_default():
 				tf.summary.scalar(
@@ -232,8 +243,8 @@ def train(
 					step=step)
 
 		@tf.function
-		def distributed_generator_step(dist_images, dist_labels, dist_masks):
-			gen_images, gen_loss, gen_adv_loss, rec_loss, div_loss = keras_strategy.run(generator_step, args=(dist_images, dist_labels, dist_masks))
+		def distributed_generator_step(dist_images, dist_labels, dist_masks, dist_noise):
+			gen_images, gen_loss, gen_adv_loss, rec_loss, div_loss = keras_strategy.run(generator_step, args=(dist_images, dist_labels, dist_masks, dist_noise))
 
 			sum_gen_loss = keras_strategy.reduce(tf.distribute.ReduceOp.SUM, gen_loss, axis=None)
 			sum_gen_adv_loss = keras_strategy.reduce(tf.distribute.ReduceOp.SUM, gen_adv_loss, axis=None)
@@ -242,25 +253,23 @@ def train(
 			return gen_images[0], sum_gen_loss, sum_gen_adv_loss, sum_rec_loss, sum_div_loss
 
 		@tf.function
-		def distributed_discriminator_step(dist_images, dist_labels, dist_masks):
-			disc_loss = keras_strategy.run(discriminator_step, args=(dist_images, dist_labels, dist_masks))
+		def distributed_discriminator_step(dist_images, dist_labels, dist_masks, dist_noise):
+			disc_loss = keras_strategy.run(discriminator_step, args=(dist_images, dist_labels, dist_masks, dist_noise))
 			return keras_strategy.reduce(tf.distribute.ReduceOp.SUM, disc_loss, axis=None)
 
 		@tf.function
-		def generator_step(images, labels, masks):
+		def generator_step(images, labels, masks, noise):
 			# Noise inputs. In order to calculate diversity loss, 
 			#  Identical pairs of input batches are processed together,
 			#  Except with different noise inputs.
 			#  Using diversity loss, we are optimizing to increase output diversity
 			#  From differing noise inputs.
-			noise1 = tf.random.normal([batch_size, z_dim])
-			noise2 = tf.random.normal([batch_size, z_dim])
 
 			generator_input = {
 				'tile_image': images,
 				'input_1': images,
 				'class_input': labels,
-				'noise_input': noise1
+				'noise_input': noise[0]
 			}
 			# Supply all masks as input data apart from 'image_mask', which is is the mask
 			#  Supposed to be applied to the final generator image, but I'm not sure how to use/implement this.
@@ -276,7 +285,7 @@ def train(
 				generated_images_first, real_feat_out_first = _gen_output_helper(generator_input)
 				
 				# Second half of generated images and real image features, using a different noise vector
-				generator_input['noise_input'] = noise2
+				generator_input['noise_input'] = noise[1]
 				generated_images_sec, real_feat_out_sec = _gen_output_helper(generator_input)
 				
 				# Get reconstructed features from first generated images
@@ -319,20 +328,19 @@ def train(
 			return [generated_images_first, generated_images_sec], gen_loss, gen_adv_loss, rec_loss, div_loss
 
 		@tf.function
-		def discriminator_step(images, labels, masks):
+		def discriminator_step(images, labels, masks, noise):
 			'''Training step.'''
 			# Noise inputs. In order to calculate diversity loss, 
 			#  Identical pairs of input batches are processed together,
 			#  Except with different noise inputs.
 			#  Using diversity loss, we are optimizing to increase output diversity
 			#  From differing noise inputs.
-			noise = tf.random.normal([batch_size, z_dim])
 
 			generator_input = {
 				'tile_image': images,
 				'input_1': images,
 				'class_input': labels,
-				'noise_input': noise
+				'noise_input': noise[0]
 			}
 			# Supply all masks as input data apart from 'image_mask', which is is the mask
 			#  Supposed to be applied to the final generator image, but I'm not sure how to use/implement this.
@@ -364,26 +372,26 @@ def train(
 			print(f"Epoch {epoch}")
 
 			pb = ProgressBar(steps_per_epoch*batch_size, show_eta=True, show_counter=True, counter_text='images', leadtext="Step 0")
-			for s, ((image_batch, label_batch), mask_batch) in enumerate(zip(dataset, mask_dataset)):
+			for s, ((image_batch, label_batch), mask_batch, noise_batch) in enumerate(zip(dataset, mask_dataset, noise_dataset)):
 				step = int(s / training_divisor) + starting_step
 				
 				# Pure training steps
 				if s % training_divisor == 0:
-					distributed_discriminator_step(image_batch, label_batch, mask_batch)
+					distributed_discriminator_step(image_batch, label_batch, mask_batch, noise_batch)
 					pb.increase_bar_value(batch_size)
 					pb.leadtext = f"Step {step:>5}"
 				else:
-					distributed_generator_step(image_batch, label_batch, mask_batch)
+					distributed_generator_step(image_batch, label_batch, mask_batch, noise_batch)
 
 				# Summary + training steps
 				if step % 200 == 0:		
 					if s % training_divisor == 0:
-						discriminator_summary_step(image_batch, label_batch, mask_batch, tf.constant(step, dtype=tf.int64))
+						discriminator_summary_step(image_batch, label_batch, mask_batch, noise_batch, tf.constant(step, dtype=tf.int64))
 						writer.flush()
 						pb.increase_bar_value(batch_size)
 						pb.leadtext = f"Step {step:>5}"
 					elif (s+1) % training_divisor == 0:
-						generator_summary_step(image_batch, label_batch, mask_batch, tf.constant(step, dtype=tf.int64))
+						generator_summary_step(image_batch, label_batch, mask_batch, noise_batch, tf.constant(step, dtype=tf.int64))
 						writer.flush()
 
 				# Save a checkpoint
