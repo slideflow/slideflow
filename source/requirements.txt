@@ -1,5 +1,5 @@
 gast>=0.3.3
-tensorflow>=2.1
+tensorflow>=2.3
 scipy
 sklearn
 matplotlib
@@ -14,3 +14,4 @@ tabulate
 pyvips==2.1.11
 fpdf
 spams
+tensorflow_gan

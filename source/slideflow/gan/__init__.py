@@ -38,7 +38,7 @@ def _parse_tfrecord_brs(record, sf_model, n_classes, include_slidenames=False, m
 	
 	return image, label
 
-def gan_test(project, model, checkpoint_dir, batch_size=4, use_mixed_precision=False):
+def gan_test(project, model, checkpoint_dir, batch_size=4, num_distributed_gpu=1, use_mixed_precision=False):
 	# Set mixed precision flag; it seems that mixed precision worsens GAN performance so 
 	#  I would recommend against its use for now
 	if use_mixed_precision:
@@ -60,7 +60,7 @@ def gan_test(project, model, checkpoint_dir, batch_size=4, use_mixed_precision=F
 		validation_tfrecords = None
 		manifest = sf_dataset.get_manifest()
 		SFM = SlideflowModel(checkpoint_dir, 299, slide_annotations, train_tfrecords, validation_tfrecords, manifest, model_type='linear')
-		dataset, _, num_tiles = SFM._build_dataset_inputs(tfrecords, batch_size, 'NO_BALANCE', augment=False,
+		dataset, _, num_tiles = SFM._build_dataset_inputs(tfrecords, batch_size*num_distributed_gpu, 'NO_BALANCE', augment=False,
 																													include_slidenames=False,
 																													parse_fn=partial(_parse_tfrecord_brs, sf_model=SFM,
 																																						n_classes=2))
@@ -113,7 +113,7 @@ def gan_test(project, model, checkpoint_dir, batch_size=4, use_mixed_precision=F
 			mask_dataset = semantic.mask_dataset(mask_sizes, mask_order=mask_order,
 															conv_masks=conv_masks,
 															image_size=299,
-															batch_size=batch_size)
+															batch_size=batch_size*num_distributed_gpu)
 			mask_dataset = keras_strategy.experimental_distribute_dataset(mask_dataset)
 		# Print model summaries
 		print("Model summary")
