@@ -22,7 +22,7 @@ def generator_reconstruction_loss(
 	masks,
 	feature_type,
 	batchnorm,
-	reconstruction_loss_weight=1e-6,
+	reconstruction_loss_weight=1e-4,
 ):
 	'''Calculates reconstruction loss for the generator.'''
 	# Semantic reconstruction loss
@@ -47,7 +47,7 @@ def generator_reconstruction_loss(
 def generator_diversity_loss(
 	noise,
 	generated_images,
-	diversity_loss_weight=0.1,
+	diversity_loss_weight=10.0,
 	epsilon=1e-4
 ):
 	'''Calculates diversity loss for the generator.'''
@@ -55,7 +55,7 @@ def generator_diversity_loss(
 	diversity_loss *= diversity_loss_weight
 	return diversity_loss
 
-def generator_adversarial_loss(fake_output, adversarial_loss_weight=1.0):
+def generator_adversarial_loss(fake_output, adversarial_loss_weight=0.5):
 	# Adversarial loss
 	#loss = tf.keras.losses.MeanSquaredError()
 	#return loss(tf.ones_like(fake_output), fake_output) * adversarial_loss_weight
@@ -139,10 +139,10 @@ def train(
 	gen_lr=1e-4,
 	disc_lr=1e-4,
 	epochs=10,
-	generator_training_ratio=2,
-	starting_step=0,
+	starting_step=28000,
 	checkpoint_dir='/home/shawarma/test_log',
-	load_checkpoint=None
+	training_divisor=6,
+	load_checkpoint=14
 ):
 	'''Trains a semantic pyramid GAN.'''
 	generator_optimizer = tf.keras.optimizers.Adam(gen_lr)
@@ -159,10 +159,7 @@ def train(
 	writer = tf.summary.create_file_writer(checkpoint_dir)
 
 	reconstruction_batchnorm = [tf.keras.layers.BatchNormalization() for m in mask_order]
-
 	
-	discriminator.trainable = False
-
 	is_conv = [True if m in conv_masks else False for m in mask_order]
 
 	def _gen_output_helper(input):
@@ -175,11 +172,10 @@ def train(
 		return generated_images, feature_output
 
 	@tf.function
-	def summary_step(images, labels, masks, step):
+	def generator_summary_step(images, labels, masks, step):
 		'''Step which saves summary statistics and sample images for display with Tensorboard.'''
 		generated_images, gen_loss, gen_adv_loss, rec_loss, div_loss = generator_step(images, labels, masks)
-		disc_loss = discriminator_step(images, labels, masks)
-		
+
 		with writer.as_default():
 			tf.summary.image(
 				'real_data',
@@ -190,32 +186,47 @@ def train(
 				max_outputs=1,
 				step=step)
 			tf.summary.image(
-				'generated_data',
+				'generated/generated_images_noise1',
 				eval_utils.image_grid(
-					generated_images[:4],
+					generated_images[0][:4],
+					grid_shape=(2, 2),
+					image_shape=(299, 299)),
+				max_outputs=1,
+				step=step)
+			tf.summary.image(
+				'generated/generated_images_noise2',
+				eval_utils.image_grid(
+					generated_images[1][:4],
 					grid_shape=(2, 2),
 					image_shape=(299, 299)),
 				max_outputs=1,
 				step=step)
 			tf.summary.scalar(
-				'generator_total_loss',
+				'generator/total_loss',
 				gen_loss,
 				step=step)
 			tf.summary.scalar(
-				'discriminator_loss',
-				disc_loss,
-				step=step)
-			tf.summary.scalar(
-				'diversity_loss',
+				'generator/diversity_loss',
 				div_loss,
 				step=step)
 			tf.summary.scalar(
-				'generator_adversarial_loss',
+				'generator/adversarial_loss',
 				gen_adv_loss,
 				step=step)
 			tf.summary.scalar(
-				'reconstruction_loss',
+				'generator/reconstruction_loss',
 				rec_loss,
+				step=step)
+
+	@tf.function
+	def discriminator_summary_step(images, labels, masks, step):
+		'''Step which saves summary statistics and sample images for display with Tensorboard.'''
+		disc_loss = discriminator_step(images, labels, masks)
+
+		with writer.as_default():
+			tf.summary.scalar(
+				'discriminator/total_loss',
+				disc_loss,
 				step=step)
 
 	@tf.function
@@ -288,7 +299,7 @@ def train(
 		gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
 		generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
 
-		return generated_images_first, gen_loss, gen_adv_loss, rec_loss, div_loss
+		return [generated_images_first, generated_images_sec], gen_loss, gen_adv_loss, rec_loss, div_loss
 
 	@tf.function
 	def discriminator_step(images, labels, masks):
@@ -310,15 +321,12 @@ def train(
 		#  Supposed to be applied to the final generator image, but I'm not sure how to use/implement this.
 		for m in masks:	
 			if m != 'image_mask': generator_input[m] = masks[m]
-	
+
+		# Get first half of generated images and real image features
+		generated_images, real_feat_out = _gen_output_helper(generator_input)
+
 		# Calculate gradients from losses.
-		with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
-			# Images are generated in two groups with different noise inputs, 
-			#  in order to generate diversity loss
-
-			# Get first half of generated images and real image features
-			generated_images, real_feat_out = _gen_output_helper(generator_input)
-
+		with tf.GradientTape() as disc_tape:
 			# Get real and generated discriminator output
 			real_output = discriminator(images, training=True)
 			fake_output_first = discriminator(generated_images, training=True)
@@ -339,23 +347,30 @@ def train(
 		print(f"Epoch {epoch}")
 
 		pb = ProgressBar(steps_per_epoch*batch_size, show_eta=True, show_counter=True, counter_text='images', leadtext="Step 0")
-		for step, ((image_batch, label_batch), mask_batch) in enumerate(zip(dataset, mask_dataset)):
-			# Generator training step
-			generator_step(image_batch, label_batch, mask_batch)
-
-			# Discriminator training step
-			if step % generator_training_ratio == 0:
+		for s, ((image_batch, label_batch), mask_batch) in enumerate(zip(dataset, mask_dataset)):
+			step = int(s / training_divisor) + starting_step
+			
+			# Pure training steps
+			if s % training_divisor == 0:
 				discriminator_step(image_batch, label_batch, mask_batch)
+				pb.increase_bar_value(batch_size)
+				pb.leadtext = f"Step {step:>5}"
+			else:
+				generator_step(image_batch, label_batch, mask_batch)
 
-			pb.increase_bar_value(batch_size)
-			pb.leadtext = f"Step {step+starting_step:>5}"
-
-			# Summary step
-			if step % 200 == 0:
-				summary_step(image_batch, label_batch, mask_batch, tf.constant(step+starting_step, dtype=tf.int64))
-				writer.flush()
+			# Summary + training steps
+			if step % 200 == 0:		
+				if s % training_divisor == 0:
+					discriminator_summary_step(image_batch, label_batch, mask_batch, tf.constant(step, dtype=tf.int64))
+					writer.flush()
+					pb.increase_bar_value(batch_size)
+					pb.leadtext = f"Step {step:>5}"
+				elif (s+1) % training_divisor == 0:
+					generator_summary_step(image_batch, label_batch, mask_batch, tf.constant(step, dtype=tf.int64))
+					writer.flush()
 
 			# Save a checkpoint
-			if step % 4000 == 0:
+			if step % 4000 == 0 and s % training_divisor == 0:
 				checkpoint.save(file_prefix=checkpoint_prefix)
+				pb.print(f"Checkpoint at step {step} saved to {checkpoint_prefix}")
 		pb.end()
