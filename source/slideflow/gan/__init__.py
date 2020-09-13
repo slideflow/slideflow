@@ -38,7 +38,7 @@ def _parse_tfrecord_brs(record, sf_model, n_classes, include_slidenames=False, m
 	
 	return image, label
 
-def gan_test(batch_size=4, use_mixed_precision=False):
+def gan_test(project, model, checkpoint_dir, batch_size=4, use_mixed_precision=False):
 	# Set mixed precision flag; it seems that mixed precision worsens GAN performance so 
 	#  I would recommend against its use for now
 	if use_mixed_precision:
@@ -49,15 +49,12 @@ def gan_test(batch_size=4, use_mixed_precision=False):
 	with keras_strategy.scope():
 		# Setup project-specific details. This will eventually need to be replaced
 		#  With a more flexibile solution.
-		sample_project = '/home/shawarma/Thyroid-Paper-Final/projects/TCGA'
-		SFP = sf.SlideflowProject(sample_project)
+		SFP = sf.SlideflowProject(project)
 		sf_dataset = SFP.get_dataset(tile_px=299, tile_um=302, filters={'brs_class': ['Braf-like', 'Ras-like']})
 		tfrecords = sf_dataset.get_tfrecords()
-		xception_path = '/home/shawarma/Thyroid-Paper-Final/projects/TCGA/models/brs-BRS_FULL/trained_model_epoch1.h5'
-		vgg16_path = '/home/shawarma/Thyroid-Paper-Final/projects/TCGA/models/brs-BRS_VGG16_FULL_NEWT/trained_model_epoch1.h5'
-
+		#xception_path = '/home/shawarma/Thyroid-Paper-Final/projects/TCGA/models/brs-BRS_FULL/trained_model_epoch1.h5'
+		#vgg16_path = '/home/shawarma/Thyroid-Paper-Final/projects/TCGA/models/brs-BRS_VGG16_FULL_NEWT/trained_model_epoch1.h5'
 		# Build actual dataset inputs using a slideflow model
-		checkpoint_dir = '/home/shawarma/test_log'
 		slide_annotations, _ = sf_dataset.get_outcomes_from_annotations('brs', use_float=True)
 		train_tfrecords = tfrecords
 		validation_tfrecords = None
@@ -71,7 +68,7 @@ def gan_test(batch_size=4, use_mixed_precision=False):
 		
 		# Load the external model
 		with tf.name_scope('ExternalModel'):
-			model = tf.keras.models.load_model(vgg16_path)	
+			model = tf.keras.models.load_model(model)	
 
 		# Set loaded model as non-trainable
 		for layer in model.layers:
@@ -127,6 +124,9 @@ def gan_test(batch_size=4, use_mixed_precision=False):
 		# Begin training
 		semantic.train(dataset, generator, discriminator, reference_features, mask_dataset, mask_order=mask_order,
 																		conv_masks=conv_masks,
+																		checkpoint_dir=checkpoint_dir,
+																		load_checkpoint=0,
+																		starting_step=0,
 																		image_size=299, 
 																		batch_size=batch_size,
 																		z_dim=128,
