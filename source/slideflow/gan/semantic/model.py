@@ -195,6 +195,6 @@ def create_discriminator(image_size=64, filters=32, kernel_size=3):
 
 	x = SpectralConv2D(filters=1, kernel_size=4)(x) 
 	x = tf.keras.layers.Flatten()(x)
-	x = tf.keras.layers.Dense(1, activation='linear')(x) # Added this
+	x = tf.keras.layers.Dense(1, activation='linear', dtype=tf.float32)(x) # Added this
 
 	return tf.keras.models.Model(input_layers, x)

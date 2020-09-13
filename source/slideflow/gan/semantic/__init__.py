@@ -171,18 +171,9 @@ def train(
 
 		writer = tf.summary.create_file_writer(checkpoint_dir)
 
-		reconstruction_batchnorm = [tf.keras.layers.BatchNormalization() for m in mask_order]
+		reconstruction_batchnorm = [tf.keras.layers.BatchNormalization(dtype=tf.float32) for m in mask_order]
 		
 		is_conv = [True if m in conv_masks else False for m in mask_order]
-
-		def _gen_output_helper(input):
-			'''With a given input, uses a generator to calculate generated images, as well as both
-			the input real features (as calculated from the input image),
-			as well as the reconstructed features from the generator.'''
-			generator_output = generator(input, training=True)
-			generated_images = generator_output[0]
-			feature_output = generator_output[1:]
-			return generated_images, feature_output
 
 		@tf.function
 		def generator_summary_step(images, labels, masks, noise, step):
@@ -256,6 +247,15 @@ def train(
 		def distributed_discriminator_step(dist_images, dist_labels, dist_masks, dist_noise, apply_grads=True):
 			disc_loss = keras_strategy.run(discriminator_step, args=(dist_images, dist_labels, dist_masks, dist_noise, apply_grads))
 			return keras_strategy.reduce(tf.distribute.ReduceOp.SUM, disc_loss, axis=None)
+
+		def _gen_output_helper(input):
+			'''With a given input, uses a generator to calculate generated images, as well as both
+			the input real features (as calculated from the input image),
+			as well as the reconstructed features from the generator.'''
+			generator_output = generator(input, training=True)
+			generated_images = generator_output[0]
+			feature_output = generator_output[1:]
+			return generated_images, feature_output
 
 		@tf.function
 		def generator_step(images, labels, masks, noise, apply_grads=True):
