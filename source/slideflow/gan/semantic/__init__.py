@@ -169,8 +169,11 @@ def train(
 										generator=generator,
 										discriminator=discriminator)
 		if load_checkpoint_prefix:
-			checkpoint.restore(checkpoint_prefix+f'-{load_checkpoint}')
+			checkpoint_to_load = checkpoint_prefix+f'-{load_checkpoint_prefix}'
+			print(f"Loading saved checkpoint {checkpoint_to_load}")
+			checkpoint.restore(checkpoint_to_load)
 		elif load_checkpoint:
+			print(f"Loading saved checkpoint {load_checkpoint}")
 			checkpoint.restore(load_checkpoint)
 
 		writer = tf.summary.create_file_writer(checkpoint_dir)
