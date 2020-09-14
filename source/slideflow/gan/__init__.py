@@ -48,6 +48,7 @@ def gan_test(
 	load_checkpoint_prefix=None,
 	starting_step=0,
 	summary_step=200,
+	z_dim=128,
 	adversarial_loss_weight=0.5,
 	diversity_loss_weight=10.0,
 	reconstruction_loss_weight=1e-4,
@@ -105,7 +106,7 @@ def gan_test(
 
 		# Build the generator and discriminator
 		with tf.name_scope('Generator'):
-			generator, generator_input_layers, mask_sizes, mask_order = semantic_model.create_generator(feature_tensors, n_classes=2, z_dim=128)
+			generator, generator_input_layers, mask_sizes, mask_order = semantic_model.create_generator(feature_tensors, n_classes=2, z_dim=z_dim)
 
 		with tf.name_scope('Discriminator'):
 			discriminator = semantic_model.create_discriminator(image_size=299)	
@@ -130,7 +131,7 @@ def gan_test(
 															image_size=299,
 															batch_size=batch_size)
 			mask_dataset = keras_strategy.experimental_distribute_dataset(mask_dataset)
-			noise_dataset = semantic.noise_dataset(z_dim=128, batch_size=batch_size)
+			noise_dataset = semantic.noise_dataset(z_dim=z_dim, batch_size=batch_size)
 			noise_dataset = keras_strategy.experimental_distribute_dataset(noise_dataset)
 
 		# Print model summaries
@@ -156,7 +157,7 @@ def gan_test(
 																			  batch_size=batch_size,
 																			  epochs=epochs,
 																			  summary_step=summary_step,
-																			  z_dim=128,
+																			  z_dim=z_dim,
 																			  reconstruction_loss_weight=reconstruction_loss_weight,
 																			  diversity_loss_weight=diversity_loss_weight,
 																			  adversarial_loss_weight=adversarial_loss_weight)
