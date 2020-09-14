@@ -63,7 +63,8 @@ def gan_test(project, model, checkpoint_dir, batch_size=4, load_checkpoint=0, st
 		dataset, _, num_tiles = SFM._build_dataset_inputs(tfrecords, batch_size, 'NO_BALANCE', augment=False,
 																							   finite=True,
 																							   include_slidenames=False,
-																							   parse_fn=partial(_parse_tfrecord_brs, sf_model=SFM, n_classes=2))
+																							   parse_fn=partial(_parse_tfrecord_brs, sf_model=SFM, n_classes=2),
+																							   drop_remainder=True)
 		dataset = dataset.prefetch(20)
 		dataset = keras_strategy.experimental_distribute_dataset(dataset)
 		

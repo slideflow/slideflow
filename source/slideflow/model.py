@@ -391,7 +391,7 @@ class SlideflowModel:
 							writer.writerow([slide, 'validation', outcome])
 
 	def _build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, max_tiles=None, 
-								min_tiles=0, include_slidenames=False, multi_image=False, parse_fn=None):
+								min_tiles=0, include_slidenames=False, multi_image=False, parse_fn=None, drop_remainder=False):
 		'''Assembles dataset inputs from tfrecords.
 		
 		Args:
@@ -412,7 +412,8 @@ class SlideflowModel:
 																															 min_tiles=min_tiles,
 																															 include_slidenames=include_slidenames,
 																															 multi_image=multi_image,
-																															 parse_fn=parse_fn)
+																															 parse_fn=parse_fn,
+																															 drop_remainder=drop_remainder)
 		return dataset, dataset_with_slidenames, num_tiles
 
 	def _build_model(self, hp, pretrain=None, pretrain_model_format=None, checkpoint=None):
@@ -540,7 +541,7 @@ class SlideflowModel:
 		return model
 
 	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, max_tiles=None, min_tiles=None,
-								include_slidenames=False, multi_image=False, parse_fn=None):
+								include_slidenames=False, multi_image=False, parse_fn=None, drop_remainder=False):
 		'''Generates an interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to balancing if provided.
 		Requires self.MANIFEST. Assumes TFRecord files are named by slide.
@@ -657,11 +658,11 @@ class SlideflowModel:
 			sys.exit()
 		if include_slidenames:
 			dataset_with_slidenames = dataset.map(partial(parse_fn, include_slidenames=True, multi_image=multi_image), num_parallel_calls = 8)
-			dataset_with_slidenames = dataset_with_slidenames.batch(batch_size)
+			dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
 		else:
 			dataset_with_slidenames = None
 		dataset = dataset.map(partial(parse_fn, include_slidenames=False, multi_image=multi_image), num_parallel_calls = 8)
-		dataset = dataset.batch(batch_size)
+		dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
 		
 		return dataset, dataset_with_slidenames, global_num_tiles
 
