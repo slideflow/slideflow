@@ -38,7 +38,7 @@ def _parse_tfrecord_brs(record, sf_model, n_classes, include_slidenames=False, m
 	
 	return image, label
 
-def gan_test(project, model, checkpoint_dir, batch_size=4, load_checkpoint=None, load_checkpoint_prefix=None, starting_step=0, summary_step=200, use_mixed_precision=False):
+def gan_test(project, model, checkpoint_dir, batch_size=4, epochs=10, load_checkpoint=None, load_checkpoint_prefix=None, starting_step=0, summary_step=200, use_mixed_precision=False):
 	# Set mixed precision flag; it seems that mixed precision worsens GAN performance so 
 	#  I would recommend against its use for now
 	if use_mixed_precision:
@@ -140,5 +140,6 @@ def gan_test(project, model, checkpoint_dir, batch_size=4, load_checkpoint=None,
 																			  load_checkpoint_prefix=load_checkpoint_prefix,
 																			  starting_step=starting_step,
 																			  batch_size=batch_size,
+																			  epochs=epochs,
 																			  summary_step=summary_step,
 																			  z_dim=128)
