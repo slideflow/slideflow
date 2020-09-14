@@ -155,7 +155,8 @@ def train(
 	starting_step=0,
 	checkpoint_dir='/home/shawarma/test_log',
 	training_divisor=6,
-	load_checkpoint=0
+	load_checkpoint_prefix=None,
+	load_checkpoint=None,
 ):
 	with keras_strategy.scope():
 		'''Trains a semantic pyramid GAN.'''
@@ -167,8 +168,10 @@ def train(
 										discriminator_optimizer=discriminator_optimizer,
 										generator=generator,
 										discriminator=discriminator)
-		if load_checkpoint:
+		if load_checkpoint_prefix:
 			checkpoint.restore(checkpoint_prefix+f'-{load_checkpoint}')
+		elif load_checkpoint:
+			checkpoint.restore(load_checkpoint)
 
 		writer = tf.summary.create_file_writer(checkpoint_dir)
 
