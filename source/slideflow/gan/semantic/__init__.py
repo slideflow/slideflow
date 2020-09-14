@@ -157,6 +157,9 @@ def train(
 	training_divisor=6,
 	load_checkpoint_prefix=None,
 	load_checkpoint=None,
+	reconstruction_loss_weight=1e-4,
+	diversity_loss_weight=10.0,
+	adversarial_loss_weight=0.5
 ):
 	with keras_strategy.scope():
 		'''Trains a semantic pyramid GAN.'''
@@ -307,24 +310,27 @@ def train(
 				fake_output_sec = discriminator(generated_images_sec, training=True)
 
 				# Calculate adversarial generator loss
-				gen_adv_loss = generator_adversarial_loss(fake_output_first)
-				gen_adv_loss += generator_adversarial_loss(fake_output_sec)
+				gen_adv_loss = generator_adversarial_loss(fake_output_first, adversarial_loss_weight=adversarial_loss_weight)
+				gen_adv_loss += generator_adversarial_loss(fake_output_sec, adversarial_loss_weight=adversarial_loss_weight)
 
 				# Calculate reconstruction generator loss
 				rec_loss = generator_reconstruction_loss(real_features=real_feat_out_first,
 														reconstructed_features=recon_feat_out_first,
 														feature_type=is_conv,
 														masks=[masks[m] for m in mask_order],
-														batchnorm=reconstruction_batchnorm)
+														batchnorm=reconstruction_batchnorm,
+														reconstruction_loss_weight=reconstruction_loss_weight)
 				rec_loss += generator_reconstruction_loss(real_features=real_feat_out_sec,
 														reconstructed_features=recon_feat_out_sec,
 														feature_type=is_conv,
 														masks=[masks[m] for m in mask_order],
-														batchnorm=reconstruction_batchnorm)
+														batchnorm=reconstruction_batchnorm
+														reconstruction_loss_weight=reconstruction_loss_weight)
 
 				# Calculate diversity loss
 				div_loss = generator_diversity_loss(noise=noise,
-													generated_images=[generated_images_first, generated_images_sec])
+													generated_images=[generated_images_first, generated_images_sec],
+													diversity_loss_weight=diversity_loss_weight)
 
 				# Sum generator loss
 				gen_loss = div_loss + rec_loss + gen_adv_loss
