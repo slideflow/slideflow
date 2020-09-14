@@ -324,7 +324,7 @@ def train(
 														reconstructed_features=recon_feat_out_sec,
 														feature_type=is_conv,
 														masks=[masks[m] for m in mask_order],
-														batchnorm=reconstruction_batchnorm
+														batchnorm=reconstruction_batchnorm,
 														reconstruction_loss_weight=reconstruction_loss_weight)
 
 				# Calculate diversity loss
