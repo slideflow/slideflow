@@ -56,7 +56,8 @@ class Mosaic:
 		self.umap = umap
 		self.num_tiles_x = num_tiles_x
 		self.tfrecords_paths = umap.tfrecords
-
+		self.points = []
+		self.GRID = []
 		# Setup normalization
 		if normalizer: log.info(f"Using realtime {normalizer} normalization", 2)
 		self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
