@@ -154,7 +154,8 @@ def train(
 	epochs=10,
 	starting_step=0,
 	checkpoint_dir='/home/shawarma/test_log',
-	training_divisor=6,
+	generator_steps=400,
+	discriminator_steps=400,
 	load_checkpoint_prefix=None,
 	load_checkpoint=None,
 	reconstruction_loss_weight=1e-4,
@@ -199,30 +200,6 @@ def train(
 			div_loss = keras_strategy.experimental_local_results(div_loss)[0]
 
 			with writer.as_default():
-				#tf.summary.image(
-				#	'real_data',
-				#	eval_utils.image_grid(
-				#		images[:4],
-				#		grid_shape=(2, 2),
-				#		image_shape=(299, 299)),
-				#	max_outputs=1,
-				#	step=step)
-				#tf.summary.image(
-				#	'generated/generated_images_noise1',
-				#	eval_utils.image_grid(
-				#		generated_images[0][:4],
-				#		grid_shape=(2, 2),
-				#		image_shape=(299, 299)),
-				#	max_outputs=1,
-				#	step=step)
-				#tf.summary.image(
-				#	'generated/generated_images_noise2',
-				#	eval_utils.image_grid(
-				#		generated_images[1][:4],
-				#		grid_shape=(2, 2),
-				#		image_shape=(299, 299)),
-				#	max_outputs=1,
-				#	step=step)
 				tf.summary.image('real0', images, max_outputs=4, step=step)
 				tf.summary.image('fake-noise1', generated_images_first, max_outputs=4, step=step)
 				tf.summary.image('fake-noise2', generated_images_second, max_outputs=4, step=step)
@@ -385,13 +362,18 @@ def train(
 
 			return disc_loss
 
+		disc_step = 0
+		gen_step = -1
+
 		for epoch in range(epochs):
 			print(f"Epoch {epoch}")
 
 			pb = ProgressBar(steps_per_epoch*batch_size, show_eta=True, show_counter=True, counter_text='images', leadtext="Step 0")
 			for step, ((image_batch, label_batch), mask_batch, noise_batch) in enumerate(zip(dataset, mask_dataset, noise_dataset)):
 				step += (steps_per_epoch * epoch)
-				if step < starting_step: continue
+				step += starting_step
+
+
 
 				if (step > 0) and step % summary_step == 0:
 					# Discriminator summary step
@@ -403,12 +385,24 @@ def train(
 					generator_summary_step(image_batch, label_batch, mask_batch, noise_batch, tf.constant(step, dtype=tf.int64))
 					writer.flush()
 
-				elif step % training_divisor == 0:
-					# Discriminator training step
-					distributed_discriminator_step(image_batch, label_batch, mask_batch, noise_batch)
+				elif disc_step != -1:
+					if disc_step < discriminator_steps:
+						# Discriminator training step
+						distributed_discriminator_step(image_batch, label_batch, mask_batch, noise_batch)
+						disc_step += 1
+					else:
+						disc_step = -1
+						gen_step = 0
+				elif gen_step != -1:
+					if gen_step < generator_steps:
+						# Generator training step
+						distributed_generator_step(image_batch, label_batch, mask_batch, noise_batch)
+						gen_step += 1
+					else:
+						gen_step = -1
+						disc_step = 0
 				else:
-					# Generator training step
-					distributed_generator_step(image_batch, label_batch, mask_batch, noise_batch)
+					pb.print("Error, unknown training step")
 
 				# Increase progress bar
 				pb.increase_bar_value(batch_size)
