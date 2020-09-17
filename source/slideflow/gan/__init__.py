@@ -48,8 +48,8 @@ def gan_test(
 	load_checkpoint_prefix=None,
 	starting_step=0,
 	summary_step=200,
-	generator_steps=400,
-	discriminator_steps=400,
+	generator_steps=30,
+	discriminator_steps=5,
 	z_dim=128,
 	adversarial_loss_weight=0.5,
 	diversity_loss_weight=10.0,
@@ -97,13 +97,13 @@ def gan_test(
 		feature_tensors = {
 			'image': model.input,
 			'image_vgg16': model.get_layer('vgg16').input,
-			'fc8':   model.get_layer('hidden_1').output,
-			'fc7':   model.get_layer('hidden_0').output,
-			'conv0': model.get_layer('vgg16').get_layer('block5_pool').output, # 512 channels (9x9)
-			'conv1': model.get_layer('vgg16').get_layer('block4_pool').output, # 512 channels (18x18)
-			'conv2': model.get_layer('vgg16').get_layer('block3_pool').output, # 256 channels (37x37)
-			'conv3': model.get_layer('vgg16').get_layer('block2_pool').output, # 128 channels (74x74)
-			'conv4': model.get_layer('vgg16').get_layer('block1_pool').output, # 64 channels  (149x149)
+			'fc8':   tf.keras.layers.BatchNormalization()(model.get_layer('hidden_1').output),
+			'fc7':   tf.keras.layers.BatchNormalization()(model.get_layer('hidden_0').output),
+			'conv0': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block5_pool').output), # 512 channels (9x9)
+			'conv1': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block4_pool').output), # 512 channels (18x18)
+			'conv2': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block3_pool').output), # 256 channels (37x37)
+			'conv3': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block2_pool').output), # 128 channels (74x74)
+			'conv4': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block1_pool').output), # 64 channels  (149x149)
 		}
 
 		# Build the generator and discriminator
