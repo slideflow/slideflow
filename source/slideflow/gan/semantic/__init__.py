@@ -370,6 +370,9 @@ def train(
 
 			pb = ProgressBar(steps_per_epoch*batch_size, show_eta=True, show_counter=True, counter_text='images', leadtext="Step 0")
 			for step, ((image_batch, label_batch), mask_batch, noise_batch) in enumerate(zip(dataset, mask_dataset, noise_dataset)):
+				if step == 0:
+					distributed_generator_step(image_batch, label_batch, mask_batch, noise_batch)
+					continue
 				step += (steps_per_epoch * epoch)
 				step += starting_step
 
