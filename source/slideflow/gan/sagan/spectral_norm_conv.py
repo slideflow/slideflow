@@ -1,16 +1,14 @@
 # From https://github.com/IShengFang/SpectralNormalizationKeras
-# Fix for mixed precision support, James Dolezal 2020
+# Fix for TF 2.0, attempted fix for mixed precision support, James Dolezal 2020
 
-from keras import backend as K
-from keras.engine import *
-from keras import activations
-from keras import initializers
-from keras import regularizers
-from keras import constraints
-from keras.utils.generic_utils import deserialize_keras_object
-from keras.utils.generic_utils import has_arg
-from keras.utils import conv_utils
-from keras.layers import Dense, Conv1D, Conv2D, Conv3D, Conv2DTranspose, Embedding
+from tensorflow.keras import backend as K
+#from tensorflow.keras.engine import *
+from tensorflow.keras import activations
+from tensorflow.keras import initializers
+from tensorflow.keras import regularizers
+from tensorflow.keras import constraints
+from tensorflow.keras.layers import Layer, Dense, Conv1D, Conv2D, Conv3D, Conv2DTranspose, Embedding, InputSpec
+import tensorflow.keras.utils as conv_utils
 import tensorflow as tf
 
 class DenseSN(Dense):
