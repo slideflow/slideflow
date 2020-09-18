@@ -172,6 +172,12 @@ def create_discriminator(image_size=64, filters=32, kernel_size=3):
 		
 	curr_filters = filters
 	x = input_layers
+
+	x = SpectralConv2D(filters=curr_filters,
+						kernel_size=kernel_size,
+						strides=1,
+						padding='same')(x)
+
 	for i in range(3):
 		curr_filters = curr_filters * 2
 		x = tf.keras.layers.LeakyReLU(alpha=0.1)(x)
@@ -191,10 +197,11 @@ def create_discriminator(image_size=64, filters=32, kernel_size=3):
 						   strides=2,
 						   padding='same')(x)
 		
-	x, attn2 = SelfAttnModel(curr_filters)(x)
-
-	x = SpectralConv2D(filters=1, kernel_size=4)(x) 
+	#x, attn2 = SelfAttnModel(curr_filters)(x)
+	x = tf.keras.layers.LeakyReLU(alpha=0.1)(x)
+	x = SpectralConv2D(filters=1, kernel_size=4)(x)
+	x = tf.keras.layers.LeakyReLU(alpha=0.1)(x)
 	x = tf.keras.layers.Flatten()(x)
-	x = tf.keras.layers.Dense(1, activation='linear', dtype=tf.float32)(x) # Added this
+	x = DenseSN(1, activation='linear', dtype=tf.float32)(x) # Added this
 
 	return tf.keras.models.Model(input_layers, x)
