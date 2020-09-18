@@ -21,8 +21,6 @@ def masked_feature_input(feature_input, input_shape, merge, suffix, out_channels
 	mask_size = input_shape[0] if merge == 'dense' else input_shape[1:]
 	mask_input = tf.keras.layers.Input(mask_size, dtype=tf.bool, name=f'mask_{suffix}')
 	masked_output = tf.keras.layers.Multiply(name=f"mask_mult_{suffix}")([tf.cast(mask_input, dtype=tf.float16), feature_input])
-	masked_output = tf.keras.layers.BatchNormalization()(masked_output)
-	masked_output = tf.keras.layers.ReLU()(masked_output)
 	if merge == 'dense':
 		masked_output = tf.keras.layers.Dense(input_shape[0], name=f"mask_dense_{suffix}")(masked_output)
 	elif merge == 'conv':
@@ -32,7 +30,7 @@ def masked_feature_input(feature_input, input_shape, merge, suffix, out_channels
 											   padding='same',
 											   use_bias=False,
 											   name=f'mask_conv_{suffix}')(masked_output)
-	
+	masked_output = tf.keras.layers.ReLU()(masked_output)
 	return mask_input, masked_output, mask_size
 
 def create_generator(
@@ -63,6 +61,7 @@ def create_generator(
 
 	# First linear layer of generator
 	x = tf.keras.layers.Dense(feature_channels[-1])(x)
+	x = tf.keras.layers.ReLU()(x)
 
 	# Feature input to first linear layer
 	mask_fc8, masked_input_fc8, mask_size = masked_feature_input(feature_input=tf.cast(feature_tensors['fc8'], dtype=tf.float16),
@@ -70,14 +69,14 @@ def create_generator(
 													  			merge='dense',
 													  			suffix='fc8')
 	x = tf.keras.layers.Add()([x, masked_input_fc8])
+	x = ConditionalBatchNorm(feature_channels[-1])(x, c)
 
 	mask_sizes['mask_fc8'] = mask_size
 	input_layers += [mask_fc8]
 
 	# Second linear layer of generator
-	x = ConditionalBatchNorm(feature_channels[-1])(x, c)
-	x = tf.keras.layers.ReLU()(x)
 	x = tf.keras.layers.Dense(feature_channels[-2])(x)
+	x = tf.keras.layers.ReLU()(x)
 
 	# Feature input to second linear layer
 	mask_fc7, masked_input_fc7, mask_size = masked_feature_input(feature_input=tf.cast(feature_tensors['fc7'], dtype=tf.float16),
@@ -85,15 +84,16 @@ def create_generator(
 													  			merge='dense',
 													  			suffix='fc7')
 	x = tf.keras.layers.Add()([x, masked_input_fc7])
+	x = ConditionalBatchNorm(feature_channels[-2])(x, c)
 
 	mask_sizes['mask_fc7'] = mask_size
 	input_layers += [mask_fc7]
 
 	# Expand to 2D
-	x = ConditionalBatchNorm(feature_channels[-2])(x, c)
-	x = tf.keras.layers.ReLU()(x)
 	x = tf.keras.layers.Dense(4 * 4 * feature_channels[-3])(x)
 	x = tf.keras.layers.Reshape((4, 4, feature_channels[-3],))(x)
+	x = tf.keras.layers.ReLU()(x)
+	x = ConditionalBatchNorm(feature_channels[-3])(x, c)
 
 	# Convolutional blocks
 	b_id = 0
@@ -102,21 +102,20 @@ def create_generator(
 		out_channel = ch * channel_multiplier
 		if block == 'r':
 			# ResNet Block
-			resblock = ConditionalBatchNorm(in_channel, name=f'block{b_id}_bn_0')(x, c)
-			resblock = tf.keras.layers.ReLU(name=f'block{b_id}_relu_0')(resblock)
 			resblock = SpectralConv2DTranspose(filters=out_channel,
 										 kernel_size=3,
 										 strides=2,
 										 padding='same' if pad == 's' else 'valid',
-										 name=f'spec_block{b_id}_conv0')(resblock)
-			resblock = ConditionalBatchNorm(out_channel, name=f'block{b_id}_bn_1')(resblock, c)
-			resblock = tf.keras.layers.ReLU(name=f'block{b_id}_relu_1')(resblock)
+										 name=f'spec_block{b_id}_conv0')(x)
+			resblock = tf.keras.layers.ReLU(name=f'block{b_id}_relu_0')(resblock)
+			resblock = ConditionalBatchNorm(out_channel, name=f'block{b_id}_bn_0')(resblock, c)
+
 			resblock = SpectralConv2DTranspose(filters=out_channel,
 										 kernel_size=3,
 										 strides=1,
 										 padding='same',
 										 name=f'spec_block{b_id}_conv1')(resblock)
-
+			resblock = tf.keras.layers.ReLU(name=f'block{b_id}_relu_1')(resblock)
 
 			# Skip / bypass
 			skip = SpectralConv2DTranspose(filters=out_channel,
@@ -124,8 +123,9 @@ def create_generator(
 								strides=2,
 								padding='same' if pad == 's' else 'valid',
 								name=f'spec_block{b_id}_skip_conv')(x)
+			skip = tf.keras.layers.ReLU(name=f'block{b_id}_relu_skip')(skip)
 			x = tf.keras.layers.Add()([resblock, skip])
-
+			
 			# Add feature inputs
 			mask_input, masked_output, mask_size = masked_feature_input(feature_input=tf.cast(feature_tensors[f'conv{b_id}'], dtype=tf.float16),
 																		input_shape=x.get_shape().as_list(),
@@ -133,6 +133,7 @@ def create_generator(
 																		out_channels=out_channel,
 																		suffix=f'conv{b_id}')
 			x = tf.keras.layers.Add()([masked_output, x])
+			x = ConditionalBatchNorm(out_channel, name=f'block{b_id}_bn_end')(x, c)
 
 			mask_sizes[f'mask_conv{b_id}'] = mask_size
 			input_layers += [mask_input]
@@ -144,8 +145,6 @@ def create_generator(
 			x, _ = SelfAttnModel(out_channel)(x)
 
 	# Final colorizing layer
-	x = ConditionalBatchNorm(in_channel)(x, c) # I think this would ideally be conditional spectral normalization?
-	x = tf.keras.layers.ReLU()(x)
 	x = SpectralConv2DTranspose(filters=3, 
 								kernel_size=3,
 								strides=2,
