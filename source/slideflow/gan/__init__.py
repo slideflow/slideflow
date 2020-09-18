@@ -98,8 +98,8 @@ def gan_test(
 		feature_tensors = {
 			'image': model.input,
 			'image_vgg16': model.get_layer('vgg16').input,
-			'fc8':   tf.keras.layers.BatchNormalization()(model.get_layer('hidden_1').output),
-			'fc7':   tf.keras.layers.BatchNormalization()(model.get_layer('hidden_0').output),
+			#'fc8':   tf.keras.layers.BatchNormalization()(model.get_layer('hidden_1').output),
+			#'fc7':   tf.keras.layers.BatchNormalization()(model.get_layer('hidden_0').output),
 			'conv0': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block5_pool').output), # 512 channels (9x9)
 			'conv1': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block4_pool').output), # 512 channels (18x18)
 			'conv2': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block3_pool').output), # 256 channels (37x37)
@@ -115,13 +115,13 @@ def gan_test(
 			discriminator = semantic_model.create_discriminator(image_size=299)	
 
 		# Build a model that will output pooled features from the reference model, to be used for reconstruction loss
-		features_with_pool = [tf.cast(feature_tensors['fc8'], dtype=tf.float32),
-							tf.cast(feature_tensors['fc7'], dtype=tf.float32),
-							tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv0']), dtype=tf.float32),
-							tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv1']), dtype=tf.float32),
-							tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv2']), dtype=tf.float32),
-							tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv3']), dtype=tf.float32),
-							tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv4']), dtype=tf.float32)
+		features_with_pool = [#tf.cast(feature_tensors['fc8'], dtype=tf.float32),
+							  #tf.cast(feature_tensors['fc7'], dtype=tf.float32),
+							  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv0']), dtype=tf.float32),
+							  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv1']), dtype=tf.float32),
+							  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv2']), dtype=tf.float32),
+							  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv3']), dtype=tf.float32),
+							  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv4']), dtype=tf.float32)
 		]
 		input_layers = [feature_tensors['image'], feature_tensors['image_vgg16']]
 		reference_features = tf.keras.models.Model(input_layers, features_with_pool)

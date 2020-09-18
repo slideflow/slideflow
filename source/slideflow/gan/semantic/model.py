@@ -5,7 +5,7 @@ from slideflow.gan.sagan.attention import SelfAttnModel
 from slideflow.gan.conditional_batch_norm import ConditionalBatchNorm
 
 # Alternative spectral normalization implementations
-#from slideflow.gan.sagan.spectral_norm_conv import ConvSN2D, ConvSN2DTranspose
+from slideflow.gan.sagan.spectral_norm_conv import DenseSN #ConvSN2D, ConvSN2DTranspose
 from slideflow.gan.sagan.spectral_normalization import SpectralNormalization
 #from slideflow.gan.sagan.wzspectral import SNConv2D, SNConv2DTranspose
 
@@ -47,53 +47,53 @@ def create_generator(
 	noise_input = tf.keras.layers.Input((z_dim,), name='noise_input')
 	c = tf.keras.layers.Input((n_classes,), dtype=tf.bool, name='class_input')
 	input_layers = [noise_input, c, feature_tensors['image'], feature_tensors['image_vgg16']]
-	features_with_pool = [tf.cast(feature_tensors['fc8'], dtype=tf.float32),
-					 tf.cast(feature_tensors['fc7'], dtype=tf.float32),
-					 tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv0']), dtype=tf.float32),
-					 tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv1']), dtype=tf.float32),
-					 tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv2']), dtype=tf.float32),
-					 tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv3']), dtype=tf.float32),
-					 tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv4']), dtype=tf.float32),
+	features_with_pool = [#tf.cast(feature_tensors['fc8'], dtype=tf.float32),
+						  #tf.cast(feature_tensors['fc7'], dtype=tf.float32),
+						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv0']), dtype=tf.float32),
+						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv1']), dtype=tf.float32),
+						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv2']), dtype=tf.float32),
+						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv3']), dtype=tf.float32),
+						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv4']), dtype=tf.float32),
 	]
 	#reconstructed_features = []
 	x = noise_input
 	mask_sizes = {}
 
 	# First linear layer of generator
-	x = tf.keras.layers.Dense(feature_channels[-1])(x)
-	x = tf.keras.layers.ReLU()(x)
+	#x = tf.keras.layers.Dense(feature_channels[-1])(x)
+	#x = tf.keras.layers.ReLU()(x)
 
 	# Feature input to first linear layer
-	mask_fc8, masked_input_fc8, mask_size = masked_feature_input(feature_input=tf.cast(feature_tensors['fc8'], dtype=tf.float16),
-													  			input_shape=(feature_channels[-1],),
-													  			merge='dense',
-													  			suffix='fc8')
-	x = tf.keras.layers.Add()([x, masked_input_fc8])
-	x = ConditionalBatchNorm(feature_channels[-1])(x, c)
+	#mask_fc8, masked_input_fc8, mask_size = masked_feature_input(feature_input=tf.cast(feature_tensors['fc8'], dtype=tf.float16),
+	#												  			input_shape=(feature_channels[-1],),
+	#												  			merge='dense',
+	#												  			suffix='fc8')
+	#x = tf.keras.layers.Add()([x, masked_input_fc8])
+	#x = ConditionalBatchNorm(feature_channels[-1])(x, c)
 
-	mask_sizes['mask_fc8'] = mask_size
-	input_layers += [mask_fc8]
+	#mask_sizes['mask_fc8'] = mask_size
+	#input_layers += [mask_fc8]
 
 	# Second linear layer of generator
-	x = tf.keras.layers.Dense(feature_channels[-2])(x)
-	x = tf.keras.layers.ReLU()(x)
+	#x = tf.keras.layers.Dense(feature_channels[-2])(x)
+	#x = tf.keras.layers.ReLU()(x)
 
 	# Feature input to second linear layer
-	mask_fc7, masked_input_fc7, mask_size = masked_feature_input(feature_input=tf.cast(feature_tensors['fc7'], dtype=tf.float16),
-													  			input_shape=(feature_channels[-2],),
-													  			merge='dense',
-													  			suffix='fc7')
-	x = tf.keras.layers.Add()([x, masked_input_fc7])
-	x = ConditionalBatchNorm(feature_channels[-2])(x, c)
+	#mask_fc7, masked_input_fc7, mask_size = masked_feature_input(feature_input=tf.cast(feature_tensors['fc7'], dtype=tf.float16),
+	#												  			input_shape=(feature_channels[-2],),
+	#												  			merge='dense',
+	#												  			suffix='fc7')
+	#x = tf.keras.layers.Add()([x, masked_input_fc7])
+	#x = ConditionalBatchNorm(feature_channels[-2])(x, c)
 
-	mask_sizes['mask_fc7'] = mask_size
-	input_layers += [mask_fc7]
+	#mask_sizes['mask_fc7'] = mask_size
+	#input_layers += [mask_fc7]
 
 	# Expand to 2D
-	x = tf.keras.layers.Dense(4 * 4 * feature_channels[-3])(x)
+	x = DenseSN(4 * 4 * feature_channels[-3])(x)
 	x = tf.keras.layers.Reshape((4, 4, feature_channels[-3],))(x)
-	x = tf.keras.layers.ReLU()(x)
-	x = ConditionalBatchNorm(feature_channels[-3])(x, c)
+	#x = tf.keras.layers.ReLU()(x)
+	#x = ConditionalBatchNorm(feature_channels[-3])(x, c)
 
 	# Convolutional blocks
 	b_id = 0
@@ -153,7 +153,8 @@ def create_generator(
 
 	x = tf.keras.layers.Activation('tanh', dtype=tf.float32)(x)
 
-	mask_order = ('mask_fc8', 'mask_fc7', 'mask_conv0', 'mask_conv1', 'mask_conv2', 'mask_conv3', 'mask_conv4')
+	#mask_order = ('mask_fc8', 'mask_fc7', 'mask_conv0', 'mask_conv1', 'mask_conv2', 'mask_conv3', 'mask_conv4')
+	mask_order = ('mask_conv0', 'mask_conv1', 'mask_conv2', 'mask_conv3', 'mask_conv4')
 
 	return tf.keras.models.Model(input_layers, [x] + features_with_pool), input_layers, mask_sizes, mask_order
 
