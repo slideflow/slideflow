@@ -354,13 +354,11 @@ def train(
 			with tf.GradientTape() as disc_tape:
 				# Get real and generated discriminator output
 				real_output = discriminator(images, training=True)
-				fake_output_first = discriminator(generated_images, training=True)
-				fake_output_sec = discriminator(generated_images, training=True)
+				fake_output = discriminator(generated_images, training=True)
 
 				# Calculate discriminator loss
-				disc_loss = discriminator_real_loss(real_output)
-				disc_loss += discriminator_fake_loss(fake_output_first)
-				disc_loss += discriminator_fake_loss(fake_output_sec)
+				disc_loss = discriminator_real_loss(real_output[:(batch_size/2)])
+				disc_loss += discriminator_fake_loss(fake_output[(batch_size/2):])
 
 			# Calculate and apply gradients.
 			if apply_grads:

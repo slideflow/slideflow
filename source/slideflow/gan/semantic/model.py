@@ -30,7 +30,7 @@ def masked_feature_input(feature_input, input_shape, merge, suffix, out_channels
 											   padding='same',
 											   use_bias=False,
 											   name=f'mask_conv_{suffix}')(masked_output)
-	masked_output = tf.keras.layers.ReLU()(masked_output)
+	masked_output = tf.keras.layers.LeakyReLU()(masked_output)
 	return mask_input, masked_output, mask_size
 
 def create_generator(
@@ -107,7 +107,7 @@ def create_generator(
 										 strides=2,
 										 padding='same' if pad == 's' else 'valid',
 										 name=f'spec_block{b_id}_conv0')(x)
-			resblock = tf.keras.layers.ReLU(name=f'block{b_id}_relu_0')(resblock)
+			resblock = tf.keras.layers.LeakyReLU(name=f'block{b_id}_relu_0')(resblock)
 			resblock = ConditionalBatchNorm(out_channel, name=f'block{b_id}_bn_0')(resblock, c)
 
 			resblock = SpectralConv2DTranspose(filters=out_channel,
@@ -115,7 +115,7 @@ def create_generator(
 										 strides=1,
 										 padding='same',
 										 name=f'spec_block{b_id}_conv1')(resblock)
-			resblock = tf.keras.layers.ReLU(name=f'block{b_id}_relu_1')(resblock)
+			resblock = tf.keras.layers.LeakyReLU(name=f'block{b_id}_relu_1')(resblock)
 
 			# Skip / bypass
 			skip = SpectralConv2DTranspose(filters=out_channel,
@@ -123,7 +123,7 @@ def create_generator(
 								strides=2,
 								padding='same' if pad == 's' else 'valid',
 								name=f'spec_block{b_id}_skip_conv')(x)
-			skip = tf.keras.layers.ReLU(name=f'block{b_id}_relu_skip')(skip)
+			skip = tf.keras.layers.LeakyReLU(name=f'block{b_id}_relu_skip')(skip)
 			x = tf.keras.layers.Add()([resblock, skip])
 			
 			# Add feature inputs
