@@ -355,10 +355,14 @@ def train(
 				# Get real and generated discriminator output
 				real_output = discriminator(images, training=True)
 				fake_output = discriminator(generated_images, training=True)
+				
+				# Split output so the real/fake images are non-overlapping
+				real_output_first_half, _ = tf.split(real_output, 2)
+				_, fake_output_second_half = tf.split(fake_output, 2)
 
 				# Calculate discriminator loss
-				disc_loss = discriminator_real_loss(real_output[:(batch_size/2)])
-				disc_loss += discriminator_fake_loss(fake_output[(batch_size/2):])
+				disc_loss = discriminator_real_loss(real_output_first_half)
+				disc_loss += discriminator_fake_loss(fake_output_second_half)
 
 			# Calculate and apply gradients.
 			if apply_grads:
