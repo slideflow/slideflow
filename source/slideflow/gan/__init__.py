@@ -54,7 +54,8 @@ def gan_test(
 	adversarial_loss_weight=0.5,
 	diversity_loss_weight=10.0,
 	reconstruction_loss_weight=1e-4,
-	use_mixed_precision=False
+	use_mixed_precision=False,
+	enable_features=True
 ):
 	# Set mixed precision flag; it seems that mixed precision worsens GAN performance so 
 	#  I would recommend against its use for now
@@ -131,7 +132,8 @@ def gan_test(
 			mask_dataset = semantic.mask_dataset(mask_sizes, mask_order=mask_order,
 															conv_masks=conv_masks,
 															image_size=299,
-															batch_size=batch_size)
+															batch_size=batch_size,
+															block_all=(not enable_features))
 			mask_dataset = keras_strategy.experimental_distribute_dataset(mask_dataset)
 			noise_dataset = semantic.noise_dataset(z_dim=z_dim, batch_size=batch_size)
 			noise_dataset = keras_strategy.experimental_distribute_dataset(noise_dataset)
