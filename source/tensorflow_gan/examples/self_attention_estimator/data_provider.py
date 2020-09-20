@@ -21,7 +21,7 @@ from __future__ import print_function
 
 from absl import flags
 import tensorflow.compat.v1 as tf  # tf
-import tensorflow_datasets as tfds
+#import tensorflow_datasets as tfds
 
 from tensorflow_gan.examples import compat_utils
 from slideflow.gan import get_dataset as sf_dataset
