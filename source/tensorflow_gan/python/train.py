@@ -991,7 +991,7 @@ def gan_train_ops(
     loss,
     generator_optimizer,
     discriminator_optimizer,
-    check_for_unused_update_ops=True,
+    check_for_unused_update_ops=False,
     is_chief=True,
     # Optional args to pass directly to the `create_train_op`.
     **kwargs):
