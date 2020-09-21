@@ -978,6 +978,10 @@ def _get_update_ops(kwargs, gen_scope, dis_scope, check_for_unused_ops=True):
   if check_for_unused_ops:
     unused_ops = update_ops - all_gen_ops - all_dis_ops
     if unused_ops:
+      print("Gen ops:")
+      print(all_gen_ops)
+      print("Dis ops:")
+      print(all_dis_ops)
       raise ValueError('There are unused update ops: %s' % unused_ops)
 
   gen_update_ops = list(all_gen_ops & update_ops)

@@ -55,29 +55,6 @@ def _parse_tfrecord_brs(record, sf_model, n_classes, include_slidenames=False, m
 	
 	return image, label
 
-def get_dataset_project():
-	project='/home/shawarma/Thyroid-Paper-Final/projects/TCGA'
-	SFP = sf.SlideflowProject(project, ignore_gpu=True)
-	sf_dataset = SFP.get_dataset(tile_px=299, tile_um=302, filters={'brs_class': ['Braf-like', 'Ras-like']})
-	slide_annotations, _ = sf_dataset.get_outcomes_from_annotations('brs', use_float=True)
-
-	return slide_annotations, sf_dataset.get_manifest(), sf_dataset.get_tfrecords()
-
-def get_dataset(slide_annotations, manifest, tfrecords, image_size, batch_size):
-	SFM = SlideflowModel('/home/shawarma', 299, slide_annotations, train_tfrecords=tfrecords,
-																   validation_tfrecords=tfrecords,
-																   manifest=manifest,
-																   model_type='linear')
-
-	dataset, _, num_tiles = SFM._build_dataset_inputs(tfrecords, batch_size, 'NO_BALANCE', augment=False,
-																						finite=True,
-																						include_slidenames=False,
-																						parse_fn=partial(_parse_tfgan, sf_model=SFM, n_classes=2, resize=image_size),
-																						drop_remainder=True)
-	dataset = dataset.prefetch(20)
-
-	return dataset, SFM
-
 def gan_test(
 	project, 
 	model,

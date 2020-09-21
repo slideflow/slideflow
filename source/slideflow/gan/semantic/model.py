@@ -96,7 +96,7 @@ def create_generator(
 	#input_layers += [mask_fc7]
 
 	# Expand to 2D
-	x = DenseSN(4 * 4 * feature_channels[-3])(x)
+	x = DenseSN(4 * 4 * feature_channels[-3], dtype=tf.float32)(x)
 	x = tf.keras.layers.Reshape((4, 4, feature_channels[-3],))(x)
 	#x = tf.keras.layers.ReLU()(x)
 	#x = ConditionalBatchNorm(feature_channels[-3])(x, c)
