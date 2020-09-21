@@ -66,7 +66,7 @@ if __name__=='__main__':
 	parser = argparse.ArgumentParser(description = "Helper to guide GAN setup on CRI cluster.")
 	parser.add_argument('--setup', action='store_true', help='Whether to perform initial setup.')
 	parser.add_argument('-u', '--user', required=True, help='Username.')
-	parser.add_argument('-b', '--batch_size', type=int, default=64, help='Batch size.')
+	parser.add_argument('-b', '--batch_size', type=int, default=8, help='Batch size.')
 	parser.add_argument('-e', '--epochs', type=int, default=200, help='Total epochs.')
 	parser.add_argument('-gs', '--gen_steps', type=int, default=2, help='Number of generator steps.')
 	parser.add_argument('-ds', '--dis_steps', type=int, default=1, help='Number of discriminator steps.')
