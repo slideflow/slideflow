@@ -43,6 +43,7 @@ def gan_train(args):
 	     use_mixed_precision=args.mixed_precision)
 
 def setup(args):
+	from slideflow import SlideflowProject
 	p = get_paths(args)
 	print("Settting up scratch and project directories...")
 	if not exists(p['project_folder']): os.makedirs(p['project_folder'])
