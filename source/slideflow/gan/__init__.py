@@ -52,7 +52,7 @@ def _parse_tfrecord_brs(record, sf_model, n_classes, include_slidenames=False, m
 	return image, label
 
 def get_dataset(batch_size):
-	project='/home/shawarma/Thyroid-Paper-Final/projects/TCGA'
+	project='/scratch/t.cri.jdolezal/projects/TCGA_THCA_MANUSCRIPT'
 	SFP = sf.SlideflowProject(project, ignore_gpu=True)
 	sf_dataset = SFP.get_dataset(tile_px=299, tile_um=302, filters={'brs_class': ['Braf-like', 'Ras-like']})
 	tfrecords = sf_dataset.get_tfrecords()
@@ -60,12 +60,13 @@ def get_dataset(batch_size):
 	train_tfrecords = tfrecords
 	validation_tfrecords = None
 	manifest = sf_dataset.get_manifest()
-	SFM = SlideflowModel('/home/shawarma', 299, slide_annotations, train_tfrecords, validation_tfrecords, manifest, model_type='linear')
+	SFM = SlideflowModel('/scratch/t.cri.jdolezal', 299, slide_annotations, train_tfrecords, validation_tfrecords, manifest, model_type='linear')
 	dataset, _, num_tiles = SFM._build_dataset_inputs(tfrecords, batch_size, 'NO_BALANCE', augment=False,
 																							finite=True,
 																							include_slidenames=False,
 																							parse_fn=partial(_parse_tfgan, sf_model=SFM, n_classes=2, resize=128),
 																							drop_remainder=True)
+	dataset.repeat(8)
 	dataset = dataset.prefetch(20)
 
 	return dataset
