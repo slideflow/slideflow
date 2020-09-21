@@ -4,9 +4,6 @@ import shutil
 
 from os.path import join, exists
 
-from slideflow import SlideflowProject
-from slideflow import gan as sfgan
-
 def get_paths(args):
 	scratch = join('/scratch', args.user)
 	labshare = '/gpfs/data/pearson-lab'
@@ -26,6 +23,9 @@ def get_paths(args):
 	}
 
 def gan_train(args):
+	os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+	from slideflow import SlideflowProject
+	from slideflow import gan as sfgan
 	p = get_paths(args)
 	sfgan.gan_test(project=p['project_folder'],
 	     model=p['trained_model_scratch'],
@@ -74,6 +74,7 @@ if __name__=='__main__':
 	parser.add_argument('-div', '--div_loss_wt', type=float, default=1.0, help='Diversity loss weight.')
 	parser.add_argument('-rec', '--rec_loss_wt', type=float, default=1.0, help='Reconstruction loss weight.')
 	parser.add_argument('--ckpt', type=str, default='', help='Path to checkpoint to load.')
+	parser.add_argument('-g', '--gpu', type=str, default='-1', help='Which GPU to use for training. Defaults to -1 (all).')
 	parser.add_argument('--mixed_precision', action='store_true', help='Whether to used mixed precision.')
 
 	args = parser.parse_args()
