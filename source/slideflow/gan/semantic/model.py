@@ -45,16 +45,22 @@ def create_generator(
 ):
 	'''Creates a generator per https://semantic-pyramid.github.io/paper.pdf.'''
 	noise_input = tf.keras.layers.Input((z_dim,), name='noise_input')
-	c = tf.keras.layers.Input((n_classes,), dtype=tf.bool, name='class_input')
-	input_layers = [noise_input, c, feature_tensors['image'], feature_tensors['image_vgg16']]
-	features_with_pool = [#tf.cast(feature_tensors['fc8'], dtype=tf.float32),
-						  #tf.cast(feature_tensors['fc7'], dtype=tf.float32),
-						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv0']), dtype=tf.float32),
-						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv1']), dtype=tf.float32),
-						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv2']), dtype=tf.float32),
-						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv3']), dtype=tf.float32),
-						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv4']), dtype=tf.float32),
-	]
+	#c = tf.keras.layers.Input((n_classes,), dtype=tf.int32, name='class_input')
+	c = tf.keras.layers.Input(shape=(1,), dtype=tf.int32, name='class_input')
+	input_layers = [noise_input, c]
+	c = tf.one_hot(c, n_classes, dtype=tf.float32)
+	c = tf.squeeze(c, axis=1)
+	#input_layers = [noise_input, c, feature_tensors['image'], feature_tensors['image_vgg16']]
+	
+	#features_with_pool = [#tf.cast(feature_tensors['fc8'], dtype=tf.float32),
+	#					  #tf.cast(feature_tensors['fc7'], dtype=tf.float32),
+	#					  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv0']), dtype=tf.float32),
+	#					  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv1']), dtype=tf.float32),
+	#					  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv2']), dtype=tf.float32),
+	#					  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv3']), dtype=tf.float32),
+	#					  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv4']), dtype=tf.float32),
+	#]
+	features_with_pool = []
 	#reconstructed_features = []
 	x = noise_input
 	mask_sizes = {}
@@ -132,11 +138,11 @@ def create_generator(
 																		merge='conv',
 																		out_channels=out_channel,
 																		suffix=f'conv{b_id}')
-			x = tf.keras.layers.Add()([masked_output, x])
+			#x = tf.keras.layers.Add()([masked_output, x])
 			x = ConditionalBatchNorm(out_channel, name=f'block{b_id}_bn_end')(x, c)
 
 			mask_sizes[f'mask_conv{b_id}'] = mask_size
-			input_layers += [mask_input]
+			#input_layers += [mask_input]
 			in_channel = out_channel
 			b_id += 1
 
@@ -158,8 +164,50 @@ def create_generator(
 
 	return tf.keras.models.Model(input_layers, [x] + features_with_pool), input_layers, mask_sizes, mask_order
 
+def dsample(x):
+	x = tf.keras.layers.AveragePooling2D((2,2), strides=(2,2), padding='valid')(x)
+	return x
 
-def create_discriminator(image_size=64, filters=32, kernel_size=3):
+def optimized_block(x, out_channels):
+	x_0 = x
+	x = SpectralConv2D(out_channels, kernel_size=3, strides=1, padding='same')(x)
+	x = tf.keras.layers.LeakyReLU()(x)
+	x = SpectralConv2D(out_channels, kernel_size=3, strides=1, padding='same')(x)
+	x = dsample(x)
+	x_0 = dsample(x_0)
+	x_0 = SpectralConv2D(out_channels, kernel_size=1, strides=1, padding='same')(x_0)		
+	return tf.keras.layers.Add()([x_0, x])
+
+def block(x, out_channels, downsample=True):
+	input_channels = x.get_shape().as_list()[-1]
+	x_0 = x
+	x = tf.keras.layers.LeakyReLU()(x)
+	x = SpectralConv2D(out_channels, kernel_size=3, strides=1, padding='same')(x)
+	x = tf.keras.layers.LeakyReLU()(x)
+	x = SpectralConv2D(out_channels, kernel_size=3, strides=1, padding='same')(x)
+	if downsample:
+		x = dsample(x)
+	if downsample or input_channels != out_channels:
+		x_0 = SpectralConv2D(out_channels, kernel_size=1, strides=1, padding='same')(x_0)
+		if downsample:
+			x_0 = dsample(x_0)
+	return tf.keras.layers.Add()([x_0, x])
+
+def create_discriminator(image_size, df_dim=64):
+	image = tf.keras.layers.Input((image_size, image_size, 3), name="discriminator_input")
+	h0 = optimized_block(image, df_dim)
+	h1 = block(h0, df_dim * 2)
+	h1, _ = SelfAttnModel(df_dim * 2)(h1)
+	h2 = block(h1, df_dim * 4)
+	h3 = block(h2, df_dim * 8)
+	h4 = block(h3, df_dim * 16)
+	h5 = block(h4, df_dim * 16, downsample=False)
+	h5_act = tf.keras.layers.LeakyReLU()(h5)
+	h6 = tf.keras.layers.Lambda(lambda x: tf.reduce_sum(x, axis=[1,2]))(h5_act)
+	output = DenseSN(1)(h6)
+	return tf.keras.models.Model(image, output)
+
+def create_discriminator_old(image_size=64, filters=32, kernel_size=3):
 	'''Creates a Self-attentive discriminator, as per https://arxiv.org/abs/1805.08318 
 
 	In the https://semantic-pyramid.github.io/paper.pdf implementation, they provide no specifics about the discriminator

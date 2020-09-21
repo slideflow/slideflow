@@ -26,6 +26,8 @@ from slideflow.gan.semantic import model as semantic_model
 from slideflow.gan import semantic
 from slideflow.gan.utils import *
 
+import tensorflow_gan.examples.self_attention_estimator.discriminator as sagan_discriminator
+
 def _parse_tfgan(record, sf_model, n_classes, include_slidenames=False, multi_image=False, z_dim=128, resize=False):
 	features = tf.io.parse_single_example(record, sf.io.tfrecords.FEATURE_DESCRIPTION)
 	slide = features['slide']
@@ -37,6 +39,7 @@ def _parse_tfgan(record, sf_model, n_classes, include_slidenames=False, multi_im
 
 	brs = sf_model.ANNOTATIONS_TABLES[0].lookup(slide)
 	label = tf.cond(brs < tf.constant(0, dtype=tf.float32), lambda: tf.constant(0, dtype=tf.int32), lambda: tf.constant(1, dtype=tf.int32))
+	label = tf.cast(label, tf.int32)
 
 	return image, label
 
@@ -47,28 +50,33 @@ def _parse_tfrecord_brs(record, sf_model, n_classes, include_slidenames=False, m
 	image = sf_model._process_image(image_string, augment=True)
 	brs = sf_model.ANNOTATIONS_TABLES[0].lookup(slide)
 	label = tf.cond(brs < tf.constant(0, dtype=tf.float32), lambda: tf.constant(0), lambda: tf.constant(1))
-	label = tf.one_hot(label, n_classes)
+	#label = tf.one_hot(label, n_classes)
+	label = tf.cast(label, tf.int32)
 	
 	return image, label
 
-def get_dataset(batch_size):
+def get_dataset_project():
 	project='/home/shawarma/Thyroid-Paper-Final/projects/TCGA'
 	SFP = sf.SlideflowProject(project, ignore_gpu=True)
 	sf_dataset = SFP.get_dataset(tile_px=299, tile_um=302, filters={'brs_class': ['Braf-like', 'Ras-like']})
-	tfrecords = sf_dataset.get_tfrecords()
 	slide_annotations, _ = sf_dataset.get_outcomes_from_annotations('brs', use_float=True)
-	train_tfrecords = tfrecords
-	validation_tfrecords = None
-	manifest = sf_dataset.get_manifest()
-	SFM = SlideflowModel('/home/shawarma', 299, slide_annotations, train_tfrecords, validation_tfrecords, manifest, model_type='linear')
+
+	return slide_annotations, sf_dataset.get_manifest(), sf_dataset.get_tfrecords()
+
+def get_dataset(slide_annotations, manifest, tfrecords, image_size, batch_size):
+	SFM = SlideflowModel('/home/shawarma', 299, slide_annotations, train_tfrecords=tfrecords,
+																   validation_tfrecords=tfrecords,
+																   manifest=manifest,
+																   model_type='linear')
+
 	dataset, _, num_tiles = SFM._build_dataset_inputs(tfrecords, batch_size, 'NO_BALANCE', augment=False,
-																							finite=True,
-																							include_slidenames=False,
-																							parse_fn=partial(_parse_tfgan, sf_model=SFM, n_classes=2, resize=128),
-																							drop_remainder=True)
+																						finite=True,
+																						include_slidenames=False,
+																						parse_fn=partial(_parse_tfgan, sf_model=SFM, n_classes=2, resize=image_size),
+																						drop_remainder=True)
 	dataset = dataset.prefetch(20)
 
-	return dataset
+	return dataset, SFM
 
 def gan_test(
 	project, 
@@ -80,8 +88,8 @@ def gan_test(
 	load_checkpoint_prefix=None,
 	starting_step=0,
 	summary_step=200,
-	generator_steps=30,
-	discriminator_steps=5,
+	generator_steps=1,
+	discriminator_steps=1,
 	z_dim=128,
 	adversarial_loss_weight=0.5,
 	diversity_loss_weight=10.0,
@@ -95,15 +103,13 @@ def gan_test(
 		policy = tf.keras.mixed_precision.experimental.Policy('mixed_float16')
 		mixed_precision.set_policy(policy)
 
-	keras_strategy = tf.distribute.MirroredStrategy()
+	keras_strategy = tf.distribute.get_strategy()#tf.distribute.MirroredStrategy()
 	with keras_strategy.scope():
 		# Setup project-specific details. This will eventually need to be replaced
 		#  With a more flexibile solution.
 		SFP = sf.SlideflowProject(project, ignore_gpu=True)
 		sf_dataset = SFP.get_dataset(tile_px=299, tile_um=302, filters={'brs_class': ['Braf-like', 'Ras-like']})
 		tfrecords = sf_dataset.get_tfrecords()
-		#xception_path = '/home/shawarma/Thyroid-Paper-Final/projects/TCGA/models/brs-BRS_FULL/trained_model_epoch1.h5'
-		#vgg16_path = '/home/shawarma/Thyroid-Paper-Final/projects/TCGA/models/brs-BRS_VGG16_FULL_NEWT/trained_model_epoch1.h5'
 		# Build actual dataset inputs using a slideflow model
 		slide_annotations, _ = sf_dataset.get_outcomes_from_annotations('brs', use_float=True)
 		train_tfrecords = tfrecords
@@ -144,7 +150,7 @@ def gan_test(
 			generator, generator_input_layers, mask_sizes, mask_order = semantic_model.create_generator(feature_tensors, n_classes=2, z_dim=z_dim)
 
 		with tf.name_scope('Discriminator'):
-			discriminator = semantic_model.create_discriminator(image_size=299)	
+			discriminator = semantic_model.create_discriminator(image_size=299)
 
 		# Build a model that will output pooled features from the reference model, to be used for reconstruction loss
 		features_with_pool = [#tf.cast(feature_tensors['fc8'], dtype=tf.float32),

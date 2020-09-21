@@ -49,6 +49,7 @@ flags.DEFINE_integer('z_dim', 128,
                      'Dimensions of the generator noise vector.')
 flags.DEFINE_integer('gf_dim', 64, 'Dimensionality of gf. [64]')
 flags.DEFINE_integer('df_dim', 64, 'Dimensionality of df. [64]')
+flags.DEFINE_integer('image_size', 128, 'Image size in pixels. [128]')
 flags.DEFINE_float('generator_lr', 0.0001, 'The generator learning rate.')
 flags.DEFINE_float('discriminator_lr', 0.0004,
                    'The discriminator learning rate.')
@@ -64,6 +65,8 @@ flags.DEFINE_enum(
     'If not set, will deduce mode from the TF_CONFIG environment variable.')
 flags.DEFINE_integer('max_number_of_steps', 50000,
                      'The maximum number of train steps.')
+flags.DEFINE_integer('num_classes', 1000,
+                     'Number of unique classes.')
 flags.DEFINE_integer(
     'train_steps_per_eval', 1000,
     'Number of train steps before writing some sample images.')
@@ -109,7 +112,8 @@ def main(_):
       beta1=FLAGS.beta1,
       gf_dim=FLAGS.gf_dim,
       df_dim=FLAGS.df_dim,
-      num_classes=1000,
+	  image_size=FLAGS.image_size,
+      num_classes=FLAGS.num_classes,
       shuffle_buffer_size=10000,
       z_dim=FLAGS.z_dim,
       model_dir=FLAGS.model_dir,
