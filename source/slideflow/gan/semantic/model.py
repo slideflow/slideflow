@@ -203,7 +203,8 @@ def create_discriminator(image_size, df_dim=64):
 	h4 = block(h3, df_dim * 16)
 	h5 = block(h4, df_dim * 16, downsample=False)
 	h5_act = tf.keras.layers.LeakyReLU()(h5)
-	h6 = tf.keras.layers.Lambda(lambda x: tf.reduce_sum(x, axis=[1,2]))(h5_act)
+	#h6 = tf.keras.layers.Lambda(lambda x: tf.reduce_sum(x, axis=[1,2]))(h5_act)
+	h6 = tf.keras.layers.Flatten()(h5_act)
 	output = DenseSN(1)(h6)
 	return tf.keras.models.Model(image, output)
 
