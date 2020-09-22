@@ -164,25 +164,30 @@ def create_generator_old(
 
 	return tf.keras.models.Model(input_layers, [x] + features_with_pool), input_layers, mask_sizes, mask_order
 
-def usample(x):
-	_, image_height, image_width, n_channels = x.get_shape().as_list()
-	expanded_x = tf.expand_dims(tf.expand_dims(x, axis=2), axis=4)
-	after_tile = tf.tile(expanded_x, [1, 1, 2, 1, 2, 1])
-	return tf.keras.layers.Reshape((image_height * 2, image_width * 2, n_channels))(after_tile)
-
 def block(x, labels, out_channels, num_classes):
 	in_channel = x.get_shape().as_list()[-1]
 	x_0 = x
 	x = ConditionalBatchNorm(in_channel)(x, labels)
 	x = tf.keras.layers.LeakyReLU()(x)
-	x = usample(x)
-	x = SpectralConv2D(out_channels, kernel_size=3, strides=1, padding='same')(x)
+	x = SpectralConv2DTranspose(out_channels, kernel_size=3, strides=2, padding='same')(x)
 	x = ConditionalBatchNorm(out_channels)(x, labels)
 	x = tf.keras.layers.LeakyReLU()(x)
-	x = SpectralConv2D(out_channels, kernel_size=3, strides=1, padding='same')(x)
-	x_0 = usample(x_0)
-	x_0 = SpectralConv2D(out_channels, kernel_size=1, strides=1, padding='same')(x_0)
+	x = SpectralConv2DTranspose(out_channels, kernel_size=3, strides=1, padding='same')(x)
+	x_0 = SpectralConv2DTranspose(out_channels, kernel_size=1, strides=2, padding='same')(x_0)
 	return tf.keras.layers.Add()([x_0, x])
+
+def alt_block(x, labels, out_channels, num_classes):
+	in_channel = x.get_shape().as_list()[-1]
+	x_0 = x
+	x = SpectralConv2DTranspose(in_channel, kernel_size=3, strides=2, padding='same')(x)
+	x = tf.keras.layers.LeakyReLU()(x)
+	x = ConditionalBatchNorm(in_channel)(x, labels)
+	x = SpectralConv2DTranspose(out_channels, kernel_size=3, strides=1, padding='same')(x)
+	x_0 = SpectralConv2DTranspose(out_channels, kernel_size=1, strides=2, padding='same')(x_0)
+	merged = tf.keras.layers.Add()([x_0, x])
+	merged = tf.keras.layers.LeakyReLU()(merged)
+	merged = ConditionalBatchNorm(out_channels)(merged, labels)
+	return merged
 
 def create_generator(
 	feature_tensors,
@@ -208,13 +213,13 @@ def create_generator(
 	act1 = block(act0, c, gf_dim * 16, n_classes)
 	act2 = block(act1, c, gf_dim * 16, n_classes)
 	act3 = block(act2, c, gf_dim * 8, n_classes)
-	act3, _ = SelfAttnModel(gf_dim * 8)(act3)
 	act4 = block(act3, c, gf_dim * 4, n_classes)
+	act4, _ = SelfAttnModel(gf_dim * 4)(act4)
 	act5 = block(act4, c, gf_dim * 2 , n_classes)
 	act6 = block(act5, c, gf_dim, n_classes)
 	act6 = ConditionalBatchNorm(gf_dim)(act6, c)
 	act6 = tf.keras.layers.LeakyReLU()(act6)
-	act7 = SpectralConv2D(3, kernel_size=3, strides=1, padding='same')(act6)
+	act7 = SpectralConv2DTranspose(3, kernel_size=3, strides=1, padding='same')(act6)
 	out = tf.keras.layers.Activation('tanh', dtype=tf.float32)(act7)
-	
+
 	return tf.keras.models.Model([noise_input, class_input], out), [noise_input, class_input], dummy_mask_sizes, mask_order

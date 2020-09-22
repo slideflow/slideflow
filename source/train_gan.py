@@ -8,7 +8,7 @@ def get_paths(args):
 	scratch = join('/scratch', args.user)
 	labshare = '/gpfs/data/pearson-lab'
 	project_folder = join(scratch, 'projects', 'TCGA_THCA_MANUSCRIPT')
-	return {
+	paths = {
 		'scratch': scratch,
 		'labshare': labshare,
 		'annotations_labshare': join(labshare, 'PROJECT_BACKUPS/THCA/Thyroid-Manuscript-TCGA/annotations.csv'),
@@ -19,8 +19,10 @@ def get_paths(args):
 		'tfrecords_scratch': join(scratch, 'tfrecords'),
 		'models_scratch': join(scratch, 'models'),
 		'trained_model_scratch': join(scratch, 'models', 'vgg_model_partially_trained.h5'),
-		'checkpoint_dir': join(scratch, 'checkpoints')
+		'checkpoint_dir': join(scratch, 'checkpoints', args.name)
 	}
+	if not exists(paths['checkpoint_dir']): os.makedirs(p['checkpoint_dir'])
+	return paths
 
 def gan_train(args):
 	os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -34,6 +36,8 @@ def gan_train(args):
 	     epochs=args.epochs,
 	     generator_steps=args.gen_steps,
 	     discriminator_steps=args.dis_steps,
+		 z_dim=args.z_dim,
+		 image_size=args.size,
 	     summary_step=args.summary_steps,
 	     load_checkpoint=args.ckpt,
 	     adversarial_loss_weight=args.adv_loss_wt,
@@ -49,7 +53,6 @@ def setup(args):
 	if not exists(p['project_folder']): os.makedirs(p['project_folder'])
 	if not exists(p['tfrecords_scratch']): os.makedirs(p['tfrecords_scratch'])
 	if not exists(p['models_scratch']): os.makedirs(p['models_scratch'])
-	if not exists(p['checkpoint_dir']): os.makedirs(p['checkpoint_dir'])
 
 	print("Copying annotation file...")
 	shutil.copy(p['annotations_labshare'], p['annotations_scratch'])
@@ -68,13 +71,16 @@ if __name__=='__main__':
 	parser.add_argument('-u', '--user', required=True, help='Username.')
 	parser.add_argument('-b', '--batch_size', type=int, default=8, help='Batch size.')
 	parser.add_argument('-e', '--epochs', type=int, default=200, help='Total epochs.')
+	parser.add_argument('-z', '--z_dim', type=int, default=128, help='Noise z dim. [128]')
 	parser.add_argument('-gs', '--gen_steps', type=int, default=2, help='Number of generator steps.')
 	parser.add_argument('-ds', '--dis_steps', type=int, default=1, help='Number of discriminator steps.')
 	parser.add_argument('-ss', '--summary_steps', type=int, default=40, help='Number steps before summary.')
 	parser.add_argument('-adv', '--adv_loss_wt', type=float, default=10.0, help='Adversarial loss weight.')
 	parser.add_argument('-div', '--div_loss_wt', type=float, default=1.0, help='Diversity loss weight.')
 	parser.add_argument('-rec', '--rec_loss_wt', type=float, default=1.0, help='Reconstruction loss weight.')
+	parser.add_argument('--size', type=int, default=256, help='Image size. [256]')
 	parser.add_argument('--ckpt', type=str, default='', help='Path to checkpoint to load.')
+	parser.add_argument('--name', type=str, default='train', help='Name of checkpoint subfolder')
 	parser.add_argument('-g', '--gpu', type=str, default='-1', help='Which GPU to use for training. Defaults to -1 (all).')
 	parser.add_argument('--mixed_precision', action='store_true', help='Whether to used mixed precision.')
 
@@ -82,3 +88,4 @@ if __name__=='__main__':
 	if args.setup:
 		setup(args)
 	gan_train(args)
+	
