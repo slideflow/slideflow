@@ -423,7 +423,7 @@ def train(
 				pb.leadtext = f"Step {step:>5}"
 			
 				# Save a checkpoint
-				if step > 0 and step % 4000 == 0:
+				if step > 0 and step % 10000 == 0:
 					checkpoint.save(file_prefix=checkpoint_prefix)
 					pb.print(f"Checkpoint at step {step} saved to {checkpoint_prefix}")
 			pb.end()
