@@ -43,11 +43,15 @@ def _parse_tfgan(record, sf_model, n_classes, include_slidenames=False, multi_im
 
 	return image, label
 
-def _parse_tfrecord_brs(record, sf_model, n_classes, include_slidenames=False, multi_image=False):
+def _parse_tfrecord_brs(record, sf_model, n_classes, include_slidenames=False, multi_image=False, resize=False):
 	features = tf.io.parse_single_example(record, sf.io.tfrecords.FEATURE_DESCRIPTION)
 	slide = features['slide']
 	image_string = features['image_raw']
 	image = sf_model._process_image(image_string, augment=True)
+
+	if resize:
+		image = tf.image.resize(image, (resize, resize))
+
 	brs = sf_model.ANNOTATIONS_TABLES[0].lookup(slide)
 	label = tf.cond(brs < tf.constant(0, dtype=tf.float32), lambda: tf.constant(0), lambda: tf.constant(1))
 	#label = tf.one_hot(label, n_classes)
@@ -68,6 +72,7 @@ def gan_test(
 	generator_steps=1,
 	discriminator_steps=1,
 	z_dim=128,
+	image_size=299,
 	adversarial_loss_weight=0.5,
 	diversity_loss_weight=10.0,
 	reconstruction_loss_weight=1e-4,
@@ -96,7 +101,7 @@ def gan_test(
 		dataset, _, num_tiles = SFM._build_dataset_inputs(tfrecords, batch_size, 'NO_BALANCE', augment=False,
 																							   finite=True,
 																							   include_slidenames=False,
-																							   parse_fn=partial(_parse_tfrecord_brs, sf_model=SFM, n_classes=2),
+																							   parse_fn=partial(_parse_tfrecord_brs, sf_model=SFM, n_classes=2, resize=image_size),
 																							   drop_remainder=True)
 		dataset = dataset.prefetch(20)
 		dataset = keras_strategy.experimental_distribute_dataset(dataset)
@@ -127,7 +132,7 @@ def gan_test(
 			generator, generator_input_layers, mask_sizes, mask_order = semantic_model.create_generator(feature_tensors, n_classes=2, z_dim=z_dim)
 
 		with tf.name_scope('Discriminator'):
-			discriminator = semantic_model.create_discriminator(image_size=299)
+			discriminator = semantic_model.create_discriminator(image_size=image_size)
 
 		# Build a model that will output pooled features from the reference model, to be used for reconstruction loss
 		features_with_pool = [#tf.cast(feature_tensors['fc8'], dtype=tf.float32),
@@ -146,7 +151,7 @@ def gan_test(
 			conv_masks = ('mask_conv0', 'mask_conv1', 'mask_conv2', 'mask_conv3', 'mask_conv4')
 			mask_dataset = semantic.mask_dataset(mask_sizes, mask_order=mask_order,
 															conv_masks=conv_masks,
-															image_size=299,
+															image_size=image_size,
 															batch_size=batch_size,
 															block_all=(not enable_features))
 			mask_dataset = keras_strategy.experimental_distribute_dataset(mask_dataset)
@@ -166,7 +171,7 @@ def gan_test(
 																			  mask_order=mask_order,
 																			  conv_masks=conv_masks,
 																			  noise_dataset=noise_dataset,
-																			  image_size=299, 
+																			  image_size=image_size, 
 																			  steps_per_epoch=round(num_tiles/batch_size),
 																			  keras_strategy=keras_strategy,
 																			  checkpoint_dir=checkpoint_dir,
