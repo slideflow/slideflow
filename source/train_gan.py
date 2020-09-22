@@ -21,7 +21,7 @@ def get_paths(args):
 		'trained_model_scratch': join(scratch, 'models', 'vgg_model_partially_trained.h5'),
 		'checkpoint_dir': join(scratch, 'checkpoints', args.name)
 	}
-	if not exists(paths['checkpoint_dir']): os.makedirs(p['checkpoint_dir'])
+	if not exists(paths['checkpoint_dir']): os.makedirs(paths['checkpoint_dir'])
 	return paths
 
 def gan_train(args):
