@@ -44,6 +44,7 @@ def gan_train(args):
 	     diversity_loss_weight=args.div_loss_wt,
 	     reconstruction_loss_weight=args.rec_loss_wt,
 	     enable_features=False,
+		 gen_alt_block=args.gen_alt_block,
 	     use_mixed_precision=args.mixed_precision)
 
 def setup(args):
@@ -82,6 +83,7 @@ if __name__=='__main__':
 	parser.add_argument('--ckpt', type=str, default='', help='Path to checkpoint to load.')
 	parser.add_argument('--name', type=str, default='train', help='Name of checkpoint subfolder')
 	parser.add_argument('-g', '--gpu', type=str, default='-1', help='Which GPU to use for training. Defaults to -1 (all).')
+	parser.add_argument('--gen_alt_block', action='store_true', help='Whether to use alternative resblocks in generator')
 	parser.add_argument('--mixed_precision', action='store_true', help='Whether to used mixed precision.')
 
 	args = parser.parse_args()
