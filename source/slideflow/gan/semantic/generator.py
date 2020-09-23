@@ -211,15 +211,14 @@ def create_generator(
 
 	# Conv layers
 	act1 = block(act0, c, gf_dim * 16, n_classes)
-	act2 = block(act1, c, gf_dim * 16, n_classes)
-	act3 = block(act2, c, gf_dim * 8, n_classes)
-	act4 = block(act3, c, gf_dim * 4, n_classes)
-	act4, _ = SelfAttnModel(gf_dim * 4)(act4)
-	act5 = block(act4, c, gf_dim * 2 , n_classes)
-	act6 = block(act5, c, gf_dim, n_classes)
-	act6 = ConditionalBatchNorm(gf_dim)(act6, c)
-	act6 = tf.keras.layers.LeakyReLU()(act6)
-	act7 = SpectralConv2DTranspose(3, kernel_size=3, strides=1, padding='same')(act6)
-	out = tf.keras.layers.Activation('tanh', dtype=tf.float32)(act7)
+	act2 = block(act1, c, gf_dim * 8, n_classes)
+	act3 = block(act2, c, gf_dim * 4, n_classes)
+	act3, _ = SelfAttnModel(gf_dim * 4)(act3)
+	act4 = block(act3, c, gf_dim * 2 , n_classes)
+	act5 = block(act4, c, gf_dim, n_classes)
+	act5 = ConditionalBatchNorm(gf_dim)(act5, c)
+	act5 = tf.keras.layers.LeakyReLU()(act5)
+	act6 = SpectralConv2DTranspose(3, kernel_size=3, strides=1, padding='same')(act5)
+	out = tf.keras.layers.Activation('tanh', dtype=tf.float32)(act6)
 
 	return tf.keras.models.Model([noise_input, class_input], out), [noise_input, class_input], dummy_mask_sizes, mask_order

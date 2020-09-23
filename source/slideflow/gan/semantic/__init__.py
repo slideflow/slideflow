@@ -134,8 +134,8 @@ def mask_dataset(mask_sizes, mask_order, conv_masks, image_size, batch_size, cro
 def noise_dataset(z_dim, batch_size):
 	def noise_generator():
 		while True:
-			noise1 = np.broadcast_to(np.random.rand(z_dim)[np.newaxis, ...], (batch_size, z_dim))
-			noise2 = np.broadcast_to(np.random.rand(z_dim)[np.newaxis, ...], (batch_size, z_dim))
+			noise1 = np.random.rand(batch_size, z_dim)
+			noise2 = np.random.rand(batch_size, z_dim)
 			yield noise1, noise2
 	dataset = tf.data.Dataset.from_generator(noise_generator, output_types=(tf.float32, tf.float32))
 	dataset.prefetch(2)
