@@ -77,7 +77,8 @@ def gan_test(
 	diversity_loss_weight=10.0,
 	reconstruction_loss_weight=1e-4,
 	use_mixed_precision=False,
-	enable_features=True
+	enable_features=True,
+	gen_alt_block=False
 ):
 	# Set mixed precision flag; it seems that mixed precision worsens GAN performance so 
 	#  I would recommend against its use for now
@@ -129,7 +130,7 @@ def gan_test(
 
 		# Build the generator and discriminator
 		with tf.name_scope('Generator'):
-			generator, generator_input_layers, mask_sizes, mask_order = semantic_model.create_generator(feature_tensors, n_classes=2, z_dim=z_dim)
+			generator, generator_input_layers, mask_sizes, mask_order = semantic_model.create_generator(feature_tensors, n_classes=2, z_dim=z_dim, use_alt_block=gen_alt_block)
 
 		with tf.name_scope('Discriminator'):
 			discriminator = semantic_model.create_discriminator(image_size=image_size)
