@@ -285,10 +285,10 @@ def train(
 				generated_images_sec, real_feat_out_sec = _gen_output_helper(generator_input)
 				
 				# Get reconstructed features from first generated images
-				recon_feat_out_first = reference_features({'tile_image': generated_images_first, 'input_1': generated_images_first})
+				#recon_feat_out_first = reference_features({'tile_image': generated_images_first, 'input_1': generated_images_first})
 
 				# Get reconstructed features from second generated images
-				recon_feat_out_sec = reference_features({'tile_image': generated_images_sec, 'input_1': generated_images_sec})
+				#recon_feat_out_sec = reference_features({'tile_image': generated_images_sec, 'input_1': generated_images_sec})
 
 				# Get discriminator output from generated images
 				fake_output_first = discriminator(generated_images_first, training=True)

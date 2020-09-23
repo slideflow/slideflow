@@ -107,26 +107,44 @@ def gan_test(
 		dataset = dataset.prefetch(20)
 		dataset = keras_strategy.experimental_distribute_dataset(dataset)
 		
-		# Load the external model
-		with tf.name_scope('ExternalModel'):
-			model = tf.keras.models.load_model(model)	
+		if enable_features:
+			# Load the external model
+			with tf.name_scope('ExternalModel'):
+				model = tf.keras.models.load_model(model)	
 
-		# Set loaded model as non-trainable
-		for layer in model.layers:
-			layer.trainable = False
+			print("Model summary")
+			model.summary()
 
-		# Identify the feature activation maps that will be used for the generator input
-		feature_tensors = {
-			'image': model.input,
-			'image_vgg16': model.get_layer('vgg16').input,
-			#'fc8':   tf.keras.layers.BatchNormalization()(model.get_layer('hidden_1').output),
-			#'fc7':   tf.keras.layers.BatchNormalization()(model.get_layer('hidden_0').output),
-			'conv0': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block5_pool').output), # 512 channels (9x9)
-			'conv1': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block4_pool').output), # 512 channels (18x18)
-			'conv2': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block3_pool').output), # 256 channels (37x37)
-			'conv3': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block2_pool').output), # 128 channels (74x74)
-			'conv4': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block1_pool').output), # 64 channels  (149x149)
-		}
+			# Set loaded model as non-trainable
+			for layer in model.layers:
+				layer.trainable = False
+
+			# Identify the feature activation maps that will be used for the generator input
+			feature_tensors = {
+				'image': model.input,
+				'image_vgg16': model.get_layer('vgg16').input,
+				#'fc8':   tf.keras.layers.BatchNormalization()(model.get_layer('hidden_1').output),
+				#'fc7':   tf.keras.layers.BatchNormalization()(model.get_layer('hidden_0').output),
+				'conv0': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block5_pool').output), # 512 channels (9x9)
+				'conv1': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block4_pool').output), # 512 channels (18x18)
+				'conv2': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block3_pool').output), # 256 channels (37x37)
+				'conv3': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block2_pool').output), # 128 channels (74x74)
+				'conv4': tf.keras.layers.BatchNormalization()(model.get_layer('vgg16').get_layer('block1_pool').output), # 64 channels  (149x149)
+			}
+			# Build a model that will output pooled features from the reference model, to be used for reconstruction loss
+			features_with_pool = [#tf.cast(feature_tensors['fc8'], dtype=tf.float32),
+								#tf.cast(feature_tensors['fc7'], dtype=tf.float32),
+								tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv0']), dtype=tf.float32),
+								tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv1']), dtype=tf.float32),
+								tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv2']), dtype=tf.float32),
+								tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv3']), dtype=tf.float32),
+								tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv4']), dtype=tf.float32)
+			]
+			input_layers = [feature_tensors['image'], feature_tensors['image_vgg16']]
+			reference_features = tf.keras.models.Model(input_layers, features_with_pool)
+		else:
+			feature_tensors = None
+			reference_features = None
 
 		# Build the generator and discriminator
 		with tf.name_scope('Generator'):
@@ -134,18 +152,6 @@ def gan_test(
 
 		with tf.name_scope('Discriminator'):
 			discriminator = semantic_model.create_discriminator(image_size=image_size)
-
-		# Build a model that will output pooled features from the reference model, to be used for reconstruction loss
-		features_with_pool = [#tf.cast(feature_tensors['fc8'], dtype=tf.float32),
-							  #tf.cast(feature_tensors['fc7'], dtype=tf.float32),
-							  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv0']), dtype=tf.float32),
-							  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv1']), dtype=tf.float32),
-							  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv2']), dtype=tf.float32),
-							  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv3']), dtype=tf.float32),
-							  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv4']), dtype=tf.float32)
-		]
-		input_layers = [feature_tensors['image'], feature_tensors['image_vgg16']]
-		reference_features = tf.keras.models.Model(input_layers, features_with_pool)
 
 		# Setup the dataset which will be supplying the feature masks
 		with tf.name_scope('Masking'):
@@ -160,8 +166,6 @@ def gan_test(
 			noise_dataset = keras_strategy.experimental_distribute_dataset(noise_dataset)
 
 		# Print model summaries
-		print("Model summary")
-		model.summary()
 		print("Generator summary")
 		generator.summary()
 		print("Discriminator summary")
