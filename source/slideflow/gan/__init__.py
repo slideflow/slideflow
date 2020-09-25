@@ -19,6 +19,7 @@ from tensorflow.keras.layers import Input, Conv2D, Dense, LeakyReLU, Lambda
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
 import slideflow as sf
+from slideflow.util import log
 from slideflow.io.tfrecords import example_to_image
 from slideflow.model import SlideflowModel
 from slideflow.gan.sagan.spectral_normalization import SpectralNormalization
@@ -76,6 +77,7 @@ def gan_test(
 	adversarial_loss_weight=0.5,
 	diversity_loss_weight=10.0,
 	reconstruction_loss_weight=1e-4,
+	gp_loss_weight=10,
 	use_mixed_precision=False,
 	enable_features=True,
 	gen_alt_block=False
@@ -108,6 +110,7 @@ def gan_test(
 		dataset = keras_strategy.experimental_distribute_dataset(dataset)
 		
 		if enable_features:
+			log.info(f"Using features from external model {sf.util.green(model)}", 1)
 			# Load the external model
 			with tf.name_scope('ExternalModel'):
 				model = tf.keras.models.load_model(model)	
@@ -143,6 +146,7 @@ def gan_test(
 			input_layers = [feature_tensors['image'], feature_tensors['image_vgg16']]
 			reference_features = tf.keras.models.Model(input_layers, features_with_pool)
 		else:
+			log.info(f"Disabling external model feature input.", 1)
 			feature_tensors = None
 			reference_features = None
 
@@ -191,4 +195,5 @@ def gan_test(
 																			  z_dim=z_dim,
 																			  reconstruction_loss_weight=reconstruction_loss_weight,
 																			  diversity_loss_weight=diversity_loss_weight,
-																			  adversarial_loss_weight=adversarial_loss_weight)
+																			  adversarial_loss_weight=adversarial_loss_weight,
+																			  gp_loss_weight=gp_loss_weight)

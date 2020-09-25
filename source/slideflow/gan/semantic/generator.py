@@ -16,7 +16,7 @@ def block(x, labels, out_channels, num_classes):
 	x_0 = x
 	x = ConditionalBatchNorm(in_channel)(x, labels)
 	x = tf.keras.layers.LeakyReLU()(x)
-	x = SpectralConv2DTranspose(out_channels, kernel_size=3, strides=2, padding='same')(x)
+	x = SpectralConv2DTranspose(out_channels, kernel_size=4, strides=2, padding='same')(x)
 	x = ConditionalBatchNorm(out_channels)(x, labels)
 	x = tf.keras.layers.LeakyReLU()(x)
 	x = SpectralConv2DTranspose(out_channels, kernel_size=3, strides=1, padding='same')(x)
@@ -26,7 +26,7 @@ def block(x, labels, out_channels, num_classes):
 def alt_block(x, labels, out_channels, num_classes):
 	in_channel = x.get_shape().as_list()[-1]
 	x_0 = x
-	x = SpectralConv2DTranspose(in_channel, kernel_size=3, strides=2, padding='same')(x)
+	x = SpectralConv2DTranspose(in_channel, kernel_size=4, strides=2, padding='same')(x)
 	x = tf.keras.layers.LeakyReLU()(x)
 	x = ConditionalBatchNorm(in_channel)(x, labels)
 	x = SpectralConv2DTranspose(out_channels, kernel_size=3, strides=1, padding='same')(x)

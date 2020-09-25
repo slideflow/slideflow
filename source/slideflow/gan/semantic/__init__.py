@@ -6,7 +6,7 @@ import collections
 import tensorflow as tf
 import random
 
-from slideflow.util import ProgressBar
+from slideflow.util import ProgressBar, log
 
 from tensorflow_gan.python.eval import eval_utils
 
@@ -22,7 +22,6 @@ def generator_reconstruction_loss(
 	masks,
 	feature_type,
 	batchnorm,
-	reconstruction_loss_weight=1e-4,
 ):
 	'''Calculates reconstruction loss for the generator.'''
 	# Semantic reconstruction loss
@@ -42,35 +41,50 @@ def generator_reconstruction_loss(
 		l1 = tf.keras.regularizers.L1()(masked_real - masked_reconstructed)
 		reconstruction_losses += [l1]
 
-	return tf.math.reduce_sum(reconstruction_losses) * reconstruction_loss_weight
+	return tf.math.reduce_sum(reconstruction_losses)
 
 def generator_diversity_loss(
 	noise,
 	generated_images,
-	diversity_loss_weight=10.0,
 	epsilon=1e-4
 ):
 	'''Calculates diversity loss for the generator.'''
 	diversity_loss = tf.keras.regularizers.L1()(noise[0] - noise[1]) / (tf.keras.regularizers.L1()(generated_images[0] - generated_images[1]) + epsilon)
-	diversity_loss *= diversity_loss_weight
 	return diversity_loss
 
-def generator_adversarial_loss(fake_output, adversarial_loss_weight=0.5):
+def generator_adversarial_loss(fake_output):
 	# Adversarial loss
 	#loss = tf.keras.losses.MeanSquaredError()
-	#return loss(tf.ones_like(fake_output), fake_output) * adversarial_loss_weight
-	return tf.math.reduce_sum(tf.math.square(fake_output - tf.ones_like(fake_output))) * adversarial_loss_weight
+	#return loss(tf.ones_like(fake_output), fake_output)
+	#return tf.math.reduce_sum(tf.math.square(fake_output - tf.ones_like(fake_output)))
+	return tf.math.reduce_mean(-fake_output)
 
-def discriminator_real_loss(real_output, adversarial_loss_weight=1.0):
-	#loss = tf.keras.losses.MeanSquaredError()
-	#return loss(tf.ones_like(real_output), real_output) * adversarial_loss_weight
-	return tf.math.reduce_sum(tf.math.square(real_output - tf.ones_like(real_output))) * adversarial_loss_weight
+def discriminator_real_loss(real_output):
+	#loss = tf.keras.losses.MeanSquaredrror()
+	#return loss(tf.ones_like(real_output), real_output)
+	#return tf.math.reduce_sum(tf.math.square(real_output - tf.ones_like(real_output)))
+	return tf.math.reduce_mean(-real_output)
 
-def discriminator_fake_loss(fake_output, adversarial_loss_weight=1.0):
+def discriminator_fake_loss(fake_output):
 	'''Calculates adversarial loss for the discriminator.'''
 	#loss = tf.keras.losses.MeanSquaredError()
-	#return loss(tf.zeros_like(fake_output), fake_output) * adversarial_loss_weight
-	return tf.math.reduce_sum(tf.math.square(fake_output)) * adversarial_loss_weight
+	#return loss(tf.zeros_like(fake_output), fake_output)
+	#return tf.math.reduce_sum(tf.math.square(fake_output))
+	return tf.math.reduce_mean(fake_output)
+
+def gradient_penalty(discriminator, batch_size, real_images, fake_images):
+	alpha = tf.random.normal([batch_size, 1, 1, 1], 0.0, 1.0)
+	diff = fake_images - real_images
+	interpolated = real_images + alpha * diff
+
+	with tf.GradientTape() as gp_tape:
+		gp_tape.watch(interpolated)
+		pred = discriminator(interpolated, training=True)
+	
+	grads = gp_tape.gradient(pred, [interpolated])[0]
+	norm = tf.sqrt(tf.reduce_sum(tf.square(grads), axis=[1, 2, 3]))
+	gp = tf.reduce_mean((norm - 1.0) ** 2)
+	return gp
 
 def generate_masks(mask_sizes, mask_order, conv_masks, image_size, batch_size, spatial_variation=False, block_all=False):
 	'''Generates random masks as described in https://semantic-pyramid.github.io.
@@ -167,8 +181,31 @@ def train(
 	load_checkpoint=None,
 	reconstruction_loss_weight=1e-4,
 	diversity_loss_weight=10.0,
-	adversarial_loss_weight=0.5
+	adversarial_loss_weight=0.5,
+	gp_loss_weight=10.0
 ):
+	# Print training configuration
+	log.header("Beginning training...")
+	log.empty("Training parameters")
+	log.info(f"Image size:\t\t\t{image_size} px", 1)
+	log.info(f"Starting step:\t\t{starting_step}", 1)
+	log.info(f"Steps per epoch:\t\t{steps_per_epoch}", 1)
+	log.info(f"Steps per summary:\t\t{summary_step}", 1)
+	log.info(f"Distribution strategy:\t{keras_strategy.__class__.__name__}", 1)
+
+	log.empty("Hyperparameters")
+	log.info(f"Epochs:\t\t\t{epochs}", 1)
+	log.info(f"Batch size:\t\t\t{batch_size}", 1)
+	log.info(f"Noise (z) dim:\t\t{z_dim}", 1)
+	log.info(f"Generator steps:\t\t{generator_steps}", 1)
+	log.info(f"Discriminator steps:\t\t{discriminator_steps}", 1)
+	log.info(f"Generator learning rate:\t{gen_lr}", 1)
+	log.info(f"Discriminator learning rate:\t{disc_lr}", 1)
+	log.info(f"Reconstruction loss weight:\t{reconstruction_loss_weight}", 1)
+	log.info(f"Diversity loss weight:\t{diversity_loss_weight}", 1)
+	log.info(f"Adversarial loss weight:\t{adversarial_loss_weight}", 1)
+	log.info(f"Gradient penalty loss weight:\t{gp_loss_weight}", 1)
+
 	with keras_strategy.scope():
 		'''Trains a semantic pyramid GAN.'''
 		generator_optimizer = tf.keras.optimizers.Adam(gen_lr)
@@ -218,13 +255,19 @@ def train(
 		@tf.function
 		def discriminator_summary_step(images, labels, masks, noise, step):
 			'''Step which saves summary statistics and sample images for display with Tensorboard.'''
-			disc_loss = distributed_discriminator_step(images, labels, masks, noise, False)
+			disc_loss, gp = distributed_discriminator_step(images, labels, masks, noise, False)
 			disc_loss = keras_strategy.experimental_local_results(disc_loss)[0]
+			gp = keras_strategy.experimental_local_results(gp)[0]
 
 			with writer.as_default():
 				tf.summary.scalar(
 					'discriminator/total_loss',
 					disc_loss,
+					step=step)
+			with writer.as_default():
+				tf.summary.scalar(
+					'discriminator/gradient_penalty',
+					gp,
 					step=step)
 
 		@tf.function
@@ -239,8 +282,10 @@ def train(
 
 		@tf.function
 		def distributed_discriminator_step(dist_images, dist_labels, dist_masks, dist_noise, apply_grads=True):
-			disc_loss = keras_strategy.run(discriminator_step, args=(dist_images, dist_labels, dist_masks, dist_noise, apply_grads))
-			return keras_strategy.reduce(tf.distribute.ReduceOp.SUM, disc_loss, axis=None)
+			disc_loss, gp = keras_strategy.run(discriminator_step, args=(dist_images, dist_labels, dist_masks, dist_noise, apply_grads))
+			disc_loss = keras_strategy.reduce(tf.distribute.ReduceOp.SUM, disc_loss, axis=None)
+			gp = keras_strategy.reduce(tf.distribute.ReduceOp.SUM, gp, axis=None)
+			return disc_loss, gp
 
 		def _gen_output_helper(input):
 			'''With a given input, uses a generator to calculate generated images, as well as both
@@ -295,28 +340,27 @@ def train(
 				fake_output_sec = discriminator(generated_images_sec, training=True)
 
 				# Calculate adversarial generator loss
-				gen_adv_loss = generator_adversarial_loss(fake_output_first, adversarial_loss_weight=adversarial_loss_weight)
-				gen_adv_loss += generator_adversarial_loss(fake_output_sec, adversarial_loss_weight=adversarial_loss_weight)
+				gen_adv_loss = generator_adversarial_loss(fake_output_first) * adversarial_loss_weight
+				gen_adv_loss += generator_adversarial_loss(fake_output_sec) * adversarial_loss_weight
 
 				# Calculate reconstruction generator loss
 				#rec_loss = generator_reconstruction_loss(real_features=real_feat_out_first,
 				#										reconstructed_features=recon_feat_out_first,
 				#										feature_type=is_conv,
 				#										masks=[masks[m] for m in mask_order],
-				#										batchnorm=reconstruction_batchnorm,
-				#										reconstruction_loss_weight=reconstruction_loss_weight)
+				#										batchnorm=reconstruction_batchnorm)
 				#rec_loss += generator_reconstruction_loss(real_features=real_feat_out_sec,
 				#										reconstructed_features=recon_feat_out_sec,
 				#										feature_type=is_conv,
 				#										masks=[masks[m] for m in mask_order],
-				#										batchnorm=reconstruction_batchnorm,
-				#										reconstruction_loss_weight=reconstruction_loss_weight)
+				#										batchnorm=reconstruction_batchnorm)
+				#rec_loss *= reconstruction_loss_weight
 				rec_loss = 0
 
 				# Calculate diversity loss
 				div_loss = generator_diversity_loss(noise=noise,
-													generated_images=[generated_images_first, generated_images_sec],
-													diversity_loss_weight=diversity_loss_weight)
+													generated_images=[generated_images_first, generated_images_sec])
+				div_loss *= diversity_loss_weight
 
 				# Sum generator loss
 				gen_loss = div_loss + rec_loss + gen_adv_loss
@@ -366,12 +410,16 @@ def train(
 				disc_loss = discriminator_real_loss(real_output_first_half)
 				disc_loss += discriminator_fake_loss(fake_output_second_half)
 
+				# Gradient penalty loss
+				gp = gradient_penalty(discriminator, batch_size, images, generated_images) * gp_loss_weight
+				disc_loss += gp
+
 			# Calculate and apply gradients.
 			if apply_grads:
 				gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
 				discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
-
-			return disc_loss
+			
+			return disc_loss, gp
 
 		disc_step = 0
 		gen_step = -1
@@ -386,8 +434,6 @@ def train(
 					continue
 				step += (steps_per_epoch * epoch)
 				step += starting_step
-
-
 
 				if (step > 0) and step % summary_step == 0:
 					# Discriminator summary step
