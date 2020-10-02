@@ -10,6 +10,30 @@ from slideflow.util import ProgressBar, log
 
 from tensorflow_gan.python.eval import eval_utils
 
+# BEST PRACTICES
+
+# - Avoid messing with convolutional filters, unlikely to be helpful
+# - Avoid early stopping
+# - Loss functions may not matter as much? Use a simpler loss function at first, fine-tune later
+# - Minibatch discrimination (batch normalization)
+# - Label smoothing:
+
+# THINGS TO TRY:
+
+# - Try lowering learning rate early on ***
+# - Removing fully connected layers? ***
+# - Adding noise to real and synthetic data ***
+# - Feature mapping: reconstruction loss?
+# - Try changing alpha value (typical 0.1-0.3, can try 0.02)
+# - Discriminator:Generator 4-5:1
+# - Medarchives - PathologyGAN -> used BIGGAN as architecture
+#   - Used relativistic average loss (vs hinge loss)
+#   - GitHub code available (tensorflow)
+
+# THINGS TO LATER:
+
+# - Stride convolutions instead of max pooling (downsampling from max pooling can cause loss resolution)
+
 def conormalize(tensors, batchnorm):
 	# Stack reconstructed and real feature maps for co-normalization
 	stacked_features = tf.stack(tensors, axis=0)
