@@ -56,14 +56,14 @@ class DenseSN(Dense):
         if training in {0, False}:
             W_bar = K.reshape(W_bar, W_shape)
         else:
-            with tf.control_dependencies([self.u.assign(_u)]):
+            with tf.control_dependencies([self.u.assign(tf.cast(_u, self._dtype))]):
                  W_bar = K.reshape(W_bar, W_shape)  
         output = K.dot(inputs, W_bar)
         if self.use_bias:
             output = K.bias_add(output, self.bias, data_format='channels_last')
         if self.activation is not None:
             output = self.activation(output)
-        return output 
+        return output
         
 class _ConvSN(Layer):
 
