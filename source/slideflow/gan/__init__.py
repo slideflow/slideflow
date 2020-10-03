@@ -82,6 +82,8 @@ def gan_test(
 	enable_features=True,
 	gen_alt_block=False
 ):
+	if not os.path.exists(checkpoint_dir): os.makedirs(checkpoint_dir)
+
 	# Set mixed precision flag; it seems that mixed precision worsens GAN performance so 
 	#  I would recommend against its use for now
 	if use_mixed_precision:
