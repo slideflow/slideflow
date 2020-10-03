@@ -34,25 +34,27 @@ def create_generator_old(
 	blocks='rrrrar',
 	padding='vsvsvv',
 	channel_multiplier=64,
+	use_alt_block=False
 ):
 	'''Creates a generator per https://semantic-pyramid.github.io/paper.pdf.'''
 	noise_input = tf.keras.layers.Input((z_dim,), name='noise_input')
 	#c = tf.keras.layers.Input((n_classes,), dtype=tf.int32, name='class_input')
 	c = tf.keras.layers.Input(shape=(1,), dtype=tf.int32, name='class_input')
+
 	input_layers = [noise_input, c]
+	input_layers += [feature_tensors['image'], feature_tensors['image_vgg16']]
+
 	c = tf.one_hot(c, n_classes, dtype=tf.float32)
 	c = tf.squeeze(c, axis=1)
-	#input_layers = [noise_input, c, feature_tensors['image'], feature_tensors['image_vgg16']]
 	
-	#features_with_pool = [#tf.cast(feature_tensors['fc8'], dtype=tf.float32),
-	#					  #tf.cast(feature_tensors['fc7'], dtype=tf.float32),
-	#					  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv0']), dtype=tf.float32),
-	#					  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv1']), dtype=tf.float32),
-	#					  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv2']), dtype=tf.float32),
-	#					  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv3']), dtype=tf.float32),
-	#					  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv4']), dtype=tf.float32),
-	#]
-	features_with_pool = []
+	features_with_pool = [#tf.cast(feature_tensors['fc8'], dtype=tf.float32),
+						  #tf.cast(feature_tensors['fc7'], dtype=tf.float32),
+						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv0']), dtype=tf.float32),
+						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv1']), dtype=tf.float32),
+						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv2']), dtype=tf.float32),
+						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv3']), dtype=tf.float32),
+						  tf.cast(tf.keras.layers.MaxPool2D((2,2))(feature_tensors['conv4']), dtype=tf.float32),
+	]
 	#reconstructed_features = []
 	x = noise_input
 	mask_sizes = {}

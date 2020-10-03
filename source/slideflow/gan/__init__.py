@@ -152,10 +152,12 @@ def gan_test(
 
 		# Build the generator and discriminator
 		with tf.name_scope('Generator'):
-			generator, generator_input_layers, mask_sizes, mask_order = semantic_model.create_generator(feature_tensors, n_classes=2, z_dim=z_dim, use_alt_block=gen_alt_block)
+			generator_fn = semantic_model.create_generator if not enable_features else semantic_model.create_generator_old
+			generator, generator_input_layers, mask_sizes, mask_order = generator_fn(feature_tensors, n_classes=2, z_dim=z_dim, use_alt_block=gen_alt_block)
 
 		with tf.name_scope('Discriminator'):
-			discriminator = semantic_model.create_discriminator(image_size=image_size)
+			discriminator_fn = semantic_model.create_discriminator if not enable_features else semantic_model.create_discriminator_old
+			discriminator = discriminator_fn(image_size=image_size)
 
 		# Setup the dataset which will be supplying the feature masks
 		with tf.name_scope('Masking'):
@@ -196,4 +198,5 @@ def gan_test(
 																			  reconstruction_loss_weight=reconstruction_loss_weight,
 																			  diversity_loss_weight=diversity_loss_weight,
 																			  adversarial_loss_weight=adversarial_loss_weight,
-																			  gp_loss_weight=gp_loss_weight)
+																			  gp_loss_weight=gp_loss_weight,
+																			  enable_features=enable_features)

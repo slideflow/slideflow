@@ -206,7 +206,8 @@ def train(
 	reconstruction_loss_weight=1e-4,
 	diversity_loss_weight=10.0,
 	adversarial_loss_weight=0.5,
-	gp_loss_weight=10.0
+	gp_loss_weight=10.0,
+	enable_features=False
 ):
 	# Print training configuration
 	log.header("Beginning training...")
@@ -315,11 +316,13 @@ def train(
 			'''With a given input, uses a generator to calculate generated images, as well as both
 			the input real features (as calculated from the input image),
 			as well as the reconstructed features from the generator.'''
-			#generator_output = generator(input, training=True)
-			#generated_images = generator_output[0]
-			#feature_output = generator_output[1:]
-			#return generated_images, feature_output
-			return generator(input, training=True), None
+			if enable_features:
+				generator_output = generator(input, training=True)
+				generated_images = generator_output[0]
+				feature_output = generator_output[1:]
+				return generated_images, feature_output
+			else:
+				return generator(input, training=True), None
 
 		@tf.function
 		def generator_step(images, labels, masks, noise, apply_grads=True):
@@ -338,8 +341,9 @@ def train(
 			# Supply all masks as input data apart from 'image_mask', which is is the mask
 			#  Supposed to be applied to the final generator image, but I'm not sure how to use/implement this.
 			if type(masks) == tuple: masks = masks[0]
-			#for m in masks:	
-			#	if m != 'image_mask': generator_input[m] = masks[m]
+			if enable_features:
+				for m in masks:	
+					if m != 'image_mask': generator_input[m] = masks[m]
 
 			# Calculate gradients from losses.
 			with tf.GradientTape() as gen_tape:
@@ -352,12 +356,6 @@ def train(
 				# Second half of generated images and real image features, using a different noise vector
 				generator_input['noise_input'] = noise[1]
 				generated_images_sec, real_feat_out_sec = _gen_output_helper(generator_input)
-				
-				# Get reconstructed features from first generated images
-				#recon_feat_out_first = reference_features({'tile_image': generated_images_first, 'input_1': generated_images_first})
-
-				# Get reconstructed features from second generated images
-				#recon_feat_out_sec = reference_features({'tile_image': generated_images_sec, 'input_1': generated_images_sec})
 
 				# Get discriminator output from generated images
 				fake_output_first = discriminator(generated_images_first, training=True)
@@ -367,19 +365,25 @@ def train(
 				gen_adv_loss = generator_adversarial_loss(fake_output_first) * adversarial_loss_weight
 				gen_adv_loss += generator_adversarial_loss(fake_output_sec) * adversarial_loss_weight
 
-				# Calculate reconstruction generator loss
-				#rec_loss = generator_reconstruction_loss(real_features=real_feat_out_first,
-				#										reconstructed_features=recon_feat_out_first,
-				#										feature_type=is_conv,
-				#										masks=[masks[m] for m in mask_order],
-				#										batchnorm=reconstruction_batchnorm)
-				#rec_loss += generator_reconstruction_loss(real_features=real_feat_out_sec,
-				#										reconstructed_features=recon_feat_out_sec,
-				#										feature_type=is_conv,
-				#										masks=[masks[m] for m in mask_order],
-				#										batchnorm=reconstruction_batchnorm)
-				#rec_loss *= reconstruction_loss_weight
-				rec_loss = 0
+				if enable_features:
+					# Get reconstructed features from first & second generated images
+					recon_feat_out_first = reference_features({'tile_image': generated_images_first, 'input_1': generated_images_first})
+					recon_feat_out_sec = reference_features({'tile_image': generated_images_sec, 'input_1': generated_images_sec})
+
+					# Calculate reconstruction generator loss
+					rec_loss = generator_reconstruction_loss(real_features=real_feat_out_first,
+															reconstructed_features=recon_feat_out_first,
+															feature_type=is_conv,
+															masks=[masks[m] for m in mask_order],
+															batchnorm=reconstruction_batchnorm)
+					rec_loss += generator_reconstruction_loss(real_features=real_feat_out_sec,
+															reconstructed_features=recon_feat_out_sec,
+															feature_type=is_conv,
+															masks=[masks[m] for m in mask_order],
+															batchnorm=reconstruction_batchnorm)
+					rec_loss *= reconstruction_loss_weight
+				else:
+					rec_loss = 0
 
 				# Calculate diversity loss
 				div_loss = generator_diversity_loss(noise=noise,
@@ -414,8 +418,9 @@ def train(
 			# Supply all masks as input data apart from 'image_mask', which is is the mask
 			#  Supposed to be applied to the final generator image, but I'm not sure how to use/implement this.
 			if type(masks) == tuple: masks = masks[0]
-			#for m in masks:	
-			#	if m != 'image_mask': generator_input[m] = masks[m]
+			if enable_features:
+				for m in masks:	
+					if m != 'image_mask': generator_input[m] = masks[m]
 
 			# Get first half of generated images and real image features
 			generated_images, real_feat_out = _gen_output_helper(generator_input)
