@@ -21,7 +21,7 @@ from tensorflow.keras.mixed_precision import experimental as mixed_precision
 import slideflow as sf
 from slideflow.util import log
 from slideflow.io.tfrecords import example_to_image
-from slideflow.model import SlideflowModel
+from slideflow.model import SlideflowModel, HyperParameters
 from slideflow.gan.sagan.spectral_normalization import SpectralNormalization
 from slideflow.gan.semantic import model as semantic_model
 from slideflow.gan import semantic
@@ -102,7 +102,7 @@ def gan_test(
 		train_tfrecords = tfrecords
 		validation_tfrecords = None
 		manifest = sf_dataset.get_manifest()
-		SFM = SlideflowModel(checkpoint_dir, 299, slide_annotations, train_tfrecords, validation_tfrecords, manifest, model_type='linear')
+		SFM = SlideflowModel(checkpoint_dir, 299, slide_annotations, train_tfrecords, validation_tfrecords, manifest, model_type='linear', use_fp16=False)
 		dataset, _, num_tiles = SFM._build_dataset_inputs(tfrecords, batch_size, 'NO_BALANCE', augment=False,
 																							   finite=True,
 																							   include_slidenames=False,
@@ -115,7 +115,13 @@ def gan_test(
 			log.info(f"Using features from external model {sf.util.green(model)}", 1)
 			# Load the external model
 			with tf.name_scope('ExternalModel'):
-				model = tf.keras.models.load_model(model)	
+				hp = HyperParameters(tile_px=image_size, model='VGG16', hidden_layers=2, hidden_layer_width=4096)
+				empty_model = SFM._build_model(hp)
+				try:
+					model = tf.keras.models.load_model(model)
+				except ValueError:
+					empty_model.load_weights(model)
+					model = empty_model
 
 			print("Model summary")
 			model.summary()
