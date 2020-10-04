@@ -50,3 +50,21 @@ def create_discriminator(image_size, df_dim=64):
 	h6 = tf.keras.layers.Flatten()(h5_act)
 	output = DenseSN(1, dtype=tf.float32)(h6)
 	return tf.keras.models.Model(image, output)
+
+def create_discriminator_large(image_size, df_dim=64):
+	image = tf.keras.layers.Input((image_size, image_size, 3), name="discriminator_input")
+	h0 = optimized_block(image, df_dim)
+	h1 = block(h0, df_dim * 2)
+	h1, _ = SelfAttnModel(df_dim * 2)(h1)
+	h2 = block(h1, df_dim * 4)
+	h3 = block(h2, df_dim * 8)
+	h4 = block(h3, df_dim * 16)
+	h5 = block(h4, df_dim * 16)
+	h6 = block(h5, df_dim * 32)
+
+	h7 = block(h6, df_dim * 32, downsample=False)
+	h7_act = tf.keras.layers.LeakyReLU()(h7)
+	#h6 = tf.keras.layers.Lambda(lambda x: tf.reduce_sum(x, axis=[1,2]))(h5_act)
+	h8 = tf.keras.layers.Flatten()(h7_act)
+	output = DenseSN(1, dtype=tf.float32)(h8)
+	return tf.keras.models.Model(image, output)

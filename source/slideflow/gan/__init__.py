@@ -164,7 +164,7 @@ def gan_test(
 			generator, generator_input_layers, mask_sizes, mask_order = generator_fn(feature_tensors, n_classes=2, z_dim=z_dim, use_alt_block=gen_alt_block)
 
 		with tf.name_scope('Discriminator'):
-			discriminator_fn = semantic_model.create_discriminator if not enable_features else semantic_model.create_discriminator_old
+			discriminator_fn = semantic_model.create_discriminator if not enable_features else semantic_model.create_discriminator_large
 			discriminator = discriminator_fn(image_size=image_size)
 
 		# Setup the dataset which will be supplying the feature masks
