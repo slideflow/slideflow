@@ -599,7 +599,7 @@ class SlideflowModel:
 			# Otherwise, consider all slides from the same category (effectively skipping balancing); appropriate for linear models.
 			category = self.SLIDE_ANNOTATIONS[slide_name]['outcome'] if self.MODEL_TYPE == 'categorical' else 1
 			if filename not in self.DATASETS:
-				self.DATASETS.update({filename: tf.data.TFRecordDataset(filename)})
+				self.DATASETS.update({filename: tf.data.TFRecordDataset(filename, num_parallel_reads=tf.data.experimental.AUTOTUNE)}) #buffer_size=1024*1024*100
 			datasets += [self.DATASETS[filename]]
 			datasets_categories += [category]
 
@@ -657,7 +657,7 @@ class SlideflowModel:
 			log.error(f"No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder", 1)
 			sys.exit()
 		if include_slidenames:
-			dataset_with_slidenames = dataset.map(partial(parse_fn, include_slidenames=True, multi_image=multi_image), num_parallel_calls = 8)
+			dataset_with_slidenames = dataset.map(partial(parse_fn, include_slidenames=True, multi_image=multi_image), num_parallel_calls=tf.data.experimental.AUTOTUNE)
 			dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
 		else:
 			dataset_with_slidenames = None
@@ -772,7 +772,7 @@ class SlideflowModel:
 		if not hp and checkpoint:
 			log.error("If using a checkpoint for evaluation, hyperparameters must be specified.")
 			sys.exit()
-		batch_size = batch_size if not hp else hp.batch_size
+		if not batch_size: batch_size = hp.batch_size
 		dataset, dataset_with_slidenames, num_tiles = self._build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment=False, 
 																													finite=True,
 																													max_tiles=max_tiles_per_slide,

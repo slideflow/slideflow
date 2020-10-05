@@ -752,7 +752,6 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	y_true, y_pred, tile_to_slides = [], [], []
 	detected_batch_size = 0
 	pb = ProgressBar(num_tiles, counter_text='images', leadtext="Generating predictions... ", show_counter=True, show_eta=True) if num_tiles else None
-
 	# Get predictions and performance metrics
 	for i, batch in enumerate(dataset_with_slidenames):
 		if pb:
@@ -762,7 +761,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 			sys.stdout.flush()
 		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in batch[2].numpy()]
 		y_true += [batch[1].numpy()]
-		y_pred += [model.predict_on_batch(batch[0])]
+		y_pred += [model.predict(batch[0])]
 		if not detected_batch_size: detected_batch_size = len(batch[1].numpy())
 	sys.stdout.write("\r\033[K")
 	sys.stdout.flush()
