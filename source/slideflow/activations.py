@@ -583,20 +583,11 @@ class ActivationsVisualizer:
 
 		# Calculate final layer activations for each tfrecord
 		fla_start_time = time.time()
-		#nodes_names, logits_names = [], []
-		nodes_names = [f"FLNode{f}" for f in range(fl_activations_combined.shape[1])]
-		logits_names = [f"Logits{l}" for l in range(logits_combined.shape[1])]
+		nodes_names, logits_names = [], []
+		detected_logit_structure=False
 		if export:
 			outfile = open(export, 'w')
 			csvwriter = csv.writer(outfile)
-			header = ["Slide"] + logits_names + nodes_names
-			csvwriter.writerow(header)
-		for n in range(len(nodes_names)):
-			for slide in unique_slides:
-				self.slide_node_dict[slide].update({n: []})
-		for l in range(len(logits_names)):
-			for slide in unique_slides:
-				self.slide_logits_dict[slide].update({l: []})
 
 		for t, tfrecord in enumerate(tfrecords):
 			dataset = tf.data.TFRecordDataset(tfrecord)
@@ -628,6 +619,20 @@ class ActivationsVisualizer:
 			if fl_activations_combined == []:
 				log.warn(f"Unable to calculate activations from {sfutil.green(sfutil.path_to_name(tfrecord))}; is the TFRecord empty?", 1)
 				continue
+
+			if not detected_logit_structure:
+				nodes_names = [f"FLNode{f}" for f in range(fl_activations_combined.shape[1])]
+				logits_names = [f"Logits{l}" for l in range(logits_combined.shape[1])]
+				if export:
+					header = ["Slide"] + logits_names + nodes_names
+					csvwriter.writerow(header)
+				for n in range(len(nodes_names)):
+					for slide in unique_slides:
+						self.slide_node_dict[slide].update({n: []})
+				for l in range(len(logits_names)):
+					for slide in unique_slides:
+						self.slide_logits_dict[slide].update({l: []})
+				detected_logit_structure=True
 
 			if self.MAX_TILES_PER_SLIDE and len(fl_activations_combined) > self.MAX_TILES_PER_SLIDE:
 				slides_combined = slides_combined[:self.MAX_TILES_PER_SLIDE]
