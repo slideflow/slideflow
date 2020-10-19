@@ -426,7 +426,7 @@ class TFRecordMap:
 
 		lasso = LassoSelector(plt.gca(), onselect)
 
-	def save_3d_node_plot(self, z=None, node=None, filename=None, subsample=None):
+	def save_3d_plot(self, z=None, node=None, filename=None, subsample=None):
 		'''Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument "z" 
 		
 		Args: 
@@ -438,7 +438,7 @@ class TFRecordMap:
 		title = f"UMAP with node {node} focus"
 
 		if not filename:
-			filename = "3d_node_plot.png"
+			filename = "3d_plot.png"
 
 		if (z is None) and (node is None):
 			raise StatisticsError("Must supply either 'z' or 'node'.")
