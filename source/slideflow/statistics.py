@@ -426,18 +426,26 @@ class TFRecordMap:
 
 		lasso = LassoSelector(plt.gca(), onselect)
 
-	def save_3d_node_plot(self, node, filename, subsample=None):
+	def save_3d_node_plot(self, z=None, node=None, filename=None, subsample=None):
 		'''Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument "z" 
 		
 		Args: 
-			node:		Int, node to plot on 3rd axis
+			z: 			Values for z axis (optional).
+			node:		Int, node to plot on 3rd axis (optional). Ignored if z is supplied.
 			filename:	Filename to save image of plot
 			subsample:	(optionanl) int, if provided will subsample data to include only this number of tiles as maximum'''
 
 		title = f"UMAP with node {node} focus"
 
+		if not filename:
+			filename = "3d_node_plot.png"
+
+		if (z is None) and (node is None):
+			raise StatisticsError("Must supply either 'z' or 'node'.")
+
 		# Get node activations for 3rd dimension
-		z = np.array([self.AV.slide_node_dict[m['slide']][node][m['index']] for m in self.point_meta])
+		if z is None:
+			z = np.array([self.AV.slide_node_dict[m['slide']][node][m['index']] for m in self.point_meta])
 
 		# Subsampling
 		if subsample:
