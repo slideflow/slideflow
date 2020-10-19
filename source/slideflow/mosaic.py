@@ -214,6 +214,8 @@ class Mosaic:
 					continue
 
 				_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
+				if not tile_image: continue
+				
 				self.mapped_tiles.update({point['tfrecord']: point['tfrecord_index']})
 				tile_image = self._decode_image_string(tile_image.numpy())
 				
@@ -243,10 +245,12 @@ class Mosaic:
 				point = self.points[distance_pair['point_index']]
 				tile = self.GRID[distance_pair['grid_index']]
 				if not (point['paired_tile'] or tile['paired_point']):
+					_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
+					if not tile_image: continue
+
 					point['paired_tile'] = True
 					tile['paired_point'] = True
-
-					_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
+					
 					self.mapped_tiles.update({point['tfrecord']: point['tfrecord_index']})
 					tile_image = self._decode_image_string(tile_image.numpy())					
 
