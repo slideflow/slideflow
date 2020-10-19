@@ -74,7 +74,7 @@ class TFRecordMap:
 		return obj
 
 	@classmethod
-	def from_activations(cls, activations, exclude_slides=None, prediction_filter=None, force_recalculate=False, map_slide=None, cache=None, low_memory=False, max_tiles_per_slide=0):
+	def from_activations(cls, activations, exclude_slides=None, prediction_filter=None, force_recalculate=False, map_slide=None, cache=None, low_memory=False, max_tiles_per_slide=0, umap_dim=2):
 		'''Initializes map from an activations visualizer.
 
 		Args:
@@ -96,10 +96,10 @@ class TFRecordMap:
 		if map_slide:
 			obj._calculate_from_slides(method=map_slide, prediction_filter=prediction_filter, force_recalculate=force_recalculate, low_memory=low_memory)
 		else:
-			obj._calculate_from_tiles(prediction_filter=prediction_filter, force_recalculate=force_recalculate, low_memory=low_memory, max_tiles_per_slide=max_tiles_per_slide)
+			obj._calculate_from_tiles(prediction_filter=prediction_filter, force_recalculate=force_recalculate, low_memory=low_memory, max_tiles_per_slide=max_tiles_per_slide, dim=umap_dim)
 		return obj
 
-	def _calculate_from_tiles(self, prediction_filter=None, force_recalculate=False, low_memory=False, max_tiles_per_slide=0):
+	def _calculate_from_tiles(self, prediction_filter=None, force_recalculate=False, low_memory=False, max_tiles_per_slide=0, dim=2):
 		''' Internal function to guide calculation of UMAP from final layer activations, as provided via ActivationsVisualizer nodes.'''
 		if len(self.x) and len(self.y) and not force_recalculate:
 			log.info("UMAP loaded from cache, will not recalculate", 1)
@@ -167,9 +167,12 @@ class TFRecordMap:
 					'logits': logits
 				}]
 
-		coordinates = gen_umap(np.array(node_activations), n_neighbors=100, min_dist=0.1, low_memory=low_memory)
+		coordinates = gen_umap(np.array(node_activations), n_components=dim, n_neighbors=100, min_dist=0.1, low_memory=low_memory)
 		self.x = np.array([c[0] for c in coordinates])
-		self.y = np.array([c[1] for c in coordinates])
+		if dim > 1:
+			self.y = np.array([c[1] for c in coordinates])
+		else:
+			self.y = np.array([0 for i in range(len(self.x))])
 		self.values = np.array(['None' for i in range(len(self.point_meta))])
 		self.save_cache()
 
