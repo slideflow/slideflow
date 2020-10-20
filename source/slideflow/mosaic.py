@@ -281,7 +281,7 @@ class Mosaic:
 		if self.normalizer:
 			tile_image = self.normalizer.jpeg_to_rgb(string)
 		else:
-			image_arr = np.fromstring(string, np.uint8)
+			image_arr = np.fromstring(string, np.uint32)
 			tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
 			tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
 		return tile_image

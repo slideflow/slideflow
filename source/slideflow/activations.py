@@ -574,7 +574,7 @@ class ActivationsVisualizer:
 			raw_image = tf.image.decode_jpeg(image_string, channels=3)
 
 			if normalizer:
-				raw_image = tf.py_function(normalizer.tf_to_rgb, [raw_image], tf.int8)
+				raw_image = tf.py_function(normalizer.tf_to_rgb, [raw_image], tf.int32)
 
 			processed_image = tf.image.convert_image_dtype(raw_image, tf.float32)
 			processed_image = tf.image.per_image_standardization(processed_image)
@@ -600,7 +600,7 @@ class ActivationsVisualizer:
 			for i, data in enumerate(dataset):
 				batch_processed_images, batch_slides = data
 				batch_slides = batch_slides.numpy()
-				batch_slides = np.array([unique_slides.index(bs.decode('utf-8')) for bs in batch_slides], dtype=np.uint8)
+				batch_slides = np.array([unique_slides.index(bs.decode('utf-8')) for bs in batch_slides], dtype=np.uint32)
 
 				fl_activations, logits = combined_model.predict(batch_processed_images)
 
@@ -1030,7 +1030,7 @@ class TileVisualizer:
 		# Normalize PIL image & TF image
 		if self.normalizer: 
 			self.tile_image = self.normalizer.pil_to_pil(self.tile_image)
-			tf_decoded_image = tf.py_function(self.normalizer.tf_to_rgb, [self.tile_image], tf.int8)
+			tf_decoded_image = tf.py_function(self.normalizer.tf_to_rgb, [self.tile_image], tf.int32)
 
 		# Next, process image with Tensorflow
 		self.tf_processed_image = tf.image.convert_image_dtype(self.tf_processed_image, tf.float16)
@@ -1170,7 +1170,7 @@ class Heatmap:
 
 		# Generate dataset from the generator
 		with tf.name_scope('dataset_input'):
-			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (tf.uint8))
+			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (tf.uint32))
 			tile_dataset = tile_dataset.map(self._parse_function, num_parallel_calls=8)
 			tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
 			tile_dataset = tile_dataset.prefetch(8)
