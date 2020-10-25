@@ -58,7 +58,7 @@ class ActivationsVisualizer:
 	
 	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_header=None, 
 					focus_nodes=[], use_fp16=True, normalizer=None, normalizer_source=None, 
-					use_activations_cache=False, activations_cache='default', batch_size=32,
+					activations_cache='default', batch_size=32,
 					activations_export=None, max_tiles_per_slide=100, manifest=None, model_format=None):
 		'''Object initializer.
 
@@ -73,7 +73,6 @@ class ActivationsVisualizer:
 			use_fp16:				Bool, whether to use FP16 (rather than FP32)
 			normalizer:				String, which real-time normalization to use on images taken from TFRecords
 			noramlizer_source:		String, path to image to use as source for real-time normalization
-			use_activations_cache:	Bool, if true, will store activations in a PKL cache file for rapid re-use
 			activations_cache:		File in which to store activations PKL cache
 			batch_size:				Batch size to use during activations calculations
 			activations_export:		Filename for CSV export of activations
@@ -96,7 +95,12 @@ class ActivationsVisualizer:
 
 		self.STATS_CSV_FILE = join(root_dir, "stats", "slide_level_summary.csv")
 		self.STATS_ROOT = join(root_dir, "stats")
-		self.ACTIVATIONS_CACHE = join(root_dir, "stats", "activations_cache.pkl") if activations_cache=='default' else join(root_dir, 'stats', activations_cache)
+
+		if activations_cache is None:
+			self.ACTIVATIONS_CACHE = None
+		else:
+			self.ACTIVATIONS_CACHE = join(root_dir, "stats", "activations_cache.pkl") if activations_cache=='default' else join(root_dir, 'stats', activations_cache)
+
 		if not exists(join(root_dir, "stats")):
 			os.makedirs(join(root_dir, "stats"))
 
@@ -603,7 +607,6 @@ class ActivationsVisualizer:
 				batch_slides = np.array([unique_slides.index(bs.decode('utf-8')) for bs in batch_slides], dtype=np.uint32)
 
 				fl_activations, logits = combined_model.predict(batch_processed_images)
-
 				
 				fl_activations_combined = fl_activations if fl_activations_combined == [] else np.concatenate([fl_activations_combined, fl_activations])
 				logits_combined = logits if logits_combined == [] else np.concatenate([logits_combined, logits])
