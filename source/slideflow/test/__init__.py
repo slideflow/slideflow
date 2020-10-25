@@ -294,7 +294,7 @@ class TestSuite:
 		umap.save_2d_plot(join(PROJECT_CONFIG['root'], 'stats', '2d_umap.png'))
 		top_nodes = AV.get_top_nodes_by_slide()
 		for node in top_nodes[:5]:
-			umap.save_3d_node_plot(node, join(PROJECT_CONFIG['root'], 'stats', f'3d_node{node}.png'))
+			umap.save_3d_plot(node=node, join(PROJECT_CONFIG['root'], 'stats', f'3d_node{node}.png'))
 		print("\t...OK")
 
 	def test(self, extract=True, train=True, train_performance=True, evaluate=True, heatmap=True, mosaic=True, activations=True):
