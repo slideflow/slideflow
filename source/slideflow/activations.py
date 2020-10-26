@@ -1218,7 +1218,7 @@ class Heatmap:
 
 	def _parse_function(self, image):
 		parsed_image = tf.image.per_image_standardization(image)
-		#parsed_image = tf.image.convert_image_dtype(parsed_image, self.DTYPE)
+		parsed_image = tf.image.convert_image_dtype(parsed_image, tf.float32)
 		parsed_image.set_shape([299, 299, 3])
 		return parsed_image
 
