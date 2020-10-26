@@ -580,8 +580,8 @@ class ActivationsVisualizer:
 			if normalizer:
 				raw_image = tf.py_function(normalizer.tf_to_rgb, [raw_image], tf.int32)
 
-			processed_image = tf.image.convert_image_dtype(raw_image, tf.float32)
-			processed_image = tf.image.per_image_standardization(processed_image)
+			processed_image = tf.image.per_image_standardization(raw_image)
+			processed_image = tf.image.convert_image_dtype(processed_image, tf.float32)
 			processed_image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
 			return processed_image, slide
 
@@ -1036,8 +1036,8 @@ class TileVisualizer:
 			tf_decoded_image = tf.py_function(self.normalizer.tf_to_rgb, [self.tile_image], tf.int32)
 
 		# Next, process image with Tensorflow
-		self.tf_processed_image = tf.image.convert_image_dtype(self.tf_processed_image, tf.float16)
 		self.tf_processed_image = tf.image.per_image_standardization(tf_decoded_image)
+		self.tf_processed_image = tf.image.convert_image_dtype(self.tf_processed_image, tf.float16)
 		self.tf_processed_image.set_shape(self.IMAGE_SHAPE)
 
 		# Now create the figure
