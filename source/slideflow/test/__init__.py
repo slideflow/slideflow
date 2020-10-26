@@ -229,6 +229,11 @@ class TestSuite:
 		whole_slide.extract_tiles(normalizer='macenko')
 		print("\t...OK")
 
+	def test_realtime_normalizer(self):
+		print("Testing realtime normalization, using Macenko")
+		hp = self.setup_hp('categorical')
+		self.SFP.train(outcome_header='category1', k_fold_iter=1, normalizer='macenko', normalizer_strategy='realtime')
+
 	def test_training(self, categorical=True, linear=True, multi_input=True):
 		if categorical:
 			# Test categorical outcome

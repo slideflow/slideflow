@@ -46,8 +46,8 @@ from slideflow.util import TCGA, log
 from slideflow.io import tfrecords
 
 import slideflow.util as sfutil
+from slideflow.util import StainNormalizer
 import slideflow.statistics as sfstats
-from slideflow.slide import StainNormalizer
 
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
@@ -111,6 +111,12 @@ class ModelActivationsInterface:
 
 		self.path = path
 		_model = tf.keras.models.load_model(path)
+
+		# CONSIDER IMPLEMENTING THIS MORE EFFICIENT VERSION: ===========
+		#inputs = xception.input
+		#outputs = [xception.get_layer(name=layer_name).output for layer_name in activation_layer_names]
+		#self.functor = tf.keras.backend.function(inputs, outputs)
+		# ===============================================================
 		
 		if model_format == MODEL_FORMAT_1_9:
 			try:
@@ -134,6 +140,9 @@ class ModelActivationsInterface:
 
 	def predict(self, image_batch):
 		'''Given a batch of images, will return a batch of post-convolutional activations and a batch of logits.'''
+		# ======================
+		#return self.functor(image_batch)
+		# ======================
 		if self.model_format == MODEL_FORMAT_1_9:
 			return self.model.predict(image_batch)
 		elif self.model_format == MODEL_FORMAT_LEGACY:
@@ -414,6 +423,7 @@ class SlideflowModel:
 			checkpoint:	Path to checkpoint from which to resume model training
 		'''
 		if self.DTYPE == 'float16':
+			log.info("Training with mixed precision", 1)
 			policy = tf.keras.mixed_precision.experimental.Policy('mixed_float16')
 			mixed_precision.set_policy(policy)
 
@@ -695,9 +705,8 @@ class SlideflowModel:
 		image = tf.image.decode_jpeg(image_string, channels = 3)
 
 		if self.normalizer:
-			image = tf.py_function(self.normalizer.tf_to_rgb, [image], tf.int8)
+			image = tf.py_function(self.normalizer.tf_to_rgb, [image], tf.int32)
 
-		image = tf.image.convert_image_dtype(image, tf.float32)
 		image = tf.image.per_image_standardization(image)
 
 		if augment:
@@ -709,6 +718,7 @@ class SlideflowModel:
 			image = tf.image.random_flip_left_right(image)
 			image = tf.image.random_flip_up_down(image)
 
+		image = tf.image.convert_image_dtype(image, tf.float32)
 		image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
 		return image
 

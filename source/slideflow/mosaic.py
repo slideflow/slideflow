@@ -8,12 +8,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import slideflow.util as sfutil
 import slideflow.io as sfio
-from slideflow.slide import StainNormalizer
 
 from random import shuffle
 from matplotlib import patches
 from os.path import join
-from slideflow.util import log
+from slideflow.util import log, StainNormalizer
 from slideflow.statistics import get_centroid_index
 from multiprocessing.dummy import Pool as DPool
 from functools import partial
@@ -55,7 +54,7 @@ class Mosaic:
 		self.num_tiles_x = num_tiles_x
 		self.tfrecords_paths = umap.tfrecords
 		# Setup normalization
-		if normalizer: log.info(f"Using realtime {normalizer} normalization", 2)
+		if normalizer: log.info(f"Using realtime {normalizer} normalization", 1)
 		self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 		
 		# Initialize figure
