@@ -986,7 +986,7 @@ class SlideflowModel:
 				epoch_results = results['epochs'][f'epoch{epoch}']
 				sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
 							
-		callbacks = [history_callback, PredictionAndEvaluationCallback(), cp_callback, tensorboard_callback]
+		callbacks = [history_callback, cp_callback, PredictionAndEvaluationCallback()] #tensorboard_callback
 
 		# Build or load model
 		if resume_training:

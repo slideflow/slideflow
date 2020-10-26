@@ -31,8 +31,8 @@ TEST_DATASETS = {
 		'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST1',
 	},
 	'TEST2': {
-		'slides': '/media/Backup/SLIDES/THCA/UCH',
-		'roi': '/media/Backup/SLIDES/THCA/UCH',
+		'slides': '/mnt/raid/SLIDES/THCA/UCH',
+		'roi': '/mnt/raid/SLIDES/THCA/UCH',
 		'tiles': '/home/shawarma/data/test_project/tiles/TEST2',
 		'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST2',
 	},
@@ -90,7 +90,7 @@ SAVED_MODEL = join(PROJECT_CONFIG['models_dir'], 'category1-performance-kfold1',
 
 class TestSuite:
 	'''Class to supervise standardized testing of slideflow pipeline.'''
-	def __init__(self, reset=True, silent=True, buffer=None):
+	def __init__(self, reset=True, silent=True, buffer=None, num_threads=8):
 		'''Initialize testing models.'''
 			
 		# Reset test progress
@@ -98,6 +98,7 @@ class TestSuite:
 
 		# Intiailize project
 		self.SFP = sf.SlideflowProject(PROJECT_CONFIG['root'], interactive=False)
+		self.SFP.FLAGS['num_threads'] = num_threads
 		self.configure_project()
 
 		# Configure datasets (input)
@@ -281,7 +282,7 @@ class TestSuite:
 
 	def test_mosaic(self):
 		log.header("Testing mosaic generation...")
-		self.SFP.generate_mosaic(SAVED_MODEL)
+		self.SFP.generate_mosaic(SAVED_MODEL, mosaic_filename="mosaic_test.png")
 		print("\t...OK")
 
 	def test_activations(self):
@@ -294,7 +295,7 @@ class TestSuite:
 		umap.save_2d_plot(join(PROJECT_CONFIG['root'], 'stats', '2d_umap.png'))
 		top_nodes = AV.get_top_nodes_by_slide()
 		for node in top_nodes[:5]:
-			umap.save_3d_plot(node=node, join(PROJECT_CONFIG['root'], 'stats', f'3d_node{node}.png'))
+			umap.save_3d_plot(node=node, filename=join(PROJECT_CONFIG['root'], 'stats', f'3d_node{node}.png'))
 		print("\t...OK")
 
 	def test(self, extract=True, train=True, train_performance=True, evaluate=True, heatmap=True, mosaic=True, activations=True):
