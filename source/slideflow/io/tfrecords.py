@@ -68,6 +68,24 @@ def _print_record(filename):
 		slide = str(features['slide'].numpy())
 		print(f"{sfutil.header(filename)}: Record {i}: Slide: {sfutil.green(slide)}")
 
+def example_to_image(record, size, include_slide=True, normalizer=None):
+	features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
+	slide = features['slide']
+	image_string = features['image_raw']
+	raw_image = tf.image.decode_jpeg(image_string, channels=3)
+
+	if normalizer:
+		raw_image = tf.py_function(normalizer.tf_to_rgb, [raw_image], tf.int8)
+
+	processed_image = tf.image.convert_image_dtype(raw_image, tf.float32)
+	processed_image = tf.image.per_image_standardization(processed_image)
+	processed_image.set_shape([size, size, 3])
+
+	if include_slide:
+		return processed_image, slide
+	else:
+		return processed_image
+
 def image_example(slide, image_string):
 	'''Returns a Tensorflow Data example for TFRecord storage.'''
 	feature = {
