@@ -52,6 +52,66 @@ LOGGING_PREFIXES_EMPTY = ['', '   ', '     ']
 #		with K.learning_phase_scope(trainable * true_phase):
 #			return super(tf.keras.layers.BatchNormalization, self).call(inputs, training)
 
+class StainNormalizer:
+	'''Object to supervise stain normalization for images and 
+	efficiently convert between common image types.'''
+
+	def __init__(self, method='macenko', source=None):
+		'''Initializer. Establishes normalization method.
+
+		Args:
+			method:		Either 'macenko', 'reinhard', or 'vahadane'.
+			source:		Path to source image for normalizer. 
+							If not provided, defaults to an internal example image.
+		'''
+		from slideflow.slide import stainNorm_Macenko, stainNorm_Reinhard, stainNorm_Vahadane, stainNorm_Augment, stainNorm_Reinhard_Mask
+
+		self.normalizers = {
+			'macenko':  stainNorm_Macenko.Normalizer,
+			'reinhard': stainNorm_Reinhard.Normalizer,
+			'reinhard_mask': stainNorm_Reinhard_Mask.Normalizer,
+			'vahadane': stainNorm_Vahadane.Normalizer,
+			'augment': stainNorm_Augment.Normalizer
+		}
+
+		if not source:
+			package_directory = os.path.dirname(os.path.abspath(__file__))
+			source = join(package_directory, 'norm_tile.jpg')
+		self.n = self.normalizers[method]()
+		self.n.fit(cv2.imread(source))
+
+	def pil_to_pil(self, image):
+		'''Non-normalized PIL.Image -> normalized PIL.Image'''
+		cv_image = np.array(image.convert('RGB'))
+		cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
+		cv_image = self.n.transform(cv_image)
+		cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+		return Image.fromarray(cv_image)
+
+	def tf_to_rgb(self, image):
+		'''Non-normalized tensorflow image array -> normalized RGB numpy array'''
+		return self.rgb_to_rgb(np.array(image))
+
+	def rgb_to_rgb(self, image):
+		'''Non-normalized RGB numpy array -> normalized RGB numpy array'''
+		cv_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+		cv_image = self.n.transform(cv_image)
+		return cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+
+	def jpeg_to_rgb(self, jpeg_string):
+		'''Non-normalized compressed JPG string data -> normalized RGB numpy array'''
+		cv_image = cv2.imdecode(np.fromstring(jpeg_string, dtype=np.uint8), cv2.IMREAD_COLOR)
+		cv_image = self.n.transform(cv_image)
+		cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+		return cv_image
+
+	def jpeg_to_jpeg(self, jpeg_string):
+		'''Non-normalized compressed JPG string data -> normalized compressed JPG string data'''
+		cv_image = self.jpeg_to_rgb(jpeg_string)
+		with io.BytesIO() as output:
+			Image.fromarray(cv_image).save(output, format="JPEG", quality=75)
+			return output.getvalue()
+
 class Bar:
 	def __init__(self, ending_value, starting_value=0, bar_length=20, label='',
 					show_eta=False, show_counter=False, counter_text='', update_interval=1):
