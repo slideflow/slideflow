@@ -22,8 +22,6 @@ class MosaicError(Exception):
 
 class Mosaic:
 	'''Visualization of tiles as mapped using dimensionality reduction.'''
-	GRID = []
-	points = []
 
 	def __init__(self, umap, focus=None, leniency=1.5, expanded=False, tile_zoom=15, num_tiles_x=50, resolution='high', 
 					relative_size=False, tile_select='nearest', tile_meta=None, normalizer=None, normalizer_source=None):
@@ -55,7 +53,6 @@ class Mosaic:
 		self.umap = umap
 		self.num_tiles_x = num_tiles_x
 		self.tfrecords_paths = umap.tfrecords
-
 		# Setup normalization
 		if normalizer: log.info(f"Using realtime {normalizer} normalization", 1)
 		self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
@@ -79,6 +76,8 @@ class Mosaic:
 
 		# First, load UMAP coordinates	
 		log.empty("Loading coordinates and plotting points...", 1)
+		self.points = []
+		self.GRID = []
 		for i in range(len(umap.x)):
 			slide = umap.point_meta[i]['slide']
 			self.points.append({'coord':np.array((umap.x[i], umap.y[i])),
@@ -98,7 +97,6 @@ class Mosaic:
 		min_x = min(x_points) - buffer
 		max_y = max(y_points) + buffer
 		min_y = min(y_points) - buffer
-
 		log.info(f"Loaded {len(self.points)} points.", 2)
 
 		tile_size = (max_x - min_x) / self.num_tiles_x
@@ -212,7 +210,6 @@ class Mosaic:
 				if not point['tfrecord']:
 					log.error(f"The tfrecord {point['slide']} was not found in the list of paths provided by the input umap; please ensure the TFRecord exists.", 1)
 					continue
-
 				_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
 				self.mapped_tiles.update({point['tfrecord']: point['tfrecord_index']})
 				tile_image = self._decode_image_string(tile_image.numpy())
