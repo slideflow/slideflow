@@ -599,7 +599,7 @@ class SlideflowModel:
 			# Otherwise, consider all slides from the same category (effectively skipping balancing); appropriate for linear models.
 			category = self.SLIDE_ANNOTATIONS[slide_name]['outcome'] if self.MODEL_TYPE == 'categorical' else 1
 			if filename not in self.DATASETS:
-				self.DATASETS.update({filename: tf.data.TFRecordDataset(filename, num_parallel_reads=tf.data.experimental.AUTOTUNE)}) #buffer_size=1024*1024*100
+				self.DATASETS.update({filename: tf.data.TFRecordDataset(filename, num_parallel_reads=32)}) #buffer_size=1024*1024*100 num_parallel_reads=tf.data.experimental.AUTOTUNE
 			datasets += [self.DATASETS[filename]]
 			datasets_categories += [category]
 
@@ -657,7 +657,7 @@ class SlideflowModel:
 			log.error(f"No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder", 1)
 			sys.exit()
 		if include_slidenames:
-			dataset_with_slidenames = dataset.map(partial(parse_fn, include_slidenames=True, multi_image=multi_image), num_parallel_calls=tf.data.experimental.AUTOTUNE)
+			dataset_with_slidenames = dataset.map(partial(parse_fn, include_slidenames=True, multi_image=multi_image), num_parallel_calls=32) #tf.data.experimental.AUTOTUNE
 			dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
 		else:
 			dataset_with_slidenames = None
