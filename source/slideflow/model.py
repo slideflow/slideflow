@@ -705,9 +705,8 @@ class SlideflowModel:
 		image = tf.image.decode_jpeg(image_string, channels = 3)
 
 		if self.normalizer:
-			image = tf.py_function(self.normalizer.tf_to_rgb, [image], tf.int8)
+			image = tf.py_function(self.normalizer.tf_to_rgb, [image], tf.int32)
 
-		image = tf.image.convert_image_dtype(image, tf.float32)
 		image = tf.image.per_image_standardization(image)
 
 		if augment:
@@ -719,6 +718,7 @@ class SlideflowModel:
 			image = tf.image.random_flip_left_right(image)
 			image = tf.image.random_flip_up_down(image)
 
+		image = tf.image.convert_image_dtype(image, tf.float32)
 		image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
 		return image
 
