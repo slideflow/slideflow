@@ -338,8 +338,6 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 		return None
 
 class SlideflowProject:
-	FLAGS = DEFAULT_FLAGS
-	GPU_LOCK = None
 
 	def __init__(self, project_folder, num_gpu=1, reverse_select_gpu=True, force_gpu=None, ignore_gpu=False, interactive=True):
 		'''Initializes project by creating project folder, prompting user for project settings, and project
@@ -356,6 +354,10 @@ class SlideflowProject:
 		os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 		log.header(f"Slideflow v{__version__}\n================")
 		log.header("Loading project...")
+
+		self.FLAGS = DEFAULT_FLAGS
+		self.GPU_LOCK = None
+
 		if project_folder and not os.path.exists(project_folder):
 			if interactive:
 				if sfutil.yes_no_input(f'Directory "{project_folder}" does not exist. Create directory and set as project root? [Y/n] ', default='yes'):
