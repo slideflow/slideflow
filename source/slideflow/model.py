@@ -815,7 +815,7 @@ class SlideflowModel:
 
 	def train(self, hp, pretrain='imagenet', pretrain_model_format=None, resume_training=None, checkpoint=None, log_frequency=100, multi_image=False, 
 				validate_on_batch=512, val_batch_size=32, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
-				ema_observations=20, ema_smoothing=2):
+				ema_observations=20, ema_smoothing=2, steps_per_epoch_override=None):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -833,6 +833,7 @@ class SlideflowModel:
 			starting_epoch:			Starts training at the specified epoch
 			ema_observations:		Number of observations over which to perform exponential moving average smoothing
 			ema_smoothing:			Exponential average smoothing value
+			steps_per_epoch_override:	If provided, will manually set the number of steps per epoch.
 			
 		Returns:
 			Results dictionary, Keras history object'''
@@ -877,7 +878,7 @@ class SlideflowModel:
 		if starting_epoch != 0:
 			log.info(f"Starting training at epoch {starting_epoch}", 1)
 		total_epochs = hp.toplayer_epochs + (max(hp.finetune_epochs) - starting_epoch)
-		steps_per_epoch = round(num_tiles/hp.batch_size)
+		steps_per_epoch = round(num_tiles/hp.batch_size) if steps_per_epoch_override is None else steps_per_epoch_override
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
 		metrics = ['accuracy'] if hp.model_type() != 'linear' else [hp.loss]
 

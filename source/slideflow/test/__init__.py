@@ -1,5 +1,4 @@
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import slideflow as sf
 import tensorflow as tf
 import csv
@@ -21,6 +20,21 @@ from os.path import join
 - Verify logits and prelogits based on saved model
 - Verify heatmaps
 '''
+
+# TCGA SVS Download
+
+# Case TCGA-EM-A1YB
+
+# import requests
+# import json
+# import re
+# params = {'ids': ["281ba1d7-69c9-4e0d-a33b-47ad05bada22"]}
+# data_endpt = "https://api.gdc.cancer.gov/data"
+# response = requests.post(data_endpt, data = json.dumps(params), headers = {"Content-Type": "application/json"})
+# response_head_cd = response.headers["Content-Disposition"]
+# file_name = re.findall("filename=(.+)", response_head_cd)[0]
+# with open(file_name, "wb") as output_file:
+#	output_file.write(response.content)
 
 # --- TEST suite configuration --------------------------------------------------------
 TEST_DATASETS = {
@@ -85,14 +99,23 @@ ANNOTATIONS = [
 SLIDES_TO_VERIFY = ['234834', '234840']
 
 SAVED_MODEL = join(PROJECT_CONFIG['models_dir'], 'category1-performance-kfold1', 'trained_model_epoch1.h5')
+REFERENCE_MODEL = None
 
 # --------------------------------------------------------------------------------------
 
 class TestSuite:
 	'''Class to supervise standardized testing of slideflow pipeline.'''
-	def __init__(self, reset=True, silent=True, buffer=None):
+	def __init__(self, reset=True, silent=True, buffer=None, debug=False):
 		'''Initialize testing models.'''
-			
+		
+		# Set logging level
+		if debug:
+			os.environ['TF_CPP_MIN_LOG_LEVEL'] = "0"
+	   		tf.get_logger().setLevel("INFO")
+		else:
+			os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2"
+			tf.get_logger().setLevel("ERROR")
+
 		# Reset test progress
 		if reset: self.reset()
 
@@ -232,14 +255,14 @@ class TestSuite:
 	def test_realtime_normalizer(self):
 		print("Testing realtime normalization, using Macenko")
 		hp = self.setup_hp('categorical')
-		self.SFP.train(outcome_header='category1', k_fold_iter=1, normalizer='macenko', normalizer_strategy='realtime')
+		self.SFP.train(outcome_header='category1', k_fold_iter=1, normalizer='macenko', normalizer_strategy='realtime', steps_per_epoch_override=5)
 
 	def test_training(self, categorical=True, linear=True, multi_input=True):
 		if categorical:
 			# Test categorical outcome
 			hp = self.setup_hp('categorical')
 			print("Training to single categorical outcome from specified hyperparameters...")
-			results_dict = self.SFP.train(models = 'manual_hp', outcome_header='category1', hyperparameters=hp, k_fold_iter=1, validate_on_batch=50)
+			results_dict = self.SFP.train(models = 'manual_hp', outcome_header='category1', hyperparameters=hp, k_fold_iter=1, validate_on_batch=50, steps_per_epoch_override=5)
 			
 			if not results_dict or 'history' not in results_dict[results_dict.keys()[0]]:
 				print("\tFAIL: Keras results object not received from training")
@@ -248,19 +271,19 @@ class TestSuite:
 
 			print("Training to multiple sequential categorical outcomes from batch train file...")
 			# Test multiple sequential categorical outcome models
-			self.SFP.train(outcome_header=['category1', 'category2'], k_fold_iter=1)
+			self.SFP.train(outcome_header=['category1', 'category2'], k_fold_iter=1, steps_per_epoch_override=5)
 			print("\t...OK")
 		if linear:
 			# Test single linear outcome
 			hp = self.setup_hp('linear')
 			# Test multiple linear outcome
 			print("Training to multiple linear outcomes...")
-			self.SFP.train(outcome_header=['linear1', 'linear2'], multi_outcome=True, k_fold_iter=1, validate_on_batch=50)
+			self.SFP.train(outcome_header=['linear1', 'linear2'], multi_outcome=True, k_fold_iter=1, validate_on_batch=50, steps_per_epoch_override=5)
 			print("\t...OK")
 		if multi_input:
 			hp = self.setup_hp('categorical')
 			print("Training with multiple input types...")
-			self.SFP.train(outcome_header='category1', input_header='category2', k_fold_iter=1, validate_on_batch=50)
+			self.SFP.train(outcome_header='category1', input_header='category2', k_fold_iter=1, validate_on_batch=50, steps_per_epoch_override=5)
 		print("\t...OK")
 
 	def test_training_performance(self):
@@ -271,7 +294,10 @@ class TestSuite:
 
 	def test_evaluation(self):
 		log.header("Testing evaluation of a saved model...")
-		results = self.SFP.evaluate(outcome_header='category1', model=SAVED_MODEL)
+		self.SFP.evaluate(outcome_header='category1', model=SAVED_MODEL)
+		#log.header("Testing that evaluation matches known baseline...")
+		#self.SFP.evaluate(outcome_header='category1', model=REFERENCE_MODEL, filters={'submitter_id': '234839'})
+		# Code to lookup excel sheet of predictions and verify they match known baseline
 		print('\t...OK')
 
 	def test_heatmap(self):
@@ -297,10 +323,12 @@ class TestSuite:
 			umap.save_3d_plot(node=node, join(PROJECT_CONFIG['root'], 'stats', f'3d_node{node}.png'))
 		print("\t...OK")
 
-	def test(self, extract=True, train=True, train_performance=True, evaluate=True, heatmap=True, mosaic=True, activations=True):
+	def test(self, extract=True, train=True, normalizer=True, train_performance=True, 
+				evaluate=True,heatmap=True, mosaic=True, activations=True):
 		'''Perform and report results of all available testing.'''
 		if extract: 			self.test_extraction()
 		if train:				self.test_training()
+		if normalizer:			self.test_realtime_normalizer()
 		if train_performance: 	self.test_training_performance()
 		if evaluate:			self.test_evaluation()
 		if heatmap:				self.test_heatmap()
