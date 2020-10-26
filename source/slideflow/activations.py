@@ -18,10 +18,9 @@ import slideflow.io as sfio
 import shapely.geometry as sg
 
 from io import StringIO
-from slideflow.util import log, ProgressBar, TCGA
+from slideflow.util import log, ProgressBar, TCGA, StainNormalizer
 from slideflow.util.fastim import FastImshow
 from slideflow.mosaic import Mosaic
-from slideflow.slide import StainNormalizer
 from slideflow.model import ModelActivationsInterface
 from os.path import join, isfile, exists
 from random import sample
@@ -558,7 +557,7 @@ class ActivationsVisualizer:
 		unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in tfrecords]))
 
 		# Prepare normalizer
-		if normalizer: log.info(f"Using realtime {normalizer} normalization", 2)
+		if normalizer: log.info(f"Using realtime {normalizer} normalization", 1)
 		normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
 		# Prepare PKL export dictionary
@@ -575,10 +574,10 @@ class ActivationsVisualizer:
 			raw_image = tf.image.decode_jpeg(image_string, channels=3)
 
 			if normalizer:
-				raw_image = tf.py_function(normalizer.tf_to_rgb, [raw_image], tf.int8)
+				raw_image = tf.py_function(normalizer.tf_to_rgb, [raw_image], tf.int32)
 
-			processed_image = tf.image.convert_image_dtype(raw_image, tf.float16 if use_fp16 else tf.float32)
-			processed_image = tf.image.per_image_standardization(processed_image)
+			processed_image = tf.image.per_image_standardization(raw_image)
+			processed_image = tf.image.convert_image_dtype(processed_image, tf.float32)
 			processed_image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
 			return processed_image, slide
 
@@ -600,7 +599,7 @@ class ActivationsVisualizer:
 			for i, data in enumerate(dataset):
 				batch_processed_images, batch_slides = data
 				batch_slides = batch_slides.numpy()
-				batch_slides = np.array([unique_slides.index(bs.decode('utf-8')) for bs in batch_slides], dtype=np.uint8)
+				batch_slides = np.array([unique_slides.index(bs.decode('utf-8')) for bs in batch_slides], dtype=np.uint32)
 
 				fl_activations, logits = combined_model.predict(batch_processed_images)
 
@@ -1029,11 +1028,11 @@ class TileVisualizer:
 		# Normalize PIL image & TF image
 		if self.normalizer: 
 			self.tile_image = self.normalizer.pil_to_pil(self.tile_image)
-			tf_decoded_image = tf.py_function(self.normalizer.tf_to_rgb, [self.tile_image], tf.int8)
+			tf_decoded_image = tf.py_function(self.normalizer.tf_to_rgb, [self.tile_image], tf.int32)
 
 		# Next, process image with Tensorflow
-		self.tf_processed_image = tf.image.convert_image_dtype(self.tf_processed_image, tf.float16)
 		self.tf_processed_image = tf.image.per_image_standardization(tf_decoded_image)
+		self.tf_processed_image = tf.image.convert_image_dtype(self.tf_processed_image, tf.float16)
 		self.tf_processed_image.set_shape(self.IMAGE_SHAPE)
 
 		# Now create the figure
