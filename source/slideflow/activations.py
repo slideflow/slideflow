@@ -1173,7 +1173,7 @@ class Heatmap:
 
 		# Generate dataset from the generator
 		with tf.name_scope('dataset_input'):
-			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (tf.uint32))
+			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (tf.uint8))
 			tile_dataset = tile_dataset.map(self._parse_function, num_parallel_calls=8)
 			tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
 			tile_dataset = tile_dataset.prefetch(8)
@@ -1223,7 +1223,7 @@ class Heatmap:
 
 	def _parse_function(self, image):
 		parsed_image = tf.image.per_image_standardization(image)
-		#parsed_image = tf.image.convert_image_dtype(parsed_image, self.DTYPE)
+		parsed_image = tf.image.convert_image_dtype(parsed_image, tf.float32)
 		parsed_image.set_shape([299, 299, 3])
 		return parsed_image
 
