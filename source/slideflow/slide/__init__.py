@@ -46,7 +46,7 @@ from multiprocessing.dummy import Pool as DPool
 from multiprocessing import Process, Pool, Queue
 from matplotlib.widgets import Slider
 from matplotlib import pyplot as plt
-from slideflow.util import log, StainNormalizer
+from slideflow.util import log
 from slideflow.util.fastim import FastImshow
 from slideflow.io.tfrecords import image_example
 from statistics import mean, median
@@ -56,7 +56,7 @@ from datetime import datetime
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
-DEFAULT_JPG_MPP = 0.25
+DEFAULT_JPG_MPP = 1
 OPS_LEVEL_COUNT = 'openslide.level-count'
 OPS_MPP_X = 'openslide.mpp-x'
 OPS_WIDTH = 'width'
@@ -187,6 +187,66 @@ class ExtractionReport:
 	def save(self, filename):
 		self.pdf.output(filename)
 
+class StainNormalizer:
+	'''Object to supervise stain normalization for images and 
+	efficiently convert between common image types.'''
+
+	def __init__(self, method='macenko', source=None):
+		'''Initializer. Establishes normalization method.
+
+		Args:
+			method:		Either 'macenko', 'reinhard', or 'vahadane'.
+			source:		Path to source image for normalizer. 
+							If not provided, defaults to an internal example image.
+		'''
+		from slideflow.slide import stainNorm_Macenko, stainNorm_Reinhard, stainNorm_Vahadane, stainNorm_Augment, stainNorm_Reinhard_Mask
+
+		self.normalizers = {
+			'macenko':  stainNorm_Macenko.Normalizer,
+			'reinhard': stainNorm_Reinhard.Normalizer,
+			'reinhard_mask': stainNorm_Reinhard_Mask.Normalizer,
+			'vahadane': stainNorm_Vahadane.Normalizer,
+			'augment': stainNorm_Augment.Normalizer
+		}
+
+		if not source:
+			package_directory = os.path.dirname(os.path.abspath(__file__))
+			source = join(package_directory, 'norm_tile.jpg')
+		self.n = self.normalizers[method]()
+		self.n.fit(cv2.imread(source))
+
+	def pil_to_pil(self, image):
+		'''Non-normalized PIL.Image -> normalized PIL.Image'''
+		cv_image = np.array(image.convert('RGB'))
+		cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
+		cv_image = self.n.transform(cv_image)
+		cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+		return Image.fromarray(cv_image)
+
+	def tf_to_rgb(self, image):
+		'''Non-normalized tensorflow image array -> normalized RGB numpy array'''
+		return self.rgb_to_rgb(np.array(image))
+
+	def rgb_to_rgb(self, image):
+		'''Non-normalized RGB numpy array -> normalized RGB numpy array'''
+		cv_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+		cv_image = self.n.transform(cv_image)
+		return cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+
+	def jpeg_to_rgb(self, jpeg_string):
+		'''Non-normalized compressed JPG string data -> normalized RGB numpy array'''
+		cv_image = cv2.imdecode(np.fromstring(jpeg_string, dtype=np.uint8), cv2.IMREAD_COLOR)
+		cv_image = self.n.transform(cv_image)
+		cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+		return cv_image
+
+	def jpeg_to_jpeg(self, jpeg_string):
+		'''Non-normalized compressed JPG string data -> normalized compressed JPG string data'''
+		cv_image = self.jpeg_to_rgb(jpeg_string)
+		with io.BytesIO() as output:
+			Image.fromarray(cv_image).save(output, format="JPEG", quality=75)
+			return output.getvalue()
+
 class OpenslideToVIPS:
 	'''Wrapper for VIPS to preserve openslide-like functions.'''
 	def __init__(self, path, buffer=None):
@@ -275,9 +335,12 @@ class OpenslideToVIPS:
 
 class JPGslideToVIPS(OpenslideToVIPS):
 	'''Wrapper for JPG files, which do not possess separate levels, to preserve openslide-like functions.'''
-	def __init__(self, path):
+	def __init__(self, path, buffer=None):
+		self.buffer = buffer
 		self.path = path
 		self.full_image = vips.Image.new_from_file(path)
+		if not self.full_image.hasalpha():
+			self.full_image = self.full_image.addalpha()
 		self.properties = {}
 		for field in self.full_image.get_fields():
 			self.properties.update({field: self.full_image.get(field)})
@@ -622,8 +685,8 @@ class SlideReader(SlideLoader):
 					matching_rois += [rp]
 			if len(matching_rois) > 1:
 				log.warn(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}", 1, self.print)
-			self.load_csv_roi(matching_rois[0])
-
+			self.load_csv_roi(matching_rois[0])	
+		
 		# Handle missing ROIs
 		if not len(self.rois) and skip_missing_roi:
 			log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.error_print)
@@ -631,8 +694,24 @@ class SlideReader(SlideLoader):
 			self.load_error = True
 			return None
 		elif not len(self.rois):
-				log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
+			# Calculate window sizes, strides, and coordinates for windows
+			self.extracted_x_size = self.full_shape[0] - self.full_extract_px
+			self.extracted_y_size = self.full_shape[1] - self.full_extract_px
 
+			# Coordinates must be in level 0 (full) format for the read_region function
+			index = 0
+			for y in np.arange(0, (self.full_shape[1]+1) - self.full_extract_px, self.full_stride):
+				for x in np.arange(0, (self.full_shape[0]+1) - self.full_extract_px, self.full_stride):
+					y = int(y)
+					x = int(x)
+					is_unique = ((y % self.full_extract_px == 0) and (x % self.full_extract_px == 0))
+					self.coord.append([x, y, index, is_unique])
+					index += 1
+
+			self.estimated_num_tiles = int(len(self.coord)) 
+			log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
+				
+				
 		log.label(self.shortname, f"Slide info: {self.MPP} um/px | {len(self.rois)} ROI(s) | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
 
 		# Abort if errors were raised during ROI loading
