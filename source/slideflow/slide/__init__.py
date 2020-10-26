@@ -56,7 +56,7 @@ from datetime import datetime
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
-DEFAULT_JPG_MPP = 0.25
+DEFAULT_JPG_MPP = 1
 OPS_LEVEL_COUNT = 'openslide.level-count'
 OPS_MPP_X = 'openslide.mpp-x'
 OPS_WIDTH = 'width'
@@ -275,9 +275,12 @@ class OpenslideToVIPS:
 
 class JPGslideToVIPS(OpenslideToVIPS):
 	'''Wrapper for JPG files, which do not possess separate levels, to preserve openslide-like functions.'''
-	def __init__(self, path):
+	def __init__(self, path, buffer=None):
+		self.buffer = buffer
 		self.path = path
 		self.full_image = vips.Image.new_from_file(path)
+		if not self.full_image.hasalpha():
+			self.full_image = self.full_image.addalpha()
 		self.properties = {}
 		for field in self.full_image.get_fields():
 			self.properties.update({field: self.full_image.get(field)})
@@ -622,8 +625,8 @@ class SlideReader(SlideLoader):
 					matching_rois += [rp]
 			if len(matching_rois) > 1:
 				log.warn(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}", 1, self.print)
-			self.load_csv_roi(matching_rois[0])
-
+			self.load_csv_roi(matching_rois[0])	
+		
 		# Handle missing ROIs
 		if not len(self.rois) and skip_missing_roi:
 			log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.error_print)
@@ -631,8 +634,24 @@ class SlideReader(SlideLoader):
 			self.load_error = True
 			return None
 		elif not len(self.rois):
-				log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
+			# Calculate window sizes, strides, and coordinates for windows
+			self.extracted_x_size = self.full_shape[0] - self.full_extract_px
+			self.extracted_y_size = self.full_shape[1] - self.full_extract_px
 
+			# Coordinates must be in level 0 (full) format for the read_region function
+			index = 0
+			for y in np.arange(0, (self.full_shape[1]+1) - self.full_extract_px, self.full_stride):
+				for x in np.arange(0, (self.full_shape[0]+1) - self.full_extract_px, self.full_stride):
+					y = int(y)
+					x = int(x)
+					is_unique = ((y % self.full_extract_px == 0) and (x % self.full_extract_px == 0))
+					self.coord.append([x, y, index, is_unique])
+					index += 1
+
+			self.estimated_num_tiles = int(len(self.coord)) 
+			log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
+				
+				
 		log.label(self.shortname, f"Slide info: {self.MPP} um/px | {len(self.rois)} ROI(s) | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
 
 		# Abort if errors were raised during ROI loading
