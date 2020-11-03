@@ -31,8 +31,8 @@ TEST_DATASETS = {
 		'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST1',
 	},
 	'TEST2': {
-		'slides': '/media/Backup/SLIDES/THCA/UCH',
-		'roi': '/media/Backup/SLIDES/THCA/UCH',
+		'slides': '/mnt/raid/SLIDES/THCA/UCH',
+		'roi': '/mnt/raid/SLIDES/THCA/UCH',
 		'tiles': '/home/shawarma/data/test_project/tiles/TEST2',
 		'tfrecords': '/home/shawarma/data/test_project/tfrecords/TEST2',
 	},
