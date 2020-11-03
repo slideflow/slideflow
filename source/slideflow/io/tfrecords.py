@@ -87,7 +87,7 @@ def example_to_image(record, size, include_slide=True, image_format='raw', norma
 	raw_image = tf.image.decode_jpeg(image_string, channels=3)
 
 	if normalizer:
-		raw_image = tf.py_function(normalizer.tf_to_rgb, [raw_image], tf.int8)
+		raw_image = tf.py_function(normalizer.tf_to_rgb, [raw_image], tf.int32)
 
 	processed_image = tf.image.per_image_standardization(processed_image)
 	processed_image = tf.image.convert_image_dtype(raw_image, tf.float32)

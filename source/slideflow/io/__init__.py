@@ -241,6 +241,9 @@ class Dataset:
 			for d in self.datasets:
 				paths += sfutil.get_slide_paths(self.datasets[d]['slides'])
 
+		# Remove any duplicates from shared dataset paths
+		paths = list(set(paths))
+
 		# Filter paths
 		if filter:
 			filtered_slides = self.get_slides()
@@ -412,8 +415,7 @@ class Dataset:
 		'''Load annotations from a given CSV file.'''
 		# Verify annotations file exists
 		if not os.path.exists(annotations_file):
-			log.error(f"Annotations file {sfutil.green(annotations_file)} does not exist, unable to load")
-			sys.exit()
+			raise DatasetError(f"Annotations file {sfutil.green(annotations_file)} does not exist, unable to load")
 
 		header, current_annotations = sfutil.read_annotations(annotations_file)
 
@@ -434,7 +436,7 @@ class Dataset:
 		try:
 			slide_index = header.index(TCGA.slide)
 		except:
-			log.error(f"Header column '{TCGA.slide}' not found.", 1)
+			log.warn(f"Header column '{TCGA.slide}' not found.", 1)
 			log.info("Attempting to automatically associate patients with slides...", 1)
 			self.update_annotations_with_slidenames(annotations_file)
 			header, current_annotations = sfutil.read_annotations(annotations_file)
