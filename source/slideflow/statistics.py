@@ -74,7 +74,7 @@ class TFRecordMap:
 		return obj
 
 	@classmethod
-	def from_activations(cls, activations, exclude_slides=None, prediction_filter=None, force_recalculate=False, map_slide=None, cache=None, low_memory=False, max_tiles_per_slide=0):
+	def from_activations(cls, activations, exclude_slides=None, prediction_filter=None, force_recalculate=False, map_slide=None, cache=None, low_memory=False, max_tiles_per_slide=0, umap_dim=2):
 		'''Initializes map from an activations visualizer.
 
 		Args:
@@ -96,10 +96,10 @@ class TFRecordMap:
 		if map_slide:
 			obj._calculate_from_slides(method=map_slide, prediction_filter=prediction_filter, force_recalculate=force_recalculate, low_memory=low_memory)
 		else:
-			obj._calculate_from_tiles(prediction_filter=prediction_filter, force_recalculate=force_recalculate, low_memory=low_memory, max_tiles_per_slide=max_tiles_per_slide)
+			obj._calculate_from_tiles(prediction_filter=prediction_filter, force_recalculate=force_recalculate, low_memory=low_memory, max_tiles_per_slide=max_tiles_per_slide, dim=umap_dim)
 		return obj
 
-	def _calculate_from_tiles(self, prediction_filter=None, force_recalculate=False, low_memory=False, max_tiles_per_slide=0):
+	def _calculate_from_tiles(self, prediction_filter=None, force_recalculate=False, low_memory=False, max_tiles_per_slide=0, dim=2):
 		''' Internal function to guide calculation of UMAP from final layer activations, as provided via ActivationsVisualizer nodes.'''
 		if len(self.x) and len(self.y) and not force_recalculate:
 			log.info("UMAP loaded from cache, will not recalculate", 1)
@@ -167,9 +167,12 @@ class TFRecordMap:
 					'logits': logits
 				}]
 
-		coordinates = gen_umap(np.array(node_activations), n_neighbors=100, min_dist=0.1, low_memory=low_memory)
+		coordinates = gen_umap(np.array(node_activations), n_components=dim, n_neighbors=100, min_dist=0.1, low_memory=low_memory)
 		self.x = np.array([c[0] for c in coordinates])
-		self.y = np.array([c[1] for c in coordinates])
+		if dim > 1:
+			self.y = np.array([c[1] for c in coordinates])
+		else:
+			self.y = np.array([0 for i in range(len(self.x))])
 		self.values = np.array(['None' for i in range(len(self.point_meta))])
 		self.save_cache()
 
@@ -426,18 +429,26 @@ class TFRecordMap:
 
 		lasso = LassoSelector(plt.gca(), onselect)
 
-	def save_3d_node_plot(self, node, filename, subsample=None):
+	def save_3d_plot(self, z=None, node=None, filename=None, subsample=None):
 		'''Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument "z" 
 		
 		Args: 
-			node:		Int, node to plot on 3rd axis
+			z: 			Values for z axis (optional).
+			node:		Int, node to plot on 3rd axis (optional). Ignored if z is supplied.
 			filename:	Filename to save image of plot
 			subsample:	(optionanl) int, if provided will subsample data to include only this number of tiles as maximum'''
 
 		title = f"UMAP with node {node} focus"
 
+		if not filename:
+			filename = "3d_plot.png"
+
+		if (z is None) and (node is None):
+			raise StatisticsError("Must supply either 'z' or 'node'.")
+
 		# Get node activations for 3rd dimension
-		z = np.array([self.AV.slide_node_dict[m['slide']][node][m['index']] for m in self.point_meta])
+		if z is None:
+			z = np.array([self.AV.slide_node_dict[m['slide']][node][m['index']] for m in self.point_meta])
 
 		# Subsampling
 		if subsample:
@@ -752,7 +763,6 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	y_true, y_pred, tile_to_slides = [], [], []
 	detected_batch_size = 0
 	pb = ProgressBar(num_tiles, counter_text='images', leadtext="Generating predictions... ", show_counter=True, show_eta=True) if num_tiles else None
-
 	# Get predictions and performance metrics
 	for i, batch in enumerate(dataset_with_slidenames):
 		if pb:
@@ -762,7 +772,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 			sys.stdout.flush()
 		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in batch[2].numpy()]
 		y_true += [batch[1].numpy()]
-		y_pred += [model.predict_on_batch(batch[0])]
+		y_pred += [model.predict(batch[0])]
 		if not detected_batch_size: detected_batch_size = len(batch[1].numpy())
 	sys.stdout.write("\r\033[K")
 	sys.stdout.flush()
