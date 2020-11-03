@@ -557,7 +557,7 @@ class ActivationsVisualizer:
 		unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in tfrecords]))
 
 		# Prepare normalizer
-		if normalizer: log.info(f"Using realtime {normalizer} normalization", 2)
+		if normalizer: log.info(f"Using realtime {normalizer} normalization", 1)
 		normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
 		# Prepare PKL export dictionary
