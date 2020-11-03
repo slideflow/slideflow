@@ -46,8 +46,8 @@ from slideflow.util import TCGA, log
 from slideflow.io import tfrecords
 
 import slideflow.util as sfutil
+from slideflow.util import StainNormalizer
 import slideflow.statistics as sfstats
-from slideflow.slide import StainNormalizer
 
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
@@ -111,6 +111,12 @@ class ModelActivationsInterface:
 
 		self.path = path
 		_model = tf.keras.models.load_model(path)
+
+		# CONSIDER IMPLEMENTING THIS MORE EFFICIENT VERSION: ===========
+		#inputs = xception.input
+		#outputs = [xception.get_layer(name=layer_name).output for layer_name in activation_layer_names]
+		#self.functor = tf.keras.backend.function(inputs, outputs)
+		# ===============================================================
 		
 		if model_format == MODEL_FORMAT_1_9:
 			try:
@@ -134,6 +140,9 @@ class ModelActivationsInterface:
 
 	def predict(self, image_batch):
 		'''Given a batch of images, will return a batch of post-convolutional activations and a batch of logits.'''
+		# ======================
+		#return self.functor(image_batch)
+		# ======================
 		if self.model_format == MODEL_FORMAT_1_9:
 			return self.model.predict(image_batch)
 		elif self.model_format == MODEL_FORMAT_LEGACY:
@@ -329,7 +338,7 @@ class SlideflowModel:
 					raise ModelError(f"Length of input for slide {slide} does not match num_slide_input; expected {num_slide_input}, got {len(self.SLIDE_INPUT_TABLE[slide])}")
 
 		# Normalization setup
-		if normalizer: log.info(f"Using realtime {normalizer} normalization", 2)
+		if normalizer: log.info(f"Using realtime {normalizer} normalization", 1)
 		self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
 		# Setup outcome hash tables
@@ -382,7 +391,7 @@ class SlideflowModel:
 							writer.writerow([slide, 'validation', outcome])
 
 	def _build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, max_tiles=None, 
-								min_tiles=None, include_slidenames=False, multi_image=False):
+								min_tiles=0, include_slidenames=False, multi_image=False, parse_fn=None):
 		'''Assembles dataset inputs from tfrecords.
 		
 		Args:
@@ -402,7 +411,8 @@ class SlideflowModel:
 			dataset, dataset_with_slidenames, num_tiles = self._interleave_tfrecords(tfrecords, batch_size, balance, finite, max_tiles=max_tiles,
 																															 min_tiles=min_tiles,
 																															 include_slidenames=include_slidenames,
-																															 multi_image=multi_image)
+																															 multi_image=multi_image,
+																															 parse_fn=parse_fn)
 		return dataset, dataset_with_slidenames, num_tiles
 
 	def _build_model(self, hp, pretrain=None, pretrain_model_format=None, checkpoint=None):
@@ -414,6 +424,7 @@ class SlideflowModel:
 			checkpoint:	Path to checkpoint from which to resume model training
 		'''
 		if self.DTYPE == 'float16':
+			log.info("Training with mixed precision", 1)
 			policy = tf.keras.mixed_precision.experimental.Policy('mixed_float16')
 			mixed_precision.set_policy(policy)
 
@@ -440,7 +451,7 @@ class SlideflowModel:
 				base_model = pretrained_model.get_layer(index=0)
 		else:
 			# Create core model
-			base_model = hp.get_model(input_tensor=tile_input_tensor,
+			base_model = hp.get_model(#input_tensor=tile_input_tensor,
 									  weights=pretrain)
 
 		# Add L2 regularization to all compatible layers in the base model
@@ -528,7 +539,8 @@ class SlideflowModel:
 
 		return model
 
-	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, max_tiles=None, min_tiles=None, include_slidenames=False, multi_image=False):
+	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, max_tiles=None, min_tiles=None,
+								include_slidenames=False, multi_image=False, parse_fn=None):
 		'''Generates an interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to balancing if provided.
 		Requires self.MANIFEST. Assumes TFRecord files are named by slide.
@@ -555,6 +567,7 @@ class SlideflowModel:
 		categories = {}
 		categories_prob = {}
 		categories_tile_fraction = {}
+		if not parse_fn: parse_fn = self._parse_tfrecord_function
 		
 		if tfrecords == []:
 			log.error(f"No TFRecords found.", 1)
@@ -643,11 +656,11 @@ class SlideflowModel:
 			log.error(f"No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder", 1)
 			sys.exit()
 		if include_slidenames:
-			dataset_with_slidenames = dataset.map(partial(self._parse_tfrecord_function, include_slidenames=True, multi_image=multi_image), num_parallel_calls = 8)
+			dataset_with_slidenames = dataset.map(partial(parse_fn, include_slidenames=True, multi_image=multi_image), num_parallel_calls = 8)
 			dataset_with_slidenames = dataset_with_slidenames.batch(batch_size)
 		else:
 			dataset_with_slidenames = None
-		dataset = dataset.map(partial(self._parse_tfrecord_function, include_slidenames=False, multi_image=multi_image), num_parallel_calls = 8)
+		dataset = dataset.map(partial(parse_fn, include_slidenames=False, multi_image=multi_image), num_parallel_calls = 8)
 		dataset = dataset.batch(batch_size)
 		
 		return dataset, dataset_with_slidenames, global_num_tiles
