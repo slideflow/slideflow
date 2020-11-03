@@ -391,7 +391,7 @@ class SlideflowModel:
 							writer.writerow([slide, 'validation', outcome])
 
 	def _build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, max_tiles=None, 
-								min_tiles=0, include_slidenames=False, multi_image=False, parse_fn=None):
+								min_tiles=0, include_slidenames=False, multi_image=False, parse_fn=None, drop_remainder=False):
 		'''Assembles dataset inputs from tfrecords.
 		
 		Args:
@@ -412,7 +412,8 @@ class SlideflowModel:
 																															 min_tiles=min_tiles,
 																															 include_slidenames=include_slidenames,
 																															 multi_image=multi_image,
-																															 parse_fn=parse_fn)
+																															 parse_fn=parse_fn,
+																															 drop_remainder=drop_remainder)
 		return dataset, dataset_with_slidenames, num_tiles
 
 	def _build_model(self, hp, pretrain=None, pretrain_model_format=None, checkpoint=None):
@@ -540,7 +541,7 @@ class SlideflowModel:
 		return model
 
 	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, max_tiles=None, min_tiles=None,
-								include_slidenames=False, multi_image=False, parse_fn=None):
+								include_slidenames=False, multi_image=False, parse_fn=None, drop_remainder=False):
 		'''Generates an interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to balancing if provided.
 		Requires self.MANIFEST. Assumes TFRecord files are named by slide.
@@ -598,7 +599,7 @@ class SlideflowModel:
 			# Otherwise, consider all slides from the same category (effectively skipping balancing); appropriate for linear models.
 			category = self.SLIDE_ANNOTATIONS[slide_name]['outcome'] if self.MODEL_TYPE == 'categorical' else 1
 			if filename not in self.DATASETS:
-				self.DATASETS.update({filename: tf.data.TFRecordDataset(filename)})
+				self.DATASETS.update({filename: tf.data.TFRecordDataset(filename, num_parallel_reads=32)}) #buffer_size=1024*1024*100 num_parallel_reads=tf.data.experimental.AUTOTUNE
 			datasets += [self.DATASETS[filename]]
 			datasets_categories += [category]
 
@@ -656,12 +657,12 @@ class SlideflowModel:
 			log.error(f"No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder", 1)
 			sys.exit()
 		if include_slidenames:
-			dataset_with_slidenames = dataset.map(partial(parse_fn, include_slidenames=True, multi_image=multi_image), num_parallel_calls = 8)
-			dataset_with_slidenames = dataset_with_slidenames.batch(batch_size)
+			dataset_with_slidenames = dataset.map(partial(parse_fn, include_slidenames=True, multi_image=multi_image), num_parallel_calls=32) #tf.data.experimental.AUTOTUNE
+			dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
 		else:
 			dataset_with_slidenames = None
 		dataset = dataset.map(partial(parse_fn, include_slidenames=False, multi_image=multi_image), num_parallel_calls = 8)
-		dataset = dataset.batch(batch_size)
+		dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
 		
 		return dataset, dataset_with_slidenames, global_num_tiles
 
@@ -771,7 +772,7 @@ class SlideflowModel:
 		if not hp and checkpoint:
 			log.error("If using a checkpoint for evaluation, hyperparameters must be specified.")
 			sys.exit()
-		batch_size = batch_size if not hp else hp.batch_size
+		if not batch_size: batch_size = hp.batch_size
 		dataset, dataset_with_slidenames, num_tiles = self._build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment=False, 
 																													finite=True,
 																													max_tiles=max_tiles_per_slide,
@@ -814,7 +815,7 @@ class SlideflowModel:
 
 	def train(self, hp, pretrain='imagenet', pretrain_model_format=None, resume_training=None, checkpoint=None, log_frequency=100, multi_image=False, 
 				validate_on_batch=512, val_batch_size=32, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
-				ema_observations=20, ema_smoothing=2):
+				ema_observations=20, ema_smoothing=2, steps_per_epoch_override=None):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -832,6 +833,7 @@ class SlideflowModel:
 			starting_epoch:			Starts training at the specified epoch
 			ema_observations:		Number of observations over which to perform exponential moving average smoothing
 			ema_smoothing:			Exponential average smoothing value
+			steps_per_epoch_override:	If provided, will manually set the number of steps per epoch.
 			
 		Returns:
 			Results dictionary, Keras history object'''
@@ -876,7 +878,7 @@ class SlideflowModel:
 		if starting_epoch != 0:
 			log.info(f"Starting training at epoch {starting_epoch}", 1)
 		total_epochs = hp.toplayer_epochs + (max(hp.finetune_epochs) - starting_epoch)
-		steps_per_epoch = round(num_tiles/hp.batch_size)
+		steps_per_epoch = round(num_tiles/hp.batch_size) if steps_per_epoch_override is None else steps_per_epoch_override
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
 		metrics = ['accuracy'] if hp.model_type() != 'linear' else [hp.loss]
 

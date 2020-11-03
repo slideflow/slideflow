@@ -181,7 +181,8 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 			validation_target, validation_fraction, validation_k_fold, validation_log, validation_dataset=None, 
 			validation_annotations=None, validation_filters=None, k_fold_i=None, input_header=None, filters=None, pretrain=None, 
 			pretrain_model_format=None, resume_training=None, checkpoint=None, validate_on_batch=0, validation_steps=200,
-			 max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, normalizer=None, normalizer_source=None, flags=None):
+			 max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, steps_per_epoch_override=None, normalizer=None, normalizer_source=None, flags=None):
+
 	'''Internal function to execute model training process.'''
 	import slideflow.model as sfmodel
 	import tensorflow as tf
@@ -322,7 +323,8 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 										 validation_steps=validation_steps,
 										 max_tiles_per_slide=max_tiles_per_slide,
 										 min_tiles_per_slide=min_tiles_per_slide,
-										 starting_epoch=starting_epoch)
+										 starting_epoch=starting_epoch,
+										 steps_per_epoch_override=steps_per_epoch_override)
 		results['history'] = history
 		results_dict.update({full_model_name: results})
 		logged_epochs = [int(e[5:]) for e in results['epochs'].keys() if e[:5] == 'epoch']
@@ -338,10 +340,8 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 		return None
 
 class SlideflowProject:
-	FLAGS = DEFAULT_FLAGS
-	GPU_LOCK = None
 
-	def __init__(self, project_folder, num_gpu=1, reverse_select_gpu=True, force_gpu=None, interactive=True):
+	def __init__(self, project_folder, num_gpu=1, reverse_select_gpu=True, force_gpu=None, ignore_gpu=False, interactive=True):
 		'''Initializes project by creating project folder, prompting user for project settings, and project
 		settings to "settings.json" within the project directory.
 		
@@ -356,6 +356,10 @@ class SlideflowProject:
 		os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 		log.header(f"Slideflow v{__version__}\n================")
 		log.header("Loading project...")
+
+		self.FLAGS = DEFAULT_FLAGS
+		self.GPU_LOCK = None
+
 		if project_folder and not os.path.exists(project_folder):
 			if interactive:
 				if sfutil.yes_no_input(f'Directory "{project_folder}" does not exist. Create directory and set as project root? [Y/n] ', default='yes'):
@@ -374,11 +378,12 @@ class SlideflowProject:
 			self.create_project(project_folder)
 
 		# Set up GPU
-		if force_gpu is not None:
-			self.select_gpu(force_gpu)
-		else:
-			self.autoselect_gpu(num_gpu, reverse=reverse_select_gpu)
-		atexit.register(self.release_gpu)
+		if not ignore_gpu:
+			if force_gpu is not None:
+				self.select_gpu(force_gpu)
+			else:
+				self.autoselect_gpu(num_gpu, reverse=reverse_select_gpu)
+			atexit.register(self.release_gpu)
 
 	def autoselect_gpu(self, number_available, reverse=True):
 		'''Automatically claims a free GPU and creates a lock file to prevent 
@@ -1768,7 +1773,7 @@ class SlideflowProject:
 				pretrain='imagenet', pretrain_model_format=None, batch_file=None, hyperparameters=None, validation_target=None, validation_strategy=None,
 				validation_fraction=None, validation_k_fold=None, k_fold_iter=None, validation_dataset=None, 
 				validation_annotations=None, validation_filters=None, validate_on_batch=512, validation_steps=200,
-				max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, auto_extract=False, normalizer=None, 
+				max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, steps_per_epoch_override=None, auto_extract=False, normalizer=None, 
 				normalizer_source=None, normalizer_strategy='tfrecord'):
 		'''Train model(s).
 
@@ -1803,6 +1808,7 @@ class SlideflowProject:
 			max_tiles_per_slide:	Will only use up to this many tiles from each slide for training. If zero, will include all tiles.
 			min_tiles_per_slide:	Minimum number of tiles a slide must have to be included in training. 
 			starting_epoch:			Starts training at the specified epoch
+			steps_per_epoch_override:	If provided, will manually set the number of steps in an epoch (default epoch length is the number of total tiles)
 			auto_extract:			Bool. If True, will automatically extract tiles as needed for training, without needing to explicitly call extract_tiles()
 			normalizer:				Normalization strategy to use on image tiles
 			normalizer_source:		Path to normalizer source image
@@ -1894,7 +1900,8 @@ class SlideflowProject:
 																validation_log, validation_dataset, validation_annotations,
 																validation_filters, k, input_header, filters, pretrain, pretrain_model_format, 
 																resume_training, checkpoint, validate_on_batch, validation_steps, max_tiles_per_slide,
-																min_tiles_per_slide, starting_epoch, train_normalizer, train_normalizer_source, self.FLAGS))
+																min_tiles_per_slide, starting_epoch, steps_per_epoch_override, train_normalizer, 
+																train_normalizer_source, self.FLAGS))
 					process.start()
 					log.empty(f"Spawning training process (PID: {process.pid})")
 					process.join()
