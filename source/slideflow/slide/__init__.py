@@ -56,7 +56,7 @@ from datetime import datetime
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
-DEFAULT_JPG_MPP = 0.25
+DEFAULT_JPG_MPP = 1
 OPS_LEVEL_COUNT = 'openslide.level-count'
 OPS_MPP_X = 'openslide.mpp-x'
 OPS_WIDTH = 'width'
