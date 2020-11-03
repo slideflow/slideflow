@@ -58,7 +58,7 @@ class ActivationsVisualizer:
 	
 	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_header=None, 
 					focus_nodes=[], use_fp16=True, normalizer=None, normalizer_source=None, 
-					use_activations_cache=False, activations_cache='default', batch_size=32,
+					activations_cache='default', batch_size=32,
 					activations_export=None, max_tiles_per_slide=100, manifest=None, model_format=None):
 		'''Object initializer.
 
@@ -73,7 +73,6 @@ class ActivationsVisualizer:
 			use_fp16:				Bool, whether to use FP16 (rather than FP32)
 			normalizer:				String, which real-time normalization to use on images taken from TFRecords
 			noramlizer_source:		String, path to image to use as source for real-time normalization
-			use_activations_cache:	Bool, if true, will store activations in a PKL cache file for rapid re-use
 			activations_cache:		File in which to store activations PKL cache
 			batch_size:				Batch size to use during activations calculations
 			activations_export:		Filename for CSV export of activations
@@ -96,7 +95,12 @@ class ActivationsVisualizer:
 
 		self.STATS_CSV_FILE = join(root_dir, "stats", "slide_level_summary.csv")
 		self.STATS_ROOT = join(root_dir, "stats")
-		self.ACTIVATIONS_CACHE = join(root_dir, "stats", "activations_cache.pkl") if activations_cache=='default' else join(root_dir, 'stats', activations_cache)
+
+		if activations_cache is None:
+			self.ACTIVATIONS_CACHE = None
+		else:
+			self.ACTIVATIONS_CACHE = join(root_dir, "stats", "activations_cache.pkl") if activations_cache=='default' else join(root_dir, 'stats', activations_cache)
+
 		if not exists(join(root_dir, "stats")):
 			os.makedirs(join(root_dir, "stats"))
 
@@ -584,6 +588,7 @@ class ActivationsVisualizer:
 		# Calculate final layer activations for each tfrecord
 		fla_start_time = time.time()
 		nodes_names, logits_names = [], []
+		detected_logit_structure=False
 		if export:
 			outfile = open(export, 'w')
 			csvwriter = csv.writer(outfile)
@@ -603,7 +608,6 @@ class ActivationsVisualizer:
 
 				fl_activations, logits = combined_model.predict(batch_processed_images)
 
-				
 				fl_activations_combined = fl_activations if fl_activations_combined == [] else np.concatenate([fl_activations_combined, fl_activations])
 				logits_combined = logits if logits_combined == [] else np.concatenate([logits_combined, logits])
 				slides_combined = batch_slides if slides_combined == [] else np.concatenate([slides_combined, batch_slides])
@@ -619,7 +623,7 @@ class ActivationsVisualizer:
 				log.warn(f"Unable to calculate activations from {sfutil.green(sfutil.path_to_name(tfrecord))}; is the TFRecord empty?", 1)
 				continue
 
-			if not nodes_names and not logits_names:
+			if not detected_logit_structure:
 				nodes_names = [f"FLNode{f}" for f in range(fl_activations_combined.shape[1])]
 				logits_names = [f"Logits{l}" for l in range(logits_combined.shape[1])]
 				if export:
@@ -631,6 +635,7 @@ class ActivationsVisualizer:
 				for l in range(len(logits_names)):
 					for slide in unique_slides:
 						self.slide_logits_dict[slide].update({l: []})
+				detected_logit_structure=True
 
 			if self.MAX_TILES_PER_SLIDE and len(fl_activations_combined) > self.MAX_TILES_PER_SLIDE:
 				slides_combined = slides_combined[:self.MAX_TILES_PER_SLIDE]
