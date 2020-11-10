@@ -1,3 +1,7 @@
+// Tile ROI coordinate exporter
+// for QuPath 0.1.X
+// Written by James Dolezal
+
 import qupath.lib.gui.QuPathGUI
 import qupath.lib.images.servers.ImageServer
 import qupath.lib.objects.PathObject
