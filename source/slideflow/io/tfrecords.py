@@ -89,8 +89,8 @@ def example_to_image(record, size, include_slide=True, image_format='raw', norma
 	if normalizer:
 		raw_image = tf.py_function(normalizer.tf_to_rgb, [raw_image], tf.int32)
 
-	processed_image = tf.image.per_image_standardization(processed_image)
-	processed_image = tf.image.convert_image_dtype(raw_image, tf.float32)
+	processed_image = tf.image.per_image_standardization(raw_image)
+	processed_image = tf.image.convert_image_dtype(processed_image, tf.float32)
 	processed_image.set_shape([size, size, 3])
 
 	if image_format=='dict':
