@@ -139,12 +139,12 @@ class TestSuite:
 
 		# Configure testing environment
 		self.config = TestConfigurator(root)
-
 		# Reset test progress
 		if reset: self.reset()
 
 		# Intiailize project
 		self.SFP = sf.SlideflowProject(self.config.PROJECT['root'], interactive=False)
+
 		self.SFP.FLAGS['num_threads'] = num_threads
 		self.configure_project()
 
