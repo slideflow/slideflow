@@ -195,7 +195,7 @@ class OpenslideToVIPS:
 		
 		if buffer == 'vmtouch':
 			os.system(f'vmtouch -q -t "{self.path}"')
-		self.full_image = vips.Image.new_from_file(path)
+		self.full_image = vips.Image.new_from_file(path, fail=True, access=vips.enums.Access.RANDOM)
 		loaded_image = self.full_image
 		
 		self.properties = {}
@@ -249,7 +249,7 @@ class OpenslideToVIPS:
 			if level in self.loaded_downsample_levels:
 				return self.loaded_downsample_levels[level]
 			else:
-				downsampled_image = vips.Image.new_from_file(self.path, level=level)
+				downsampled_image = vips.Image.new_from_file(self.path, level=level, fail=True, access=vips.enums.Access.RANDOM)
 				self.loaded_downsample_levels.update({
 					level: downsampled_image
 				})
