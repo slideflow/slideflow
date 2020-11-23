@@ -525,7 +525,7 @@ class Dataset:
 					else:
 						manifest[rel_tfr][slide] += 1
 					total += 1
-			except tf.errors.DataLossError::
+			except tf.errors.DataLossError:
 				print('\r\033[K', end="")
 				log.error(f"Corrupt or incomplete TFRecord at {tfr}", 1)
 				log.info(f"Deleting and removing corrupt TFRecord from manifest...", 1)
