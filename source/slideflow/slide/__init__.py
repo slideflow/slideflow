@@ -59,6 +59,7 @@ Image.MAX_IMAGE_PIXELS = 100000000000
 DEFAULT_JPG_MPP = 1
 OPS_LEVEL_COUNT = 'openslide.level-count'
 OPS_MPP_X = 'openslide.mpp-x'
+TIF_EXIF_KEY_MPP = 65326
 OPS_WIDTH = 'width'
 OPS_HEIGHT = 'height'
 EXTRACT_INSIDE = 'inside'
@@ -198,10 +199,21 @@ class OpenslideToVIPS:
 		self.full_image = vips.Image.new_from_file(path, fail=True, access=vips.enums.Access.RANDOM)
 		loaded_image = self.full_image
 		
+		# Load image properties
 		self.properties = {}
 		for field in loaded_image.get_fields():
 			self.properties.update({field: loaded_image.get(field)})
 		self.dimensions = (int(self.properties[OPS_WIDTH]), int(self.properties[OPS_HEIGHT]))
+
+		# If Openslide MPP is not available, try reading from metadata
+		if OPS_MPP_X not in self.properties.keys():
+			log.warn(f"Unable to detect openslide Microns-Per-Pixel (MPP) property, will search EXIF data", 1)
+			with Image.open(path) as img:
+				if TIF_EXIF_KEY_MPP in img.tag.keys():
+					log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}", 1)
+					self.properties[OPS_MPP_X] = img.tag[TIF_EXIF_KEY_MPP][0]
+
+		# Prepare downsample levels
 		self.loaded_downsample_levels = {
 			0: self.full_image,
 		}
@@ -303,7 +315,13 @@ class JPGslideToVIPS(OpenslideToVIPS):
 		self.level_dimensions = [(width, height)]
 
 		# MPP data
-		self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
+		with Image.open(path) as img:
+			if TIF_EXIF_KEY_MPP in img.tag.keys():
+				log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}", 1)
+				self.properties[OPS_MPP_X] = img.tag[TIF_EXIF_KEY_MPP][0]
+			else:
+				log.info(f"Setting MPP to default {DEFAULT_JPG_MPP}", 1)
+				self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
 
 class ROIObject:
 	'''Object container for ROI annotations.'''
