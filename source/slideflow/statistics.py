@@ -421,6 +421,7 @@ class TFRecordMap:
 		umap_figure = umap_2d.get_figure()
 		umap_figure.set_size_inches(6, 4.5)
 		if title: umap_figure.axes[0].set_title(title)
+		umap_figure.canvas.start_event_loop(sys.float_info.min)
 		umap_figure.savefig(filename, bbox_inches='tight', dpi=dpi)
 		log.complete(f"Saved 2D UMAP to {sfutil.green(filename)}", 1)
 
@@ -556,7 +557,7 @@ def normalize_layout(layout, min_percentile=1, max_percentile=99, relative_margi
 def gen_umap(array, n_components=2, n_neighbors=20, min_dist=0.01, metric='cosine', low_memory=False):
 	'''Generates and returns a umap from a given array.'''
 	try:
-		layout = umap.UMAP(n_components=n_components, verbose=True, n_neighbors=n_neighbors, min_dist=min_dist, metric=metric, low_memory=low_memory).fit_transform(array)
+		layout = umap.UMAP(n_components=n_components, verbose=(log.INFO_LEVEL > 0), n_neighbors=n_neighbors, min_dist=min_dist, metric=metric, low_memory=low_memory).fit_transform(array)
 	except ValueError:
 		log.error("Error performing UMAP. Please make sure you are supplying a non-empty TFRecord array and that the TFRecords are not empty.")
 		sys.exit()
@@ -757,25 +758,32 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	'''
 	
 	# Initial preparations
-	sys.stdout.write("\rGenerating predictions...")
+	
 	label_end = "" if not label else f"_{label}"
 	label_start = "" if not label else f"{label}_"
 	y_true, y_pred, tile_to_slides = [], [], []
 	detected_batch_size = 0
-	pb = ProgressBar(num_tiles, counter_text='images', leadtext="Generating predictions... ", show_counter=True, show_eta=True) if num_tiles else None
+	if log.INFO_LEVEL > 0:
+		sys.stdout.write("\rGenerating predictions...")
+		pb = ProgressBar(num_tiles, counter_text='images', leadtext="Generating predictions... ", show_counter=True, show_eta=True) if num_tiles else None
+	else:
+		pb = None
+
 	# Get predictions and performance metrics
 	for i, batch in enumerate(dataset_with_slidenames):
 		if pb:
 			pb.increase_bar_value(detected_batch_size)
-		else:
+		elif log.INFO_LEVEL > 0:
 			sys.stdout.write(f"\rGenerating predictions (batch {i})...")
 			sys.stdout.flush()
 		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in batch[2].numpy()]
 		y_true += [batch[1].numpy()]
 		y_pred += [model.predict_on_batch(batch[0])]
 		if not detected_batch_size: detected_batch_size = len(batch[1].numpy())
-	sys.stdout.write("\r\033[K")
-	sys.stdout.flush()
+	
+	if log.INFO_LEVEL > 0:
+		sys.stdout.write("\r\033[K")
+		sys.stdout.flush()
 	tile_to_patients = [annotations[slide][sfutil.TCGA.patient] for slide in tile_to_slides]
 	patients = list(set(tile_to_patients))
 	num_tiles = len(tile_to_slides)

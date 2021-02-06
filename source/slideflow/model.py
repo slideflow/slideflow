@@ -507,8 +507,9 @@ class SlideflowModel:
 			model.load_weights(checkpoint)
 
 		# Print model summary
-		print()
-		model.summary()
+		if log.INFO_LEVEL > 0:
+			print()
+			model.summary()
 
 		return model
 	
@@ -740,7 +741,7 @@ class SlideflowModel:
 
 		toplayer_model = self.model.fit(train_data,
 				  epochs=epochs,
-				  verbose=1,
+				  verbose=(log.INFO_LEVEL > 0),
 				  steps_per_epoch=steps_per_epoch,
 				  validation_data=validation_data,
 				  validation_steps=val_steps,
@@ -795,7 +796,7 @@ class SlideflowModel:
 		log.info(f"Patient AUC: {patient_auc}", 1)
 		log.info(f"R-squared: {r_squared}", 1)
 
-		val_loss, val_acc = self.model.evaluate(dataset)
+		val_loss, val_acc = self.model.evaluate(dataset, verbose=log.INFO_LEVEL > 0)
 
 		# Log results
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
@@ -885,7 +886,7 @@ class SlideflowModel:
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
 		checkpoint_path = os.path.join(self.DATA_DIR, "cp.ckpt")
-		cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, save_weights_only=True, verbose=1)
+		cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, save_weights_only=True, verbose=(log.INFO_LEVEL > 0))
 		tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.DATA_DIR, 
 															  histogram_freq=0,
 															  write_graph=False,
@@ -904,7 +905,7 @@ class SlideflowModel:
 				self.model_type = hp.model_type()
 
 			def on_epoch_end(self, epoch, logs={}):
-				print("\r\033[K", end="")
+				if log.INFO_LEVEL > 0: print("\r\033[K", end="")
 				self.epoch_count += 1
 				if self.epoch_count in [e for e in hp.finetune_epochs]:
 					model_path = os.path.join(parent.DATA_DIR, f"trained_model_epoch{self.epoch_count}.h5")
@@ -919,7 +920,7 @@ class SlideflowModel:
 					val_loss, val_acc = self.model.evaluate(validation_data, verbose=0, steps=validation_steps)
 					self.model.stop_training = False
 					early_stop_value = val_acc if hp.early_stop_method == 'accuracy' else val_loss
-					print("\r\033[K", end="")
+					if log.INFO_LEVEL > 0: print("\r\033[K", end="")
 					self.moving_average += [early_stop_value]
 					# Base logging message
 					if self.model_type == 'categorical':
@@ -959,7 +960,7 @@ class SlideflowModel:
 								self.ema_one_check_prior = self.last_ema
 
 			def on_train_end(self, logs={}):
-				print("\r\033[K")
+				if log.INFO_LEVEL > 0: print("\r\033[K")
 
 			def evaluate_model(self, logs={}):
 				epoch = self.epoch_count
@@ -1013,7 +1014,7 @@ class SlideflowModel:
 		history = self.model.fit(train_data,
 								 steps_per_epoch=steps_per_epoch,
 								 epochs=total_epochs,
-								 verbose=1,
+								 verbose=(log.INFO_LEVEL > 0),
 								 initial_epoch=hp.toplayer_epochs,
 								 validation_data=validation_data_for_training,
 								 validation_steps=validation_steps,

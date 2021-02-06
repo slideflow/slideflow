@@ -1,19 +1,20 @@
-import tensorflow as tf
-
-import numpy as np
-import os
-import shutil
-from os import listdir
-from os.path import isfile, isdir, join, exists
-from random import shuffle, randint
 
 import time
 import sys
 import csv
+import logging
+import numpy as np
+import os
+import shutil
 
-import slideflow.util as sfutil
+from os import listdir
+from os.path import isfile, isdir, join, exists
+from random import shuffle, randint
 from slideflow.util import log
 from glob import glob
+
+import tensorflow as tf
+import slideflow.util as sfutil
 
 FEATURE_TYPES = (tf.int64, tf.string, tf.string)
 
@@ -626,6 +627,7 @@ def get_tfrecord_by_index(tfrecord, index, decode=True):
 			return slide, raw_image
 
 	dataset = tf.data.TFRecordDataset(tfrecord)
+
 	total = 0
 	for i, data in enumerate(dataset):
 		total += 1

@@ -4,14 +4,18 @@ import csv
 import pickle
 import time
 import random
+import logging
 
+logging.getLogger("tensorflow").setLevel(logging.ERROR)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.patches as patches
 import matplotlib.colors as mcol
 import seaborn as sns
-import tensorflow as tf
 import scipy.stats as stats
 import slideflow.util as sfutil
 import slideflow.io as sfio
@@ -612,8 +616,9 @@ class ActivationsVisualizer:
 				logits_combined = logits if logits_combined == [] else np.concatenate([logits_combined, logits])
 				slides_combined = batch_slides if slides_combined == [] else np.concatenate([slides_combined, batch_slides])
 
-				sys.stdout.write(f"\r(TFRecord {t+1:>3}/{len(tfrecords):>3}) (Batch {i+1:>3}) ({len(fl_activations_combined):>5} images): {sfutil.green(sfutil.path_to_name(tfrecord))}")
-				sys.stdout.flush()
+				if log.INFO_LEVEL > 0:
+					sys.stdout.write(f"\r(TFRecord {t+1:>3}/{len(tfrecords):>3}) (Batch {i+1:>3}) ({len(fl_activations_combined):>5} images): {sfutil.green(sfutil.path_to_name(tfrecord))}")
+					sys.stdout.flush()
 
 				if self.MAX_TILES_PER_SLIDE and (len(fl_activations_combined) >= self.MAX_TILES_PER_SLIDE):
 					break
@@ -663,7 +668,6 @@ class ActivationsVisualizer:
 			outfile.close()
 
 		fla_calc_time = time.time()
-		print()
 		log.info(f"Activation calculation time: {fla_calc_time-fla_start_time:.0f} sec", 1)
 		if export:
 			log.complete(f"Final layer activations saved to {sfutil.green(export)}", 1)
@@ -844,6 +848,7 @@ class ActivationsVisualizer:
 			snsbox.set(xlabel="Category", ylabel="Activation")
 			plt.xticks(plt.xticks()[0], self.used_categories)
 			boxplot_filename = join(export_folder, f"boxplot_{title}.png")
+			plt.gcf().canvas.start_event_loop(sys.float_info.min)
 			plt.savefig(boxplot_filename, bbox_inches='tight')
 			if (not self.focus_nodes) and i>4: break
 
@@ -857,6 +862,7 @@ class ActivationsVisualizer:
 			snsbox.set(xlabel="Category",ylabel="Average tile activation")
 			plt.xticks(plt.xticks()[0], self.used_categories)
 			boxplot_filename = join(export_folder, f"boxplot_{title}.png")
+			plt.gcf().canvas.start_event_loop(sys.float_info.min)
 			plt.savefig(boxplot_filename, bbox_inches='tight')
 			if (not self.focus_nodes) and i>4: break
 
@@ -1098,7 +1104,6 @@ class TileVisualizer:
 			plt.savefig(filename, bbox_inches='tight')
 			log.complete(f"Heatmap saved to {filename}", 1)
 		if interactive:
-			print()
 			plt.show()
 
 class Heatmap:
