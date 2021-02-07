@@ -1812,7 +1812,7 @@ class SlideflowProject:
 			batch_file:				Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.
 			hyperparameters:		Manually specify hyperparameter combination to use for training. If specified, will ignore batch training file.
 			validation_target: 		Whether to select validation data on a 'per-patient' or 'per-tile' basis. If not specified, will use project default.
-			validation_strategy:	Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.
+			validation_strategy:	Validation dataset selection strategy (bootstrap, k-fold, k-fold-preserved-site, fixed, none). If not specified, will use project default.
 			validation_fraction:	Fraction of data to use for validation testing. If not specified, will use project default.
 			validation_k_fold: 		K, if using k-fold validation. If not specified, will use project default.
 			k_fold_iter:			Which iteration to train if using k-fold validation. Defaults to training all iterations.
@@ -1849,7 +1849,7 @@ class SlideflowProject:
 		if normalizer and normalizer_strategy not in ('tfrecord', 'realtime'):
 			log.error(f"Unknown normalizer strategy {normalizer_strategy}, must be either 'tfrecord' or 'realtime'", 1)
 			return
-		if validation_strategy in ('k-fold', 'bootstrap') and validation_dataset:
+		if validation_strategy in ('k-fold-preserved-site', 'k-fold', 'bootstrap') and validation_dataset:
 			log.error(f"Unable to use {validation_strategy} if validation_dataset has been provided.", 1)
 			return
 
@@ -1877,7 +1877,7 @@ class SlideflowProject:
 		# Prepare k-fold validation configuration
 		results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
 		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and not isinstance(k_fold_iter, list)) else k_fold_iter
-		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
+		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'k-fold-preserved-site', 'bootstrap') else 0
 		valid_k = [] if not k_fold else [kf for kf in range(1, k_fold+1) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
 
 		# Next, prepare the multiprocessing manager (needed to free VRAM after training and keep track of results)
