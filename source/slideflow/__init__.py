@@ -30,7 +30,7 @@ from slideflow.statistics import TFRecordMap, calculate_centroid
 from slideflow.mosaic import Mosaic
 #from comet_ml import Experiment
 
-__version__ = "1.10.1b"
+__version__ = "1.10.1"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
