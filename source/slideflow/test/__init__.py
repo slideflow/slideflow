@@ -31,7 +31,7 @@ SKIP_DOWNLOAD = 'skip'
 AUTO_DOWNLOAD = 'auto'
 
 class TestConfigurator:
-	def __init__(self, root, download='auto'):
+	def __init__(self, root, download='auto', tma=False):
 		self.DATASETS = {
 			'TEST': {
 				'slides': 	join(root, 'slides'),
@@ -98,15 +98,17 @@ class TestConfigurator:
 			['TCGA-EM-A3SY', 'TEST', 'NIFTP', 'cat2a', '5.8', '4.4'],
 			['TCGA-EM-A22M', 'TEST', 'NIFTP', 'cat2b', '6.8', '4.2'],
 			['TCGA-IM-A41Z', 'TEST', 'NIFTP', 'cat2a', '7.8', '4.1'],
-
-			['TMA_1185', 'TMA', 'PRAD', 'None', '7.8', '4.1'],
 		]
+
+		if tma:
+			self.ANNOTATIONS += [['TMA_1185', 'TMA', 'PRAD', 'None', '7.8', '4.1']]
 
 		self.SAVED_MODEL = join(self.PROJECT['models_dir'], 'category1-performance-kfold1', 'trained_model_epoch1.h5')
 		self.REFERENCE_MODEL = None
 
 		# Verify slides
 		with TaskWrapper("Downloading slides...") as test:
+			if not os.path.exists(join(root, 'slides')): os.makedirs(join(root, 'slides'))
 			existing_slides = [sfutil.path_to_name(f) for f in os.listdir(join(root, 'slides')) if sfutil.path_to_ext(f).lower() == 'svs']
 
 			for slide in self.SLIDES:
@@ -173,7 +175,7 @@ class TaskWrapper:
 
 class TestSuite:
 	'''Class to supervise standardized testing of slideflow pipeline.'''
-	def __init__(self, root, reset=True, buffer=None, num_threads=8, debug=False, download=AUTO_DOWNLOAD):
+	def __init__(self, root, reset=True, buffer=None, num_threads=8, debug=False, download=AUTO_DOWNLOAD, include_tma=False):
 		'''Initialize testing models.'''
 		
 		# Set logging level
@@ -193,7 +195,7 @@ class TestSuite:
 				gpu_test.fail()
 
 		# Configure testing environment
-		self.config = TestConfigurator(root, download=download)
+		self.config = TestConfigurator(root, download=download, tma=include_tma)
 
 		# Reset test progress
 		with TaskWrapper("Project reset...") as reset_test:
@@ -220,7 +222,7 @@ class TestSuite:
 
 		# Configure datasets (input)
 		self.configure_datasets()
-		self.configure_annotations()
+		self.configure_annotations(include_tma=include_tma)
 
 		# Setup buffering
 		self.buffer = buffer
@@ -246,7 +248,7 @@ class TestSuite:
 												tfrecords=self.config.DATASETS[dataset_name]['tfrecords'],
 												path=self.SFP.PROJECT['dataset_config'])
 
-	def configure_annotations(self):
+	def configure_annotations(self, include_tma=False):
 		with TaskWrapper("Annotation configuration...") as test:
 			outfile = self.SFP.PROJECT['annotations']
 			with open(outfile, 'w') as csv_outfile:
@@ -255,7 +257,7 @@ class TestSuite:
 					csv_writer.writerow(an)
 			project_dataset = Dataset(tile_px=299, tile_um=302,
 									config_file=self.SFP.PROJECT['dataset_config'],
-									sources=self.SFP.PROJECT['datasets'],
+									sources=(self.SFP.PROJECT['datasets'] if include_tma else 'TEST'),
 									annotations=self.SFP.PROJECT['annotations'])
 			project_dataset.update_annotations_with_slidenames(self.SFP.PROJECT['annotations'])
 			loaded_slides = project_dataset.get_slides()
@@ -310,7 +312,7 @@ class TestSuite:
 				augment=True)
 		return hp
 
-	def test_extraction(self, regular=True, tma=True):
+	def test_extraction(self, regular=True, tma=False):
 		# Test tile extraction, default parameters, for regular slides
 		if regular:
 			with TaskWrapper("Testing slide extraction...") as test: 
