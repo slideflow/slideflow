@@ -38,12 +38,6 @@ class TestConfigurator:
 				'roi': 		join(root, 'roi'),
 				'tiles': 	join(root, 'project', 'tiles', 'TEST'), 
 				'tfrecords':join(root, 'project', 'tfrecords', 'TEST') 
-			},
-			'TMA': {
-				'slides': 	join(root, 'tma_slides'),
-				'roi': 		join(root, 'tma_roi'),
-				'tiles': 	join(root, 'project', 'tiles', 'TMA'),
-				'tfrecords':join(root, 'project', 'tfrecords', 'TMA')
 			}
 		}
 		self.PROJECT = {
@@ -102,6 +96,12 @@ class TestConfigurator:
 
 		if tma:
 			self.ANNOTATIONS += [['TMA_1185', 'TMA', 'PRAD', 'None', '7.8', '4.1']]
+			self.DATASETS.update({'TMA': {
+				'slides': 	join(root, 'tma_slides'),
+				'roi': 		join(root, 'tma_roi'),
+				'tiles': 	join(root, 'project', 'tiles', 'TMA'),
+				'tfrecords':join(root, 'project', 'tfrecords', 'TMA')
+			}})
 
 		self.SAVED_MODEL = join(self.PROJECT['models_dir'], 'category1-performance-kfold1', 'trained_model_epoch1.h5')
 		self.REFERENCE_MODEL = None
