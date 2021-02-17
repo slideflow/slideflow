@@ -726,7 +726,7 @@ class SlideReader(SlideLoader):
 
 				# Read the region and resize to target size
 				region = self.slide.read_region((c[0], c[1]), self.downsample_level, [self.extract_px, self.extract_px])
-				region = region.resize(float(self.size_px) / self.extract_px)
+				region = region.thumbnail_image(self.size_px)
 
 				# Read regions into memory and convert to numpy arrays
 				np_image = vips2numpy(region)[:,:,:-1]
@@ -734,7 +734,7 @@ class SlideReader(SlideLoader):
 				if dual_extract:
 					try:
 						surrounding_region = self.slide.read_region((c[0]-self.full_stride, c[1]-self.full_stride), self.downsample_level, [self.extract_px*3, self.extract_px*3])
-						surrounding_region = surrounding_region.resize(float(self.size_px) / (self.extract_px*3))
+						surrounding_region = surrounding_region.thumbnail_image(self.size_px)
 						outer_region = vips2numpy(surrounding_region)[:,:,:-1]
 					except:
 						continue
