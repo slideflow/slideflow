@@ -7,6 +7,7 @@ import io
 import shutil
 import datetime
 import threading
+import logging
 import cv2
 
 from glob import glob
@@ -258,16 +259,33 @@ def purple(text):
 	return PURPLE + str(text) + ENDC
 
 class Logger:
-	logfile = None
-	INFO_LEVEL = 3
-	WARN_LEVEL = 3
-	ERROR_LEVEL = 3
-	COMPLETE_LEVEL = 3
-	SILENT = False
-	ENABLE_WRITE = True
+	'''Logging class to handle console and file logging output.'''
 
 	def __init__(self):
-		pass
+		self.logfile = None
+		self.INFO_LEVEL = 3
+		self.WARN_LEVEL = 3
+		self.ERROR_LEVEL = 3
+		self.COMPLETE_LEVEL = 3
+		self.SILENT = False
+
+	def configure(self, **kwargs):
+		'''Configures logger to record the designated logging levels, overriding defaults.'''
+
+		for arg in kwargs:
+			if arg not in ('filename', 'levels'):
+				raise TypeError(f"Unknown argument '{arg}'")
+		
+		if 'filename' in kwargs: self.logfile = kwargs['filename']
+
+		if 'levels' in kwargs:
+			levels = kwargs['levels']
+			if 'info' in levels: self.INFO_LEVEL = levels['info']
+			if 'warn' in levels: self.WARN_LEVEL = levels['warn']
+			if 'error' in levels: self.ERROR_LEVEL = levels['error']
+			if 'complete' in levels: self.COMPLETE_LEVEL = levels['complete']
+			if 'silent' in levels: self.SILENT = levels['silent']
+
 	def info(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{info('INFO')}] {text}"
@@ -275,6 +293,7 @@ class Logger:
 			print_func(message)
 		self.log(message)
 		return message
+
 	def warn(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES_WARN[l]}[{warn('WARN')}] {text}"
@@ -282,6 +301,7 @@ class Logger:
 			print_func(message)
 		self.log(message)
 		return message
+
 	def error(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES_WARN[l]}[{fail('ERROR')}] {text}"
@@ -289,6 +309,7 @@ class Logger:
 			print_func(message)
 		self.log(message)
 		return message
+
 	def complete(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{header('Complete')}] {text}"
@@ -296,6 +317,7 @@ class Logger:
 			print_func(message)
 		self.log(message)
 		return message
+
 	def label(self, label, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}[{green(label)}] {text}"
@@ -303,6 +325,7 @@ class Logger:
 			print_func(message)
 		self.log(message)
 		return message
+
 	def empty(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"{LOGGING_PREFIXES[l]}{text}"
@@ -310,6 +333,7 @@ class Logger:
 			print_func(message)
 		self.log(message)
 		return message
+
 	def header(self, text, l=0, print_func=print):
 		l = min(l, len(LOGGING_PREFIXES)-1)
 		message = f"\n{LOGGING_PREFIXES_EMPTY[l]}{bold(text)}"
@@ -317,9 +341,10 @@ class Logger:
 			print_func(message)
 		self.log(message)
 		return message
+
 	def log(self, text):
 		st = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-		if self.logfile and self.ENABLE_WRITE:
+		if self.logfile:
 			for s in FORMATTING_OPTIONS:
 				text = text.replace(s, "")
 			outfile = open(self.logfile, 'a')

@@ -188,11 +188,11 @@ class Mosaic:
 		global_point_coords = np.asarray([p['coord'] for p in self.points])
 		pool = DPool(8)
 		for i, _ in enumerate(pool.imap_unordered(partial(calc_distance, global_point_coords=global_point_coords), self.GRID), 1):
-			sys.stderr.write(f'\rCompleted {i/len(self.GRID):.2%}')
+			if log.INFO_LEVEL > 0: sys.stderr.write(f'\rCompleted {i/len(self.GRID):.2%}')
 		pool.close()
 		pool.join()
 		tile_point_end = time.time()
-		sys.stdout.write("\r\033[K")
+		if log.INFO_LEVEL > 0: sys.stdout.write("\r\033[K")
 		log.info(f"Calculations complete ({tile_point_end-tile_point_start:.0f} sec)", 2)
 
 		if mapping_method == 'expanded':
@@ -257,7 +257,7 @@ class Mosaic:
 																					tile['coord'][1]+tile_size/2], zorder=99)
 					tile['image'] = image
 					num_placed += 1
-			print("\r\033[K", end="")
+			if log.INFO_LEVEL > 0: print("\r\033[K", end="")
 		log.info(f"Num placed: {num_placed}", 2)
 
 		# Focus on a subset of TFRecords if desired

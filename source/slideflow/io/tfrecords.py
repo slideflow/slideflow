@@ -1,19 +1,20 @@
-import tensorflow as tf
-
-import numpy as np
-import os
-import shutil
-from os import listdir
-from os.path import isfile, isdir, join, exists
-from random import shuffle, randint
 
 import time
 import sys
 import csv
+import logging
+import numpy as np
+import os
+import shutil
 
-import slideflow.util as sfutil
+from os import listdir
+from os.path import isfile, isdir, join, exists
+from random import shuffle, randint
 from slideflow.util import log
 from glob import glob
+
+import tensorflow as tf
+import slideflow.util as sfutil
 
 FEATURE_TYPES = (tf.int64, tf.string, tf.string)
 
@@ -269,7 +270,7 @@ def checkpoint_to_h5(models_dir, model_name):
 		# Not sure why this happens, something to do with the optimizer?
 		pass
 
-def split_patients_list(patients_dict, n, balance=None, randomize=True):
+def split_patients_list(patients_dict, n, balance=None, randomize=True, preserved_site=False):
 	'''Splits a dictionary of patients into n groups, balancing according to key "balance" if provided.'''
 	patient_list = list(patients_dict.keys())
 	shuffle(patient_list)
@@ -289,20 +290,34 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True):
 
 		# Get unique outcomes
 		unique_outcomes = list(set(patient_outcomes))
+		if preserved_site:
+			import pandas as pd 
+			import slideflow.io.preservedsite.crossfolds as cv
+			site_list = [p[5:7] for p in patients_dict]
+			df = pd.DataFrame(list(zip(patient_list, patient_outcomes, site_list)), columns = ['patient', 'outcome', 'site'])
+			df = cv.generate(df, 'outcome', unique_outcomes, crossfolds = n, target_column = 'CV', patient_column = 'patient', site_column = 'site')
 
-		# Now, split patient_list according to outcomes
-		patients_split_by_outcomes = [[p for p in patient_list if patients_dict[p][balance] == uo] for uo in unique_outcomes]
+			log.empty(sfutil.bold("Generating Split with Preserved Site Cross Validation"))
+			log.empty(sfutil.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_outcomes)))])), 2)
+			for k in range(n):
+				log.empty(f"K-fold-{k}\t" + "\t".join([str(len(df[(df.CV == str(k+1)) & (df.outcome == o)].index)) for o in unique_outcomes]), 2)
+			
+			return [df.loc[df.CV == str(ni+1), "patient"].tolist() for ni in range(n)]
+			
+		else:
+			# Now, split patient_list according to outcomes
+			patients_split_by_outcomes = [[p for p in patient_list if patients_dict[p][balance] == uo] for uo in unique_outcomes]
 
-		# Then, for each sublist, split into n components
-		patients_split_by_outcomes_split_by_n = [list(split(sub_l, n)) for sub_l in patients_split_by_outcomes]
+			# Then, for each sublist, split into n components
+			patients_split_by_outcomes_split_by_n = [list(split(sub_l, n)) for sub_l in patients_split_by_outcomes]
 
-		# Print splitting as a table
-		log.empty(sfutil.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_outcomes)))])), 2)
-		for k in range(n):
-			log.empty(f"K-fold-{k}\t" + "\t".join([str(len(clist[k])) for clist in patients_split_by_outcomes_split_by_n]), 2)
+			# Print splitting as a table
+			log.empty(sfutil.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_outcomes)))])), 2)
+			for k in range(n):
+				log.empty(f"K-fold-{k}\t" + "\t".join([str(len(clist[k])) for clist in patients_split_by_outcomes_split_by_n]), 2)
 
-		# Join sublists
-		return [flatten([item[ni] for item in patients_split_by_outcomes_split_by_n]) for ni in range(n)]
+			# Join sublists
+			return [flatten([item[ni] for item in patients_split_by_outcomes_split_by_n]) for ni in range(n)]
 	else:
 		return list(split(patient_list, n))
 
@@ -318,7 +333,7 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 		outcomes:				Dictionary mapping slides to outcomes (used for balancing outcomes in training and validation cohorts)
 		model_type:				Either 'categorical' or 'linear'
 		validation_target:		Either 'per-slide' or 'per-tile'
-		validation_strategy:	Either 'k-fold', 'bootstrap', or 'fixed'.
+		validation_strategy:	Either 'k-fold', 'k-fold-preserved-site', 'bootstrap', or 'fixed'.
 		validation_fraction:	Float, proportion of data for validation. Not used if strategy is k-fold.
 		validation_k_fold:		K, if using K-fold validation.
 		k_fold_iter:			Which K-fold iteration, if using K-fold validation.
@@ -439,7 +454,7 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 				if plan['strategy'] != validation_strategy:
 					continue
 				# If k-fold, check that k-fold length is the same
-				if validation_strategy == 'k-fold' and len(list(plan['tfrecords'].keys())) != k_fold:
+				if (validation_strategy == 'k-fold' or validation_strategy == 'k-fold-preserved-site') and len(list(plan['tfrecords'].keys())) != k_fold:
 					continue
 				# Then, check if patient lists are the same
 				plan_patients = list(plan['patients'].keys())
@@ -469,8 +484,8 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 					training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in training_patients]).tolist()
 					new_plan['tfrecords']['validation'] = validation_slides
 					new_plan['tfrecords']['training'] = training_slides
-				elif validation_strategy == 'k-fold':
-					k_fold_patients = split_patients_list(patients_dict, k_fold, balance=('outcome' if model_type == 'categorical' else None), randomize=True)
+				elif validation_strategy == 'k-fold' or validation_strategy == 'k-fold-preserved-site':
+					k_fold_patients = split_patients_list(patients_dict, k_fold, balance=('outcome' if model_type == 'categorical' else None), randomize=True, preserved_site = validation_strategy == 'k-fold-preserved-site')
 					# Verify at least one patient is in each k_fold group
 					if not min([len(patients) for patients in k_fold_patients]):
 						log.error("Insufficient number of patients to generate validation dataset.", 1)
@@ -496,7 +511,7 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 				if validation_strategy == 'fixed':
 					validation_slides = accepted_plan['tfrecords']['validation']
 					training_slides = accepted_plan['tfrecords']['training']
-				elif validation_strategy == 'k-fold':
+				elif validation_strategy == 'k-fold' or validation_strategy == 'k-fold-preserved-site':
 					validation_slides = accepted_plan['tfrecords'][f'k-fold-{k_fold_iter}']
 					training_slides = np.concatenate([accepted_plan['tfrecords'][f'k-fold-{ki+1}'] for ki in range(k_fold) if ki != k_fold_index]).tolist()
 				else:
@@ -626,6 +641,7 @@ def get_tfrecord_by_index(tfrecord, index, decode=True):
 			return slide, raw_image
 
 	dataset = tf.data.TFRecordDataset(tfrecord)
+
 	total = 0
 	for i, data in enumerate(dataset):
 		total += 1
