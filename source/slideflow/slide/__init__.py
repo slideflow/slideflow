@@ -59,6 +59,7 @@ Image.MAX_IMAGE_PIXELS = 100000000000
 DEFAULT_JPG_MPP = 1
 OPS_LEVEL_COUNT = 'openslide.level-count'
 OPS_MPP_X = 'openslide.mpp-x'
+TIF_EXIF_KEY_MPP = 65326
 OPS_WIDTH = 'width'
 OPS_HEIGHT = 'height'
 EXTRACT_INSIDE = 'inside'
@@ -195,13 +196,24 @@ class OpenslideToVIPS:
 		
 		if buffer == 'vmtouch':
 			os.system(f'vmtouch -q -t "{self.path}"')
-		self.full_image = vips.Image.new_from_file(path)
+		self.full_image = vips.Image.new_from_file(path, fail=True, access=vips.enums.Access.RANDOM)
 		loaded_image = self.full_image
 		
+		# Load image properties
 		self.properties = {}
 		for field in loaded_image.get_fields():
 			self.properties.update({field: loaded_image.get(field)})
 		self.dimensions = (int(self.properties[OPS_WIDTH]), int(self.properties[OPS_HEIGHT]))
+
+		# If Openslide MPP is not available, try reading from metadata
+		if OPS_MPP_X not in self.properties.keys():
+			log.warn(f"Unable to detect openslide Microns-Per-Pixel (MPP) property, will search EXIF data", 1)
+			with Image.open(path) as img:
+				if TIF_EXIF_KEY_MPP in img.tag.keys():
+					log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}", 1)
+					self.properties[OPS_MPP_X] = img.tag[TIF_EXIF_KEY_MPP][0]
+
+		# Prepare downsample levels
 		self.loaded_downsample_levels = {
 			0: self.full_image,
 		}
@@ -249,7 +261,7 @@ class OpenslideToVIPS:
 			if level in self.loaded_downsample_levels:
 				return self.loaded_downsample_levels[level]
 			else:
-				downsampled_image = vips.Image.new_from_file(self.path, level=level)
+				downsampled_image = vips.Image.new_from_file(self.path, level=level, fail=True, access=vips.enums.Access.RANDOM)
 				self.loaded_downsample_levels.update({
 					level: downsampled_image
 				})
@@ -303,7 +315,13 @@ class JPGslideToVIPS(OpenslideToVIPS):
 		self.level_dimensions = [(width, height)]
 
 		# MPP data
-		self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
+		with Image.open(path) as img:
+			if TIF_EXIF_KEY_MPP in img.tag.keys():
+				log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}", 1)
+				self.properties[OPS_MPP_X] = img.tag[TIF_EXIF_KEY_MPP][0]
+			else:
+				log.info(f"Setting MPP to default {DEFAULT_JPG_MPP}", 1)
+				self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
 
 class ROIObject:
 	'''Object container for ROI annotations.'''
@@ -708,7 +726,7 @@ class SlideReader(SlideLoader):
 
 				# Read the region and resize to target size
 				region = self.slide.read_region((c[0], c[1]), self.downsample_level, [self.extract_px, self.extract_px])
-				region = region.resize(float(self.size_px) / self.extract_px)
+				region = region.thumbnail_image(self.size_px)
 
 				# Read regions into memory and convert to numpy arrays
 				np_image = vips2numpy(region)[:,:,:-1]
@@ -716,7 +734,7 @@ class SlideReader(SlideLoader):
 				if dual_extract:
 					try:
 						surrounding_region = self.slide.read_region((c[0]-self.full_stride, c[1]-self.full_stride), self.downsample_level, [self.extract_px*3, self.extract_px*3])
-						surrounding_region = surrounding_region.resize(float(self.size_px) / (self.extract_px*3))
+						surrounding_region = surrounding_region.thumbnail_image(self.size_px)
 						outer_region = vips2numpy(surrounding_region)[:,:,:-1]
 					except:
 						continue

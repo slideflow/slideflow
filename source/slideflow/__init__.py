@@ -8,6 +8,7 @@ import itertools
 import csv
 import queue, threading
 import time
+import warnings
 import numpy as np
 import multiprocessing
 
@@ -29,7 +30,7 @@ from slideflow.statistics import TFRecordMap, calculate_centroid
 from slideflow.mosaic import Mosaic
 #from comet_ml import Experiment
 
-__version__ = "1.9.2"
+__version__ = "1.10.1"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -42,7 +43,14 @@ DEFAULT_FLAGS = {
 	'use_comet': False,
 	'skip_verification': False,
 	'eval_batch_size': 64,
-	'num_threads': 4
+	'num_threads': 4,
+	'logging_levels': {
+		'info': 3,
+		'warn': 3,
+		'error': 3,
+		'complete': 3,
+		'silent': False
+	}
 }
 
 def _evaluator(outcome_header, model, project_config, results_dict, filters=None, 
@@ -53,7 +61,7 @@ def _evaluator(outcome_header, model, project_config, results_dict, filters=None
 	if not flags: flags = DEFAULT_FLAGS
 
 	model_root = dirname(model)
-	log.logfile = join(project_config['root'], "log.log")
+	log.configure(filename=join(project_config['root'], "log.log"), levels=flags['logging_levels'])
 
 	# Load hyperparameters from saved model
 	hp_file = hyperparameters if hyperparameters else join(model_root, 'hyperparameters.json')
@@ -150,7 +158,7 @@ def _heatmap_generator(slide, model_name, model_path, save_folder, roi_list, sho
 	from slideflow.activations import Heatmap
 
 	if not flags: flags = DEFAULT_FLAGS
-	log.logfile = join(project_config['root'], "log.log")
+	log.configure(filename=join(project_config['root'], "log.log"), levels=flags['logging_levels'])
 
 	resolutions = {'low': 1, 'medium': 2, 'high': 4}
 	try:
@@ -189,7 +197,7 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 	from slideflow.statistics import to_onehot
 
 	if not flags: flags = DEFAULT_FLAGS
-	log.logfile = join(project_config['root'], "log.log")
+	log.configure(filename=join(project_config['root'], "log.log"), levels=flags['logging_levels'])
 
 	# First, clear prior Tensorflow graph to free memory
 	tf.keras.backend.clear_session()
@@ -341,7 +349,7 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 
 class SlideflowProject:
 
-	def __init__(self, project_folder, num_gpu=1, reverse_select_gpu=True, force_gpu=None, ignore_gpu=False, interactive=True):
+	def __init__(self, project_folder, num_gpu=1, reverse_select_gpu=True, force_gpu=None, ignore_gpu=False, interactive=True, flags=None):
 		'''Initializes project by creating project folder, prompting user for project settings, and project
 		settings to "settings.json" within the project directory.
 		
@@ -353,11 +361,14 @@ class SlideflowProject:
 			interactive:		Bool, if true, will solicit project information from the user
 									via text prompts if if the project has not yet been initialized
 		'''
-		os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+		
+		# Configure flags and logging
+		self.FLAGS = flags if flags else DEFAULT_FLAGS
+		log.configure(levels=self.FLAGS['logging_levels'])
+
 		log.header(f"Slideflow v{__version__}\n================")
 		log.header("Loading project...")
-
-		self.FLAGS = DEFAULT_FLAGS
+		
 		self.GPU_LOCK = None
 
 		if project_folder and not os.path.exists(project_folder):
@@ -371,6 +382,8 @@ class SlideflowProject:
 				os.makedirs(project_folder)
 		if not project_folder:
 			project_folder = sfutil.dir_input("Where is the project root directory? ", None, create_on_invalid=True, absolute=True)
+
+		log.configure(filename=join(project_folder, "log.log"))
 
 		if exists(join(project_folder, "settings.json")):
 			self.load_project(project_folder)
@@ -563,7 +576,7 @@ class SlideflowProject:
 	def associate_slide_names(self):
 		'''Funtion to automatically associate patient names with slide filenames in the annotations file.'''
 		log.header("Associating slide names...")
-		dataset = self.get_dataset(tile_px=0, tile_um=0, verification=False)
+		dataset = self.get_dataset(tile_px=0, tile_um=0, verification=None)
 		dataset.update_annotations_with_slidenames(self.PROJECT['annotations'])
 
 	def create_blank_annotations_file(self, filename=None):
@@ -986,7 +999,7 @@ class SlideflowProject:
 		else:		datasets = self.PROJECT['datasets']
 
 		# Load dataset for evaluation
-		extracting_dataset = self.get_dataset(filters=filters, filter_blank=filter_blank, tile_px=tile_px, tile_um=tile_um)
+		extracting_dataset = self.get_dataset(filters=filters, filter_blank=filter_blank, tile_px=tile_px, tile_um=tile_um, verification='slides')
 
 		# Prepare validation/training subsets if per-tile validation is being used
 		if self.PROJECT['validation_target'] == 'per-tile':
@@ -1052,7 +1065,7 @@ class SlideflowProject:
 				print(f"\r\033[KVerified {sfutil.green(slide.name)} (approx. {slide.estimated_num_tiles} tiles)", end="")
 				total_tiles += slide.estimated_num_tiles
 				del(slide)
-			print("\r\033[K", end='')
+			if log.INFO_LEVEL > 0: print("\r\033[K", end='')
 			log.complete(f"Verification complete. Total estimated tiles to extract: {total_tiles}", 1)
 			
 			pb = ProgressBar(total_tiles, counter_text='tiles', leadtext="Extracting tiles... ", show_counter=True, show_eta=True) if total_tiles else None
@@ -1257,7 +1270,7 @@ class SlideflowProject:
 		heatmaps_dataset = self.get_dataset(filters=filters,
 											filter_blank=filter_blank,
 											tile_px=hp_data['hp']['tile_px'],
-											tile_um=hp_data['hp']['tile_um'])
+											tile_um=hp_data['hp']['tile_um'])										
 		slide_list = heatmaps_dataset.get_slide_paths()
 		roi_list = heatmaps_dataset.get_rois()
 
@@ -1481,7 +1494,7 @@ class SlideflowProject:
 			mosaic.focus(focus_list)
 			mosaic.save(join(mosaic_root, mosaic_filename))
 			mosaic.save_report(join(stats_root, sfutil.path_to_name(mosaic_filename)+'-mosaic_report.csv'))
-			
+
 		return AV, mosaic, umap
 
 	def generate_mosaic_from_annotations(self, header_x, header_y, tile_px, tile_um, model=None, mosaic_filename=None, umap_filename=None, outcome_header=None, 
@@ -1668,7 +1681,7 @@ class SlideflowProject:
 			if delete_tiles:
 				shutil.rmtree(tiles_dir)
 	
-	def get_dataset(self, tile_px=None, tile_um=None, filters=None, filter_blank=None, verification=True):
+	def get_dataset(self, tile_px=None, tile_um=None, filters=None, filter_blank=None, verification='both'):
 		'''Returns slideflow.io.Dataset object using project settings.
 
 		Args:
@@ -1676,7 +1689,8 @@ class SlideflowProject:
 			tile_um:		Tile size in microns
 			filters:		Dictionary of annotations filters to use when selecting slides/TFRecords to include in dataset
 			filter_blank:	List of outcome headers; will only include slides that are not blank in these outcomes
-			verification:	If true, will verify all annotations are mapped to slides and that the TFRecords manifest is updated
+			verification:	'tfrecords', 'slides', or 'both'. If 'slides', will verify all annotations are mapped to slides.
+															  If 'tfrecords', will check that TFRecords exist and update manifest
 		'''
 		try:
 			dataset = Dataset(config_file=self.PROJECT['dataset_config'], 
@@ -1689,9 +1703,11 @@ class SlideflowProject:
 		except FileNotFoundError:
 			log.warn("No datasets configured.")
 
-		if verification:
-			log.header("Verifying annotations and manifest...")
+		if verification in ('both', 'slides'):
+			log.header("Verifying slide annotations...")
 			dataset.verify_annotations_slides()
+		if verification in ('both', 'tfrecords'):
+			log.header("Verifying tfrecords and updating manifest...")
 			dataset.update_manifest()
 
 		return dataset
@@ -1796,7 +1812,7 @@ class SlideflowProject:
 			batch_file:				Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.
 			hyperparameters:		Manually specify hyperparameter combination to use for training. If specified, will ignore batch training file.
 			validation_target: 		Whether to select validation data on a 'per-patient' or 'per-tile' basis. If not specified, will use project default.
-			validation_strategy:	Validation dataset selection strategy (bootstrap, k-fold, fixed, none). If not specified, will use project default.
+			validation_strategy:	Validation dataset selection strategy (bootstrap, k-fold, k-fold-preserved-site, fixed, none). If not specified, will use project default.
 			validation_fraction:	Fraction of data to use for validation testing. If not specified, will use project default.
 			validation_k_fold: 		K, if using k-fold validation. If not specified, will use project default.
 			k_fold_iter:			Which iteration to train if using k-fold validation. Defaults to training all iterations.
@@ -1833,7 +1849,7 @@ class SlideflowProject:
 		if normalizer and normalizer_strategy not in ('tfrecord', 'realtime'):
 			log.error(f"Unknown normalizer strategy {normalizer_strategy}, must be either 'tfrecord' or 'realtime'", 1)
 			return
-		if validation_strategy in ('k-fold', 'bootstrap') and validation_dataset:
+		if validation_strategy in ('k-fold-preserved-site', 'k-fold', 'bootstrap') and validation_dataset:
 			log.error(f"Unable to use {validation_strategy} if validation_dataset has been provided.", 1)
 			return
 
@@ -1855,13 +1871,13 @@ class SlideflowProject:
 			log.header(f"Training ({len(hyperparameter_list)} models) for each of {len(outcome_header)} outcome variables:", 1)
 		for outcome in outcome_header:
 			log.empty(outcome, 2)
-		print()
+		if log.INFO_LEVEL > 0: print()
 		outcome_header = [outcome_header] if multi_outcome else outcome_header
 
 		# Prepare k-fold validation configuration
 		results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
 		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and not isinstance(k_fold_iter, list)) else k_fold_iter
-		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'bootstrap') else 0
+		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'k-fold-preserved-site', 'bootstrap') else 0
 		valid_k = [] if not k_fold else [kf for kf in range(1, k_fold+1) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
 
 		# Next, prepare the multiprocessing manager (needed to free VRAM after training and keep track of results)
