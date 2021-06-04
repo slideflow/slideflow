@@ -39,7 +39,7 @@ def main(SFP):
 	# ---------------------------------------------------
 	#from slideflow.statistics import TFRecordMap
 	#from os.path import join
-	#AV = SFP.generate_activations_analytics(model='/path/to/trained_model.h5', outcome_header="HPV", filters={"HPV": ["HPV+", "HPV-"]})
+	#AV = SFP.generate_activations(model='/path/to/trained_model.h5', outcome_header="HPV", filters={"HPV": ["HPV+", "HPV-"]})
 	#AV.generate_box_plots()
 	#umap = TFRecordMap.from_activations(AV)
 	#umap.save_2d_plot(join(SFP.PROJECT['root'], 'stats', '2d_umap.png'))

@@ -30,7 +30,7 @@ from slideflow.statistics import TFRecordMap, calculate_centroid
 from slideflow.mosaic import Mosaic
 #from comet_ml import Experiment
 
-__version__ = "1.10.1"
+__version__ = "1.11.0b"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -316,7 +316,7 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 		"pretrain": pretrain,
 		"resume_training": resume_training,
 		"checkpoint": checkpoint,
-		"comet_experiment": None if not flags['use_comet'] else experiment.get_key(),
+		"comet_experiment": None, #if not flags['use_comet'] else experiment.get_key(),
 		"hp": hp._get_dict()
 	}
 	sfutil.write_json(hp_data, hp_file)
@@ -337,7 +337,7 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 		results_dict.update({full_model_name: results})
 		logged_epochs = [int(e[5:]) for e in results['epochs'].keys() if e[:5] == 'epoch']
 		
-		if flags['use_comet']: experiment.log_metrics(results['epochs'][f'epoch{max(logged_epochs)}'])
+		#if flags['use_comet']: experiment.log_metrics(results['epochs'][f'epoch{max(logged_epochs)}'])
 		del(SFM)
 		return history
 	except tf.errors.ResourceExhaustedError as e:
@@ -1165,7 +1165,7 @@ class SlideflowProject:
 			# Update manifest
 			extracting_dataset.update_manifest()
 
-	def generate_activations_analytics(self, model, outcome_header=None, filters=None, filter_blank=None, focus_nodes=[], node_exclusion=False, activations_export=None,
+	def generate_activations(self, model, outcome_header=None, filters=None, filter_blank=None, focus_nodes=[], node_exclusion=False, activations_export=None,
 										activations_cache='default', normalizer=None, normalizer_source=None, max_tiles_per_slide=100, model_format=None):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.
 		Note: GPU memory will remain in use, as the Keras model associated with the visualizer is active.

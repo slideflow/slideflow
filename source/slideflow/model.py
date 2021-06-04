@@ -894,6 +894,8 @@ class SlideflowModel:
 		parent = self
 
 		class PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
+			# TODO: log early stopping batch number, and record
+
 			def __init__(self):
 				super(PredictionAndEvaluationCallback, self).__init__()
 				self.early_stop = False
