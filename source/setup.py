@@ -19,8 +19,8 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-	package_data = {
-		'slideflow': ['util/norm_tile.jpg']
-	},
+    package_data = {
+        'slideflow': ['util/norm_tile.jpg']
+    },
     python_requires='>=3.7',
 )
