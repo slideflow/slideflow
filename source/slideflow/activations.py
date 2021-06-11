@@ -3,8 +3,8 @@ import os
 import csv
 import pickle
 import time
-import random
 import logging
+import h5py
 
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -21,17 +21,13 @@ import slideflow.util as sfutil
 import slideflow.io as sfio
 import shapely.geometry as sg
 
-from io import StringIO
 from slideflow.util import log, ProgressBar, TCGA, StainNormalizer
 from slideflow.util.fastim import FastImshow
-from slideflow.mosaic import Mosaic
 from slideflow.model import ModelActivationsInterface
-from os.path import join, isfile, exists
-from random import sample
+from os.path import join, exists
 from statistics import mean
 from math import isnan
 from copy import deepcopy
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.widgets import Slider
 from functools import partial
 from multiprocessing.dummy import Process as DProcess
@@ -680,7 +676,7 @@ class ActivationsVisualizer:
 
 		return self.slide_node_dict, self.slide_logits_dict
 
-	def export_activations_to_csv(self, filename, nodes=None):
+	def export_to_csv(self, filename, nodes=None):
 		'''Exports calculated activations to csv.
 
 		Args:
@@ -698,6 +694,21 @@ class ActivationsVisualizer:
 				for n in nodes:
 					row += [self.slide_node_dict[slide][n]]
 				csvwriter.writewrow(row)
+
+	def export_to_torch(self, output_directory):
+		import torch
+
+		for slide in self.slide_node_dict:
+			sys.stdout.write(f"\rWorking on {sfutil.green(slide)}...")
+			sys.stdout.flush()
+			slide_activations = []
+			number_tiles = len(self.slide_node_dict[slide][self.nodes[0]])
+			for tile in range(number_tiles):
+				tile_activations = [self.slide_node_dict[slide][n][tile] for n in self.nodes]
+				slide_activations += [tile_activations]
+			slide_activations = np.array(slide_activations)
+			torch.save(slide_activations, join(output_directory, f'{slide}.pt'))
+		log.complete("Activations exported in Torch format.", 1)
 
 	def calculate_activation_averages_and_stats(self, filename=None, node_method='avg', threshold=0.5):
 		'''Calculates activation averages across categories, 

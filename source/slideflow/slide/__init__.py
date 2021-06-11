@@ -41,7 +41,7 @@ import slideflow.util as sfutil
 
 from os.path import join, isfile, exists
 from math import sqrt
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, UnidentifiedImageError
 from multiprocessing.dummy import Pool as DPool
 from multiprocessing import Process, Pool, Queue
 from matplotlib.widgets import Slider
@@ -208,10 +208,13 @@ class OpenslideToVIPS:
 		# If Openslide MPP is not available, try reading from metadata
 		if OPS_MPP_X not in self.properties.keys():
 			log.warn(f"Unable to detect openslide Microns-Per-Pixel (MPP) property, will search EXIF data", 1)
-			with Image.open(path) as img:
-				if TIF_EXIF_KEY_MPP in img.tag.keys():
-					log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}", 1)
-					self.properties[OPS_MPP_X] = img.tag[TIF_EXIF_KEY_MPP][0]
+			try:
+				with Image.open(path) as img:
+					if TIF_EXIF_KEY_MPP in img.tag.keys():
+						log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}", 1)
+						self.properties[OPS_MPP_X] = img.tag[TIF_EXIF_KEY_MPP][0]
+			except UnidentifiedImageError:
+				log.error(f"PIL image reading error; slide {sfutil.path_to_name(path)} is corrupt.")
 
 		# Prepare downsample levels
 		self.loaded_downsample_levels = {
