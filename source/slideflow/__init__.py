@@ -55,7 +55,7 @@ DEFAULT_FLAGS = {
 
 def _evaluator(outcome_header, model, project_config, results_dict, filters=None, 
 				hyperparameters=None, checkpoint=None, eval_k_fold=None, max_tiles_per_slide=0,
-				min_tiles_per_slide=0, normalizer=None, normalizer_source=None, flags=None, input_header=None):
+				min_tiles_per_slide=0, normalizer=None, normalizer_source=None, flags=None, input_header=None, permutation_importance = False):
 	'''Internal function to execute model evaluation process.'''
 	import slideflow.model as sfmodel
 	from slideflow.statistics import to_onehot
@@ -207,7 +207,8 @@ def _evaluator(outcome_header, model, project_config, results_dict, filters=None
 						   checkpoint=checkpoint,
 						   batch_size=flags['eval_batch_size'],
 						   max_tiles_per_slide=max_tiles_per_slide,
-						   min_tiles_per_slide=min_tiles_per_slide)
+						   min_tiles_per_slide=min_tiles_per_slide, 
+						   permutation_importance=permutation_importance)
 
 	# Load results into multiprocessing dictionary
 	results_dict['results'] = results
@@ -846,7 +847,7 @@ class SlideflowProject:
 		self.load_project(project_folder)
 
 	def evaluate(self, model, outcome_header, hyperparameters=None, filters=None, checkpoint=None,
-					eval_k_fold=None, max_tiles_per_slide=0, min_tiles_per_slide=0, normalizer=None, normalizer_source=None, input_header=None):
+					eval_k_fold=None, max_tiles_per_slide=0, min_tiles_per_slide=0, normalizer=None, normalizer_source=None, input_header=None, permutation_importance=False):
 		'''Evaluates a saved model on a given set of tfrecords.
 		
 		Args:
@@ -861,15 +862,19 @@ class SlideflowProject:
 										for best slide-level AUC, a minimum of at least 10 tiles per slide is recommended.
 			normalizer:				Normalization strategy to use on image tiles.
 			normalizer_source:		Path to normalizer source image.
+			permutation_importance:	Bool. True if you want to calculate the permutation feature importance (used to determine relative importance when using multiple model inputs
 		'''							
 		log.header(f"Evaluating model {sfutil.green(model)}...")
-
+		
+		if (input_header is None) and permutation_importance:
+			log.warn("Permutation feature importance is designed to be used with multimodal models. Turning off.", 1)
+			permutation_importance = False
 		manager = multiprocessing.Manager()
 		results_dict = manager.dict()
 		ctx = multiprocessing.get_context('spawn')
 		
 		process = ctx.Process(target=_evaluator, args=(outcome_header, model, self.PROJECT, results_dict, filters, hyperparameters, 
-														checkpoint, eval_k_fold, max_tiles_per_slide, min_tiles_per_slide, normalizer, normalizer_source, self.FLAGS, input_header))
+														checkpoint, eval_k_fold, max_tiles_per_slide, min_tiles_per_slide, normalizer, normalizer_source, self.FLAGS, input_header, permutation_importance))
 		process.start()
 		log.empty(f"Spawning evaluation process (PID: {process.pid})")
 		process.join()

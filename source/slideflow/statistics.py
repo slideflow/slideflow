@@ -935,6 +935,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 				except IndexError:
 					log.warn(f"Unable to generate patient-level stats for outcome {i}", 1)
 
+	r_squared_list = []
 	if model_type == 'linear':
 		# Generate R-squared
 		r_squared = generate_scatter(y_true, y_pred, data_dir, label_end)
@@ -943,12 +944,14 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		averages_by_slide = get_average_by_group(y_pred, "average", unique_slides, tile_to_slides, y_true_slide, "slide")
 		y_true_by_slide = np.array([y_true_slide[slide] for slide in unique_slides])
 		r_squared_slide = generate_scatter(y_true_by_slide, averages_by_slide, data_dir, label_end+"_by_slide")			
-
 		if not patient_error:
 			# Generate and save patient-level averages of each outcome
 			averages_by_patient = get_average_by_group(y_pred, "average", patients, tile_to_patients, y_true_patient, "slide")
 			y_true_by_patient = np.array([y_true_patient[patient] for patient in patients])
-			r_squared_patient = generate_scatter(y_true_by_patient, averages_by_patient, data_dir, label_end+"_by_patient")			
+			r_squared_patient = generate_scatter(y_true_by_patient, averages_by_patient, data_dir, label_end+"_by_patient")
+		else:
+			r_squared_patient = None
+		r_squared_list = [r_squared, r_squared_slide, r_squared_patient]
 
 	c_index_list = []
 	if model_type == 'cph':
@@ -959,13 +962,14 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 		averages_by_slide = get_average_by_group(y_pred, "average", unique_slides, tile_to_slides, y_true_slide, "slide")
 		y_true_by_slide = np.array([y_true_slide[slide] for slide in unique_slides])
 		c_index_slide = concordance_index(y_true_by_slide, averages_by_slide)
-		c_index_list = [c_index, c_index_slide]
 		if not patient_error:
 			# Generate and save patient-level averages of each outcome
 			averages_by_patient = get_average_by_group(y_pred, "average", patients, tile_to_patients, y_true_patient, "slide")
 			y_true_by_patient = np.array([y_true_patient[patient] for patient in patients])
-			c_index_patient = concordance_index(y_true_by_patient, averages_by_patient)			
-			c_index_list = [c_index, c_index_slide, c_index_patient]
+			c_index_patient = concordance_index(y_true_by_patient, averages_by_patient)	
+		else:
+			c_index_patient = None
+		c_index_list = [c_index, c_index_slide, c_index_patient]
 		
 		
 	# Save tile-level predictions
@@ -981,9 +985,9 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 			writer.writerow(row)
 
 	log.complete(f"Predictions saved to {sfutil.green(data_dir)}", 1)
-	return tile_auc, slide_auc, patient_auc, r_squared, c_index_list
+	return tile_auc, slide_auc, patient_auc, r_squared_list, c_index_list
 
-def calculate_metric(model, dataset_with_slidenames, y_true, mergelayer, events, tile_to_slides, annotations, model_type, data_dir, label=None, manifest=None, min_tiles_per_slide=0, num_tiles=0):
+def calculate_metric(model, dataset_with_slidenames, y_true, mergelayer, events, tile_to_slides, annotations, model_type, data_dir, label=None, manifest=None, min_tiles_per_slide=0, num_tiles=0, baseline=False):
 	'''Evaluate performance of a given model on a given TFRecord dataset, 
 	generating a variety of statistical outcomes and graphs.
 
@@ -1037,6 +1041,7 @@ def calculate_metric(model, dataset_with_slidenames, y_true, mergelayer, events,
 	patients = list(set(tile_to_patients))
 	num_tiles = len(tile_to_slides)
 	unique_slides = list(set(tile_to_slides))
+	num_total_slides = len(unique_slides)
 
 	# Ensure that the number of outcome categories in the predictions matches the number of categories in the labels
 	if model_type == 'categorical':
@@ -1051,8 +1056,12 @@ def calculate_metric(model, dataset_with_slidenames, y_true, mergelayer, events,
 		tfrecord_name = sfutil.path_to_name(tfrecord)
 		num_tiles_tfrecord = manifest[tfrecord]['total']
 		if num_tiles_tfrecord < min_tiles_per_slide:
+			if baseline:
+				log.info(f"Filtering out {tfrecord_name}: {num_tiles_tfrecord} tiles", 2)
 			slides_to_filter += [tfrecord_name]
 	unique_slides = [us for us in unique_slides if us not in slides_to_filter]
+	if baseline:
+		log.info(f"Filtered out {num_total_slides - len(unique_slides)} of {num_total_slides} slides in evaluation set (minimum tiles per slide: {min_tiles_per_slide})", 1)
 
 	# Empty lists to store performance metrics
 	tile_auc, slide_auc, patient_auc = [], [], []
@@ -1087,6 +1096,7 @@ def calculate_metric(model, dataset_with_slidenames, y_true, mergelayer, events,
 	def get_average_by_group(prediction_array, prediction_label, unique_groups, tile_to_group, y_true_group, label='group'):
 		'''For a given tile-level prediction array, calculate percent predictions in each outcome by group (e.g. patient, slide) and save to CSV.'''
 		avg_by_group, cat_index_warn = [], []
+		save_path = join(data_dir, f"{label}_predictions{label_end}.csv")
 		for group in unique_groups:
 			percent_predictions = []
 			for cat_index in range(num_cat):
@@ -1100,16 +1110,27 @@ def calculate_metric(model, dataset_with_slidenames, y_true, mergelayer, events,
 						cat_index_warn += [cat_index]
 			avg_by_group += [percent_predictions]
 		avg_by_group = np.array(avg_by_group)
+		if baseline:
+			with open(save_path, 'w') as outfile:
+				writer = csv.writer(outfile)
+				header = [label] + [f"y_true{i}" for i in range(num_cat)] + [f"{prediction_label}{j}" for j in range(num_cat)]
+				writer.writerow(header)
+				for i, group in enumerate(unique_groups):
+					row = np.concatenate([ [group], y_true_group[group], avg_by_group[i] ])
+					writer.writerow(row)
 		return avg_by_group
-
+		
 	if model_type == 'categorical':
 		# Generate tile-level ROC
 		for i in range(num_cat):
 			try:
 				roc_auc, average_precision, optimal_threshold = generate_roc(y_true[:, i], y_pred[:, i], None, f'{label_start}tile_ROC{i}')
 				tile_auc += [roc_auc]
+				if baseline:
+					log.info(f"Tile-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold:.3f})", 1)
 			except IndexError:
 				log.warn(f"Unable to generate tile-level stats for outcome {i}", 1)
+
 
 		# Convert predictions to one-hot encoding
 		onehot_predictions = []
@@ -1124,6 +1145,8 @@ def calculate_metric(model, dataset_with_slidenames, y_true, mergelayer, events,
 				num_correctly_predicted_in_category = sum([yp[cat_index] for i, yp in enumerate(onehot_predictions) if y_true[i][cat_index]])
 				category_accuracy = num_correctly_predicted_in_category / num_tiles_in_category
 				cat_percent_acc = category_accuracy * 100
+				if baseline:
+					log.info(f"Slide-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold:.3f})", 1)
 			except IndexError:
 				log.warn(f"Unable to generate category-level accuracy stats for category index {cat_index}", 1)
 
@@ -1151,6 +1174,8 @@ def calculate_metric(model, dataset_with_slidenames, y_true, mergelayer, events,
 					patient_y_true = [y_true_patient[patient][i] for patient in patients]
 					roc_auc, average_precision, optimal_threshold = generate_roc(patient_y_true, patient_y_pred, None, f'{label_start}patient_ROC{i}')
 					patient_auc += [roc_auc]
+					if baseline:
+						log.info(f"Patient-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold:.3f})", 1)
 				except IndexError:
 					log.warn(f"Unable to generate patient-level stats for outcome {i}", 1)
 
@@ -1189,7 +1214,21 @@ def calculate_metric(model, dataset_with_slidenames, y_true, mergelayer, events,
 		else:
 			c_index_patient = None
 		return [c_index, c_index_slide, c_index_patient]
+	
+	if baseline:
+		# Save tile-level predictions
+		tile_csv_dir = os.path.join(data_dir, f"tile_predictions{label_end}.csv")
+		with open(tile_csv_dir, 'w') as outfile:
+			writer = csv.writer(outfile)
+			header = ['slide'] + [f"y_true{i}" for i in range(y_true.shape[1])] + [f"y_pred{j}" for j in range(len(y_pred[0]))]
+			writer.writerow(header)
+			for i in range(len(y_true)):
+				y_true_str_list = [str(yti) for yti in y_true[i]]
+				y_pred_str_list = [str(ypi) for ypi in y_pred[i]]
+				row = np.concatenate([[tile_to_slides[i]], y_true_str_list, y_pred_str_list])
+				writer.writerow(row)
 
+		log.complete(f"Predictions saved to {sfutil.green(data_dir)}", 1)
 	return [tile_auc, slide_auc, patient_auc]
 	
 def permutation_feature_importance(model, dataset_with_slidenames, annotations, model_type, data_dir, label=None, manifest=None, min_tiles_per_slide=0, num_tiles=0, num_input = 0, feature_names = None, feature_sizes = None, drop_images = False):
@@ -1247,14 +1286,18 @@ def permutation_feature_importance(model, dataset_with_slidenames, annotations, 
 		events = np.concatenate(events)
 	y_true = np.concatenate(y_true)
 	
-	baseline_metrics = np.array(calculate_metric(model, dataset_with_slidenames, y_true, mergelayer, events, tile_to_slides, annotations, model_type, data_dir, label, manifest, min_tiles_per_slide, num_tiles))
+	if log.INFO_LEVEL > 0:
+		sys.stdout.write("\r\033[K")
+		sys.stdout.flush()
+	
+	baseline_metrics = np.array(calculate_metric(model, dataset_with_slidenames, y_true, mergelayer, events, tile_to_slides, annotations, model_type, data_dir, label, manifest, min_tiles_per_slide, num_tiles, True))
 	if model_type == 'cph':
 		feature_names = feature_names[1:]
 		feature_sizes = feature_sizes[1:]
 		num_input = num_input - 1
 	label = feature_names
 	if not drop_images:
-		label + ["Histology"]
+		label = label + ["Histology"]
 
 	metrics = {}
 	
@@ -1282,15 +1325,5 @@ def permutation_feature_importance(model, dataset_with_slidenames, annotations, 
 		else:
 			feature_text += label[i] + ": " + str(metrics[label[i]][0]) + ", "
 	log.info("Feature importance, tile level: " + feature_text, 1)
-
-	#feature_text = ""
-	#for i in range(len(feature_sizes) + 1):
-	#	feature_text += label[i] + ": " + str(metrics[label[i]][1][0]) + ", "
-	#log.info("Feature importance, slide level: " + feature_text, 1)
-		
-	#feature_text = ""
-	#for i in range(len(feature_sizes) + 1):
-	#	feature_text += label[i] + ": " + str(metrics[label[i]][2][0]) + ", "
-	#log.info("Feature importance, patient level: " + feature_text, 1)
 	
-	return
+	return baseline_metrics
