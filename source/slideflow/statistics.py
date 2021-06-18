@@ -22,6 +22,7 @@ from sklearn.metrics import pairwise_distances_argmin_min
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import pyplot as plt
 from matplotlib.widgets import LassoSelector
+import tensorflow as tf
 
 class StatisticsError(Exception):
 	pass
@@ -678,7 +679,7 @@ def read_predictions(predictions_file, level):
 				predictions[label]['y_pred'] += [float(row[ypi])]
 	return predictions
 
-def generate_scatter(y_true, y_pred, data_dir, name='_plot'):
+def generate_scatter(y_true, y_pred, data_dir, name='_plot', plot=True):
 	'''Generate and save scatter plots and calculate R2 statistic for each outcome variable.
 	y_true and y_pred are both 2D arrays; the first dimension is each observation, the second dimension is each outcome variable.'''
 	# Error checking
@@ -696,15 +697,15 @@ def generate_scatter(y_true, y_pred, data_dir, name='_plot'):
 		# Statistics
 		slope, intercept, r_value, p_value, std_err = stats.linregress(y_true[:,i], y_pred[:,i])
 		r_squared += [r_value ** 2]
-
+		
 		def r2(x, y):
 			return stats.pearsonr(x, y)[0] ** 2
-
-		# Plot
-		p = sns.jointplot(y_true[:,i], y_pred[:,i], kind="reg") #stat_func=r2
-		p.set_axis_labels('y_true', 'y_pred')
-		plt.savefig(os.path.join(data_dir, f'Scatter{name}-{i}.png'))
-
+		if plot:
+			# Plot
+			p = sns.jointplot(y_true[:,i], y_pred[:,i], kind="reg") #stat_func=r2
+			p.set_axis_labels('y_true', 'y_pred')
+			plt.savefig(os.path.join(data_dir, f'Scatter{name}-{i}.png'))
+			
 	return r_squared
 
 def generate_metrics_from_predictions(y_true, y_pred):
@@ -740,6 +741,18 @@ def generate_metrics_from_predictions(y_true, y_pred):
 	kappa = metrics.cohen_kappa_score(y_true, y_pred)
 
 	return accuracy, sensitivity, specificity, precision, recall, f1_score, kappa
+
+
+def concordance_index(y_true, y_pred):
+	E = y_pred[:, -1]  # HERE
+	y_pred = y_pred[:, :-1]  # HERE
+	y_pred = y_pred.flatten()
+	E = E.flatten()
+	y_true = y_true.flatten()
+	y_pred = - y_pred # Need to take negative to get concordance index since these are log hazard ratios
+	from lifelines.utils import concordance_index as c_index
+	return c_index(y_true, y_pred, E)
+
 
 def generate_performance_metrics(model, dataset_with_slidenames, annotations, model_type, data_dir, label=None, manifest=None, min_tiles_per_slide=0, num_tiles=0):
 	'''Evaluate performance of a given model on a given TFRecord dataset, 
@@ -814,8 +827,8 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	r_squared = None
 
 	# Detect number of outcome categories
-	num_cat = len(y_pred[0]) if model_type == 'linear' else max(num_true_outcome_categories, len(y_pred[0]))
-
+	num_cat = len(y_pred[0]) if (model_type == 'linear' or model_type == 'cph') else max(num_true_outcome_categories, len(y_pred[0]))
+		
 	# For categorical models, convert to one-hot encoding
 	if model_type == 'categorical':
 		y_true = np.array([to_onehot(i, num_cat) for i in y_true])
@@ -937,6 +950,24 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 			y_true_by_patient = np.array([y_true_patient[patient] for patient in patients])
 			r_squared_patient = generate_scatter(y_true_by_patient, averages_by_patient, data_dir, label_end+"_by_patient")			
 
+	c_index_list = []
+	if model_type == 'cph':
+		# Generate c_index
+		c_index = concordance_index(y_true, y_pred)
+		
+		# Generate and save slide-level averages of each outcome
+		averages_by_slide = get_average_by_group(y_pred, "average", unique_slides, tile_to_slides, y_true_slide, "slide")
+		y_true_by_slide = np.array([y_true_slide[slide] for slide in unique_slides])
+		c_index_slide = concordance_index(y_true_by_slide, averages_by_slide)
+		c_index_list = [c_index, c_index_slide]
+		if not patient_error:
+			# Generate and save patient-level averages of each outcome
+			averages_by_patient = get_average_by_group(y_pred, "average", patients, tile_to_patients, y_true_patient, "slide")
+			y_true_by_patient = np.array([y_true_patient[patient] for patient in patients])
+			c_index_patient = concordance_index(y_true_by_patient, averages_by_patient)			
+			c_index_list = [c_index, c_index_slide, c_index_patient]
+		
+		
 	# Save tile-level predictions
 	tile_csv_dir = os.path.join(data_dir, f"tile_predictions{label_end}.csv")
 	with open(tile_csv_dir, 'w') as outfile:
@@ -950,4 +981,316 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 			writer.writerow(row)
 
 	log.complete(f"Predictions saved to {sfutil.green(data_dir)}", 1)
-	return tile_auc, slide_auc, patient_auc, r_squared
+	return tile_auc, slide_auc, patient_auc, r_squared, c_index_list
+
+def calculate_metric(model, dataset_with_slidenames, y_true, mergelayer, events, tile_to_slides, annotations, model_type, data_dir, label=None, manifest=None, min_tiles_per_slide=0, num_tiles=0):
+	'''Evaluate performance of a given model on a given TFRecord dataset, 
+	generating a variety of statistical outcomes and graphs.
+
+	Args:
+		model						Keras model to evaluate
+		dataset_with_slidenames		TFRecord dataset which include three items: raw image data, labels, and slide names.
+		annotations					dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
+		model_type					'linear' or 'categorical'
+		data_dir					directory in which to save performance metrics and graphs
+		label						(optional) label with which to annotation saved files and graphs
+		manifest					(optional) manifest as provided by Dataset, used to filter slides that do not have minimum number of tiles
+		min_tiles_per_slide			(optional) if provided, will only perform calculations on slides that have a given minimum number of tiles
+		num_tiles					(optional) total number of tiles across dataset, used for progress bar.
+	'''
+	
+
+	# Initial preparations
+	
+	label_end = "" if not label else f"_{label}"
+	label_start = "" if not label else f"{label}_"
+	y_pred = []
+	detected_batch_size = 0
+
+	index = None
+	for idx, layer in enumerate(model.layers):
+		if layer.name == 'hidden_0':
+			index = idx
+			break
+			
+	idx = index  # index of desired layer
+	input_shape = model.layers[idx].get_input_shape_at(0) # get the input shape of desired layer
+
+	layer_input = tf.keras.Input(shape=input_shape) # a new input tensor to be able to feed the desired layer
+
+	# create the new nodes for each layer in the path
+	x = layer_input
+	if model_type == 'cph':
+		for layer in model.layers[idx:-1]:
+			x = layer(x)	
+	else:
+		for layer in model.layers[idx:]:
+			x = layer(x)
+
+	# create the model
+	new_model = tf.keras.Model(layer_input, x)
+	new_merge = np.array(mergelayer)
+	y_pred = new_model.predict(mergelayer)
+	if model_type == 'cph':
+		y_pred = np.concatenate((y_pred, events), axis = 1)
+	tile_to_patients = [annotations[slide][sfutil.TCGA.patient] for slide in tile_to_slides]
+	patients = list(set(tile_to_patients))
+	num_tiles = len(tile_to_slides)
+	unique_slides = list(set(tile_to_slides))
+
+	# Ensure that the number of outcome categories in the predictions matches the number of categories in the labels
+	if model_type == 'categorical':
+		num_true_outcome_categories = max(y_true)+1
+		if num_true_outcome_categories != len(y_pred[0]):
+			log.warn(f"Model predictions have different number of outcome categories ({len(y_pred[0])}) than provided annotations ({num_true_outcome_categories})!", 1)
+
+	# Filter out slides not meeting minimum tile number criteria, if specified
+	slides_to_filter = []
+	num_total_slides = len(unique_slides)
+	for tfrecord in manifest:
+		tfrecord_name = sfutil.path_to_name(tfrecord)
+		num_tiles_tfrecord = manifest[tfrecord]['total']
+		if num_tiles_tfrecord < min_tiles_per_slide:
+			slides_to_filter += [tfrecord_name]
+	unique_slides = [us for us in unique_slides if us not in slides_to_filter]
+
+	# Empty lists to store performance metrics
+	tile_auc, slide_auc, patient_auc = [], [], []
+	r_squared = None
+
+	# Detect number of outcome categories
+	num_cat = len(y_pred[0]) if (model_type == 'linear' or model_type == 'cph') else max(num_true_outcome_categories, len(y_pred[0]))
+		
+	# For categorical models, convert to one-hot encoding
+	if model_type == 'categorical':
+		y_true = np.array([to_onehot(i, num_cat) for i in y_true])
+
+	# Create dictionary mapping slides to one_hot category encoding
+	#  and check for data integrity problems (slide assigned to multiple outcomes, etc)
+	y_true_slide, y_true_patient = {}, {}
+	patient_error = False
+	for i in range(len(tile_to_slides)):
+		slidename = tile_to_slides[i]
+		patient = annotations[slidename][sfutil.TCGA.patient]
+		if slidename not in y_true_slide:
+			y_true_slide.update({slidename: y_true[i]})
+		elif not np.array_equal(y_true_slide[slidename], y_true[i]):
+			log.error("Data integrity failure when generating ROCs; slide assigned to multiple different one-hot outcomes", 1)
+			raise StatisticsError("Data integrity failure when generating ROCs; slide assigned to multiple different one-hot outcomes")
+		if patient not in y_true_patient:
+			y_true_patient.update({patient: y_true[i]})
+		elif not patient_error and not np.array_equal(y_true_patient[patient], y_true[i]):
+			log.error("Data integrity failure when generating ROCs; patient assigned to multiple slides with different outcomes", 1)
+			patient_error = True
+
+	# Function to generate group-level averages (e.g. slide-level or patient-level)
+	def get_average_by_group(prediction_array, prediction_label, unique_groups, tile_to_group, y_true_group, label='group'):
+		'''For a given tile-level prediction array, calculate percent predictions in each outcome by group (e.g. patient, slide) and save to CSV.'''
+		avg_by_group, cat_index_warn = [], []
+		for group in unique_groups:
+			percent_predictions = []
+			for cat_index in range(num_cat):
+				try:
+					sum_of_outcome = sum([ prediction_array[i][cat_index] for i in range(num_tiles) if tile_to_group[i] == group ])
+					num_total_tiles = len([i for i in range(len(tile_to_group)) if tile_to_group[i] == group])
+					percent_predictions += [sum_of_outcome / num_total_tiles]
+				except IndexError:
+					if cat_index not in cat_index_warn:
+						log.warn(f"Unable to generate slide-level stats for category index {cat_index}", 1)
+						cat_index_warn += [cat_index]
+			avg_by_group += [percent_predictions]
+		avg_by_group = np.array(avg_by_group)
+		return avg_by_group
+
+	if model_type == 'categorical':
+		# Generate tile-level ROC
+		for i in range(num_cat):
+			try:
+				roc_auc, average_precision, optimal_threshold = generate_roc(y_true[:, i], y_pred[:, i], None, f'{label_start}tile_ROC{i}')
+				tile_auc += [roc_auc]
+			except IndexError:
+				log.warn(f"Unable to generate tile-level stats for outcome {i}", 1)
+
+		# Convert predictions to one-hot encoding
+		onehot_predictions = []
+		for x in range(len(y_pred)):
+			predictions = y_pred[x]
+			onehot_predictions += [[1 if pred == max(predictions) else 0 for pred in predictions]]
+		
+		# Compare one-hot predictions to one-hot y_true for category-level accuracy
+		for cat_index in range(num_cat):
+			try:
+				num_tiles_in_category = sum([yt[cat_index] for yt in y_true])
+				num_correctly_predicted_in_category = sum([yp[cat_index] for i, yp in enumerate(onehot_predictions) if y_true[i][cat_index]])
+				category_accuracy = num_correctly_predicted_in_category / num_tiles_in_category
+				cat_percent_acc = category_accuracy * 100
+			except IndexError:
+				log.warn(f"Unable to generate category-level accuracy stats for category index {cat_index}", 1)
+
+		# Generate slide-level percent calls
+		percent_calls_by_slide = get_average_by_group(onehot_predictions, "percent_tiles_positive", unique_slides, tile_to_slides, y_true_slide, "slide")
+
+		# Generate slide-level ROC
+		for i in range(num_cat):
+			try:
+				slide_y_pred = percent_calls_by_slide[:, i]
+				slide_y_true = [y_true_slide[slide][i] for slide in unique_slides]
+				roc_auc, average_precision, optimal_threshold = generate_roc(slide_y_true, slide_y_pred, None, f'{label_start}slide_ROC{i}')
+				slide_auc += [roc_auc]
+			except IndexError:
+				log.warn(f"Unable to generate slide-level stats for outcome {i}", 1)
+
+		if not patient_error:
+			# Generate patient-level percent calls
+			percent_calls_by_patient = get_average_by_group(onehot_predictions, "percent_tiles_positive", patients, tile_to_patients, y_true_patient, "slide")
+
+			# Generate patient-level ROC
+			for i in range(num_cat):
+				try:
+					patient_y_pred = percent_calls_by_patient[:, i]
+					patient_y_true = [y_true_patient[patient][i] for patient in patients]
+					roc_auc, average_precision, optimal_threshold = generate_roc(patient_y_true, patient_y_pred, None, f'{label_start}patient_ROC{i}')
+					patient_auc += [roc_auc]
+				except IndexError:
+					log.warn(f"Unable to generate patient-level stats for outcome {i}", 1)
+
+					
+	if model_type == 'linear':
+		# Generate R-squared
+		r_squared = generate_scatter(y_true, y_pred, None, label_end, plot=False)
+
+		# Generate and save slide-level averages of each outcome
+		averages_by_slide = get_average_by_group(y_pred, "average", unique_slides, tile_to_slides, y_true_slide, "slide")
+		y_true_by_slide = np.array([y_true_slide[slide] for slide in unique_slides])
+		r_squared_slide = generate_scatter(y_true_by_slide, averages_by_slide, None, label_end+"_by_slide", plot=False)			
+
+		if not patient_error:
+			# Generate and save patient-level averages of each outcome
+			averages_by_patient = get_average_by_group(y_pred, "average", patients, tile_to_patients, y_true_patient, "slide")
+			y_true_by_patient = np.array([y_true_patient[patient] for patient in patients])
+			r_squared_patient = generate_scatter(y_true_by_patient, averages_by_patient, None, label_end+"_by_patient", plot=False)			
+		else:
+			r_squared_patient = None
+		return [r_squared, r_squared_slide, r_squared_patient]
+
+	if model_type == 'cph':
+		# Generate c_index
+		c_index = concordance_index(y_true, y_pred)
+		
+		# Generate and save slide-level averages of each outcome
+		averages_by_slide = get_average_by_group(y_pred, "average", unique_slides, tile_to_slides, y_true_slide, "slide")
+		y_true_by_slide = np.array([y_true_slide[slide] for slide in unique_slides])
+		c_index_slide = concordance_index(y_true_by_slide, averages_by_slide)
+		if not patient_error:
+			# Generate and save patient-level averages of each outcome
+			averages_by_patient = get_average_by_group(y_pred, "average", patients, tile_to_patients, y_true_patient, "slide")
+			y_true_by_patient = np.array([y_true_patient[patient] for patient in patients])
+			c_index_patient = concordance_index(y_true_by_patient, averages_by_patient)			
+		else:
+			c_index_patient = None
+		return [c_index, c_index_slide, c_index_patient]
+
+	return [tile_auc, slide_auc, patient_auc]
+	
+def permutation_feature_importance(model, dataset_with_slidenames, annotations, model_type, data_dir, label=None, manifest=None, min_tiles_per_slide=0, num_tiles=0, num_input = 0, feature_names = None, feature_sizes = None, drop_images = False):
+	'''Evaluate performance of a given model on a given TFRecord dataset, 
+	generating a variety of statistical outcomes and graphs.
+
+	Args:
+		model						Keras model to evaluate
+		dataset_with_slidenames		TFRecord dataset which include three items: raw image data, labels, and slide names.
+		annotations					dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
+		model_type					'linear' or 'categorical'
+		data_dir					directory in which to save performance metrics and graphs
+		label						(optional) label with which to annotation saved files and graphs
+		manifest					(optional) manifest as provided by Dataset, used to filter slides that do not have minimum number of tiles
+		min_tiles_per_slide			(optional) if provided, will only perform calculations on slides that have a given minimum number of tiles
+		num_tiles					(optional) total number of tiles across dataset, used for progress bar.
+	'''
+	
+	# Initial preparations
+
+	label_end = "" if not label else f"_{label}"
+	label_start = "" if not label else f"{label}_"
+	y_true, y_pred, tile_to_slides, mergelayer = [], [], [], []
+	detected_batch_size = 0
+	if log.INFO_LEVEL > 0:
+		sys.stdout.write("\rGenerating predictions...")
+		pb = ProgressBar(num_tiles, counter_text='images', leadtext="Generating predictions... ", show_counter=True, show_eta=True) if num_tiles else None
+	else:
+		pb = None
+	
+	layer_name = "input_merge"
+	if drop_images:
+		layer_name = "slide_input"
+	if model_type == 'cph':
+		event_input = tf.keras.Model(inputs=model.input, outputs=model.get_layer("event_input").output)
+	events = []
+	intermediate_layer_model = tf.keras.Model(inputs=model.input,
+									 outputs=model.get_layer(layer_name).output)
+	# Get predictions and performance metrics
+	for i, batch in enumerate(dataset_with_slidenames):
+		if pb:
+			pb.increase_bar_value(detected_batch_size)
+		elif log.INFO_LEVEL > 0:
+			sys.stdout.write(f"\rGenerating predictions (batch {i})...")
+			sys.stdout.flush()
+		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in batch[2].numpy()]
+		y_true += [batch[1].numpy()]
+		inter = intermediate_layer_model.predict_on_batch(batch[0])
+		mergelayer += [inter]
+		if model_type == 'cph':
+			events += [event_input.predict_on_batch(batch[0])]
+		if not detected_batch_size: detected_batch_size = len(batch[1].numpy())
+	mergelayer = np.concatenate(mergelayer)
+	if model_type == 'cph':
+		events = np.concatenate(events)
+	y_true = np.concatenate(y_true)
+	
+	baseline_metrics = np.array(calculate_metric(model, dataset_with_slidenames, y_true, mergelayer, events, tile_to_slides, annotations, model_type, data_dir, label, manifest, min_tiles_per_slide, num_tiles))
+	if model_type == 'cph':
+		feature_names = feature_names[1:]
+		feature_sizes = feature_sizes[1:]
+		num_input = num_input - 1
+	label = feature_names
+	if not drop_images:
+		label + ["Histology"]
+
+	metrics = {}
+	
+	curCount = 0
+	for i in range(len(label)):
+		mergelayer_new = np.copy(mergelayer)
+		
+		if label[i] == "Histology":
+			mergelayer_new[:,num_input:] = np.random.permutation(mergelayer_new[:,num_input:])
+		else:
+			if feature_sizes[i] == 1:
+				mergelayer_new[:,curCount] = np.random.permutation(mergelayer_new[:,curCount])
+			else:
+				mergelayer_new[:,curCount:curCount + feature_sizes[i]] = np.random.permutation(mergelayer_new[:,curCount:curCount + feature_sizes[i]])
+			
+			curCount = curCount + feature_sizes[i]
+		metrics[label[i]] = np.array(calculate_metric(model, dataset_with_slidenames, y_true, mergelayer_new, events, tile_to_slides, annotations, model_type, data_dir, label, manifest, min_tiles_per_slide, num_tiles))
+		metrics[label[i]] = baseline_metrics - metrics[label[i]]
+	
+	#Probably makes sense to measure only at the tile level - unless we write code to do permutation of patient level data which would be probably more work than its worth
+	feature_text = ""
+	for i in range(len(label)):
+		if model_type == 'categorical':
+			feature_text += label[i] + ": " + str(metrics[label[i]][0][0]) + ", "
+		else:
+			feature_text += label[i] + ": " + str(metrics[label[i]][0]) + ", "
+	log.info("Feature importance, tile level: " + feature_text, 1)
+
+	#feature_text = ""
+	#for i in range(len(feature_sizes) + 1):
+	#	feature_text += label[i] + ": " + str(metrics[label[i]][1][0]) + ", "
+	#log.info("Feature importance, slide level: " + feature_text, 1)
+		
+	#feature_text = ""
+	#for i in range(len(feature_sizes) + 1):
+	#	feature_text += label[i] + ": " + str(metrics[label[i]][2][0]) + ", "
+	#log.info("Feature importance, patient level: " + feature_text, 1)
+	
+	return
