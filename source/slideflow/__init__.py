@@ -55,9 +55,10 @@ DEFAULT_FLAGS = {
 
 def _evaluator(outcome_header, model, project_config, results_dict, filters=None, 
 				hyperparameters=None, checkpoint=None, eval_k_fold=None, max_tiles_per_slide=0,
-				min_tiles_per_slide=0, normalizer=None, normalizer_source=None, flags=None):
+				min_tiles_per_slide=0, normalizer=None, normalizer_source=None, flags=None, input_header=None):
 	'''Internal function to execute model evaluation process.'''
 	import slideflow.model as sfmodel
+	from slideflow.statistics import to_onehot
 	if not flags: flags = DEFAULT_FLAGS
 
 	model_root = dirname(model)
@@ -80,7 +81,7 @@ def _evaluator(outcome_header, model, project_config, results_dict, filters=None
 						   tile_um=hp.tile_um,
 						   annotations=project_config['annotations'],
 						   filters=filters)
-	outcomes, unique_outcomes = eval_dataset.get_outcomes_from_annotations(outcome_header, use_float=(hp.model_type()=='linear'))
+	outcomes, unique_outcomes = eval_dataset.get_outcomes_from_annotations(outcome_header, use_float=(hp.model_type() == 'linear' or hp.model_type() == 'cph'))
 
 	# If using a specific k-fold, load validation plan
 	if eval_k_fold:
@@ -96,6 +97,62 @@ def _evaluator(outcome_header, model, project_config, results_dict, filters=None
 	else:
 		eval_tfrecords = eval_dataset.get_tfrecords(merge_subdirs=True)
 
+
+
+	feature_sizes = None
+	feature_names = None
+	# Prepare additional slide-level input
+	slide_input_labels = hp_data['slide_input_labels']
+	if input_header:
+		input_header = [input_header] if not isinstance(input_header, list) else input_header
+		log.info("Preparing additional input", 1)
+		input_labels_dict = {}
+		num_slide_input_dict = {}
+		num_slide_input = 0
+		feature_sizes = []
+		feature_names = []
+		for slide in outcomes:
+			outcomes[slide]['input'] = []
+		for input_var in input_header:
+			# First, harmonize categories in training and validation datasets
+			is_float = True
+			try:
+				eval_input_outcomes, unique_eval_input_outcomes = eval_dataset.get_outcomes_from_annotations(input_var, use_float = is_float)
+			except TypeError:
+				is_float = False
+
+			log.info("Adding input variable " + input_var + " as " + ("float" if is_float else " categorical"), 1)
+			if not is_float:
+				unique_input_outcomes = {v: int(k) for k, v in slide_input_labels[input_var].items()}
+				input_outcomes, _ = eval_dataset.get_outcomes_from_annotations(input_var, use_float = is_float, assigned_outcome=unique_input_outcomes)
+			else:
+				input_outcomes, unique_input_outcomes = eval_dataset.get_outcomes_from_annotations(input_var, use_float = is_float)
+			if not is_float:
+				num_slide_input_dict[input_var] = len(unique_input_outcomes)
+				num_slide_input += len(unique_input_outcomes)
+				for slide in outcomes:
+					outcomes[slide]['input'] += to_onehot(input_outcomes[slide]['outcome'], num_slide_input_dict[input_var])
+				input_labels_dict[input_var] = dict(zip(range(len(unique_input_outcomes)), unique_input_outcomes))
+				feature_sizes += [len(unique_input_outcomes)]
+			else:
+				for slide in outcomes:
+					outcomes[slide]['input'] += input_outcomes[slide]['outcome']
+				input_labels_dict[input_var] = 'float'
+				num_slide_input += 1
+				num_slide_input_dict[input_var] = 1
+				feature_sizes += [1]
+			feature_names += [input_var]
+
+	else:
+		num_slide_input_dict = None
+		input_labels_dict = None
+		num_slide_input = 0
+	
+	if sum(feature_sizes) != sum(hp_data['feature_sizes']):
+		log.warn("Patient-level feature matrix not equal to what was used for model training. Will use training matrix")
+		feature_sizes = hp_data['feature_sizes']
+		feature_names = hp_data['feature_names']
+		num_slide_input = sum(hp_data['feature_sizes'])
 	# Set up model for evaluation
 	# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
 	model_dir = join(project_config['models_dir'], model_name)
@@ -107,7 +164,9 @@ def _evaluator(outcome_header, model, project_config, results_dict, filters=None
 																  use_fp16=project_config['use_fp16'],
 																  model_type=hp.model_type(),
 																  normalizer=normalizer,
-																  normalizer_source=normalizer_source)
+																  normalizer_source=normalizer_source,
+																  num_slide_input=num_slide_input, feature_names=feature_names, feature_sizes=feature_sizes)
+
 
 	# Log model settings and hyperparameters
 	hp_file = join(model_dir, 'hyperparameters.json')
@@ -117,6 +176,8 @@ def _evaluator(outcome_header, model, project_config, results_dict, filters=None
 		"stage": "evaluation",
 		"model_type": hp.model_type(),
 		"outcome_headers": outcome_header,
+		"slide_input_headers": input_header,
+		"slide_input_labels": input_labels_dict,
 		"outcome_labels": None if hp.model_type() != 'categorical' else dict(zip(range(len(unique_outcomes)), unique_outcomes)),
 		"dataset_config": project_config['dataset_config'],
 		"datasets": project_config['datasets'],
@@ -131,6 +192,7 @@ def _evaluator(outcome_header, model, project_config, results_dict, filters=None
 		"resume_training": None,
 		"checkpoint": checkpoint,
 		"comet_experiment": None,
+		"drop_images": hp.drop_images,
 		"hp": hp._get_dict()
 	}
 	sfutil.write_json(hp_data, hp_file)
@@ -226,7 +288,7 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 							   filter_blank=outcome_headers)
 
 	# Load outcomes
-	outcomes, unique_outcomes = training_dataset.get_outcomes_from_annotations(outcome_headers, use_float=(hp.model_type() == 'linear'))
+	outcomes, unique_outcomes = training_dataset.get_outcomes_from_annotations(outcome_headers, use_float=(hp.model_type() == 'linear' or hp.model_type() == 'cph'))
 	if hp.model_type() == 'categorical': 
 		outcome_labels = dict(zip(range(len(unique_outcomes)), unique_outcomes))
 	else:
@@ -245,7 +307,7 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 									 filter_blank=outcome_headers)
 		validation_tfrecords = validation_dataset.get_tfrecords()
 		manifest.update(validation_dataset.get_manifest())
-		validation_outcomes, _ = validation_dataset.get_outcomes_from_annotations(outcome_headers, use_float=(hp.model_type() == 'linear'))
+		validation_outcomes, _ = validation_dataset.get_outcomes_from_annotations(outcome_headers, use_float=(hp.model_type() == 'linear' or hp.model_type() == 'cph'))
 		outcomes.update(validation_outcomes)
 	else:
 		training_tfrecords, validation_tfrecords = sfio.tfrecords.get_training_and_validation_tfrecords(training_dataset, validation_log, outcomes, hp.model_type(),
@@ -254,30 +316,63 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 																								validation_fraction=validation_fraction,
 																								validation_k_fold=validation_k_fold,
 																								k_fold_iter=k_fold_i)
-
+	feature_sizes = None
+	feature_names = None
 	# Prepare additional slide-level input
 	if input_header:
-		log.info("Preparing additional slide-level categorical input", 1)
-
-		# First, harmonize categories in training and validation datasets
-		if validation_dataset:
-			train_input_outcomes, unique_train_input_outcomes = training_dataset.get_outcomes_from_annotations(input_header)
-			val_input_outcomes, unique_val_input_outcomes = validation_dataset.get_outcomes_from_annotations(input_header)
-			unique_input_outcomes = sorted(list(set(unique_train_input_outcomes + unique_val_input_outcomes)))
-			input_outcome_to_int = dict(zip(unique_input_outcomes, range(len(unique_input_outcomes))))
-			input_outcomes, _ = training_dataset.get_outcomes_from_annotations(input_header, assigned_outcome=input_outcome_to_int)
-			val_input_outcomes, _ = validation_dataset.get_outcomes_from_annotations(input_header, assigned_outcome=input_outcome_to_int)
-			input_outcomes.update(val_input_outcomes)
-		else:
-			input_outcomes, unique_input_outcomes = training_dataset.get_outcomes_from_annotations(input_header)
-
-		num_slide_input = len(unique_input_outcomes)
-		for slide in outcomes:
-			outcomes[slide]['input'] = to_onehot(input_outcomes[slide]['outcome'], num_slide_input)
-		input_labels = dict(zip(range(len(unique_input_outcomes)), unique_input_outcomes))
-	else:
+		input_header = [input_header] if not isinstance(input_header, list) else input_header
+		log.info("Preparing additional input", 1)
+		input_labels_dict = {}
+		num_slide_input_dict = {}
 		num_slide_input = 0
-		input_labels = None
+		feature_sizes = []
+		feature_names = []
+		for slide in outcomes:
+			outcomes[slide]['input'] = []
+		for input_var in input_header:
+			# First, harmonize categories in training and validation datasets
+			is_float = True
+			try:
+				train_input_outcomes, unique_train_input_outcomes = training_dataset.get_outcomes_from_annotations(input_var, use_float = is_float)
+				if validation_dataset:
+					val_input_outcomes, unique_val_input_outcomes = validation_dataset.get_outcomes_from_annotations(input_var, use_float = is_float)
+			except TypeError:
+				is_float = False
+
+			log.info("Adding input variable " + input_var + " as " + ("float" if is_float else " categorical"), 1)
+			if validation_dataset:
+
+				train_input_outcomes, unique_train_input_outcomes = training_dataset.get_outcomes_from_annotations(input_var, use_float = is_float)
+				val_input_outcomes, unique_val_input_outcomes = validation_dataset.get_outcomes_from_annotations(input_var, use_float = is_float)
+
+				if not is_float:
+					unique_input_outcomes = sorted(list(set(unique_train_input_outcomes + unique_val_input_outcomes)))
+					input_outcome_to_int = dict(zip(unique_input_outcomes, range(len(unique_input_outcomes))))
+					input_outcomes, _ = training_dataset.get_outcomes_from_annotations(input_var, assigned_outcome=input_outcome_to_int)
+					val_input_outcomes, _ = validation_dataset.get_outcomes_from_annotations(input_var, assigned_outcome=input_outcome_to_int)
+				input_outcomes.update(val_input_outcomes)
+			else:
+				input_outcomes, unique_input_outcomes = training_dataset.get_outcomes_from_annotations(input_var, use_float = is_float)
+			if not is_float:
+				num_slide_input_dict[input_var] = len(unique_input_outcomes)
+				num_slide_input += len(unique_input_outcomes)
+				feature_sizes += [len(unique_input_outcomes)]
+				for slide in outcomes:
+					outcomes[slide]['input'] += to_onehot(input_outcomes[slide]['outcome'], num_slide_input_dict[input_var])
+				input_labels_dict[input_var] = dict(zip(range(len(unique_input_outcomes)), unique_input_outcomes))
+			else:
+				for slide in outcomes:
+					outcomes[slide]['input'] += input_outcomes[slide]['outcome']
+				input_labels_dict[input_var] = 'float'
+				num_slide_input += 1
+				num_slide_input_dict[input_var] = 1
+				feature_sizes += [1]
+			feature_names += [input_var]
+				
+	else:
+		num_slide_input_dict = None
+		input_labels_dict = None
+		num_slide_input = 0
 
 	# Initialize model
 	# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
@@ -290,7 +385,8 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 																			model_type=hp.model_type(),
 																			normalizer=normalizer,
 																			normalizer_source=normalizer_source,
-																			num_slide_input=num_slide_input)
+																			num_slide_input=num_slide_input, feature_names=feature_names, feature_sizes=feature_sizes)
+
 
 	# Log model settings and hyperparameters
 	hp_file = join(project_config['models_dir'], full_model_name, 'hyperparameters.json')
@@ -302,7 +398,9 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 		"model_type": hp.model_type(),
 		"outcome_headers": outcome_headers,
 		"slide_input_headers": input_header,
-		"slide_input_labels": input_labels,
+		"slide_input_labels": input_labels_dict,
+		"feature_sizes": feature_sizes,
+		"feature_names": feature_names,
 		"outcome_labels": outcome_labels,
 		"dataset_config": project_config['dataset_config'],
 		"datasets": project_config['datasets'],
@@ -317,7 +415,8 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 		"resume_training": resume_training,
 		"checkpoint": checkpoint,
 		"comet_experiment": None if not flags['use_comet'] else experiment.get_key(),
-		"hp": hp._get_dict()
+		"hp": hp._get_dict(),
+		"drop_images": hp.drop_images
 	}
 	sfutil.write_json(hp_data, hp_file)
 
@@ -747,7 +846,7 @@ class SlideflowProject:
 		self.load_project(project_folder)
 
 	def evaluate(self, model, outcome_header, hyperparameters=None, filters=None, checkpoint=None,
-					eval_k_fold=None, max_tiles_per_slide=0, min_tiles_per_slide=0, normalizer=None, normalizer_source=None):
+					eval_k_fold=None, max_tiles_per_slide=0, min_tiles_per_slide=0, normalizer=None, normalizer_source=None, input_header=None):
 		'''Evaluates a saved model on a given set of tfrecords.
 		
 		Args:
@@ -770,7 +869,7 @@ class SlideflowProject:
 		ctx = multiprocessing.get_context('spawn')
 		
 		process = ctx.Process(target=_evaluator, args=(outcome_header, model, self.PROJECT, results_dict, filters, hyperparameters, 
-														checkpoint, eval_k_fold, max_tiles_per_slide, min_tiles_per_slide, normalizer, normalizer_source, self.FLAGS))
+														checkpoint, eval_k_fold, max_tiles_per_slide, min_tiles_per_slide, normalizer, normalizer_source, self.FLAGS, input_header))
 		process.start()
 		log.empty(f"Spawning evaluation process (PID: {process.pid})")
 		process.join()
@@ -1830,7 +1929,7 @@ class SlideflowProject:
 			normalizer_source:		Path to normalizer source image
 			normalizer_strategy:	Either 'tfrecord' or 'realtime'. If TFrecord and auto_extract is True, then tiles will be extracted to TFRecords and stored normalized.
 										If realtime, then normalization is performed during training.
-
+			
 		Returns:
 			A dictionary containing model names mapped to train_acc, val_loss, and val_acc
 		'''

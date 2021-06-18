@@ -56,8 +56,67 @@ MODEL_FORMAT_1_9 = "1.9"
 MODEL_FORMAT_CURRENT = MODEL_FORMAT_1_9
 MODEL_FORMAT_LEGACY = "legacy"
 
+
+#def negative_log_likelihood(input_data):
+#	def loss(y_true,y_pred):
+#		hazard_ratio = tf.math.exp(y_pred)
+#		log_risk = tf.math.log(tf.math.cumsum(hazard_ratio))
+#		uncensored_likelihood = tf.transpose(y_pred) - log_risk
+#		censored_likelihood = uncensored_likelihood * input_data
+#		neg_likelihood = -tf.reduce_sum(censored_likelihood)
+#		return neg_likelihood
+#	return loss
+	
+	
+def negative_log_likelihood(y_true, y_pred):
+	import sys
+	E = y_pred[:, -1]
+	y_pred = y_pred[:, :-1]
+	E = tf.reshape(E, [-1])
+	y_pred = tf.reshape(y_pred, [-1])
+	y_true = tf.reshape(y_true, [-1])
+	#tf.print("y_pred: ", y_pred, output_stream=sys.stdout)
+	#tf.print("y_true: ", y_true, output_stream=sys.stdout)
+	#tf.print("E: ", E, output_stream=sys.stdout)
+	order = tf.argsort(y_true)
+	E = tf.gather(E, order)
+	y_pred = tf.gather(y_pred, order)
+	#tf.print("y_pred, sort: ", y_pred, output_stream=sys.stdout)
+	#tf.print("E, sort: ", E, output_stream=sys.stdout)
+	#hazard_ratio = tf.math.exp(y_pred)
+	#log_risk = tf.math.log(tf.math.cumsum(hazard_ratio))
+	#uncensored_likelihood = tf.transpose(y_pred) - log_risk
+	#censored_likelihood = uncensored_likelihood * E
+	#neg_likelihood = -tf.reduce_sum(censored_likelihood)
+	
+	gamma = tf.math.reduce_max(y_pred)
+	eps = tf.constant(1e-7, dtype=tf.float16)
+	log_cumsum_h = tf.math.add(tf.math.log(tf.math.add(tf.math.cumsum(tf.math.exp(tf.math.subtract(y_pred, gamma))), eps)), gamma)
+	return -tf.math.divide(tf.reduce_sum(tf.math.multiply(tf.subtract(y_pred, log_cumsum_h), E)),tf.reduce_sum(E))
+	
+	#return neg_likelihood
+
+
 # Fix for broken batch normalization in TF 1.14
 #tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
+
+
+def concordance_index(y_true, y_pred):
+	E = y_pred[:, -1]
+	y_pred = y_pred[:, :-1]
+	E = tf.reshape(E, [-1])
+	y_pred = tf.reshape(y_pred, [-1])
+	y_pred = -y_pred #negative of log hazard ratio to have correct relationship with survival
+	g = tf.subtract(tf.expand_dims(y_pred, -1), y_pred)
+	g = tf.cast(g == 0.0, tf.float32) * 0.5 + tf.cast(g > 0.0, tf.float32)
+	f = tf.subtract(tf.expand_dims(y_true, -1), y_true) > 0.0
+	event = tf.multiply(tf.transpose(E), E)
+	f = tf.multiply(tf.cast(f, tf.float32), event)
+	f = tf.compat.v1.matrix_band_part(tf.cast(f, tf.float32), -1, 0)
+	g = tf.reduce_sum(tf.multiply(g, f))
+	f = tf.reduce_sum(f)
+	return tf.where(tf.equal(f, 0), 0.0, g/f)
+
 
 def add_regularization(model, regularizer):
 	'''Adds regularization (e.g. L2) to all eligible layers of a model.
@@ -179,17 +238,17 @@ class HyperParameters:
 		#'DenseNet': tf.keras.applications.DenseNet,
 		#'NASNet': tf.keras.applications.NASNet
 	}
-	_LinearLoss = ['mean_squared_error', 'mean_absolute_error', 'mean_absolute_percentage_error', 'mean_squared_logarithmic_error', 'squared_hinge', 'hinge', 'logcosh']
+	_LinearLoss = ['mean_squared_error', 'mean_absolute_error', 'mean_absolute_percentage_error', 'mean_squared_logarithmic_error', 'squared_hinge', 'hinge', 'logcosh', 'negative_log_likelihood']
 
 	_AllLoss = ['mean_squared_error', 'mean_absolute_error', 'mean_absolute_percentage_error', 'mean_squared_logarithmic_error', 'squared_hinge', 'hinge'
 				'categorical_hinge', 'logcosh', 'huber_loss', 'categorical_crossentropy', 'sparse_categorical_crossentropy', 'binary_crossentropy',
-				'kullback_leibler_divergence', 'poisson', 'cosine_proximity', 'is_categorical_crossentropy']
+				'kullback_leibler_divergence', 'poisson', 'cosine_proximity', 'is_categorical_crossentropy', 'negative_log_likelihood']
 
 
 	def __init__(self, tile_px=299, tile_um=302, finetune_epochs=10, toplayer_epochs=0, model='Xception', pooling='max', loss='sparse_categorical_crossentropy',
 				 learning_rate=0.0001, batch_size=16, hidden_layers=1, hidden_layer_width=500, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, early_stop_method='loss', balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
-				 trainable_layers=0, L2_weight=0, augment=True):
+				 trainable_layers=0, L2_weight=0, augment=True, drop_images=False):
 		# Additional hyperparameters to consider:
 		# beta1 0.9
 		# beta2 0.999
@@ -216,7 +275,8 @@ class HyperParameters:
 		assert isinstance(trainable_layers, int)
 		assert isinstance(L2_weight, (int, float))
 		assert isinstance(augment, bool)
-
+		assert isinstance(drop_images, bool)
+		
 		self.tile_px = tile_px
 		self.tile_um = tile_um
 		self.toplayer_epochs = toplayer_epochs
@@ -237,6 +297,7 @@ class HyperParameters:
 		self.hidden_layer_width = hidden_layer_width
 		self.trainable_layers = trainable_layers
 		self.L2_weight = float(L2_weight)
+		self.drop_images = drop_images
 
 		# Perform check to ensure combination of HPs are valid
 		self.validate()
@@ -291,13 +352,14 @@ class HyperParameters:
 	def model_type(self):
 		'''Returns either 'linear' or 'categorical' depending on the loss type.'''
 		model_type = 'linear' if self.loss in self._LinearLoss else 'categorical'
+		model_type = 'cph' if self.loss == 'negative_log_likelihood' else model_type
 		return model_type
 
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
 	def __init__(self, data_directory, image_size, slide_annotations, train_tfrecords, validation_tfrecords, 
-					manifest=None, use_fp16=True, model_type='categorical', normalizer=None, normalizer_source=None, num_slide_input=0):
+					manifest=None, use_fp16=True, model_type='categorical', normalizer=None, normalizer_source=None, num_slide_input=0, feature_sizes = None, feature_names = None):
 		'''Model initializer.
 
 		Args:
@@ -323,7 +385,11 @@ class SlideflowModel:
 		self.SLIDES = list(slide_annotations.keys())
 		self.DATASETS = {}
 		self.NUM_SLIDE_INPUT = num_slide_input
-
+		self.EVENT_TENSOR = None
+		self.FEATURE_SIZES = feature_sizes
+		self.FEATURE_NAMES = feature_names
+		
+		
 		outcomes = [slide_annotations[slide]['outcome'] for slide in self.SLIDES]
 
 		# Setup slide-level input
@@ -352,7 +418,7 @@ class SlideflowModel:
 				self.ANNOTATIONS_TABLES = [tf.lookup.StaticHashTable(
 					tf.lookup.KeyValueTensorInitializer(self.SLIDES, outcomes), -1
 				)]
-		elif model_type == 'linear':
+		elif model_type == 'linear' or model_type == 'cph':
 			try:
 				self.NUM_CLASSES = len(outcomes[0])
 			except TypeError:
@@ -433,8 +499,13 @@ class SlideflowModel:
 		image_shape = (self.IMAGE_SIZE, self.IMAGE_SIZE, 3)
 		tile_input_tensor = tf.keras.Input(shape=image_shape, name="tile_image")
 		if self.NUM_SLIDE_INPUT:
-			slide_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_INPUT), name="slide_input")
+			if self.MODEL_TYPE == 'cph':
+				slide_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_INPUT - 1), name="slide_input")
+			else:
+				slide_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_INPUT), name="slide_input")
 
+		if hp.loss == 'negative_log_likelihood':
+			event_input_tensor = tf.keras.Input(shape=(1), name="event_input")
 		# Load pretrained model if applicable
 		if pretrain: log.info(f"Using pretraining from {sfutil.green(pretrain)}", 1)
 		if pretrain and pretrain!='imagenet':
@@ -485,8 +556,15 @@ class SlideflowModel:
 
 		# Merge layers
 		if self.NUM_SLIDE_INPUT:
-			merged_model = tf.keras.layers.Concatenate(name="input_merge")([slide_input_tensor, tile_image_model.output])
+			if hp.drop_images:
+				log.info("Generating model with just clinical variables and no images", 1)
+				merged_model = slide_input_tensor				
+			else:
+				merged_model = tf.keras.layers.Concatenate(name="input_merge")([slide_input_tensor, tile_image_model.output])
 			model_inputs += [slide_input_tensor]
+			if hp.loss == 'negative_log_likelihood':
+				self.EVENT_TENSOR = event_input_tensor
+				model_inputs += [event_input_tensor]
 		else:
 			merged_model = tile_image_model.output
 
@@ -495,10 +573,11 @@ class SlideflowModel:
 			merged_model = tf.keras.layers.Dense(hp.hidden_layer_width, name=f"hidden_{i}", activation='relu', kernel_regularizer=regularizer)(merged_model)
 
 		# Add the softmax prediction layer
-		activation = 'linear' if hp.model_type() == 'linear' else 'softmax'
+		activation = 'linear' if (hp.model_type() == 'linear' or hp.model_type() == 'cph') else 'softmax'
 		final_dense_layer = tf.keras.layers.Dense(self.NUM_CLASSES, kernel_regularizer=regularizer, name="prelogits")(merged_model)
 		softmax_output = tf.keras.layers.Activation(activation, dtype='float32', name='logits')(final_dense_layer)
-
+		if hp.loss == 'negative_log_likelihood':
+			softmax_output = tf.keras.layers.Concatenate(name="output_merge_CPH")([softmax_output, event_input_tensor])
 		# Assemble final model
 		model = tf.keras.Model(inputs=model_inputs, outputs=softmax_output)
 
@@ -672,7 +751,7 @@ class SlideflowModel:
 		feature_description = tfrecords.FEATURE_DESCRIPTION if not multi_image else tfrecords.FEATURE_DESCRIPTION_MULTI
 		features = tf.io.parse_single_example(record, feature_description)
 		slide = features['slide']
-		if self.MODEL_TYPE == 'linear':
+		if self.MODEL_TYPE == 'linear' or self.MODEL_TYPE == 'cph':
 			label = [self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(self.NUM_CLASSES)]
 		else:
 			label = self.ANNOTATIONS_TABLES[0].lookup(slide)
@@ -696,10 +775,17 @@ class SlideflowModel:
 			image_dict = { 'tile_image': image }
 
 			if self.NUM_SLIDE_INPUT:
-				def slide_lookup(s): return self.SLIDE_INPUT_TABLE[s.numpy().decode('utf-8')]
-				slide_input_val = tf.py_function(func=slide_lookup, inp=[slide], Tout=[tf.float32] * self.NUM_SLIDE_INPUT)
-				image_dict.update({'slide_input': slide_input_val})
-			
+				if self.MODEL_TYPE == 'cph':
+					def slide_lookup(s): return self.SLIDE_INPUT_TABLE[s.numpy().decode('utf-8')][1:]
+					slide_input_val = tf.py_function(func=slide_lookup, inp=[slide], Tout=[tf.float32] * (self.NUM_SLIDE_INPUT - 1))
+					def event_lookup(s): return self.SLIDE_INPUT_TABLE[s.numpy().decode('utf-8')][0]
+					event_input_val = tf.py_function(func=event_lookup, inp=[slide], Tout=[tf.float32])
+					image_dict.update({'slide_input': slide_input_val})
+					image_dict.update({'event_input': event_input_val})
+				else:
+					def slide_lookup(s): return self.SLIDE_INPUT_TABLE[s.numpy().decode('utf-8')]
+					slide_input_val = tf.py_function(func=slide_lookup, inp=[slide], Tout=[tf.float32] * self.NUM_SLIDE_INPUT)
+					image_dict.update({'slide_input': slide_input_val})
 			if include_slidenames:
 				return image_dict, label, slide
 			else:
@@ -734,10 +820,15 @@ class SlideflowModel:
 		self.model.layers[0].trainable = False
 		val_steps = 200 if validation_data else None
 		metrics = ['accuracy'] if hp.model_type() != 'linear' else [hp.loss]
-
-		self.model.compile(optimizer=tf.keras.optimizers.Adam(lr=hp.learning_rate),
-					  loss=hp.loss,
-					  metrics=metrics)
+		event_input_tensor = tf.keras.Input(shape=(1), name="event_input")
+		if hp.loss == 'negative_log_likelihood':
+			self.model.compile(optimizer=tf.keras.optimizers.Adam(lr=hp.learning_rate),
+						  loss=negative_log_likelihood(event_input_tensor),
+						  metrics=metrics)
+		else:
+			self.model.compile(optimizer=tf.keras.optimizers.Adam(lr=hp.learning_rate),
+						  loss=hp.loss,
+						  metrics=metrics)
 
 		toplayer_model = self.model.fit(train_data,
 				  epochs=epochs,
@@ -752,7 +843,7 @@ class SlideflowModel:
 		return toplayer_model.history
 
 	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None, 
-					max_tiles_per_slide=0, min_tiles_per_slide=0, multi_image=False):
+					max_tiles_per_slide=0, min_tiles_per_slide=0, multi_image=False, feature_importance=True):
 		'''Evaluate model.
 
 		Args:
@@ -781,21 +872,29 @@ class SlideflowModel:
 																													include_slidenames=True,
 																													multi_image=multi_image)
 		if model:
-			self.model = tf.keras.models.load_model(model)
+			if model_type == 'cph':
+				self.model = tf.keras.models.load_model(model, custom_objects={'negative_log_likelihood':negative_log_likelihood, 'concordance_index':concordance_index})
+			else:
+				self.model = tf.keras.models.load_model(model)
 		elif checkpoint:
 			self.model = self._build_model(hp)
 			self.model.load_weights(checkpoint)
 
 		# Generate performance metrics
 		log.info("Calculating performance metrics...", 1)
-		tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, dataset_with_slidenames, self.SLIDE_ANNOTATIONS, 
+		if feature_importance:
+			sfstats.permutation_feature_importance(self.model, dataset_with_slidenames, self.SLIDE_ANNOTATIONS, 
+																						   model_type, self.DATA_DIR, label="eval", manifest=self.MANIFEST, num_tiles=num_tiles, num_input = self.NUM_SLIDE_INPUT, feature_names = self.FEATURE_NAMES, feature_sizes = self.FEATURE_SIZES, drop_images = hp.drop_images)
+												   
+		tile_auc, slide_auc, patient_auc, r_squared, c_index = sfstats.generate_performance_metrics(self.model, dataset_with_slidenames, self.SLIDE_ANNOTATIONS, 
 																						   model_type, self.DATA_DIR, label="eval", manifest=self.MANIFEST, num_tiles=num_tiles)
 
 		log.info(f"Tile AUC: {tile_auc}", 1)
 		log.info(f"Slide AUC: {slide_auc}", 1)
 		log.info(f"Patient AUC: {patient_auc}", 1)
 		log.info(f"R-squared: {r_squared}", 1)
-
+		log.info(f"c-index: {c_index}", 1)
+		
 		val_loss, val_acc = self.model.evaluate(dataset, verbose=log.INFO_LEVEL > 0)
 
 		# Log results
@@ -807,7 +906,8 @@ class SlideflowModel:
 				'tile_auc': tile_auc,
 				'slide_auc': slide_auc,
 				'patient_auc': patient_auc,
-				'r_squared': r_squared
+				'r_squared': r_squared,
+				'c_index': c_index
 			}
 		}
 		sfutil.update_results_log(results_log, 'eval_model', results_dict)
@@ -1006,10 +1106,12 @@ class SlideflowModel:
 
 		# Fine-tune the model
 		log.info("Beginning fine-tuning", 1)
-
-		self.model.compile(loss=hp.loss,
-						   optimizer=hp.get_opt(),
-						   metrics=metrics)
+		if hp.loss == 'negative_log_likelihood':
+			self.model.compile(loss=negative_log_likelihood, optimizer=hp.get_opt(), metrics=concordance_index)
+		else:
+			self.model.compile(loss=hp.loss,
+					   optimizer=hp.get_opt(),
+					   metrics=metrics)
 
 		history = self.model.fit(train_data,
 								 steps_per_epoch=steps_per_epoch,
