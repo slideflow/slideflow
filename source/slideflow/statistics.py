@@ -827,7 +827,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 	r_squared = None
 
 	# Detect number of outcome categories
-	num_cat = len(y_pred[0]) if (model_type == 'linear' or model_type == 'cph') else max(num_true_outcome_categories, len(y_pred[0]))
+	num_cat = len(y_pred[0]) if (model_type in ['linear', 'cph']) else max(num_true_outcome_categories, len(y_pred[0]))
 		
 	# For categorical models, convert to one-hot encoding
 	if model_type == 'categorical':
@@ -1068,7 +1068,7 @@ def calculate_metric(model, dataset_with_slidenames, y_true, mergelayer, events,
 	r_squared = None
 
 	# Detect number of outcome categories
-	num_cat = len(y_pred[0]) if (model_type == 'linear' or model_type == 'cph') else max(num_true_outcome_categories, len(y_pred[0]))
+	num_cat = len(y_pred[0]) if (model_type in ['linear', 'cph']) else max(num_true_outcome_categories, len(y_pred[0]))
 		
 	# For categorical models, convert to one-hot encoding
 	if model_type == 'categorical':

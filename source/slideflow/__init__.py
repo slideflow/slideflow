@@ -2,21 +2,17 @@ import os
 import sys
 import shutil
 import logging
-import gc
 import atexit
 import itertools
 import csv
 import queue, threading
 import time
-import warnings
 import numpy as np
 import multiprocessing
 
-from os.path import join, isfile, exists, isdir, dirname
-from pathlib import Path
+from os.path import join, exists, isdir, dirname
 from glob import glob
-from random import shuffle, choice
-from string import ascii_lowercase
+from random import shuffle
 from multiprocessing.dummy import Pool as DPool
 from functools import partial
 from datetime import datetime
@@ -28,9 +24,8 @@ from slideflow.io import Dataset
 from slideflow.util import TCGA, ProgressBar, log, StainNormalizer
 from slideflow.statistics import TFRecordMap, calculate_centroid
 from slideflow.mosaic import Mosaic
-#from comet_ml import Experiment
 
-__version__ = "1.10.1"
+__version__ = "1.11.0"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -53,10 +48,13 @@ DEFAULT_FLAGS = {
 	}
 }
 
-def _evaluator(outcome_header, model, project_config, results_dict, filters=None, 
+def _evaluator(outcome_header, model, project_config, results_dict, input_header=None, filters=None, 
 				hyperparameters=None, checkpoint=None, eval_k_fold=None, max_tiles_per_slide=0,
-				min_tiles_per_slide=0, normalizer=None, normalizer_source=None, flags=None, input_header=None, permutation_importance = False):
+				min_tiles_per_slide=0, normalizer=None, normalizer_source=None, flags=None,
+				permutation_importance=False):
+
 	'''Internal function to execute model evaluation process.'''
+
 	import slideflow.model as sfmodel
 	from slideflow.statistics import to_onehot
 	if not flags: flags = DEFAULT_FLAGS
@@ -81,7 +79,7 @@ def _evaluator(outcome_header, model, project_config, results_dict, filters=None
 						   tile_um=hp.tile_um,
 						   annotations=project_config['annotations'],
 						   filters=filters)
-	outcomes, unique_outcomes = eval_dataset.get_outcomes_from_annotations(outcome_header, use_float=(hp.model_type() == 'linear' or hp.model_type() == 'cph'))
+	outcomes, unique_outcomes = eval_dataset.get_outcomes_from_annotations(outcome_header, use_float=(hp.model_type() in ['linear', 'cph']))
 
 	# If using a specific k-fold, load validation plan
 	if eval_k_fold:
@@ -289,7 +287,7 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 							   filter_blank=outcome_headers)
 
 	# Load outcomes
-	outcomes, unique_outcomes = training_dataset.get_outcomes_from_annotations(outcome_headers, use_float=(hp.model_type() == 'linear' or hp.model_type() == 'cph'))
+	outcomes, unique_outcomes = training_dataset.get_outcomes_from_annotations(outcome_headers, use_float=(hp.model_type() in ['linear', 'cph']))
 	if hp.model_type() == 'categorical': 
 		outcome_labels = dict(zip(range(len(unique_outcomes)), unique_outcomes))
 	else:
@@ -308,7 +306,7 @@ def _trainer(outcome_headers, model_name, project_config, results_dict, hp, vali
 									 filter_blank=outcome_headers)
 		validation_tfrecords = validation_dataset.get_tfrecords()
 		manifest.update(validation_dataset.get_manifest())
-		validation_outcomes, _ = validation_dataset.get_outcomes_from_annotations(outcome_headers, use_float=(hp.model_type() == 'linear' or hp.model_type() == 'cph'))
+		validation_outcomes, _ = validation_dataset.get_outcomes_from_annotations(outcome_headers, use_float=(hp.model_type() in ['linear', 'cph']))
 		outcomes.update(validation_outcomes)
 	else:
 		training_tfrecords, validation_tfrecords = sfio.tfrecords.get_training_and_validation_tfrecords(training_dataset, validation_log, outcomes, hp.model_type(),
@@ -847,7 +845,8 @@ class SlideflowProject:
 		self.load_project(project_folder)
 
 	def evaluate(self, model, outcome_header, hyperparameters=None, filters=None, checkpoint=None,
-					eval_k_fold=None, max_tiles_per_slide=0, min_tiles_per_slide=0, normalizer=None, normalizer_source=None, input_header=None, permutation_importance=False):
+					eval_k_fold=None, max_tiles_per_slide=0, min_tiles_per_slide=0, normalizer=None,
+					normalizer_source=None, input_header=None, permutation_importance=False):
 		'''Evaluates a saved model on a given set of tfrecords.
 		
 		Args:
@@ -873,8 +872,9 @@ class SlideflowProject:
 		results_dict = manager.dict()
 		ctx = multiprocessing.get_context('spawn')
 		
-		process = ctx.Process(target=_evaluator, args=(outcome_header, model, self.PROJECT, results_dict, filters, hyperparameters, 
-														checkpoint, eval_k_fold, max_tiles_per_slide, min_tiles_per_slide, normalizer, normalizer_source, self.FLAGS, input_header, permutation_importance))
+		process = ctx.Process(target=_evaluator, args=(outcome_header, model, self.PROJECT, results_dict, input_header, filters, hyperparameters, 
+														checkpoint, eval_k_fold, max_tiles_per_slide, min_tiles_per_slide, normalizer, normalizer_source,
+														self.FLAGS, permutation_importance))
 		process.start()
 		log.empty(f"Spawning evaluation process (PID: {process.pid})")
 		process.join()
@@ -1439,7 +1439,7 @@ class SlideflowProject:
 										dimensionality reduction mapping.
 			outcome_labels:			Dict mapping outcome id (int) to string labels
 			cmap:					Colormap mapping outcomes to colors for display on UMAP plot
-			model_type:				Either 'categorical' or 'linear'
+			model_type:				Indicates outcome type. May be 'categorical', 'linear', or 'cph' (Cox Proportional Hazards)
 			umap_cache:				Either 'default' or path to PKL file in which to save/cache UMAP coordinates
 			activations_cache:		Either 'default' or path to PKL file in which to save/cache nodal activations
 			activations_export:		Filename for CSV export of activations. Will be saved in project stats directory.

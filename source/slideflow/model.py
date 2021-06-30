@@ -351,9 +351,12 @@ class HyperParameters:
 
 	def model_type(self):
 		'''Returns either 'linear' or 'categorical' depending on the loss type.'''
-		model_type = 'linear' if self.loss in self._LinearLoss else 'categorical'
-		model_type = 'cph' if self.loss == 'negative_log_likelihood' else model_type
-		return model_type
+		if self.loss in self._LinearLoss:
+			return 'linear'
+		elif self.loss == 'negative_log_likelihood':
+			return 'cph'
+		else:
+			return 'categorical'
 
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
@@ -573,7 +576,7 @@ class SlideflowModel:
 			merged_model = tf.keras.layers.Dense(hp.hidden_layer_width, name=f"hidden_{i}", activation='relu', kernel_regularizer=regularizer)(merged_model)
 
 		# Add the softmax prediction layer
-		activation = 'linear' if (hp.model_type() == 'linear' or hp.model_type() == 'cph') else 'softmax'
+		activation = 'linear' if (hp.model_type() in ['linear', 'cph']) else 'softmax'
 		final_dense_layer = tf.keras.layers.Dense(self.NUM_CLASSES, kernel_regularizer=regularizer, name="prelogits")(merged_model)
 		softmax_output = tf.keras.layers.Activation(activation, dtype='float32', name='logits')(final_dense_layer)
 		if hp.loss == 'negative_log_likelihood':
