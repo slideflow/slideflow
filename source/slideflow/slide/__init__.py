@@ -16,41 +16,26 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import sys
 import io
 import tensorflow as tf
 import numpy as np
-import imageio
-import argparse
-import pickle
 import csv
 import pyvips as vips
 import shapely.geometry as sg
 import cv2
 import json
-import time
-import multiprocessing
 import random
 import tempfile
 import warnings
 
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 import matplotlib.colors as mcol
 import slideflow.util as sfutil
 
-from os.path import join, isfile, exists
-from math import sqrt
+from os.path import join, exists
 from PIL import Image, ImageDraw, UnidentifiedImageError
-from multiprocessing.dummy import Pool as DPool
-from multiprocessing import Process, Pool, Queue
-from matplotlib.widgets import Slider
-from matplotlib import pyplot as plt
+from multiprocessing import Pool, Queue
 from slideflow.util import log, StainNormalizer
-from slideflow.util.fastim import FastImshow
 from slideflow.io.tfrecords import image_example
-from statistics import mean, median
-from pathlib import Path
 from fpdf import FPDF
 from datetime import datetime
 
@@ -69,21 +54,21 @@ IGNORE_ROI = 'ignore'
 def OPS_LEVEL_HEIGHT(l):
 	return f'openslide.level[{l}].height'
 def OPS_LEVEL_WIDTH(l):
-    return f'openslide.level[{l}].width'
+	return f'openslide.level[{l}].width'
 def OPS_LEVEL_DOWNSAMPLE(l):
-    return f'openslide.level[{l}].downsample'
+	return f'openslide.level[{l}].downsample'
 
 VIPS_FORMAT_TO_DTYPE = {
-    'uchar': np.uint8,
-    'char': np.int8,
-    'ushort': np.uint16,
-    'short': np.int16,
-    'uint': np.uint32,
-    'int': np.int32,
-    'float': np.float32,
-    'double': np.float64,
-    'complex': np.complex64,
-    'dpcomplex': np.complex128,
+	'uchar': np.uint8,
+	'char': np.int8,
+	'ushort': np.uint16,
+	'short': np.int16,
+	'uint': np.uint32,
+	'int': np.int32,
+	'float': np.float32,
+	'double': np.float64,
+	'complex': np.complex64,
+	'dpcomplex': np.complex128,
 }
 
 def polyArea(x, y):
@@ -264,7 +249,10 @@ class OpenslideToVIPS:
 			if level in self.loaded_downsample_levels:
 				return self.loaded_downsample_levels[level]
 			else:
-				downsampled_image = vips.Image.new_from_file(self.path, level=level, fail=True, access=vips.enums.Access.RANDOM)
+				downsampled_image = vips.Image.new_from_file(self.path, 
+															 level=level, 
+															 fail=True, 
+															 access=vips.enums.Access.RANDOM)
 				self.loaded_downsample_levels.update({
 					level: downsampled_image
 				})
@@ -479,8 +467,8 @@ class SlideLoader:
 		return loaded_correctly
 
 	def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None, 
-						whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05,
-						normalizer=None, normalizer_source=None, shuffle=True, **kwargs):
+						whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, 
+						grayspace_threshold=0.05, normalizer=None, normalizer_source=None, shuffle=True, **kwargs):
 		'''Extractes tiles from slide and saves into a TFRecord file or as loose JPG tiles in a directory.
 		Args:
 			tfrecord_dir:			If provided, saves tiles into a TFRecord file (named according to slide name) in this directory.
@@ -550,7 +538,9 @@ class SlideLoader:
 		sample_tiles = []
 		for index, tile in enumerate(generator()):
 			# Convert numpy array (in RGB) to jpeg string using CV2 (which first requires BGR format)
-			image_string = cv2.imencode('.jpg', cv2.cvtColor(tile, cv2.COLOR_RGB2BGR), [int(cv2.IMWRITE_JPEG_QUALITY), 100])[1].tostring()
+			image_string = cv2.imencode('.jpg', 
+										cv2.cvtColor(tile, cv2.COLOR_RGB2BGR), 
+										[int(cv2.IMWRITE_JPEG_QUALITY), 100])[1].tostring()
 			if len(sample_tiles) < 10:
 				sample_tiles += [image_string]
 			elif not tiles_dir and not tfrecord_dir:
@@ -680,8 +670,10 @@ class SlideReader(SlideLoader):
 			log.error(f'Skipping slide {sfutil.green(self.name)} due to slide image or ROI loading error', 1, self.error_print)
 			return None
 
-	def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=1.0, whitespace_threshold=230,
-							grayspace_fraction=0.6, grayspace_threshold=0.05, normalizer=None, normalizer_source=None, **kwargs):
+	def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=1.0, 
+							whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05, 
+							normalizer=None, normalizer_source=None, **kwargs):
+
 		'''Builds generator to supervise extraction of tiles across the slide.
 		
 		Args:
@@ -718,11 +710,12 @@ class SlideReader(SlideLoader):
 				y_coord = int((c[1]+self.full_extract_px/2)/self.ROI_SCALE)
 
 				if self.roi_method != IGNORE_ROI and bool(self.annPolys):
+					point_in_roi = any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in self.annPolys])
 					# If the extraction method is EXTRACT_INSIDE, skip the tile if it's not in an ROI
-					if (self.roi_method == EXTRACT_INSIDE) and not any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in self.annPolys]):
+					if (self.roi_method == EXTRACT_INSIDE) and not point_in_roi:
 						continue
 					# If the extraction method is EXTRACT_OUTSIDE, skip the tile if it's in an ROI
-					elif (self.roi_method == EXTRACT_OUTSIDE) and any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in self.annPolys]):
+					elif (self.roi_method == EXTRACT_OUTSIDE) and point_in_roi:
 						continue
 				if self.pb:
 					self.pb.increase_bar_value(id=self.pb_id)
@@ -736,7 +729,10 @@ class SlideReader(SlideLoader):
 
 				if dual_extract:
 					try:
-						surrounding_region = self.slide.read_region((c[0]-self.full_stride, c[1]-self.full_stride), self.downsample_level, [self.extract_px*3, self.extract_px*3])
+						surrounding_region = self.slide.read_region((c[0]-self.full_stride, 
+																	 c[1]-self.full_stride), 
+																	 self.downsample_level, 
+																	 [self.extract_px*3, self.extract_px*3])
 						surrounding_region = surrounding_region.thumbnail_image(self.size_px)
 						outer_region = vips2numpy(surrounding_region)[:,:,:-1]
 					except:
@@ -883,7 +879,8 @@ class TMAReader(SlideLoader):
 	RED = (100, 100, 200)
 	WHITE = (255,255,255)
 
-	def __init__(self, path, size_px, size_um, stride_div, annotations_dir=None, enable_downsample=False, silent=False, report_dir=None, buffer=None, pb=None, pb_id=0):
+	def __init__(self, path, size_px, size_um, stride_div, annotations_dir=None, 
+					enable_downsample=False, silent=False, report_dir=None, buffer=None, pb=None, pb_id=0):
 		'''Initializer.
 
 		Args:
@@ -933,7 +930,9 @@ class TMAReader(SlideLoader):
 		region_width  = int((region_x_max - region_x_min) / self.downsample_factor)
 		region_height = int((region_y_max - region_y_min) / self.downsample_factor)
 
-		extracted = vips2numpy(self.slide.read_region((region_x_min, region_y_min), self.downsample_level, (region_width, region_height)))[:,:,:-1]
+		extracted = vips2numpy(self.slide.read_region((region_x_min, region_y_min), 
+													  self.downsample_level, 
+													  (region_width, region_height)))[:,:,:-1]
 		relative_box = (box - [region_x_min, region_y_min]) / self.downsample_factor
 
 		src_pts = relative_box.astype("float32")
@@ -963,7 +962,14 @@ class TMAReader(SlideLoader):
 		if not num_y or not num_x:
 			expand_y = 0 if num_y else int((self.size_px-height)/2)+1
 			expand_x = 0 if num_x else int((self.size_px-width)/2)+1
-			image = cv2.copyMakeBorder(image, expand_y, expand_y, expand_x, expand_x, cv2.BORDER_CONSTANT, value=self.WHITE)
+			image = cv2.copyMakeBorder(image, 
+									   expand_y, 
+									   expand_y, 
+									   expand_x, 
+									   expand_x, 
+									   cv2.BORDER_CONSTANT, 
+									   value=self.WHITE)
+
 			height, width, _ = image.shape
 			num_y = int(height / self.size_px)
 			num_x = int(width  / self.size_px)
@@ -1036,8 +1042,10 @@ class TMAReader(SlideLoader):
 		return num_filtered, num_filtered
 
 
-	def build_generator(self, shuffle=True, whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05,
+	def build_generator(self, shuffle=True, whitespace_fraction=1.0, whitespace_threshold=230, 
+							grayspace_fraction=0.6, grayspace_threshold=0.05,
 							normalizer=None, normalizer_source=None, **kwargs):
+							
 		'''Builds generator to supervise extraction of tiles across the slide.
 		
 		Args:
