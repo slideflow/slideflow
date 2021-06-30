@@ -336,14 +336,14 @@ class TestSuite:
 	def test_realtime_normalizer(self):
 		with TaskWrapper("Testing realtime normalization, using Macenko...") as test:
 			hp = self.setup_hp('categorical')
-			self.SFP.train(outcome_header='category1', k_fold_iter=1, normalizer='reinhard', normalizer_strategy='realtime', steps_per_epoch_override=5)
+			self.SFP.train(outcome_label_header='category1', k_fold_iter=1, normalizer='reinhard', normalizer_strategy='realtime', steps_per_epoch_override=5)
 
 	def test_training(self, categorical=True, linear=True, multi_input=True):
 		if categorical:
 			# Test categorical outcome
 			with TaskWrapper("Training to single categorical outcome from hyperparameters...") as test:
 				hp = self.setup_hp('categorical')
-				results_dict = self.SFP.train(models = 'manual_hp', outcome_header='category1', hyperparameters=hp, k_fold_iter=1, validate_on_batch=50, steps_per_epoch_override=5)
+				results_dict = self.SFP.train(models = 'manual_hp', outcome_label_header='category1', hyperparameters=hp, k_fold_iter=1, validate_on_batch=50, steps_per_epoch_override=5)
 			
 				if not results_dict or 'history' not in results_dict[results_dict.keys()[0]]:
 					print("\tKeras results object not received from training")
@@ -351,31 +351,31 @@ class TestSuite:
 
 			# Test multiple sequential categorical outcome models
 			with TaskWrapper("Training sequentially to multiple outcomes from batch train file...") as test:
-				self.SFP.train(outcome_header=['category1', 'category2'], k_fold_iter=1, steps_per_epoch_override=5)
+				self.SFP.train(outcome_label_header=['category1', 'category2'], k_fold_iter=1, steps_per_epoch_override=5)
 
 		if linear:
 			# Test multiple linear outcome
 			with TaskWrapper("Training to multiple linear outcomes...") as test:
 				hp = self.setup_hp('linear')
-				self.SFP.train(outcome_header=['linear1', 'linear2'], multi_outcome=True, k_fold_iter=1, validate_on_batch=50, steps_per_epoch_override=5)
+				self.SFP.train(outcome_label_header=['linear1', 'linear2'], multi_outcome=True, k_fold_iter=1, validate_on_batch=50, steps_per_epoch_override=5)
 
 		if multi_input:
 			with TaskWrapper("Training with multiple input types...") as test:
 				hp = self.setup_hp('categorical')
-				self.SFP.train(outcome_header='category1', input_header='category2', k_fold_iter=1, validate_on_batch=50, steps_per_epoch_override=5)
+				self.SFP.train(outcome_label_header='category1', input_header='category2', k_fold_iter=1, validate_on_batch=50, steps_per_epoch_override=5)
 			
 
 	def test_training_performance(self):
 		with TaskWrapper("Testing performance of training (single categorical outcome)...") as test:
 			hp = self.setup_hp('categorical')
 			hp.finetune_epochs = [1,3]
-			results_dict = self.SFP.train(models='performance', outcome_header='category1', hyperparameters=hp, k_fold_iter=1)
+			results_dict = self.SFP.train(models='performance', outcome_label_header='category1', hyperparameters=hp, k_fold_iter=1)
 
 	def test_evaluation(self):
 		with TaskWrapper("Testing evaluation of a saved model...") as test:
-			self.SFP.evaluate(outcome_header='category1', model=self.config.SAVED_MODEL)
+			self.SFP.evaluate(outcome_label_header='category1', model=self.config.SAVED_MODEL)
 		#print("Testing that evaluation matches known baseline...")
-		#self.SFP.evaluate(outcome_header='category1', model=REFERENCE_MODEL, filters={'submitter_id': '234839'})
+		#self.SFP.evaluate(outcome_label_header='category1', model=REFERENCE_MODEL, filters={'submitter_id': '234839'})
 		# Code to lookup excel sheet of predictions and verify they match known baseline
 
 	def test_heatmap(self, slide='auto'):
@@ -393,7 +393,7 @@ class TestSuite:
 	def test_activations(self):
 		with TaskWrapper("Testing activations analytics...") as test:
 			AV = self.SFP.generate_activations_analytics(model=self.config.SAVED_MODEL, 
-														outcome_header='category1', 
+														outcome_label_header='category1', 
 														focus_nodes=[0])
 			AV.generate_box_plots()
 			umap = TFRecordMap.from_activations(AV)

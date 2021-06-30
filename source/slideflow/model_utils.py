@@ -1,4 +1,15 @@
 import tensorflow as tf
+import os
+import tempfile
+
+class HyperParameterError(Exception):
+	pass
+
+class ManifestError(Exception):
+	pass
+
+class ModelError(Exception):
+	pass
 
 def negative_log_likelihood(y_true, y_pred):
 	E = y_pred[:, -1]
@@ -30,3 +41,29 @@ def concordance_index(y_true, y_pred):
 	g = tf.reduce_sum(tf.multiply(g, f))
 	f = tf.reduce_sum(f)
 	return tf.where(tf.equal(f, 0), 0.0, g/f)
+
+def add_regularization(model, regularizer):
+	'''Adds regularization (e.g. L2) to all eligible layers of a model.
+	This function is from "https://sthalles.github.io/keras-regularizer/" '''
+	if not isinstance(regularizer, tf.keras.regularizers.Regularizer):
+		print("Regularizer must be a subclass of tf.keras.regularizers.Regularizer")
+		return model
+
+	for layer in model.layers:
+		for attr in ['kernel_regularizer']:
+			if hasattr(layer, attr):
+				setattr(layer, attr, regularizer)
+
+    # When we change the layers attributes, the change only happens in the model config file
+	model_json = model.to_json()
+
+	# Save the weights before reloading the model.
+	tmp_weights_path = os.path.join(tempfile.gettempdir(), 'tmp_weights.h5')
+	model.save_weights(tmp_weights_path)
+
+	# load the model from the config
+	model = tf.keras.models.model_from_json(model_json)
+
+	# Reload the model weights
+	model.load_weights(tmp_weights_path, by_name=True)
+	return model

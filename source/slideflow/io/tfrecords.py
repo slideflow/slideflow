@@ -285,34 +285,34 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True, preserve
 		return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
 
 	if balance:
-		# Get patient outcomes
-		patient_outcomes = [patients_dict[p][balance] for p in patients_dict]
+		# Get patient outcome labels
+		patient_outcome_labels = [patients_dict[p][balance] for p in patients_dict]
 
 		# Get unique outcomes
-		unique_outcomes = list(set(patient_outcomes))
+		unique_labels = list(set(patient_outcome_labels))
 		if preserved_site:
 			import pandas as pd 
 			import slideflow.io.preservedsite.crossfolds as cv
 			site_list = [p[5:7] for p in patients_dict]
-			df = pd.DataFrame(list(zip(patient_list, patient_outcomes, site_list)), columns = ['patient', 'outcome', 'site'])
-			df = cv.generate(df, 'outcome', unique_outcomes, crossfolds = n, target_column = 'CV', patient_column = 'patient', site_column = 'site')
+			df = pd.DataFrame(list(zip(patient_list, patient_outcome_labels, site_list)), columns = ['patient', 'outcome_label', 'site'])
+			df = cv.generate(df, 'outcome_label', unique_labels, crossfolds = n, target_column = 'CV', patient_column = 'patient', site_column = 'site')
 
 			log.empty(sfutil.bold("Generating Split with Preserved Site Cross Validation"))
-			log.empty(sfutil.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_outcomes)))])), 2)
+			log.empty(sfutil.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_labels)))])), 2)
 			for k in range(n):
-				log.empty(f"K-fold-{k}\t" + "\t".join([str(len(df[(df.CV == str(k+1)) & (df.outcome == o)].index)) for o in unique_outcomes]), 2)
+				log.empty(f"K-fold-{k}\t" + "\t".join([str(len(df[(df.CV == str(k+1)) & (df.outcome_label == o)].index)) for o in unique_labels]), 2)
 			
 			return [df.loc[df.CV == str(ni+1), "patient"].tolist() for ni in range(n)]
 			
 		else:
 			# Now, split patient_list according to outcomes
-			patients_split_by_outcomes = [[p for p in patient_list if patients_dict[p][balance] == uo] for uo in unique_outcomes]
+			patients_split_by_outcomes = [[p for p in patient_list if patients_dict[p][balance] == uo] for uo in unique_labels]
 
 			# Then, for each sublist, split into n components
 			patients_split_by_outcomes_split_by_n = [list(split(sub_l, n)) for sub_l in patients_split_by_outcomes]
 
 			# Print splitting as a table
-			log.empty(sfutil.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_outcomes)))])), 2)
+			log.empty(sfutil.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_labels)))])), 2)
 			for k in range(n):
 				log.empty(f"K-fold-{k}\t" + "\t".join([str(len(clist[k])) for clist in patients_split_by_outcomes_split_by_n]), 2)
 
@@ -321,7 +321,7 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True, preserve
 	else:
 		return list(split(patient_list, n))
 
-def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, model_type, validation_target, validation_strategy, 
+def get_training_and_validation_tfrecords(dataset, validation_log, slide_labels_dict, model_type, validation_target, validation_strategy, 
 											validation_fraction, validation_k_fold=None, k_fold_iter=None, read_only=False):
 	'''From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
 	If a validation plan has already been prepared (e.g. K-fold iterations were already determined), the previously generated plan will be used.
@@ -330,7 +330,7 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 	Args:
 		dataset:				A slideflow.datasets.Dataset object
 		validation_log:			Path to .log file containing validation plans
-		outcomes:				Dictionary mapping slides to outcomes (used for balancing outcomes in training and validation cohorts)
+		slide_labels_dict:		Dictionary mapping slides to labels (used for balancing outcome labels in training and validation cohorts)
 		model_type:				Either 'categorical' or 'linear'
 		validation_target:		Either 'per-slide' or 'per-tile'
 		validation_strategy:	Either 'k-fold', 'k-fold-preserved-site', 'bootstrap', or 'fixed'.
@@ -361,7 +361,7 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 	training_tfrecords = []
 	validation_tfrecords = []
 	accepted_plan = None
-	slide_list = list(outcomes.keys())
+	slide_list = list(slide_labels_dict.keys())
 
 	# If validation is done per-tile, use pre-separated TFRecord files (validation separation done at time of TFRecord creation)
 	if validation_target == 'per-tile':
@@ -396,15 +396,15 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 		validation_tfrecords = [tfr for tfr in validation_tfrecords if tfr.split('/')[-1][:-10] in slide_list]
 
 	elif validation_target == 'per-patient':
-		# Assemble dictionary of patients linking to list of slides and outcome
-		# slideflow.util.get_outcomes_from_annotations() ensures no duplicate outcomes are found in a single patient
+		# Assemble dictionary of patients linking to list of slides and outcome labels
+		# slideflow.util.get_labels_from_annotations() ensures no duplicate outcome labels are found in a single patient
 		tfrecord_dir_list = dataset.get_tfrecords()
 		tfrecord_dir_list_names = [tfr.split('/')[-1][:-10] for tfr in tfrecord_dir_list]
 		patients_dict = {}
 		num_warned = 0
 		warn_threshold = 3
 		for slide in slide_list:
-			patient = outcomes[slide][sfutil.TCGA.patient]
+			patient = slide_labels_dict[slide][sfutil.TCGA.patient]
 			print_func = print if num_warned < warn_threshold else None
 			# Skip slides not found in directory
 			if slide not in tfrecord_dir_list_names:
@@ -413,11 +413,11 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 				continue
 			if patient not in patients_dict:
 				patients_dict[patient] = {
-					'outcome': outcomes[slide]['outcome'],
+					'outcome_label': slide_labels_dict[slide]['outcome_label'],
 					'slides': [slide]
 				}
-			elif patients_dict[patient]['outcome'] != outcomes[slide]['outcome']:
-				log.error(f"Multiple outcomes found for patient {patient} ({patients_dict[patient]['outcome']}, {outcomes[slide]['outcome']})", 1)
+			elif patients_dict[patient]['outcome_label'] != slide_labels_dict[slide]['outcome_label']:
+				log.error(f"Multiple outcome labels found for patient {patient} ({patients_dict[patient]['outcome_label']}, {slide_labels_dict[slide]['outcome_label']})", 1)
 				sys.exit()
 			else:
 				patients_dict[patient]['slides'] += [slide]
@@ -461,7 +461,7 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 				plan_patients.sort()
 				if plan_patients == sorted_patients:
 					# Finally, check if outcome variables are the same
-					if [patients_dict[p]['outcome'] for p in plan_patients] == [plan['patients'][p]['outcome'] for p in plan_patients]:
+					if [patients_dict[p]['outcome_label'] for p in plan_patients] == [plan['patients'][p]['outcome_label'] for p in plan_patients]:
 						log.info(f"Using {validation_strategy} validation plan detected at {sfutil.green(validation_log)}", 1)
 						accepted_plan = plan
 						break
@@ -485,7 +485,7 @@ def get_training_and_validation_tfrecords(dataset, validation_log, outcomes, mod
 					new_plan['tfrecords']['validation'] = validation_slides
 					new_plan['tfrecords']['training'] = training_slides
 				elif validation_strategy == 'k-fold' or validation_strategy == 'k-fold-preserved-site':
-					k_fold_patients = split_patients_list(patients_dict, k_fold, balance=('outcome' if model_type == 'categorical' else None), randomize=True, preserved_site = validation_strategy == 'k-fold-preserved-site')
+					k_fold_patients = split_patients_list(patients_dict, k_fold, balance=('outcome_label' if model_type == 'categorical' else None), randomize=True, preserved_site = validation_strategy == 'k-fold-preserved-site')
 					# Verify at least one patient is in each k_fold group
 					if not min([len(patients) for patients in k_fold_patients]):
 						log.error("Insufficient number of patients to generate validation dataset.", 1)
