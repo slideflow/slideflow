@@ -44,6 +44,7 @@ from matplotlib import pyplot as plt
 from functools import partial
 from slideflow.util import TCGA, log
 from slideflow.io import tfrecords
+from slideflow.model_utils import *
 
 import slideflow.util as sfutil
 from slideflow.util import StainNormalizer
@@ -55,69 +56,7 @@ NO_BALANCE = 'NO_BALANCE'
 MODEL_FORMAT_1_9 = "1.9"
 MODEL_FORMAT_CURRENT = MODEL_FORMAT_1_9
 MODEL_FORMAT_LEGACY = "legacy"
-
-
-#def negative_log_likelihood(input_data):
-#	def loss(y_true,y_pred):
-#		hazard_ratio = tf.math.exp(y_pred)
-#		log_risk = tf.math.log(tf.math.cumsum(hazard_ratio))
-#		uncensored_likelihood = tf.transpose(y_pred) - log_risk
-#		censored_likelihood = uncensored_likelihood * input_data
-#		neg_likelihood = -tf.reduce_sum(censored_likelihood)
-#		return neg_likelihood
-#	return loss
 	
-	
-def negative_log_likelihood(y_true, y_pred):
-	import sys
-	E = y_pred[:, -1]
-	y_pred = y_pred[:, :-1]
-	E = tf.reshape(E, [-1])
-	y_pred = tf.reshape(y_pred, [-1])
-	y_true = tf.reshape(y_true, [-1])
-	#tf.print("y_pred: ", y_pred, output_stream=sys.stdout)
-	#tf.print("y_true: ", y_true, output_stream=sys.stdout)
-	#tf.print("E: ", E, output_stream=sys.stdout)
-	order = tf.argsort(y_true)
-	E = tf.gather(E, order)
-	y_pred = tf.gather(y_pred, order)
-	#tf.print("y_pred, sort: ", y_pred, output_stream=sys.stdout)
-	#tf.print("E, sort: ", E, output_stream=sys.stdout)
-	#hazard_ratio = tf.math.exp(y_pred)
-	#log_risk = tf.math.log(tf.math.cumsum(hazard_ratio))
-	#uncensored_likelihood = tf.transpose(y_pred) - log_risk
-	#censored_likelihood = uncensored_likelihood * E
-	#neg_likelihood = -tf.reduce_sum(censored_likelihood)
-	
-	gamma = tf.math.reduce_max(y_pred)
-	eps = tf.constant(1e-7, dtype=tf.float16)
-	log_cumsum_h = tf.math.add(tf.math.log(tf.math.add(tf.math.cumsum(tf.math.exp(tf.math.subtract(y_pred, gamma))), eps)), gamma)
-	return -tf.math.divide(tf.reduce_sum(tf.math.multiply(tf.subtract(y_pred, log_cumsum_h), E)),tf.reduce_sum(E))
-	
-	#return neg_likelihood
-
-
-# Fix for broken batch normalization in TF 1.14
-#tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
-
-
-def concordance_index(y_true, y_pred):
-	E = y_pred[:, -1]
-	y_pred = y_pred[:, :-1]
-	E = tf.reshape(E, [-1])
-	y_pred = tf.reshape(y_pred, [-1])
-	y_pred = -y_pred #negative of log hazard ratio to have correct relationship with survival
-	g = tf.subtract(tf.expand_dims(y_pred, -1), y_pred)
-	g = tf.cast(g == 0.0, tf.float32) * 0.5 + tf.cast(g > 0.0, tf.float32)
-	f = tf.subtract(tf.expand_dims(y_true, -1), y_true) > 0.0
-	event = tf.multiply(tf.transpose(E), E)
-	f = tf.multiply(tf.cast(f, tf.float32), event)
-	f = tf.compat.v1.matrix_band_part(tf.cast(f, tf.float32), -1, 0)
-	g = tf.reduce_sum(tf.multiply(g, f))
-	f = tf.reduce_sum(f)
-	return tf.where(tf.equal(f, 0), 0.0, g/f)
-
-
 def add_regularization(model, regularizer):
 	'''Adds regularization (e.g. L2) to all eligible layers of a model.
 	This function is from "https://sthalles.github.io/keras-regularizer/" '''
