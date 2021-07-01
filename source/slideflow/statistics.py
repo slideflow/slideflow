@@ -1261,7 +1261,7 @@ def permutation_feature_importance(model, dataset_with_slidenames, annotations, 
 	
 	layer_name = "input_merge"
 	if drop_images:
-		layer_name = "slide_input"
+		layer_name = "slide_feature_input"
 	if model_type == 'cph':
 		event_input = tf.keras.Model(inputs=model.input, outputs=model.get_layer("event_input").output)
 	events = []

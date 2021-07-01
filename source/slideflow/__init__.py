@@ -141,18 +141,18 @@ def _evaluator(outcome_label_header, model, project_config, results_dict, input_
 				feature_len_dict[input_var] = len(input_label_to_int)
 
 		feature_sizes = [feature_len_dict[i] for i in input_header]
-		num_slide_input = sum(feature_sizes)
+		num_slide_features = sum(feature_sizes)
 
 	else:
 		input_labels_dict = None
 		feature_sizes = None
-		num_slide_input = 0
+		num_slide_features = 0
 	
 	if sum(feature_sizes) != sum(hp_data['feature_sizes']):
 		raise Exception("Patient-level feature matrix not equal to what was used for model training. Will use training matrix")
 		#feature_sizes = hp_data['feature_sizes']
 		#feature_names = hp_data['feature_names']
-		#num_slide_input = sum(hp_data['feature_sizes'])
+		#num_slide_features = sum(hp_data['feature_sizes'])
 
 	# Set up model for evaluation
 	# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
@@ -169,7 +169,7 @@ def _evaluator(outcome_label_header, model, project_config, results_dict, input_
 								 model_type=hp.model_type(),
 								 normalizer=normalizer,
 								 normalizer_source=normalizer_source,
-								 num_slide_input=num_slide_input,
+								 num_slide_features=num_slide_features,
 								 feature_names=input_header,
 								 feature_sizes=feature_sizes)
 
@@ -354,31 +354,31 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 
 				unique_input_labels = sorted(list(set(unique_train_input_labels + unique_val_input_labels)))
 				input_label_to_int = dict(zip(unique_input_labels, range(len(unique_input_labels))))
-				slide_input_labels_dict, _ = training_dataset.get_labels_from_annotations(input_var, assigned_labels=input_label_to_int)
+				slide_feature_input_labels_dict, _ = training_dataset.get_labels_from_annotations(input_var, assigned_labels=input_label_to_int)
 				val_input_labels, _ = validation_dataset.get_labels_from_annotations(input_var, assigned_labels=input_label_to_int)
-				slide_input_labels_dict.update(val_input_labels)
+				slide_feature_input_labels_dict.update(val_input_labels)
 			else:
-				slide_input_labels_dict, unique_input_labels = training_dataset.get_labels_from_annotations(input_var, use_float=is_float)
+				slide_feature_input_labels_dict, unique_input_labels = training_dataset.get_labels_from_annotations(input_var, use_float=is_float)
 
 			# Assign features to 'input' key of the slide-level annotations dict
 			if is_float:
 				feature_len_dict[input_var] = num_features = 1
 				for slide in slide_labels_dict:
-					slide_labels_dict[slide]['input'] += slide_input_labels_dict[slide]['label']
+					slide_labels_dict[slide]['input'] += slide_feature_input_labels_dict[slide]['label']
 				input_labels_dict[input_var] = 'float'
 			else:
 				feature_len_dict[input_var] = num_features = len(unique_input_labels)
 				for slide in slide_labels_dict:
-					slide_labels_dict[slide]['input'] += to_onehot(slide_input_labels_dict[slide]['label'], num_features)
+					slide_labels_dict[slide]['input'] += to_onehot(slide_feature_input_labels_dict[slide]['label'], num_features)
 				input_labels_dict[input_var] = dict(zip(range(len(unique_input_labels)), unique_input_labels))
 		
 		feature_sizes = [feature_len_dict[i] for i in input_header]
-		num_slide_input = sum(feature_sizes)
+		num_slide_features = sum(feature_sizes)
 				
 	else:
 		input_labels_dict = None
 		feature_sizes = None
-		num_slide_input = 0
+		num_slide_features = 0
 
 	# Initialize model
 	# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
@@ -395,7 +395,7 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 								 model_type=hp.model_type(),
 								 normalizer=normalizer,
 								 normalizer_source=normalizer_source,
-								 num_slide_input=num_slide_input,
+								 num_slide_features=num_slide_features,
 								 feature_names=input_header,
 								 feature_sizes=feature_sizes)
 

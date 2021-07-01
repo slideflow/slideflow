@@ -262,9 +262,10 @@ class HyperParameters:
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
+
 	def __init__(self, data_directory, image_size, slide_annotations, train_tfrecords, validation_tfrecords, 
 					manifest=None, use_fp16=True, model_type='categorical', normalizer=None, normalizer_source=None, 
-					num_slide_input=0, feature_sizes=None, feature_names=None):
+					num_slide_features=0, feature_sizes=None, feature_names=None):
 		'''Model initializer.
 
 		Args:
@@ -289,29 +290,22 @@ class SlideflowModel:
 		self.MODEL_TYPE = model_type
 		self.SLIDES = list(slide_annotations.keys())
 		self.DATASETS = {}
-		self.NUM_SLIDE_INPUT = num_slide_input
-		self.EVENT_TENSOR = None
+		self.NUM_SLIDE_FEATURES = num_slide_features
 		self.FEATURE_SIZES = feature_sizes
 		self.FEATURE_NAMES = feature_names
 
-		# TOOD: reconcile these three different ways of accessing the same information:
-		#	self.MODEL_TYPE
-		#	hp.model_type()
-		#	hp.loss == 'negative_log_likelihood'
-		
-		
 		outcome_labels = [slide_annotations[slide]['outcome_label'] for slide in self.SLIDES]
 
 		# Setup slide-level input
-		if num_slide_input:
+		if self.NUM_SLIDE_FEATURES:
 			try:
-				self.SLIDE_INPUT_TABLE = {slide: slide_annotations[slide]['input'] for slide in self.SLIDES}
-				log.info(f"Training with both images and {num_slide_input} categories of slide-level input", 1)
+				self.SLIDE_FEATURE_TABLE = {slide: slide_annotations[slide]['input'] for slide in self.SLIDES}
+				log.info(f"Training with both images and {self.NUM_SLIDE_FEATURES} categories of slide-level input", 1)
 			except KeyError:
-				raise ModelError("If num_slide_input > 0, slide-level input must be provided via 'input' key in slide_annotations")
+				raise ModelError("If num_slide_features > 0, slide-level input must be provided via 'input' key in slide_annotations")
 			for slide in self.SLIDES:
-				if len(self.SLIDE_INPUT_TABLE[slide]) != num_slide_input:
-					raise ModelError(f"Length of input for slide {slide} does not match num_slide_input; expected {num_slide_input}, got {len(self.SLIDE_INPUT_TABLE[slide])}")
+				if len(self.SLIDE_FEATURE_TABLE[slide]) != self.NUM_SLIDE_FEATURES:
+					raise ModelError(f"Length of input for slide {slide} does not match num_slide_features; expected {self.NUM_SLIDE_FEATURES}, got {len(self.SLIDE_FEATURE_TABLE[slide])}")
 
 		# Normalization setup
 		if normalizer: log.info(f"Using realtime {normalizer} normalization", 1)
@@ -407,12 +401,12 @@ class SlideflowModel:
 		# Setup inputs
 		image_shape = (self.IMAGE_SIZE, self.IMAGE_SIZE, 3)
 		tile_input_tensor = tf.keras.Input(shape=image_shape, name="tile_image")
-		if self.NUM_SLIDE_INPUT:
+		if self.NUM_SLIDE_FEATURES:
 			if self.MODEL_TYPE == 'cph':
-				slide_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_INPUT - 1), name="slide_input")
+				slide_feature_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_FEATURES - 1), name="slide_feature_input")
 				event_input_tensor = tf.keras.Input(shape=(1), name="event_input")
 			else:
-				slide_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_INPUT), name="slide_input")
+				slide_feature_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_FEATURES), name="slide_feature_input")
 
 		# Load pretrained model if applicable
 		if pretrain: log.info(f"Using pretraining from {sfutil.green(pretrain)}", 1)
@@ -463,15 +457,19 @@ class SlideflowModel:
 		model_inputs = [tile_image_model.input]
 
 		# Merge layers
-		if self.NUM_SLIDE_INPUT:
+		if self.NUM_SLIDE_FEATURES:
+			# Add images
 			if hp.tile_px == 0:
 				log.info("Generating model with just clinical variables and no images", 1)
-				merged_model = slide_input_tensor				
+				merged_model = slide_feature_input_tensor				
 			else:
-				merged_model = tf.keras.layers.Concatenate(name="input_merge")([slide_input_tensor, tile_image_model.output])
-			model_inputs += [slide_input_tensor]
+				merged_model = tf.keras.layers.Concatenate(name="input_merge")([slide_feature_input_tensor, tile_image_model.output])
+
+			# Add clinical variables
+			model_inputs += [slide_feature_input_tensor]
+
+			# Add event tensor if this is a CPH model
 			if self.MODEL_TYPE == 'cph':
-				self.EVENT_TENSOR = event_input_tensor
 				model_inputs += [event_input_tensor]
 		else:
 			merged_model = tile_image_model.output
@@ -536,12 +534,18 @@ class SlideflowModel:
 		Args:
 			hp		Hyperparameter object.	
 		'''
+		
+		if self.MODEL_TYPE == 'cph':
+			metrics = concordance_index
+		elif self.MODEL_TYPE == 'linear':
+			metrics = ['accuracy']
+		else:
+			metrics = [hp.loss]
 
-		event_input_tensor = tf.keras.Input(shape=(1), name="event_input")
-		loss_fn = negative_log_likelihood(event_input_tensor) if self.MODEL_TYPE=='cph' else hp.loss
+		loss_fn = negative_log_likelihood if self.MODEL_TYPE=='cph' else hp.loss
 		self.model.compile(optimizer=hp.get_opt(),
 						   loss=loss_fn,
-						   metrics=(concordance_index if self.MODEL_TYPE == 'cph' else metrics))
+						   metrics=metrics)
 
 	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, max_tiles=None, min_tiles=None,
 								include_slidenames=False, multi_image=False, parse_fn=None, drop_remainder=False):
@@ -697,18 +701,27 @@ class SlideflowModel:
 			image = self._process_image(image_string, self.AUGMENT)
 			image_dict = { 'tile_image': image }
 
-			if self.NUM_SLIDE_INPUT:
+			# Add additional non-image feature inputs if indicated
+			if self.NUM_SLIDE_FEATURES:
+				# If CPH model is used, time-to-event data must be added as a separate feature
 				if self.MODEL_TYPE == 'cph':
-					def slide_lookup(s): return self.SLIDE_INPUT_TABLE[s.numpy().decode('utf-8')][1:]
-					slide_input_val = tf.py_function(func=slide_lookup, inp=[slide], Tout=[tf.float32] * (self.NUM_SLIDE_INPUT - 1))
-					def event_lookup(s): return self.SLIDE_INPUT_TABLE[s.numpy().decode('utf-8')][0]
-					event_input_val = tf.py_function(func=event_lookup, inp=[slide], Tout=[tf.float32])
-					image_dict.update({'slide_input': slide_input_val})
+					def slide_lookup(s): return self.SLIDE_FEATURE_TABLE[s.numpy().decode('utf-8')][1:]
+					def event_lookup(s): return self.SLIDE_FEATURE_TABLE[s.numpy().decode('utf-8')][0]
+					num_features = self.NUM_SLIDE_FEATURES - 1
+
+					event_input_val = tf.py_function(func=event_lookup,
+													 inp=[slide],
+													 Tout=[tf.float32])
 					image_dict.update({'event_input': event_input_val})
 				else:
-					def slide_lookup(s): return self.SLIDE_INPUT_TABLE[s.numpy().decode('utf-8')]
-					slide_input_val = tf.py_function(func=slide_lookup, inp=[slide], Tout=[tf.float32] * self.NUM_SLIDE_INPUT)
-					image_dict.update({'slide_input': slide_input_val})
+					def slide_lookup(s): return self.SLIDE_FEATURE_TABLE[s.numpy().decode('utf-8')]
+					num_features = self.NUM_SLIDE_FEATURES
+
+				slide_feature_input_val = tf.py_function(func=slide_lookup, 
+															inp=[slide],
+															Tout=[tf.float32] * num_features)
+				image_dict.update({'slide_feature_input': slide_feature_input_val})
+
 			if include_slidenames:
 				return image_dict, label, slide
 			else:
@@ -742,7 +755,6 @@ class SlideflowModel:
 		# Freeze the base layer
 		self.model.layers[0].trainable = False
 		val_steps = 200 if validation_data else None
-		metrics = ['accuracy'] if hp.model_type() != 'linear' else [hp.loss]
 
 		self._compile_model(hp)
 
@@ -810,7 +822,7 @@ class SlideflowModel:
 																	  label="eval",
 																	  manifest=self.MANIFEST,
 																	  num_tiles=num_tiles,
-																	  num_input=self.NUM_SLIDE_INPUT,
+																	  num_input=self.NUM_SLIDE_FEATURES,
 																	  feature_names=self.FEATURE_NAMES,
 																	  feature_sizes=self.FEATURE_SIZES,
 																	  drop_images=(hp.tile_px==0))
@@ -951,7 +963,6 @@ class SlideflowModel:
 		total_epochs = hp.toplayer_epochs + (max(hp.finetune_epochs) - starting_epoch)
 		steps_per_epoch = round(num_tiles/hp.batch_size) if steps_per_epoch_override is None else steps_per_epoch_override
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
-		metrics = ['accuracy'] if hp.model_type() != 'linear' else [hp.loss]
 
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
