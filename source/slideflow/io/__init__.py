@@ -340,15 +340,19 @@ class Dataset:
 			folders += [join(self.datasets[d]['tfrecords'], self.datasets[d]['label'])]
 		return folders
 
-	def get_labels_from_annotations(self, headers, use_float=False, assigned_labels=None):
+	def get_labels_from_annotations(self, headers, use_float=False, assigned_labels=None, key='label'):
 		'''Returns a dictionary of slide names mapping to patient id and [an] label(s).
 
 		Args:
 			headers			annotation header(s) that specifies label variable. May be a list.
 			use_float		If true, will try to convert data into float
+			assigned_labels	Dictionary mapping label ids to label names. If not provided, will map
+								ids to names by sorting alphabetically.
+			key				Key name to use for the returned dictionary. Defaults to 'label'
 
 		Returns:
-			Dictionary with slides as keys and dictionaries as values. The value dictionaries contain both "TCGA.patient" and "label" keys.
+			1) Dictionary with slides as keys and dictionaries as values. The value dictionaries contain both "TCGA.patient" and "label" (or manually specified) keys.
+			2) list of unique labels
 		'''
 		slides = self.get_slides()
 		filtered_annotations = [a for a in self.ANNOTATIONS if a[TCGA.slide] in slides]
@@ -417,11 +421,11 @@ class Dataset:
 
 				if slide in slides:
 					if slide in results:
-						so = results[slide]['label']
-						results[slide]['label'] = [so] if not isinstance(so, list) else so
-						results[slide]['label'] += [annotation_label]
+						so = results[slide][key]
+						results[slide][key] = [so] if not isinstance(so, list) else so
+						results[slide][key] += [annotation_label]
 					else:
-						results[slide] = {'label': annotation_label if not use_float else [annotation_label]}
+						results[slide] = {key: annotation_label if not use_float else [annotation_label]}
 						results[slide][TCGA.patient] = patient
 			if num_warned >= warn_threshold:
 				log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)

@@ -473,8 +473,8 @@ class Model:
 		dataset.load_annotations(self.project.settings['annotations'])
 		dataset.apply_filters(filters=self.hyperparameters['filters'], filter_blank=self.hyperparameters['outcome_label_headers'])
 		try:
-			outcomes, unique_outcomes = dataset.get_labels_from_annotations(self.hyperparameters['outcome_label_headers'], 
-																	 		use_float=(self.hyperparameters['model_type'] == 'linear'))
+			_, unique_outcomes = dataset.get_labels_from_annotations(self.hyperparameters['outcome_label_headers'], 
+																	 use_float=(self.hyperparameters['model_type'] == 'linear'))
 		except TypeError:
 			log.error(f"Unable to load results for model {sfutil.green(self.dir)}; model_type is {self.hyperparameters['model_type']} but outcomes in annotations file cannot be converted into float", 1)
 			return False

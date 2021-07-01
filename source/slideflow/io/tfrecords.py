@@ -321,7 +321,7 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True, preserve
 	else:
 		return list(split(patient_list, n))
 
-def get_training_and_validation_tfrecords(dataset, validation_log, slide_labels_dict, model_type, validation_target, validation_strategy, 
+def get_training_and_validation_tfrecords(dataset, validation_log, model_type, slide_labels_dict, outcome_key, validation_target, validation_strategy, 
 											validation_fraction, validation_k_fold=None, k_fold_iter=None, read_only=False):
 	'''From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
 	If a validation plan has already been prepared (e.g. K-fold iterations were already determined), the previously generated plan will be used.
@@ -330,7 +330,15 @@ def get_training_and_validation_tfrecords(dataset, validation_log, slide_labels_
 	Args:
 		dataset:				A slideflow.datasets.Dataset object
 		validation_log:			Path to .log file containing validation plans
-		slide_labels_dict:		Dictionary mapping slides to labels (used for balancing outcome labels in training and validation cohorts)
+		slide_labels_dict:		Dictionary mapping slides to labels (used for balancing outcome labels in training and validation cohorts).
+									Example dictionary:
+										{
+											'slide1': {
+												outcome_key: 'Outcome1',
+												sfutil.TCGA.patient: 'patient_id'
+											}
+										}
+		outcome_key:			Key indicating outcome variable in slide_labels_dict
 		model_type:				Either 'categorical' or 'linear'
 		validation_target:		Either 'per-slide' or 'per-tile'
 		validation_strategy:	Either 'k-fold', 'k-fold-preserved-site', 'bootstrap', or 'fixed'.
@@ -413,11 +421,11 @@ def get_training_and_validation_tfrecords(dataset, validation_log, slide_labels_
 				continue
 			if patient not in patients_dict:
 				patients_dict[patient] = {
-					'outcome_label': slide_labels_dict[slide]['outcome_label'],
+					'outcome_label': slide_labels_dict[slide][outcome_key],
 					'slides': [slide]
 				}
-			elif patients_dict[patient]['outcome_label'] != slide_labels_dict[slide]['outcome_label']:
-				log.error(f"Multiple outcome labels found for patient {patient} ({patients_dict[patient]['outcome_label']}, {slide_labels_dict[slide]['outcome_label']})", 1)
+			elif patients_dict[patient]['outcome_label'] != slide_labels_dict[slide][outcome_key]:
+				log.error(f"Multiple outcome labels found for patient {patient} ({patients_dict[patient]['outcome_label']}, {slide_labels_dict[slide][outcome_key]})", 1)
 				sys.exit()
 			else:
 				patients_dict[patient]['slides'] += [slide]
