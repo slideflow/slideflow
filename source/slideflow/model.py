@@ -771,7 +771,7 @@ class SlideflowModel:
 		return toplayer_model.history
 
 	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None, 
-					max_tiles_per_slide=0, min_tiles_per_slide=0, multi_image=False, permutation_importance=True):
+					max_tiles_per_slide=0, min_tiles_per_slide=0, multi_image=False, permutation_importance=False):
 		'''Evaluate model.
 
 		Args:
@@ -784,7 +784,9 @@ class SlideflowModel:
 			max_tiles_per_slide:	If provided, will select only up to this maximum number of tiles from each slide.
 			min_tiles_per_slide:	If provided, will only evaluate slides with a given minimum number of tiles.
 			multi_image:			If true, will evaluate model with multi-image inputs.
-			
+			permutation_importance:	If true, will run permutation feature importance to define relative benefit of histology
+										and each clinical slide-level feature input, if provided.
+
 		Returns:
 			Keras history object.'''
 
@@ -807,6 +809,7 @@ class SlideflowModel:
 																				})
 			else:
 				self.model = tf.keras.models.load_model(model)
+
 		elif checkpoint:
 			self.model = self._build_model(hp)
 			self.model.load_weights(checkpoint)
@@ -826,11 +829,8 @@ class SlideflowModel:
 																	  feature_names=self.FEATURE_NAMES,
 																	  feature_sizes=self.FEATURE_SIZES,
 																	  drop_images=(hp.tile_px==0))
-			tile_auc = []
-			slide_auc = []
-			patient_auc = []
-			r_squared = []
-			c_index = []
+
+			tile_auc, slide_auc, patient_auc, r_squared, c_index = [], [], [], [], []
 			if model_type == 'categorical':
 				tile_auc = baseline_metrics[0]
 				slide_auc = baseline_metrics[1]
@@ -840,57 +840,55 @@ class SlideflowModel:
 			if model_type == 'cph':
 				c_index = baseline_metrics
 		else:										   
-			tile_auc, slide_auc, patient_auc, r_squared, c_index = sfstats.generate_performance_metrics(self.model, dataset_with_slidenames, self.SLIDE_ANNOTATIONS, 
-																							   model_type, self.DATA_DIR, label="eval", manifest=self.MANIFEST, num_tiles=num_tiles)
+			tile_auc, slide_auc, patient_auc, r_squared, c_index = sfstats.generate_performance_metrics(self.model,
+																										dataset_with_slidenames,
+																										self.SLIDE_ANNOTATIONS, 
+																							   			model_type,
+																										self.DATA_DIR,
+																										label="eval",
+																										manifest=self.MANIFEST,
+																										num_tiles=num_tiles)
 
 		if model_type == 'categorical':
 			log.info(f"Tile AUC: {tile_auc}", 1)
 			log.info(f"Slide AUC: {slide_auc}", 1)
 			log.info(f"Patient AUC: {patient_auc}", 1)
 		if model_type == 'linear':
-			log.info(f"Tile R-squared: {r_squared[0]}", 1)
-			log.info(f"Slide R-squared: {r_squared[1]}", 1)
-			log.info(f"Patient R-squared: {r_squared[2]}", 1)
+			log.info(f"Tile R-squared: {r_squared['tile']}", 1)
+			log.info(f"Slide R-squared: {r_squared['slide']}", 1)
+			log.info(f"Patient R-squared: {r_squared['patient']}", 1)
 		if model_type == 'cph':
-			log.info(f"Tile c-index: {c_index[0]}", 1)
-			log.info(f"Slide c-index: {c_index[1]}", 1)
-			log.info(f"Patient c-index: {c_index[2]}", 1)
+			log.info(f"Tile c-index: {c_index['tile']}", 1)
+			log.info(f"Slide c-index: {c_index['slide']}", 1)
+			log.info(f"Patient c-index: {c_index['patient']}", 1)
 		
 		val_loss, val_acc = self.model.evaluate(dataset, verbose=log.INFO_LEVEL > 0)
 
 		# Log results
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
+		results_dict = 	{ 'eval': {
+							'val_loss': val_loss,
+							'val_acc': val_acc }
+						}
+
 		if model_type == 'categorical':
-			results_dict = {
-				'eval': {
-					'val_loss': val_loss,
-					'val_acc': val_acc,
-					'tile_auc': tile_auc,
-					'slide_auc': slide_auc,
-					'patient_auc': patient_auc
-				}
-			}
+			results_dict['eval'].update({
+				'tile_auc': tile_auc,
+				'slide_auc': slide_auc,
+				'patient_auc': patient_auc
+			})
 		if model_type == 'linear':
-			results_dict = {
-				'eval': {
-					'val_loss': val_loss,
-					'val_acc': val_acc,
-					'tile_r_squared': r_squared[0],
-					'slide_r_squared': r_squared[1],
-					'patient_r_squared': r_squared[2]
-				}
-			}
+			results_dict['eval'].update({
+				'tile_r_squared': r_squared['tile'],
+				'slide_r_squared': r_squared['slide'],
+				'patient_r_squared': r_squared['patient']
+			})
 		if model_type == 'cph':
-			results_dict = {
-				'eval': {
-					'val_loss': val_loss,
-					'val_acc': val_acc,
-					'tile_r_squared': c_index[0],
-					'slide_r_squared': c_index[1],
-					'patient_r_squared': c_index[2]
-				}
-			}
-			
+			results_dict['eval'].update({
+				'tile_r_squared': c_index['tile'],
+				'slide_r_squared': c_index['slide'],
+				'patient_r_squared': c_index['patient']
+			})			
 
 		sfutil.update_results_log(results_log, 'eval_model', results_dict)
 		

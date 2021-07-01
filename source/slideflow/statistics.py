@@ -7,7 +7,7 @@ import pickle
 import seaborn as sns
 import numpy as np
 import pandas as pd
-
+import tensorflow as tf
 import slideflow.util as sfutil
 
 from slideflow.util import ProgressBar
@@ -22,7 +22,7 @@ from sklearn.metrics import pairwise_distances_argmin_min
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import pyplot as plt
 from matplotlib.widgets import LassoSelector
-import tensorflow as tf
+from lifelines.utils import concordance_index as c_index
 
 class StatisticsError(Exception):
 	pass
@@ -689,7 +689,7 @@ def generate_scatter(y_true, y_pred, data_dir, name='_plot', plot=True):
 	if y_true.shape[0] < 2:
 		log.error(f"Must have more than one observation to generate a scatter plot with R2 statistics.", 1)
 		return
-	
+
 	# Perform scatter for each outcome variable
 	r_squared = []
 	for i in range(y_true.shape[1]):
@@ -697,15 +697,13 @@ def generate_scatter(y_true, y_pred, data_dir, name='_plot', plot=True):
 		# Statistics
 		slope, intercept, r_value, p_value, std_err = stats.linregress(y_true[:,i], y_pred[:,i])
 		r_squared += [r_value ** 2]
-		
-		def r2(x, y):
-			return stats.pearsonr(x, y)[0] ** 2
+
 		if plot:
 			# Plot
-			p = sns.jointplot(y_true[:,i], y_pred[:,i], kind="reg") #stat_func=r2
+			p = sns.jointplot(y_true[:,i], y_pred[:,i], kind="reg")
 			p.set_axis_labels('y_true', 'y_pred')
 			plt.savefig(os.path.join(data_dir, f'Scatter{name}-{i}.png'))
-			
+
 	return r_squared
 
 def generate_metrics_from_predictions(y_true, y_pred):
@@ -742,7 +740,6 @@ def generate_metrics_from_predictions(y_true, y_pred):
 
 	return accuracy, sensitivity, specificity, precision, recall, f1_score, kappa
 
-
 def concordance_index(y_true, y_pred):
 	E = y_pred[:, -1]  # HERE
 	y_pred = y_pred[:, :-1]  # HERE
@@ -750,9 +747,7 @@ def concordance_index(y_true, y_pred):
 	E = E.flatten()
 	y_true = y_true.flatten()
 	y_pred = - y_pred # Need to take negative to get concordance index since these are log hazard ratios
-	from lifelines.utils import concordance_index as c_index
 	return c_index(y_true, y_pred, E)
-
 
 def generate_performance_metrics(model, dataset_with_slidenames, annotations, model_type, data_dir, label=None, manifest=None, min_tiles_per_slide=0, num_tiles=0):
 	'''Evaluate performance of a given model on a given TFRecord dataset, 
@@ -824,7 +819,16 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 
 	# Empty lists to store performance metrics
 	tile_auc, slide_auc, patient_auc = [], [], []
-	r_squared = None
+	r_squared_dict = {
+		'tile': None,
+		'slide': None,
+		'patient': None
+	}
+	c_index_dict = {
+		'tile': None,
+		'slide': None,
+		'patient': None
+	}
 
 	# Detect number of outcome categories
 	num_cat = len(y_pred[0]) if (model_type in ['linear', 'cph']) else max(num_true_outcome_categories, len(y_pred[0]))
@@ -934,43 +938,34 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 					log.info(f"Patient-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold:.3f})", 1)
 				except IndexError:
 					log.warn(f"Unable to generate patient-level stats for outcome {i}", 1)
-
-	r_squared_list = []
+	
 	if model_type == 'linear':
 		# Generate R-squared
-		r_squared = generate_scatter(y_true, y_pred, data_dir, label_end)
+		r_squared_dict['tile'] = generate_scatter(y_true, y_pred, data_dir, label_end)
 
 		# Generate and save slide-level averages of each outcome
 		averages_by_slide = get_average_by_group(y_pred, "average", unique_slides, tile_to_slides, y_true_slide, "slide")
 		y_true_by_slide = np.array([y_true_slide[slide] for slide in unique_slides])
-		r_squared_slide = generate_scatter(y_true_by_slide, averages_by_slide, data_dir, label_end+"_by_slide")			
+		r_squared_dict['slide'] = generate_scatter(y_true_by_slide, averages_by_slide, data_dir, label_end+"_by_slide")			
 		if not patient_error:
 			# Generate and save patient-level averages of each outcome
 			averages_by_patient = get_average_by_group(y_pred, "average", patients, tile_to_patients, y_true_patient, "slide")
 			y_true_by_patient = np.array([y_true_patient[patient] for patient in patients])
-			r_squared_patient = generate_scatter(y_true_by_patient, averages_by_patient, data_dir, label_end+"_by_patient")
-		else:
-			r_squared_patient = None
-		r_squared_list = [r_squared, r_squared_slide, r_squared_patient]
+			r_squared_dict['patient'] = generate_scatter(y_true_by_patient, averages_by_patient, data_dir, label_end+"_by_patient")
 
-	c_index_list = []
 	if model_type == 'cph':
 		# Generate c_index
-		c_index = concordance_index(y_true, y_pred)
+		c_index['tile'] = concordance_index(y_true, y_pred)
 		
 		# Generate and save slide-level averages of each outcome
 		averages_by_slide = get_average_by_group(y_pred, "average", unique_slides, tile_to_slides, y_true_slide, "slide")
 		y_true_by_slide = np.array([y_true_slide[slide] for slide in unique_slides])
-		c_index_slide = concordance_index(y_true_by_slide, averages_by_slide)
+		c_index['slide'] = concordance_index(y_true_by_slide, averages_by_slide)
 		if not patient_error:
 			# Generate and save patient-level averages of each outcome
 			averages_by_patient = get_average_by_group(y_pred, "average", patients, tile_to_patients, y_true_patient, "slide")
 			y_true_by_patient = np.array([y_true_patient[patient] for patient in patients])
-			c_index_patient = concordance_index(y_true_by_patient, averages_by_patient)	
-		else:
-			c_index_patient = None
-		c_index_list = [c_index, c_index_slide, c_index_patient]
-		
+			c_index['patient'] = concordance_index(y_true_by_patient, averages_by_patient)			
 		
 	# Save tile-level predictions
 	tile_csv_dir = os.path.join(data_dir, f"tile_predictions{label_end}.csv")
@@ -985,7 +980,7 @@ def generate_performance_metrics(model, dataset_with_slidenames, annotations, mo
 			writer.writerow(row)
 
 	log.complete(f"Predictions saved to {sfutil.green(data_dir)}", 1)
-	return tile_auc, slide_auc, patient_auc, r_squared_list, c_index_list
+	return tile_auc, slide_auc, patient_auc, r_squared_dict, c_index
 
 def calculate_metric(model, dataset_with_slidenames, y_true, mergelayer, events, tile_to_slides, annotations, model_type, data_dir, label=None, manifest=None, min_tiles_per_slide=0, num_tiles=0, baseline=False):
 	'''Evaluate performance of a given model on a given TFRecord dataset, 
