@@ -252,10 +252,10 @@ class HyperParameters:
 
 	def model_type(self):
 		'''Returns either 'linear' or 'categorical' depending on the loss type.'''
-		if self.loss in self._LinearLoss:
-			return 'linear'
-		elif self.loss == 'negative_log_likelihood':
+		if self.loss == 'negative_log_likelihood':
 			return 'cph'
+		elif self.loss in self._LinearLoss:
+			return 'linear'
 		else:
 			return 'categorical'
 
@@ -293,6 +293,11 @@ class SlideflowModel:
 		self.EVENT_TENSOR = None
 		self.FEATURE_SIZES = feature_sizes
 		self.FEATURE_NAMES = feature_names
+
+		# TOOD: reconcile these three different ways of accessing the same information:
+		#	self.MODEL_TYPE
+		#	hp.model_type()
+		#	hp.loss == 'negative_log_likelihood'
 		
 		
 		outcome_labels = [slide_annotations[slide]['outcome_label'] for slide in self.SLIDES]
@@ -323,7 +328,7 @@ class SlideflowModel:
 				self.ANNOTATIONS_TABLES = [tf.lookup.StaticHashTable(
 					tf.lookup.KeyValueTensorInitializer(self.SLIDES, outcome_labels), -1
 				)]
-		elif model_type == 'linear' or model_type == 'cph':
+		elif model_type in ['linear', 'cph']:
 			try:
 				self.NUM_CLASSES = len(outcome_labels[0])
 			except TypeError:
@@ -405,11 +410,10 @@ class SlideflowModel:
 		if self.NUM_SLIDE_INPUT:
 			if self.MODEL_TYPE == 'cph':
 				slide_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_INPUT - 1), name="slide_input")
+				event_input_tensor = tf.keras.Input(shape=(1), name="event_input")
 			else:
 				slide_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_INPUT), name="slide_input")
 
-		if hp.loss == 'negative_log_likelihood':
-			event_input_tensor = tf.keras.Input(shape=(1), name="event_input")
 		# Load pretrained model if applicable
 		if pretrain: log.info(f"Using pretraining from {sfutil.green(pretrain)}", 1)
 		if pretrain and pretrain!='imagenet':
@@ -466,7 +470,7 @@ class SlideflowModel:
 			else:
 				merged_model = tf.keras.layers.Concatenate(name="input_merge")([slide_input_tensor, tile_image_model.output])
 			model_inputs += [slide_input_tensor]
-			if hp.loss == 'negative_log_likelihood':
+			if self.MODEL_TYPE == 'cph':
 				self.EVENT_TENSOR = event_input_tensor
 				model_inputs += [event_input_tensor]
 		else:
@@ -480,8 +484,10 @@ class SlideflowModel:
 		activation = 'linear' if (hp.model_type() in ['linear', 'cph']) else 'softmax'
 		final_dense_layer = tf.keras.layers.Dense(self.NUM_CLASSES, kernel_regularizer=regularizer, name="prelogits")(merged_model)
 		softmax_output = tf.keras.layers.Activation(activation, dtype='float32', name='logits')(final_dense_layer)
-		if hp.loss == 'negative_log_likelihood':
+
+		if self.MODEL_TYPE == 'cph':
 			softmax_output = tf.keras.layers.Concatenate(name="output_merge_CPH")([softmax_output, event_input_tensor])
+
 		# Assemble final model
 		model = tf.keras.Model(inputs=model_inputs, outputs=softmax_output)
 
@@ -523,6 +529,19 @@ class SlideflowModel:
 		model = tf.keras.Model(inputs=[base_model.input, base_model_i.input], outputs=predictions)
 
 		return model
+
+	def _compile_model(self, hp):
+		'''Compiles keras model.
+		
+		Args:
+			hp		Hyperparameter object.	
+		'''
+
+		event_input_tensor = tf.keras.Input(shape=(1), name="event_input")
+		loss_fn = negative_log_likelihood(event_input_tensor) if self.MODEL_TYPE=='cph' else hp.loss
+		self.model.compile(optimizer=hp.get_opt(),
+						   loss=loss_fn,
+						   metrics=(concordance_index if self.MODEL_TYPE == 'cph' else metrics))
 
 	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, max_tiles=None, min_tiles=None,
 								include_slidenames=False, multi_image=False, parse_fn=None, drop_remainder=False):
@@ -655,7 +674,7 @@ class SlideflowModel:
 		feature_description = tfrecords.FEATURE_DESCRIPTION if not multi_image else tfrecords.FEATURE_DESCRIPTION_MULTI
 		features = tf.io.parse_single_example(record, feature_description)
 		slide = features['slide']
-		if self.MODEL_TYPE == 'linear' or self.MODEL_TYPE == 'cph':
+		if self.MODEL_TYPE in ['linear', 'cph']:
 			label = [self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(self.NUM_CLASSES)]
 		else:
 			label = self.ANNOTATIONS_TABLES[0].lookup(slide)
@@ -724,26 +743,19 @@ class SlideflowModel:
 		self.model.layers[0].trainable = False
 		val_steps = 200 if validation_data else None
 		metrics = ['accuracy'] if hp.model_type() != 'linear' else [hp.loss]
-		event_input_tensor = tf.keras.Input(shape=(1), name="event_input")
-		if hp.loss == 'negative_log_likelihood':
-			self.model.compile(optimizer=tf.keras.optimizers.Adam(lr=hp.learning_rate),
-						  loss=negative_log_likelihood(event_input_tensor),
-						  metrics=metrics)
-		else:
-			self.model.compile(optimizer=tf.keras.optimizers.Adam(lr=hp.learning_rate),
-						  loss=hp.loss,
-						  metrics=metrics)
+
+		self._compile_model(hp)
 
 		toplayer_model = self.model.fit(train_data,
-				  epochs=epochs,
-				  verbose=(log.INFO_LEVEL > 0),
-				  steps_per_epoch=steps_per_epoch,
-				  validation_data=validation_data,
-				  validation_steps=val_steps,
-				  callbacks=callbacks)
+										epochs=epochs,
+										verbose=(log.INFO_LEVEL > 0),
+										steps_per_epoch=steps_per_epoch,
+										validation_data=validation_data,
+										validation_steps=val_steps,
+										callbacks=callbacks)
 
 		# Unfreeze the base layer
-		model.layers[0].trainable = True
+		self.model.layers[0].trainable = True
 		return toplayer_model.history
 
 	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None, 
@@ -1070,12 +1082,7 @@ class SlideflowModel:
 
 		# Fine-tune the model
 		log.info("Beginning fine-tuning", 1)
-		if hp.loss == 'negative_log_likelihood':
-			self.model.compile(loss=negative_log_likelihood, optimizer=hp.get_opt(), metrics=concordance_index)
-		else:
-			self.model.compile(loss=hp.loss,
-					   optimizer=hp.get_opt(),
-					   metrics=metrics)
+		self._compile_model(hp)
 
 		history = self.model.fit(train_data,
 								 steps_per_epoch=steps_per_epoch,
