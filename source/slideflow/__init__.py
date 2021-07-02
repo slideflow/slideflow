@@ -1765,6 +1765,7 @@ class SlideflowProject:
 			destination:	Destination folder in which to save tile images
 			filters:		Dataset filters to use when selecting TFRecords
 		'''
+		import slideflow.io.tfrecords
 		log.header(f"Extracting tiles from TFRecords")
 		to_extract_dataset = self.get_dataset(filters=filters,
 											  tile_px=tile_px,
