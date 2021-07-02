@@ -538,9 +538,9 @@ class SlideflowModel:
 		if self.MODEL_TYPE == 'cph':
 			metrics = concordance_index
 		elif self.MODEL_TYPE == 'linear':
-			metrics = ['accuracy']
-		else:
 			metrics = [hp.loss]
+		else:
+			metrics = ['accuracy']
 
 		loss_fn = negative_log_likelihood if self.MODEL_TYPE=='cph' else hp.loss
 		self.model.compile(optimizer=hp.get_opt(),
@@ -795,12 +795,15 @@ class SlideflowModel:
 			log.error("If using a checkpoint for evaluation, hyperparameters must be specified.")
 			sys.exit()
 		if not batch_size: batch_size = hp.batch_size
-		dataset, dataset_with_slidenames, num_tiles = self._build_dataset_inputs(tfrecords, batch_size, NO_BALANCE, augment=False, 
-																													finite=True,
-																													max_tiles=max_tiles_per_slide,
-																													min_tiles=min_tiles_per_slide,
-																													include_slidenames=True,
-																													multi_image=multi_image)
+		dataset, dataset_with_slidenames, num_tiles = self._build_dataset_inputs(tfrecords,
+																				 batch_size,
+																				 NO_BALANCE,
+																				 augment=False, 
+																				 finite=True,
+																				 max_tiles=max_tiles_per_slide,
+																				 min_tiles=min_tiles_per_slide,
+																				 include_slidenames=True,
+																				 multi_image=multi_image)
 		if model:
 			if model_type == 'cph':
 				self.model = tf.keras.models.load_model(model, custom_objects = {
@@ -825,7 +828,6 @@ class SlideflowModel:
 																			 label="eval",
 																			 manifest=self.MANIFEST,
 																			 num_tiles=num_tiles,
-																			 num_input=self.NUM_SLIDE_FEATURES,
 																			 feature_names=self.FEATURE_NAMES,
 																			 feature_sizes=self.FEATURE_SIZES,
 																			 drop_images=(hp.tile_px==0))
@@ -1048,27 +1050,27 @@ class SlideflowModel:
 					train_acc = logs['accuracy']
 				else:
 					train_acc = logs[hp.loss]
-				tile_auc, slide_auc, patient_auc, r_squared, c_index = sfstats.gen_metrics_from_dataset(self.model,
-																										model_type=hp.model_type(),
-																										annotations=parent.SLIDE_ANNOTATIONS,
-																										manifest=parent.MANIFEST,
-																										dataset=validation_data_with_slidenames,
-																										label=epoch_label,
-																										data_dir=parent.DATA_DIR,
-																										num_tiles=num_tiles,
-																										verbose=True)
+				auc, r_squared, c_index = sfstats.gen_metrics_from_dataset(self.model,
+																			model_type=hp.model_type(),
+																			annotations=parent.SLIDE_ANNOTATIONS,
+																			manifest=parent.MANIFEST,
+																			dataset=validation_data_with_slidenames,
+																			label=epoch_label,
+																			data_dir=parent.DATA_DIR,
+																			num_tiles=num_tiles,
+																			verbose=True)
 				val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 				log.info(f"Validation loss: {val_loss:.4f} | accuracy: {val_acc:.4f}", 1)
 				results['epochs'][f'epoch{epoch}'] = {}
 				results['epochs'][f'epoch{epoch}']['train_acc'] = np.amax(train_acc)
 				results['epochs'][f'epoch{epoch}']['val_loss'] = val_loss
 				results['epochs'][f'epoch{epoch}']['val_acc'] = val_acc
-				for i, auc in enumerate(tile_auc):
-					results['epochs'][f'epoch{epoch}'][f'tile_auc{i}'] = auc
-				for i, auc in enumerate(slide_auc):
-					results['epochs'][f'epoch{epoch}'][f'slide_auc{i}'] = auc
-				for i, auc in enumerate(patient_auc):
-					results['epochs'][f'epoch{epoch}'][f'patient_auc{i}'] = auc
+				for i, c in enumerate(auc['tile']):
+					results['epochs'][f'epoch{epoch}'][f'tile_auc{i}'] = c
+				for i, c in enumerate(auc['slide']):
+					results['epochs'][f'epoch{epoch}'][f'slide_auc{i}'] = c
+				for i, c in enumerate(auc['patient']):
+					results['epochs'][f'epoch{epoch}'][f'patient_auc{i}'] = c
 				results['epochs'][f'epoch{epoch}']['r_squared'] = r_squared
 				results['epochs'][f'epoch{epoch}']['c_index'] = c_index
 				epoch_results = results['epochs'][f'epoch{epoch}']

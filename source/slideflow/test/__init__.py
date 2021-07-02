@@ -175,7 +175,8 @@ class TaskWrapper:
 
 class TestSuite:
 	'''Class to supervise standardized testing of slideflow pipeline.'''
-	def __init__(self, root, reset=True, buffer=None, num_threads=8, debug=False, download=AUTO_DOWNLOAD, include_tma=False):
+	def __init__(self, root, reset=True, buffer=None, num_threads=8, debug=False, 
+					download=AUTO_DOWNLOAD, include_tma=False, gpu=None):
 		'''Initialize testing models.'''
 		
 		# Set logging level
@@ -216,7 +217,7 @@ class TestSuite:
 		flags['num_threads'] = num_threads
 		flags['logging_levels'] = log_levels
 
-		self.SFP = sf.SlideflowProject(self.config.PROJECT['root'], interactive=False, flags=flags)
+		self.SFP = sf.SlideflowProject(self.config.PROJECT['root'], interactive=False, flags=flags, force_gpu=gpu)
 		self.SFP.PROJECT = self.config.PROJECT
 		self.SFP.save_project()
 
@@ -343,7 +344,7 @@ class TestSuite:
 			# Test categorical outcome
 			with TaskWrapper("Training to single categorical outcome from hyperparameters...") as test:
 				hp = self.setup_hp('categorical')
-				results_dict = self.SFP.train(models = 'manual_hp', outcome_label_header='category1', hyperparameters=hp, k_fold_iter=1, validate_on_batch=50, steps_per_epoch_override=5)
+				results_dict = self.SFP.train(model_names = 'manual_hp', outcome_label_header='category1', hyperparameters=hp, k_fold_iter=1, validate_on_batch=50, steps_per_epoch_override=5)
 			
 				if not results_dict or 'history' not in results_dict[results_dict.keys()[0]]:
 					print("\tKeras results object not received from training")
@@ -360,16 +361,15 @@ class TestSuite:
 				self.SFP.train(outcome_label_header=['linear1', 'linear2'], multi_outcome=True, k_fold_iter=1, validate_on_batch=50, steps_per_epoch_override=5)
 
 		if multi_input:
-			with TaskWrapper("Training with multiple input types...") as test:
+			with TaskWrapper("Training with multiple inputs (image + annotation feature)...") as test:
 				hp = self.setup_hp('categorical')
 				self.SFP.train(outcome_label_header='category1', input_header='category2', k_fold_iter=1, validate_on_batch=50, steps_per_epoch_override=5)
-			
 
 	def test_training_performance(self):
 		with TaskWrapper("Testing performance of training (single categorical outcome)...") as test:
 			hp = self.setup_hp('categorical')
 			hp.finetune_epochs = [1,3]
-			results_dict = self.SFP.train(models='performance', outcome_label_header='category1', hyperparameters=hp, k_fold_iter=1)
+			results_dict = self.SFP.train(model_names='performance', outcome_label_header='category1', hyperparameters=hp, k_fold_iter=1)
 
 	def test_evaluation(self):
 		with TaskWrapper("Testing evaluation of a saved model...") as test:

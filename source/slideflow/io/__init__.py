@@ -373,7 +373,6 @@ class Dataset:
 				try:
 					filtered_labels = [float(o) for o in filtered_labels]
 				except ValueError:
-					log.error(f"Unable to convert label {sfutil.bold(header)} into type 'float'.", 1)
 					raise TypeError(f"Unable to convert label {header} into type 'float'.")
 			else:
 				log.info(f'Assigning label descriptors in column "{header}" to numerical values', 1)

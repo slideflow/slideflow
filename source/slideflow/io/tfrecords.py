@@ -527,8 +527,8 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 					sys.exit()
 
 		# Perform final integrity check to ensure no patients are in both training and validation slides
-		validation_pt = list(set([outcomes[slide][sfutil.TCGA.patient] for slide in validation_slides]))
-		training_pt = list(set([outcomes[slide][sfutil.TCGA.patient] for slide in training_slides]))
+		validation_pt = list(set([slide_labels_dict[slide][sfutil.TCGA.patient] for slide in validation_slides]))
+		training_pt = list(set([slide_labels_dict[slide][sfutil.TCGA.patient] for slide in training_slides]))
 		if sum([pt in training_pt for pt in validation_pt]):
 			log.error(f"At least one patient is in both validation and training sets.")
 			sys.exit()

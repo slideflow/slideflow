@@ -25,6 +25,8 @@ from matplotlib import pyplot as plt
 from matplotlib.widgets import LassoSelector
 from lifelines.utils import concordance_index as c_index
 
+# TODO: remove 'hidden_0' reference as this may not be present if the model does not have hidden layers
+
 class StatisticsError(Exception):
 	pass
 
@@ -1099,18 +1101,6 @@ def permutation_feature_importance(model,
 	pre_hl = [] # Activations pre-hidden layers for each tile
 	detected_batch_size = 0
 	metrics = {}
-
-	# Setup progress bar
-	pb = None
-	if log.INFO_LEVEL > 0:
-		msg = f"Generating model activations at layer {'something'}..."
-		sys.stdout.write(f"\r{msg}")
-		if num_tiles:
-			pb = ProgressBar(num_tiles,
-							counter_text='images',
-							leadtext=msg,
-							show_counter=True,
-							show_eta=True)
 	
 	# Establish the output layer for the intermediate model.
 	#   This layer is just prior to the hidden layers, and includes
@@ -1119,6 +1109,17 @@ def permutation_feature_importance(model,
 	hidden_layer_input = "slide_feature_input" if drop_images else "input_merge"
 	intermediate_layer_model = tf.keras.Model(inputs=model.input,
 									 		  outputs=model.get_layer(hidden_layer_input).output)
+	# Setup progress bar
+	pb = None
+	if log.INFO_LEVEL > 0:
+		msg = f"Generating model activations at layer '{hidden_layer_input}'..."
+		sys.stdout.write(f"\r{msg}")
+		if num_tiles:
+			pb = ProgressBar(num_tiles,
+							counter_text='images',
+							leadtext=msg,
+							show_counter=True,
+							show_eta=True)
 
 	# Create the time-to-event input used for CPH models
 	if model_type == 'cph':
