@@ -11,6 +11,11 @@ class ManifestError(Exception):
 class ModelError(Exception):
 	pass
 
+def get_layer_index_by_name(model, name):
+	for i, layer in enumerate(model.layers):
+			if layer.name == name:
+				return i
+
 def negative_log_likelihood(y_true, y_pred):
 	E = y_pred[:, -1]
 	y_pred = y_pred[:, :-1]

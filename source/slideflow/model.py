@@ -265,7 +265,7 @@ class SlideflowModel:
 
 	def __init__(self, data_directory, image_size, slide_annotations, train_tfrecords, validation_tfrecords, 
 					manifest=None, use_fp16=True, model_type='categorical', normalizer=None, normalizer_source=None, 
-					num_slide_features=0, feature_sizes=None, feature_names=None):
+					feature_sizes=None, feature_names=None):
 		'''Model initializer.
 
 		Args:
@@ -290,8 +290,8 @@ class SlideflowModel:
 		self.MODEL_TYPE = model_type
 		self.SLIDES = list(slide_annotations.keys())
 		self.DATASETS = {}
-		self.NUM_SLIDE_FEATURES = num_slide_features
 		self.FEATURE_SIZES = feature_sizes
+		self.NUM_SLIDE_FEATURES = 0 if not feature_sizes else sum(feature_sizes)
 		self.FEATURE_NAMES = feature_names
 
 		outcome_labels = [slide_annotations[slide]['outcome_label'] for slide in self.SLIDES]
@@ -817,42 +817,42 @@ class SlideflowModel:
 		# Generate performance metrics
 		log.info("Calculating performance metrics...", 1)
 		if permutation_importance:
-			baseline_metrics = sfstats.permutation_feature_importance(self.model, 
-																	  dataset_with_slidenames,
-																	  self.SLIDE_ANNOTATIONS, 
-																	  model_type,
-																	  self.DATA_DIR,
-																	  label="eval",
-																	  manifest=self.MANIFEST,
-																	  num_tiles=num_tiles,
-																	  num_input=self.NUM_SLIDE_FEATURES,
-																	  feature_names=self.FEATURE_NAMES,
-																	  feature_sizes=self.FEATURE_SIZES,
-																	  drop_images=(hp.tile_px==0))
+			auc, r_squared, c_index = sfstats.permutation_feature_importance(self.model, 
+																			 dataset_with_slidenames,
+																			 self.SLIDE_ANNOTATIONS, 
+																			 model_type,
+																			 self.DATA_DIR,
+																			 label="eval",
+																			 manifest=self.MANIFEST,
+																			 num_tiles=num_tiles,
+																			 num_input=self.NUM_SLIDE_FEATURES,
+																			 feature_names=self.FEATURE_NAMES,
+																			 feature_sizes=self.FEATURE_SIZES,
+																			 drop_images=(hp.tile_px==0))
 
-			tile_auc, slide_auc, patient_auc, r_squared, c_index = [], [], [], [], []
-			if model_type == 'categorical':
-				tile_auc = baseline_metrics[0]
-				slide_auc = baseline_metrics[1]
-				patient_auc = baseline_metrics[2]
-			if model_type == 'linear':
-				r_squared = baseline_metrics
-			if model_type == 'cph':
-				c_index = baseline_metrics
+			#if model_type == 'categorical':
+			#	tile_auc = auc['tile']
+			#	slide_auc = auc['slide']
+			#	patient_auc = auc['patient']
+			#if model_type == 'linear':
+			#	r_squared = baseline_metrics
+			#if model_type == 'cph':
+			#	c_index = baseline_metrics
 		else:										   
-			tile_auc, slide_auc, patient_auc, r_squared, c_index = sfstats.generate_performance_metrics(self.model,
-																										dataset_with_slidenames,
-																										self.SLIDE_ANNOTATIONS, 
-																							   			model_type,
-																										self.DATA_DIR,
-																										label="eval",
-																										manifest=self.MANIFEST,
-																										num_tiles=num_tiles)
+			auc, r_squared, c_index = sfstats.gen_metrics_from_dataset(self.model,
+																		model_type=model_type,
+																		annotations=self.SLIDE_ANNOTATIONS, 
+																		manifest=self.MANIFEST,
+																		dataset=dataset_with_slidenames,
+																		label="eval",
+																		data_dir=self.DATA_DIR,
+																		num_tiles=num_tiles,
+																		verbose=True)
 
 		if model_type == 'categorical':
-			log.info(f"Tile AUC: {tile_auc}", 1)
-			log.info(f"Slide AUC: {slide_auc}", 1)
-			log.info(f"Patient AUC: {patient_auc}", 1)
+			log.info(f"Tile AUC: {auc['tile']}", 1)
+			log.info(f"Slide AUC: {auc['slide']}", 1)
+			log.info(f"Patient AUC: {auc['patient']}", 1)
 		if model_type == 'linear':
 			log.info(f"Tile R-squared: {r_squared['tile']}", 1)
 			log.info(f"Slide R-squared: {r_squared['slide']}", 1)
@@ -873,9 +873,9 @@ class SlideflowModel:
 
 		if model_type == 'categorical':
 			results_dict['eval'].update({
-				'tile_auc': tile_auc,
-				'slide_auc': slide_auc,
-				'patient_auc': patient_auc
+				'tile_auc': auc['tile'],
+				'slide_auc': auc['slide'],
+				'patient_auc': auc['patient']
 			})
 		if model_type == 'linear':
 			results_dict['eval'].update({
@@ -888,7 +888,7 @@ class SlideflowModel:
 				'tile_r_squared': c_index['tile'],
 				'slide_r_squared': c_index['slide'],
 				'patient_r_squared': c_index['patient']
-			})			
+			})
 
 		sfutil.update_results_log(results_log, 'eval_model', results_dict)
 		
@@ -1048,14 +1048,15 @@ class SlideflowModel:
 					train_acc = logs['accuracy']
 				else:
 					train_acc = logs[hp.loss]
-				tile_auc, slide_auc, patient_auc, r_squared, c_index = sfstats.generate_performance_metrics(self.model,
-																											validation_data_with_slidenames,
-																											parent.SLIDE_ANNOTATIONS,
-																											hp.model_type(), 
-																											parent.DATA_DIR,
-																											label=epoch_label,
-																											manifest=parent.MANIFEST,
-																											num_tiles=num_tiles)
+				tile_auc, slide_auc, patient_auc, r_squared, c_index = sfstats.gen_metrics_from_dataset(self.model,
+																										model_type=hp.model_type(),
+																										annotations=parent.SLIDE_ANNOTATIONS,
+																										manifest=parent.MANIFEST,
+																										dataset=validation_data_with_slidenames,
+																										label=epoch_label,
+																										data_dir=parent.DATA_DIR,
+																										num_tiles=num_tiles,
+																										verbose=True)
 				val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 				log.info(f"Validation loss: {val_loss:.4f} | accuracy: {val_acc:.4f}", 1)
 				results['epochs'][f'epoch{epoch}'] = {}

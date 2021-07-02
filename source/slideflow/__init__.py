@@ -141,12 +141,10 @@ def _evaluator(outcome_label_header, model, project_config, results_dict, input_
 				feature_len_dict[input_var] = len(input_label_to_int)
 
 		feature_sizes = [feature_len_dict[i] for i in input_header]
-		num_slide_features = sum(feature_sizes)
 
 	else:
 		input_labels_dict = None
 		feature_sizes = None
-		num_slide_features = 0
 	
 	if sum(feature_sizes) != sum(hp_data['feature_sizes']):
 		raise Exception("Patient-level feature matrix not equal to what was used for model training. Will use training matrix")
@@ -169,7 +167,6 @@ def _evaluator(outcome_label_header, model, project_config, results_dict, input_
 								 model_type=hp.model_type(),
 								 normalizer=normalizer,
 								 normalizer_source=normalizer_source,
-								 num_slide_features=num_slide_features,
 								 feature_names=input_header,
 								 feature_sizes=feature_sizes)
 
@@ -373,12 +370,10 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 				input_labels_dict[input_var] = dict(zip(range(len(unique_input_labels)), unique_input_labels))
 		
 		feature_sizes = [feature_len_dict[i] for i in input_header]
-		num_slide_features = sum(feature_sizes)
 				
 	else:
 		input_labels_dict = None
 		feature_sizes = None
-		num_slide_features = 0
 
 	# Initialize model
 	# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
@@ -395,7 +390,6 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 								 model_type=hp.model_type(),
 								 normalizer=normalizer,
 								 normalizer_source=normalizer_source,
-								 num_slide_features=num_slide_features,
 								 feature_names=input_header,
 								 feature_sizes=feature_sizes)
 
