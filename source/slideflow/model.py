@@ -831,7 +831,6 @@ class SlideflowModel:
 																			 feature_names=self.FEATURE_NAMES,
 																			 feature_sizes=self.FEATURE_SIZES,
 																			 drop_images=(hp.tile_px==0))
-
 			#if model_type == 'categorical':
 			#	tile_auc = auc['tile']
 			#	slide_auc = auc['slide']

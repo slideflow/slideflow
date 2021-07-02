@@ -1116,10 +1116,10 @@ def permutation_feature_importance(model,
 		sys.stdout.write(f"\r{msg}")
 		if num_tiles:
 			pb = ProgressBar(num_tiles,
-							counter_text='images',
-							leadtext=msg,
-							show_counter=True,
-							show_eta=True)
+							 counter_text='images',
+							 leadtext=msg,
+							 show_counter=True,
+							 show_eta=True)
 
 	# Create the time-to-event input used for CPH models
 	if model_type == 'cph':
@@ -1175,7 +1175,7 @@ def permutation_feature_importance(model,
 																		  verbose=True,
 																		  histogram=False,
 																		  plot=False)
-	base_auc_list = np.array(base_auc['tile'], base_auc['slide'], base_auc['patient'])
+	base_auc_list = np.array([base_auc['tile'], base_auc['slide'], base_auc['patient']])
 
 	total_features = sum(feature_sizes)
 	if model_type == 'cph':
@@ -1219,7 +1219,7 @@ def permutation_feature_importance(model,
 													verbose=False,
 													histogram=False,
 													plot=False)
-		metrics[feature] = base_auc_list - np.array(new_auc['tile'], new_auc['slide'], new_auc['patient'])
+		metrics[feature] = base_auc_list - np.array([new_auc['tile'], new_auc['slide'], new_auc['patient']])
 
 	#Probably makes sense to measure only at the tile level - unless we write code to do permutation of patient level data which would be probably more work than its worth
 	feature_text = ""
