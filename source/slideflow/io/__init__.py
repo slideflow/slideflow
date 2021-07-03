@@ -123,11 +123,10 @@ def merge_validation(train_dir, eval_dir):
 class Dataset:
 	'''Object to supervise organization of slides, tfrecords, and tiles across a one or more datasets in a stored configuration file.'''
 
-	ANNOTATIONS = []
-	filters = None
-	filter_blank = None
+	
 
 	def __init__(self, config_file, sources, tile_px, tile_um, annotations=None, filters=None, filter_blank=None):
+		self.ANNOTATIONS = []
 		config = sfutil.load_json(config_file)
 		sources = sources if isinstance(sources, list) else [sources]
 
@@ -345,7 +344,12 @@ class Dataset:
 
 		Args:
 			headers			annotation header(s) that specifies label variable. May be a list.
-			use_float		If true, will try to convert data into float
+			use_float		Either bool, dict, or 'auto'. 
+								If true, will try to convert all data into float. If unable, will raise TypeError.
+								If false, will interpret all data as categorical.
+								If a dict is provided, will look up each header to determine whether float should be used.
+								If 'auto', will try to convert all data into float. For each header in which this fails, 
+									will interpret as categorical instead.
 			assigned_labels	Dictionary mapping label ids to label names. If not provided, will map
 								ids to names by sorting alphabetically.
 			key				Key name to use for the returned dictionary. Defaults to 'label'
@@ -368,8 +372,24 @@ class Dataset:
 				log.error(f"Unable to find column {header} in annotation file.", 1)
 				sys.exit()
 
-			# Ensure labels can be converted to desired type
-			if use_float:
+			# Determine whether values should be converted into float
+			if type(use_float) == dict and header not in use_float:
+				raise DatasetError(f"Dict was provided to use_float, but header {header} is missing.")
+			elif type(use_float) == dict:
+				use_float_for_this_header = use_float[header]
+			elif type(use_float) == bool:
+				use_float_for_this_header = use_float
+			elif use_float == 'auto':
+				try:
+					filtered_labels = [float(o) for o in filtered_labels]
+					use_float_for_this_header = True
+				except ValueError:
+					use_float_for_this_header = False
+			else:
+				raise DatasetError(f"Invalid use_float option {use_float}")
+
+			# Ensure labels can be converted to desired type, then assign values
+			if use_float_for_this_header:
 				try:
 					filtered_labels = [float(o) for o in filtered_labels]
 				except ValueError:
@@ -389,7 +409,7 @@ class Dataset:
 			
 			# Create function to process/convert label
 			def _process_label(o):
-				if use_float:
+				if use_float_for_this_header:
 					return float(o)
 				elif assigned_labels:
 					return assigned_labels[o]
@@ -424,7 +444,7 @@ class Dataset:
 						results[slide][key] = [so] if not isinstance(so, list) else so
 						results[slide][key] += [annotation_label]
 					else:
-						results[slide] = {key: annotation_label if not use_float else [annotation_label]}
+						results[slide] = {key: annotation_label if not use_float_for_this_header else [annotation_label]}
 						results[slide][TCGA.patient] = patient
 			if num_warned >= warn_threshold:
 				log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
@@ -658,7 +678,12 @@ class Dataset:
 							row.extend([""])
 							num_missing += 1
 						csv_writer.writerow(row)
-		log.complete(f"Successfully associated slides with {num_updated_annotations} annotation entries. Slides not found for {num_missing} annotations.", 1)
+		if num_updated_annotations:
+			log.complete(f"Successfully associated slides with {num_updated_annotations} annotation entries. Slides not found for {num_missing} annotations.", 1)
+		elif num_missing:
+			log.complete(f"No annotation updates performed. Slides not found for {num_missing} annotations.", 1)
+		else:
+			log.complete(f"Annotations up-to-date, no changes made.")
 
 		# Finally, backup the old annotation file and overwrite existing with the new data
 		backup_file = f"{annotations_file}.backup"

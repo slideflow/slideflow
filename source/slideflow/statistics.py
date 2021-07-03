@@ -963,8 +963,8 @@ def gen_metrics_from_predictions(y_true,
 				y_pred_str_list = [str(ypi) for ypi in y_pred[i]]
 				row = np.concatenate([[tile_to_slides[i]], y_true_str_list, y_pred_str_list])
 				writer.writerow(row)
-
-	log.complete(f"Predictions saved to {sfutil.green(data_dir)}", 1)
+		log.complete(f"Predictions saved to {sfutil.green(data_dir)}", 1)
+		
 	return auc, r_squared, c_index
 
 def predict_from_model(model, dataset, num_tiles=0):

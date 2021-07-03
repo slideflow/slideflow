@@ -151,7 +151,7 @@ class HyperParameters:
 	def __init__(self, tile_px=299, tile_um=302, finetune_epochs=10, toplayer_epochs=0, model='Xception', pooling='max', loss='sparse_categorical_crossentropy',
 				 learning_rate=0.0001, batch_size=16, hidden_layers=1, hidden_layer_width=500, optimizer='Adam', early_stop=False, 
 				 early_stop_patience=0, early_stop_method='loss', balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
-				 trainable_layers=0, L2_weight=0, augment=True):
+				 trainable_layers=0, L2_weight=0, augment=True, drop_images=False):
 		# Additional hyperparameters to consider:
 		# beta1 0.9
 		# beta2 0.999
@@ -178,6 +178,7 @@ class HyperParameters:
 		assert isinstance(trainable_layers, int)
 		assert isinstance(L2_weight, (int, float))
 		assert isinstance(augment, bool)
+		assert isinstance(drop_images, bool)
 		
 		self.tile_px = tile_px
 		self.tile_um = tile_um
@@ -199,6 +200,7 @@ class HyperParameters:
 		self.hidden_layer_width = hidden_layer_width
 		self.trainable_layers = trainable_layers
 		self.L2_weight = float(L2_weight)
+		self.drop_images = drop_images
 
 		# Perform check to ensure combination of HPs are valid
 		self.validate()
@@ -459,7 +461,7 @@ class SlideflowModel:
 		# Merge layers
 		if self.NUM_SLIDE_FEATURES:
 			# Add images
-			if hp.tile_px == 0:
+			if (hp.tile_px == 0) or hp.drop_images:
 				log.info("Generating model with just clinical variables and no images", 1)
 				merged_model = slide_feature_input_tensor				
 			else:
@@ -810,6 +812,7 @@ class SlideflowModel:
 																				  'negative_log_likelihood':negative_log_likelihood,
 																				  'concordance_index':concordance_index 
 																				})
+				self.model.compile(loss=negative_log_likelihood, metrics=concordance_index)
 			else:
 				self.model = tf.keras.models.load_model(model)
 
@@ -830,7 +833,7 @@ class SlideflowModel:
 																			 num_tiles=num_tiles,
 																			 feature_names=self.FEATURE_NAMES,
 																			 feature_sizes=self.FEATURE_SIZES,
-																			 drop_images=(hp.tile_px==0))
+																			 drop_images=((hp.tile_px==0) or hp.drop_images))
 			#if model_type == 'categorical':
 			#	tile_auc = auc['tile']
 			#	slide_auc = auc['slide']
@@ -863,7 +866,7 @@ class SlideflowModel:
 			log.info(f"Slide c-index: {c_index['slide']}", 1)
 			log.info(f"Patient c-index: {c_index['patient']}", 1)
 		
-		val_loss, val_acc = self.model.evaluate(dataset, verbose=log.INFO_LEVEL > 0)
+		val_loss, val_acc = self.model.evaluate(dataset, verbose=(log.INFO_LEVEL > 0))
 
 		# Log results
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
@@ -897,7 +900,7 @@ class SlideflowModel:
 
 	def train(self, hp, pretrain='imagenet', pretrain_model_format=None, resume_training=None, checkpoint=None, log_frequency=100, multi_image=False, 
 				validate_on_batch=512, val_batch_size=32, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
-				ema_observations=20, ema_smoothing=2, steps_per_epoch_override=None):
+				ema_observations=20, ema_smoothing=2, steps_per_epoch_override=None, use_tensorboard=False):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -1045,10 +1048,12 @@ class SlideflowModel:
 			def evaluate_model(self, logs={}):
 				epoch = self.epoch_count
 				epoch_label = f"val_epoch{epoch}"
-				if hp.model_type() != 'linear':
-					train_acc = logs['accuracy']
-				else:
+				if hp.model_type() == 'cph':
+					train_acc = logs['concordance_index']
+				elif hp.model_type() == 'linear':
 					train_acc = logs[hp.loss]
+				else:
+					train_acc = logs['accuracy']
 				auc, r_squared, c_index = sfstats.gen_metrics_from_dataset(self.model,
 																			model_type=hp.model_type(),
 																			annotations=parent.SLIDE_ANNOTATIONS,
@@ -1075,7 +1080,9 @@ class SlideflowModel:
 				epoch_results = results['epochs'][f'epoch{epoch}']
 				sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
 							
-		callbacks = [history_callback, PredictionAndEvaluationCallback(), cp_callback]#, tensorboard_callback]
+		callbacks = [history_callback, PredictionAndEvaluationCallback(), cp_callback]
+		if use_tensorboard:
+			callbacks += [tensorboard_callback]
 
 		# Build or load model
 		if resume_training:

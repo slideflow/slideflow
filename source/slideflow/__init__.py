@@ -48,7 +48,7 @@ DEFAULT_FLAGS = {
 	}
 }
 
-def _evaluator(outcome_label_header, model, project_config, results_dict, input_header=None, filters=None, 
+def _evaluator(outcome_label_headers, model, project_config, results_dict, input_header=None, filters=None, 
 				hyperparameters=None, checkpoint=None, eval_k_fold=None, max_tiles_per_slide=0,
 				min_tiles_per_slide=0, normalizer=None, normalizer_source=None, flags=None,
 				permutation_importance=False):
@@ -69,8 +69,11 @@ def _evaluator(outcome_label_header, model, project_config, results_dict, input_
 	hp._load_dict(hp_data['hp'])
 	model_name = f"eval-{hp_data['model_name']}-{sfutil.path_to_name(model)}"
 
-	# Filter out slides that are blank in the label category
-	filter_blank = [outcome_label_header] if not isinstance(outcome_label_header, list) else outcome_label_header
+	# Filter out slides that are blank in the outcome label, or blank in any of the input_header categories
+	filter_blank = [outcome_label_headers] if not isinstance(outcome_label_headers, list) else outcome_label_headers
+	if input_header:
+		input_header = [input_header] if not isinstance(input_header, list) else input_header
+		filter_blank += input_header
 
 	# Load dataset and annotations for evaluation
 	eval_dataset = Dataset(config_file=project_config['dataset_config'],
@@ -81,7 +84,7 @@ def _evaluator(outcome_label_header, model, project_config, results_dict, input_
 						   filters=filters,
 						   filter_blank=filter_blank)
 
-	slide_labels_dict, unique_labels = eval_dataset.get_labels_from_annotations(outcome_label_header, 
+	slide_labels_dict, unique_labels = eval_dataset.get_labels_from_annotations(outcome_label_headers, 
 																				use_float=(hp.model_type() in ['linear', 'cph']),
 																				key='outcome_label')
 
@@ -178,7 +181,7 @@ def _evaluator(outcome_label_header, model, project_config, results_dict, input_
 		"tile_px": hp.tile_px,
 		"tile_um": hp.tile_um,
 		"model_type": hp.model_type(),
-		"outcome_label_headers": outcome_label_header,
+		"outcome_label_headers": outcome_label_headers,
 		"input_features": input_header,
 		"input_feature_sizes": feature_sizes,
 		"input_feature_labels": input_labels_dict,
@@ -255,7 +258,8 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 			validation_target, validation_fraction, validation_k_fold, validation_log, validation_dataset=None, 
 			validation_annotations=None, validation_filters=None, k_fold_i=None, input_header=None, filters=None, pretrain=None, 
 			pretrain_model_format=None, resume_training=None, checkpoint=None, validate_on_batch=0, validation_steps=200,
-			 max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, steps_per_epoch_override=None, normalizer=None, normalizer_source=None, flags=None):
+			 max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, steps_per_epoch_override=None, normalizer=None,
+			 normalizer_source=None, use_tensorboard=False, flags=None):
 
 	'''Internal function to execute model training process.'''
 	import slideflow.model as sfmodel
@@ -274,6 +278,12 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 	log.empty(hp, 1)
 	full_model_name = model_name if not k_fold_i else model_name+f"-kfold{k_fold_i}"
 
+	# Filter out slides that are blank in the outcome label, or blank in any of the input_header categories
+	filter_blank = [o for o in outcome_label_headers]
+	if input_header:
+		input_header = [input_header] if not isinstance(input_header, list) else input_header
+		filter_blank += input_header
+
 	# Load dataset and annotations for training
 	training_dataset = Dataset(config_file=project_config['dataset_config'],
 							   sources=project_config['datasets'],
@@ -281,7 +291,7 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 							   tile_um=hp.tile_um,
 							   annotations=project_config['annotations'],
 							   filters=filters,
-							   filter_blank=outcome_label_headers)
+							   filter_blank=filter_blank)
 
 	# Load labels
 	slide_labels_dict, unique_labels = training_dataset.get_labels_from_annotations(outcome_label_headers,
@@ -302,7 +312,7 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 									 sources=validation_dataset,
 									 annotations=validation_annotations,
 									 filters=validation_filters,
-									 filter_blank=outcome_label_headers)
+									 filter_blank=filter_blank)
 		validation_tfrecords = validation_dataset.get_tfrecords()
 		manifest.update(validation_dataset.get_manifest())
 		validation_labels, _ = validation_dataset.get_labels_from_annotations(outcome_label_headers, 
@@ -433,7 +443,8 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 									 max_tiles_per_slide=max_tiles_per_slide,
 									 min_tiles_per_slide=min_tiles_per_slide,
 									 starting_epoch=starting_epoch,
-									 steps_per_epoch_override=steps_per_epoch_override)
+									 steps_per_epoch_override=steps_per_epoch_override,
+									 use_tensorboard=use_tensorboard)
 		results['history'] = history
 		results_dict.update({full_model_name: results})
 		logged_epochs = [int(e[5:]) for e in results['epochs'].keys() if e[:5] == 'epoch']
@@ -871,6 +882,7 @@ class SlideflowProject:
 		if (input_header is None) and permutation_importance:
 			log.warn("Permutation feature importance is designed to be used with multimodal models. Turning off.", 1)
 			permutation_importance = False
+
 		manager = multiprocessing.Manager()
 		results_dict = manager.dict()
 		ctx = multiprocessing.get_context('spawn')
@@ -1917,16 +1929,16 @@ class SlideflowProject:
 				validation_k_fold=None, k_fold_iter=None, validation_dataset=None, validation_annotations=None,
 				validation_filters=None, validate_on_batch=512, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0,
 				starting_epoch=0, steps_per_epoch_override=None, auto_extract=False, normalizer=None, 
-				normalizer_source=None, normalizer_strategy='tfrecord'):
+				normalizer_source=None, normalizer_strategy='tfrecord', use_tensorboard=False):
 
 		'''Train model(s).
 
 		Args:
-			model_names:					Either a string representing a model name, or an array of strings containing multiple model names. 
+			model_names:			Either a string representing a model name, or an array of strings containing multiple model names. 
 										Required if training to a single hyperparameter combination with the "hyperparameters" argument.
 										If performing a hyperparameter sweep, will only train models with these names in the batch_train.tsv config file.
 										May supply None if performing a hyperparameter sweep, in which case all models in the batch_train.tsv config file will be trained.
-			outcome_label_header:			String or list. Specifies which header(s) in the annotation file to use for the output category. 
+			outcome_label_header:	String or list. Specifies which header(s) in the annotation file to use for the output category. 
 										Defaults to 'category'.	If a list is provided, will loop through all outcomes and perform HP sweep on each.
 			multi_outcome:			If True, will train to multiple outcome labels simultaneously instead of looping through the
 										list of labels in "outcome_label_header". Defaults to False.
@@ -1958,6 +1970,7 @@ class SlideflowProject:
 			normalizer_source:		Path to normalizer source image
 			normalizer_strategy:	Either 'tfrecord' or 'realtime'. If TFrecord and auto_extract is True, then tiles will be extracted to TFRecords and stored normalized.
 										If realtime, then normalization is performed during training.
+			use_tensorboard:		Bool. If True, will add tensorboard callback during training for realtime monitoring.
 			
 		Returns:
 			A dictionary containing model names mapped to train_acc, val_loss, and val_acc
@@ -1994,7 +2007,7 @@ class SlideflowProject:
 
 		outcome_label_header = [outcome_label_header] if not isinstance(outcome_label_header, list) else outcome_label_header
 		if multi_outcome:
-			log.info(f"Training ({len(hyperparameter_list)} models) using {len(outcome_label_header)} variables as simultaneous input:", 1)
+			log.info(f"Training ({len(hyperparameter_list)} models) using {len(outcome_label_header)} variables as simultaneous outcomes:", 1)
 		else:
 			log.header(f"Training ({len(hyperparameter_list)} models) for each of {len(outcome_label_header)} outcome variables:", 1)
 		for label in outcome_label_header:
@@ -2049,7 +2062,7 @@ class SlideflowProject:
 																validation_filters, k, input_header, filters, pretrain, pretrain_model_format, 
 																resume_training, checkpoint, validate_on_batch, validation_steps, max_tiles_per_slide,
 																min_tiles_per_slide, starting_epoch, steps_per_epoch_override, train_normalizer, 
-																train_normalizer_source, self.FLAGS))
+																train_normalizer_source, use_tensorboard, self.FLAGS))
 					process.start()
 					log.empty(f"Spawning training process (PID: {process.pid})")
 					process.join()
