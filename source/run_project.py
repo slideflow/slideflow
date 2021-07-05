@@ -7,7 +7,7 @@ import os
 if __name__=='__main__':
 	multiprocessing.freeze_support()
 
-	parser = argparse.ArgumentParser(description = "Helper to guide through the SlideFlow pipeline")
+	parser = argparse.ArgumentParser(description = "Helper to guide through the Slideflow pipeline")
 	parser.add_argument('-p', '--project', required=True, help='Path to project directory.')
 	parser.add_argument('-g', '--gpu', type=int, default=2, help='Number of available GPUs.')
 	parser.add_argument('-gf', '--force_gpu', type=int, help='Force utilization of designated GPUs')

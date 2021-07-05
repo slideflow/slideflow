@@ -15,3 +15,4 @@ fpdf
 spams
 cplex
 cvxpy
+lifelines

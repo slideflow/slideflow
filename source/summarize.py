@@ -36,14 +36,14 @@ class DatasetGroup:
 	def has_outcome(self, outcome):
 		return self.get_outcome(outcome) != -1
 
-	def get_outcome(self, outcome_headers):
+	def get_outcome(self, outcome_label_headers):
 		for outcome in self.outcomes:
-			if outcome.outcome_headers == outcome_headers:
+			if outcome.outcome_label_headers == outcome_label_headers:
 				return outcome
 		return -1
 
-	def add_outcome(self, outcome_headers, outcome_labels):
-		outcome = Outcome(outcome_headers, outcome_labels)
+	def add_outcome(self, outcome_label_headers, outcome_labels):
+		outcome = Outcome(outcome_label_headers, outcome_labels)
 		self.outcomes += [outcome]
 		return outcome
 
@@ -73,11 +73,11 @@ class Project:
 			self.name = self.settings['name']
 
 class Outcome:
-	def __init__(self, outcome_headers, outcome_labels):
-		self.outcome_headers = [outcome_headers] if not isinstance(outcome_headers, list) else outcome_headers
+	def __init__(self, outcome_label_headers, outcome_labels):
+		self.outcome_label_headers = [outcome_label_headers] if not isinstance(outcome_label_headers, list) else outcome_label_headers
 		self.outcome_labels = outcome_labels
 		self.subsets = []
-		self.string = ', '.join(self.outcome_headers)
+		self.string = ', '.join(self.outcome_label_headers)
 
 	def get_subset(self, validation_strategy, k_fold_i, manifest_hash):
 		for subset in self.subsets:
@@ -397,8 +397,8 @@ class Model:
 				self.hyperparameters.update({'model_type': 'categorical'})
 				sfutil.write_json(self.hyperparameters, join(self.dir, 'hyperparameters.json'))
 				log.info(f"Updated {sfutil.green(join(self.dir, 'hyperparameters.json'))} to specify model_type='categorical'")
-			if "outcome_headers" not in self.hyperparameters:
-				if not interactive or not self.get_outcome_headers():
+			if "outcome_label_headers" not in self.hyperparameters:
+				if not interactive or not self.get_outcome_label_headers():
 					self.hyperparameters = None
 			if self.hyperparameters and ("outcome_labels" not in self.hyperparameters):
 				if not interactive or not self.get_outcomes():
@@ -450,31 +450,31 @@ class Model:
 					epoch: dict(zip(meta, [row[mi] for mi in meta_i]))
 				})
 
-	def get_outcome_headers(self):
+	def get_outcome_label_headers(self):
 		with open(self.project.settings['annotations'], 'r') as ann_file:
 			reader = csv.reader(ann_file)
 			headers = next(reader)
-			outcome_headers = [h for h in headers if h not in (TCGA.patient, TCGA.project, TCGA.slide)]
-			outcome_headers += ["<skip>"]
-		for i, outcome_header in enumerate(outcome_headers):
-			print(f"{i+1}. {outcome_header}")
-		ohi = sfutil.choice_input(f"What are the outcome header(s) for model {self.name} in project {self.project.name}?\n  (respond with number(s), separated by commas if multiple) ", list(range(1, len(outcome_headers)+1)), multi_choice=True, input_type=int)
-		oh = [outcome_headers[i-1] for i in ohi]
+			outcome_label_headers = [h for h in headers if h not in (TCGA.patient, TCGA.project, TCGA.slide)]
+			outcome_label_headers += ["<skip>"]
+		for i, outcome_label_header in enumerate(outcome_label_headers):
+			print(f"{i+1}. {outcome_label_header}")
+		ohi = sfutil.choice_input(f"What are the outcome header(s) for model {self.name} in project {self.project.name}?\n  (respond with number(s), separated by commas if multiple) ", list(range(1, len(outcome_label_headers)+1)), multi_choice=True, input_type=int)
+		oh = [outcome_label_headers[i-1] for i in ohi]
 		if "<skip>" in oh:
 			return False
-		self.hyperparameters.update({'outcome_headers': oh})
+		self.hyperparameters.update({'outcome_label_headers': oh})
 		sfutil.write_json(self.hyperparameters, join(self.dir, "hyperparameters.json"))
-		log.info(f"Updated {sfutil.green(join(self.dir, 'hyperparameters.json'))} with 'outcome_headers'={oh}", 2)
+		log.info(f"Updated {sfutil.green(join(self.dir, 'hyperparameters.json'))} with 'outcome_label_headers'={oh}", 2)
 		return True
 
 	def get_outcomes(self):
 		log.info(f"Outcomes not found in model hyperparameter log ({sfutil.green(self.dir)}), attempting to automatically detect...", 2)
 		dataset = Dataset(config_file=self.project.settings['dataset_config'], sources=self.project.settings['datasets'])
 		dataset.load_annotations(self.project.settings['annotations'])
-		dataset.apply_filters(filters=self.hyperparameters['filters'], filter_blank=self.hyperparameters['outcome_headers'])
+		dataset.apply_filters(filters=self.hyperparameters['filters'], filter_blank=self.hyperparameters['outcome_label_headers'])
 		try:
-			outcomes, unique_outcomes = dataset.get_outcomes_from_annotations(self.hyperparameters['outcome_headers'], 
-																			 use_float=(self.hyperparameters['model_type'] == 'linear'))
+			_, unique_outcomes = dataset.get_labels_from_annotations(self.hyperparameters['outcome_label_headers'], 
+																	 use_float=(self.hyperparameters['model_type'] == 'linear'))
 		except TypeError:
 			log.error(f"Unable to load results for model {sfutil.green(self.dir)}; model_type is {self.hyperparameters['model_type']} but outcomes in annotations file cannot be converted into float", 1)
 			return False
@@ -580,7 +580,7 @@ def load_from_directory(project_directory=None, search_directory=None, nested=Fa
 			if starttime and model.last_modified and model.last_modified-starttime < 0:
 				continue
 			if not model.hyperparameters: continue
-			model_outcome = model.hyperparameters['outcome_headers']
+			model_outcome = model.hyperparameters['outcome_label_headers']
 			model_outcome = [model_outcome] if not isinstance(model_outcome, list) else model_outcome
 
 			if dataset.has_outcome(model_outcome):

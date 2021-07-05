@@ -56,7 +56,7 @@ class ActivationsVisualizer:
 	'''Loads annotations, saved layer activations, and prepares output saving directories.
 		Will also read/write processed activations to a PKL cache file to save time in future iterations.'''
 	
-	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_header=None, 
+	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_label_headers=None, 
 					focus_nodes=[], use_fp16=True, normalizer=None, normalizer_source=None, 
 					activations_cache='default', batch_size=32,
 					activations_export=None, max_tiles_per_slide=100, manifest=None, model_format=None):
@@ -68,7 +68,7 @@ class ActivationsVisualizer:
 			root_dir:				Root directory in which to save cache files and output files
 			image_size:				Int, width/height of input images in pixels
 			annotations:			Path to CSV file containing slide annotations
-			outcome_header:			String, name of outcome header in annotations file, used to compare activations between categories
+			outcome_label_headers:			String, name of outcome header in annotations file, used to compare activations between categories
 			focus_nodes:			List of int, nodes on which to focus when generating cross-category statistics
 			use_fp16:				Bool, whether to use FP16 (rather than FP32)
 			normalizer:				String, which real-time normalization to use on images taken from TFRecords
@@ -107,8 +107,8 @@ class ActivationsVisualizer:
 			os.makedirs(join(root_dir, "stats"))
 
 		# Load annotations if provided
-		if annotations and outcome_header:
-			self.load_annotations(annotations, outcome_header)
+		if annotations and outcome_label_headers:
+			self.load_annotations(annotations, outcome_label_headers)
 
 		# Load activations
 		# Load from PKL (cache) if present
@@ -348,8 +348,8 @@ class ActivationsVisualizer:
 									2: 0.61 }}	# Outcome category 2
 		'''
 		first_slide = list(self.slide_logits_dict.keys())[0]
-		outcomes = sorted(list(self.slide_logits_dict[first_slide].keys()))
-		slide_predictions = {slide: {o: mean(self.slide_logits_dict[slide][o]) for o in outcomes}
+		outcome_labels = sorted(list(self.slide_logits_dict[first_slide].keys()))
+		slide_predictions = {slide: {o: mean(self.slide_logits_dict[slide][o]) for o in outcome_labels}
 																			   for slide in self.slide_logits_dict}
 		return slide_predictions
 
@@ -376,35 +376,35 @@ class ActivationsVisualizer:
 		slide_predictions = {}
 		slide_percentages = {}
 		first_slide = list(self.slide_logits_dict.keys())[0]
-		outcomes = sorted(list(self.slide_logits_dict[first_slide].keys()))
+		outcome_labels = sorted(list(self.slide_logits_dict[first_slide].keys()))
 		for slide in self.slide_logits_dict:
 			num_tiles = len(self.slide_logits_dict[slide][0])
 			tile_predictions = []
 			for i in range(num_tiles):
-				calculated_logits = [self.slide_logits_dict[slide][o][i] for o in outcomes]
+				calculated_logits = [self.slide_logits_dict[slide][o][i] for o in outcome_labels]
 				if prediction_filter:
 					filtered_calculated_logits = [calculated_logits[o] for o in prediction_filter]
 				else:
 					filtered_calculated_logits = calculated_logits
 				tile_predictions += [calculated_logits.index(max(filtered_calculated_logits))]
-			slide_prediction_values = {o: (tile_predictions.count(o)/len(tile_predictions)) for o in outcomes}
+			slide_prediction_values = {o: (tile_predictions.count(o)/len(tile_predictions)) for o in outcome_labels}
 			slide_percentages.update({slide: slide_prediction_values})
 			slide_predictions.update({slide: max(slide_prediction_values, key=lambda l: slide_prediction_values[l])})
 		return slide_predictions, slide_percentages
 
-	def load_annotations(self, annotations, outcome_header):
+	def load_annotations(self, annotations, outcome_label_headers):
 		'''Loads annotations from a given file with the specified outcome header.
 		
 		Args:
-			annotations:		Path to CSV annotations file.
-			outcome_header:		String, name of column header from which to read outcome variables.
+			annotations:				Path to CSV annotations file.
+			outcome_label_headers:		String, name of column header from which to read outcome variables.
 		'''
 		with open(annotations, 'r') as ann_file:
 			log.info("Reading annotations...", 1)
 			ann_reader = csv.reader(ann_file)
 			header = next(ann_reader)
 			slide_i = header.index(TCGA.slide)
-			category_i = header.index(outcome_header)
+			category_i = header.index(outcome_label_headers)
 			for row in ann_reader:
 				slide = row[slide_i]
 				category = row[category_i]
@@ -1421,7 +1421,7 @@ class Heatmap:
 			# Make heatmap plots and sliders for each outcome category
 			for i in range(self.NUM_CLASSES):
 				print(f"\r\033[KMaking heatmap {i+1} of {self.NUM_CLASSES}...", end="")
-				heatmap = self.ax.imshow(self.logits[:, :, i],
+				heatmap = self.ax.imshow(self.logits[:, :, i], 
 										 extent=implot.get_extent(),
 										 cmap=self.newMap,
 										 vmin=0,
@@ -1429,7 +1429,6 @@ class Heatmap:
 										 alpha=0.6,
 										 interpolation=interpolation, #bicubic
 										 zorder=10)
-
 				plt.savefig(os.path.join(save_folder, f'{self.slide.name}-{i}.png'), bbox_inches='tight')
 				heatmap.remove()
 

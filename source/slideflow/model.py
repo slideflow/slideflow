@@ -17,7 +17,6 @@ import os
 import sys
 import csv
 import warnings
-import tempfile
 warnings.filterwarnings('ignore')
 
 import numpy as np
@@ -28,6 +27,7 @@ from tensorflow.keras.mixed_precision import experimental as mixed_precision
 from functools import partial
 from slideflow.util import log
 from slideflow.io import tfrecords
+from slideflow.model_utils import *
 
 import slideflow.util as sfutil
 from slideflow.util import StainNormalizer
@@ -39,44 +39,6 @@ NO_BALANCE = 'NO_BALANCE'
 MODEL_FORMAT_1_9 = "1.9"
 MODEL_FORMAT_CURRENT = MODEL_FORMAT_1_9
 MODEL_FORMAT_LEGACY = "legacy"
-
-# Fix for broken batch normalization in TF 1.14
-#tf.keras.layers.BatchNormalization = sfutil.UpdatedBatchNormalization
-
-def add_regularization(model, regularizer):
-	'''Adds regularization (e.g. L2) to all eligible layers of a model.
-	This function is from "https://sthalles.github.io/keras-regularizer/" '''
-	if not isinstance(regularizer, tf.keras.regularizers.Regularizer):
-		print("Regularizer must be a subclass of tf.keras.regularizers.Regularizer")
-		return model
-
-	for layer in model.layers:
-		for attr in ['kernel_regularizer']:
-			if hasattr(layer, attr):
-				setattr(layer, attr, regularizer)
-
-	# When we change the layers attributes, the change only happens in the model config file
-	model_json = model.to_json()
-
-	# Save the weights before reloading the model.
-	tmp_weights_path = os.path.join(tempfile.gettempdir(), 'tmp_weights.h5')
-	model.save_weights(tmp_weights_path)
-
-	# load the model from the config
-	model = tf.keras.models.model_from_json(model_json)
-
-	# Reload the model weights
-	model.load_weights(tmp_weights_path, by_name=True)
-	return model
-
-class HyperParameterError(Exception):
-	pass
-
-class ManifestError(Exception):
-	pass
-
-class ModelError(Exception):
-	pass
 
 class ModelActivationsInterface:
 	'''Provides an interface to obtain logits and post-convolutional activations 
@@ -175,7 +137,7 @@ class HyperParameters:
 				   'mean_squared_logarithmic_error',
 				   'squared_hinge',
 				   'hinge',
-				   'logcosh']
+				   'logcosh', 'negative_log_likelihood']
 
 	_AllLoss = ['mean_squared_error',
 				'mean_absolute_error', 
@@ -192,14 +154,14 @@ class HyperParameters:
 				'kullback_leibler_divergence', 
 				'poisson', 
 				'cosine_proximity', 
-				'is_categorical_crossentropy']
+				'is_categorical_crossentropy', 'negative_log_likelihood']
 
 	def __init__(self, tile_px=299, tile_um=302, finetune_epochs=10, toplayer_epochs=0, 
 				 model='Xception', pooling='max', loss='sparse_categorical_crossentropy',
 				 learning_rate=0.0001, batch_size=16, hidden_layers=1, hidden_layer_width=500, 
 				 optimizer='Adam', early_stop=False, early_stop_patience=0, early_stop_method='loss', 
 				 balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
-				 trainable_layers=0, L2_weight=0, augment=True):
+				 trainable_layers=0, L2_weight=0, augment=True, drop_images=False):
 
 		# Additional hyperparameters to consider:
 		# beta1 0.9
@@ -227,7 +189,8 @@ class HyperParameters:
 		assert isinstance(trainable_layers, int)
 		assert isinstance(L2_weight, (int, float))
 		assert isinstance(augment, bool)
-
+		assert isinstance(drop_images, bool)
+		
 		self.tile_px = tile_px
 		self.tile_um = tile_um
 		self.toplayer_epochs = toplayer_epochs
@@ -248,6 +211,7 @@ class HyperParameters:
 		self.hidden_layer_width = hidden_layer_width
 		self.trainable_layers = trainable_layers
 		self.L2_weight = float(L2_weight)
+		self.drop_images = drop_images
 
 		# Perform check to ensure combination of HPs are valid
 		self.validate()
@@ -300,26 +264,31 @@ class HyperParameters:
 
 	def model_type(self):
 		'''Returns either 'linear' or 'categorical' depending on the loss type.'''
-		model_type = 'linear' if self.loss in self._LinearLoss else 'categorical'
-		return model_type
+		if self.loss == 'negative_log_likelihood':
+			return 'cph'
+		elif self.loss in self._LinearLoss:
+			return 'linear'
+		else:
+			return 'categorical'
 
 class SlideflowModel:
 	''' Model containing all functions necessary to build input dataset pipelines,
 	build a training and validation set model, and monitor and execute training.'''
+
 	def __init__(self, data_directory, image_size, slide_annotations, train_tfrecords, validation_tfrecords, 
-					manifest=None, use_fp16=True, model_type='categorical', normalizer=None, 
-					normalizer_source=None, num_slide_input=0):
+					manifest=None, use_fp16=True, model_type='categorical', normalizer=None, normalizer_source=None, 
+					feature_sizes=None, feature_names=None):
 		'''Model initializer.
 
 		Args:
 			data_directory:			Location where event logs and checkpoints will be written
 			image_size:				Int, width/height of input image in pixels.
-			slide_annotations:		Dictionary mapping slide names to both patient names and outcome
+			slide_annotations:		Dictionary mapping slide names to both patient names and outcome labels
 			train_tfrecords:		List of tfrecord paths for training
 			validation_tfrecords:	List of tfrecord paths for validation
 			manifest:				Manifest dictionary mapping TFRecords to number of tiles
 			use_fp16:				Bool, if True, will use FP16 (rather than FP32)
-			model_type:				Type of model outcome, either 'categorical' or 'linear'
+			model_type:				Type of model outcome label, either 'categorical' or 'linear'
 			normalizer:				Tile image normalization to perform in real-time during training
 			normalizer_source:		Source image for normalization if being performed in real-time
 		'''
@@ -333,51 +302,60 @@ class SlideflowModel:
 		self.MODEL_TYPE = model_type
 		self.SLIDES = list(slide_annotations.keys())
 		self.DATASETS = {}
-		self.NUM_SLIDE_INPUT = num_slide_input
+		self.FEATURE_SIZES = feature_sizes
+		self.NUM_SLIDE_FEATURES = 0 if not feature_sizes else sum(feature_sizes)
+		self.FEATURE_NAMES = feature_names
 
-		outcomes = [slide_annotations[slide]['outcome'] for slide in self.SLIDES]
+		outcome_labels = [slide_annotations[slide]['outcome_label'] for slide in self.SLIDES]
 
 		# Setup slide-level input
-		if num_slide_input:
+		if self.NUM_SLIDE_FEATURES:
 			try:
-				self.SLIDE_INPUT_TABLE = {slide: slide_annotations[slide]['input'] for slide in self.SLIDES}
-				log.info(f"Training with both images and {num_slide_input} categories of slide-level input", 1)
+				self.SLIDE_FEATURE_TABLE = {slide: slide_annotations[slide]['input'] for slide in self.SLIDES}
+				num_features = self.NUM_SLIDE_FEATURES if model_type != 'cph' else self.NUM_SLIDE_FEATURES - 1
+				if num_features:
+					log.info(f"Training with both images and {num_features} categories of slide-level input", 1)
+					if model_type == 'cph':
+						log.info("Interpreting first feature as event for CPH model", 1)
+				elif model_type == 'cph':
+					log.info(f"Training with images alone. Interpreting first feature as event for CPH model", 1)
+				
 			except KeyError:
-				raise ModelError("If num_slide_input > 0, slide-level input must be provided via 'input' key in slide_annotations")
+				raise ModelError("If num_slide_features > 0, slide-level input must be provided via 'input' key in slide_annotations")
 			for slide in self.SLIDES:
-				if len(self.SLIDE_INPUT_TABLE[slide]) != num_slide_input:
-					raise ModelError(f"Length of input for slide {slide} does not match num_slide_input; expected {num_slide_input}, got {len(self.SLIDE_INPUT_TABLE[slide])}")
+				if len(self.SLIDE_FEATURE_TABLE[slide]) != self.NUM_SLIDE_FEATURES:
+					raise ModelError(f"Length of input for slide {slide} does not match num_slide_features; expected {self.NUM_SLIDE_FEATURES}, got {len(self.SLIDE_FEATURE_TABLE[slide])}")
 
 		# Normalization setup
 		if normalizer: log.info(f"Using realtime {normalizer} normalization", 1)
 		self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
-		# Setup outcome hash tables
+		# Setup outcome label hash tables
 		if model_type == 'categorical':
 			try:
-				self.NUM_CLASSES = len(list(set(outcomes)))
+				self.NUM_CLASSES = len(list(set(outcome_labels)))
 			except TypeError:
-				log.error("Unable to use multiple outcome variables with categorical model type.")
-				sys.exit()
+				log.error("Unable to use multiple outcome labels with categorical model type.")
+				raise ModelError("Unable to use multiple outcome labels with categorical model type.")
 			with tf.device('/cpu'):
 				self.ANNOTATIONS_TABLES = [tf.lookup.StaticHashTable(
-					tf.lookup.KeyValueTensorInitializer(self.SLIDES, outcomes), -1
+					tf.lookup.KeyValueTensorInitializer(self.SLIDES, outcome_labels), -1
 				)]
-		elif model_type == 'linear':
+		elif model_type in ['linear', 'cph']:
 			try:
-				self.NUM_CLASSES = len(outcomes[0])
+				self.NUM_CLASSES = len(outcome_labels[0])
 			except TypeError:
-				log.error("Incorrect formatting of outcomes for a linear model; must be formatted as an array.")
-				sys.exit()
+				log.error("Incorrect formatting of outcome labels for a linear model; must be formatted as an array.")
+				raise ModelError("Incorrect formatting of outcome labels for a linear model; must be formatted as an array.")
 			with tf.device('/cpu'):
 				self.ANNOTATIONS_TABLES = []
 				for oi in range(self.NUM_CLASSES):
 					self.ANNOTATIONS_TABLES += [tf.lookup.StaticHashTable(
-						tf.lookup.KeyValueTensorInitializer(self.SLIDES, [o[oi] for o in outcomes]), -1
+						tf.lookup.KeyValueTensorInitializer(self.SLIDES, [o[oi] for o in outcome_labels]), -1
 					)]
 		else:
 			log.error(f"Unknown model type {model_type}")
-			sys.exit()
+			raise ModelError(f"Unknown model type {model_type}")
 
 		if not os.path.exists(self.DATA_DIR):
 			os.makedirs(self.DATA_DIR)
@@ -386,20 +364,19 @@ class SlideflowModel:
 		if train_tfrecords or validation_tfrecords:
 			with open(os.path.join(self.DATA_DIR, 'slide_manifest.log'), 'w') as slide_manifest:
 				writer = csv.writer(slide_manifest)
-				header = ['slide', 'dataset', 'outcome']
-				writer.writerow(header)
+				writer.writerow(['slide', 'dataset', 'outcome_label'])
 				if train_tfrecords:
 					for tfrecord in train_tfrecords:
 						slide = tfrecord.split('/')[-1][:-10]
 						if slide in self.SLIDES:
-							outcome = slide_annotations[slide]['outcome']
-							writer.writerow([slide, 'training', outcome])
+							outcome_label = slide_annotations[slide]['outcome_label']
+							writer.writerow([slide, 'training', outcome_label])
 				if validation_tfrecords:
 					for tfrecord in validation_tfrecords:
 						slide = tfrecord.split('/')[-1][:-10]
 						if slide in self.SLIDES:
-							outcome = slide_annotations[slide]['outcome']
-							writer.writerow([slide, 'validation', outcome])
+							outcome_label = slide_annotations[slide]['outcome_label']
+							writer.writerow([slide, 'validation', outcome_label])
 
 	def _build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, 
 							  max_tiles=None, min_tiles=0, include_slidenames=False, 
@@ -449,8 +426,18 @@ class SlideflowModel:
 		# Setup inputs
 		image_shape = (self.IMAGE_SIZE, self.IMAGE_SIZE, 3)
 		tile_input_tensor = tf.keras.Input(shape=image_shape, name="tile_image")
-		if self.NUM_SLIDE_INPUT:
-			slide_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_INPUT), name="slide_input")
+		if self.NUM_SLIDE_FEATURES:
+			if self.MODEL_TYPE == 'cph':
+				event_input_tensor = tf.keras.Input(shape=(1), name="event_input")
+				# Add slide feature input tensors, if there are more slide features
+				#    than just the event input tensor for CPH models
+				if not ((self.NUM_SLIDE_FEATURES == 1) and (self.MODEL_TYPE == 'cph')):
+					slide_feature_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_FEATURES - 1), name="slide_feature_input")
+			else:
+				slide_feature_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_FEATURES), name="slide_feature_input")
+		if self.MODEL_TYPE == 'cph' and not self.NUM_SLIDE_FEATURES:
+			log.error("Model error - CPH models must include event input")
+			raise ModelError("Model error - CPH models must include event input")
 
 		# Load pretrained model if applicable
 		if pretrain: log.info(f"Using pretraining from {sfutil.green(pretrain)}", 1)
@@ -508,9 +495,23 @@ class SlideflowModel:
 		model_inputs = [tile_image_model.input]
 
 		# Merge layers
-		if self.NUM_SLIDE_INPUT:
-			merged_model = tf.keras.layers.Concatenate(name="input_merge")([slide_input_tensor, tile_image_model.output])
-			model_inputs += [slide_input_tensor]
+		if self.NUM_SLIDE_FEATURES:
+			# Add images
+			if (hp.tile_px == 0) or hp.drop_images:
+				log.info("Generating model with just clinical variables and no images", 1)
+				merged_model = slide_feature_input_tensor
+				model_inputs += [slide_feature_input_tensor]		
+			elif not ((self.NUM_SLIDE_FEATURES == 1) and (self.MODEL_TYPE == 'cph')):
+				# Add slide feature input tensors, if there are more slide features
+				#    than just the event input tensor for CPH models
+				merged_model = tf.keras.layers.Concatenate(name="input_merge")([slide_feature_input_tensor, tile_image_model.output])
+				model_inputs += [slide_feature_input_tensor]
+			else:
+				merged_model = tile_image_model.output
+
+			# Add event tensor if this is a CPH model
+			if self.MODEL_TYPE == 'cph':
+				model_inputs += [event_input_tensor]
 		else:
 			merged_model = tile_image_model.output
 
@@ -522,11 +523,12 @@ class SlideflowModel:
 												 kernel_regularizer=regularizer)(merged_model)
 
 		# Add the softmax prediction layer
-		activation = 'linear' if hp.model_type() == 'linear' else 'softmax'
-		final_dense_layer = tf.keras.layers.Dense(self.NUM_CLASSES, 
-												  kernel_regularizer=regularizer, 
-												  name="prelogits")(merged_model)
+		activation = 'linear' if (hp.model_type() in ['linear', 'cph']) else 'softmax'
+		final_dense_layer = tf.keras.layers.Dense(self.NUM_CLASSES, kernel_regularizer=regularizer, name="prelogits")(merged_model)
 		softmax_output = tf.keras.layers.Activation(activation, dtype='float32', name='logits')(final_dense_layer)
+
+		if self.MODEL_TYPE == 'cph':
+			softmax_output = tf.keras.layers.Concatenate(name="output_merge_CPH")([softmax_output, event_input_tensor])
 
 		# Assemble final model
 		model = tf.keras.Model(inputs=model_inputs, outputs=softmax_output)
@@ -570,6 +572,25 @@ class SlideflowModel:
 
 		return model
 
+	def _compile_model(self, hp):
+		'''Compiles keras model.
+		
+		Args:
+			hp		Hyperparameter object.	
+		'''
+		
+		if self.MODEL_TYPE == 'cph':
+			metrics = concordance_index
+		elif self.MODEL_TYPE == 'linear':
+			metrics = [hp.loss]
+		else:
+			metrics = ['accuracy']
+
+		loss_fn = negative_log_likelihood if self.MODEL_TYPE=='cph' else hp.loss
+		self.model.compile(optimizer=hp.get_opt(),
+						   loss=loss_fn,
+						   metrics=metrics)
+
 	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, max_tiles=None, min_tiles=None,
 								include_slidenames=False, multi_image=False, parse_fn=None, drop_remainder=False):
 
@@ -603,7 +624,7 @@ class SlideflowModel:
 		
 		if tfrecords == []:
 			log.error(f"No TFRecords found.", 1)
-			sys.exit()
+			raise ModelError("No TFRecords found.")
 
 		for filename in tfrecords:
 			slide_name = filename.split('/')[-1][:-10]
@@ -628,7 +649,7 @@ class SlideflowModel:
 			
 			# Assign category by outcome if this is a categorical model.
 			# Otherwise, consider all slides from the same category (effectively skipping balancing); appropriate for linear models.
-			category = self.SLIDE_ANNOTATIONS[slide_name]['outcome'] if self.MODEL_TYPE == 'categorical' else 1
+			category = self.SLIDE_ANNOTATIONS[slide_name]['outcome_label'] if self.MODEL_TYPE == 'categorical' else 1
 			if filename not in self.DATASETS:
 				self.DATASETS.update({filename: tf.data.TFRecordDataset(filename, num_parallel_reads=32)}) #buffer_size=1024*1024*100 num_parallel_reads=tf.data.experimental.AUTOTUNE
 			datasets += [self.DATASETS[filename]]
@@ -686,7 +707,7 @@ class SlideflowModel:
 			dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
 		except IndexError:
 			log.error(f"No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder", 1)
-			sys.exit()
+			raise ModelError("No TFRecords found after filter criteria.")
 
 		if include_slidenames:
 			dataset_with_slidenames = dataset.map(partial(parse_fn,
@@ -711,7 +732,7 @@ class SlideflowModel:
 		feature_description = tfrecords.FEATURE_DESCRIPTION if not multi_image else tfrecords.FEATURE_DESCRIPTION_MULTI
 		features = tf.io.parse_single_example(record, feature_description)
 		slide = features['slide']
-		if self.MODEL_TYPE == 'linear':
+		if self.MODEL_TYPE in ['linear', 'cph']:
 			label = [self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(self.NUM_CLASSES)]
 		else:
 			label = self.ANNOTATIONS_TABLES[0].lookup(slide)
@@ -734,13 +755,31 @@ class SlideflowModel:
 			image = self._process_image(image_string, self.AUGMENT)
 			image_dict = { 'tile_image': image }
 
-			if self.NUM_SLIDE_INPUT:
-				def slide_lookup(s): return self.SLIDE_INPUT_TABLE[s.numpy().decode('utf-8')]
-				slide_input_val = tf.py_function(func=slide_lookup, 
-												 inp=[slide], 
-												 Tout=[tf.float32] * self.NUM_SLIDE_INPUT)
-				image_dict.update({'slide_input': slide_input_val})
-			
+			# Add additional non-image feature inputs if indicated,
+			# 	excluding the event feature used for CPH models
+			if self.NUM_SLIDE_FEATURES:
+				# If CPH model is used, time-to-event data must be added as a separate feature
+				if self.MODEL_TYPE == 'cph':
+					def slide_lookup(s): return self.SLIDE_FEATURE_TABLE[s.numpy().decode('utf-8')][1:]
+					def event_lookup(s): return self.SLIDE_FEATURE_TABLE[s.numpy().decode('utf-8')][0]
+					num_features = self.NUM_SLIDE_FEATURES - 1
+
+					event_input_val = tf.py_function(func=event_lookup,
+													 inp=[slide],
+													 Tout=[tf.float32])
+					image_dict.update({'event_input': event_input_val})
+				else:
+					def slide_lookup(s): return self.SLIDE_FEATURE_TABLE[s.numpy().decode('utf-8')]
+					num_features = self.NUM_SLIDE_FEATURES
+
+				slide_feature_input_val = tf.py_function(func=slide_lookup, 
+														 inp=[slide],
+														 Tout=[tf.float32] * num_features)
+
+				# Add slide input features, excluding the event feature used for CPH models
+				if not ((self.NUM_SLIDE_FEATURES == 1) and (self.MODEL_TYPE == 'cph')):
+					image_dict.update({'slide_feature_input': slide_feature_input_val}) 
+
 			if include_slidenames:
 				return image_dict, label, slide
 			else:
@@ -774,28 +813,23 @@ class SlideflowModel:
 		# Freeze the base layer
 		self.model.layers[0].trainable = False
 		val_steps = 200 if validation_data else None
-		metrics = ['accuracy'] if hp.model_type() != 'linear' else [hp.loss]
 
-		self.model.compile(optimizer=tf.keras.optimizers.Adam(lr=hp.learning_rate),
-					  loss=hp.loss,
-					  metrics=metrics)
+		self._compile_model(hp)
 
 		toplayer_model = self.model.fit(train_data,
-				  epochs=epochs,
-				  verbose=(log.INFO_LEVEL > 0),
-				  steps_per_epoch=steps_per_epoch,
-				  validation_data=validation_data,
-				  validation_steps=val_steps,
-				  callbacks=callbacks)
+										epochs=epochs,
+										verbose=(log.INFO_LEVEL > 0),
+										steps_per_epoch=steps_per_epoch,
+										validation_data=validation_data,
+										validation_steps=val_steps,
+										callbacks=callbacks)
 
 		# Unfreeze the base layer
-		model.layers[0].trainable = True
+		self.model.layers[0].trainable = True
 		return toplayer_model.history
 
-	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', 
-				 checkpoint=None, batch_size=None, max_tiles_per_slide=0, 
-				 min_tiles_per_slide=0, multi_image=False):
-
+	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None, 
+					max_tiles_per_slide=0, min_tiles_per_slide=0, multi_image=False, permutation_importance=False):
 		'''Evaluate model.
 
 		Args:
@@ -808,7 +842,9 @@ class SlideflowModel:
 			max_tiles_per_slide:	If provided, will select only up to this maximum number of tiles from each slide.
 			min_tiles_per_slide:	If provided, will only evaluate slides with a given minimum number of tiles.
 			multi_image:			If true, will evaluate model with multi-image inputs.
-			
+			permutation_importance:	If true, will run permutation feature importance to define relative benefit of histology
+										and each clinical slide-level feature input, if provided.
+
 		Returns:
 			Keras history object.'''
 
@@ -817,9 +853,9 @@ class SlideflowModel:
 			log.error("If using a checkpoint for evaluation, hyperparameters must be specified.")
 			sys.exit()
 		if not batch_size: batch_size = hp.batch_size
-		dataset, dataset_with_slidenames, num_tiles = self._build_dataset_inputs(tfrecords, 
-																				 batch_size, 
-																				 NO_BALANCE, 
+		dataset, dataset_with_slidenames, num_tiles = self._build_dataset_inputs(tfrecords,
+																				 batch_size,
+																				 NO_BALANCE,
 																				 augment=False, 
 																				 finite=True,
 																				 max_tiles=max_tiles_per_slide,
@@ -827,49 +863,100 @@ class SlideflowModel:
 																				 include_slidenames=True,
 																				 multi_image=multi_image)
 		if model:
-			self.model = tf.keras.models.load_model(model)
+			if model_type == 'cph':
+				self.model = tf.keras.models.load_model(model, custom_objects = {
+																				  'negative_log_likelihood':negative_log_likelihood,
+																				  'concordance_index':concordance_index 
+																				})
+				self.model.compile(loss=negative_log_likelihood, metrics=concordance_index)
+			else:
+				self.model = tf.keras.models.load_model(model)
+
 		elif checkpoint:
 			self.model = self._build_model(hp)
 			self.model.load_weights(checkpoint)
 
 		# Generate performance metrics
 		log.info("Calculating performance metrics...", 1)
-		tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, 
-																						   dataset_with_slidenames, 
-																						   self.SLIDE_ANNOTATIONS, 
-																						   model_type, 
-																						   self.DATA_DIR, 
-																						   label="eval", 
-																						   manifest=self.MANIFEST, 
-																						   num_tiles=num_tiles)
-		log.info(f"Tile AUC: {tile_auc}", 1)
-		log.info(f"Slide AUC: {slide_auc}", 1)
-		log.info(f"Patient AUC: {patient_auc}", 1)
-		log.info(f"R-squared: {r_squared}", 1)
+		if permutation_importance:
+			auc, r_squared, c_index = sfstats.permutation_feature_importance(self.model, 
+																			 dataset_with_slidenames,
+																			 self.SLIDE_ANNOTATIONS, 
+																			 model_type,
+																			 self.DATA_DIR,
+																			 label="eval",
+																			 manifest=self.MANIFEST,
+																			 num_tiles=num_tiles,
+																			 feature_names=self.FEATURE_NAMES,
+																			 feature_sizes=self.FEATURE_SIZES,
+																			 drop_images=((hp.tile_px==0) or hp.drop_images))
+			#if model_type == 'categorical':
+			#	tile_auc = auc['tile']
+			#	slide_auc = auc['slide']
+			#	patient_auc = auc['patient']
+			#if model_type == 'linear':
+			#	r_squared = baseline_metrics
+			#if model_type == 'cph':
+			#	c_index = baseline_metrics
+		else:										   
+			auc, r_squared, c_index = sfstats.gen_metrics_from_dataset(self.model,
+																		model_type=model_type,
+																		annotations=self.SLIDE_ANNOTATIONS, 
+																		manifest=self.MANIFEST,
+																		dataset=dataset_with_slidenames,
+																		label="eval",
+																		data_dir=self.DATA_DIR,
+																		num_tiles=num_tiles,
+																		verbose=True)
 
-		val_loss, val_acc = self.model.evaluate(dataset, verbose=log.INFO_LEVEL > 0)
+		if model_type == 'categorical':
+			log.info(f"Tile AUC: {auc['tile']}", 1)
+			log.info(f"Slide AUC: {auc['slide']}", 1)
+			log.info(f"Patient AUC: {auc['patient']}", 1)
+		if model_type == 'linear':
+			log.info(f"Tile R-squared: {r_squared['tile']}", 1)
+			log.info(f"Slide R-squared: {r_squared['slide']}", 1)
+			log.info(f"Patient R-squared: {r_squared['patient']}", 1)
+		if model_type == 'cph':
+			log.info(f"Tile c-index: {c_index['tile']}", 1)
+			log.info(f"Slide c-index: {c_index['slide']}", 1)
+			log.info(f"Patient c-index: {c_index['patient']}", 1)
+		
+		val_loss, val_acc = self.model.evaluate(dataset, verbose=(log.INFO_LEVEL > 0))
 
 		# Log results
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
-		results_dict = {
-			'eval': {
-				'val_loss': val_loss,
-				'val_acc': val_acc,
-				'tile_auc': tile_auc,
-				'slide_auc': slide_auc,
-				'patient_auc': patient_auc,
-				'r_squared': r_squared
-			}
-		}
+		results_dict = 	{ 'eval': {
+							'val_loss': val_loss,
+							'val_acc': val_acc }
+						}
+
+		if model_type == 'categorical':
+			results_dict['eval'].update({
+				'tile_auc': auc['tile'],
+				'slide_auc': auc['slide'],
+				'patient_auc': auc['patient']
+			})
+		if model_type == 'linear':
+			results_dict['eval'].update({
+				'tile_r_squared': r_squared['tile'],
+				'slide_r_squared': r_squared['slide'],
+				'patient_r_squared': r_squared['patient']
+			})
+		if model_type == 'cph':
+			results_dict['eval'].update({
+				'tile_r_squared': c_index['tile'],
+				'slide_r_squared': c_index['slide'],
+				'patient_r_squared': c_index['patient']
+			})
+
 		sfutil.update_results_log(results_log, 'eval_model', results_dict)
 		
 		return val_acc
 
-	def train(self, hp, pretrain='imagenet', pretrain_model_format=None, resume_training=None, 
-				checkpoint=None, log_frequency=100, multi_image=False, validate_on_batch=512, 
-				val_batch_size=32, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0,
-				starting_epoch=0, ema_observations=20, ema_smoothing=2, steps_per_epoch_override=None):
-
+	def train(self, hp, pretrain='imagenet', pretrain_model_format=None, resume_training=None, checkpoint=None, log_frequency=100, multi_image=False, 
+				validate_on_batch=512, val_batch_size=32, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
+				ema_observations=20, ema_smoothing=2, steps_per_epoch_override=None, use_tensorboard=False):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -942,7 +1029,6 @@ class SlideflowModel:
 		total_epochs = hp.toplayer_epochs + (max(hp.finetune_epochs) - starting_epoch)
 		steps_per_epoch = round(num_tiles/hp.batch_size) if steps_per_epoch_override is None else steps_per_epoch_override
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
-		metrics = ['accuracy'] if hp.model_type() != 'linear' else [hp.loss]
 
 		# Create callbacks for early stopping, checkpoint saving, summaries, and history
 		history_callback = tf.keras.callbacks.History()
@@ -1030,35 +1116,41 @@ class SlideflowModel:
 			def evaluate_model(self, logs={}):
 				epoch = self.epoch_count
 				epoch_label = f"val_epoch{epoch}"
-				if hp.model_type() != 'linear':
-					train_acc = logs['accuracy']
-				else:
+				if hp.model_type() == 'cph':
+					train_acc = logs['concordance_index']
+				elif hp.model_type() == 'linear':
 					train_acc = logs[hp.loss]
-				tile_auc, slide_auc, patient_auc, r_squared = sfstats.generate_performance_metrics(self.model, 
-																								   validation_data_with_slidenames, 
-																								   parent.SLIDE_ANNOTATIONS, 
-																								   hp.model_type(), 
-																								   parent.DATA_DIR, 
-																								   label=epoch_label, 
-																								   manifest=parent.MANIFEST, 
-																								   num_tiles=num_tiles)
+				else:
+					train_acc = logs['accuracy']
+				auc, r_squared, c_index = sfstats.gen_metrics_from_dataset(self.model,
+																			model_type=hp.model_type(),
+																			annotations=parent.SLIDE_ANNOTATIONS,
+																			manifest=parent.MANIFEST,
+																			dataset=validation_data_with_slidenames,
+																			label=epoch_label,
+																			data_dir=parent.DATA_DIR,
+																			num_tiles=num_tiles,
+																			verbose=True)
 				val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 				log.info(f"Validation loss: {val_loss:.4f} | accuracy: {val_acc:.4f}", 1)
 				results['epochs'][f'epoch{epoch}'] = {}
 				results['epochs'][f'epoch{epoch}']['train_acc'] = np.amax(train_acc)
 				results['epochs'][f'epoch{epoch}']['val_loss'] = val_loss
 				results['epochs'][f'epoch{epoch}']['val_acc'] = val_acc
-				for i, auc in enumerate(tile_auc):
-					results['epochs'][f'epoch{epoch}'][f'tile_auc{i}'] = auc
-				for i, auc in enumerate(slide_auc):
-					results['epochs'][f'epoch{epoch}'][f'slide_auc{i}'] = auc
-				for i, auc in enumerate(patient_auc):
-					results['epochs'][f'epoch{epoch}'][f'patient_auc{i}'] = auc
+				for i, c in enumerate(auc['tile']):
+					results['epochs'][f'epoch{epoch}'][f'tile_auc{i}'] = c
+				for i, c in enumerate(auc['slide']):
+					results['epochs'][f'epoch{epoch}'][f'slide_auc{i}'] = c
+				for i, c in enumerate(auc['patient']):
+					results['epochs'][f'epoch{epoch}'][f'patient_auc{i}'] = c
 				results['epochs'][f'epoch{epoch}']['r_squared'] = r_squared
+				results['epochs'][f'epoch{epoch}']['c_index'] = c_index
 				epoch_results = results['epochs'][f'epoch{epoch}']
 				sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
 							
-		callbacks = [history_callback, PredictionAndEvaluationCallback(), cp_callback]#, tensorboard_callback]
+		callbacks = [history_callback, PredictionAndEvaluationCallback(), cp_callback]
+		if use_tensorboard:
+			callbacks += [tensorboard_callback]
 
 		# Build or load model
 		if resume_training:
@@ -1079,10 +1171,7 @@ class SlideflowModel:
 
 		# Fine-tune the model
 		log.info("Beginning fine-tuning", 1)
-
-		self.model.compile(loss=hp.loss,
-						   optimizer=hp.get_opt(),
-						   metrics=metrics)
+		self._compile_model(hp)
 
 		history = self.model.fit(train_data,
 								 steps_per_epoch=steps_per_epoch,
