@@ -197,7 +197,7 @@ class ProgressBar:
 		self.refresh()
 
 	def set_bar_value(self, value, id=0):
-		self.BARS[id].value = min(val, self.BARS[id].end_value)
+		self.BARS[id].value = min(value, self.BARS[id].end_value)
 		self.refresh()
 
 	def set_bar_text(self, text, id=0):

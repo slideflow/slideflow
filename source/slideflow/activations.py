@@ -56,7 +56,7 @@ class ActivationsVisualizer:
 	'''Loads annotations, saved layer activations, and prepares output saving directories.
 		Will also read/write processed activations to a PKL cache file to save time in future iterations.'''
 	
-	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_label_header=None, 
+	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_label_headers=None, 
 					focus_nodes=[], use_fp16=True, normalizer=None, normalizer_source=None, 
 					activations_cache='default', batch_size=32,
 					activations_export=None, max_tiles_per_slide=100, manifest=None, model_format=None):
@@ -68,7 +68,7 @@ class ActivationsVisualizer:
 			root_dir:				Root directory in which to save cache files and output files
 			image_size:				Int, width/height of input images in pixels
 			annotations:			Path to CSV file containing slide annotations
-			outcome_label_header:			String, name of outcome header in annotations file, used to compare activations between categories
+			outcome_label_headers:			String, name of outcome header in annotations file, used to compare activations between categories
 			focus_nodes:			List of int, nodes on which to focus when generating cross-category statistics
 			use_fp16:				Bool, whether to use FP16 (rather than FP32)
 			normalizer:				String, which real-time normalization to use on images taken from TFRecords
@@ -107,8 +107,8 @@ class ActivationsVisualizer:
 			os.makedirs(join(root_dir, "stats"))
 
 		# Load annotations if provided
-		if annotations and outcome_label_header:
-			self.load_annotations(annotations, outcome_label_header)
+		if annotations and outcome_label_headers:
+			self.load_annotations(annotations, outcome_label_headers)
 
 		# Load activations
 		# Load from PKL (cache) if present
@@ -392,19 +392,19 @@ class ActivationsVisualizer:
 			slide_predictions.update({slide: max(slide_prediction_values, key=lambda l: slide_prediction_values[l])})
 		return slide_predictions, slide_percentages
 
-	def load_annotations(self, annotations, outcome_label_header):
+	def load_annotations(self, annotations, outcome_label_headers):
 		'''Loads annotations from a given file with the specified outcome header.
 		
 		Args:
-			annotations:		Path to CSV annotations file.
-			outcome_label_header:		String, name of column header from which to read outcome variables.
+			annotations:				Path to CSV annotations file.
+			outcome_label_headers:		String, name of column header from which to read outcome variables.
 		'''
 		with open(annotations, 'r') as ann_file:
 			log.info("Reading annotations...", 1)
 			ann_reader = csv.reader(ann_file)
 			header = next(ann_reader)
 			slide_i = header.index(TCGA.slide)
-			category_i = header.index(outcome_label_header)
+			category_i = header.index(outcome_label_headers)
 			for row in ann_reader:
 				slide = row[slide_i]
 				category = row[category_i]
