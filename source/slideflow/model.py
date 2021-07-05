@@ -302,7 +302,14 @@ class SlideflowModel:
 		if self.NUM_SLIDE_FEATURES:
 			try:
 				self.SLIDE_FEATURE_TABLE = {slide: slide_annotations[slide]['input'] for slide in self.SLIDES}
-				log.info(f"Training with both images and {self.NUM_SLIDE_FEATURES} categories of slide-level input", 1)
+				num_features = self.NUM_SLIDE_FEATURES if model_type != 'cph' else self.NUM_SLIDE_FEATURES - 1
+				if num_features:
+					log.info(f"Training with both images and {num_features} categories of slide-level input", 1)
+					if model_type == 'cph':
+						log.info("Interpreting first feature as event for CPH model", 1)
+				elif model_type == 'cph':
+					log.info(f"Training with images alone. Interpreting first feature as event for CPH model", 1)
+				
 			except KeyError:
 				raise ModelError("If num_slide_features > 0, slide-level input must be provided via 'input' key in slide_annotations")
 			for slide in self.SLIDES:
@@ -319,7 +326,7 @@ class SlideflowModel:
 				self.NUM_CLASSES = len(list(set(outcome_labels)))
 			except TypeError:
 				log.error("Unable to use multiple outcome labels with categorical model type.")
-				sys.exit()
+				raise ModelError("Unable to use multiple outcome labels with categorical model type.")
 			with tf.device('/cpu'):
 				self.ANNOTATIONS_TABLES = [tf.lookup.StaticHashTable(
 					tf.lookup.KeyValueTensorInitializer(self.SLIDES, outcome_labels), -1
@@ -329,7 +336,7 @@ class SlideflowModel:
 				self.NUM_CLASSES = len(outcome_labels[0])
 			except TypeError:
 				log.error("Incorrect formatting of outcome labels for a linear model; must be formatted as an array.")
-				sys.exit()
+				raise ModelError("Incorrect formatting of outcome labels for a linear model; must be formatted as an array.")
 			with tf.device('/cpu'):
 				self.ANNOTATIONS_TABLES = []
 				for oi in range(self.NUM_CLASSES):
@@ -338,7 +345,7 @@ class SlideflowModel:
 					)]
 		else:
 			log.error(f"Unknown model type {model_type}")
-			sys.exit()
+			raise ModelError(f"Unknown model type {model_type}")
 
 		if not os.path.exists(self.DATA_DIR):
 			os.makedirs(self.DATA_DIR)
@@ -405,10 +412,16 @@ class SlideflowModel:
 		tile_input_tensor = tf.keras.Input(shape=image_shape, name="tile_image")
 		if self.NUM_SLIDE_FEATURES:
 			if self.MODEL_TYPE == 'cph':
-				slide_feature_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_FEATURES - 1), name="slide_feature_input")
 				event_input_tensor = tf.keras.Input(shape=(1), name="event_input")
+				# Add slide feature input tensors, if there are more slide features
+				#    than just the event input tensor for CPH models
+				if not ((self.NUM_SLIDE_FEATURES == 1) and (self.MODEL_TYPE == 'cph')):
+					slide_feature_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_FEATURES - 1), name="slide_feature_input")
 			else:
 				slide_feature_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_FEATURES), name="slide_feature_input")
+		if self.MODEL_TYPE == 'cph' and not self.NUM_SLIDE_FEATURES:
+			log.error("Model error - CPH models must include event input")
+			raise ModelError("Model error - CPH models must include event input")
 
 		# Load pretrained model if applicable
 		if pretrain: log.info(f"Using pretraining from {sfutil.green(pretrain)}", 1)
@@ -463,12 +476,15 @@ class SlideflowModel:
 			# Add images
 			if (hp.tile_px == 0) or hp.drop_images:
 				log.info("Generating model with just clinical variables and no images", 1)
-				merged_model = slide_feature_input_tensor				
-			else:
+				merged_model = slide_feature_input_tensor
+				model_inputs += [slide_feature_input_tensor]		
+			elif not ((self.NUM_SLIDE_FEATURES == 1) and (self.MODEL_TYPE == 'cph')):
+				# Add slide feature input tensors, if there are more slide features
+				#    than just the event input tensor for CPH models
 				merged_model = tf.keras.layers.Concatenate(name="input_merge")([slide_feature_input_tensor, tile_image_model.output])
-
-			# Add clinical variables
-			model_inputs += [slide_feature_input_tensor]
+				model_inputs += [slide_feature_input_tensor]
+			else:
+				merged_model = tile_image_model.output
 
 			# Add event tensor if this is a CPH model
 			if self.MODEL_TYPE == 'cph':
@@ -581,7 +597,7 @@ class SlideflowModel:
 		
 		if tfrecords == []:
 			log.error(f"No TFRecords found.", 1)
-			sys.exit()
+			raise ModelError("No TFRecords found.")
 
 		for filename in tfrecords:
 			slide_name = filename.split('/')[-1][:-10]
@@ -664,7 +680,7 @@ class SlideflowModel:
 			dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
 		except IndexError:
 			log.error(f"No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder", 1)
-			sys.exit()
+			raise ModelError("No TFRecords found after filter criteria.")
 		if include_slidenames:
 			dataset_with_slidenames = dataset.map(partial(parse_fn, include_slidenames=True, multi_image=multi_image), num_parallel_calls=32) #tf.data.experimental.AUTOTUNE
 			dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
@@ -703,7 +719,8 @@ class SlideflowModel:
 			image = self._process_image(image_string, self.AUGMENT)
 			image_dict = { 'tile_image': image }
 
-			# Add additional non-image feature inputs if indicated
+			# Add additional non-image feature inputs if indicated,
+			# 	excluding the event feature used for CPH models
 			if self.NUM_SLIDE_FEATURES:
 				# If CPH model is used, time-to-event data must be added as a separate feature
 				if self.MODEL_TYPE == 'cph':
@@ -720,9 +737,12 @@ class SlideflowModel:
 					num_features = self.NUM_SLIDE_FEATURES
 
 				slide_feature_input_val = tf.py_function(func=slide_lookup, 
-															inp=[slide],
-															Tout=[tf.float32] * num_features)
-				image_dict.update({'slide_feature_input': slide_feature_input_val})
+														 inp=[slide],
+														 Tout=[tf.float32] * num_features)
+
+				# Add slide input features, excluding the event feature used for CPH models
+				if not ((self.NUM_SLIDE_FEATURES == 1) and (self.MODEL_TYPE == 'cph')):
+					image_dict.update({'slide_feature_input': slide_feature_input_val}) 
 
 			if include_slidenames:
 				return image_dict, label, slide
