@@ -58,7 +58,7 @@ if __name__=='__main__':
 		actions.main(SFP)
 		# Move actions file into finished category
 		shutil.move(actions_file, finished_dir)
-    # Release GPU
+	# Release GPU
 		SFP.release_gpu()
 		# Delete old project
 		del(SFP)

@@ -392,7 +392,7 @@ class TestSuite:
 
 	def test_activations(self):
 		with TaskWrapper("Testing activations analytics...") as test:
-			AV = self.SFP.generate_activations_analytics(model=self.config.SAVED_MODEL, 
+			AV = self.SFP.generate_activations(model=self.config.SAVED_MODEL, 
 														outcome_label_header='category1', 
 														focus_nodes=[0])
 			AV.generate_box_plots()

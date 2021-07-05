@@ -3,8 +3,8 @@ import os
 import csv
 import pickle
 import time
-import random
 import logging
+import h5py
 
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -21,17 +21,13 @@ import slideflow.util as sfutil
 import slideflow.io as sfio
 import shapely.geometry as sg
 
-from io import StringIO
 from slideflow.util import log, ProgressBar, TCGA, StainNormalizer
 from slideflow.util.fastim import FastImshow
-from slideflow.mosaic import Mosaic
 from slideflow.model import ModelActivationsInterface
-from os.path import join, isfile, exists
-from random import sample
+from os.path import join, exists
 from statistics import mean
 from math import isnan
 from copy import deepcopy
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.widgets import Slider
 from functools import partial
 from multiprocessing.dummy import Process as DProcess
@@ -102,8 +98,10 @@ class ActivationsVisualizer:
 
 		if activations_cache is None:
 			self.ACTIVATIONS_CACHE = None
+		elif activations_cache=='default':
+			self.ACTIVATIONS_CACHE = join(root_dir, "stats", "activations_cache.pkl")
 		else:
-			self.ACTIVATIONS_CACHE = join(root_dir, "stats", "activations_cache.pkl") if activations_cache=='default' else join(root_dir, 'stats', activations_cache)
+			self.ACTIVATIONS_CACHE = join(root_dir, 'stats', activations_cache)
 
 		if not exists(join(root_dir, "stats")):
 			os.makedirs(join(root_dir, "stats"))
@@ -135,12 +133,14 @@ class ActivationsVisualizer:
 
 		# Otherwise will need to generate new activations from a given model
 		else:
-			self.generate_activations_from_model(model, tfrecords, model_format=model_format, 
-																   use_fp16=use_fp16,
-																   batch_size=batch_size,
-																   export=activations_export,
-																   normalizer=normalizer,
-																   normalizer_source=normalizer_source)
+			self.generate_activations_from_model(model, 
+												tfrecords, 
+												model_format=model_format, 
+												use_fp16=use_fp16,
+												batch_size=batch_size,
+												export=activations_export,
+												normalizer=normalizer,
+												normalizer_source=normalizer_source)
 			self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
 
 		# Now delete slides not included in our filtered TFRecord list
@@ -161,7 +161,13 @@ class ActivationsVisualizer:
 		if len(missing_slides):
 			missing_tfrecords = [tfr for tfr in self.tfrecords if sfutil.path_to_name(tfr) in missing_slides]
 			log.empty(f"Generating activations for {len(missing_slides)} missing slides...", 1)
-			self.generate_activations_from_model(model, missing_tfrecords, use_fp16=use_fp16, batch_size=batch_size, export=activations_export, normalizer=normalizer, normalizer_source=normalizer_source)
+			self.generate_activations_from_model(model, 
+												 missing_tfrecords, 
+												 use_fp16=use_fp16, 
+												 batch_size=batch_size, 
+												 export=activations_export, 
+												 normalizer=normalizer, 
+												 normalizer_source=normalizer_source)
 		
 		# Record which categories have been included in the specified tfrecords
 		if self.categories:
@@ -179,11 +185,13 @@ class ActivationsVisualizer:
 			slide_node_dict:	Dict mapping slides to dict of nodes mapping to slide-level values as calculated elsewhere.
 									Slide-level node values could be mean, median, thresholded, or other.
 			filename:			Filename
-			tile_stats:			Dictionary mapping nodes to a dict of tile-level stats containing 'p' (ANOVA P-value) and 'f' (ANOVA F-value) for each node
+			tile_stats:			Dictionary mapping nodes to a dict of tile-level stats 
+									containing 'p' (ANOVA P-value) and 'f' (ANOVA F-value) for each node
 									As calculated elsewhere by comparing node activations between categories
-			slide_stats:		Dictionary mapping nodes to a dict of slide-level stats containing 'p' (ANOVA P-value), 'f' (ANOVA F-value),
-									and 'num_above_threshold' for each node
-									As calculated elsewhere by comparing node activations between categories
+			slide_stats:		Dictionary mapping nodes to a dict of slide-level stats 
+									containing 'p' (ANOVA P-value), 'f' (ANOVA F-value),
+									and 'num_above_threshold' for each node,
+									as calculated elsewhere by comparing node activations between categories
 		'''
 		# Save results to CSV
 		log.empty(f"Writing results to {sfutil.green(filename)}...", 1)
@@ -215,7 +223,8 @@ class ActivationsVisualizer:
 		result = {}
 		for slide in self.slides:
 			num_tiles = len(self.slide_node_dict[slide][0])
-			result.update({slide: [[self.slide_node_dict[slide][node][tile_index] for node in self.nodes] for tile_index in range(num_tiles)]})
+			result.update({slide: [[self.slide_node_dict[slide][node][tile_index] for node in self.nodes] 
+																				  for tile_index in range(num_tiles)]})
 		return result
 
 	def map_to_whitespace(self, whitespace_threshold=230, num_threads=16):
@@ -255,11 +264,20 @@ class ActivationsVisualizer:
 		total_tiles = 0
 		if self.manifest:
 			try:
-				total_tiles = sum([min(self.manifest[tfrecord]['total'], self.MAX_TILES_PER_SLIDE) if self.MAX_TILES_PER_SLIDE else self.manifest[tfrecord]['total'] for tfrecord in self.tfrecords])
+				total_tiles = sum([min(self.manifest[tfrecord]['total'], self.MAX_TILES_PER_SLIDE) if self.MAX_TILES_PER_SLIDE 
+																								   else self.manifest[tfrecord]['total'] 
+																								   for tfrecord in self.tfrecords])
 			except:
 				pass
 		
-		pb = ProgressBar(total_tiles, counter_text='tiles', leadtext="Calculating whitespace... ", show_counter=True, show_eta=True) if total_tiles else None
+		if total_tiles:
+			pb = ProgressBar(total_tiles,
+							counter_text='tiles', 
+							leadtext="Calculating whitespace... ", 
+							show_counter=True, 
+							show_eta=True)
+		else:
+			pb = None
 		
 		pool = DPool(num_threads)
 		result = pool.map(partial(map_to_tfrecord, pb=pb), self.tfrecords)
@@ -460,13 +478,15 @@ class ActivationsVisualizer:
 
 		Args:
 			neighbor_AV:		ActivationsVisualizer, will be used to look for neighbors
-			neighbor_slides:	Either a single slide name or a list of slide names. Corresponds to slides in the provided neighboring AV.
+			neighbor_slides:	Either a single slide name or a list of slide names. 
+									Corresponds to slides in the provided neighboring AV.
 									Will look for neighbors to all tiles in these slides.
 			n_neighbors:		Number of neighbors to find for each tile
 			algorithm:			NearestNeighbors algorithm, either 'kd_tree', 'ball_tree', or 'brute'
 
 		Returns:
-			Dict mapping slide names (from self.slides) to tile indices for tiles that were found to be neighbors to the provided neighbor_AV and neighbor_slides.
+			Dict mapping slide names (from self.slides) to tile indices for tiles 
+				that were found to be neighbors to the provided neighbor_AV and neighbor_slides.
 		'''
 		if type(neighbor_slides) != list: neighbor_slides = [neighbor_slides]
 		
@@ -490,7 +510,8 @@ class ActivationsVisualizer:
 		neighbors = {}
 
 		log.empty("Searching for nearest neighbors...", 1)
-		neighbor_activations = [[neighbor_AV.slide_node_dict[slide][n][tile_index] for n in neighbor_AV.nodes] for (slide, tile_index) in neighbor_slide_tile_indices]
+		neighbor_activations = [[neighbor_AV.slide_node_dict[slide][n][tile_index] for n in neighbor_AV.nodes] 
+																				   for (slide, tile_index) in neighbor_slide_tile_indices]
 		distances, all_indices = nbrs.kneighbors(neighbor_activations)
 
 		for indices_by_tile in all_indices:
@@ -547,7 +568,8 @@ class ActivationsVisualizer:
 		#	print(slide, mean(filtered_predictions[slide]))
 		return neighbors
 
-	def generate_activations_from_model(self, model, tfrecords, use_fp16=True, batch_size=16, export=None, normalizer=None, normalizer_source=None, model_format=None):
+	def generate_activations_from_model(self, model, tfrecords, use_fp16=True, batch_size=16, 
+										export=None, normalizer=None, normalizer_source=None, model_format=None):
 		'''Calculates activations from a given model.
 
 		Args:
@@ -680,7 +702,7 @@ class ActivationsVisualizer:
 
 		return self.slide_node_dict, self.slide_logits_dict
 
-	def export_activations_to_csv(self, filename, nodes=None):
+	def export_to_csv(self, filename, nodes=None):
 		'''Exports calculated activations to csv.
 
 		Args:
@@ -698,6 +720,21 @@ class ActivationsVisualizer:
 				for n in nodes:
 					row += [self.slide_node_dict[slide][n]]
 				csvwriter.writewrow(row)
+
+	def export_to_torch(self, output_directory):
+		import torch
+
+		for slide in self.slide_node_dict:
+			sys.stdout.write(f"\rWorking on {sfutil.green(slide)}...")
+			sys.stdout.flush()
+			slide_activations = []
+			number_tiles = len(self.slide_node_dict[slide][self.nodes[0]])
+			for tile in range(number_tiles):
+				tile_activations = [self.slide_node_dict[slide][n][tile] for n in self.nodes]
+				slide_activations += [tile_activations]
+			slide_activations = np.array(slide_activations)
+			torch.save(slide_activations, join(output_directory, f'{slide}.pt'))
+		log.complete("Activations exported in Torch format.", 1)
 
 	def calculate_activation_averages_and_stats(self, filename=None, node_method='avg', threshold=0.5):
 		'''Calculates activation averages across categories, 
@@ -767,7 +804,7 @@ class ActivationsVisualizer:
 												 'p': pvalue} })
 			else:
 				slide_node_stats.update({node: {'f': -1,
-										  		 'p': 1} })
+												   'p': 1} })
 
 			# Thresholding
 			#if threshold_category:
@@ -801,11 +838,17 @@ class ActivationsVisualizer:
 
 		# Export results
 		export_file = self.STATS_CSV_FILE if not filename else filename
-		self._save_node_statistics_to_csv(self.sorted_nodes, slide_node_dict, filename=export_file, tile_stats=tile_node_stats, slide_stats=slide_node_stats)
+		self._save_node_statistics_to_csv(self.sorted_nodes, 
+										  slide_node_dict, 
+										  filename=export_file, 
+										  tile_stats=tile_node_stats, 
+										  slide_stats=slide_node_stats)
 		return slide_node_dict, tile_node_stats, slide_node_stats
 
 	def logistic_regression(self, slide_method='avg', node_threshold=0.5):
-		'''Experimental function, creates a logistic regression model to generate slide-level predictions from slide-level statistics.'''
+		'''Experimental function, creates a logistic regression model 
+			to generate slide-level predictions from slide-level statistics.'''
+
 		from sklearn.linear_model import LogisticRegression
 		from sklearn.metrics import classification_report, confusion_matrix
 
@@ -955,7 +998,8 @@ class TileVisualizer:
 		the masking reveals spatial importance with respect to activation of the given node.
 	'''
 
-	def __init__(self, model, node, tile_px, mask_width=None, normalizer=None, normalizer_source=None, model_format=None):
+	def __init__(self, model, node, tile_px, mask_width=None, 
+					normalizer=None, normalizer_source=None, model_format=None):
 		'''Object initializer.
 
 		Args:
@@ -1010,7 +1054,8 @@ class TileVisualizer:
 		act, _ = self.loaded_model.predict(np.array([masked]))
 		return act[0][index]	
 
-	def visualize_tile(self, tfrecord=None, index=None, image_jpg=None, export_folder=None, zoomed=True, interactive=False):
+	def visualize_tile(self, tfrecord=None, index=None, image_jpg=None, 
+						export_folder=None, zoomed=True, interactive=False):
 		'''Visualizes tiles, either interactively or saving to directory.
 		
 		Args:
@@ -1146,13 +1191,18 @@ class Heatmap:
 		self.print = pb.print
 
 		# Load the slide
-		self.slide = SlideReader(slide_path, size_px, size_um, stride_div, enable_downsample=False, 
-																		   roi_dir=roi_dir, 
-																		   roi_list=roi_list,
-																		   roi_method=roi_method,
-																		   silent=True,
-																		   buffer=buffer,
-																		   pb=pb)
+		self.slide = SlideReader(slide_path,
+								 size_px, 
+								 size_um, 
+								 stride_div, 
+								 enable_downsample=False, 
+								 roi_dir=roi_dir, 
+								 roi_list=roi_list,
+								 roi_method=roi_method,
+								 silent=True,
+								 buffer=buffer,
+								 pb=pb)
+
 		pb.BARS[0].end_value = self.slide.estimated_num_tiles
 
 		# First, load the designated model
@@ -1197,7 +1247,11 @@ class Heatmap:
 			print('\r\033[KFinished predictions. Waiting on thumbnail...', end="")
 			thumb_process.join()
 
-		if (self.slide.tile_mask is not None) and (self.slide.extracted_x_size) and (self.slide.extracted_y_size) and (self.slide.full_stride):
+		if ((self.slide.tile_mask is not None) and
+			 (self.slide.extracted_x_size) and
+			 (self.slide.extracted_y_size) and
+			 (self.slide.full_stride)):
+
 			# Expand logits back to a full 2D map spanning the whole slide,
 			#  supplying values of "0" where tiles were skipped by the tile generator
 			x_logits_len = int(self.slide.extracted_x_size / self.slide.full_stride) + 1
@@ -1293,10 +1347,19 @@ class Heatmap:
 					# Make heatmap with specific logit predictions mapped to r, g, and b
 					return (l[logit_cmap['r']], l[logit_cmap['g']], l[logit_cmap['b']])
 			extent = None if skip_thumb else implot.extent
-			heatmap = self.ax.imshow([[map_logit(l) for l in row] for row in self.logits], extent=extent, interpolation=interpolation, zorder=10)
+			heatmap = self.ax.imshow([[map_logit(l) for l in row] for row in self.logits], 
+									 extent=extent, 
+									 interpolation=interpolation, 
+									 zorder=10)
 		else:
 			for i in range(self.NUM_CLASSES):
-				heatmap = self.ax.imshow(self.logits[:, :, i], extent=implot.extent, cmap=self.newMap, alpha = 0.0, interpolation=interpolation, zorder=10) #bicubic
+				heatmap = self.ax.imshow(self.logits[:, :, i], 
+										 extent=implot.extent, 
+										 cmap=self.newMap, 
+										 alpha = 0.0, 
+										 interpolation=interpolation, 
+										 zorder=10) #bicubic
+
 				ax_slider = self.fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor='lightgoldenrodyellow')
 				slider = Slider(ax_slider, f'Class {i}', 0, 1, valinit = 0)
 				heatmap_dict.update({f"Class{i}": [heatmap, slider]})
@@ -1347,7 +1410,12 @@ class Heatmap:
 					# Make heatmap with specific logit predictions mapped to r, g, and b
 					return (l[logit_cmap['r']], l[logit_cmap['g']], l[logit_cmap['b']])
 			extent = None if skip_thumb else implot.get_extent()
-			heatmap = self.ax.imshow([[map_logit(l) for l in row] for row in self.logits], extent=extent, interpolation=interpolation, zorder=10)
+
+			heatmap = self.ax.imshow([[map_logit(l) for l in row] for row in self.logits],
+									 extent=extent, 
+									 interpolation=interpolation, 
+									 zorder=10)
+
 			plt.savefig(os.path.join(save_folder, f'{self.slide.name}-custom.png'), bbox_inches='tight')
 		else:
 			# Make heatmap plots and sliders for each outcome category

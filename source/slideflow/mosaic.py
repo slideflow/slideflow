@@ -11,7 +11,6 @@ import slideflow.io as sfio
 
 from random import shuffle
 from matplotlib import patches
-from os.path import join
 from slideflow.util import log, StainNormalizer
 from slideflow.statistics import get_centroid_index
 from multiprocessing.dummy import Pool as DPool
@@ -31,15 +30,20 @@ class Mosaic:
 			umap:				TFRecordMap object
 			focus:				List of tfrecords (paths) to highlight on the mosaic
 			leniency:			UMAP leniency
-			expanded:			If true, will try to fill in blank spots on the UMAP with nearby tiles. Takes exponentially longer to generate.
+			expanded:			If true, will try to fill in blank spots on the UMAP with nearby tiles. 
+									Takes exponentially longer to generate.
 			tile_zoom:			Zoom level
 			num_tiles_x:		Mosaic map grid size
 			resolution:			Resolution of exported figure; either 'high', 'medium', or 'low'.
-			relative_size:		If True, will physically size grid images in proportion to the number of tiles within the grid space.
-			tile_select:		Determines how to choose a tile for display on each grid space. Either 'nearest' or 'centroid'. 
+			relative_size:		If True, will physically size grid images in proportion to the 
+									number of tiles within the grid space.
+			tile_select:		Determines how to choose a tile for display on each grid space. 
+									Either 'nearest' or 'centroid'. 
 									If nearest, will display tile nearest to center of grid.
-									If centroid, for each grid, will calculate which tile is nearest to centroid using data in tile_meta
-			tile_meta:			Dictionary. Metadata for tiles, used if tile_select. Dictionary should have slide names as keys, mapped to
+									If centroid, for each grid, will calculate which tile is nearest
+									to centroid using data in tile_meta
+			tile_meta:			Dictionary. Metadata for tiles, used if tile_select. 
+									Dictionary should have slide names as keys, mapped to
 									List of metadata (length of list = number of tiles in slide)
 			normalizer:			String. Normalizer to apply to images taken from TFRecords.
 			normalizer_source:	String, path. Path to image to use as normalizer source.'''
@@ -140,10 +144,13 @@ class Mosaic:
 			rect_size = min((len(grid_tile['points']) / max_grid_density) * tile_zoom_factor, 1) * tile_size
 
 			tile = patches.Rectangle((grid_tile['coord'][0] - rect_size/2, 
-							  		  grid_tile['coord'][1] - rect_size/2), 
+									  grid_tile['coord'][1] - rect_size/2), 
 									  rect_size, 
-							  		  rect_size, 
-									  fill=True, alpha=1, facecolor='white', edgecolor="#cccccc")
+									  rect_size, 
+									  fill=True, 
+									  alpha=1, 
+									  facecolor='white', 
+									  edgecolor="#cccccc")
 			ax.add_patch(tile)
 
 			grid_tile['size'] = rect_size
@@ -210,7 +217,9 @@ class Mosaic:
 				if not point['tfrecord']:
 					log.error(f"The tfrecord {point['slide']} was not found in the list of paths provided by the input umap; please ensure the TFRecord exists.", 1)
 					continue
-				_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
+				_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'],
+																	 point['tfrecord_index'],
+																	 decode=False)
 				if not tile_image: continue
 				
 				self.mapped_tiles.update({point['tfrecord']: point['tfrecord_index']})
@@ -229,10 +238,15 @@ class Mosaic:
 						fraction_slide = num_slide / (num_other + num_slide)
 						tile_alpha = fraction_slide
 					display_size = tile['size']
-				image = ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['coord'][0]-display_size/2, 
-																						tile['coord'][0]+display_size/2,
-																						tile['coord'][1]-display_size/2,
-																						tile['coord'][1]+display_size/2], zorder=99, alpha=tile_alpha)
+				image = ax.imshow(tile_image,
+								  aspect='equal',
+								  origin='lower', 
+								  extent=[tile['coord'][0]-display_size/2, 
+								  tile['coord'][0]+display_size/2,
+								  tile['coord'][1]-display_size/2,
+								  tile['coord'][1]+display_size/2], 
+								  zorder=99, 
+								  alpha=tile_alpha)
 				tile['image'] = image
 				num_placed += 1
 		elif mapping_method == 'expanded':
@@ -242,7 +256,9 @@ class Mosaic:
 				point = self.points[distance_pair['point_index']]
 				tile = self.GRID[distance_pair['grid_index']]
 				if not (point['paired_tile'] or tile['paired_point']):
-					_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], point['tfrecord_index'], decode=False)
+					_, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'], 
+																		 point['tfrecord_index'], 
+																		 decode=False)
 					if not tile_image: continue
 
 					point['paired_tile'] = True
@@ -251,10 +267,14 @@ class Mosaic:
 					self.mapped_tiles.update({point['tfrecord']: point['tfrecord_index']})
 					tile_image = self._decode_image_string(tile_image.numpy())					
 
-					image = ax.imshow(tile_image, aspect='equal', origin='lower', extent=[tile['coord'][0]-tile_size/2,
-																					tile['coord'][0]+tile_size/2,
-																					tile['coord'][1]-tile_size/2,
-																					tile['coord'][1]+tile_size/2], zorder=99)
+					image = ax.imshow(tile_image, 
+									  aspect='equal', 
+									  origin='lower', 
+									  extent=[tile['coord'][0]-tile_size/2,
+									  tile['coord'][0]+tile_size/2,
+									  tile['coord'][1]-tile_size/2,
+									  tile['coord'][1]+tile_size/2],
+									  zorder=99)
 					tile['image'] = image
 					num_placed += 1
 			if log.INFO_LEVEL > 0: print("\r\033[K", end="")
@@ -267,7 +287,9 @@ class Mosaic:
 		ax.autoscale(enable=True, tight=None)
 
 	def _get_tfrecords_from_slide(self, slide):
-		'''Using the internal list of TFRecord paths, returns the path to a TFRecord for a given corresponding slide.'''
+		'''Using the internal list of TFRecord paths, 
+			returns the path to a TFRecord for a given corresponding slide.'''
+
 		for tfr in self.tfrecords_paths:
 			if sfutil.path_to_name(tfr) == slide:
 				return tfr
@@ -275,6 +297,7 @@ class Mosaic:
 
 	def _decode_image_string(self, string):	
 		'''Internal method to convert a JPEG string (as stored in TFRecords) to an RGB array.'''
+
 		if self.normalizer:
 			tile_image = self.normalizer.jpeg_to_rgb(string)
 		else:
@@ -284,7 +307,9 @@ class Mosaic:
 		return tile_image
 
 	def focus(self, tfrecords):
-		'''Highlights certain tiles according to a focus list if list provided, or resets highlighting if no tfrecords provided.'''
+		'''Highlights certain tiles according to a focus list if list provided, 
+			or resets highlighting if no tfrecords provided.'''
+
 		if tfrecords:
 			for tile in self.GRID:
 				if not len(tile['points']) or not tile['image']: continue
@@ -304,13 +329,16 @@ class Mosaic:
 
 	def save(self, filename):
 		'''Saves the mosaic map figure to the given filename.'''
+
 		log.empty("Exporting figure...", 1)
 		plt.savefig(filename, bbox_inches='tight')
 		log.complete(f"Saved figure to {sfutil.green(filename)}", 1)
 		plt.close()
 
 	def save_report(self, filename):
-		'''Saves a report of which tiles (and their corresponding slide) were displayed on the Mosaic map, in CSV format.'''
+		'''Saves a report of which tiles (and their corresponding slide) 
+			were displayed on the Mosaic map, in CSV format.'''
+			
 		with open(filename, 'w') as f:
 			writer = csv.writer(f)
 			writer.writerow(['slide', 'index'])
