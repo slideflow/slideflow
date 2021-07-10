@@ -25,7 +25,7 @@ from slideflow.util import TCGA, ProgressBar, log, StainNormalizer
 from slideflow.statistics import TFRecordMap, calculate_centroid
 from slideflow.mosaic import Mosaic
 
-__version__ = "1.11.0-dev1"
+__version__ = "1.11.0-dev2"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -220,7 +220,7 @@ def _evaluator(outcome_label_headers, model, project_config, results_dict, input
 	results_dict['results'] = results
 	return results_dict
 
-def _heatmap_generator(slide, model_name, model_path, save_folder, roi_list, show_roi, 
+def _heatmap_generator(slide, model_path, save_folder, roi_list, show_roi, 
 						resolution, interpolation, project_config, logit_cmap=None, skip_thumb=False, 
 						buffer=True, normalizer=None, normalizer_source=None, model_format=None, flags=None):
 
@@ -874,7 +874,7 @@ class SlideflowProject:
 		'''Evaluates a saved model on a given set of tfrecords.
 		
 		Args:
-			model:					Path to .h5 model to evaluate.
+			model:					Path to Tensorflow model to evaluate.
 			outcome_label_headers:			Annotation column header that specifies the outcome label.
 			hyperparameters:		Path to model's hyperparameters.json file. If None, searches for this file in the same directory as the model.
 			filters:				Filters to use when selecting tfrecords on which to perform evaluation.
@@ -1361,7 +1361,7 @@ class SlideflowProject:
 		Note: GPU memory will remain in use, as the Keras model associated with the visualizer is active.
 		
 		Args:
-			model:				Path to .h5 model
+			model:				Path to Tensorflow model
 			outcome_label_headers:		Column header in annotations file; used for category-level comparisons
 			filters:			Dataset filters for selecting TFRecords
 			filter_blank:		List of label headers; slides that have blank entries in this label header
@@ -1384,8 +1384,7 @@ class SlideflowProject:
 		if not exists(stats_root): os.makedirs(stats_root)
 
 		# Load dataset for evaluation
-		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
-		hp_data = sfutil.load_json(join(dirname(model_path), 'hyperparameters.json'))
+		hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
 		activations_dataset = self.get_dataset(filters=filters,
 											   filter_blank=filter_blank,
 											   tile_px=hp_data['hp']['tile_px'],
@@ -1394,7 +1393,7 @@ class SlideflowProject:
 
 		log.info(f"Visualizing activations from {len(tfrecords_list)} slides", 1)
 
-		AV = ActivationsVisualizer(model=model_path,
+		AV = ActivationsVisualizer(model=model,
 								   tfrecords=tfrecords_list,
 								   root_dir=self.PROJECT['root'],
 								   image_size=hp_data['hp']['tile_px'],
@@ -1408,7 +1407,6 @@ class SlideflowProject:
 								   activations_cache=activations_cache,
 								   max_tiles_per_slide=max_tiles_per_slide,
 								   model_format=model_format)
-
 		return AV
 
 	def generate_heatmaps(self, model, filters=None, filter_blank=None, directory=None, resolution='low', 
@@ -1418,7 +1416,7 @@ class SlideflowProject:
 		'''Creates predictive heatmap overlays on a set of slides. 
 
 		Args:
-			model:				Path to .h5 model with which predictions will be generated.
+			model:				Path to Tensorflow model with which predictions will be generated.
 			filters:			Dataset filters to use when selecting slides for which to generate heatmaps.
 			filter_blank:		List of label headers; slides that have blank entries in this label header
 								 	in the annotations file will be excluded
@@ -1456,8 +1454,7 @@ class SlideflowProject:
 		log.header("Generating heatmaps...")
 
 		# Prepare dataset
-		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
-		hp_data = sfutil.load_json(join(dirname(model_path), 'hyperparameters.json'))
+		hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
 		heatmaps_dataset = self.get_dataset(filters=filters,
 											filter_blank=filter_blank,
 											tile_px=hp_data['hp']['tile_px'],
@@ -1466,8 +1463,8 @@ class SlideflowProject:
 		roi_list = heatmaps_dataset.get_rois()
 
 		# Attempt to auto-detect supplied model name
-		detected_model_name = sfutil.path_to_name(model_path)
-		hp_file = join(*model_path.split('/')[:-1], 'hyperparameters.json')
+		detected_model_name = sfutil.path_to_name(model)
+		hp_file = join(*model.split('/')[:-1], 'hyperparameters.json')
 		if exists(hp_file):
 			loaded_hp = sfutil.load_json(hp_file)
 			if 'model_name' in loaded_hp:
@@ -1481,11 +1478,11 @@ class SlideflowProject:
 		ctx = multiprocessing.get_context('spawn')
 		for slide in slide_list:
 			if single_thread:
-				_heatmap_generator(slide, model, model_path, heatmaps_folder, roi_list, show_roi,
+				_heatmap_generator(slide, model, heatmaps_folder, roi_list, show_roi,
 									resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb,
 									buffer, normalizer, normalizer_source, model_format, self.FLAGS)
 			else:
-				process = ctx.Process(target=_heatmap_generator, args=(slide, model, model_path, heatmaps_folder, roi_list, show_roi, 
+				process = ctx.Process(target=_heatmap_generator, args=(slide, model, heatmaps_folder, roi_list, show_roi, 
 																		resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb,
 																		buffer, normalizer, normalizer_source, model_format, self.FLAGS))
 				process.start()
@@ -1506,7 +1503,7 @@ class SlideflowProject:
 			or by using outcome predictions for two categories, mapped to X- and Y-axis (via predict_on_axes).
 		
 		Args:
-			model:					Path to .h5 file to use when generating layer activations.
+			model:					Path to Tensorflow model to use when generating layer activations.
 			mosaic_filename:		Filename for mosaic image. If not provided, mosaic will not be calculated or saved. Will be saved in project mosaic directory.
 			umap_filename:			Filename for UMAP plot image. If not provided, plot will not be saved. Will be saved in project stats directory.
 			outcome_label_headers:			Column name in annotations file from which to read category labels.
@@ -1554,14 +1551,13 @@ class SlideflowProject:
 		mosaic_root = join(self.PROJECT['root'], 'mosaic')
 		if not exists(stats_root): os.makedirs(stats_root)
 		if not exists(mosaic_root): os.makedirs(mosaic_root)
-		model_path = model if model[-3:] == ".h5" else join(self.PROJECT['models_dir'], model, 'trained_model.h5')
 		if umap_cache and umap_cache == 'default':
 			umap_cache = join(stats_root, 'umap_cache.pkl')
 		elif umap_cache:
 			umap_cache = join(stats_root, umap_cache)
 
 		# Prepare dataset & model
-		hp_data = sfutil.load_json(join(dirname(model_path), 'hyperparameters.json'))
+		hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
 		mosaic_dataset = self.get_dataset(filters=filters,
 										  filter_blank=filter_blank,
 										  tile_px=hp_data['hp']['tile_px'],
@@ -1582,18 +1578,18 @@ class SlideflowProject:
 
 		# If showing predictions, try to automatically load prediction labels
 		if (show_prediction is not None) and (not use_float) and (not label_names):
-			if exists(join(dirname(model_path), 'hyperparameters.json')):
-				model_hyperparameters = sfutil.load_json(join(dirname(model_path), 'hyperparameters.json'))
+			if exists(join(dirname(model), 'hyperparameters.json')):
+				model_hyperparameters = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
 				outcome_labels = model_hyperparameters['outcome_labels']
 				model_type = model_type if model_type else model_hyperparameters['model_type']
-				log.info(f'Automatically loaded prediction labels found at {sfutil.green(dirname(model_path))}', 1)
+				log.info(f'Automatically loaded prediction labels found at {sfutil.green(dirname(model))}', 1)
 			else:
 				log.info(f'Unable to auto-detect prediction labels from model hyperparameters file', 1)
 				
 		# Initialize mosaic, umap, and ActivationsVisualizer
 		mosaic, umap = None, None
 
-		AV = ActivationsVisualizer(model=model_path,
+		AV = ActivationsVisualizer(model=model,
 								   tfrecords=tfrecords_list, 
 								   root_dir=self.PROJECT['root'],
 								   image_size=hp_data['hp']['tile_px'],
@@ -1712,7 +1708,7 @@ class SlideflowProject:
 			header_y:				Column name in annotations file from which to read Y-axis coordinates.
 			tile_px:				Tile size in pixels.
 			tile_um:				Tile size in microns.
-			model:					Path to .h5 file to use when generating layer activations.
+			model:					Path to Tensorflow model to use when generating layer activations.
 			mosaic_filename:		Filename for mosaic image. If not provided, mosaic will not be calculated or saved. Will be saved in project mosaic directory.
 			umap_filename:			Filename for UMAP plot image. If not provided, plot will not be saved. Will be saved in project stats directory.
 			outcome_label_headers:	Column name in annotations file from which to read category labels.
@@ -2013,9 +2009,9 @@ class SlideflowProject:
 			multi_outcome:			If True, will train to multiple outcome labels simultaneously instead of looping through the
 										list of labels in "outcome_label_headers". Defaults to False.
 			filters:				Dictionary of column names mapping to column values by which to filter slides using the annotation file.
-			resume_training:		Path to .h5 model to continue training
+			resume_training:		Path to Tensorflow model to continue training
 			checkpoint:				Path to cp.ckpt from which to load weights
-			pretrain:				Pretrained weights to load. Default is imagenet. May supply a compatible .h5 file from which to load weights.
+			pretrain:				Pretrained weights to load. Default is imagenet. May supply a compatible Tensorflow model from which to load weights.
 			pretrain_model_format:	Optional. May supply format of pretrained Slideflow Keras model if the model was made with a legacy version.
 										Default value will be slideflow.model.MODEL_FORMAT_CURRENT,
 										but slideflow.model.MODEL_FORMAT_LEGACY may be supplied.
@@ -2172,7 +2168,7 @@ class SlideflowProject:
 		'''Visualizes node activations across a set of image tiles through progressive convolutional masking.
 
 		Args:
-			model:				Path to .h5 model file
+			model:				Path to Tensorflow model
 			node:				Int, node to analyze
 			tfrecord_dict:		Dictionary mapping tfrecord paths to tile indices. Visualization will be performed on these tiles.
 			directory:			Directory in which to save images.

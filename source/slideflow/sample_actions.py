@@ -31,7 +31,7 @@ def main(SFP):
 	#								augment=True,
 	#								filename=None)
 	#SFP.train(
-	#	  outcome_label_header="category",
+	#	  outcome_label_headers="category",
 	#	  filters = {
 	#		  'dataset': 'train',
 	#		  'category': ['negative', 'positive']
@@ -40,18 +40,18 @@ def main(SFP):
 
 	# Evaluate model performance with separate data
 	# ---------------------------------------------
-	#SFP.evaluate(model='/path/to/trained_model.h5', 
-	#             outcome_label_header="category", 
+	#SFP.evaluate(model='/path/to/trained_model', 
+	#             outcome_label_headers="category", 
 	#             filters = {'dataset': ['eval']})
 
 	# Create heatmaps of predictions with a certain model
 	# ---------------------------------------------------
-	#SFP.generate_heatmaps(model='/path/to/trained_model.h5',
+	#SFP.generate_heatmaps(model='/path/to/trained_model',
 	# 					   filters = {'dataset': ['eval']})
 
 	# Generate a mosaic map of tiles using a certain model
 	# ----------------------------------------------------
-	#SFP.generate_mosaic(model='/path/to/trained_model.h5', 
+	#SFP.generate_mosaic(model='/path/to/trained_model', 
 	# 					 filters = {'dataset': ['eval']}, 
 	# 					 resolution='high')
 
@@ -59,7 +59,7 @@ def main(SFP):
 	# ---------------------------------------------------
 	#from slideflow.statistics import TFRecordMap
 	#from os.path import join
-	#AV = SFP.generate_activations(model='/path/to/trained_model.h5', 
+	#AV = SFP.generate_activations(model='/path/to/trained_model', 
 	#                              outcome_label_header="HPV", 
 	#                              filters={"HPV": ["HPV+", "HPV-"]})
 	#AV.generate_box_plots()

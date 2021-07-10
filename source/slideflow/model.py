@@ -835,7 +835,7 @@ class SlideflowModel:
 		Args:
 			tfrecords:				List of TFrecords paths to load for evaluation.
 			hp:						HyperParameters object
-			model:					Optional; .h5 model to load for evaluation. If None, will build model using hyperparameters.
+			model:					Optional; Tensorflow model to load for evaluation. If None, will build model using hyperparameters.
 			model_type:				Either linear or categorical.
 			checkpoint:				Path to cp.cpkt checkpoint. If provided, will update model with given checkpoint weights.
 			batch_size:				Evaluation batch size.
@@ -961,7 +961,7 @@ class SlideflowModel:
 		
 		Args:
 			hp:						HyperParameters object
-			pretrain:				Either None, 'imagenet' or path to .h5 file for pretrained weights
+			pretrain:				Either None, 'imagenet' or path to Tensorflow model for pretrained weights
 			resume_training:		If True, will attempt to resume previously aborted training
 			checkpoint:				Path to cp.cpkt checkpoint file. If provided, will load checkpoint weights
 			log_frequency:			How frequent to update Tensorboard logs
@@ -1059,7 +1059,7 @@ class SlideflowModel:
 				if log.INFO_LEVEL > 0: print("\r\033[K", end="")
 				self.epoch_count += 1
 				if self.epoch_count in [e for e in hp.finetune_epochs]:
-					model_path = os.path.join(parent.DATA_DIR, f"trained_model_epoch{self.epoch_count}.h5")
+					model_path = os.path.join(parent.DATA_DIR, f"trained_model_epoch{self.epoch_count}")
 					self.model.save(model_path)
 					log.complete(f"Trained model saved to {sfutil.green(model_path)}", 1)
 					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):

@@ -4,7 +4,6 @@ import csv
 import pickle
 import time
 import logging
-import h5py
 
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -573,7 +572,7 @@ class ActivationsVisualizer:
 		'''Calculates activations from a given model.
 
 		Args:
-			model:		Path to .h5 file from which to calculate final layer activations.
+			model:		Path to Tensorflow model from which to calculate final layer activations.
 			use_fp16:	If true, uses Float16 (default) instead of Float32.
 			batch_size:	Batch size for model predictions.
 			export:		String (default: None). If provided, will export CSV of activations with this filename.'''
@@ -1003,7 +1002,7 @@ class TileVisualizer:
 		'''Object initializer.
 
 		Args:
-			model:				Path to .h5 model file
+			model:				Path to Tensorflow model
 			node:				Int, activation node to analyze
 			tile_px:			Int, width/height of image tiles
 			mask_width:			Width of mask to convolutionally apply. Defaults to 1/6 of tile_px
@@ -1161,7 +1160,7 @@ class Heatmap:
 
 		Args:
 			slide_path:			Path to slide
-			model_path:			Path to .h5 model file
+			model_path:			Path to Tensorflow model
 			size_px:			Size of image tiles, in pixels
 			size_um:			Size of image tiles, in microns
 			use_fp16:			Bool, whether to use FP16 (vs FP32)

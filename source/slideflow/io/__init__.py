@@ -123,8 +123,6 @@ def merge_validation(train_dir, eval_dir):
 class Dataset:
 	'''Object to supervise organization of slides, tfrecords, and tiles across a one or more datasets in a stored configuration file.'''
 
-	
-
 	def __init__(self, config_file, sources, tile_px, tile_um, annotations=None, filters=None, filter_blank=None):
 		self.ANNOTATIONS = []
 		self.filter_blank = []

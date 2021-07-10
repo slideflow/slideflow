@@ -103,7 +103,7 @@ class TestConfigurator:
 				'tfrecords':join(root, 'project', 'tfrecords', 'TMA')
 			}})
 
-		self.SAVED_MODEL = join(self.PROJECT['models_dir'], 'category1-performance-kfold1', 'trained_model_epoch1.h5')
+		self.SAVED_MODEL = join(self.PROJECT['models_dir'], 'category1-performance-kfold1', 'trained_model_epoch1')
 		self.REFERENCE_MODEL = None
 
 		# Verify slides

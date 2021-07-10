@@ -1,12 +1,63 @@
 import os
 import argparse
 import shutil
+from slideflow.model import HyperParameters
 import slideflow.util as sfutil
+import json
 
 from os.path import join, isdir, exists
 
-def update(root):
-	'''Updates slideflow projects from version 1.6-1.8 to 1.9'''
+def update_models(root):
+	'''Updates models from Keras H5 to Tensorflow SavedModel format'''
+	import tensorflow as tf
+	from slideflow.model_utils import negative_log_likelihood, concordance_index
+	print(f"{sfutil.warn('WARNING!!! ')} Although tested, this conversion function does not guarantee model integrity post-conversion.")
+	print("Please backup your models before continuing!")
+	input("Acknowledge (press enter) > ")
+	print("Updating legacy models...")
+	print(f"{sfutil.info('PROJECT')} > {sfutil.warn('MODEL_FOLDER')} > {sfutil.green('MODEL')}")
+
+	project_folders = [f for f in os.listdir(root) if isdir(join(root, f)) and exists(join(root, f, 'settings.json'))]
+	for folder in project_folders:
+		project_folder = join(root, folder)
+		project_settings = sfutil.load_json(join(project_folder, 'settings.json'))
+		if exists(join(project_folder, 'models')):
+			model_folders = [mf for mf in os.listdir(join(project_folder, 'models')) if isdir(join(project_folder, 'models', mf))]
+			for model_folder in model_folders:
+				full_model_folder = join(project_folder, 'models', model_folder)
+
+				try:
+					with open(join(full_model_folder, 'hyperparameters.json'), 'r') as hp_file:
+						hyperparameters = json.load(hp_file)
+				except FileNotFoundError:
+					print(f"Unable to find hyperparameters file for model {folder} > {model_folder}, skipping")
+					continue
+
+				models = [m for m in os.listdir(full_model_folder) if sfutil.path_to_ext(m) == 'h5']
+				for model in models:
+					model_path = join(full_model_folder, model)
+					new_model_path = join(full_model_folder, sfutil.path_to_name(model))
+
+					print(f"Upgrading {sfutil.info(folder)} > {sfutil.warn(model_folder)} > {sfutil.green(model)} ... ", end="")
+					try:
+						if hyperparameters['model_type'] == 'cph':
+							loaded_model = tf.keras.models.load_model(model_path,custom_objects = {
+																				  'negative_log_likelihood':negative_log_likelihood,
+																				  'concordance_index':concordance_index 
+																				})
+						else:
+							loaded_model = tf.keras.models.load_model(model_path)
+						loaded_model.save(new_model_path)
+						os.remove(model_path)
+						print(sfutil.green('DONE'))
+					except ValueError:
+						
+						print(sfutil.fail('FAIL'))
+						print(" - Unable to load model, incorrect python version")					
+
+def update_version(root):
+	'''Updates slideflow projects from version 1.6-1.8 to 1.9+'''
+	print("Updating project versions.")
 	project_folders = [f for f in os.listdir(root) if isdir(join(root, f)) and exists(join(root, f, 'settings.json'))]
 	for folder in project_folders:
 		project_folder = join(root, folder)
@@ -59,13 +110,21 @@ def update(root):
 			print(f"Completed update of project {sfutil.bold(project_settings['name'])} using dataset configuration JSON at {sfutil.green(dataset_config_file)}")
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser(description = "Update utility (1.8 -> 1.9)")
+	parser = argparse.ArgumentParser(description = "Slideflow update utility")
 	parser.add_argument('-pr', required=True, help='Path to root directory containing projects.')
 	parser.add_argument('--nested', action="store_true", help='Whether to search recursively through a parent directory into nested sub-directories.')
+	parser.add_argument('--version', action="store_true", help='Upgrades projects from 1.6-1.8 to 1.9+')
+	parser.add_argument('--models', action="store_true", help='Upgrades models from Keras H5 to Tensorflow SavedModel format')
 	args = parser.parse_args()
 	if not args.nested:
-		update(args.pr)
+		if args.version:	
+			update_version(args.pr)
+		if args.models:
+			update_models(args.pr)
 	else:
 		nested_folders = [f for f in os.listdir(args.pr) if isdir(join(args.pr, f))]
 		for nested_folder in nested_folders:
-			update(join(args.pr, nested_folder))
+			if args.version:
+				update_version(join(args.pr, nested_folder))
+			if args.models:
+				update_models(join(args.pr, nested_folder))

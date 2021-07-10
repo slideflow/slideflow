@@ -258,14 +258,14 @@ def write_tfrecords_single(input_directory, output_directory, filename, slide):
 	log.empty(f"Wrote {len(keys)} image tiles to {sfutil.green(tfrecord_path)}", 1)
 	return len(keys)
 
-def checkpoint_to_h5(models_dir, model_name):
+def checkpoint_to_tf_model(models_dir, model_name):
 	checkpoint = join(models_dir, model_name, "cp.ckpt")
-	h5 = join(models_dir, model_name, "untrained_model.h5")
-	updated_h5 = join(models_dir, model_name, "checkpoint_model.h5")
-	model = tf.keras.models.load_model(h5)
+	tf_model = join(models_dir, model_name, "untrained_model")
+	updated_tf_model = join(models_dir, model_name, "checkpoint_model")
+	model = tf.keras.models.load_model(tf_model)
 	model.load_weights(checkpoint)
 	try:
-		model.save(updated_h5)
+		model.save(updated_tf_model)
 	except KeyError:
 		# Not sure why this happens, something to do with the optimizer?
 		pass
