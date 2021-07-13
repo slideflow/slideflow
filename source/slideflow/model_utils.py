@@ -11,6 +11,12 @@ class ManifestError(Exception):
 class ModelError(Exception):
 	pass
 
+class no_scope():
+	def __enter__(self):
+		return None
+	def __exit__(self, exc_type, exc_value, traceback):
+		return False
+
 def get_layer_index_by_name(model, name):
 	for i, layer in enumerate(model.layers):
 			if layer.name == name:

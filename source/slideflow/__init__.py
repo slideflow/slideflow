@@ -260,7 +260,7 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 			validation_annotations=None, validation_filters=None, k_fold_i=None, input_header=None, filters=None, pretrain=None, 
 			pretrain_model_format=None, resume_training=None, checkpoint=None, validate_on_batch=0, validation_steps=200,
 			 max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, steps_per_epoch_override=None, normalizer=None,
-			 normalizer_source=None, use_tensorboard=False, flags=None):
+			 normalizer_source=None, use_tensorboard=False, multi_gpu=False, flags=None):
 
 	'''Internal function to execute model training process.'''
 	import slideflow.model as sfmodel
@@ -445,7 +445,8 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 									 min_tiles_per_slide=min_tiles_per_slide,
 									 starting_epoch=starting_epoch,
 									 steps_per_epoch_override=steps_per_epoch_override,
-									 use_tensorboard=use_tensorboard)
+									 use_tensorboard=use_tensorboard,
+									 multi_gpu=multi_gpu)
 		results['history'] = history
 		results_dict.update({full_model_name: results})
 		logged_epochs = [int(e[5:]) for e in results['epochs'].keys() if e[:5] == 'epoch']
@@ -1995,7 +1996,7 @@ class SlideflowProject:
 				validation_k_fold=None, k_fold_iter=None, validation_dataset=None, validation_annotations=None,
 				validation_filters=None, validate_on_batch=512, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0,
 				starting_epoch=0, steps_per_epoch_override=None, auto_extract=False, normalizer=None, 
-				normalizer_source=None, normalizer_strategy='tfrecord', use_tensorboard=False):
+				normalizer_source=None, normalizer_strategy='tfrecord', use_tensorboard=False, multi_gpu=False):
 
 		'''Train model(s).
 
@@ -2037,6 +2038,7 @@ class SlideflowProject:
 			normalizer_strategy:	Either 'tfrecord' or 'realtime'. If TFrecord and auto_extract is True, then tiles will be extracted to TFRecords and stored normalized.
 										If realtime, then normalization is performed during training.
 			use_tensorboard:		Bool. If True, will add tensorboard callback during training for realtime monitoring.
+			multi_gpu:				Bool. If True, will attempt to train using multiple GPUs using Keras MirroredStrategy.
 			
 		Returns:
 			A dictionary containing model names mapped to train_acc, val_loss, and val_acc
@@ -2128,7 +2130,7 @@ class SlideflowProject:
 																validation_filters, k, input_header, filters, pretrain, pretrain_model_format, 
 																resume_training, checkpoint, validate_on_batch, validation_steps, max_tiles_per_slide,
 																min_tiles_per_slide, starting_epoch, steps_per_epoch_override, train_normalizer, 
-																train_normalizer_source, use_tensorboard, self.FLAGS))
+																train_normalizer_source, use_tensorboard, multi_gpu, self.FLAGS))
 					process.start()
 					log.empty(f"Spawning training process (PID: {process.pid})")
 					process.join()

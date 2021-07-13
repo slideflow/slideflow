@@ -956,7 +956,7 @@ class SlideflowModel:
 
 	def train(self, hp, pretrain='imagenet', pretrain_model_format=None, resume_training=None, checkpoint=None, log_frequency=100, multi_image=False, 
 				validate_on_batch=512, val_batch_size=32, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
-				ema_observations=20, ema_smoothing=2, steps_per_epoch_override=None, use_tensorboard=False):
+				ema_observations=20, ema_smoothing=2, steps_per_epoch_override=None, use_tensorboard=False, multi_gpu=False):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -979,41 +979,48 @@ class SlideflowModel:
 		Returns:
 			Results dictionary, Keras history object'''
 
-		# Build inputs
-		train_data, _, num_tiles = self._build_dataset_inputs(self.TRAIN_TFRECORDS, 
-															  hp.batch_size, 
-															  hp.balanced_training, 
-															  hp.augment, 
-															  finite=False,
-															  max_tiles=max_tiles_per_slide,
-															  min_tiles=min_tiles_per_slide,
-															  include_slidenames=False,
-															  multi_image=multi_image)
-		# Set up validation data
-		using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
-		if using_validation:
-			validation_data, validation_data_with_slidenames, _ = self._build_dataset_inputs(self.VALIDATION_TFRECORDS, 
-																							 val_batch_size, 
-																							 hp.balanced_validation, 
-																							 augment=False, 
-																							 finite=True,
-																							 max_tiles=max_tiles_per_slide,
-																							 min_tiles=min_tiles_per_slide,
-																							 include_slidenames=True,
-																							 multi_image=multi_image)
-
-			val_log_msg = "" if not validate_on_batch else f"every {sfutil.bold(str(validate_on_batch))} steps and "
-			log.info(f"Validation during training: {val_log_msg}at epoch end", 1)
-			if validation_steps:
-				validation_data_for_training = validation_data.repeat()
-				log.empty(f"Using {validation_steps} batches ({validation_steps * hp.batch_size} samples) each validation check", 2)
-			else:
-				validation_data_for_training = validation_data
-				log.empty(f"Using entire validation set each validation check", 2)
+		if multi_gpu:
+			strategy = tf.distribute.MirroredStrategy()
+			log.info(f"Multi-GPU training with {strategy.num_replicas_in_sync} devices", 1)
 		else:
-			log.info("Validation during training: None", 1)
-			validation_data_for_training = None
-			validation_steps = 0
+			strategy = None
+
+		with strategy.scope() if strategy is not None else no_scope():
+			# Build inputs
+			train_data, _, num_tiles = self._build_dataset_inputs(self.TRAIN_TFRECORDS, 
+																hp.batch_size, 
+																hp.balanced_training, 
+																hp.augment, 
+																finite=False,
+																max_tiles=max_tiles_per_slide,
+																min_tiles=min_tiles_per_slide,
+																include_slidenames=False,
+																multi_image=multi_image)
+			# Set up validation data
+			using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
+			if using_validation:
+				validation_data, validation_data_with_slidenames, _ = self._build_dataset_inputs(self.VALIDATION_TFRECORDS, 
+																								val_batch_size, 
+																								hp.balanced_validation, 
+																								augment=False, 
+																								finite=True,
+																								max_tiles=max_tiles_per_slide,
+																								min_tiles=min_tiles_per_slide,
+																								include_slidenames=True,
+																								multi_image=multi_image)
+
+				val_log_msg = "" if not validate_on_batch else f"every {sfutil.bold(str(validate_on_batch))} steps and "
+				log.info(f"Validation during training: {val_log_msg}at epoch end", 1)
+				if validation_steps:
+					validation_data_for_training = validation_data.repeat()
+					log.empty(f"Using {validation_steps} batches ({validation_steps * hp.batch_size} samples) each validation check", 2)
+				else:
+					validation_data_for_training = validation_data
+					log.empty(f"Using entire validation set each validation check", 2)
+			else:
+				log.info("Validation during training: None", 1)
+				validation_data_for_training = None
+				validation_steps = 0
 
 		# Prepare results
 		results = {'epochs': {}}
@@ -1148,32 +1155,33 @@ class SlideflowModel:
 				epoch_results = results['epochs'][f'epoch{epoch}']
 				sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
 							
-		callbacks = [history_callback, PredictionAndEvaluationCallback(), cp_callback]
+		callbacks = [history_callback, cp_callback] #PredictionAndEvaluationCallback(), 
 		if use_tensorboard:
 			callbacks += [tensorboard_callback]
+		
+		with strategy.scope() if strategy is not None else no_scope():
+			# Build or load model
+			if resume_training:
+				log.info(f"Resuming training from {sfutil.green(resume_training)}", 1)
+				self.model = tf.keras.models.load_model(resume_training)
+			elif multi_image:
+				self.model = self._build_multi_image_model(hp, pretrain=pretrain, checkpoint=checkpoint)
+			else:
+				self.model = self._build_model(hp, 
+											pretrain=pretrain, 
+											pretrain_model_format=pretrain_model_format, 
+											checkpoint=checkpoint)
 
-		# Build or load model
-		if resume_training:
-			log.info(f"Resuming training from {sfutil.green(resume_training)}", 1)
-			self.model = tf.keras.models.load_model(resume_training)
-		elif multi_image:
-			self.model = self._build_multi_image_model(hp, pretrain=pretrain, checkpoint=checkpoint)
-		else:
-			self.model = self._build_model(hp, 
-										   pretrain=pretrain, 
-										   pretrain_model_format=pretrain_model_format, 
-										   checkpoint=checkpoint)
+			# Retrain top layer only if using transfer learning and not resuming training
+			if hp.toplayer_epochs:
+				self._retrain_top_layers(hp, train_data, validation_data_for_training, steps_per_epoch, 
+										callbacks=None, epochs=hp.toplayer_epochs)
 
-		# Retrain top layer only if using transfer learning and not resuming training
-		if hp.toplayer_epochs:
-			self._retrain_top_layers(hp, train_data, validation_data_for_training, steps_per_epoch, 
-									callbacks=None, epochs=hp.toplayer_epochs)
+			# Fine-tune the model
+			log.info("Beginning fine-tuning", 1)
+			self._compile_model(hp)
 
-		# Fine-tune the model
-		log.info("Beginning fine-tuning", 1)
-		self._compile_model(hp)
-
-		history = self.model.fit(train_data,
+			history = self.model.fit(train_data,
 								 steps_per_epoch=steps_per_epoch,
 								 epochs=total_epochs,
 								 verbose=(log.INFO_LEVEL > 0),
