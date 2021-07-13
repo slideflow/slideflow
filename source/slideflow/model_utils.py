@@ -1,6 +1,7 @@
 import tensorflow as tf
 import os
 import tempfile
+import numpy as np
 
 class HyperParameterError(Exception):
 	pass
@@ -23,6 +24,59 @@ def get_layer_index_by_name(model, name):
 				return i
 
 def negative_log_likelihood(y_true, y_pred):
+	'''Looks like it was adapted from here: https://github.com/havakv/pycox/blob/master/pycox/models/loss.py'''
+	events = tf.reshape(y_pred[:, -1], [-1]) # E
+	pred_hr = tf.reshape(y_pred[:, 0], [-1]) # y_pred
+	time = tf.reshape(y_true, [-1])		   # y_true
+
+	order = tf.argsort(time) #direction='DESCENDING'
+	sorted_events = tf.gather(events, order) 		# E
+	sorted_predictions = tf.gather(pred_hr, order) 	# y_pred
+
+	# Finds maximum HR in predictions
+	gamma = tf.math.reduce_max(sorted_predictions)
+
+	# Small constant value
+	eps = tf.constant(1e-7, dtype=tf.float16)
+
+
+	log_cumsum_h = tf.math.add(
+					tf.math.log(
+						tf.math.add(
+							tf.math.cumsum(
+								tf.math.exp(
+									tf.math.subtract(sorted_predictions, gamma))),
+							eps)),
+					gamma)
+
+	neg_likelihood = -tf.math.divide(
+						tf.reduce_sum(
+							tf.math.multiply(
+								tf.subtract(sorted_predictions, log_cumsum_h),
+								sorted_events)),
+						tf.reduce_sum(sorted_events))
+						
+	return neg_likelihood
+
+def _negative_log_likelihood(y_true, y_pred):
+	events = tf.reshape(y_pred[:, -1], [-1])
+	pred_hr = tf.reshape(y_pred[:, 0], [-1])
+	time = tf.reshape(y_true, [-1])
+
+	order = tf.argsort(time)
+	sorted_events = tf.gather(events, order)
+	sorted_hr = tf.math.log(tf.gather(pred_hr, order))
+
+	neg_likelihood = - tf.reduce_sum(
+						tf.math.divide(
+							tf.math.multiply(
+								sorted_hr,
+								sorted_events),
+							tf.math.cumsum(sorted_hr, reverse=True)))
+	
+	return neg_likelihood
+
+'''def _n_l_l(y_true, y_pred):
 	E = y_pred[:, -1]
 	y_pred = y_pred[:, :-1]
 	E = tf.reshape(E, [-1])
@@ -35,8 +89,8 @@ def negative_log_likelihood(y_true, y_pred):
 	eps = tf.constant(1e-7, dtype=tf.float16)
 	log_cumsum_h = tf.math.add(tf.math.log(tf.math.add(tf.math.cumsum(tf.math.exp(tf.math.subtract(y_pred, gamma))), eps)), gamma)
 	neg_likelihood = -tf.math.divide(tf.reduce_sum(tf.math.multiply(tf.subtract(y_pred, log_cumsum_h), E)),tf.reduce_sum(E))
-	return neg_likelihood
-	
+	return neg_likelihood'''
+
 def concordance_index(y_true, y_pred):
 	E = y_pred[:, -1]
 	y_pred = y_pred[:, :-1]
@@ -78,3 +132,27 @@ def add_regularization(model, regularizer):
 	# Reload the model weights
 	model.load_weights(tmp_weights_path, by_name=True)
 	return model
+
+# ====== Scratch code for new CPH models
+
+def make_riskset(time):
+	'''Compute mask that represents a sample's risk set.
+	
+	Args:
+		time:		np array, shape=(n_samples,). Observed event time ?in descending order?.
+
+	Returns:
+		risk_set:	np array, shape=(n_samples, n_samples). Boolean matrix where the `i`-th row
+						denotes the risk set of the `i`-th instance, i.e. the indices `j` 
+						for which the observer time `y_j >= y_i`
+	'''
+	o = np.argsort(-time, kind='mergesort')
+	n_samples = len(time)
+
+	risk_set = np.zeros((n_samples, n_samples), dtype=np.bool_)
+	for i_org, i_sort in enumerate(o):
+		k = i_org
+		while k < n_samples and time[i_sort] == time[o[k]]:
+			k += 1
+		risk_set[i_sort, o[:k]] = True
+	return risk_set

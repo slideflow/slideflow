@@ -137,7 +137,8 @@ class HyperParameters:
 				   'mean_squared_logarithmic_error',
 				   'squared_hinge',
 				   'hinge',
-				   'logcosh', 'negative_log_likelihood']
+				   'logcosh',
+				   'negative_log_likelihood']
 
 	_AllLoss = ['mean_squared_error',
 				'mean_absolute_error', 
@@ -154,7 +155,8 @@ class HyperParameters:
 				'kullback_leibler_divergence', 
 				'poisson', 
 				'cosine_proximity', 
-				'is_categorical_crossentropy', 'negative_log_likelihood']
+				'is_categorical_crossentropy',
+				'negative_log_likelihood']
 
 	def __init__(self, tile_px=299, tile_um=302, finetune_epochs=10, toplayer_epochs=0, 
 				 model='Xception', pooling='max', loss='sparse_categorical_crossentropy',
@@ -523,7 +525,10 @@ class SlideflowModel:
 												 kernel_regularizer=regularizer)(merged_model)
 
 		# Add the softmax prediction layer
-		activation = 'linear' if (hp.model_type() in ['linear', 'cph']) else 'softmax'
+		if hp.model_type() in ['linear', 'cph']:
+			activation = 'linear'
+		else:
+			activation = 'softmax'
 		final_dense_layer = tf.keras.layers.Dense(self.NUM_CLASSES, kernel_regularizer=regularizer, name="prelogits")(merged_model)
 		softmax_output = tf.keras.layers.Activation(activation, dtype='float32', name='logits')(final_dense_layer)
 
