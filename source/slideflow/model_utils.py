@@ -23,8 +23,10 @@ def get_layer_index_by_name(model, name):
 			if layer.name == name:
 				return i
 
-def negative_log_likelihood(y_true, y_pred):
-	'''Looks like it was adapted from here: https://github.com/havakv/pycox/blob/master/pycox/models/loss.py'''
+def _negative_log_likelihood(y_true, y_pred):
+	'''
+	First implementation, mostly by Fred.
+	Looks like it was adapted from here: https://github.com/havakv/pycox/blob/master/pycox/models/loss.py'''
 	events = tf.reshape(y_pred[:, -1], [-1]) # E
 	pred_hr = tf.reshape(y_pred[:, 0], [-1]) # y_pred
 	time = tf.reshape(y_true, [-1])		   # y_true
@@ -58,7 +60,36 @@ def negative_log_likelihood(y_true, y_pred):
 						
 	return neg_likelihood
 
-def _negative_log_likelihood(y_true, y_pred):
+def negative_log_likelihood(y_true, y_pred):
+	'''Third attempt - Breslow approximation'''
+	events = tf.reshape(y_pred[:, -1], [-1])
+	pred = tf.reshape(y_pred[:, 0], [-1])
+	time = tf.reshape(y_true, [-1])
+
+	order = tf.argsort(time, direction='DESCENDING')
+	sorted_time = tf.gather(time, order)
+	sorted_events = tf.gather(events, order)
+	sorted_pred = tf.math.log(tf.gather(pred, order))
+
+	Y_hat_c = sorted_pred
+	Y_label_T = sorted_time
+	Y_label_E = sorted_events
+	Obs = tf.reduce_sum(Y_label_E)
+
+	Y_hat_hr = tf.exp(Y_hat_c)
+	Y_hat_cumsum = tf.math.log(tf.cumsum(Y_hat_hr))
+
+	unique_values, segment_ids = tf.unique(Y_label_T)
+	loss_s2_v = tf.math.segment_max(Y_hat_cumsum, segment_ids)
+	loss_s2_count = tf.math.segment_sum(Y_label_E, segment_ids)
+	loss_s2 = tf.reduce_sum(tf.multiply(loss_s2_v, loss_s2_count))
+	loss_s1 = tf.reduce_sum(tf.multiply(Y_hat_c, Y_label_E))
+	loss_breslow = tf.divide(tf.subtract(loss_s2, loss_s1), Obs)
+
+	return loss_breslow
+
+def _new_negative_log_likelihood(y_true, y_pred):
+	'''Second attempt at implementation, by James.'''
 	events = tf.reshape(y_pred[:, -1], [-1])
 	pred_hr = tf.reshape(y_pred[:, 0], [-1])
 	time = tf.reshape(y_true, [-1])
