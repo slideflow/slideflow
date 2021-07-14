@@ -898,13 +898,14 @@ def gen_metrics_from_predictions(y_true,
 						cat_index_warn += [cat_index]
 			avg_by_group += [percent_predictions]
 		avg_by_group = np.array(avg_by_group)
-		with open(save_path, 'w') as outfile:
-			writer = csv.writer(outfile)
-			header = [label] + [f"y_true{i}" for i in range(num_cat)] + [f"{prediction_label}{j}" for j in range(num_cat)]
-			writer.writerow(header)
-			for i, group in enumerate(unique_groups):
-				row = np.concatenate([ [group], y_true_group[group], avg_by_group[i] ])
-				writer.writerow(row)
+		if verbose:
+			with open(save_path, 'w') as outfile:
+				writer = csv.writer(outfile)
+				header = [label] + [f"y_true{i}" for i in range(num_cat)] + [f"{prediction_label}{j}" for j in range(num_cat)]
+				writer.writerow(header)
+				for i, group in enumerate(unique_groups):
+					row = np.concatenate([ [group], y_true_group[group], avg_by_group[i] ])
+					writer.writerow(row)
 		return avg_by_group
 
 	if model_type == 'categorical':
@@ -967,7 +968,7 @@ def gen_metrics_from_predictions(y_true,
 															patients,
 															tile_to_patients,
 															y_true_patient,
-															"slide")
+															"patient")
 
 			# Generate patient-level ROC
 			for i in range(num_cat):
@@ -1001,7 +1002,7 @@ def gen_metrics_from_predictions(y_true,
 													   patients,
 													   tile_to_patients,
 													   y_true_patient, 
-													   "slide")
+													   "patient")
 			y_true_by_patient = np.array([y_true_patient[patient] for patient in patients])
 			r_squared['patient'] = generate_scatter(y_true_by_patient, averages_by_patient, data_dir, label_end+"_by_patient")
 
@@ -1015,7 +1016,7 @@ def gen_metrics_from_predictions(y_true,
 		c_index['slide'] = concordance_index(y_true_by_slide, averages_by_slide)
 		if not patient_error:
 			# Generate and save patient-level averages of each outcome
-			averages_by_patient = get_average_by_group(y_pred, "average", patients, tile_to_patients, y_true_patient, "slide")
+			averages_by_patient = get_average_by_group(y_pred, "average", patients, tile_to_patients, y_true_patient, "patient")
 			y_true_by_patient = np.array([y_true_patient[patient] for patient in patients])
 			c_index['patient'] = concordance_index(y_true_by_patient, averages_by_patient)			
 		
@@ -1244,6 +1245,8 @@ def permutation_feature_importance(model,
 																		  histogram=False,
 																		  plot=False)
 	base_auc_list = np.array([base_auc['tile'], base_auc['slide'], base_auc['patient']])
+	base_r_squared_list = np.array([base_r_squared['tile'], base_r_squared['slide'], base_r_squared['patient']])
+	base_c_index_list = np.array([base_c_index['tile'], base_c_index['slide'], base_c_index['patient']])
 
 	total_features = sum(feature_sizes)
 	if model_type == 'cph':
@@ -1274,8 +1277,8 @@ def permutation_feature_importance(model,
 			y_pred = np.concatenate((y_pred, events), axis = 1)
 		else:
 			y_pred = predict_from_layer(model, pre_hl_new, input_layer_name='hidden_0')
-
-		new_auc, _, _ = gen_metrics_from_predictions(y_true=y_true,
+		
+		new_auc, new_r, new_c = gen_metrics_from_predictions(y_true=y_true,
 													y_pred=y_pred,
 													tile_to_slides=tile_to_slides,
 													annotations=annotations,
@@ -1287,7 +1290,12 @@ def permutation_feature_importance(model,
 													verbose=False,
 													histogram=False,
 													plot=False)
-		metrics[feature] = base_auc_list - np.array([new_auc['tile'], new_auc['slide'], new_auc['patient']])
+		if model_type == 'categorical':
+			metrics[feature] = base_auc_list - np.array([new_auc['tile'], new_auc['slide'], new_auc['patient']])
+		if model_type == 'linear':
+			metrics[feature] = base_r_squared_list - np.array([new_r['tile'], new_r['slide'], new_r['patient']])
+		if model_type == 'cph':
+			metrics[feature] = base_c_index_list - np.array([new_c['tile'], new_c['slide'], new_c['patient']])
 
 	#Probably makes sense to measure only at the tile level - unless we write code to do permutation of patient level data which would be probably more work than its worth
 	feature_text = ""
