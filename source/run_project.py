@@ -28,8 +28,8 @@ if __name__=='__main__':
 	sys.path.insert(0, args.project)
 	try:
 		import actions
-	except:
+	except Exception as e:
 		print(f"Error loading actions.py in {args.project}; either does not exist or contains an error")
-		sys.exit()
+		raise Exception
 
 	actions.main(SFP)

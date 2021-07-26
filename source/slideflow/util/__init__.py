@@ -519,8 +519,9 @@ def read_annotations(annotations_file):
 		try:
 			header = next(csv_reader, None)
 		except OSError:
-			log.error(f"Unable to open annotations file {green(annotations_file)}, is it open in another program?")
-			sys.exit()
+			err_msg = f"Unable to open annotations file {green(annotations_file)}, is it open in another program?"
+			log.error(err_msg)
+			raise OSError(err_msg)
 
 		for row in csv_reader:
 			row_dict = {}

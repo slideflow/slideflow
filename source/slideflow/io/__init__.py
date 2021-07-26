@@ -27,11 +27,12 @@ def split_tiles(folder, fraction, names):
 
 	# Initial error checking
 	if len(fraction) != len(names):
-		log.error(f'When splitting tiles, length of "fraction" ({len(fraction)}) should equal length of "names" ({len(names)})')
-		sys.exit()
+		err_msg = f'When splitting tiles, length of "fraction" ({len(fraction)}) should equal length of "names" ({len(names)})'
+		log.error(err_msg)
+		raise DatasetError(err_msg)
 	if sum([i for i in fraction if i != -1]) > 1:
-		log.error(f'Unable to split tiles; Sum of fraction is greater than 1')
-		sys.exit()
+		log.error('Unable to split tiles; Sum of fraction is greater than 1')
+		raise DatasetError('Unable to split tiles; Sum of fraction is greater than 1')
 
 	# Setup directories
 	slides = [_dir for _dir in listdir(folder) if isdir(join(folder, _dir))]
@@ -64,8 +65,9 @@ def split_tiles(folder, fraction, names):
 
 		# Error checking
 		if sum(num_to_move) > num_files:
-			log.error(f"Error with separating tiles; tried to move {sum(num_to_move)} tiles into {len(fraction)} subfolders, only {num_files} tiles available", 1)
-			sys.exit()
+			err_msg = f"Error with separating tiles; tried to move {sum(num_to_move)} tiles into {len(fraction)} subfolders, only {num_files} tiles available"
+			log.error(err_msg, 1)
+			raise DatasetError(err_msg)
 		if sum(num_to_move) < num_files:
 			log.warn(f"Not all tiles separated into subfolders; {num_files - sum(num_to_move)} leftover tiles will be discarded.", 1)
 
@@ -134,8 +136,9 @@ class Dataset:
 			self.datasets = {k:v for (k,v) in config.items() if k in sources}
 		except KeyError:
 			sources_list = ", ".join(sources)
-			log.error(f"Unable to find datasets named {sfutil.bold(sources_list)} in config file {sfutil.green(config_file)}", 1)
-			sys.exit()
+			err_msg = f"Unable to find datasets named {sfutil.bold(sources_list)} in config file {sfutil.green(config_file)}"
+			log.error(err_msg, 1)
+			raise DatasetError(err_msg)
 
 		if (tile_px is not None) and (tile_um is not None):
 			label = f"{tile_px}px_{tile_um}um"
@@ -155,8 +158,18 @@ class Dataset:
 		self.filters = filters
 		self.filter_blank = filter_blank
 
-	def get_manifest(self):
-		'''Generates a manifest of all tfrecords.'''
+	def get_manifest(self, key='path'):
+		'''Generates a manifest of all tfrecords.
+		
+		Args:
+			key:	Either 'path' (default) or 'name'. Determines key format in the manifest dictionary.
+			
+		Returns:
+			Dictionary mapping key (path or slide name) to number of total tiles. 
+		'''
+		if key not in ('path', 'name'):
+			raise DatasetError("'key' must be in ['path, 'name']")
+
 		combined_manifest = {}
 		for d in self.datasets:
 			if self.datasets[d]['label'] is None: continue
@@ -168,8 +181,17 @@ class Dataset:
 			relative_manifest = sfutil.load_json(manifest_path)
 			global_manifest = {}
 			for record in relative_manifest:
-				global_manifest.update({join(tfrecord_dir, record): relative_manifest[record]})
+				k = join(tfrecord_dir, record) if key == 'path' else sfutil.path_to_name(record)
+				global_manifest.update({k: relative_manifest[record]})
 			combined_manifest.update(global_manifest)
+		
+		# Now filter out any tfrecords that would be excluded by filters
+		filtered_tfrecords = self.get_tfrecords()
+		manifest_tfrecords = list(combined_manifest.keys())
+		for tfr in manifest_tfrecords:
+			if tfr not in filtered_tfrecords:
+				del(combined_manifest[tfr])
+			
 		return combined_manifest
 
 	def get_rois(self):
@@ -192,8 +214,9 @@ class Dataset:
 		for ann in self.ANNOTATIONS:
 			skip_annotation = False
 			if TCGA.slide not in ann.keys():
-				log.error(f"{TCGA.slide} not found in annotations file.")
-				sys.exit()
+				err_msg = f"{TCGA.slide} not found in annotations file."
+				log.error(err_msg)
+				raise DatasetError(err_msg)
 
 			# Skip missing or blank slides
 			if ann[TCGA.slide] in sfutil.SLIDE_ANNOTATIONS_TO_IGNORE:
@@ -235,8 +258,10 @@ class Dataset:
 			if self.filter_blank and self.filter_blank != [None]:
 				for fb in self.filter_blank:
 					if fb not in ann.keys():
-						log.error(f"Unable to filter blank slides from header {fb}; this header was not found in the annotations file.")
-						sys.exit()
+						err_msg = f"Unable to filter blank slides from header {fb}; this header was not found in the annotations file."
+						log.error(err_msg)
+						raise DatasetError(err_msg)
+						
 					if not ann[fb] or ann[fb] == '':
 						skip_annotation = True
 						break
@@ -299,7 +324,7 @@ class Dataset:
 				if sfutil.yes_no_input(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} contains data split into sub-directories ({', '.join([sfutil.green(s) for s in subdirs])}); merge and use? [y/N] ", default='no'):
 					folders_to_search += [join(tfrecord_path, subdir) for subdir in subdirs]
 				else:
-					sys.exit()
+					raise NotImplementedError("Handling not implemented.")
 			else:
 				if len(subdirs):
 					log.warn(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} contains data split into sub-directories; ignoring sub-directories", 1)
@@ -324,8 +349,9 @@ class Dataset:
 			base_dir = join(self.datasets[d]['tfrecords'], self.datasets[d]['label'])
 			tfrecord_path = join(base_dir, subfolder)
 			if not exists(tfrecord_path):
-				log.error(f"Unable to find subfolder {sfutil.bold(subfolder)} in dataset {sfutil.bold(d)}, tfrecord directory: {sfutil.green(base_dir)}")
-				sys.exit()
+				err_msg = f"Unable to find subfolder {sfutil.bold(subfolder)} in dataset {sfutil.bold(d)}, tfrecord directory: {sfutil.green(base_dir)}"
+				log.error(err_msg)
+				raise DatasetError(err_msg)
 			folders_to_search += [tfrecord_path]
 		for folder in folders_to_search:
 			tfrecords_list += glob(join(folder, "*.tfrecords"))
@@ -370,7 +396,7 @@ class Dataset:
 				filtered_labels = [a[header] for a in filtered_annotations]
 			except KeyError:
 				log.error(f"Unable to find column {header} in annotation file.", 1)
-				sys.exit()
+				raise DatasetError("Unable to find column {header} in annotation file.")
 
 			# Determine whether values should be converted into float
 			if type(use_float) == dict and header not in use_float:
@@ -469,16 +495,18 @@ class Dataset:
 
 		# Check for duplicate headers in annotations file
 		if len(header) != len(set(header)):
-			log.error("Annotations file containers at least one duplicate header; all headers must be unique")
-			sys.exit()
+			err_msg = "Annotations file containers at least one duplicate header; all headers must be unique"
+			log.error(err_msg)
+			raise DatasetError(err_msg)
 
 		# Verify there is a patient header
 		try:
 			patient_index = header.index(TCGA.patient)
 		except:
 			print(header)
-			log.error(f"Check that annotations file is formatted correctly and contains header '{TCGA.patient}'.", 1)
-			sys.exit()
+			err_msg = f"Check that annotations file is formatted correctly and contains header '{TCGA.patient}'."
+			log.error(err_msg, 1)
+			raise DatasetError(err_msg)
 
 		# Verify that a slide header exists; if not, offer to make one and automatically associate slide names with patients
 		try:
@@ -497,7 +525,7 @@ class Dataset:
 		slide_list_from_annotations = self.get_slides()
 		if len(slide_list_from_annotations) != len(list(set(slide_list_from_annotations))):
 			log.error("Duplicate slide names detected in the annotation file.")
-			sys.exit()
+			raise DatasetError("Duplicate slide names detected in the annotation file.")
 
 		# Verify all SVS files in the annotation column are valid
 		num_warned = 0
@@ -595,8 +623,9 @@ class Dataset:
 		try:
 			patient_index = header.index(TCGA.patient)
 		except:
-			log.error(f"Patient header {TCGA.patient} not found in annotations file.")
-			sys.exit()
+			err_msg = f"Patient header {TCGA.patient} not found in annotations file."
+			log.error(err_msg)
+			raise DatasetError(f"Patient header {TCGA.patient} not found in annotations file.")
 		patients = []
 		patient_slide_dict = {}
 		with open(annotations_file) as csv_file:

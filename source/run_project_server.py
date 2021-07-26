@@ -24,8 +24,7 @@ if __name__=='__main__':
 		print("Set environmental variable 'HDF5_USE_FILE_LOCKING'='FALSE'")
 	
 	if not args.queue or not os.path.exists(args.queue):
-		print("You must specify a valid queue directory using the -q flag.")
-		sys.exit()
+		raise argparse.ArgumentError("You must specify a valid queue directory using the -q flag.")
 
 	finished_dir = os.path.join(args.queue, "finished")
 	in_process_dir = os.path.join(args.queue, "in_process")
