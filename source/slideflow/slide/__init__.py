@@ -165,7 +165,10 @@ class ExtractionReport:
 					temp.write(image_row)
 					x = pdf.get_x()
 					y = pdf.get_y()
-					pdf.image(temp.name, x, y, w=19*len(report.images), h=19, type='jpg')
+					try:
+						pdf.image(temp.name, x, y, w=19*len(report.images), h=19, type='jpg')
+					except RuntimeError as e:
+						log.error(f"Error writing image to PDF: {e}")
 			pdf.ln(20)
 			
 		self.pdf = pdf
