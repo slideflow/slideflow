@@ -186,7 +186,7 @@ class Dataset:
 			combined_manifest.update(global_manifest)
 		
 		# Now filter out any tfrecords that would be excluded by filters
-		filtered_tfrecords = self.get_tfrecords()
+		filtered_tfrecords = self.get_tfrecords() if key =='path' else [sfutil.path_to_name(tfr) for tfr in self.get_tfrecords()]
 		manifest_tfrecords = list(combined_manifest.keys())
 		for tfr in manifest_tfrecords:
 			if tfr not in filtered_tfrecords:

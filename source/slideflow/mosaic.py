@@ -81,7 +81,7 @@ class Mosaic:
 		# First, load UMAP coordinates	
 		log.empty("Loading coordinates and plotting points...", 1)
 		self.points = []
-		self.GRID = []
+		
 		for i in range(len(umap.x)):
 			slide = umap.point_meta[i]['slide']
 			self.points.append({'coord':np.array((umap.x[i], umap.y[i])),
@@ -108,6 +108,7 @@ class Mosaic:
 		max_distance = math.sqrt(2*((tile_size/2)**2)) * max_distance_factor
 
 		# Initialize grid
+		self.GRID = []
 		for j in range(self.num_tiles_y):
 			for i in range(self.num_tiles_x):
 				x = ((tile_size/2) + min_x) + (tile_size * i)

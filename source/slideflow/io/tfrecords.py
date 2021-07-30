@@ -21,12 +21,24 @@ FEATURE_TYPES = (tf.int64, tf.string, tf.string)
 FEATURE_DESCRIPTION =  {'slide':    tf.io.FixedLenFeature([], tf.string),
 						'image_raw':tf.io.FixedLenFeature([], tf.string)}
 
+FEATURE_DESCRIPTION_LOC = {'slide':    	tf.io.FixedLenFeature([], tf.string),
+						   'image_raw':	tf.io.FixedLenFeature([], tf.string),
+						   'loc_x':		tf.io.FixedLenFeature([], tf.int64),
+						   'loc_y':		tf.io.FixedLenFeature([], tf.int64)}
+
 FEATURE_DESCRIPTION_MULTI =  {'slide':    tf.io.FixedLenFeature([], tf.string),
 							  'input_1':  tf.io.FixedLenFeature([], tf.string),
 							  'input_2':  tf.io.FixedLenFeature([], tf.string)}
 
+class TFRecordsError(Exception):
+	pass
+
 def _parse_function(example_proto):
-	return tf.io.parse_single_example(example_proto, FEATURE_DESCRIPTION)
+	try:
+		features = tf.io.parse_single_example(example_proto, FEATURE_DESCRIPTION_LOC)
+	except tf.python.framework.errors_impl.InvalidArgumentError:
+		features = tf.io.parse_single_example(example_proto, FEATURE_DESCRIPTION)
+	return features
 
 def _float_feature(value):
 	"""Returns a bytes_list from a float / double."""
@@ -45,12 +57,8 @@ def _get_images_by_dir(directory):
 				(sfutil.path_to_ext(f) == "jpg")]
 	return files
 
-def _parse_tfrecord_function(record):
-	features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
-	return features
-
 def _read_and_return_features(record):
-	features = _parse_tfrecord_function(record)
+	features = _parse_function(record)
 	slide = features['slide'].numpy()
 	image_raw = features['image_raw'].numpy()
 	return slide, image_raw
@@ -65,9 +73,26 @@ def _read_and_return_record(record, assign_slide=None):
 def _print_record(filename):
 	v_dataset = tf.data.TFRecordDataset(filename)
 	for i, record in enumerate(v_dataset):
-		features = _parse_tfrecord_function(record)
+		features = _parse_function(record)
 		slide = str(features['slide'].numpy())
-		print(f"{sfutil.header(filename)}: Record {i}: Slide: {sfutil.green(slide)}")
+		if 'loc_x' in features:
+			location = (features['loc_x'].numpy(), features['loc_y'].numpy())
+			print(f"{sfutil.header(filename)}: Record {i}: Slide: {sfutil.green(slide)} Loc: {location}")
+		else:
+			print(f"{sfutil.header(filename)}: Record {i}: Slide: {sfutil.green(slide)}")
+
+def get_locations_from_tfrecord(filename):
+	dataset = tf.data.TFRecordDataset(filename)
+	loc_dict = {}
+	for i, record in enumerate(dataset):
+		features = _parse_function(record)
+		if 'loc_x' not in features:
+			raise TFRecordsError("Location data not stored in this TFRecord file.")
+		else:
+			loc_dict.update({
+				i: (features['loc_x'].numpy(), features['loc_y'].numpy())
+			})
+	return loc_dict
 
 def example_to_image(record, size, include_slide=True, image_format='raw', normalizer=None):
 	'''TFRecord parsing function, to be used with TFRecordDataset.map(). 
@@ -82,7 +107,7 @@ def example_to_image(record, size, include_slide=True, image_format='raw', norma
 		normalizer		Optional. Normalizer to use on images (e.g. 'macenko', 'reinhard', or 'vahadane')
 	'''
 
-	features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
+	features = _parse_function(record)
 	slide = features['slide']
 	image_string = features['image_raw']
 	raw_image = tf.image.decode_jpeg(image_string, channels=3)
@@ -109,6 +134,17 @@ def image_example(slide, image_string):
 		'image_raw':_bytes_feature(image_string),
 	}
 	return tf.train.Example(features=tf.train.Features(feature=feature))
+
+def image_and_loc_example(slide, image_string, loc_x, loc_y):
+	'''Returns a Tensorflow Data example for TFRecord storage.'''
+	feature = {
+		'slide':     _bytes_feature(slide),
+		'image_raw':_bytes_feature(image_string),
+		'loc_x': _int64_feature(loc_x),
+		'loc_y': _int64_feature(loc_y)
+	}
+	return tf.train.Example(features=tf.train.Features(feature=feature))
+
 
 def multi_image_example(slide, image_dict):
 	'''Returns a Tensorflow Data example for TFRecord storage with multiple images.'''
@@ -177,7 +213,7 @@ def split_tfrecord(tfrecord_file, output_folder):
 	dataset = tf.data.TFRecordDataset(tfrecord_file)
 	writers = {}
 	for record in dataset:
-		features = _parse_tfrecord_function(record)
+		features = _parse_function(record)
 		slide = features['slide'].numpy()
 		image_raw = features['image_raw'].numpy()
 		shortname = sfutil._shortname(slide.decode('utf-8'))
@@ -195,7 +231,7 @@ def split_tfrecord(tfrecord_file, output_folder):
 		writers[slide].close()
 
 def print_tfrecord(target):
-	'''Prints the slide names for records in the given tfrecord file'''
+	'''Prints the slide names (and locations, if present) for records in the given tfrecord file'''
 	if isfile(target):
 		_print_record(target)
 	else:
@@ -291,10 +327,13 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True, preserve
 		# Get unique outcomes
 		unique_labels = list(set(patient_outcome_labels))
 		if preserved_site:
-			import pandas as pd 
+			import pandas as pd
 			import slideflow.io.preservedsite.crossfolds as cv
+			
 			site_list = [p[5:7] for p in patients_dict]
 			df = pd.DataFrame(list(zip(patient_list, patient_outcome_labels, site_list)), columns = ['patient', 'outcome_label', 'site'])
+			print(df)
+			sys.exit()
 			df = cv.generate(df, 'outcome_label', unique_labels, crossfolds = n, target_column = 'CV', patient_column = 'patient', site_column = 'site')
 
 			log.empty(sfutil.bold("Generating Split with Preserved Site Cross Validation"))
@@ -356,12 +395,13 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 		try:
 			detected_subdirs = [sd for sd in os.listdir(folder) if isdir(join(folder, sd))]
 		except:
-			log.error(f"Unable to find TFRecord location {sfutil.green(folder)}")
-			sys.exit()
+			err_msg = f"Unable to find TFRecord location {sfutil.green(folder)}"
+			log.error(err_msg)
+			raise TFRecordsError(err_msg)
 		subdirs = detected_subdirs if not subdirs else subdirs
 		if detected_subdirs != subdirs:
-			log.error(f"Unable to combine TFRecords from datasets; TFRecord subdirectory structures do not match.")
-			sys.exit()
+			log.error("Unable to combine TFRecords from datasets; TFRecord subdirectory structures do not match.")
+			raise TFRecordsError("Unable to combine TFRecords from datasets; TFRecord subdirectory structures do not match.")
 
 	if k_fold_iter: 
 		k_fold_index = int(k_fold_iter)-1
@@ -379,8 +419,9 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 		if validation_strategy in ('bootstrap', 'fixed'):
 			# Load tfrecords from 'validation' and 'training' subdirectories
 			if ('validation' not in subdirs) or ('training' not in subdirs):
-				log.error(f"{sfutil.bold(validation_strategy)} selected as validation strategy but tfrecords are not organized as such (unable to find 'training' or 'validation' subdirectories)")
-				sys.exit()
+				err_msg = f"{sfutil.bold(validation_strategy)} selected as validation strategy but tfrecords are not organized as such (unable to find 'training' or 'validation' subdirectories)"
+				log.error(err_msg)
+				raise TFRecordsError(err_msg)
 			training_tfrecords += dataset.get_tfrecords_by_subfolder("training")
 			validation_tfrecords += dataset.get_tfrecords_by_subfolder("validation")
 		elif validation_strategy == 'k-fold':
@@ -388,8 +429,9 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 				log.warn("No k-fold iteration specified; assuming iteration #1", 1)
 				k_fold_iter = 1
 			if k_fold_iter > k_fold:
-				log.error(f"K-fold iteration supplied ({k_fold_iter}) exceeds the project K-fold setting ({k_fold})", 1)
-				sys.exit()
+				err_msg = f"K-fold iteration supplied ({k_fold_iter}) exceeds the project K-fold setting ({k_fold})"
+				log.error(err_msg, 1)
+				raise TFRecordsError(err_msg)
 			for k in range(k_fold):
 				if k == k_fold_index:
 					validation_tfrecords += dataset.get_tfrecords_by_subfolder(f'kfold-{k}')
@@ -397,8 +439,9 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 					training_tfrecords += dataset.get_tfrecords_by_subfolder(f'kfold-{k}')
 		elif validation_strategy == 'none':
 			if len(subdirs):
-				log.error(f"Validation strategy set as 'none' but the TFRecord directory has been configured for validation (contains subfolders {', '.join(subdirs)})", 1)
-				sys.exit()
+				err_msg = f"Validation strategy set as 'none' but the TFRecord directory has been configured for validation (contains subfolders {', '.join(subdirs)})"
+				log.error(err_msg, 1)
+				raise TFRecordsError(err_msg)
 		# Remove tfrecords not specified in slide_list
 		training_tfrecords = [tfr for tfr in training_tfrecords if tfr.split('/')[-1][:-10] in slide_list]
 		validation_tfrecords = [tfr for tfr in validation_tfrecords if tfr.split('/')[-1][:-10] in slide_list]
@@ -425,8 +468,10 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 					'slides': [slide]
 				}
 			elif patients_dict[patient]['outcome_label'] != slide_labels_dict[slide][outcome_key]:
-				log.error(f"Multiple outcome labels found for patient {patient} ({patients_dict[patient]['outcome_label']}, {slide_labels_dict[slide][outcome_key]})", 1)
-				sys.exit()
+				err_msg = f"Multiple outcome labels found for patient {patient} ({patients_dict[patient]['outcome_label']}, {slide_labels_dict[slide][outcome_key]})"
+				log.error(err_msg, 1)
+				raise TFRecordsError(err_msg)
+				
 			else:
 				patients_dict[patient]['slides'] += [slide]
 		if num_warned >= warn_threshold:
@@ -438,8 +483,9 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 
 		# Create and log a validation subset
 		if len(subdirs):
-			log.error(f"Validation target set to 'per-patient', but the TFRecord directory has validation configured per-tile (contains subfolders {', '.join(subdirs)}", 1)
-			sys.exit()
+			err_msg = f"Validation target set to 'per-patient', but the TFRecord directory has validation configured per-tile (contains subfolders {', '.join(subdirs)}"
+			log.error(err_msg, 1)
+			raise TFRecordsError(err_msg)
 		if validation_strategy == 'none':
 			log.info(f"Validation strategy set to 'none'; selecting no tfrecords for validation.", 1)
 			training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in patients_dict.keys()]).tolist()
@@ -450,8 +496,9 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 			validation_patients = patients[0:num_val]
 			training_patients = patients[num_val:]
 			if not len(validation_patients) or not len(training_patients):
-				log.error("Insufficient number of patients to generate validation dataset.", 1)
-				sys.exit()
+				err_msg = "Insufficient number of patients to generate validation dataset."
+				log.error(err_msg, 1)
+				raise TFRecordsError(err_msg)
 			validation_slides = np.concatenate([patients_dict[patient]['slides'] for patient in validation_patients]).tolist()
 			training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in training_patients]).tolist()
 		else:
@@ -486,8 +533,9 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 					validation_patients = patients[0:num_val]
 					training_patients = patients[num_val:]
 					if not len(validation_patients) or not len(training_patients):
-						log.error("Insufficient number of patients to generate validation dataset.", 1)
-						sys.exit()
+						err_msg = "Insufficient number of patients to generate validation dataset."
+						log.error(err_msg, 1)
+						raise TFRecordsError(err_msg)
 					validation_slides = np.concatenate([patients_dict[patient]['slides'] for patient in validation_patients]).tolist()
 					training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in training_patients]).tolist()
 					new_plan['tfrecords']['validation'] = validation_slides
@@ -496,8 +544,9 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 					k_fold_patients = split_patients_list(patients_dict, k_fold, balance=('outcome_label' if model_type == 'categorical' else None), randomize=True, preserved_site = validation_strategy == 'k-fold-preserved-site')
 					# Verify at least one patient is in each k_fold group
 					if not min([len(patients) for patients in k_fold_patients]):
-						log.error("Insufficient number of patients to generate validation dataset.", 1)
-						sys.exit()
+						err_msg = "Insufficient number of patients to generate validation dataset."
+						log.error(err_msg, 1)
+						raise TFRecordsError(err_msg)
 					training_patients = []
 					for k in range(k_fold):
 						new_plan['tfrecords'][f'k-fold-{k+1}'] = np.concatenate([patients_dict[patient]['slides'] for patient in k_fold_patients[k]]).tolist()
@@ -508,8 +557,9 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 					validation_slides = np.concatenate([patients_dict[patient]['slides'] for patient in validation_patients]).tolist()
 					training_slides = np.concatenate([patients_dict[patient]['slides'] for patient in training_patients]).tolist()
 				else:
-					log.error(f"Unknown validation strategy {validation_strategy} requested.")
-					sys.exit()
+					err_msg = f"Unknown validation strategy {validation_strategy} requested."
+					log.error(err_msg)
+					raise TFRecordsError(err_msg)
 				# Write the new plan to log
 				validation_plans += [new_plan]
 				if not read_only:
@@ -523,26 +573,29 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 					validation_slides = accepted_plan['tfrecords'][f'k-fold-{k_fold_iter}']
 					training_slides = np.concatenate([accepted_plan['tfrecords'][f'k-fold-{ki+1}'] for ki in range(k_fold) if ki != k_fold_index]).tolist()
 				else:
-					log.error(f"Unknown validation strategy {validation_strategy} requested.")
-					sys.exit()
+					err_msg = f"Unknown validation strategy {validation_strategy} requested."
+					log.error(err_msg)
+					raise TFRecordsError(err_msg)
 
 		# Perform final integrity check to ensure no patients are in both training and validation slides
 		validation_pt = list(set([slide_labels_dict[slide][sfutil.TCGA.patient] for slide in validation_slides]))
 		training_pt = list(set([slide_labels_dict[slide][sfutil.TCGA.patient] for slide in training_slides]))
 		if sum([pt in training_pt for pt in validation_pt]):
-			log.error(f"At least one patient is in both validation and training sets.")
-			sys.exit()
+			err_msg = "At least one patient is in both validation and training sets."
+			log.error(err_msg)
+			raise TFRecordsError(err_msg)
 
 		# Return list of tfrecords
 		validation_tfrecords = [tfr for tfr in tfrecord_dir_list if sfutil.path_to_name(tfr) in validation_slides]
 		training_tfrecords = [tfr for tfr in tfrecord_dir_list if sfutil.path_to_name(tfr) in training_slides]
 	else:
-		log.error(f"Invalid validation strategy '{validation_target}' detected; must be either 'per-tile' or 'per-patient'.", 1)
-		sys.exit()
+		err_msg = f"Invalid validation strategy '{validation_target}' detected; must be either 'per-tile' or 'per-patient'."
+		log.error(err_msg, 1)
+		raise TFRecordsError(err_msg)
 	log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation", 1)
 	return training_tfrecords, validation_tfrecords
 
-def update_tfrecord_dir(directory, old_feature_description=FEATURE_DESCRIPTION, slide='slide', image_raw='image_raw'):
+def update_tfrecord_dir(directory, old_feature_description=FEATURE_DESCRIPTION_LOC, slide='slide', image_raw='image_raw'):
 	'''Updates tfrecords in a directory from an old format to a new format.'''
 	if not exists(directory):
 		log.error(f"Directory {directory} does not exist; unable to update tfrecords.")
@@ -552,7 +605,7 @@ def update_tfrecord_dir(directory, old_feature_description=FEATURE_DESCRIPTION, 
 			update_tfrecord(tfr, old_feature_description, slide, image_raw)
 		return len(tfrecord_files)
 
-def update_tfrecord(tfrecord_file, old_feature_description=FEATURE_DESCRIPTION, slide='slide', image_raw='image_raw'):
+def update_tfrecord(tfrecord_file, old_feature_description=FEATURE_DESCRIPTION_LOC, slide='slide', image_raw='image_raw'):
 	'''Updates a single tfrecord from an old format to a new format.'''
 	shutil.move(tfrecord_file, tfrecord_file+".old")
 	dataset = tf.data.TFRecordDataset(tfrecord_file+".old")
@@ -595,7 +648,7 @@ def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None, resize
 			return image_string
 
 	for record in dataset:
-		features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
+		features = _parse_function(record)
 		slidename = features['slide'].numpy() if not assign_slide else bytes(assign_slide, 'utf-8')
 		image_raw_data = features['image_raw'].numpy()
 		image_processed_data = process_image(image_raw_data)
@@ -639,7 +692,7 @@ def get_tfrecord_by_index(tfrecord, index, decode=True):
 			raise IndexError(f"index must be an integer, not {type(index)} (provided {index}).")
 
 	def _decode(record):
-		features = _parse_tfrecord_function(record)
+		features = _parse_function(record)
 		slide = features['slide']
 		image_string = features['image_raw']
 		if not decode:
@@ -674,7 +727,7 @@ def get_tfrecords_from_model_manifest(manifest, dataset='validation'):
 				slides += [slide_name]
 	return slides
 
-def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION, feature_label='image_raw'):
+def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION_LOC, feature_label='image_raw'):
 	'''Reads and saves images from a TFRecord to a destination folder.'''
 	if not exists(destination):
 		os.makedirs(destination)

@@ -59,7 +59,7 @@ class TFRecordMap:
 				return
 
 	@classmethod
-	def from_precalculated(cls, slides, x, y, meta, tfrecords=None, cache=None):
+	def from_precalculated(cls, slides, x, y, meta, values=None, tfrecords=None, cache=None):
 		''' Initializes map from precalculated coordinates.
 
 		Args:
@@ -67,14 +67,18 @@ class TFRecordMap:
 			x:			X coordinates for tfrecords
 			y:			Y coordinates for tfrecords
 			meta:		List of dicts. Metadata for each point on the map (representing a single tfrecord). 
+			values:		Values used to overlay colors during plotting.
 			tfrecords:	(optional) List of paths to tfrecords. Not required, used to store for use by other objects. *** TODO: REMOVE ***
 			cache:		(optional) String, path name. If provided, will cache umap coordinates to this PKL file. '''
 
 		obj = cls(slides, tfrecords)
-		obj.x = x
-		obj.y = y
-		obj.point_meta = meta
+		obj.x = np.array(x) if type(x) == list else x
+		obj.y = np.array(y) if type(y) == list else y
+		obj.point_meta = np.array(meta) if type(meta) == list else meta
 		obj.cache = cache
+		obj.values = np.array(values) if type(values) == list else values
+		if obj.values == []:
+			obj.values = np.array(['None' for i in range(len(obj.point_meta))])
 		obj.save_cache()
 		return obj
 
@@ -89,6 +93,7 @@ class TFRecordMap:
 			prediction_filter:	(optional) List. Will restrict predictions to only these provided categories.
 			force_recalculate:	(optional) Will force recalculation of umap despite presence of cache.
 			use_centroid:		(optional) Will calculate and map centroid activations.
+			map_slide:			Either None (default), 'centroid', or 'average'. If none, will map all tiles from each slide.
 			cache:				(optional) String, path name. If provided, will cache umap coordinates to this file. '''
 
 		if map_slide is not None and map_slide not in ('centroid', 'average'):
@@ -174,18 +179,22 @@ class TFRecordMap:
 			for i in range(num_vals):
 				node_activations += [[self.AV.slide_node_dict[slide][n][i] for n in self.AV.nodes]]
 				logits = [self.AV.slide_logits_dict[slide][l][i] for l in range(num_logits)]
+				location = self.AV.slide_loc_dict[slide][i]
 				# if prediction_filter is supplied, calculate prediction based on maximum value of allowed outcomes
 				if prediction_filter:
 					filtered_logits = [logits[l] for l in prediction_filter]
 					prediction = logits.index(max(filtered_logits))
-				else:
+				elif logits:
 					prediction = logits.index(max(logits))
+				else:
+					prediction = None
 
 				self.point_meta += [{
 					'slide': slide,
 					'index': i,
 					'prediction': prediction,
-					'logits': logits
+					'logits': logits,
+					'loc': location
 				}]
 
 		coordinates = gen_umap(np.array(node_activations), 
@@ -406,7 +415,8 @@ class TFRecordMap:
 			self.values = np.array([m[tile_meta] for m in self.point_meta])
 
 	def save_2d_plot(self, filename, subsample=None, title=None, cmap=None, 
-					 use_float=False, xlim=(-0.05, 1.05), ylim=(-0.05, 1.05), dpi=300):
+					 use_float=False, xlim=(-0.05, 1.05), ylim=(-0.05, 1.05), 
+					 dpi=300, xlabel=None, ylabel=None, legend=None):
 		'''Saves plot of data to a provided filename.
 
 		Args:
@@ -456,7 +466,8 @@ class TFRecordMap:
 		umap_2d = sns.scatterplot(x=x, y=y, data=df, hue='category', s=30, palette=cmap if cmap else palette)
 		plt.gca().set_ylim(*((None, None) if not ylim else ylim))
 		plt.gca().set_xlim(*((None, None) if not xlim else xlim))
-		umap_2d.legend(loc='center left', bbox_to_anchor=(1.25, 0.5), ncol=1)
+		umap_2d.legend(loc='center left', bbox_to_anchor=(1.25, 0.5), ncol=1, title=legend)
+		umap_2d.set(xlabel=xlabel, ylabel=ylabel)
 		umap_figure = umap_2d.get_figure()
 		umap_figure.set_size_inches(6, 4.5)
 		if title: umap_figure.axes[0].set_title(title)
@@ -605,8 +616,8 @@ def gen_umap(array, n_components=2, n_neighbors=20, min_dist=0.01, metric='cosin
 						   metric=metric,
 						   low_memory=low_memory).fit_transform(array)
 	except ValueError:
-		log.error("Error performing UMAP. Please make sure you are supplying a non-empty TFRecord array and that the TFRecords are not empty.")
-		sys.exit()
+		raise StatisticsError("Error performing UMAP. Please make sure you are supplying a non-empty TFRecord array and that the TFRecords are not empty.")
+		
 	return normalize_layout(layout)
 
 def generate_histogram(y_true, y_pred, data_dir, name='histogram'):

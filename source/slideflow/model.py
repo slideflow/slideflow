@@ -45,7 +45,7 @@ class ModelActivationsInterface:
 		from saved Slideflow Keras models. Provides support for newer models (v1.9.1+) 
 		and legacy slideflow models (1.9.0b and earlier)'''
 
-	def __init__(self, path, model_format=None):
+	def __init__(self, path, model_format=None, layers=['postconv']):
 		'''Initializer.
 		
 		Args:
@@ -54,20 +54,76 @@ class ModelActivationsInterface:
 								Indicates how the saved model should be processed,
 								as older versions of Slideflow had models constructed differently, 
 								with differing naming of Keras layers.
+			layers:			Layers from which to generate activations. The post-convolution activation layer is accessed via 'postconv'
 		'''
 		if not model_format: model_format = MODEL_FORMAT_CURRENT
 		self.model_format = model_format
-
 		self.path = path
-		_model = tf.keras.models.load_model(path)
+		self.duplicate_input = (model_format == MODEL_FORMAT_LEGACY)
+		self._model = tf.keras.models.load_model(self.path)
+		self._build(layer_names=[l for l in layers if l != 'postconv'], 
+					include_postconv=('postconv' in layers))
 
-		# CONSIDER IMPLEMENTING THIS MORE EFFICIENT VERSION: ===========
-		#inputs = xception.input
-		#outputs = [xception.get_layer(name=layer_name).output for layer_name in activation_layer_names]
-		#self.functor = tf.keras.backend.function(inputs, outputs)
-		# ===============================================================
+	def _build(self, layer_names=['block4_pool', 'block13_pool'], include_postconv=True):
+		'''Builds a model that outputs feature activations at the designated layers and concatenates into a single final output vector.'''
+
+		if layer_names in [None, []]:
+			log.info(f"Setting up activations interface to return activations from post-conv activations", 1)
+		else:
+			log.info(f"Setting up activations interface to return activations from layers {', '.join(layer_names)} {'and post-conv activations' if include_postconv else ''}", 1)
 		
-		if model_format == MODEL_FORMAT_1_9:
+		assert (layer_names is not None) or include_postconv
+
+		if self.model_format == MODEL_FORMAT_1_9:
+			model_core = self._model.layers[1]
+		if self.model_format == MODEL_FORMAT_LEGACY:
+			model_core = self._model.layers[0]
+
+		inputs = model_core.input
+		self.duplicate_input = True
+		if layer_names:
+			try:
+				raw_output_layers = [model_core.get_layer(l).output for l in layer_names]
+			except AttributeError:
+				if self.model_format != MODEL_FORMAT_LEGACY:
+					log.warn("Unable to read model using modern format, will try using legacy format", 1)
+					self.model_format = MODEL_FORMAT_LEGACY
+					self._build(layer_names, include_postconv)
+					return
+				else:
+					raise ModelError("Unable to read model.")
+
+			activation_layers = [tf.keras.layers.GlobalAveragePooling2D(name=f'act_pooling_{idx}')(al) for idx, al in enumerate(raw_output_layers)]
+		else:
+			activation_layers = []
+
+		if include_postconv: 
+			activation_layers += [model_core.output]
+
+		merged_output = activation_layers[0] if len(activation_layers) == 1 else tf.keras.layers.Concatenate(axis=1)(activation_layers)
+		
+		try:
+			self.model = tf.keras.models.Model(inputs=[self._model.input, model_core.input],
+											outputs=[merged_output, self._model.output])
+		except AttributeError:
+			if self.model_format != MODEL_FORMAT_LEGACY:
+				log.warn("Unable to read model using modern format, will try using legacy format", 1)
+				self.model_format = MODEL_FORMAT_LEGACY
+				self._build(layer_names, include_postconv)
+				return
+			else:
+				raise ModelError("Unable to read model.")
+
+		log.info(f"Number of activation features: {self.model.output_shape[0][1]}", 2)
+		log.info(f"Number of logits: {self.model.output_shape[1][1]}", 2)
+		
+	'''def _build_logits_and_postconv_model(self):
+		#Builds a model that returns both logits and post-convolution activations.
+
+		log.info(f"Activations interface will return logits and post-convolution activations.", 1)
+
+		_model = tf.keras.models.load_model(self.path)
+		if self.model_format == MODEL_FORMAT_1_9:
 			try:
 				loaded_model = tf.keras.models.Model(inputs=[_model.input],
 													 outputs=[_model.get_layer(name="post_convolution").output, 
@@ -77,9 +133,9 @@ class ModelActivationsInterface:
 				self.model = tf.keras.Model(model_input, model_output)
 			except ValueError:
 				log.warn("Unable to read model using modern format, will try legacy model format", 1)
-				model_format = MODEL_FORMAT_LEGACY
+				self.model_format = MODEL_FORMAT_LEGACY
 
-		if model_format == MODEL_FORMAT_LEGACY:
+		if self.model_format == MODEL_FORMAT_LEGACY:
 			loaded_model = tf.keras.models.Model(inputs= [_model.input, 
 														  _model.layers[0].layers[0].input],
 												 outputs=[_model.layers[0].layers[-1].output, 
@@ -88,17 +144,17 @@ class ModelActivationsInterface:
 			model_output = loaded_model([model_input, model_input])
 			self.model = tf.keras.Model(model_input, model_output)
 
-		self.NUM_CLASSES = _model.layers[-1].output_shape[-1]
+		self.NUM_CLASSES = _model.layers[-1].output_shape[-1]'''
 
 	def predict(self, image_batch):
 		'''Given a batch of images, will return a batch of post-convolutional activations and a batch of logits.'''
 		# ======================
 		#return self.functor(image_batch)
 		# ======================
-		if self.model_format == MODEL_FORMAT_1_9:
-			return self.model.predict(image_batch)
-		elif self.model_format == MODEL_FORMAT_LEGACY:
+		if self.duplicate_input:
 			return self.model.predict([image_batch, image_batch])
+		else:
+			return self.model.predict(image_batch)
 
 class HyperParameters:
 	'''Object to supervise construction of a set of hyperparameters for Slideflow models.'''
@@ -160,10 +216,11 @@ class HyperParameters:
 
 	def __init__(self, tile_px=299, tile_um=302, finetune_epochs=10, toplayer_epochs=0, 
 				 model='Xception', pooling='max', loss='sparse_categorical_crossentropy',
-				 learning_rate=0.0001, batch_size=16, hidden_layers=1, hidden_layer_width=500, 
-				 optimizer='Adam', early_stop=False, early_stop_patience=0, early_stop_method='loss', 
+				 learning_rate=0.0001, learning_rate_decay=0, learning_rate_decay_steps=100000,
+				 batch_size=16, hidden_layers=1, hidden_layer_width=500, optimizer='Adam',
+				 early_stop=False, early_stop_patience=0, early_stop_method='loss', 
 				 balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE, 
-				 trainable_layers=0, L2_weight=0, augment=True, drop_images=False):
+				 trainable_layers=0, L2_weight=0, dropout=0, augment=True, drop_images=False):
 
 		# Additional hyperparameters to consider:
 		# beta1 0.9
@@ -180,6 +237,8 @@ class HyperParameters:
 		assert pooling in ['max', 'avg', 'none']
 		assert loss in self._AllLoss
 		assert isinstance(learning_rate, float)
+		assert isinstance(learning_rate_decay, (int, float))
+		assert isinstance(learning_rate_decay_steps, (int))
 		assert isinstance(batch_size, int)
 		assert isinstance(hidden_layers, int)
 		assert optimizer in self._OptDict.keys()
@@ -190,8 +249,13 @@ class HyperParameters:
 		assert isinstance(hidden_layer_width, int)
 		assert isinstance(trainable_layers, int)
 		assert isinstance(L2_weight, (int, float))
+		assert isinstance(dropout, (int, float))
 		assert isinstance(augment, bool)
 		assert isinstance(drop_images, bool)
+
+		assert 0 <= learning_rate_decay <= 1
+		assert 0 <= L2_weight <= 1
+		assert 0 <= dropout <= 1
 		
 		self.tile_px = tile_px
 		self.tile_um = tile_um
@@ -201,6 +265,8 @@ class HyperParameters:
 		self.pooling = pooling if pooling != 'none' else None
 		self.loss = loss
 		self.learning_rate = learning_rate
+		self.learning_rate_decay = learning_rate_decay
+		self.learning_rate_decay_steps = learning_rate_decay_steps
 		self.batch_size = batch_size
 		self.optimizer = optimizer
 		self.early_stop = early_stop
@@ -213,6 +279,7 @@ class HyperParameters:
 		self.hidden_layer_width = hidden_layer_width
 		self.trainable_layers = trainable_layers
 		self.L2_weight = float(L2_weight)
+		self.dropout = dropout
 		self.drop_images = drop_images
 
 		# Perform check to ensure combination of HPs are valid
@@ -252,7 +319,17 @@ class HyperParameters:
 
 	def get_opt(self):
 		'''Returns optimizer with appropriate learning rate.'''
-		return self._OptDict[self.optimizer](lr=self.learning_rate)
+		if self.learning_rate_decay not in (0, 1):
+			initial_learning_rate = self.learning_rate
+			lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+				initial_learning_rate,
+				decay_steps=self.learning_rate_decay_steps,
+				decay_rate=self.learning_rate_decay,
+				staircase=True
+			)
+			return self._OptDict[self.optimizer](learning_rate=lr_schedule)
+		else:
+			return self._OptDict[self.optimizer](lr=self.learning_rate)
 
 	def get_model(self, image_shape=None, input_tensor=None, weights=None):
 		'''Returns a Keras model of the appropriate architecture, input shape, pooling, and initial weights.'''
@@ -340,9 +417,12 @@ class SlideflowModel:
 				log.error("Unable to use multiple outcome labels with categorical model type.")
 				raise ModelError("Unable to use multiple outcome labels with categorical model type.")
 			with tf.device('/cpu'):
-				self.ANNOTATIONS_TABLES = [tf.lookup.StaticHashTable(
-					tf.lookup.KeyValueTensorInitializer(self.SLIDES, outcome_labels), -1
-				)]
+				if slide_annotations:
+					self.ANNOTATIONS_TABLES = [tf.lookup.StaticHashTable(
+						tf.lookup.KeyValueTensorInitializer(self.SLIDES, outcome_labels), -1
+					)]
+				else:
+					self.ANNOTATIONS_TABLES = []
 		elif model_type in ['linear', 'cph']:
 			try:
 				self.NUM_CLASSES = len(outcome_labels[0])
@@ -529,14 +609,19 @@ class SlideflowModel:
 			activation = 'linear'
 		else:
 			activation = 'softmax'
+		log.info(f"Using {activation} activation", 1)
+
+		if hp.dropout:
+			merged_model = tf.keras.layers.Dropout(hp.dropout)(merged_model) #TODO: Change this later -> if no hidden layers are used with a merged model, this may drop out input
+
 		final_dense_layer = tf.keras.layers.Dense(self.NUM_CLASSES, kernel_regularizer=regularizer, name="prelogits")(merged_model)
-		softmax_output = tf.keras.layers.Activation(activation, dtype='float32', name='logits')(final_dense_layer)
+		output = tf.keras.layers.Activation(activation, dtype='float32', name='output')(final_dense_layer)
 
 		if self.MODEL_TYPE == 'cph':
-			softmax_output = tf.keras.layers.Concatenate(name="output_merge_CPH")([softmax_output, event_input_tensor])
+			output = tf.keras.layers.Concatenate(name="output_merge_CPH", dtype='float32')([output, event_input_tensor])
 
 		# Assemble final model
-		model = tf.keras.Model(inputs=model_inputs, outputs=softmax_output)
+		model = tf.keras.Model(inputs=model_inputs, outputs=output)
 
 		if checkpoint:
 			log.info(f"Loading checkpoint weights from {sfutil.green(checkpoint)}", 1)
@@ -734,7 +819,10 @@ class SlideflowModel:
 	def _parse_tfrecord_function(self, record, include_slidenames=True, multi_image=False):
 		'''Parses raw entry read from TFRecord.'''
 
-		feature_description = tfrecords.FEATURE_DESCRIPTION if not multi_image else tfrecords.FEATURE_DESCRIPTION_MULTI
+		try:
+			feature_description = tfrecords.FEATURE_DESCRIPTION_LOC if not multi_image else tfrecords.FEATURE_DESCRIPTION_MULTI
+		except tf.errors.InvalidArgumentError:
+			features = tf.io.parse_single_example(record, tfrecords.FEATURE_DESCRIPTION)
 		features = tf.io.parse_single_example(record, feature_description)
 		slide = features['slide']
 		if self.MODEL_TYPE in ['linear', 'cph']:
@@ -855,8 +943,7 @@ class SlideflowModel:
 
 		# Load and initialize model
 		if not hp and checkpoint:
-			log.error("If using a checkpoint for evaluation, hyperparameters must be specified.")
-			sys.exit()
+			raise ModelError("If using a checkpoint for evaluation, hyperparameters must be specified.")
 		if not batch_size: batch_size = hp.batch_size
 		dataset, dataset_with_slidenames, num_tiles = self._build_dataset_inputs(tfrecords,
 																				 batch_size,
@@ -1185,6 +1272,8 @@ class SlideflowModel:
 			# Fine-tune the model
 			log.info("Beginning fine-tuning", 1)
 			self._compile_model(hp)
+
+			#tf.debugging.enable_check_numerics()
 
 			history = self.model.fit(train_data,
 								 steps_per_epoch=steps_per_epoch,

@@ -1,5 +1,5 @@
 import os
-import sys
+import types
 import shutil
 import logging
 import atexit
@@ -25,6 +25,9 @@ from slideflow.util import TCGA, ProgressBar, log, StainNormalizer
 from slideflow.statistics import TFRecordMap, calculate_centroid
 from slideflow.mosaic import Mosaic
 
+#TODO: unify slideflow model loading, even straight from directory, into a SlideflowModel file, which
+# 		will auto-handle finding the hyperparameters.json file, etc
+
 __version__ = "1.11.0-dev2"
 
 NO_LABEL = 'no_label'
@@ -47,6 +50,60 @@ DEFAULT_FLAGS = {
 		'silent': False
 	}
 }
+
+def _activations_generator(project_config, model, outcome_label_headers=None, layers=None, filters=None, filter_blank=None, 
+								focus_nodes=[], node_exclusion=False, activations_export=None,
+								activations_cache='default', normalizer=None, normalizer_source=None, 
+								max_tiles_per_slide=100, min_tiles_per_slide=None, model_format=None, 
+								batch_size=None, torch_export=None, results_dict=None):
+		from slideflow.activations import ActivationsVisualizer
+
+		log.header("Generating layer activations...")
+
+		# Setup directories
+		stats_root = join(project_config['root'], 'stats')
+		if not exists(stats_root): os.makedirs(stats_root)
+
+		# Load dataset for evaluation
+		hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
+		activations_dataset = Dataset(config_file=project_config['dataset_config'],
+										sources=project_config['datasets'],
+										tile_px=hp_data['hp']['tile_px'],
+										tile_um=hp_data['hp']['tile_um'],
+										annotations=project_config['annotations'],
+										filters=filters,
+										filter_blank=filter_blank)
+
+		tfrecords_list = activations_dataset.get_tfrecords(ask_to_merge_subdirs=True)
+
+		log.info(f"Visualizing activations from {len(tfrecords_list)} slides", 1)
+
+		AV = ActivationsVisualizer(model=model,
+								   tfrecords=tfrecords_list,
+								   root_dir=project_config['root'],
+								   image_size=hp_data['hp']['tile_px'],
+								   annotations=project_config['annotations'],
+								   outcome_label_headers=outcome_label_headers,
+								   focus_nodes=focus_nodes,
+								   use_fp16=project_config['use_fp16'],
+								   normalizer=normalizer,
+								   normalizer_source=normalizer_source,
+								   activations_export=None if not activations_export else join(stats_root, activations_export),
+								   activations_cache=activations_cache,
+								   max_tiles_per_slide=max_tiles_per_slide,
+								   min_tiles_per_slide=min_tiles_per_slide,
+								   manifest=activations_dataset.get_manifest(),
+								   model_format=model_format,
+								   layers=layers,
+								   batch_size=(batch_size if batch_size else hp_data['hp']['batch_size']))
+
+		if torch_export:
+			AV.export_to_torch(torch_export)
+
+		if results_dict is not None:
+			results_dict.update({'num_features': AV.num_features})
+		
+		return AV
 
 def _evaluator(outcome_label_headers, model, project_config, results_dict, input_header=None, filters=None, 
 				hyperparameters=None, checkpoint=None, eval_k_fold=None, max_tiles_per_slide=0,
@@ -654,16 +711,18 @@ class SlideflowProject:
 			try:
 				model_name_i = header.index('model_name')
 			except:
-				log.error("Unable to find column 'model_name' in the batch training config file.", 0)
-				sys.exit() 
+				err_msg = "Unable to find column 'model_name' in the batch training config file."
+				log.error(err_msg)
+				raise ValueError(err_msg)
 			for row in reader:
 				model_name = row[model_name_i]
 				# First check if this row is a valid model
 				if (not models) or (isinstance(models, str) and model_name==models) or model_name in models:
 					# Now verify there are no duplicate model names
 					if model_name in models_to_train:
-						log.error(f"Duplicate model names found in {sfutil.green(batch_train_file)}.", 0)
-						sys.exit()
+						err_msg = f"Duplicate model names found in {sfutil.green(batch_train_file)}."
+						log.error(err_msg)
+						raise ValueError(err_msg)
 					models_to_train += [model_name]
 		return models_to_train
 
@@ -727,10 +786,10 @@ class SlideflowProject:
 			writer.writerow(firstrow)
 
 	def create_hyperparameter_sweep(self, tile_px, tile_um, finetune_epochs, toplayer_epochs, 
-									model, pooling, loss, learning_rate, batch_size,
-									hidden_layers, hidden_layer_width, optimizer, early_stop, 
+									model, pooling, loss, learning_rate, learning_rate_decay, learning_rate_decay_steps, 
+									batch_size, hidden_layers, hidden_layer_width, optimizer, early_stop, 
 									early_stop_patience, early_stop_method, balanced_training, balanced_validation, 
-									trainable_layers, L2_weight, augment, label=None, filename=None):
+									trainable_layers, L2_weight, dropout, augment, label=None, filename=None):
 		'''Prepares a hyperparameter sweep, saving to a batch train TSV file.'''
 		log.header("Preparing hyperparameter sweep...")
 		pdict = locals()
@@ -1020,7 +1079,10 @@ class SlideflowProject:
 				sample_tiles = []
 				for i, record in enumerate(dataset):
 					if i > 9: break
-					features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION)
+					try:
+						features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION_LOC)
+					except tf.python.framework.errors_impl.InvalidArgumentError:
+						features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION)
 					image_raw_data = features['image_raw'].numpy()
 
 					if normalizer:
@@ -1354,10 +1416,11 @@ class SlideflowProject:
 			# Update manifest
 			extracting_dataset.update_manifest()
 
-	def generate_activations(self, model, outcome_label_headers=None, filters=None, filter_blank=None, 
+	def generate_activations(self, model, outcome_label_headers=None, layers=['postconv'], filters=None, filter_blank=None, 
 								focus_nodes=[], node_exclusion=False, activations_export=None,
 								activations_cache='default', normalizer=None, normalizer_source=None, 
-								max_tiles_per_slide=100, model_format=None):
+								max_tiles_per_slide=100, min_tiles_per_slide=None, model_format=None, 
+								batch_size=None, torch_export=None, isolated_thread=False):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.
 		Note: GPU memory will remain in use, as the Keras model associated with the visualizer is active.
 		
@@ -1375,44 +1438,34 @@ class SlideflowProject:
 			model_format:		Optional. May supply format of saved Slideflow Keras model if the model was made with a legacy version.
 									Default value will be slideflow.model.MODEL_FORMAT_CURRENT,
 									but slideflow.model.MODEL_FORMAT_LEGACY may be supplied.
+			batch_size:			Batch size to use when calculating activations.
 		'''
-		from slideflow.activations import ActivationsVisualizer
 
-		log.header("Generating final layer activation analytics...")
-
-		# Setup directories
-		stats_root = join(self.PROJECT['root'], 'stats')
-		if not exists(stats_root): os.makedirs(stats_root)
-
-		# Load dataset for evaluation
-		hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
-		activations_dataset = self.get_dataset(filters=filters,
-											   filter_blank=filter_blank,
-											   tile_px=hp_data['hp']['tile_px'],
-											   tile_um=hp_data['hp']['tile_um'])
-		tfrecords_list = activations_dataset.get_tfrecords(ask_to_merge_subdirs=True)
-
-		log.info(f"Visualizing activations from {len(tfrecords_list)} slides", 1)
-
-		AV = ActivationsVisualizer(model=model,
-								   tfrecords=tfrecords_list,
-								   root_dir=self.PROJECT['root'],
-								   image_size=hp_data['hp']['tile_px'],
-								   annotations=self.PROJECT['annotations'],
-								   outcome_label_headers=outcome_label_headers,
-								   focus_nodes=focus_nodes,
-								   use_fp16=self.PROJECT['use_fp16'],
-								   normalizer=normalizer,
-								   normalizer_source=normalizer_source,
-								   activations_export=None if not activations_export else join(stats_root, activations_export),
-								   activations_cache=activations_cache,
-								   max_tiles_per_slide=max_tiles_per_slide,
-								   model_format=model_format)
-		return AV
+		if isolated_thread:
+			manager = multiprocessing.Manager()
+			results_dict = manager.dict()
+			ctx = multiprocessing.get_context('spawn')
+			
+			process = ctx.Process(target=_activations_generator, args=(self.PROJECT, model, outcome_label_headers, layers, filters, filter_blank, 
+																		focus_nodes, node_exclusion, activations_export,
+																		activations_cache, normalizer, normalizer_source, 
+																		max_tiles_per_slide, min_tiles_per_slide, model_format, 
+																		batch_size, torch_export, results_dict))
+			process.start()
+			log.empty(f"Spawning activations process (PID: {process.pid})")
+			process.join()
+			return results_dict
+		else:
+			AV = _activations_generator(self.PROJECT, model, outcome_label_headers, layers, filters, filter_blank, 
+										focus_nodes, node_exclusion, activations_export,
+										activations_cache, normalizer, normalizer_source, 
+										max_tiles_per_slide, min_tiles_per_slide, model_format, 
+										batch_size, torch_export, None)
+			return AV
 
 	def generate_heatmaps(self, model, filters=None, filter_blank=None, directory=None, resolution='low', 
 							interpolation='none', show_roi=True, logit_cmap=None, skip_thumb=False, 
-							normalizer=None, normalizer_source=None, buffer=True, single_thread=False, 
+							normalizer=None, normalizer_source=None, buffer=True, isolated_thread=False, 
 							model_format=None):
 		'''Creates predictive heatmap overlays on a set of slides. 
 
@@ -1433,7 +1486,7 @@ class SlideflowProject:
 									Each image tile will generate a list of predictions of length O, 
 									where O is the number of label categories.
 									If logit_cmap is a function, then this logit prediction list will be passed to the function,
-									and the function is expected to return [R, G, B] values which will be displayed. single_thread must be true if a function is passed.
+									and the function is expected to return [R, G, B] values which will be displayed. isolated_thread must be true if a function is passed.
 									If the logit_cmap is a dictionary, it should map 'r', 'g', and 'b' to label indices;
 									The prediction for these label categories will be mapped to the corresponding colors.
 									Thus, the corresponding color will only reflect predictions of up to three label categories.
@@ -1445,7 +1498,7 @@ class SlideflowProject:
 			buffer:				Either 'vmtouch' or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
 									If a directory, slides will be copied to the directory as a buffer before extraction.
 									Either method vastly improves tile extraction for slides on HDDs by maximizing sequential read speed
-			single_thread:		Bool. If True, will perform as single thread (GPU memory may not be freed after completion). 
+			isolated_thread:		Bool. If True, will perform as single thread (GPU memory may not be freed after completion). 
 									Allows use for functions being passed to logit_cmap (functions are not pickleable).
 									If False, will wrap function in separate process, allowing GPU memory to be freed after completion.
 			model_format:		Optional. May supply format of saved Slideflow Keras model if the model was made with a legacy version.
@@ -1478,7 +1531,7 @@ class SlideflowProject:
 		# Heatmap processes
 		ctx = multiprocessing.get_context('spawn')
 		for slide in slide_list:
-			if single_thread:
+			if isolated_thread:
 				_heatmap_generator(slide, model, heatmaps_folder, roi_list, show_roi,
 									resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb,
 									buffer, normalizer, normalizer_source, model_format, self.FLAGS)
@@ -2164,6 +2217,335 @@ class SlideflowProject:
 					pass
 
 		return results_dict
+
+	def train_clam(self, exp_name, model, outcome_label_headers, pt_files='auto', filters=None, filter_blank=None, activation_layers=['postconv'],
+					max_tiles_per_slide=0, min_tiles_per_slide=16, train_src='train', val_src='val',
+					k=1, k_start=-1, k_end=-1, max_epochs=20, lr=1e-4, label_frac=1, reg=1e-5, early_stopping=False, opt='adam',
+					drop_out=False, bag_loss='ce', bag_weight=0.7, model_type='clam_sb', weighted_sample=False, no_inst_cluster=False, inst_loss=None,
+					subtyping=False, B=8, attention_heatmaps=True):
+
+		'''Using a trained model, generate feature activations and train a CLAM model.
+		
+		Args:
+			exp_name
+			model
+			outcome_label_headers
+			pt_files
+			filters
+			filter_blank
+			max_tiles_per_slide
+			min_tiles_per_slide
+			train_src
+			val_src
+			k
+			k_start
+			k_end
+			max_epochs
+			lr
+			label_frac
+			reg
+			early_stopping
+			opt
+			drop_out
+			bag_loss
+			bag_weight
+			model_type
+			weighted_sample
+			no_inst_cluster
+			inst_loss
+			subtyping
+			B
+			
+		Returns:
+			None
+		
+		New requirements:
+			torch
+			torchvision
+		'''
+
+		import slideflow.clam as clam
+		from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
+		from slideflow.clam.create_attention import export_attention
+		from slideflow.io.tfrecords import get_tfrecords_from_model_manifest
+
+		assert min_tiles_per_slide > 8, "Slides must have at least 8 tiles to train CLAM."
+
+		# First, ensure the model is valid with a hyperparameters file
+		try:
+			hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
+		except FileNotFoundError:
+			raise Exception('Unable to find model hyperparameters file.')
+
+		# Set up the pt_files directory for storing model activations
+		if pt_files.lower() == 'auto':
+			pt_files = join(self.PROJECT['root'], 'pt_files', hp_data['model_name'])
+		if not exists(pt_files):
+			os.makedirs(pt_files)
+
+		# Set up CLAM experiment data directory
+		clam_dir = join(self.PROJECT['root'], 'clam', exp_name)
+		results_dir = join(clam_dir, 'results')
+		if not exists(results_dir): os.makedirs(results_dir)
+
+		# Set up activations interface
+		activations_results = self.generate_activations(model,
+														filters=filters,
+														filter_blank=filter_blank,
+														layers=activation_layers,
+														max_tiles_per_slide=max_tiles_per_slide,
+														min_tiles_per_slide=min_tiles_per_slide,
+														torch_export=pt_files,
+														isolated_thread=True,
+														activations_cache=None)
+
+		# Export activations to pt_files folder in torch format
+		num_features = activations_results['num_features']
+		model_size = [num_features,256,128]
+
+		# Set up training/validation splits (mirror base model)
+		split_dir = join(clam_dir, 'splits')
+		if not exists(split_dir): os.makedirs(split_dir)
+
+		try:
+			# Get all possible training/validation slides
+			train_slides = get_tfrecords_from_model_manifest(join(dirname(model), 'slide_manifest.log'), dataset='training')
+			validation_slides = get_tfrecords_from_model_manifest(join(dirname(model), 'slide_manifest.log'), dataset='validation')
+
+			# Now filter to include only those with successful activation generation & corresponding .pt files
+			train_slides = [s for s in train_slides if exists(join(pt_files, s+'.pt'))]
+			validation_slides = [s for s in validation_slides if exists(join(pt_files, s+'.pt'))]
+		
+		except FileNotFoundError:
+			raise Exception("Unable to auto-detect training/validation split from source model, 'slide_manifest.log' not found in model directory.")
+
+		header = ['','train','val','test']
+		with open(join(split_dir, 'splits_0.csv'), 'w') as splits_file:
+			writer = csv.writer(splits_file)
+			writer.writerow(header)
+			for i in range(max(len(train_slides), len(validation_slides))):
+				row = [i]
+				if i < len(train_slides): 		row += [train_slides[i]]
+				else: 							row += ['']
+				if i < len(validation_slides):	row += [validation_slides[i], validation_slides[i]]	# Currently, this sets the validation & test sets in CLAM to be the same
+				else:							row += ['', '']
+				writer.writerow(row)
+
+		# Set up outcomes for CLAM model
+		dataset = self.get_dataset(tile_px=hp_data['tile_px'],
+								   tile_um=hp_data['tile_um'],
+								   filters=filters,
+								   filter_blank=filter_blank)
+
+		slide_labels, unique_labels = dataset.get_labels_from_annotations(outcome_label_headers, 
+																		  use_float=False,		 # CLAM only supports categorical outcomes
+																		  key='outcome_label')		
+
+		# Set up CLAM args/settings
+		args_dict = {
+			'num_splits': k,
+			'k': k,
+			'k_start': k_start,
+			'k_end': k_end,
+			'max_epochs': max_epochs,
+			'lr': lr,
+			'reg': reg,
+			'label_frac': label_frac,
+			'bag_loss': bag_loss,
+			'bag_weight': bag_weight,
+			'model_type': model_type,
+			'model_size': model_size,
+			'use_drop_out': drop_out,
+			'drop_out': drop_out,
+			'weighted_sample': weighted_sample,
+			'opt': opt,
+			'inst_loss': inst_loss,
+			'no_inst_cluster': no_inst_cluster,
+			'B': B,								 
+			'split_dir': split_dir,
+			'data_root_dir': pt_files,
+			'log_data': False,
+			'testing': False,
+			'early_stopping': early_stopping,
+			'subtyping': subtyping,
+			'seed': 1,
+			'results_dir': results_dir,
+			'n_classes': len(unique_labels)
+		}
+		args = types.SimpleNamespace(**args_dict)
+		sfutil.write_json(args_dict, join(clam_dir, 'experiment.json'))
+
+		# Create CLAM dataset
+		clam_dataset = Generic_MIL_Dataset(csv_path=self.PROJECT['annotations'],
+										   data_dir=pt_files,
+										   shuffle=False,
+										   seed=args.seed,
+										   print_info=True,
+										   label_col = outcome_label_headers,
+										   label_dict = dict(zip(unique_labels, range(len(unique_labels)))),
+										   patient_strat=False,
+										   ignore=[])
+
+		# Run CLAM
+		clam.main(args, clam_dataset)
+
+		# Get attention from trained model on validation set
+		attention_tfrecords = [tfr for tfr in dataset.get_tfrecords() if sfutil.path_to_name(tfr) in validation_slides]
+		for ki in range(k):
+			attention_dir = join(clam_dir, 'attention', str(ki))
+			if not exists(attention_dir): os.makedirs(attention_dir)
+			export_attention(args_dict, 
+							 ckpt_path=join(results_dir, f's_{ki}_checkpoint.pt'),
+							 export_dir=attention_dir,
+							 pt_files=pt_files,
+							 slides=validation_slides,
+							 reverse_label_dict = dict(zip(range(len(unique_labels)), unique_labels)),
+							 slide_to_label = {s:slide_labels[s]['outcome_label'] for s in slide_labels})
+			if attention_heatmaps:
+				heatmaps_dir = join(clam_dir, 'attention_heatmaps', str(ki))
+				if not exists(heatmaps_dir): os.makedirs(heatmaps_dir)
+				
+				for tfr in attention_tfrecords:
+					attention_dict = {}
+					slide = sfutil.path_to_name(tfr)
+					try:
+						with open(join(attention_dir, slide+'.csv'), 'r') as csv_file:
+							reader = csv.reader(csv_file)
+							for row in reader:
+								attention_dict.update({int(row[0]): float(row[1])})
+					except FileNotFoundError:
+						print(f"Unable to find attention scores for slide {slide}, skipping")
+						continue
+					self.generate_tfrecord_heatmap(tfr, attention_dict, heatmaps_dir, tile_px=hp_data['tile_px'], tile_um=hp_data['tile_um'])
+		
+	def generate_tfrecord_heatmap(self, tfrecord, tile_dict, export_dir, tile_px, tile_um):
+		'''Creates a tfrecord-based WSI heatmap using a dictionary of tile values for heatmap display. '''
+		
+		from slideflow.io.tfrecords import get_locations_from_tfrecord
+		from slideflow.slide import SlideReader
+		from statistics import mean, median
+		import matplotlib.pyplot as plt
+		import matplotlib.colors as mcol
+
+		slide_name = sfutil.path_to_name(tfrecord)
+		loc_dict = get_locations_from_tfrecord(tfrecord)
+		dataset = self.get_dataset(tile_px=tile_px, tile_um=tile_um)
+		slide_paths = {sfutil.path_to_name(sp):sp for sp in dataset.get_slide_paths()}
+		
+		try:
+			slide_path = slide_paths[slide_name]
+		except KeyError:
+			raise Exception(f"Unable to locate slide {slide_name}")
+
+		if tile_dict.keys() != loc_dict.keys():
+			raise Exception(f"Length of provided tile_dict ({len(list(tile_dict.keys()))}) does not match number of tiles stored in the TFRecord ({len(list(loc_dict.keys()))}).")
+
+		print(f"Generating TFRecord heatmap for {sfutil.green(tfrecord)}...")
+		slide = SlideReader(slide_path, tile_px, tile_um, skip_missing_roi=False)
+
+		stats = {}
+
+		# Loaded CSV coordinates:
+		x = [int(loc_dict[l][0]) for l in loc_dict]
+		y = [int(loc_dict[l][1]) for l in loc_dict]
+		vals = [tile_dict[l] for l in loc_dict]
+
+		stats.update({
+			slide_name: {
+				'mean':mean(vals),
+				'median':median(vals),
+				'above_0':len([v for v in vals if v > 0]),
+				'above_1':len([v for v in vals if v > 1]),
+			}
+		})
+
+		print("\nLoaded tile values")
+		print(f"Min: {min(vals)}\t Max:{max(vals)}")
+
+		scaled_x = [(xi * slide.ROI_SCALE) - slide.full_extract_px/2 for xi in x]
+		scaled_y = [(yi * slide.ROI_SCALE) - slide.full_extract_px/2 for yi in y]
+
+		print("\nLoaded CSV coordinates:")
+		print(f"Min x: {min(x)}\t Max x: {max(x)}")
+		print(f"Min y: {min(y)}\t Max y: {max(y)}")
+
+		print("\nScaled CSV coordinates:")
+		print(f"Min x: {min(scaled_x)}\t Max x: {max(scaled_x)}")
+		print(f"Min y: {min(scaled_y)}\t Max y: {max(scaled_y)}")
+
+		print("\nSlide properties:")
+		print(f"Raw size (x): {slide.full_shape[0]}\t Raw size (y): {slide.full_shape[1]}")
+
+		# Slide coordinate information
+		max_coord_x = max([c[0] for c in slide.coord])
+		max_coord_y = max([c[1] for c in slide.coord])
+		num_x = len(set([c[0] for c in slide.coord]))
+		num_y = len(set([c[1] for c in slide.coord]))
+
+		print("\nSlide tile grid:")
+		print(f"Number of tiles (x): {num_x}\t Max coord (x): {max_coord_x}")
+		print(f"Number of tiles (y): {num_y}\t Max coord (y): {max_coord_y}")
+
+		# Calculate dead space (un-extracted tiles) in x and y axes
+		dead_x = slide.full_shape[0] - max_coord_x
+		dead_y = slide.full_shape[1] - max_coord_y
+		fraction_dead_x = dead_x / slide.full_shape[0]
+		fraction_dead_y = dead_y / slide.full_shape[1]
+
+		print("\nSlide dead space")
+		print(f"x: {dead_x}\t y:{dead_y}")
+
+		# Work on grid
+		x_grid_scale = max_coord_x / (num_x-1)
+		y_grid_scale = max_coord_y / (num_y-1)
+
+		print("\nCoordinate grid scale:")
+		print(f"x: {x_grid_scale}\t y: {y_grid_scale}")
+
+		grid = np.zeros((num_y, num_x))
+
+		indexed_x = [round(xi / x_grid_scale) for xi in scaled_x]
+		indexed_y = [round(yi / y_grid_scale) for yi in scaled_y]
+
+		for i, (xi,yi,v) in enumerate(zip(indexed_x,indexed_y,vals)):
+			grid[yi][xi] = v
+
+		fig = plt.figure(figsize=(18, 16))
+		ax = fig.add_subplot(111)
+		fig.subplots_adjust(bottom = 0.25, top=0.95)
+		gca = plt.gca()
+		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
+
+		print("Generating thumbnail...")
+		thumb = slide.thumb(mpp=5)
+		print("Saving thumbnail....")
+		thumb.save(join(export_dir, f'{slide_name}' + '.png'))
+		print("Generating figure...")
+		implot = ax.imshow(thumb, zorder=0)
+
+		extent = implot.get_extent()
+		extent_x = extent[1]
+		extent_y = extent[2]
+		grid_extent = (extent[0], extent_x * (1-fraction_dead_x), extent_y * (1-fraction_dead_y), extent[3])
+
+		print("\nImage extent:")
+		print(extent)
+		print("\nGrid extent:")
+		print(grid_extent)
+
+		divnorm=mcol.TwoSlopeNorm(vmin=min(-0.01, min(vals)), vcenter=0, vmax=max(0.01, max(vals)))
+		heatmap = ax.imshow(grid, zorder=10, alpha=0.6, extent=grid_extent, interpolation='bicubic', cmap='coolwarm', norm=divnorm)
+
+		print("Saving figure...")
+		plt.savefig(join(export_dir, f'{slide_name}_attn.png'), bbox_inches='tight')
+
+		# Clean up
+		print("Cleaning up...")
+		plt.clf()
+		del slide
+		del thumb
+
+		return stats
 
 	def visualize_tiles(self, model, node, tfrecord_dict=None, directory=None, mask_width=None, 
 						normalizer=None, normalizer_source=None, model_format=None):

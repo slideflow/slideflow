@@ -35,7 +35,7 @@ from os.path import join, exists
 from PIL import Image, ImageDraw, UnidentifiedImageError
 from multiprocessing import Pool, Queue
 from slideflow.util import log, StainNormalizer
-from slideflow.io.tfrecords import image_example
+from slideflow.io.tfrecords import image_and_loc_example
 from fpdf import FPDF
 from datetime import datetime
 
@@ -165,7 +165,10 @@ class ExtractionReport:
 					temp.write(image_row)
 					x = pdf.get_x()
 					y = pdf.get_y()
-					pdf.image(temp.name, x, y, w=19*len(report.images), h=19, type='jpg')
+					try:
+						pdf.image(temp.name, x, y, w=19*len(report.images), h=19, type='jpg')
+					except RuntimeError as e:
+						log.error(f"Error writing image to PDF: {e}")
 			pdf.ln(20)
 			
 		self.pdf = pdf
@@ -331,7 +334,7 @@ class ROIObject:
 
 class SlideLoader:
 	'''Object that loads an SVS slide and makes preparations for tile extraction.
-	Should not be used directly; this class must be inherited and extended by a child class!'''
+	Should not be used directly; this class must be inherited and extended by a child class'''
 	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False,
 					silent=False, buffer=None, pb=None):
 		self.load_error = False
@@ -348,6 +351,8 @@ class SlideLoader:
 		self.tile_mask = None
 		self.enable_downsample = enable_downsample
 		self.thumb_image = None
+		self.stride_div = stride_div
+		self.path = path
 		filetype = sfutil.path_to_ext(path)
 
 		# Initiate supported slide reader
@@ -423,7 +428,7 @@ class SlideLoader:
 		square_thumb.paste(thumb, (0, int((width-height)/2)))
 		return square_thumb
 
-	def thumb(self, mpp=55):
+	def thumb(self, mpp=55, width=None):
 		'''Returns PIL thumbnail of the slide.
 		
 		Args:
@@ -432,19 +437,16 @@ class SlideLoader:
 		Returns:
 			PIL image
 		'''
+
+		assert (mpp is None or width is None) and not (mpp is None and width is None), "Either mpp must be supplied or width, but not both"
+
+		# Calculate goal width/height according to specified microns-per-pixel (MPP)
+		width = int((self.MPP * self.full_shape[0]) / mpp)
+		height = int((self.MPP * self.full_shape[1]) / mpp)
+
 		if not self.thumb_image:
 			# Get thumbnail image and dimensions via fastest method available
-			if 'slide-associated-images' in self.slide.properties and 'thumbnail' in self.slide.properties['slide-associated-images']:
-				thumbnail = vips.Image.openslideload(self.slide.path, associated='thumbnail')
-			elif self.enable_downsample:
-				level = max(0, self.slide.level_count-2)
-				thumbnail = self.slide.get_downsampled_image(level)
-			else:
-				thumbnail = self.slide.full_image.thumbnail_image(width)
-
-			# Calculate goal width/height according to specified microns-per-pixel (MPP)
-			width = int((self.MPP * self.full_shape[0]) / mpp)
-			height = int((self.MPP * self.full_shape[1]) / mpp)
+			thumbnail = vips.Image.thumbnail(self.path, width)
 
 			# Convert thumb image to PIL
 			np_thumb = vips2numpy(thumbnail)
@@ -536,8 +538,11 @@ class SlideLoader:
 			return
 
 		sample_tiles = []
-		for index, tile in enumerate(generator()):
+		for index, tile_dict in enumerate(generator()):
 			# Convert numpy array (in RGB) to jpeg string using CV2 (which first requires BGR format)
+			tile = tile_dict['image']
+			location = tile_dict['loc']
+
 			image_string = cv2.imencode('.jpg', 
 										cv2.cvtColor(tile, cv2.COLOR_RGB2BGR), 
 										[int(cv2.IMWRITE_JPEG_QUALITY), 100])[1].tostring()
@@ -557,7 +562,7 @@ class SlideLoader:
 					writer = random.choices(tfrecord_writers, weights=split_fraction)
 				else:
 					writer = tfrecord_writer
-				tf_example = image_example(slidename_bytes, image_string)
+				tf_example = image_and_loc_example(slidename_bytes, image_string, location[0], location[1])
 				writer.write(tf_example.SerializeToString())
 		
 		if tfrecord_dir or tiles_dir:
@@ -579,8 +584,6 @@ class SlideLoader:
 
 class SlideReader(SlideLoader):
 	'''Extension of slideflow.slide.SlideLoader. Loads a slide and its ROI annotations and sets up a tile generator.'''
-
-	ROI_SCALE = 10
 
 	def __init__(self, path, size_px, size_um, stride_div=1, enable_downsample=False, roi_dir=None, roi_list=None,
 					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, silent=False, buffer=None, pb=None, pb_id=0):
@@ -613,6 +616,7 @@ class SlideReader(SlideLoader):
 		self.coord = []
 		self.annPolys = []
 		self.pb_id = pb_id
+		self.ROI_SCALE = 10
 
 		if not self.loaded_correctly():
 			return
@@ -770,7 +774,7 @@ class SlideReader(SlideLoader):
 					# Mark as extracted
 					tile_mask[index] = 1
 
-					yield np_image
+					yield {'image': np_image, 'loc': [x_coord, y_coord]}
 
 			log.label(self.shortname, f"Finished tile extraction for {sfutil.green(self.shortname)} ({sum(tile_mask)} tiles of {len(self.coord)} possible)", 2, self.print)
 			self.tile_mask = tile_mask

@@ -39,8 +39,7 @@ def _negative_log_likelihood(y_true, y_pred):
 	gamma = tf.math.reduce_max(sorted_predictions)
 
 	# Small constant value
-	eps = tf.constant(1e-7, dtype=tf.float16)
-
+	eps = tf.constant(1e-7, dtype=tf.float32)
 
 	log_cumsum_h = tf.math.add(
 					tf.math.log(
@@ -69,19 +68,24 @@ def negative_log_likelihood(y_true, y_pred):
 	order = tf.argsort(time, direction='DESCENDING')
 	sorted_time = tf.gather(time, order)
 	sorted_events = tf.gather(events, order)
-	sorted_pred = tf.math.log(tf.gather(pred, order))
+	sorted_pred = tf.gather(pred, order)
 
 	Y_hat_c = sorted_pred
 	Y_label_T = sorted_time
 	Y_label_E = sorted_events
 	Obs = tf.reduce_sum(Y_label_E)
 
-	Y_hat_hr = tf.exp(Y_hat_c)
-	Y_hat_cumsum = tf.math.log(tf.cumsum(Y_hat_hr))
+	# numerical stability
+	amax = tf.reduce_max(Y_hat_c)
+	Y_hat_c_shift = tf.subtract(Y_hat_c, amax)
+	#Y_hat_c_shift = tf.debugging.check_numerics(Y_hat_c_shift, message="checking y_hat_c_shift")
+	Y_hat_hr = tf.exp(Y_hat_c_shift)
+	Y_hat_cumsum = tf.math.log(tf.cumsum(Y_hat_hr)) + amax
 
 	unique_values, segment_ids = tf.unique(Y_label_T)
 	loss_s2_v = tf.math.segment_max(Y_hat_cumsum, segment_ids)
 	loss_s2_count = tf.math.segment_sum(Y_label_E, segment_ids)
+
 	loss_s2 = tf.reduce_sum(tf.multiply(loss_s2_v, loss_s2_count))
 	loss_s1 = tf.reduce_sum(tf.multiply(Y_hat_c, Y_label_E))
 	loss_breslow = tf.divide(tf.subtract(loss_s2, loss_s1), Obs)
