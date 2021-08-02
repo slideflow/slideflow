@@ -17,6 +17,7 @@ import os
 import sys
 import csv
 import warnings
+import shutil
 warnings.filterwarnings('ignore')
 
 import numpy as np
@@ -114,37 +115,9 @@ class ModelActivationsInterface:
 			else:
 				raise ModelError("Unable to read model.")
 
-		log.info(f"Number of activation features: {self.model.output_shape[0][1]}", 2)
+		self.num_features = self.model.output_shape[0][1]
+		log.info(f"Number of activation features: {self.num_features}", 2)
 		log.info(f"Number of logits: {self.model.output_shape[1][1]}", 2)
-		
-	'''def _build_logits_and_postconv_model(self):
-		#Builds a model that returns both logits and post-convolution activations.
-
-		log.info(f"Activations interface will return logits and post-convolution activations.", 1)
-
-		_model = tf.keras.models.load_model(self.path)
-		if self.model_format == MODEL_FORMAT_1_9:
-			try:
-				loaded_model = tf.keras.models.Model(inputs=[_model.input],
-													 outputs=[_model.get_layer(name="post_convolution").output, 
-															  _model.output])
-				model_input = tf.keras.layers.Input(shape=loaded_model.input_shape[1:])
-				model_output = loaded_model(model_input)
-				self.model = tf.keras.Model(model_input, model_output)
-			except ValueError:
-				log.warn("Unable to read model using modern format, will try legacy model format", 1)
-				self.model_format = MODEL_FORMAT_LEGACY
-
-		if self.model_format == MODEL_FORMAT_LEGACY:
-			loaded_model = tf.keras.models.Model(inputs= [_model.input, 
-														  _model.layers[0].layers[0].input],
-												 outputs=[_model.layers[0].layers[-1].output, 
-														  _model.layers[-1].output])
-			model_input = tf.keras.layers.Input(shape=loaded_model.input_shape[0][1:])
-			model_output = loaded_model([model_input, model_input])
-			self.model = tf.keras.Model(model_input, model_output)
-
-		self.NUM_CLASSES = _model.layers[-1].output_shape[-1]'''
 
 	def predict(self, image_batch):
 		'''Given a batch of images, will return a batch of post-convolutional activations and a batch of logits.'''
@@ -1160,6 +1133,13 @@ class SlideflowModel:
 				if self.epoch_count in [e for e in hp.finetune_epochs]:
 					model_path = os.path.join(parent.DATA_DIR, f"trained_model_epoch{self.epoch_count}")
 					self.model.save(model_path)
+
+					# Try to copy model settings/hyperparameters file into the model folder
+					try:
+						shutil.copy(os.path.join(os.path.dirname(model_path), 'hyperparameters.json'), os.path.join(model_path, 'hyperparameters.json'), )
+					except:
+						log.warning("Unable to copy model hyperparameters.json file into model directory.", 1)
+
 					log.complete(f"Trained model saved to {sfutil.green(model_path)}", 1)
 					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
 						self.evaluate_model(logs)

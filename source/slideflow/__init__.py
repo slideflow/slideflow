@@ -29,6 +29,9 @@ from slideflow.mosaic import Mosaic
 
 #TODO: unify slideflow model loading, even straight from directory, into a SlideflowModel file, which
 # 		will auto-handle finding the hyperparameters.json file, etc
+#TODO: put tfrecord report in tfrecord directories
+#DONE: put hyperparameters file in model folder
+#TODO: put tfrecord feature description in tfrecord directories
 
 __version__ = "1.11.0-dev2"
 
@@ -2225,7 +2228,7 @@ class SlideflowProject:
 					activation_layers=['postconv'],	max_tiles_per_slide=0, min_tiles_per_slide=16, train_slides='same', validation_slides='same',
 					tile_px=None, tile_um=None, k=1, k_start=-1, k_end=-1, max_epochs=20, lr=1e-4, label_frac=1, reg=1e-5, early_stopping=False, opt='adam',
 					drop_out=False, bag_loss='ce', bag_weight=0.7, model_type='clam_sb', weighted_sample=False, no_inst_cluster=False, inst_loss=None,
-					subtyping=False, B=8, attention_heatmaps=True):
+					subtyping=False, B=8, attention_heatmaps=True, force_regenerate_features=False):
 
 		'''Using a trained model, generate feature activations and train a CLAM model.
 		
@@ -2283,26 +2286,40 @@ class SlideflowProject:
 		results_dir = join(clam_dir, 'results')
 		if not exists(results_dir): os.makedirs(results_dir)
 
-		model_size = [num_features,256,128]
-
 		if model is not None:
 			# First, ensure the model is valid with a hyperparameters file
 			try:
 				hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
-				tile_px=hp_data['tile_px']
-				tile_um=hp_data['tile_um']
+				tile_px = hp_data['tile_px']
+				tile_um = hp_data['tile_um']
 			except FileNotFoundError:
 				raise Exception('Unable to find model hyperparameters file.')
 
 			# Set up the pt_files directory for storing model activations
 			if pt_files.lower() == 'auto':
-				pt_files = join(self.PROJECT['root'], 'pt_files', hp_data['model_name'])
+				model_name_end = '' if 'k_fold_i' not in hp_data else f'_kfold{hp_data["k_fold_i"]}'
+				pt_files = join(self.PROJECT['root'], 'pt_files', hp_data['model_name']+model_name_end)
 			if not exists(pt_files):
 				os.makedirs(pt_files)
 
+			# Detect already generated pt files
+			already_generated = [sfutil.path_to_name(f) for f in os.listdir(pt_files) if sfutil.path_to_ext(join(pt_files, f)) == 'pt']
+			if force_regenerate_features or not len(already_generated):
+				activation_filters = filters
+			else:
+				pt_dataset = self.get_dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank)
+				all_slides = pt_dataset.get_slides()
+				slides_to_generate = [s for s in all_slides if s not in already_generated]
+				activation_filters = filters.copy()
+				activation_filters['slide'] = slides_to_generate
+				filtered_dataset = self.get_dataset(tile_px, tile_um, filters=activation_filters, filter_blank=filter_blank)
+				filtered_slides_to_generate = filtered_dataset.get_slides()
+				log.info(f'Activations already generated for {len(already_generated)} files, will not regenerate for these.', 1)
+				log.info(f'Attempting to generate for {len(filtered_slides_to_generate)} slides', 1)
+
 			# Set up activations interface
 			activations_results = self.generate_activations(model,
-															filters=filters,
+															filters=activation_filters,
 															filter_blank=filter_blank,
 															layers=activation_layers,
 															max_tiles_per_slide=max_tiles_per_slide,
@@ -2313,6 +2330,8 @@ class SlideflowProject:
 
 			# Export activations to pt_files folder in torch format
 			num_features = activations_results['num_features']
+
+		model_size = [num_features,256,128]
 
 		# Set up training/validation splits (mirror base model)
 		split_dir = join(clam_dir, 'splits')
@@ -2436,6 +2455,7 @@ class SlideflowProject:
 		
 		import slideflow.clam as clam
 		from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
+		from slideflow.clam.create_attention import export_attention
 
 		# Detect source CLAM experiment which we are evaluating.
 		# First, assume it lives in this project's clam folder
@@ -2509,6 +2529,34 @@ class SlideflowProject:
 										   ignore=[])
 		
 		clam.evaluate(ckpt_path, args, clam_dataset)
+
+		# Get attention from trained model on validation set
+		attention_tfrecords = dataset.get_tfrecords()
+		attention_dir = join(eval_dir, 'attention')
+		if not exists(attention_dir): os.makedirs(attention_dir)
+		export_attention(args_dict, 
+							ckpt_path=ckpt_path,
+							export_dir=attention_dir,
+							pt_files=pt_files,
+							slides=dataset.get_slides(),
+							reverse_label_dict = dict(zip(range(len(unique_labels)), unique_labels)),
+							slide_to_label = {s:slide_labels[s]['outcome_label'] for s in slide_labels})
+		if attention_heatmaps:
+			heatmaps_dir = join(eval_dir, 'attention_heatmaps')
+			if not exists(heatmaps_dir): os.makedirs(heatmaps_dir)
+			
+			for tfr in attention_tfrecords:
+				attention_dict = {}
+				slide = sfutil.path_to_name(tfr)
+				try:
+					with open(join(attention_dir, slide+'.csv'), 'r') as csv_file:
+						reader = csv.reader(csv_file)
+						for row in reader:
+							attention_dict.update({int(row[0]): float(row[1])})
+				except FileNotFoundError:
+					print(f"Unable to find attention scores for slide {slide}, skipping")
+					continue
+				self.generate_tfrecord_heatmap(tfr, attention_dict, heatmaps_dir, tile_px=tile_px, tile_um=tile_um)
 
 	def generate_tfrecord_heatmap(self, tfrecord, tile_dict, export_dir, tile_px, tile_um):
 		'''Creates a tfrecord-based WSI heatmap using a dictionary of tile values for heatmap display. '''

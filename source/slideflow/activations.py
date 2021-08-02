@@ -86,6 +86,7 @@ class ActivationsVisualizer:
 		self.slide_logits_dict = {}
 		self.slide_loc_dict = {}
 		self.umap = None
+		self.num_features = None
 		self.focus_nodes = focus_nodes
 		self.manifest = manifest
 		self.model = model
@@ -149,7 +150,11 @@ class ActivationsVisualizer:
 												 normalizer=normalizer,
 												 normalizer_source=normalizer_source,
 												 layers=layers)
-			self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
+
+			if self.slide_node_dict != {}:
+				self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
+			else:
+				self.nodes = []
 
 		# Now delete slides not included in our filtered TFRecord list
 		loaded_slides = list(self.slide_node_dict.keys())
@@ -188,7 +193,8 @@ class ActivationsVisualizer:
 		for c in self.used_categories:
 			log.empty(f"\t{c}", 2)
 		# Show total number of features
-		self.num_features = len(list(self.slide_node_dict[self.slides[0]].keys()))
+		if self.num_features is None:
+			self.num_features = len(list(self.slide_node_dict[self.slides[0]].keys()))
 		log.info(f'Number of activation features: {self.num_features}', 2)
 
 	def _save_node_statistics_to_csv(self, sorted_nodes, slide_node_dict, filename, tile_stats=None, slide_stats=None):
@@ -617,6 +623,7 @@ class ActivationsVisualizer:
 		# Load model
 		combined_model = ModelActivationsInterface(model, model_format=model_format, layers=layers)
 		unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in self.tfrecords]))
+		self.num_features = combined_model.num_features
 			
 		# Prepare normalizer
 		if normalizer: log.info(f"Using realtime {normalizer} normalization", 1)
@@ -660,8 +667,6 @@ class ActivationsVisualizer:
 			outfile = open(export, 'w')
 			csvwriter = csv.writer(outfile)
 
-		num_features = None
-
 		for t, tfrecord in enumerate(self.tfrecords):
 			dataset = tf.data.TFRecordDataset(tfrecord)
 
@@ -691,9 +696,6 @@ class ActivationsVisualizer:
 
 				if self.MAX_TILES_PER_SLIDE and (len(fl_activations_combined) >= self.MAX_TILES_PER_SLIDE):
 					break
-
-				if not num_features:
-					num_features = fl_activations.shape[-1]
 			
 			# Check if TFRecord was empty
 			if fl_activations_combined == []:
@@ -748,7 +750,7 @@ class ActivationsVisualizer:
 		fla_calc_time = time.time()
 		print('\r\033[K', end='')
 		log.info(f"Activation calculation time: {fla_calc_time-fla_start_time:.0f} sec", 1)
-		log.info(f"Number of activation features: {num_features}", 1)
+		log.info(f"Number of activation features: {self.num_features}", 1)
 		if export:
 			log.complete(f"Activations saved to {sfutil.green(export)}", 1)
 		
