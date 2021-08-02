@@ -36,7 +36,7 @@ class TFRecordsError(Exception):
 def _parse_function(example_proto):
 	try:
 		features = tf.io.parse_single_example(example_proto, FEATURE_DESCRIPTION_LOC)
-	except tf.python.framework.errors_impl.InvalidArgumentError:
+	except tf.errors.InvalidArgumentError:
 		features = tf.io.parse_single_example(example_proto, FEATURE_DESCRIPTION)
 	return features
 
@@ -144,7 +144,6 @@ def image_and_loc_example(slide, image_string, loc_x, loc_y):
 		'loc_y': _int64_feature(loc_y)
 	}
 	return tf.train.Example(features=tf.train.Features(feature=feature))
-
 
 def multi_image_example(slide, image_dict):
 	'''Returns a Tensorflow Data example for TFRecord storage with multiple images.'''

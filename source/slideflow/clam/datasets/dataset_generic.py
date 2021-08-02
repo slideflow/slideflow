@@ -14,8 +14,14 @@ import h5py
 
 from slideflow.clam.utils import generate_split, nth
 
+class ClamError(Exception):
+	pass
+
 def save_splits(split_datasets, column_keys, filename, boolean_style=False):
-	splits = [split_datasets[i].slide_data['slide'] for i in range(len(split_datasets))]
+	try:
+		splits = [split_datasets[i].slide_data['slide'] for i in range(len(split_datasets))]
+	except AttributeError:
+		raise ClamError("One of the datasets is empty, are you sure the splits*.csv file is configured properly?")
 	if not boolean_style:
 		df = pd.concat(splits, ignore_index=True, axis=1)
 		df.columns = column_keys

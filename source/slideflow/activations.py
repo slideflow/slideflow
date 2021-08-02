@@ -641,7 +641,7 @@ class ActivationsVisualizer:
 
 			slide = features['slide']
 			image_string = features['image_raw']
-			location = [None,None] if not includes_loc else [features['loc_x'], features['loc_y']]
+			location = [0,0] if not includes_loc else [features['loc_x'], features['loc_y']]
 			raw_image = tf.image.decode_jpeg(image_string, channels=3)
 
 			if normalizer:
@@ -783,7 +783,7 @@ class ActivationsVisualizer:
 		import torch
 
 		for slide in self.slide_node_dict:
-			sys.stdout.write(f"\rWorking on {sfutil.green(slide)}...")
+			sys.stdout.write(f"\rWorking on {sfutil.green(slide)}...\033[K")
 			sys.stdout.flush()
 			slide_activations = []
 			number_tiles = len(self.slide_node_dict[slide][self.nodes[0]])

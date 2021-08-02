@@ -396,7 +396,7 @@ class Dataset:
 				filtered_labels = [a[header] for a in filtered_annotations]
 			except KeyError:
 				log.error(f"Unable to find column {header} in annotation file.", 1)
-				raise DatasetError("Unable to find column {header} in annotation file.")
+				raise DatasetError(f"Unable to find column {header} in annotation file.")
 
 			# Determine whether values should be converted into float
 			if type(use_float) == dict and header not in use_float:

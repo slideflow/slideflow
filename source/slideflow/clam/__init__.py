@@ -5,6 +5,7 @@ from slideflow.clam.utils.file_utils import save_pkl
 from slideflow.clam.utils import *
 from slideflow.clam.utils.core_utils import train
 from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
+from slideflow.clam.utils.eval_utils import *
 
 # pytorch imports
 import torch
@@ -58,6 +59,14 @@ def main(args, dataset):
     final_df.to_csv(os.path.join(args.results_dir, save_name))
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+def evaluate(ckpt_path, args, dataset):
+	all_results, all_auc, all_acc = [], [], []
+	model, patient_results, test_error, auc, df = eval(dataset, args, ckpt_path)
+	all_results.append(all_results)
+	all_auc.append(auc)
+	all_acc.append(1-test_error)
+	df.to_csv(os.path.join(args.save_dir, 'results.csv'), index=False)
 
 def seed_torch(seed=7):
     import random
