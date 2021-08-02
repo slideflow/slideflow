@@ -1,5 +1,4 @@
 import os
-from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
 import types
 import shutil
 import logging
