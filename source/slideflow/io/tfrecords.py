@@ -1,8 +1,6 @@
 
-import time
 import sys
 import csv
-import logging
 import numpy as np
 import os
 import shutil
@@ -594,28 +592,29 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 	log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation", 1)
 	return training_tfrecords, validation_tfrecords
 
-def update_tfrecord_dir(directory, old_feature_description=FEATURE_DESCRIPTION_LOC, slide='slide', image_raw='image_raw'):
+def update_tfrecord_dir(directory, old_feature_description=FEATURE_DESCRIPTION_LOC, slide='slide', assign_slide=None, image_raw='image_raw'):
 	'''Updates tfrecords in a directory from an old format to a new format.'''
 	if not exists(directory):
 		log.error(f"Directory {directory} does not exist; unable to update tfrecords.")
 	else:
 		tfrecord_files = glob(join(directory, "*.tfrecords"))
 		for tfr in tfrecord_files:
-			update_tfrecord(tfr, old_feature_description, slide, image_raw)
+			update_tfrecord(tfr, old_feature_description, slide, assign_slide, image_raw)
 		return len(tfrecord_files)
 
-def update_tfrecord(tfrecord_file, old_feature_description=FEATURE_DESCRIPTION_LOC, slide='slide', image_raw='image_raw'):
+def update_tfrecord(tfrecord_file, old_feature_description=FEATURE_DESCRIPTION_LOC, slide='slide', assign_slide=None, image_raw='image_raw'):
 	'''Updates a single tfrecord from an old format to a new format.'''
 	shutil.move(tfrecord_file, tfrecord_file+".old")
 	dataset = tf.data.TFRecordDataset(tfrecord_file+".old")
 	writer = tf.io.TFRecordWriter(tfrecord_file)
 	for record in dataset:
 		features = tf.io.parse_single_example(record, old_feature_description)
-		slidename = features[slide].numpy()
+		slidename = assign_slide if assign_slide is not None else features[slide].numpy()
 		image_raw_data = features[image_raw].numpy()
 		tf_example = image_example(slide=slidename, image_string=image_raw_data)
 		writer.write(tf_example.SerializeToString())
 	writer.close()
+	os.remove(tfrecord_file+'.old')
 
 def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None, resize=None, silent=False):
 	'''Transforms images in a single tfrecord. Can perform hue shifting, resizing, or re-assigning slide label.'''
