@@ -334,7 +334,8 @@ class Dataset:
 
 		# Now filter the list
 		if self.ANNOTATIONS:
-			filtered_tfrecords_list = [tfrecord for tfrecord in tfrecords_list if tfrecord.split('/')[-1][:-10] in self.get_slides()]
+			slides = self.get_slides()
+			filtered_tfrecords_list = [tfrecord for tfrecord in tfrecords_list if tfrecord.split('/')[-1][:-10] in slides]
 			return filtered_tfrecords_list
 		else:
 			log.warn("No annotations loaded; unable to filter TFRecords list. Is the annotations file empty?", 1)
