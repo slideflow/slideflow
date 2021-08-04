@@ -1471,7 +1471,7 @@ class SlideflowProject:
 
 	def generate_heatmaps(self, model, filters=None, filter_blank=None, directory=None, resolution='low', 
 							interpolation='none', show_roi=True, roi_method='inside', logit_cmap=None, skip_thumb=False, 
-							normalizer=None, normalizer_source=None, buffer=True, isolated_thread=False, 
+							normalizer=None, normalizer_source=None, buffer=True, isolated_thread=True, 
 							model_format=None):
 		'''Creates predictive heatmap overlays on a set of slides. 
 
@@ -1505,9 +1505,10 @@ class SlideflowProject:
 			buffer:				Either 'vmtouch' or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
 									If a directory, slides will be copied to the directory as a buffer before extraction.
 									Either method vastly improves tile extraction for slides on HDDs by maximizing sequential read speed
-			isolated_thread:		Bool. If True, will perform as single thread (GPU memory may not be freed after completion). 
+			isolated_thread:	Bool. If True, will wrap function in separate process, allowing GPU memory to be freed after completion.
+									If False, will perform as single thread (GPU memory may not be freed after completion). 
 									Allows use for functions being passed to logit_cmap (functions are not pickleable).
-									If False, will wrap function in separate process, allowing GPU memory to be freed after completion.
+									
 			model_format:		Optional. May supply format of saved Slideflow Keras model if the model was made with a legacy version.
 									Default value will be slideflow.model.MODEL_FORMAT_CURRENT,
 									but slideflow.model.MODEL_FORMAT_LEGACY may be supplied.
@@ -1539,16 +1540,16 @@ class SlideflowProject:
 		ctx = multiprocessing.get_context('spawn')
 		for slide in slide_list:
 			if isolated_thread:
-				_heatmap_generator(slide, model, heatmaps_folder, roi_list, show_roi, roi_method,
-									resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb,
-									buffer, normalizer, normalizer_source, model_format, self.FLAGS)
-			else:
 				process = ctx.Process(target=_heatmap_generator, args=(slide, model, heatmaps_folder, roi_list, show_roi, roi_method,
 																		resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb,
 																		buffer, normalizer, normalizer_source, model_format, self.FLAGS))
 				process.start()
 				log.empty(f"Spawning heatmaps process (PID: {process.pid})")
 				process.join()
+			else:
+				_heatmap_generator(slide, model, heatmaps_folder, roi_list, show_roi, roi_method,
+									resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb,
+									buffer, normalizer, normalizer_source, model_format, self.FLAGS)
 
 	def generate_mosaic(self, model, mosaic_filename=None, umap_filename=None, outcome_label_headers=None, filters=None,
 						filter_blank=None, focus_filters=None, resolution="low", num_tiles_x=50, 
