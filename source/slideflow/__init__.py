@@ -320,10 +320,10 @@ def _heatmap_generator(slide, model_path, save_folder, roi_list, show_roi, roi_m
 
 def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp, validation_strategy, 
 			validation_target, validation_fraction, validation_k_fold, validation_log, validation_dataset=None, 
-			validation_annotations=None, validation_filters=None, k_fold_i=None, input_header=None, filters=None, pretrain=None, 
-			pretrain_model_format=None, resume_training=None, checkpoint=None, validate_on_batch=0, validation_steps=200,
-			 max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, steps_per_epoch_override=None, normalizer=None,
-			 normalizer_source=None, use_tensorboard=False, multi_gpu=False, flags=None):
+			validation_annotations=None, validation_filters=None, k_fold_i=None, k_fold_slide_labels=None, input_header=None, 
+			filters=None, filter_blank=None, pretrain=None, pretrain_model_format=None, resume_training=None, checkpoint=None,
+			validate_on_batch=0, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
+			steps_per_epoch_override=None, normalizer=None, normalizer_source=None, use_tensorboard=False, multi_gpu=False, flags=None):
 
 	'''Internal function to execute model training process.'''
 	import slideflow.model as sfmodel
@@ -343,7 +343,9 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 	full_model_name = model_name if not k_fold_i else model_name+f"-kfold{k_fold_i}"
 
 	# Filter out slides that are blank in the outcome label, or blank in any of the input_header categories
-	filter_blank = [o for o in outcome_label_headers]
+	if filter_blank: filter_blank += [o for o in outcome_label_headers]
+	else: filter_blank = [o for o in outcome_label_headers]
+
 	if input_header:
 		input_header = [input_header] if not isinstance(input_header, list) else input_header
 		filter_blank += input_header
@@ -377,12 +379,18 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 									 annotations=validation_annotations,
 									 filters=validation_filters,
 									 filter_blank=filter_blank)
+
 		validation_tfrecords = validation_dataset.get_tfrecords()
 		manifest.update(validation_dataset.get_manifest())
 		validation_labels, _ = validation_dataset.get_labels_from_annotations(outcome_label_headers, 
 																			  use_float=(hp.model_type() in ['linear', 'cph']),
 																			  key='outcome_label')
 		slide_labels_dict.update(validation_labels)
+	elif validation_strategy == 'k-fold-manual':
+		all_tfrecords = training_dataset.get_tfrecords()
+		training_tfrecords = [tfr for tfr in all_tfrecords if k_fold_slide_labels[sfutil.path_to_name(tfr)] != k_fold_i]
+		validation_tfrecords = [tfr for tfr in all_tfrecords if k_fold_slide_labels[sfutil.path_to_name(tfr)] == k_fold_i]
+		log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation", 1)
 	else:
 		training_tfrecords, validation_tfrecords = sfio.tfrecords.get_training_and_validation_tfrecords(training_dataset,
 																										validation_log,
@@ -2051,10 +2059,10 @@ class SlideflowProject:
 		'''Saves current project configuration as "settings.json".'''
 		sfutil.write_json(self.PROJECT, join(self.PROJECT['root'], 'settings.json'))
 
-	def train(self, model_names=None, outcome_label_headers='category', input_header=None, multi_outcome=False, filters=None,
+	def train(self, model_names=None, outcome_label_headers='category', input_header=None, multi_outcome=False, filters=None, filter_blank=None,
 				resume_training=None, checkpoint=None, pretrain='imagenet', pretrain_model_format=None, batch_file=None,
 				hyperparameters=None, validation_target=None, validation_strategy=None,validation_fraction=None,
-				validation_k_fold=None, k_fold_iter=None, validation_dataset=None, validation_annotations=None,
+				validation_k_fold=None, k_fold_iter=None, k_fold_header=None, validation_dataset=None, validation_annotations=None,
 				validation_filters=None, validate_on_batch=512, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0,
 				starting_epoch=0, steps_per_epoch_override=None, auto_extract=False, normalizer=None, 
 				normalizer_source=None, normalizer_strategy='tfrecord', use_tensorboard=False, multi_gpu=False):
@@ -2080,10 +2088,11 @@ class SlideflowProject:
 			batch_file:				Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.
 			hyperparameters:		Manually specify hyperparameter combination to use for training. If specified, will ignore batch training file.
 			validation_target: 		Whether to select validation data on a 'per-patient' or 'per-tile' basis. If not specified, will use project default.
-			validation_strategy:	Validation dataset selection strategy (bootstrap, k-fold, k-fold-preserved-site, fixed, none). If not specified, will use project default.
+			validation_strategy:	Validation dataset selection strategy (bootstrap, k-fold, k-fold-manual, k-fold-preserved-site, fixed, none). If not specified, will use project default.
 			validation_fraction:	Fraction of data to use for validation testing. If not specified, will use project default.
 			validation_k_fold: 		K, if using k-fold validation. If not specified, will use project default.
 			k_fold_iter:			Which iteration to train if using k-fold validation. Defaults to training all iterations.
+			k_fold_header:			Annotations file header column for manually specifying k-fold. Only used if validation_strategy is 'k-fold-manual'
 			validation_dataset:		If specified, will use a separate dataset on which to perform validation.
 			validation_annotations:	If using a separate dataset for validation, the annotations CSV must be supplied.
 			validation_filters:		If using a separate dataset for validation, these filters are used to select a subset of slides for validation.
@@ -2104,6 +2113,9 @@ class SlideflowProject:
 		Returns:
 			A dictionary containing model names mapped to train_acc, val_loss, and val_acc
 		'''
+
+		assert not (k_fold_header is None and validation_strategy == 'k-fold-manual'), "Must supply 'k_fold_header' if validation strategy is 'k-fold-manual'"
+
 		# Reconcile provided arguments with project defaults
 		batch_train_file = self.PROJECT['batch_train_config'] if not batch_file else join(self.PROJECT['root'], batch_file)
 		validation_strategy = self.PROJECT['validation_strategy'] if not validation_strategy else validation_strategy
@@ -2119,7 +2131,7 @@ class SlideflowProject:
 		if normalizer and normalizer_strategy not in ('tfrecord', 'realtime'):
 			log.error(f"Unknown normalizer strategy {normalizer_strategy}, must be either 'tfrecord' or 'realtime'", 1)
 			return
-		if validation_strategy in ('k-fold-preserved-site', 'k-fold', 'bootstrap') and validation_dataset:
+		if validation_strategy in ('k-fold-manual', 'k-fold-preserved-site', 'k-fold', 'bootstrap') and validation_dataset:
 			log.error(f"Unable to use {validation_strategy} if validation_dataset has been provided.", 1)
 			return
 
@@ -2144,12 +2156,6 @@ class SlideflowProject:
 		if log.INFO_LEVEL > 0: print()
 		outcome_label_headers = [outcome_label_headers] if multi_outcome else outcome_label_headers
 
-		# Prepare k-fold validation configuration
-		results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
-		k_fold_iter = [k_fold_iter] if (k_fold_iter != None and not isinstance(k_fold_iter, list)) else k_fold_iter
-		k_fold = validation_k_fold if validation_strategy in ('k-fold', 'k-fold-preserved-site', 'bootstrap') else 0
-		valid_k = [] if not k_fold else [kf for kf in range(1, k_fold+1) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
-
 		# Next, prepare the multiprocessing manager (needed to free VRAM after training and keep track of results)
 		manager = multiprocessing.Manager()
 		results_dict = manager.dict()
@@ -2160,6 +2166,25 @@ class SlideflowProject:
 		for selected_outcome_label_headers in outcome_label_headers:
 			# For each hyperparameter combination, perform training
 			for hp, hp_model_name in hyperparameter_list:
+
+				# Prepare k-fold validation configuration
+				results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
+				k_fold_iter = [k_fold_iter] if (k_fold_iter != None and not isinstance(k_fold_iter, list)) else k_fold_iter
+
+				if validation_strategy == 'k-fold-manual':
+					training_dataset = self.get_dataset(tile_px=hp.tile_px, 
+														tile_um=hp.tile_um,
+														filters=filters,
+														filter_blank=filter_blank)
+
+					k_fold_slide_labels, valid_k = training_dataset.slide_to_label(k_fold_header, return_unique=True)
+					k_fold = len(valid_k)
+				else:
+					k_fold = validation_k_fold if validation_strategy in ('k-fold', 'k-fold-preserved-site', 'bootstrap') else 0
+					valid_k = [] if not k_fold else [kf for kf in range(1, k_fold+1) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
+					k_fold_slide_labels = None
+
+				# TODO: implement compatibility for multiple categorical outcomes
 				if multi_outcome and hp.model_type() != 'linear':
 					log.error("Multiple outcome labels only supported for linear outcome labels.")
 					return
@@ -2169,6 +2194,7 @@ class SlideflowProject:
 					self.extract_tiles(hp.tile_px,
 									   hp.tile_um,
 									   filters=filters,
+									   filter_blank=filter_blank,
 									   normalizer=tfrecord_normalizer,
 									   normalizer_source=tfrecord_normalizer_source)
 
@@ -2185,12 +2211,11 @@ class SlideflowProject:
 				def start_training_process(k):
 					# Using a separate process ensures memory is freed once training has completed
 					process = ctx.Process(target=_trainer, args=(selected_outcome_label_headers, model_name, self.PROJECT,
-																results_dict, hp, validation_strategy, 
-																validation_target, validation_fraction, validation_k_fold, 
-																validation_log, validation_dataset, validation_annotations,
-																validation_filters, k, input_header, filters, pretrain, pretrain_model_format, 
-																resume_training, checkpoint, validate_on_batch, validation_steps, max_tiles_per_slide,
-																min_tiles_per_slide, starting_epoch, steps_per_epoch_override, train_normalizer, 
+																results_dict, hp, validation_strategy,  validation_target,
+																validation_fraction, validation_k_fold,  validation_log, validation_dataset, validation_annotations,
+																validation_filters, k, k_fold_slide_labels, input_header, filters, filter_blank, pretrain,
+																pretrain_model_format, resume_training, checkpoint, validate_on_batch, validation_steps,
+																max_tiles_per_slide, min_tiles_per_slide, starting_epoch, steps_per_epoch_override, train_normalizer, 
 																train_normalizer_source, use_tensorboard, multi_gpu, self.FLAGS))
 					process.start()
 					log.empty(f"Spawning training process (PID: {process.pid})")

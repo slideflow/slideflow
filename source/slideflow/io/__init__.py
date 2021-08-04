@@ -477,14 +477,18 @@ class Dataset:
 				log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
 		return results, unique_labels
 
-	def slide_to_label(self, headers, use_float=False):
+	def slide_to_label(self, headers, use_float=False, return_unique=False):
 		labels, unique_labels = self.get_labels_from_annotations(headers=headers, use_float=use_float)
 		if not use_float and not unique_labels:
 			raise DatasetError(f"No labels were detected for header {headers} in this dataset")
 		elif not use_float:
-			return {k:unique_labels[v['label']] for k, v in labels.items()}
+			return_dict = {k:unique_labels[v['label']] for k, v in labels.items()}
 		else:
-			return {k:labels[k]['label'] for k,v in labels.items()}
+			return_dict = {k:labels[k]['label'] for k,v in labels.items()}
+		if return_unique:
+			return return_dict, unique_labels
+		else:
+			return return_dict
 
 	def load_annotations(self, annotations_file):
 		'''Load annotations from a given CSV file.'''
@@ -713,7 +717,7 @@ class Dataset:
 		elif num_missing:
 			log.complete(f"No annotation updates performed. Slides not found for {num_missing} annotations.", 1)
 		else:
-			log.complete(f"Annotations up-to-date, no changes made.")
+			log.complete(f"Annotations up-to-date, no changes made.", 1)
 
 		# Finally, backup the old annotation file and overwrite existing with the new data
 		backup_file = f"{annotations_file}.backup"
