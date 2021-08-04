@@ -282,7 +282,7 @@ def _evaluator(outcome_label_headers, model, project_config, results_dict, input
 	results_dict['results'] = results
 	return results_dict
 
-def _heatmap_generator(slide, model_path, save_folder, roi_list, show_roi, 
+def _heatmap_generator(slide, model_path, save_folder, roi_list, show_roi, roi_method,
 						resolution, interpolation, project_config, logit_cmap=None, skip_thumb=False, 
 						buffer=True, normalizer=None, normalizer_source=None, model_format=None, flags=None):
 
@@ -308,6 +308,7 @@ def _heatmap_generator(slide, model_path, save_folder, roi_list, show_roi,
 	heatmap = Heatmap(slide, model_path, hp_data['tile_px'], hp_data['tile_um'],use_fp16=project_config['use_fp16'],
 																				stride_div=stride_div,
 																				roi_list=roi_list,
+																				roi_method=roi_method,
 																				buffer=buffer,
 																				normalizer=normalizer,
 																				normalizer_source=normalizer_source,
@@ -1469,7 +1470,7 @@ class SlideflowProject:
 			return AV
 
 	def generate_heatmaps(self, model, filters=None, filter_blank=None, directory=None, resolution='low', 
-							interpolation='none', show_roi=True, logit_cmap=None, skip_thumb=False, 
+							interpolation='none', show_roi=True, roi_method='inside', logit_cmap=None, skip_thumb=False, 
 							normalizer=None, normalizer_source=None, buffer=True, isolated_thread=False, 
 							model_format=None):
 		'''Creates predictive heatmap overlays on a set of slides. 
@@ -1486,6 +1487,7 @@ class SlideflowProject:
 									"high" uses a stride equal to 1/4 tile width.
 			interpolation:		Interpolation strategy for smoothing heatmap predictions (matplotlib imshow interpolation options). 
 			show_roi:			Bool. If True, will show ROI on heatmaps.
+			roi_method:			'inside', 'outside', or 'none'. Determines where heatmap should be made with respect to annotated ROI.
 			logit_cmap:			Either a function or a dictionary used to create heatmap colormap.
 									If None (default), separate heatmaps will be generated for each label category, with color representing likelihood of category prediction.
 									Each image tile will generate a list of predictions of length O, 
@@ -1537,11 +1539,11 @@ class SlideflowProject:
 		ctx = multiprocessing.get_context('spawn')
 		for slide in slide_list:
 			if isolated_thread:
-				_heatmap_generator(slide, model, heatmaps_folder, roi_list, show_roi,
+				_heatmap_generator(slide, model, heatmaps_folder, roi_list, show_roi, roi_method,
 									resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb,
 									buffer, normalizer, normalizer_source, model_format, self.FLAGS)
 			else:
-				process = ctx.Process(target=_heatmap_generator, args=(slide, model, heatmaps_folder, roi_list, show_roi, 
+				process = ctx.Process(target=_heatmap_generator, args=(slide, model, heatmaps_folder, roi_list, show_roi, roi_method,
 																		resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb,
 																		buffer, normalizer, normalizer_source, model_format, self.FLAGS))
 				process.start()
