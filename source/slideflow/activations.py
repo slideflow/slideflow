@@ -1260,6 +1260,9 @@ class Heatmap:
 		self.normalizer = normalizer
 		self.normalizer_source = normalizer_source
 
+		# Load the designated model
+		self.model = ModelActivationsInterface(model_path, model_format=model_format)
+
 		# Create progress bar
 		pb = ProgressBar(1, counter_text='tiles', leadtext="Generating heatmap... ", show_counter=True, show_eta=True)
 		self.print = pb.print
@@ -1278,9 +1281,6 @@ class Heatmap:
 								 pb=pb)
 
 		pb.BARS[0].end_value = self.slide.estimated_num_tiles
-
-		# First, load the designated model
-		self.model = ModelActivationsInterface(model_path, model_format=model_format)
 
 		# Record the number of classes in the model
 		self.num_classes = self.model.num_classes#_model.layers[-1].output_shape[-1]
@@ -1303,7 +1303,7 @@ class Heatmap:
 
 		# Generate dataset from the generator
 		with tf.name_scope('dataset_input'):
-			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (tf.uint8)) # TODO: compatibility with FEATURE_DESCRIPTION_LOC
+			tile_dataset = tf.data.Dataset.from_generator(gen_slice, output_signature={'image':tf.TensorSpec(shape=(size_px,size_px,3), dtype=tf.uint8)})
 			tile_dataset = tile_dataset.map(self._parse_function, num_parallel_calls=8)
 			tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
 			tile_dataset = tile_dataset.prefetch(8)
@@ -1355,7 +1355,8 @@ class Heatmap:
 		if (type(self.logits) == bool) and (not self.logits):
 			log.error(f"Unable to create heatmap for slide {sfutil.green(self.slide.name)}", 1)
 
-	def _parse_function(self, image): # TODO: compatibility with FEATURE_DESCRIPTION_LOC
+	def _parse_function(self, record):
+		image = record['image']
 		parsed_image = tf.image.per_image_standardization(image)
 		parsed_image = tf.image.convert_image_dtype(parsed_image, tf.float32)
 		parsed_image.set_shape([self.tile_px, self.tile_px, 3])
