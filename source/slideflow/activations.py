@@ -1283,7 +1283,7 @@ class Heatmap:
 		self.model = ModelActivationsInterface(model_path, model_format=model_format)
 
 		# Record the number of classes in the model
-		self.NUM_CLASSES = self.model.NUM_CLASSES#_model.layers[-1].output_shape[-1]
+		self.num_classes = self.model.num_classes#_model.layers[-1].output_shape[-1]
 
 		if not self.slide.loaded_correctly():
 			raise ActivationsError(f"Unable to load slide {self.slide.name} for heatmap generation")
@@ -1330,7 +1330,7 @@ class Heatmap:
 			#  supplying values of "0" where tiles were skipped by the tile generator
 			x_logits_len = int(self.slide.extracted_x_size / self.slide.full_stride) + 1
 			y_logits_len = int(self.slide.extracted_y_size / self.slide.full_stride) + 1
-			expanded_logits = [[-1] * self.NUM_CLASSES] * len(self.slide.tile_mask)
+			expanded_logits = [[-1] * self.num_classes] * len(self.slide.tile_mask)
 			expanded_postconv = [[-1] * num_postconv_nodes] * len(self.slide.tile_mask)
 			li = 0
 			for i in range(len(expanded_logits)):
@@ -1345,7 +1345,7 @@ class Heatmap:
 				raise ActivationsError("Mismatch with number of categories in model output and expected number of categories")
 
 			# Resize logits array into a two-dimensional array for heatmap display
-			self.logits = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.NUM_CLASSES])
+			self.logits = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.num_classes])
 			self.postconv = np.resize(expanded_postconv, [y_logits_len, x_logits_len, num_postconv_nodes])
 		else:
 			self.logits = logits_arr
@@ -1426,7 +1426,7 @@ class Heatmap:
 									 interpolation=interpolation, 
 									 zorder=10)
 		else:
-			for i in range(self.NUM_CLASSES):
+			for i in range(self.num_classes):
 				heatmap = self.ax.imshow(self.logits[:, :, i], 
 										 extent=implot.extent, 
 										 cmap=self.newMap, 
@@ -1434,7 +1434,7 @@ class Heatmap:
 										 interpolation=interpolation, 
 										 zorder=10) #bicubic
 
-				ax_slider = self.fig.add_axes([0.25, 0.2-(0.2/self.NUM_CLASSES)*i, 0.5, 0.03], facecolor='lightgoldenrodyellow')
+				ax_slider = self.fig.add_axes([0.25, 0.2-(0.2/self.num_classes)*i, 0.5, 0.03], facecolor='lightgoldenrodyellow')
 				slider = Slider(ax_slider, f'Class {i}', 0, 1, valinit = 0)
 				heatmap_dict.update({f"Class{i}": [heatmap, slider]})
 				slider.on_changed(slider_func)
@@ -1493,8 +1493,8 @@ class Heatmap:
 			plt.savefig(os.path.join(save_folder, f'{self.slide.name}-custom.png'), bbox_inches='tight')
 		else:
 			# Make heatmap plots and sliders for each outcome category
-			for i in range(self.NUM_CLASSES):
-				print(f"\r\033[KMaking heatmap {i+1} of {self.NUM_CLASSES}...", end="")
+			for i in range(self.num_classes):
+				print(f"\r\033[KMaking heatmap {i+1} of {self.num_classes}...", end="")
 				heatmap = self.ax.imshow(self.logits[:, :, i], 
 										 extent=implot.get_extent(),
 										 cmap=self.newMap,

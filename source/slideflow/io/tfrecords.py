@@ -609,7 +609,7 @@ def update_tfrecord(tfrecord_file, old_feature_description=FEATURE_DESCRIPTION_L
 	writer = tf.io.TFRecordWriter(tfrecord_file)
 	for record in dataset:
 		features = tf.io.parse_single_example(record, old_feature_description)
-		slidename = assign_slide if assign_slide is not None else features[slide].numpy()
+		slidename = bytes(assign_slide, 'utf-8') if assign_slide is not None else features[slide].numpy()
 		image_raw_data = features[image_raw].numpy()
 		tf_example = image_example(slide=slidename, image_string=image_raw_data)
 		writer.write(tf_example.SerializeToString())

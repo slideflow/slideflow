@@ -116,6 +116,7 @@ class ModelActivationsInterface:
 				raise ModelError("Unable to read model.")
 
 		self.num_features = self.model.output_shape[0][1]
+		self.num_classes = self.model.output_shape[1][1]
 		log.info(f"Number of activation features: {self.num_features}", 2)
 		log.info(f"Number of logits: {self.model.output_shape[1][1]}", 2)
 
