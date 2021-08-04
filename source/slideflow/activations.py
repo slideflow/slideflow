@@ -1295,14 +1295,15 @@ class Heatmap:
 
 		# Create tile coordinate generator
 		gen_slice = self.slide.build_generator(normalizer=self.normalizer,
-											   normalizer_source=self.normalizer_source)
+											   normalizer_source=self.normalizer_source,
+											   include_loc=False)
 
 		if not gen_slice:
 			log.error(f"No tiles extracted from slide {sfutil.green(self.slide.name)}", 1)
 
 		# Generate dataset from the generator
 		with tf.name_scope('dataset_input'):
-			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (tf.uint8))
+			tile_dataset = tf.data.Dataset.from_generator(gen_slice, (tf.uint8)) # TODO: compatibility with FEATURE_DESCRIPTION_LOC
 			tile_dataset = tile_dataset.map(self._parse_function, num_parallel_calls=8)
 			tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
 			tile_dataset = tile_dataset.prefetch(8)
@@ -1354,7 +1355,7 @@ class Heatmap:
 		if (type(self.logits) == bool) and (not self.logits):
 			log.error(f"Unable to create heatmap for slide {sfutil.green(self.slide.name)}", 1)
 
-	def _parse_function(self, image):
+	def _parse_function(self, image): # TODO: compatibility with FEATURE_DESCRIPTION_LOC
 		parsed_image = tf.image.per_image_standardization(image)
 		parsed_image = tf.image.convert_image_dtype(parsed_image, tf.float32)
 		parsed_image.set_shape([self.tile_px, self.tile_px, 3])

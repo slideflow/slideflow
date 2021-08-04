@@ -676,7 +676,7 @@ class SlideReader(SlideLoader):
 
 	def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=1.0, 
 							whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05, 
-							normalizer=None, normalizer_source=None, **kwargs):
+							normalizer=None, normalizer_source=None, include_loc=True, **kwargs):
 
 		'''Builds generator to supervise extraction of tiles across the slide.
 		
@@ -774,7 +774,10 @@ class SlideReader(SlideLoader):
 					# Mark as extracted
 					tile_mask[index] = 1
 
-					yield {'image': np_image, 'loc': [x_coord, y_coord]}
+					if include_loc:
+						yield {'image': np_image, 'loc': [x_coord, y_coord]}
+					else:
+						yield {'image': np_image}
 
 			log.label(self.shortname, f"Finished tile extraction for {sfutil.green(self.shortname)} ({sum(tile_mask)} tiles of {len(self.coord)} possible)", 2, self.print)
 			self.tile_mask = tile_mask
