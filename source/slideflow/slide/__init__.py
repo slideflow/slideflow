@@ -39,6 +39,9 @@ from slideflow.io.tfrecords import image_and_loc_example
 from fpdf import FPDF
 from datetime import datetime
 
+#TODO: implement randomization of center of tile extraction
+#TODO: implement randomization of starting grid for WSI tile extraction
+
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
 DEFAULT_JPG_MPP = 1
@@ -586,7 +589,7 @@ class SlideReader(SlideLoader):
 	'''Extension of slideflow.slide.SlideLoader. Loads a slide and its ROI annotations and sets up a tile generator.'''
 
 	def __init__(self, path, size_px, size_um, stride_div=1, enable_downsample=False, roi_dir=None, roi_list=None,
-					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, silent=False, buffer=None, pb=None, pb_id=0):
+					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, randomize_origin=False, silent=False, buffer=None, pb=None, pb_id=0):
 		'''Initializer.
 
 		Args:
@@ -653,10 +656,17 @@ class SlideReader(SlideLoader):
 			self.extracted_x_size = self.full_shape[0] - self.full_extract_px
 			self.extracted_y_size = self.full_shape[1] - self.full_extract_px
 
+			# Randomize origin, if desired
+			if randomize_origin:
+				start_x = random.randint(0, self.full_stride-1)
+				start_y = random.randint(0, self.full_stride-1)
+			else:
+				start_x = start_y = 0
+
 			# Coordinates must be in level 0 (full) format for the read_region function
 			index = 0
-			for y in np.arange(0, (self.full_shape[1]+1) - self.full_extract_px, self.full_stride):
-				for x in np.arange(0, (self.full_shape[0]+1) - self.full_extract_px, self.full_stride):
+			for y in np.arange(start_y, (self.full_shape[1]+1) - self.full_extract_px, self.full_stride):
+				for x in np.arange(start_x, (self.full_shape[0]+1) - self.full_extract_px, self.full_stride):
 					y = int(y)
 					x = int(x)
 					is_unique = ((y % self.full_extract_px == 0) and (x % self.full_extract_px == 0))
@@ -665,7 +675,6 @@ class SlideReader(SlideLoader):
 
 			self.estimated_num_tiles = int(len(self.coord)) 
 			log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
-				
 				
 		log.label(self.shortname, f"Slide info: {self.MPP} um/px | {len(self.rois)} ROI(s) | Size: {self.full_shape[0]} x {self.full_shape[1]}", 2, self.print)
 
