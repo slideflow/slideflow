@@ -643,7 +643,7 @@ class SlideReader(SlideLoader):
 			self.load_csv_roi(matching_rois[0])	
 		
 		# Handle missing ROIs
-		if not len(self.rois) and skip_missing_roi:
+		if not len(self.rois) and skip_missing_roi and roi_method != 'ignore':
 			log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.error_print)
 			self.shape = None
 			self.load_error = True
