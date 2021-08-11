@@ -837,12 +837,15 @@ def gen_metrics_from_predictions(y_true,
 	# Filter out slides not meeting minimum tile number criteria, if specified
 	slides_to_filter = []
 	num_total_slides = len(unique_slides)
-	for tfrecord in manifest:
-		tfrecord_name = sfutil.path_to_name(tfrecord)
-		num_tiles_tfrecord = manifest[tfrecord]['total']
-		if num_tiles_tfrecord < min_tiles_per_slide:
-			if verbose:	log.info(f"Filtering out {tfrecord_name}: {num_tiles_tfrecord} tiles", 2)
-			slides_to_filter += [tfrecord_name]
+	if manifest:
+		for tfrecord in manifest:
+			tfrecord_name = sfutil.path_to_name(tfrecord)
+			num_tiles_tfrecord = manifest[tfrecord]['total']
+			if num_tiles_tfrecord < min_tiles_per_slide:
+				if verbose:	log.info(f"Filtering out {tfrecord_name}: {num_tiles_tfrecord} tiles", 2)
+				slides_to_filter += [tfrecord_name]
+	else:
+		log.warn("Manifest not provided, unable to filter tfrecords by min_tiles_per_slide", 1)
 	unique_slides = [us for us in unique_slides if us not in slides_to_filter]
 	if verbose:
 		log.info(f"Filtered out {num_total_slides - len(unique_slides)} of {num_total_slides} slides in evaluation set (minimum tiles per slide: {min_tiles_per_slide})", 1)

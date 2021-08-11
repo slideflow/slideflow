@@ -390,8 +390,8 @@ class SlideLoader:
 
 		# Calculate pixel size of extraction window using downsampling
 		self.extract_px = int(self.full_extract_px / self.downsample_factor)
-		self.full_stride = self.full_extract_px / stride_div
-		self.stride = self.extract_px / stride_div
+		self.full_stride = int(self.full_extract_px / stride_div)
+		self.stride = int(self.extract_px / stride_div)
 
 		# Calculate filter dimensions (low magnification for filtering out white background and performing edge detection)
 		self.filter_dimensions = self.slide.level_dimensions[-1]
@@ -470,6 +470,61 @@ class SlideLoader:
 		except:
 			return False
 		return loaded_correctly
+
+	def predict(self, model, layers=['postconv'], normalizer=None, normalizer_source=None, whitespace_fraction=1.0,
+					whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05, 
+					batch_size=128, dtype=np.float16, **kwargs):
+		from slideflow.model import ModelActivationsInterface
+		model_interface = ModelActivationsInterface(model, layers=layers)
+		prediction_grid = np.zeros((self.grid.shape[0], self.grid.shape[1], model_interface.num_features), dtype=dtype)
+
+		generator = self.build_generator(shuffle=False,
+										normalizer=normalizer,
+										normalizer_source=normalizer_source,
+										whitespace_fraction=whitespace_fraction,
+										whitespace_threshold=whitespace_threshold,
+										grayspace_fraction=grayspace_fraction,
+										grayspace_threshold=grayspace_threshold,
+										include_loc='grid',
+										**kwargs)
+
+		if not generator:
+			log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1, self.print)
+			return
+
+		def _parse_function(record):
+			image = record['image']
+			loc = record['loc']
+			parsed_image = tf.image.per_image_standardization(image)
+			parsed_image = tf.image.convert_image_dtype(parsed_image, tf.float32)
+			parsed_image.set_shape([self.size_px, self.size_px, 3])
+			return parsed_image, loc
+
+		# Generate dataset from the generator
+		log.info("Setting up tile generator", 1, self.print)
+		with tf.name_scope('dataset_input'):
+			tile_dataset = tf.data.Dataset.from_generator(generator,
+														  output_signature={
+															  				'image':tf.TensorSpec(shape=(self.size_px,self.size_px,3), dtype=tf.uint8),
+																		    'loc':tf.TensorSpec(shape=(2), dtype=tf.uint32)
+																		   })
+			tile_dataset = tile_dataset.map(_parse_function, num_parallel_calls=8)
+			tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
+			tile_dataset = tile_dataset.prefetch(8)
+
+		act_arr = []
+		loc_arr = []
+		for i, (batch_images, batch_loc) in enumerate(tile_dataset):
+			act, logits = model_interface.predict(batch_images)
+			act_arr = act if act_arr == [] else np.concatenate([act_arr, act])
+			loc_arr = batch_loc if loc_arr == [] else np.concatenate([loc_arr, batch_loc])
+
+		for i, act in enumerate(act_arr):
+			xi = loc_arr[i][0]
+			yi = loc_arr[i][1]
+			prediction_grid[xi][yi] = act
+
+		return prediction_grid
 
 	def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None, 
 						whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, 
@@ -624,6 +679,9 @@ class SlideReader(SlideLoader):
 		if not self.loaded_correctly():
 			return
 
+		# Build coordinate grid
+		self._build_coord(randomize_origin=randomize_origin)
+
 		# Establish ROIs
 		self.rois = []
 		self.roi_method = roi_method
@@ -652,27 +710,6 @@ class SlideReader(SlideLoader):
 			self.load_error = True
 			return None
 		elif not len(self.rois):
-			# Calculate window sizes, strides, and coordinates for windows
-			self.extracted_x_size = self.full_shape[0] - self.full_extract_px
-			self.extracted_y_size = self.full_shape[1] - self.full_extract_px
-
-			# Randomize origin, if desired
-			if randomize_origin:
-				start_x = random.randint(0, self.full_stride-1)
-				start_y = random.randint(0, self.full_stride-1)
-			else:
-				start_x = start_y = 0
-
-			# Coordinates must be in level 0 (full) format for the read_region function
-			index = 0
-			for y in np.arange(start_y, (self.full_shape[1]+1) - self.full_extract_px, self.full_stride):
-				for x in np.arange(start_x, (self.full_shape[0]+1) - self.full_extract_px, self.full_stride):
-					y = int(y)
-					x = int(x)
-					is_unique = ((y % self.full_extract_px == 0) and (x % self.full_extract_px == 0))
-					self.coord.append([x, y, index, is_unique])
-					index += 1
-
 			self.estimated_num_tiles = int(len(self.coord)) 
 			log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
 				
@@ -682,6 +719,34 @@ class SlideReader(SlideLoader):
 		if self.load_error:
 			log.error(f'Skipping slide {sfutil.green(self.name)} due to slide image or ROI loading error', 1, self.error_print)
 			return None
+
+	def _build_coord(self, randomize_origin):
+		# Calculate window sizes, strides, and coordinates for windows
+		self.extracted_x_size = self.full_shape[0] - self.full_extract_px
+		self.extracted_y_size = self.full_shape[1] - self.full_extract_px
+
+		# Randomize origin, if desired
+		if randomize_origin:
+			start_x = random.randint(0, self.full_stride-1)
+			start_y = random.randint(0, self.full_stride-1)
+			log.info(f"Random origin: X: {start_x}, Y: {start_y}", 2, self.print)
+		else:
+			start_x = start_y = 0
+
+		# Coordinates must be in level 0 (full) format for the read_region function
+		index = 0
+		y_range = np.arange(start_y, (self.full_shape[1]+1) - self.full_extract_px, self.full_stride)
+		x_range = np.arange(start_x, (self.full_shape[0]+1) - self.full_extract_px, self.full_stride)
+		for yi, y in enumerate(y_range):
+			for xi, x in enumerate(x_range):
+				y = int(y)
+				x = int(x)
+				is_unique = ((y % self.full_extract_px == 0) and (x % self.full_extract_px == 0))
+				self.coord.append([x, y, index, is_unique, xi, yi])
+				index += 1
+
+		self.grid = np.zeros((len(x_range), len(y_range)))
+		log.info(f"Grid shape: {self.grid.shape}", 2, self.print)
 
 	def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=1.0, 
 							whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05, 
@@ -717,6 +782,8 @@ class SlideReader(SlideLoader):
 		def generator():
 			for c in self.coord:
 				index = c[2]
+				grid_xi = c[4]
+				grid_yi = c[5]
 
 				# Check if the center of the current window lies within any annotation; if not, skip
 				x_coord = int((c[0]+self.full_extract_px/2)/self.ROI_SCALE)
@@ -730,8 +797,11 @@ class SlideReader(SlideLoader):
 					# If the extraction method is EXTRACT_OUTSIDE, skip the tile if it's in an ROI
 					elif (self.roi_method == EXTRACT_OUTSIDE) and point_in_roi:
 						continue
+
 				if self.pb:
 					self.pb.increase_bar_value(id=self.pb_id)
+				else:
+					print(f'\r\033[KWorking on tile {index}/{self.estimated_num_tiles}...', end='')
 
 				# Read the region and resize to target size
 				region = self.slide.read_region((c[0], c[1]), self.downsample_level, [self.extract_px, self.extract_px])
@@ -783,7 +853,9 @@ class SlideReader(SlideLoader):
 					# Mark as extracted
 					tile_mask[index] = 1
 
-					if include_loc:
+					if include_loc == 'grid':
+						yield {'image': np_image, 'loc': [grid_xi, grid_yi]}
+					elif include_loc:
 						yield {'image': np_image, 'loc': [x_coord, y_coord]}
 					else:
 						yield {'image': np_image}
@@ -838,20 +910,6 @@ class SlideReader(SlideLoader):
 
 			for roi_object in roi_dict.values():
 				self.rois.append(roi_object)
-
-		# Calculate window sizes, strides, and coordinates for windows
-		self.extracted_x_size = self.full_shape[0] - self.full_extract_px
-		self.extracted_y_size = self.full_shape[1] - self.full_extract_px
-
-		# Coordinates must be in level 0 (full) format for the read_region function
-		index = 0
-		for y in np.arange(0, (self.full_shape[1]+1) - self.full_extract_px, self.full_stride):
-			for x in np.arange(0, (self.full_shape[0]+1) - self.full_extract_px, self.full_stride):
-				y = int(y)
-				x = int(x)
-				is_unique = ((y % self.full_extract_px == 0) and (x % self.full_extract_px == 0))
-				self.coord.append([x, y, index, is_unique])
-				index += 1
 
 		# Load annotations as shapely.geometry objects
 		if self.roi_method != IGNORE_ROI:

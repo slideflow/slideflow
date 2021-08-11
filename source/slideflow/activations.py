@@ -640,7 +640,7 @@ class ActivationsVisualizer:
 
 		def _parse_function(record):
 			try:
-				features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION_LOC)
+				features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION_LOC) # TODO: FEATURE_DESCRIPTION_LOC
 				includes_loc = True
 			except tf.errors.InvalidArgumentError:
 				features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION)
@@ -1296,14 +1296,15 @@ class Heatmap:
 		# Create tile coordinate generator
 		gen_slice = self.slide.build_generator(normalizer=self.normalizer,
 											   normalizer_source=self.normalizer_source,
-											   include_loc=False)
+											   include_loc=False,
+											   shuffle=False)
 
 		if not gen_slice:
 			log.error(f"No tiles extracted from slide {sfutil.green(self.slide.name)}", 1)
 
 		# Generate dataset from the generator
 		with tf.name_scope('dataset_input'):
-			tile_dataset = tf.data.Dataset.from_generator(gen_slice, output_signature={'image':tf.TensorSpec(shape=(size_px,size_px,3), dtype=tf.uint8)})
+			tile_dataset = tf.data.Dataset.from_generator(gen_slice, output_signature={'image':tf.TensorSpec(shape=(size_px,size_px,3), dtype=tf.int32)})
 			tile_dataset = tile_dataset.map(self._parse_function, num_parallel_calls=8)
 			tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
 			tile_dataset = tile_dataset.prefetch(8)
@@ -1368,10 +1369,6 @@ class Heatmap:
 		self.fig.subplots_adjust(bottom = 0.25, top=0.95)
 		gca = plt.gca()
 		gca.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False)
-		jetMap = np.linspace(0.45, 0.95, 255)
-		cmMap = cm.nipy_spectral(jetMap)
-		self.newMap = mcol.ListedColormap(cmMap)
-		
 		# Plot ROIs
 		if show_roi:
 			print("\r\033[KPlotting ROIs...", end="")
@@ -1428,10 +1425,12 @@ class Heatmap:
 									 interpolation=interpolation, 
 									 zorder=10)
 		else:
+			divnorm=mcol.TwoSlopeNorm(vmin=0, vcenter=0.5, vmax=1.0)
 			for i in range(self.num_classes):
 				heatmap = self.ax.imshow(self.logits[:, :, i], 
 										 extent=implot.extent, 
-										 cmap=self.newMap, 
+										 cmap='coolwarm',
+										 norm=divnorm,
 										 alpha = 0.0, 
 										 interpolation=interpolation, 
 										 zorder=10) #bicubic
@@ -1497,9 +1496,11 @@ class Heatmap:
 			# Make heatmap plots and sliders for each outcome category
 			for i in range(self.num_classes):
 				print(f"\r\033[KMaking heatmap {i+1} of {self.num_classes}...", end="")
+				divnorm=mcol.TwoSlopeNorm(vmin=0, vcenter=0.5, vmax=1.0)
 				heatmap = self.ax.imshow(self.logits[:, :, i], 
 										 extent=implot.get_extent(),
-										 cmap=self.newMap,
+										 cmap='coolwarm',
+										 norm=divnorm,
 										 vmin=0,
 										 vmax=1,
 										 alpha=0.6,

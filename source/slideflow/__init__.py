@@ -1188,12 +1188,152 @@ class SlideflowProject:
 		pdf_report.save(filename)
 		log.complete(f"Slide report saved to {sfutil.green(filename)}", 1)
 
+	def predict_wsi(self, model_path, tile_px, tile_um, export_dir, filters=None, filter_blank=None, stride_div=1, 
+						enable_downsample=False, roi_method='inside', skip_missing_roi=False, 
+						dataset=None, normalizer=None, normalizer_source=None, 
+						whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, 
+						grayspace_threshold=0.05, randomize_origin=False, buffer=None, num_threads=-1):
+
+		import slideflow.slide as sfslide
+		import tensorflow as tf
+		import pickle
+
+		log.header("Generating WSI prediction / activation maps...")
+		if not exists(export_dir):
+			os.makedirs(export_dir)
+		if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
+		else:		datasets = self.PROJECT['datasets']
+
+		# Load dataset for evaluation
+		extracting_dataset = self.get_dataset(filters=filters, 
+											  filter_blank=filter_blank, 
+											  tile_px=tile_px, 
+											  tile_um=tile_um, 
+											  verification='slides')
+		# Info logging
+		if normalizer: log.info(f"Using {sfutil.bold(normalizer)} normalization", 1)
+		if whitespace_fraction < 1: log.info(f"Filtering tiles by whitespace fraction (exclude if >={whitespace_fraction*100:.0f}% whitespace, whitespace = RGB avg > {whitespace_threshold})", 1)
+
+		for dataset_name in datasets:
+			log.empty(f"Working on dataset {sfutil.bold(dataset_name)}", 1)
+			roi_dir = extracting_dataset.datasets[dataset_name]['roi']
+			dataset_config = extracting_dataset.datasets[dataset_name]
+
+			# Prepare list of slides for extraction
+			slide_list = extracting_dataset.get_slide_paths(dataset=dataset_name)
+			log.info(f"Generating predictions for {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 1)
+
+			# Verify slides and estimate total number of tiles
+			log.empty("Verifying slides...", 1)
+			total_tiles = 0
+			for slide_path in slide_list:
+				slide = sfslide.SlideReader(slide_path, 
+											tile_px, 
+											tile_um, 
+											stride_div, 
+											roi_dir=roi_dir,
+											roi_method=roi_method,
+											skip_missing_roi=False,
+											silent=True,
+											buffer=None)
+				print(f"\r\033[KVerified {sfutil.green(slide.name)} (approx. {slide.estimated_num_tiles} tiles)", end="")
+				total_tiles += slide.estimated_num_tiles
+				del(slide)
+			if log.INFO_LEVEL > 0: print("\r\033[K", end='')
+			log.complete(f"Verification complete. Total estimated tiles to extract: {total_tiles}", 1)
+			
+			if total_tiles:
+				pb = ProgressBar(total_tiles, 
+								counter_text='tiles', 
+								leadtext="Extracting tiles... ", 
+								show_counter=True, 
+								show_eta=True)
+			else:
+				pb = None
+
+			# Function to extract tiles from a slide
+			def predict_wsi(slide_path, pb, downsample):
+				print_func = print if not pb else pb.print
+				log.empty(f"Working on slide {sfutil.path_to_name(slide_path)}", 1, print_func)
+				whole_slide = sfslide.SlideReader(slide_path,
+													tile_px,
+													tile_um,
+													stride_div,
+													enable_downsample=downsample, 
+													roi_dir=roi_dir,
+													roi_method=roi_method,
+													randomize_origin=randomize_origin,
+													skip_missing_roi=skip_missing_roi,
+													buffer=buffer,
+													pb=pb)
+
+				if not whole_slide.loaded_correctly():
+					return
+
+				try:
+					wsi_grid = whole_slide.predict(model=model_path,
+												   normalizer=normalizer,
+												   normalizer_source=normalizer_source,
+												   whitespace_fraction=whitespace_fraction,
+												   whitespace_threshold=whitespace_threshold,
+												   grayspace_fraction=grayspace_fraction,
+												   grayspace_threshold=grayspace_threshold)
+
+					with open (join(export_dir, whole_slide.name+".pkl"), 'wb') as pkl_file:
+						pickle.dump(wsi_grid, pkl_file)
+
+				except sfslide.TileCorruptionError:
+					if downsample:
+						log.warn(f"Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; will try re-extraction with downsampling disabled", 1, print_func)
+						predict_wsi(slide_path, pb, downsample=False)
+					else:
+						log.error(f"Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; skipping slide", 1, print_func)
+						return None
+
+			# Use multithreading if specified, extracting tiles from all slides in the filtered list
+			if num_threads == -1: num_threads = self.FLAGS['num_threads']
+			if num_threads > 1 and len(slide_list):
+				q = queue.Queue()
+				
+				def worker():
+					while True:
+						path = q.get()
+						if buffer and buffer != 'vmtouch':
+							buffered_path = join(buffer, os.path.basename(path))
+							predict_wsi(buffered_path, pb, enable_downsample)
+							os.remove(buffered_path)
+						else:
+							predict_wsi(path, pb, enable_downsample)
+						q.task_done()
+
+				threads = [threading.Thread(target=worker, daemon=True) for t in range(num_threads)]
+				for thread in threads:
+					thread.start()
+
+				for slide_path in slide_list:
+					if buffer and buffer != 'vmtouch':
+						while True:
+							try:
+								shutil.copyfile(slide_path, join(buffer, os.path.basename(slide_path)))
+								q.put(slide_path)
+								break
+							except OSError:
+								time.sleep(5)
+					else:
+						q.put(slide_path)
+				q.join()
+				if pb: pb.end()
+			else:
+				for slide_path in slide_list:
+					predict_wsi(slide_path, pb, enable_downsample)
+				if pb: pb.end()
+
 	def extract_tiles(self, tile_px, tile_um, filters=None, filter_blank=None, stride_div=1, 
 						tma=False, full_core=False, save_tiles=False, save_tfrecord=True,
 						enable_downsample=False, roi_method='inside', skip_missing_roi=True, 
 						skip_extracted=True, dataset=None, normalizer=None, normalizer_source=None, 
 						whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, 
-						grayspace_threshold=0.05, buffer=None, num_threads=-1):
+						grayspace_threshold=0.05, randomize_origin=False, buffer=None, num_threads=-1):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.
 		
@@ -1348,6 +1488,7 @@ class SlideflowProject:
 													  enable_downsample=downsample, 
 													  roi_dir=roi_dir,
 													  roi_method=roi_method,
+													  randomize_origin=randomize_origin,
 													  skip_missing_roi=skip_missing_roi,
 													  buffer=buffer,
 													  pb=pb)
