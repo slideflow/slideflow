@@ -1171,7 +1171,8 @@ class Heatmap:
 
 		# Create tile coordinate generator
 		gen_slice = self.slide.build_generator(normalizer=self.normalizer,
-											   normalizer_source=self.normalizer_source)
+											   normalizer_source=self.normalizer_source,
+											   shuffle=False)
 
 		if not gen_slice:
 			log.error(f"No tiles extracted from slide {sfutil.green(self.slide.name)}", 1)
