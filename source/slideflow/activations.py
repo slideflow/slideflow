@@ -644,20 +644,16 @@ class ActivationsVisualizer:
 													    ('image_raw', 'slide', 'loc_x', 'loc_y'),
 														normalizer=normalizer,
 														standardize=True,
-														size=self.IMAGE_SIZE,
+														img_size=self.IMAGE_SIZE,
 														error_if_invalid=False) # Will return None for loc_x/loc_y if not contained in tfrecords
 
-			def parser_with_loc(r):
-				i, s, lx, ly = parser(r)
-				return i, s, (lx, ly)
-
-			dataset = dataset.map(parser_with_loc, num_parallel_calls=8)
+			dataset = dataset.map(parser, num_parallel_calls=8)
 			dataset = dataset.batch(batch_size, drop_remainder=False)
 			
-			fl_activations_combined, logits_combined, slides_combined, loc_combined = [], [], [], []
+			fl_activations_combined, logits_combined, slides_combined, loc_x_combined, loc_y_combined = [], [], [], [], []
 
 			for i, data in enumerate(dataset):
-				batch_processed_images, batch_slides, batch_loc = data
+				batch_processed_images, batch_slides, batch_loc_x, batch_loc_y = data
 				batch_slides = batch_slides.numpy()
 				batch_slides = np.array([unique_slides.index(bs.decode('utf-8')) for bs in batch_slides], dtype=np.uint32)
 
@@ -667,7 +663,8 @@ class ActivationsVisualizer:
 
 				fl_activations_combined = fl_activations if fl_activations_combined == [] else np.concatenate([fl_activations_combined, fl_activations])
 				slides_combined = batch_slides if slides_combined == [] else np.concatenate([slides_combined, batch_slides])
-				loc_combined = batch_loc.numpy() if loc_combined == [] else np.concatenate([loc_combined, batch_loc])
+				loc_x_combined = batch_loc_x.numpy() if loc_x_combined == [] else np.concatenate([loc_x_combined, batch_loc_x.numpy()])
+				loc_y_combined = batch_loc_y.numpy() if loc_y_combined == [] else np.concatenate([loc_y_combined, batch_loc_y.numpy()])
 
 				logits_combined = logits if logits_combined == [] else np.concatenate([logits_combined, logits])
 
@@ -677,6 +674,9 @@ class ActivationsVisualizer:
 
 				if self.MAX_TILES_PER_SLIDE and (len(fl_activations_combined) >= self.MAX_TILES_PER_SLIDE):
 					break
+
+			# Merge x and y locations into a single array
+			loc_combined = np.stack((loc_x_combined, loc_y_combined), axis=-1)
 			
 			# Check if TFRecord was empty
 			if fl_activations_combined == []:
