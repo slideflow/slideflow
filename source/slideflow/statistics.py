@@ -1128,8 +1128,7 @@ def gen_metrics_from_dataset(model,
 		auc, r_squared, c_index
 	'''
 
-	with tf.device('/cpu:0'):
-		y_true, y_pred, tile_to_slides = predict_from_model(model, dataset, num_tiles=num_tiles)
+	y_true, y_pred, tile_to_slides = predict_from_model(model, dataset, num_tiles=num_tiles)
 
 	return gen_metrics_from_predictions(y_true=y_true,
 										y_pred=y_pred,
