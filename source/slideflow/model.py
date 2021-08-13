@@ -623,7 +623,7 @@ class SlideflowModel:
 						   metrics=metrics)
 
 	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, max_tiles=None, min_tiles=None, 
-								multi_image=False, drop_remainder=False, augment=True):
+								multi_image=False, drop_remainder=False, include_slidenames=False, augment=True):
 
 		'''Generates an interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to balancing if provided.
@@ -682,7 +682,7 @@ class SlideflowModel:
 				# Assign category by outcome if this is a categorical model.
 				# Otherwise, consider all slides from the same category (effectively skipping balancing); appropriate for linear models.
 				category = self.SLIDE_ANNOTATIONS[slide_name]['outcome_label'] if self.MODEL_TYPE == 'categorical' else 1
-				datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=16)] #buffer_size=1024*1024*100 num_parallel_reads=tf.data.experimental.AUTOTUNE
+				datasets += [tf.data.TFRecordDataset(filename, buffer_size=1024*1024*100, num_parallel_reads=tf.data.AUTOTUNE)]
 				datasets_categories += [category]
 				dataset_filenames += [filename]
 
@@ -742,28 +742,31 @@ class SlideflowModel:
 				if slide_name not in self.SLIDES:
 					continue
 
-				datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=16)] #buffer_size=1024*1024*100 num_parallel_reads=tf.data.experimental.AUTOTUNE
+				datasets += [tf.data.TFRecordDataset(filename, buffer_size=1024*1024*100, num_parallel_reads=tf.data.AUTOTUNE)]
 				dataset_filenames += [filename]
 
 		parsed_datasets = [self._get_parsed_datasets(d,f, augment=augment) for d,f in zip(datasets, dataset_filenames)]
-		parsed_dataset_no_slidenames = [d[0] for d in parsed_datasets]
-		parsed_dataset_with_slidenames = [d[1] for d in parsed_datasets]
 		
-		# Interleave datasets
+		# Interleave and batch datasets
 		try:
-			dataset_no_slidenames = tf.data.experimental.sample_from_datasets(parsed_dataset_no_slidenames, weights=prob_weights)
-			dataset_with_slidenames = tf.data.experimental.sample_from_datasets(parsed_dataset_with_slidenames, weights=prob_weights)
+			dataset = tf.data.experimental.sample_from_datasets(parsed_datasets, weights=prob_weights)
+			dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
+			dataset = dataset.prefetch(tf.data.AUTOTUNE)
 		except IndexError:
 			log.error(f"No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder", 1)
 			raise ModelError("No TFRecords found after filter criteria.")
 
-		# Finally, batch the datasets
-		dataset_no_slidenames = dataset_no_slidenames.batch(batch_size, drop_remainder=drop_remainder)
-		dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
+		if include_slidenames:
+			parsed_dataset_with_slidenames = parsed_datasets = [self._get_parsed_datasets(d,f, augment=augment, include_slidenames=True) for d,f in zip(datasets, dataset_filenames)]
+			dataset_with_slidenames = tf.data.experimental.sample_from_datasets(parsed_dataset_with_slidenames, weights=prob_weights)
+			dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
+			dataset_with_slidenames = dataset_with_slidenames.prefetch(tf.data.AUTOTUNE)
+		else:
+			dataset_with_slidenames = None
 		
-		return dataset_no_slidenames, dataset_with_slidenames, global_num_tiles
+		return dataset, dataset_with_slidenames, global_num_tiles
 
-	def _get_parsed_datasets(self, tfrecord_dataset, filename, augment=True):
+	def _get_parsed_datasets(self, tfrecord_dataset, filename, augment=True, include_slidenames=False):
 		base_parser = tfrecords.get_tfrecord_parser(filename, 
 								('slide', 'image_raw'),
 								standardize=True,
@@ -771,12 +774,14 @@ class SlideflowModel:
 								normalizer=self.normalizer,
 								augment=augment)
 
-		training_parser = partial(self._parse_tfrecord_function, base_parser=base_parser, include_slidenames=False)
-		training_parser_with_slidenames = partial(self._parse_tfrecord_function, base_parser=base_parser, include_slidenames=True)
-		
-		dataset = tfrecord_dataset.map(training_parser, num_parallel_calls=16)
-		dataset_with_slidenames = tfrecord_dataset.map(training_parser_with_slidenames, num_parallel_calls=16)
-		return dataset, dataset_with_slidenames
+		if include_slidenames:
+			training_parser_with_slidenames = partial(self._parse_tfrecord_function, base_parser=base_parser, include_slidenames=True)
+			dataset_with_slidenames = tfrecord_dataset.map(training_parser_with_slidenames, num_parallel_calls=tf.data.AUTOTUNE)
+			return dataset_with_slidenames
+		else:
+			training_parser = partial(self._parse_tfrecord_function, base_parser=base_parser, include_slidenames=False)
+			dataset = tfrecord_dataset.map(training_parser, num_parallel_calls=tf.data.AUTOTUNE)
+			return dataset
 
 	def _parse_tfrecord_function(self, record, base_parser, include_slidenames=True, multi_image=False):
 		'''Parses raw entry read from TFRecord.'''
@@ -875,6 +880,7 @@ class SlideflowModel:
 																					max_tiles=max_tiles_per_slide,
 																					min_tiles=min_tiles_per_slide,
 																					multi_image=multi_image,
+																					include_slidenames=True,
 																					augment=False)
 		#import pickle
 		#with open('/mnt/data/projects/TUMOR_NORMAL/normalizer_test/nonorm_nostd_noconv_tiles.pkl', 'wb') as pkl_file:
@@ -1014,6 +1020,7 @@ class SlideflowModel:
 																	max_tiles=max_tiles_per_slide,
 																	min_tiles=min_tiles_per_slide,
 																	multi_image=multi_image,
+																	include_slidenames=False,
 																	augment=hp.augment)
 			# Set up validation data
 			using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
@@ -1026,6 +1033,7 @@ class SlideflowModel:
 																									max_tiles=max_tiles_per_slide,
 																									min_tiles=min_tiles_per_slide,
 																									multi_image=multi_image,
+																									include_slidenames=True,
 																									augment=False)
 
 				val_log_msg = "" if not validate_on_batch else f"every {sfutil.bold(str(validate_on_batch))} steps and "

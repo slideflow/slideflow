@@ -64,30 +64,34 @@ def _print_record(filename):
 		slide, loc_x, loc_y = parser(record)
 		print(f"{sfutil.header(filename)}: Record {i}: Slide: {sfutil.green(str(slide))} Loc: {(loc_x, loc_y)}")
 
-def _decode_image(img_string, img_type, to_numpy=False, size=None, standardize=False, normalizer=None, augment=False):
+def _decode_image(img_string, img_type, size=None, standardize=False, normalizer=None, augment=False):
 	tf_decoders = {
 		'png': tf.image.decode_png,
 		'jpeg': tf.image.decode_jpeg,
 		'jpg': tf.image.decode_jpeg
 	}
-	if to_numpy:
-		raise NotImplementedError
-	else:
-		decoder = tf_decoders[img_type.lower()]
-		image = decoder(img_string, channels=3)
-		if normalizer: 	
-			image = tf.py_function(normalizer.tf_to_rgb, [image], tf.int32)
-		if standardize:
-			image = tf.image.per_image_standardization(image)
-		if augment:
-			# Rotate randomly 0, 90, 180, 270 degrees
-			image = tf.image.rot90(image, tf.random.uniform(shape=[], minval=0, maxval=4, dtype=tf.int32))
-			# Random flip and rotation
-			image = tf.image.random_flip_left_right(image)
-			image = tf.image.random_flip_up_down(image)
-		if size:
-			image.set_shape([size, size, 3])
-		return image
+	decoder = tf_decoders[img_type.lower()]
+	image = decoder(img_string, channels=3)
+	
+	if normalizer: 	
+		image = tf.py_function(normalizer.tf_to_rgb, [image], tf.int32)
+		if size: image.set_shape([size, size, 3])
+	if augment:
+		# Augment with random compession
+		image = tf.cond(tf.random.uniform(shape=[], minval=0, maxval=1, dtype=tf.float32) < 0.5, 
+						true_fn=lambda: tf.image.adjust_jpeg_quality(image, tf.random.uniform(shape=[], minval=50, maxval=100, dtype=tf.int32)),
+						false_fn=lambda: image)
+
+		# Rotate randomly 0, 90, 180, 270 degrees
+		image = tf.image.rot90(image, tf.random.uniform(shape=[], minval=0, maxval=4, dtype=tf.int32))
+		# Random flip and rotation
+		image = tf.image.random_flip_left_right(image)
+		image = tf.image.random_flip_up_down(image)
+	if standardize:
+		image = tf.image.per_image_standardization(image)
+	if size:
+		image.set_shape([size, size, 3])
+	return image
 
 def detect_tfrecord_format(tfr):
 	record = next(iter(tf.data.TFRecordDataset(tfr)))
@@ -118,7 +122,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False, 
 			elif f not in features:
 				return None
 			elif f == 'image_raw' and decode_images:
-				return _decode_image(features['image_raw'], img_type, to_numpy, img_size, standardize, normalizer, augment)
+				return _decode_image(features['image_raw'], img_type, img_size, standardize, normalizer, augment)
 			elif to_numpy:
 				return features[f].numpy()
 			else:

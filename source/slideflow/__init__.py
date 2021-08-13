@@ -1328,7 +1328,7 @@ class SlideflowProject:
 						enable_downsample=False, roi_method='inside', skip_missing_roi=True, 
 						skip_extracted=True, dataset=None, normalizer=None, normalizer_source=None, 
 						whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, 
-						grayspace_threshold=0.05, randomize_origin=False, buffer=None, shuffle=True,
+						grayspace_threshold=0.05, img_format='png', randomize_origin=False, buffer=None, shuffle=True,
 						num_workers=4, threads_per_worker=4):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.
@@ -1492,12 +1492,13 @@ class SlideflowProject:
 													   tiles_dir=tiles_folder if save_tiles else None,
 													   split_fraction=split_fraction,
 													   split_names=split_names,
-													   normalizer=normalizer,
-													   normalizer_source=normalizer_source,
 													   whitespace_fraction=whitespace_fraction,
 													   whitespace_threshold=whitespace_threshold,
 													   grayspace_fraction=grayspace_fraction,
 													   grayspace_threshold=grayspace_threshold,
+													   normalizer=normalizer,
+													   normalizer_source=normalizer_source,
+													   img_format=img_format,
 													   full_core=full_core,
 													   shuffle=shuffle,
 													   num_threads=threads_per_worker)

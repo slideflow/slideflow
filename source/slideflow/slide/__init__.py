@@ -611,8 +611,8 @@ class SlideLoader:
 
 	def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None, 
 						whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, 
-						grayspace_threshold=0.05, normalizer=None, normalizer_source=None, shuffle=True, 
-						num_threads=4, **kwargs):
+						grayspace_threshold=0.05, normalizer=None, normalizer_source=None, img_format='png', 
+						shuffle=True, num_threads=4,  **kwargs):
 		'''Extractes tiles from slide and saves into a TFRecord file or as loose JPG tiles in a directory.
 		Args:
 			tfrecord_dir:			If provided, saves tiles into a TFRecord file (named according to slide name) in this directory.
@@ -627,6 +627,9 @@ class SlideLoader:
 			normalizer_source:		Path to normalizer source image
 			full_core:				Bool. Only used for TMAReader. If true, will extract full image cores regardless of supplied tile micron size.
 		'''
+
+		assert img_format in ('png', 'jpg', 'jpeg')
+
 		# Make base directories
 		if tfrecord_dir:
 			if not exists(tfrecord_dir): os.makedirs(tfrecord_dir)
@@ -686,7 +689,12 @@ class SlideLoader:
 			tile = tile_dict['image']
 			location = tile_dict['loc']
 
-			image_string = cv2.imencode('.png', cv2.cvtColor(tile, cv2.COLOR_RGB2BGR))[1].tobytes()
+			if img_format.lower() == 'png':
+				image_string = cv2.imencode('.png', cv2.cvtColor(tile, cv2.COLOR_RGB2BGR))[1].tobytes()
+			elif img_format.lower() in ('jpg', 'jpeg'):
+				image_string = cv2.imencode('.jpg', cv2.cvtColor(tile, cv2.COLOR_RGB2BGR), [int(cv2.IMWRITE_JPEG_QUALITY), 100])[1].tostring()
+			else:
+				raise ValueError(f"Unknown image format {img_format}, must be either 'png' or 'jpg'")
 			if len(sample_tiles) < 10:
 				sample_tiles += [image_string]
 			elif not tiles_dir and not tfrecord_dir:
@@ -696,7 +704,7 @@ class SlideLoader:
 					save_dir = join(tiles_dir, random.choices(split_names, weights=split_fraction))
 				else:
 					save_dir = tiles_dir
-				with open(join(tiles_dir, f'{self.shortname}_{index}.jpg'), 'wb') as outfile:
+				with open(join(tiles_dir, f'{self.shortname}_{index}.{img_format}'), 'wb') as outfile:
 					outfile.write(image_string)
 			if tfrecord_dir:
 				if split_fraction and split_names:
