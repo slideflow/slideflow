@@ -33,11 +33,13 @@ import slideflow.util as sfutil
 
 from os.path import join, exists
 from PIL import Image, ImageDraw, UnidentifiedImageError
-from multiprocessing import Pool, Queue
 from slideflow.util import log, StainNormalizer
-from slideflow.io.tfrecords import image_and_loc_example
+from slideflow.io.tfrecords import tfrecord_example
 from fpdf import FPDF
 from datetime import datetime
+import types
+from functools import partial
+import multiprocessing as mp
 
 #TODO: implement randomization of center of tile extraction
 #TODO: implement randomization of starting grid for WSI tile extraction
@@ -82,6 +84,79 @@ def vips2numpy(vi):
 	return np.ndarray(buffer=vi.write_to_memory(),
 					  dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
 					  shape=[vi.height, vi.width, vi.bands])
+
+def slide_extraction_worker(c, args):
+	'''Multiprocessing working for SlideReader. Extracts a tile at the given coordinates'''
+	slide = OpenslideToVIPS(args.path)
+	normalizer = None if not args.normalizer else StainNormalizer(method=args.normalizer, source=args.normalizer_source)
+
+	index = c[2]
+	grid_xi = c[4]
+	grid_yi = c[5]
+
+	# Check if the center of the current window lies within any annotation; if not, skip
+	x_coord = int((c[0]+args.full_extract_px/2)/args.ROI_SCALE)
+	y_coord = int((c[1]+args.full_extract_px/2)/args.ROI_SCALE)
+
+	if args.roi_method != IGNORE_ROI and bool(args.annPolys):
+		point_in_roi = any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in args.annPolys])
+		# If the extraction method is EXTRACT_INSIDE, skip the tile if it's not in an ROI
+		if (args.roi_method == EXTRACT_INSIDE) and not point_in_roi:
+			return 'skip'
+		# If the extraction method is EXTRACT_OUTSIDE, skip the tile if it's in an ROI
+		elif (args.roi_method == EXTRACT_OUTSIDE) and point_in_roi:
+			return 'skip'
+
+	# Read the region and resize to target size
+	region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
+	region = region.thumbnail_image(args.size_px)
+
+	# Read regions into memory and convert to numpy arrays
+	np_image = vips2numpy(region)[:,:,:-1]
+
+	if args.dual_extract:
+		try:
+			surrounding_region = slide.read_region((c[0]-args.full_stride, 
+															c[1]-args.full_stride), 
+															args.downsample_level, 
+															[args.extract_px*3, args.extract_px*3])
+			surrounding_region = surrounding_region.thumbnail_image(args.size_px)
+			outer_region = vips2numpy(surrounding_region)[:,:,:-1]
+		except:
+			return
+		
+		# Apply normalization
+		if normalizer:
+			np_image = normalizer.rgb_to_rgb(np_image)
+			outer_region = normalizer.rgb_to_rgb(outer_region)
+
+		return {"input_1": np_image, "input_2": outer_region}, index
+	else:
+		# Perform whitespace filtering
+		if args.whitespace_fraction < 1:
+			fraction = (np.mean(np_image, axis=2) > args.whitespace_threshold).sum() / (args.size_px**2)
+			if fraction > args.whitespace_fraction: return
+
+		# Perform grayspace filtering
+		if args.grayspace_fraction < 1:
+			hsv_image = mcol.rgb_to_hsv(np_image)
+			fraction = (hsv_image[:,:,1] < args.grayspace_threshold).sum() / (args.size_px**2)
+			if fraction > args.grayspace_fraction: return
+
+		# Apply normalization
+		if normalizer:
+			try:
+				np_image = normalizer.rgb_to_rgb(np_image)
+			except:
+				# The image could not be normalized, which happens when a tile is primarily one solid color (background)
+				return
+
+		if args.include_loc == 'grid':
+			return {'image': np_image, 'loc': [grid_xi, grid_yi]}, index
+		elif args.include_loc:
+			return {'image': np_image, 'loc': [x_coord, y_coord]}, index
+		else:
+			return {'image': np_image}, index
 
 class InvalidTileSplitException(Exception):
 	'''Raised when invalid tile splitting parameters are given to SlideReader.'''
@@ -431,7 +506,7 @@ class SlideLoader:
 		square_thumb.paste(thumb, (0, int((width-height)/2)))
 		return square_thumb
 
-	def thumb(self, mpp=55, width=None):
+	def thumb(self, mpp=None, width=None):
 		'''Returns PIL thumbnail of the slide.
 		
 		Args:
@@ -441,12 +516,20 @@ class SlideLoader:
 			PIL image
 		'''
 
-		assert (mpp is None or width is None) and not (mpp is None and width is None), "Either mpp must be supplied or width, but not both"
+		assert (mpp is None or width is None), "Either mpp must be supplied or width, but not both"
+		# If no values provided, create thumbnail of width 1024
+		if mpp is None and width is None:
+			width = 1024
 
-		# Calculate goal width/height according to specified microns-per-pixel (MPP)
-		width = int((self.MPP * self.full_shape[0]) / mpp)
+		# Calculate goal width/height according to specified microns-per-pixel (MPP) 
+		if mpp:
+			width = int((self.MPP * self.full_shape[0]) / mpp)
+		# Otherwise, calculate approximate mpp based on provided width (to generate proportional height)
+		else:
+			mpp = (self.MPP * self.full_shape[0]) / width
+		# Calculate appropriate height
 		height = int((self.MPP * self.full_shape[1]) / mpp)
-
+		# Only regenerate thumbnail if not regenerated previously
 		if not self.thumb_image:
 			# Get thumbnail image and dimensions via fastest method available
 			thumbnail = vips.Image.thumbnail(self.path, width)
@@ -528,7 +611,8 @@ class SlideLoader:
 
 	def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None, 
 						whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, 
-						grayspace_threshold=0.05, normalizer=None, normalizer_source=None, shuffle=True, **kwargs):
+						grayspace_threshold=0.05, normalizer=None, normalizer_source=None, shuffle=True, 
+						num_threads=4, **kwargs):
 		'''Extractes tiles from slide and saves into a TFRecord file or as loose JPG tiles in a directory.
 		Args:
 			tfrecord_dir:			If provided, saves tiles into a TFRecord file (named according to slide name) in this directory.
@@ -588,6 +672,7 @@ class SlideLoader:
 										 whitespace_threshold=whitespace_threshold,
 										 grayspace_fraction=grayspace_fraction,
 										 grayspace_threshold=grayspace_threshold,
+										 num_threads=num_threads,
 										 **kwargs)
 		slidename_bytes = bytes(self.name, 'utf-8')
 
@@ -601,9 +686,7 @@ class SlideLoader:
 			tile = tile_dict['image']
 			location = tile_dict['loc']
 
-			image_string = cv2.imencode('.jpg', 
-										cv2.cvtColor(tile, cv2.COLOR_RGB2BGR), 
-										[int(cv2.IMWRITE_JPEG_QUALITY), 100])[1].tostring()
+			image_string = cv2.imencode('.png', cv2.cvtColor(tile, cv2.COLOR_RGB2BGR))[1].tobytes()
 			if len(sample_tiles) < 10:
 				sample_tiles += [image_string]
 			elif not tiles_dir and not tfrecord_dir:
@@ -620,7 +703,7 @@ class SlideLoader:
 					writer = random.choices(tfrecord_writers, weights=split_fraction)
 				else:
 					writer = tfrecord_writer
-				tf_example = image_and_loc_example(slidename_bytes, image_string, location[0], location[1])
+				tf_example = tfrecord_example(slidename_bytes, image_string, location[0], location[1])
 				writer.write(tf_example.SerializeToString())
 		
 		if tfrecord_dir or tiles_dir:
@@ -750,7 +833,7 @@ class SlideReader(SlideLoader):
 
 	def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=1.0, 
 							whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05, 
-							normalizer=None, normalizer_source=None, include_loc=True, **kwargs):
+							normalizer=None, normalizer_source=None, include_loc=True, num_threads=4, **kwargs):
 
 		'''Builds generator to supervise extraction of tiles across the slide.
 		
@@ -769,103 +852,56 @@ class SlideReader(SlideLoader):
 			log.warn(f"No tiles were able to be extracted at the given micron size for slide {sfutil.green(self.name)}", 1, self.print)
 			return None
 
-		# Create mask for indicating whether tile was extracted
-		tile_mask = np.asarray([0 for i in range(len(self.coord))])
+		if num_threads == 'auto':
+			num_threads = None
 		
 		# Shuffle coordinates to randomize extraction order
 		if shuffle:
 			random.shuffle(self.coord)
 
-		# Setup normalization
-		normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
+		worker_args = {
+			'full_extract_px': self.full_extract_px,
+			'ROI_SCALE': self.ROI_SCALE,
+			'roi_method': self.roi_method,
+			'annPolys': self.annPolys,
+			'estimated_num_tiles': self.estimated_num_tiles,
+			'downsample_level': self.downsample_level,
+			'path': self.path,
+			'extract_px': self.extract_px,
+			'size_px': self.size_px,
+			'dual_extract': dual_extract,
+			'full_stride': self.full_stride,
+			'normalizer': normalizer,
+			'normalizer_source': normalizer_source,
+			'whitespace_fraction': whitespace_fraction,
+			'whitespace_threshold': whitespace_threshold,
+			'grayspace_fraction': grayspace_fraction,
+			'grayspace_threshold': grayspace_threshold,
+			'include_loc': include_loc
+		}
+		worker_args = types.SimpleNamespace(**worker_args)
 
 		def generator():
-			for c in self.coord:
-				index = c[2]
-				grid_xi = c[4]
-				grid_yi = c[5]
+			self.tile_mask = np.asarray([False for i in range(len(self.coord))], dtype=np.bool)
 
-				# Check if the center of the current window lies within any annotation; if not, skip
-				x_coord = int((c[0]+self.full_extract_px/2)/self.ROI_SCALE)
-				y_coord = int((c[1]+self.full_extract_px/2)/self.ROI_SCALE)
-
-				if self.roi_method != IGNORE_ROI and bool(self.annPolys):
-					point_in_roi = any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in self.annPolys])
-					# If the extraction method is EXTRACT_INSIDE, skip the tile if it's not in an ROI
-					if (self.roi_method == EXTRACT_INSIDE) and not point_in_roi:
+			with mp.Pool(processes=num_threads) as p:
+				for res in p.imap(partial(slide_extraction_worker, args=worker_args), self.coord):
+					if res == 'skip': 
 						continue
-					# If the extraction method is EXTRACT_OUTSIDE, skip the tile if it's in an ROI
-					elif (self.roi_method == EXTRACT_OUTSIDE) and point_in_roi:
+					if self.pb:
+						self.pb.increase_bar_value(id=self.pb_id)
+					if res is None:
 						continue
-
-				if self.pb:
-					self.pb.increase_bar_value(id=self.pb_id)
-				else:
-					print(f'\r\033[KWorking on tile {index}/{self.estimated_num_tiles}...', end='')
-
-				# Read the region and resize to target size
-				region = self.slide.read_region((c[0], c[1]), self.downsample_level, [self.extract_px, self.extract_px])
-				region = region.thumbnail_image(self.size_px)
-
-				# Read regions into memory and convert to numpy arrays
-				np_image = vips2numpy(region)[:,:,:-1]
-
-				if dual_extract:
-					try:
-						surrounding_region = self.slide.read_region((c[0]-self.full_stride, 
-																	 c[1]-self.full_stride), 
-																	 self.downsample_level, 
-																	 [self.extract_px*3, self.extract_px*3])
-						surrounding_region = surrounding_region.thumbnail_image(self.size_px)
-						outer_region = vips2numpy(surrounding_region)[:,:,:-1]
-					except:
-						continue
-					
-					# Apply normalization
-					if normalizer:
-						np_image = normalizer.rgb_to_rgb(np_image)
-						outer_region = normalizer.rgb_to_rgb(outer_region)
-					
-					# Mark as extracted
-					tile_mask[index] = 1
-
-					yield {"input_1": np_image, "input_2": outer_region}, index
-				else:
-					# Perform whitespace filtering
-					if whitespace_fraction < 1:
-						fraction = (np.mean(np_image, axis=2) > whitespace_threshold).sum() / (self.size_px**2)
-						if fraction > whitespace_fraction: continue
-
-					# Perform grayspace filtering
-					if grayspace_fraction < 1:
-						hsv_image = mcol.rgb_to_hsv(np_image)
-						fraction = (hsv_image[:,:,1] < grayspace_threshold).sum() / (self.size_px**2)
-						if fraction > grayspace_fraction: continue
-
-					# Apply normalization
-					if normalizer:
-						try:
-							np_image = normalizer.rgb_to_rgb(np_image)
-						except:
-							# The image could not be normalized, which happens when a tile is primarily one solid color (background)
-							continue
-
-					# Mark as extracted
-					tile_mask[index] = 1
-
-					if include_loc == 'grid':
-						yield {'image': np_image, 'loc': [grid_xi, grid_yi]}
-					elif include_loc:
-						yield {'image': np_image, 'loc': [x_coord, y_coord]}
 					else:
-						yield {'image': np_image}
-
-			log.label(self.shortname, f"Finished tile extraction for {sfutil.green(self.shortname)} ({sum(tile_mask)} tiles of {len(self.coord)} possible)", 2, self.print)
-			self.tile_mask = tile_mask
+						tile, idx = res
+						self.tile_mask[idx] = True
+						yield tile
+			
+			log.label(self.shortname, f"Finished tile extraction for {sfutil.green(self.shortname)} ({np.sum(self.tile_mask)} tiles of {len(self.coord)} possible)", 2, self.print)
 
 		return generator
 
-	def annotated_thumb(self, mpp=55):
+	def annotated_thumb(self, mpp=None, width=None):
 		'''Returns PIL Image of thumbnail with ROI overlay.
 		
 		Args:
@@ -874,9 +910,12 @@ class SlideReader(SlideLoader):
 		Returns:
 			PIL image
 		'''
-		ROI_SCALE = self.full_shape[0]/(int((self.MPP * self.full_shape[0]) / mpp))
+		if mpp is not None:
+			ROI_SCALE = self.full_shape[0] / (int((self.MPP * self.full_shape[0]) / mpp))
+		else:
+			ROI_SCALE = self.full_shape[0] / width
 		annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.rois]
-		annotated_thumb = self.thumb(mpp=mpp).copy()
+		annotated_thumb = self.thumb(mpp=mpp, width=width).copy()
 		draw = ImageDraw.Draw(annotated_thumb)
 		for poly in annPolys:
 			x,y = poly.exterior.coords.xy
@@ -1144,8 +1183,8 @@ class TMAReader(SlideLoader):
 			random.shuffle(self.object_rects)
 
 		# Establish extraction queues
-		rectangle_queue = Queue()
-		extraction_queue = Queue(self.QUEUE_SIZE)
+		rectangle_queue = mp.Queue()
+		extraction_queue = mp.Queue(self.QUEUE_SIZE)
 
 		def section_extraction_worker(read_queue, write_queue):
 			while True:
@@ -1159,7 +1198,7 @@ class TMAReader(SlideLoader):
 
 		def generator():
 			unique_tile = True
-			extraction_pool = Pool(self.NUM_EXTRACTION_WORKERS, section_extraction_worker,(rectangle_queue, extraction_queue,))
+			extraction_pool = mp.Pool(self.NUM_EXTRACTION_WORKERS, section_extraction_worker,(rectangle_queue, extraction_queue,))
 
 			for rect in self.object_rects:
 				rectangle_queue.put(rect)

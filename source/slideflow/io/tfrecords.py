@@ -1,4 +1,4 @@
-
+import imghdr
 import sys
 import csv
 import numpy as np
@@ -16,13 +16,13 @@ import slideflow.util as sfutil
 
 FEATURE_TYPES = (tf.int64, tf.string, tf.string)
 
-FEATURE_DESCRIPTION =  {'slide':    tf.io.FixedLenFeature([], tf.string),
-						'image_raw':tf.io.FixedLenFeature([], tf.string)}
+FEATURE_DESCRIPTION_LEGACY =  {'slide':    tf.io.FixedLenFeature([], tf.string),
+							   'image_raw':tf.io.FixedLenFeature([], tf.string)}
 
-FEATURE_DESCRIPTION_LOC = {'slide':    	tf.io.FixedLenFeature([], tf.string),
-						   'image_raw':	tf.io.FixedLenFeature([], tf.string),
-						   'loc_x':		tf.io.FixedLenFeature([], tf.int64),
-						   'loc_y':		tf.io.FixedLenFeature([], tf.int64)}
+FEATURE_DESCRIPTION = {'slide':    	tf.io.FixedLenFeature([], tf.string),
+					   'image_raw':	tf.io.FixedLenFeature([], tf.string),
+					   'loc_x':		tf.io.FixedLenFeature([], tf.int64),
+					   'loc_y':		tf.io.FixedLenFeature([], tf.int64)}
 
 FEATURE_DESCRIPTION_MULTI =  {'slide':    tf.io.FixedLenFeature([], tf.string),
 							  'input_1':  tf.io.FixedLenFeature([], tf.string),
@@ -30,13 +30,6 @@ FEATURE_DESCRIPTION_MULTI =  {'slide':    tf.io.FixedLenFeature([], tf.string),
 
 class TFRecordsError(Exception):
 	pass
-
-def _parse_function(example_proto):
-	try:
-		features = tf.io.parse_single_example(example_proto, FEATURE_DESCRIPTION_LOC)
-	except tf.errors.InvalidArgumentError:
-		features = tf.io.parse_single_example(example_proto, FEATURE_DESCRIPTION)
-	return features
 
 def _float_feature(value):
 	"""Returns a bytes_list from a float / double."""
@@ -55,85 +48,99 @@ def _get_images_by_dir(directory):
 				(sfutil.path_to_ext(f) == "jpg")]
 	return files
 
-def _read_and_return_features(record):
-	features = _parse_function(record)
-	slide = features['slide'].numpy()
-	image_raw = features['image_raw'].numpy()
-	return slide, image_raw
-
-def _read_and_return_record(record, assign_slide=None):
-	slide, image_raw = _read_and_return_features(record)
+def _read_and_return_record(record, feature_description, assign_slide=None):
+	features = tf.io.parse_single_example(record, feature_description)
+	read_features = {f:v.numpy() for f,v in features.items()}
 	if assign_slide:
-		slide = assign_slide
-	tf_example = image_example(slide, image_raw)
+		read_features['slide'] = assign_slide
+	tf_example = tfrecord_example(**read_features)
 	return tf_example.SerializeToString()
 
 def _print_record(filename):
-	v_dataset = tf.data.TFRecordDataset(filename)
-	for i, record in enumerate(v_dataset):
-		features = _parse_function(record)
-		slide = str(features['slide'].numpy())
-		if 'loc_x' in features:
-			location = (features['loc_x'].numpy(), features['loc_y'].numpy())
-			print(f"{sfutil.header(filename)}: Record {i}: Slide: {sfutil.green(slide)} Loc: {location}")
+	dataset = tf.data.TFRecordDataset(filename)
+	parser = get_tfrecord_parser(filename, ('slide', 'loc_x', 'loc_y'), to_numpy=True, error_if_invalid=False)
+
+	for i, record in enumerate(dataset):
+		slide, loc_x, loc_y = parser(record)
+		print(f"{sfutil.header(filename)}: Record {i}: Slide: {sfutil.green(str(slide))} Loc: {(loc_x, loc_y)}")
+
+def _decode_image(img_string, img_type, to_numpy=False, size=None, standardize=False, normalizer=None, augment=False):
+	tf_decoders = {
+		'png': tf.image.decode_png,
+		'jpeg': tf.image.decode_jpeg,
+		'jpg': tf.image.decode_jpeg
+	}
+	if to_numpy:
+		raise NotImplementedError
+	else:
+		decoder = tf_decoders[img_type.lower()]
+		image = decoder(img_string, channels=3)
+		if normalizer: 	
+			image = tf.py_function(normalizer.tf_to_rgb, [image], tf.int32)
+		if standardize:
+			image = tf.image.per_image_standardization(image)
+		if augment:
+			# Rotate randomly 0, 90, 180, 270 degrees
+			image = tf.image.rot90(image, tf.random.uniform(shape=[], minval=0, maxval=4, dtype=tf.int32))
+			# Random flip and rotation
+			image = tf.image.random_flip_left_right(image)
+			image = tf.image.random_flip_up_down(image)
+		if size:
+			image.set_shape([size, size, 3])
+		return image
+
+def detect_tfrecord_format(tfr):
+	record = next(iter(tf.data.TFRecordDataset(tfr)))
+	try:
+		features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
+		feature_description = FEATURE_DESCRIPTION
+	except tf.errors.InvalidArgumentError:
+		try:
+			features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION_LEGACY)
+			feature_description = FEATURE_DESCRIPTION_LEGACY
+		except tf.errors.InvalidArgumentError:
+			raise TFRecordsError(f"Unrecognized TFRecord format: {tfr}")
+	image_type = imghdr.what('', features['image_raw'].numpy())
+	return feature_description, image_type
+
+def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False, decode_images=True, 
+						standardize=False, img_size=None, normalizer=None, augment=False, error_if_invalid=True,):
+	feature_description, img_type = detect_tfrecord_format(tfrecord_path)
+	if features_to_return is None:
+		features_to_return = list(feature_description.keys())
+
+	def parser(record):
+		features = tf.io.parse_single_example(record, feature_description)
+
+		def process_feature(f):
+			if f not in features and error_if_invalid:
+				raise TFRecordsError(f"Unknown feature {f}")
+			elif f not in features:
+				return None
+			elif f == 'image_raw' and decode_images:
+				return _decode_image(features['image_raw'], img_type, to_numpy, img_size, standardize, normalizer, augment)
+			elif to_numpy:
+				return features[f].numpy()
+			else:
+				return features[f]
+
+		if type(features_to_return) == dict:
+			return {label: process_feature(f) for label, f in features_to_return.items()}
 		else:
-			print(f"{sfutil.header(filename)}: Record {i}: Slide: {sfutil.green(slide)}")
+			return [process_feature(f) for f in features_to_return]
+
+	return parser
 
 def get_locations_from_tfrecord(filename):
 	dataset = tf.data.TFRecordDataset(filename)
 	loc_dict = {}
+	parser = get_tfrecord_parser(filename, ('loc_x', 'loc_y'), to_numpy=True)
 	for i, record in enumerate(dataset):
-		features = _parse_function(record)
-		if 'loc_x' not in features:
-			raise TFRecordsError("Location data not stored in this TFRecord file.")
-		else:
-			loc_dict.update({
-				i: (features['loc_x'].numpy(), features['loc_y'].numpy())
-			})
+		loc_x, loc_y = parser(record)
+		loc_dict.update({ i: (loc_x, loc_y)	})
 	return loc_dict
 
-def example_to_image(record, size, include_slide=True, image_format='raw', normalizer=None):
-	'''TFRecord parsing function, to be used with TFRecordDataset.map(). 
-	Parses a TFRecord into its constituent components. For each record, will return a processed and standardized image.
-
-	Args:
-		record			The TFRecord being processed (not explicitly supplied if this function is being used with TFRecordDataset.map())
-		size			Tile size in pixels
-		include_slide	Bool. If true, will return both the processed image as well as the slide name, as a tuple
-		format			Either 'raw' (default) or 'dict'. If 'dict', the image will be provided as a dictionary mapping the input layer name to the image.
-							This is the syntax used for models in slideflow version 1.9 and greater.
-		normalizer		Optional. Normalizer to use on images (e.g. 'macenko', 'reinhard', or 'vahadane')
-	'''
-
-	features = _parse_function(record)
-	slide = features['slide']
-	image_string = features['image_raw']
-	raw_image = tf.image.decode_jpeg(image_string, channels=3)
-
-	if normalizer:
-		raw_image = tf.py_function(normalizer.tf_to_rgb, [raw_image], tf.int32)
-
-	processed_image = tf.image.per_image_standardization(raw_image)
-	processed_image = tf.image.convert_image_dtype(processed_image, tf.float32)
-	processed_image.set_shape([size, size, 3])
-
-	if image_format=='dict':
-		processed_image = {'tile_image': processed_image}
-
-	if include_slide:
-		return processed_image, slide
-	else:
-		return processed_image
-
-def image_example(slide, image_string):
-	'''Returns a Tensorflow Data example for TFRecord storage.'''
-	feature = {
-		'slide':     _bytes_feature(slide),
-		'image_raw':_bytes_feature(image_string),
-	}
-	return tf.train.Example(features=tf.train.Features(feature=feature))
-
-def image_and_loc_example(slide, image_string, loc_x, loc_y):
+def tfrecord_example(slide, image_string, loc_x=None, loc_y=None):
 	'''Returns a Tensorflow Data example for TFRecord storage.'''
 	feature = {
 		'slide':     _bytes_feature(slide),
@@ -170,7 +177,11 @@ def merge_split_tfrecords(source, destination):
 	for tfrecord_name in tfrecords:
 		writer = tf.io.TFRecordWriter(join(destination, f'{tfrecord_name}.tfrecords'))
 		datasets = []
+		feature_description, img_type = detect_tfrecord_format(tfrecords.values()[0])
 		for tfrecord in tfrecords[tfrecord_name]:
+			n_feature_description, n_img_type = detect_tfrecord_format(tfrecord)
+			if n_feature_description != feature_description or n_img_type != img_type:
+				raise TFRecordsError("Mismatching tfrecord format found, unable to merge")
 			dataset = tf.data.TFRecordDataset(tfrecord)
 			dataset = dataset.shuffle(1000)
 			dataset_iter = iter(dataset)
@@ -182,7 +193,7 @@ def merge_split_tfrecords(source, destination):
 			except StopIteration:
 				del(datasets[index])
 				continue
-			writer.write(_read_and_return_record(record, None))
+			writer.write(_read_and_return_record(record, feature_description, None))
 
 def join_tfrecord(input_folder, output_file, assign_slide=None):
 	'''Randomly samples from tfrecords in the input folder with shuffling,
@@ -191,7 +202,11 @@ def join_tfrecord(input_folder, output_file, assign_slide=None):
 	tfrecord_files = glob(join(input_folder, "*.tfrecords"))
 	datasets = []
 	if assign_slide: assign_slide = assign_slide.encode('utf-8')
+	feature_description, img_type = detect_tfrecord_format(tfrecord_files[0])
 	for tfrecord in tfrecord_files:
+		n_feature_description, n_img_type = detect_tfrecord_format(tfrecord)
+		if n_feature_description != feature_description or n_img_type != img_type:
+			raise TFRecordsError("Mismatching tfrecord format found, unable to merge")
 		dataset = tf.data.TFRecordDataset(tfrecord)
 		dataset = dataset.shuffle(1000)
 		dataset_iter = iter(dataset)
@@ -203,16 +218,16 @@ def join_tfrecord(input_folder, output_file, assign_slide=None):
 		except StopIteration:
 			del(datasets[index])
 			continue
-		writer.write(_read_and_return_record(record, assign_slide))
+		writer.write(_read_and_return_record(record, feature_description, assign_slide))
 
 def split_tfrecord(tfrecord_file, output_folder):
 	'''Splits records from a single tfrecord file into individual tfrecord files by slide.'''
 	dataset = tf.data.TFRecordDataset(tfrecord_file)
+	feature_description, _ = detect_tfrecord_format(tfrecord_file)
+	parser = get_tfrecord_parser(tfrecord_file, ['slide'], to_numpy=True)
 	writers = {}
 	for record in dataset:
-		features = _parse_function(record)
-		slide = features['slide'].numpy()
-		image_raw = features['image_raw'].numpy()
+		slide = parser(record)
 		shortname = sfutil._shortname(slide.decode('utf-8'))
 
 		if shortname not in writers.keys():
@@ -221,8 +236,7 @@ def split_tfrecord(tfrecord_file, output_folder):
 			writers.update({shortname: writer})
 		else:
 			writer = writers[shortname]
-		tf_example = image_example(slide, image_raw)
-		writer.write(tf_example.SerializeToString())
+		writer.write(_read_and_return_record(record, feature_description))
 
 	for slide in writers.keys():
 		writers[slide].close()
@@ -255,7 +269,7 @@ def write_tfrecords_merge(input_directory, output_directory, filename):
 		for filename in keys:
 			label = image_labels[filename]
 			image_string = open(filename, 'rb').read()
-			tf_example = image_example(label, image_string)
+			tf_example = tfrecord_example(label, image_string)
 			writer.write(tf_example.SerializeToString())
 	log.empty(f"Wrote {len(keys)} image tiles to {sfutil.green(tfrecord_path)}", 1)
 	return len(keys)
@@ -286,7 +300,7 @@ def write_tfrecords_single(input_directory, output_directory, filename, slide):
 		for filename in keys:
 			label = image_labels[filename]
 			image_string = open(filename, 'rb').read()
-			tf_example = image_example(label, image_string)
+			tf_example = tfrecord_example(label, image_string)
 			writer.write(tf_example.SerializeToString())
 	log.empty(f"Wrote {len(keys)} image tiles to {sfutil.green(tfrecord_path)}", 1)
 	return len(keys)
@@ -329,8 +343,6 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True, preserve
 			
 			site_list = [p[5:7] for p in patients_dict]
 			df = pd.DataFrame(list(zip(patient_list, patient_outcome_labels, site_list)), columns = ['patient', 'outcome_label', 'site'])
-			print(df)
-			sys.exit()
 			df = cv.generate(df, 'outcome_label', unique_labels, crossfolds = n, target_column = 'CV', patient_column = 'patient', site_column = 'site')
 
 			log.empty(sfutil.bold("Generating Split with Preserved Site Cross Validation"))
@@ -592,7 +604,7 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 	log.info(f"Using {sfutil.bold(len(training_tfrecords))} TFRecords for training, {sfutil.bold(len(validation_tfrecords))} for validation", 1)
 	return training_tfrecords, validation_tfrecords
 
-def update_tfrecord_dir(directory, old_feature_description=FEATURE_DESCRIPTION_LOC, slide='slide', assign_slide=None, image_raw='image_raw'):
+def update_tfrecord_dir(directory, old_feature_description=FEATURE_DESCRIPTION, slide='slide', assign_slide=None, image_raw='image_raw'):
 	'''Updates tfrecords in a directory from an old format to a new format.'''
 	if not exists(directory):
 		log.error(f"Directory {directory} does not exist; unable to update tfrecords.")
@@ -602,17 +614,15 @@ def update_tfrecord_dir(directory, old_feature_description=FEATURE_DESCRIPTION_L
 			update_tfrecord(tfr, old_feature_description, slide, assign_slide, image_raw)
 		return len(tfrecord_files)
 
-def update_tfrecord(tfrecord_file, old_feature_description=FEATURE_DESCRIPTION_LOC, slide='slide', assign_slide=None, image_raw='image_raw'):
+def update_tfrecord(tfrecord_file, old_feature_description=FEATURE_DESCRIPTION, slide='slide', assign_slide=None, image_raw='image_raw'):
 	'''Updates a single tfrecord from an old format to a new format.'''
 	shutil.move(tfrecord_file, tfrecord_file+".old")
 	dataset = tf.data.TFRecordDataset(tfrecord_file+".old")
 	writer = tf.io.TFRecordWriter(tfrecord_file)
+	feature_description, _ = detect_tfrecord_format(tfrecord_file)
 	for record in dataset:
-		features = tf.io.parse_single_example(record, old_feature_description)
-		slidename = bytes(assign_slide, 'utf-8') if assign_slide is not None else features[slide].numpy()
-		image_raw_data = features[image_raw].numpy()
-		tf_example = image_example(slide=slidename, image_string=image_raw_data)
-		writer.write(tf_example.SerializeToString())
+		slidename = bytes(assign_slide, 'utf-8') if assign_slide else None
+		writer.write(_read_and_return_record(record, feature_description, assign_slide=slidename))
 	writer.close()
 	os.remove(tfrecord_file+'.old')
 
@@ -630,15 +640,16 @@ def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None, resize
 
 	dataset = tf.data.TFRecordDataset(origin)
 	writer = tf.io.TFRecordWriter(target)
+	parser = get_tfrecord_parser(origin, ('slide', 'image_raw', 'loc_x', 'loc_y'), error_if_invalid=False, to_numpy=True)
 
 	def process_image(image_string):
 		if hue_shift:
-			decoded_image = tf.image.decode_jpeg(image_string, channels=3)
+			decoded_image = tf.image.decode_png(image_string, channels=3)
 			adjusted_image = tf.image.adjust_hue(decoded_image, hue_shift)
 			encoded_image = tf.io.encode_jpeg(adjusted_image, quality=80)
 			return encoded_image.numpy()
 		elif resize:
-			decoded_image = tf.image.decode_jpeg(image_string, channels=3)
+			decoded_image = tf.image.decode_png(image_string, channels=3)
 			resized_image = tf.image.resize(decoded_image, (resize, resize), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 			encoded_image = tf.io.encode_jpeg(resized_image, quality=80)
 			return encoded_image.numpy()
@@ -646,11 +657,10 @@ def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None, resize
 			return image_string
 
 	for record in dataset:
-		features = _parse_function(record)
-		slidename = features['slide'].numpy() if not assign_slide else bytes(assign_slide, 'utf-8')
-		image_raw_data = features['image_raw'].numpy()
-		image_processed_data = process_image(image_raw_data)
-		tf_example = image_example(slide=slidename, image_string=image_processed_data)
+		slide, image_raw, loc_x, loc_y = parser(record)
+		slidename = slide if not assign_slide else bytes(assign_slide, 'utf-8')
+		image_processed_data = process_image(image_raw)
+		tf_example = tfrecord_example(slidename, image_processed_data, loc_x, loc_y)
 		writer.write(tf_example.SerializeToString())
 	writer.close()
 
@@ -689,23 +699,14 @@ def get_tfrecord_by_index(tfrecord, index, decode=True):
 		except:
 			raise IndexError(f"index must be an integer, not {type(index)} (provided {index}).")
 
-	def _decode(record):
-		features = _parse_function(record)
-		slide = features['slide']
-		image_string = features['image_raw']
-		if not decode:
-			return slide, image_string
-		else:
-			raw_image = tf.image.decode_jpeg(image_string, channels=3)
-			return slide, raw_image
-
 	dataset = tf.data.TFRecordDataset(tfrecord)
+	parser = get_tfrecord_parser(tfrecord, ('slide', 'image_raw'), decode_images=decode)
 
 	total = 0
-	for i, data in enumerate(dataset):
+	for i, record in enumerate(dataset):
 		total += 1
 		if i == index:
-			return _decode(data)
+			return parser(record)
 		else: continue
 
 	log.error(f"Unable to find record at index {index} in {sfutil.green(tfrecord)} ({total} total records)", 1)
@@ -725,7 +726,7 @@ def get_tfrecords_from_model_manifest(manifest, dataset='validation'):
 				slides += [slide_name]
 	return slides
 
-def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION_LOC, feature_label='image_raw'):
+def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION, feature_label='image_raw'):
 	'''Reads and saves images from a TFRecord to a destination folder.'''
 	if not exists(destination):
 		os.makedirs(destination)
@@ -733,14 +734,15 @@ def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION_LOC, fe
 	log.info(f"Saving tiles to directory {sfutil.green(destination)}", 2)
 
 	dataset = tf.data.TFRecordDataset(tfrecord)
+	_, img_type = detect_tfrecord_format(tfrecord)
+	parser = get_tfrecord_parser(tfrecord, ('slide', 'image_raw'), to_numpy=True, decode_images=False)
 	for i, record in enumerate(dataset):
-		features = tf.io.parse_single_example(record, description)
-		slidename = features['slide'].numpy().decode('utf-8')
-		image_raw_data = features[feature_label].numpy()
+		slide, image_raw = parser(record)
+		slidename = slide.decode('utf-8')
 		dest_folder = join(destination, slidename)
 		if not exists(dest_folder):
 			os.makedirs(dest_folder)
-		tile_filename = f"tile{i}.jpg"
+		tile_filename = f"tile{i}.{img_type}"
 		image_string = open(join(dest_folder, tile_filename), 'wb')
-		image_string.write(image_raw_data)
+		image_string.write(image_raw)
 		image_string.close()

@@ -354,7 +354,6 @@ class SlideflowModel:
 		self.VALIDATION_TFRECORDS = validation_tfrecords
 		self.MODEL_TYPE = model_type
 		self.SLIDES = list(slide_annotations.keys())
-		self.DATASETS = {}
 		self.FEATURE_SIZES = feature_sizes
 		self.NUM_SLIDE_FEATURES = 0 if not feature_sizes else sum(feature_sizes)
 		self.FEATURE_NAMES = feature_names
@@ -433,39 +432,6 @@ class SlideflowModel:
 						if slide in self.SLIDES:
 							outcome_label = slide_annotations[slide]['outcome_label']
 							writer.writerow([slide, 'validation', outcome_label])
-
-	def _build_dataset_inputs(self, tfrecords, batch_size, balance, augment, finite=False, 
-							  max_tiles=None, min_tiles=0, include_slidenames=False, 
-							  multi_image=False, parse_fn=None, drop_remainder=False, feature_description=None):
-
-		'''Assembles dataset inputs from tfrecords.
-		
-		Args:
-			tfrecords:				List of tfrecords paths
-			batch_size:				Batch size
-			balance:				Whether to use input balancing; options are BALANCE_BY_PATIENT, BALANCE_BY_CATEGORY, NO_BALANCE
-										 (only available if TFRECORDS_BY_PATIENT=True)
-			augment:				Bool, whether to perform image augmentation (random flipping/rotating)
-			finite:					Bool, whether dataset should be finite or infinite (with dataset.repeat())
-			max_tiles:				Int, limits number of tiles to use for each TFRecord if supplied
-			min_tiles:				Int, only includes TFRecords with this minimum number of tiles
-			include_slidenames:		Bool, if True, dataset will include slidename (each entry will return image, label, and slidename)
-			multi_image:			Bool, if True, will read multiple images from each TFRecord record.
-		'''
-		self.AUGMENT = augment
-		with tf.name_scope('input'):
-			dataset, dataset_with_slidenames, num_tiles = self._interleave_tfrecords(tfrecords,
-																					 batch_size, 
-																					 balance, 
-																					 finite, 
-																					 max_tiles=max_tiles,
-																					 min_tiles=min_tiles,
-																					 include_slidenames=include_slidenames,
-																					 multi_image=multi_image,
-																					 parse_fn=parse_fn,
-																					 drop_remainder=drop_remainder,
-																					 feature_description=feature_description)
-		return dataset, dataset_with_slidenames, num_tiles
 
 	def _build_model(self, hp, pretrain=None, pretrain_model_format=None, checkpoint=None):
 		''' Assembles base model, using pretraining (imagenet) or the base layers of a supplied model.
@@ -656,9 +622,8 @@ class SlideflowModel:
 						   loss=loss_fn,
 						   metrics=metrics)
 
-	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, max_tiles=None, min_tiles=None,
-								include_slidenames=False, multi_image=False, parse_fn=None, drop_remainder=False,
-								feature_description=None):
+	def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, max_tiles=None, min_tiles=None, 
+								multi_image=False, drop_remainder=False, augment=True):
 
 		'''Generates an interleaved dataset from a collection of tfrecord files,
 		sampling from tfrecord files randomly according to balancing if provided.
@@ -675,18 +640,18 @@ class SlideflowModel:
 										used with balancing, some tiles will be skipped.
 			max_tiles:				Maximum number of tiles to use per slide.
 			min_tiles:				Minimum number of tiles that each slide must have to be included.
-			include_slidenames:		Bool, if True, dataset will include slidename (each entry will return image, label, and slidename)
 			multi_image:			Bool, if True, will read multiple images from each TFRecord record.
 		'''				 
 		log.info(f"Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min_tiles={min_tiles}", 1)
 		datasets = []
 		datasets_categories = []
+		dataset_filenames = []
 		num_tiles = []
 		global_num_tiles = 0
 		categories = {}
 		categories_prob = {}
 		categories_tile_fraction = {}
-		if not parse_fn: parse_fn = self._parse_tfrecord_function
+		prob_weights = None
 		
 		if tfrecords == []:
 			log.error(f"No TFRecords found.", 1)
@@ -717,10 +682,9 @@ class SlideflowModel:
 				# Assign category by outcome if this is a categorical model.
 				# Otherwise, consider all slides from the same category (effectively skipping balancing); appropriate for linear models.
 				category = self.SLIDE_ANNOTATIONS[slide_name]['outcome_label'] if self.MODEL_TYPE == 'categorical' else 1
-				if filename not in self.DATASETS:
-					self.DATASETS.update({filename: tf.data.TFRecordDataset(filename, num_parallel_reads=32)}) #buffer_size=1024*1024*100 num_parallel_reads=tf.data.experimental.AUTOTUNE
-				datasets += [self.DATASETS[filename]]
+				datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=16)] #buffer_size=1024*1024*100 num_parallel_reads=tf.data.experimental.AUTOTUNE
 				datasets_categories += [category]
+				dataset_filenames += [filename]
 
 				# Cap number of tiles to take from TFRecord at maximum specified
 				if max_tiles and tiles > max_tiles:
@@ -734,6 +698,7 @@ class SlideflowModel:
 					categories[category]['num_slides'] += 1
 					categories[category]['num_tiles'] += tiles
 				num_tiles += [tiles]
+
 			for category in categories:
 				lowest_category_slide_count = min([categories[i]['num_slides'] for i in categories])
 				lowest_category_tile_count = min([categories[i]['num_tiles'] for i in categories])
@@ -769,13 +734,6 @@ class SlideflowModel:
 					datasets[i] = datasets[i].repeat()
 			global_num_tiles = sum(num_tiles)
 
-			# Interleave datasets
-			try:
-				dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
-			except IndexError:
-				log.error(f"No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder", 1)
-				raise ModelError("No TFRecords found after filter criteria.")
-
 		else:
 			log.error("No manifest detected!! Unable to perform tfrecord balancing or any tile-level selection operations (min or max tiles per slide)", 1)
 			for filename in tfrecords:
@@ -784,113 +742,85 @@ class SlideflowModel:
 				if slide_name not in self.SLIDES:
 					continue
 
-				if filename not in self.DATASETS:
-					self.DATASETS.update({filename: tf.data.TFRecordDataset(filename, num_parallel_reads=32)}) #buffer_size=1024*1024*100 num_parallel_reads=tf.data.experimental.AUTOTUNE
-				datasets += [self.DATASETS[filename]]
-			dataset = tf.data.experimental.sample_from_datasets(datasets, weights=None)
+				datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=16)] #buffer_size=1024*1024*100 num_parallel_reads=tf.data.experimental.AUTOTUNE
+				dataset_filenames += [filename]
 
-		if include_slidenames:
-			dataset_with_slidenames = dataset.map(partial(parse_fn,
-														  include_slidenames=True, 
-														  multi_image=multi_image,
-														  feature_description=feature_description), 
-												  		  num_parallel_calls=32) #tf.data.experimental.AUTOTUNE
-			dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
-		else:
-			dataset_with_slidenames = None
-
-		dataset = dataset.map(partial(parse_fn, 
-									  include_slidenames=False, 
-									  multi_image=multi_image,
-									  feature_description=feature_description), 
-							          num_parallel_calls = 8)
-
-		dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
+		parsed_datasets = [self._get_parsed_datasets(d,f, augment=augment) for d,f in zip(datasets, dataset_filenames)]
+		parsed_dataset_no_slidenames = [d[0] for d in parsed_datasets]
+		parsed_dataset_with_slidenames = [d[1] for d in parsed_datasets]
 		
-		return dataset, dataset_with_slidenames, global_num_tiles
+		# Interleave datasets
+		try:
+			dataset_no_slidenames = tf.data.experimental.sample_from_datasets(parsed_dataset_no_slidenames, weights=prob_weights)
+			dataset_with_slidenames = tf.data.experimental.sample_from_datasets(parsed_dataset_with_slidenames, weights=prob_weights)
+		except IndexError:
+			log.error(f"No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder", 1)
+			raise ModelError("No TFRecords found after filter criteria.")
 
-	def _parse_tfrecord_function(self, record, include_slidenames=True, multi_image=False, feature_description=None):
+		# Finally, batch the datasets
+		dataset_no_slidenames = dataset_no_slidenames.batch(batch_size, drop_remainder=drop_remainder)
+		dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
+		
+		return dataset_no_slidenames, dataset_with_slidenames, global_num_tiles
+
+	def _get_parsed_datasets(self, tfrecord_dataset, filename, augment=True):
+		base_parser = tfrecords.get_tfrecord_parser(filename, 
+								('slide', 'image_raw'),
+								standardize=True,
+								img_size=self.IMAGE_SIZE,
+								normalizer=self.normalizer,
+								augment=augment)
+
+		training_parser = partial(self._parse_tfrecord_function, base_parser=base_parser, include_slidenames=False)
+		training_parser_with_slidenames = partial(self._parse_tfrecord_function, base_parser=base_parser, include_slidenames=True)
+		
+		dataset = tfrecord_dataset.map(training_parser, num_parallel_calls=16)
+		dataset_with_slidenames = tfrecord_dataset.map(training_parser_with_slidenames, num_parallel_calls=16)
+		return dataset, dataset_with_slidenames
+
+	def _parse_tfrecord_function(self, record, base_parser, include_slidenames=True, multi_image=False):
 		'''Parses raw entry read from TFRecord.'''
 
-		if not feature_description:
-			feature_description = tfrecords.FEATURE_DESCRIPTION_LOC if not multi_image else tfrecords.FEATURE_DESCRIPTION_MULTI
+		# Note: multi-image functionality removed in version 1.11 due to lack of use and changes in tfrecord processing
+		# If desired, this can be re-added at this stage by simply returning multiple images in the resulting image_dict
 
-		features = tf.io.parse_single_example(record, feature_description)
-		slide = features['slide']
+		slide, image = base_parser(record)
+		image_dict = { 'tile_image': image }
+
 		if self.MODEL_TYPE in ['linear', 'cph']:
 			label = [self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(self.NUM_CLASSES)]
 		else:
 			label = self.ANNOTATIONS_TABLES[0].lookup(slide)
 
-		if multi_image:
-			image_dict = {}
-			inputs = [inp for inp in list(feature_description.keys()) if inp != 'slide']
-			for i in inputs:
-				image_string = features[i]
-				image = self._process_image(image_string, self.AUGMENT)
-				image_dict.update({
-					i: image
-				})
-			if include_slidenames:
-				return image_dict, label, slide
+		# Add additional non-image feature inputs if indicated,
+		# 	excluding the event feature used for CPH models
+		if self.NUM_SLIDE_FEATURES:
+			# If CPH model is used, time-to-event data must be added as a separate feature
+			if self.MODEL_TYPE == 'cph':
+				def slide_lookup(s): return self.SLIDE_FEATURE_TABLE[s.numpy().decode('utf-8')][1:]
+				def event_lookup(s): return self.SLIDE_FEATURE_TABLE[s.numpy().decode('utf-8')][0]
+				num_features = self.NUM_SLIDE_FEATURES - 1
+
+				event_input_val = tf.py_function(func=event_lookup,
+													inp=[slide],
+													Tout=[tf.float32])
+				image_dict.update({'event_input': event_input_val})
 			else:
-				return image_dict, label	
+				def slide_lookup(s): return self.SLIDE_FEATURE_TABLE[s.numpy().decode('utf-8')]
+				num_features = self.NUM_SLIDE_FEATURES
+
+			slide_feature_input_val = tf.py_function(func=slide_lookup, 
+														inp=[slide],
+														Tout=[tf.float32] * num_features)
+
+			# Add slide input features, excluding the event feature used for CPH models
+			if not ((self.NUM_SLIDE_FEATURES == 1) and (self.MODEL_TYPE == 'cph')):
+				image_dict.update({'slide_feature_input': slide_feature_input_val}) 
+
+		if include_slidenames:
+			return image_dict, label, slide
 		else:
-			image_string = features['image_raw']
-			image = self._process_image(image_string, self.AUGMENT)
-			image_dict = { 'tile_image': image }
-
-			# Add additional non-image feature inputs if indicated,
-			# 	excluding the event feature used for CPH models
-			if self.NUM_SLIDE_FEATURES:
-				# If CPH model is used, time-to-event data must be added as a separate feature
-				if self.MODEL_TYPE == 'cph':
-					def slide_lookup(s): return self.SLIDE_FEATURE_TABLE[s.numpy().decode('utf-8')][1:]
-					def event_lookup(s): return self.SLIDE_FEATURE_TABLE[s.numpy().decode('utf-8')][0]
-					num_features = self.NUM_SLIDE_FEATURES - 1
-
-					event_input_val = tf.py_function(func=event_lookup,
-													 inp=[slide],
-													 Tout=[tf.float32])
-					image_dict.update({'event_input': event_input_val})
-				else:
-					def slide_lookup(s): return self.SLIDE_FEATURE_TABLE[s.numpy().decode('utf-8')]
-					num_features = self.NUM_SLIDE_FEATURES
-
-				slide_feature_input_val = tf.py_function(func=slide_lookup, 
-														 inp=[slide],
-														 Tout=[tf.float32] * num_features)
-
-				# Add slide input features, excluding the event feature used for CPH models
-				if not ((self.NUM_SLIDE_FEATURES == 1) and (self.MODEL_TYPE == 'cph')):
-					image_dict.update({'slide_feature_input': slide_feature_input_val}) 
-
-			if include_slidenames:
-				return image_dict, label, slide
-			else:
-				return image_dict, label
-
-	def _process_image(self, image_string, augment):
-		'''Converts a JPEG-encoded image string into RGB array, using normalization if specified.'''
-		image = tf.image.decode_jpeg(image_string, channels = 3)
-
-		if self.normalizer:
-			image = tf.py_function(self.normalizer.tf_to_rgb, [image], tf.int32)
-
-		image = tf.image.per_image_standardization(image)
-
-		if augment:
-			# Apply augmentations
-			# Rotate 0, 90, 180, 270 degrees
-			image = tf.image.rot90(image, tf.random.uniform(shape=[], minval=0, maxval=4, dtype=tf.int32))
-
-			# Random flip and rotation
-			image = tf.image.random_flip_left_right(image)
-			image = tf.image.random_flip_up_down(image)
-
-		image = tf.image.convert_image_dtype(image, tf.float32) # Shouldn't be necessary...
-		image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
-		return image
+			return image_dict, label
 
 	def _retrain_top_layers(self, hp, train_data, validation_data, steps_per_epoch, callbacks=None, epochs=1):
 		'''Retrains only the top layer of this object's model, while leaving all other layers frozen.'''
@@ -914,8 +844,7 @@ class SlideflowModel:
 		return toplayer_model.history
 
 	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None, 
-					max_tiles_per_slide=0, min_tiles_per_slide=0, multi_image=False, permutation_importance=False,
-					feature_description=None):
+					max_tiles_per_slide=0, min_tiles_per_slide=0, multi_image=False, permutation_importance=False):
 		'''Evaluate model.
 
 		Args:
@@ -938,16 +867,20 @@ class SlideflowModel:
 		if not hp and checkpoint:
 			raise ModelError("If using a checkpoint for evaluation, hyperparameters must be specified.")
 		if not batch_size: batch_size = hp.batch_size
-		dataset, dataset_with_slidenames, num_tiles = self._build_dataset_inputs(tfrecords,
-																				 batch_size,
-																				 NO_BALANCE,
-																				 augment=False, 
-																				 finite=True,
-																				 max_tiles=max_tiles_per_slide,
-																				 min_tiles=min_tiles_per_slide,
-																				 include_slidenames=True,
-																				 multi_image=multi_image,
-																				 feature_description=feature_description)
+		with tf.name_scope('input'):
+			dataset, dataset_with_slidenames, num_tiles = self._interleave_tfrecords(tfrecords,
+																					batch_size=batch_size,
+																					balance=NO_BALANCE,
+																					finite=True,
+																					max_tiles=max_tiles_per_slide,
+																					min_tiles=min_tiles_per_slide,
+																					multi_image=multi_image,
+																					augment=False)
+		#import pickle
+		#with open('/mnt/data/projects/TUMOR_NORMAL/normalizer_test/nonorm_nostd_noconv_tiles.pkl', 'wb') as pkl_file:
+		#	pickle.dump(next(iter(dataset)), pkl_file)
+		#sys.exit()
+
 		if model:
 			if model_type == 'cph':
 				self.model = tf.keras.models.load_model(model, custom_objects = {
@@ -1042,7 +975,7 @@ class SlideflowModel:
 
 	def train(self, hp, pretrain='imagenet', pretrain_model_format=None, resume_training=None, checkpoint=None, log_frequency=100, multi_image=False, 
 				validate_on_batch=512, val_batch_size=32, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
-				ema_observations=20, ema_smoothing=2, steps_per_epoch_override=None, use_tensorboard=False, multi_gpu=False, feature_description=None):
+				ema_observations=20, ema_smoothing=2, steps_per_epoch_override=None, use_tensorboard=False, multi_gpu=False):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -1073,29 +1006,27 @@ class SlideflowModel:
 
 		with strategy.scope() if strategy is not None else no_scope():
 			# Build inputs
-			train_data, _, num_tiles = self._build_dataset_inputs(self.TRAIN_TFRECORDS, 
-																hp.batch_size, 
-																hp.balanced_training, 
-																hp.augment, 
-																finite=False,
-																max_tiles=max_tiles_per_slide,
-																min_tiles=min_tiles_per_slide,
-																include_slidenames=False,
-																multi_image=multi_image,
-																feature_description=feature_description)
+			with tf.name_scope('input'):
+				train_data, _, num_tiles = self._interleave_tfrecords(self.TRAIN_TFRECORDS, 
+																	batch_size=hp.batch_size, 
+																	balance=hp.balanced_training, 
+																	finite=False,
+																	max_tiles=max_tiles_per_slide,
+																	min_tiles=min_tiles_per_slide,
+																	multi_image=multi_image,
+																	augment=hp.augment)
 			# Set up validation data
 			using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
 			if using_validation:
-				validation_data, validation_data_with_slidenames, _ = self._build_dataset_inputs(self.VALIDATION_TFRECORDS, 
-																								val_batch_size, 
-																								hp.balanced_validation, 
-																								augment=False, 
-																								finite=True,
-																								max_tiles=max_tiles_per_slide,
-																								min_tiles=min_tiles_per_slide,
-																								include_slidenames=True,
-																								multi_image=multi_image,
-																								feature_description=feature_description)
+				with tf.name_scope('input'):
+					validation_data, validation_data_with_slidenames, _ = self._interleave_tfrecords(self.VALIDATION_TFRECORDS, 
+																									batch_size=val_batch_size, 
+																									balance=hp.balanced_validation, 
+																									finite=True,
+																									max_tiles=max_tiles_per_slide,
+																									min_tiles=min_tiles_per_slide,
+																									multi_image=multi_image,
+																									augment=False)
 
 				val_log_msg = "" if not validate_on_batch else f"every {sfutil.bold(str(validate_on_batch))} steps and "
 				log.info(f"Validation during training: {val_log_msg}at epoch end", 1)

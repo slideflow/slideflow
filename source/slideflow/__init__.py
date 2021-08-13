@@ -32,7 +32,7 @@ from slideflow.mosaic import Mosaic
 #DONE: put hyperparameters file in model folder
 #TODO: put tfrecord feature description in tfrecord directories
 
-__version__ = "1.11.0-dev2"
+__version__ = "1.11.0-dev3"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -284,7 +284,7 @@ def _evaluator(outcome_label_headers, model, project_config, results_dict, input
 
 def _heatmap_generator(slide, model_path, save_folder, roi_list, show_roi, roi_method,
 						resolution, interpolation, project_config, logit_cmap=None, skip_thumb=False, 
-						buffer=True, normalizer=None, normalizer_source=None, model_format=None, flags=None):
+						buffer=True, normalizer=None, normalizer_source=None, model_format=None, num_threads='auto', flags=None):
 
 	'''Internal function to execute heatmap generator process.'''
 	from slideflow.activations import Heatmap
@@ -305,16 +305,21 @@ def _heatmap_generator(slide, model_path, save_folder, roi_list, show_roi, roi_m
 
 	hp_data = sfutil.load_json(join(dirname(model_path), 'hyperparameters.json'))
 
-	heatmap = Heatmap(slide, model_path, hp_data['tile_px'], hp_data['tile_um'],use_fp16=project_config['use_fp16'],
-																				stride_div=stride_div,
-																				roi_list=roi_list,
-																				roi_method=roi_method,
-																				buffer=buffer,
-																				normalizer=normalizer,
-																				normalizer_source=normalizer_source,
-																				batch_size=flags['eval_batch_size'],
-																				skip_thumb=skip_thumb,
-																				model_format=model_format)
+	heatmap = Heatmap(slide,
+					  model_path,
+					  hp_data['tile_px'],
+					  hp_data['tile_um'],
+					  use_fp16=project_config['use_fp16'],
+					  stride_div=stride_div,
+					  roi_list=roi_list,
+					  roi_method=roi_method,
+					  buffer=buffer,
+					  normalizer=normalizer,
+					  normalizer_source=normalizer_source,
+					  batch_size=flags['eval_batch_size'],
+					  skip_thumb=skip_thumb,
+					  model_format=model_format,
+					  num_threads=num_threads)
 
 	heatmap.save(save_folder, show_roi=show_roi, interpolation=interpolation, logit_cmap=logit_cmap, skip_thumb=skip_thumb)
 
@@ -799,18 +804,11 @@ class SlideflowProject:
 			writer.writerow(header)
 			writer.writerow(firstrow)
 
-	def create_hyperparameter_sweep(self, tile_px, tile_um, finetune_epochs, toplayer_epochs, 
-									model, pooling, loss, learning_rate, learning_rate_decay, learning_rate_decay_steps, 
-									batch_size, hidden_layers, hidden_layer_width, optimizer, early_stop, 
-									early_stop_patience, early_stop_method, balanced_training, balanced_validation, 
-									trainable_layers, L2_weight, dropout, augment, label=None, filename=None):
+	def create_hyperparameter_sweep(self, tile_px, tile_um, finetune_epochs, label=None, filename=None, **kwargs):
 		'''Prepares a hyperparameter sweep, saving to a batch train TSV file.'''
 		log.header("Preparing hyperparameter sweep...")
-		pdict = locals()
-		del(pdict['self'])
-		del(pdict['label'])
-		del(pdict['filename'])
-		del(pdict['finetune_epochs'])
+		pdict = kwargs
+		pdict.update({'tile_px': tile_px, 'tile_um': tile_um})
 
 		args = list(pdict.keys())
 		for arg in args:
@@ -1090,14 +1088,11 @@ class SlideflowProject:
 			for tfr in tfrecord_list:
 				print(f"\r\033[KGenerating report for tfrecord {sfutil.green(sfutil.path_to_name(tfr))}...", end="")
 				dataset = tf.data.TFRecordDataset(tfr)
+				parser = sfio.tfrecords.get_tfrecord_parser(tfr, ("image_raw"), to_numpy=True, decode_images=False)
 				sample_tiles = []
 				for i, record in enumerate(dataset):
 					if i > 9: break
-					try:
-						features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION_LOC)
-					except tf.errors.InvalidArgumentError:
-						features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION)
-					image_raw_data = features['image_raw'].numpy()
+					image_raw_data = parser(record)
 
 					if normalizer:
 						image_raw_data = normalizer.jpeg_to_jpeg(image_raw_data)
@@ -1333,7 +1328,8 @@ class SlideflowProject:
 						enable_downsample=False, roi_method='inside', skip_missing_roi=True, 
 						skip_extracted=True, dataset=None, normalizer=None, normalizer_source=None, 
 						whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6, 
-						grayspace_threshold=0.05, randomize_origin=False, buffer=None, num_threads=-1):
+						grayspace_threshold=0.05, randomize_origin=False, buffer=None, shuffle=True,
+						num_workers=4, threads_per_worker=4):
 		'''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the 
 		validation target is 'per-patient'; and generate TFRecord files from the raw images.
 		
@@ -1363,7 +1359,8 @@ class SlideflowProject:
 			buffer:					Either 'vmtouch' or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
 										If a directory, slides will be copied to the directory as a buffer before extraction.
 										Either method vastly improves tile extraction for slides on HDDs by maximizing sequential read speed
-			num_threads:			Number of threads to use during tile extraction. If -1 (default), will use project default thread count.
+			num_workers:			Number of slides from which to be extracting tiles simultaneously.
+			threads_per_worker:		Number of processes to allocate to each slide for tile extraction.
 		'''
 
 		import slideflow.slide as sfslide
@@ -1399,7 +1396,6 @@ class SlideflowProject:
 		else:
 			split, split_fraction, split_names = None, None, None
 
-		# Info logging
 		if normalizer: log.info(f"Extracting tiles using {sfutil.bold(normalizer)} normalization", 1)
 		if whitespace_fraction < 1: log.info(f"Filtering tiles by whitespace fraction (exclude if >={whitespace_fraction*100:.0f}% whitespace, whitespace = RGB avg > {whitespace_threshold})", 1)
 
@@ -1440,7 +1436,7 @@ class SlideflowProject:
 			total_tiles = 0
 			for slide_path in slide_list:
 				if tma:
-					slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, silent=True, buffer=None)
+					slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, silent=True)
 				else:
 					slide = sfslide.SlideReader(slide_path, 
 												tile_px, 
@@ -1449,8 +1445,7 @@ class SlideflowProject:
 												roi_dir=roi_dir,
 												roi_method=roi_method,
 												skip_missing_roi=False,
-												silent=True,
-												buffer=None)
+												silent=True)
 				print(f"\r\033[KVerified {sfutil.green(slide.name)} (approx. {slide.estimated_num_tiles} tiles)", end="")
 				total_tiles += slide.estimated_num_tiles
 				del(slide)
@@ -1458,11 +1453,7 @@ class SlideflowProject:
 			log.complete(f"Verification complete. Total estimated tiles to extract: {total_tiles}", 1)
 			
 			if total_tiles:
-				pb = ProgressBar(total_tiles, 
-								counter_text='tiles', 
-								leadtext="Extracting tiles... ", 
-								show_counter=True, 
-								show_eta=True)
+				pb = ProgressBar(total_tiles, counter_text='tiles', leadtext="Extracting tiles... ", show_counter=True, show_eta=True)
 			else:
 				pb = None
 
@@ -1507,7 +1498,9 @@ class SlideflowProject:
 													   whitespace_threshold=whitespace_threshold,
 													   grayspace_fraction=grayspace_fraction,
 													   grayspace_threshold=grayspace_threshold,
-													   full_core=full_core)
+													   full_core=full_core,
+													   shuffle=shuffle,
+													   num_threads=threads_per_worker)
 				except sfslide.TileCorruptionError:
 					if downsample:
 						log.warn(f"Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; will try re-extraction with downsampling disabled", 1, print_func)
@@ -1518,46 +1511,57 @@ class SlideflowProject:
 				return report
 
 			# Use multithreading if specified, extracting tiles from all slides in the filtered list
-			if num_threads == -1: num_threads = self.FLAGS['num_threads']
-			if num_threads > 1 and len(slide_list):
+			if num_workers > 1 and len(slide_list):
 				q = queue.Queue()
+				task_finished = False
 				reports = sfutil.ThreadSafeList()
 				
+				# Worker to grab slide path from queue and start tile extraction
 				def worker():
 					while True:
-						path = q.get()
-						if buffer and buffer != 'vmtouch':
-							buffered_path = join(buffer, os.path.basename(path))
-							report = extract_tiles_from_slide(buffered_path, pb, enable_downsample)
-							if report: reports.add(report)
-							os.remove(buffered_path)
-						else:
-							report = extract_tiles_from_slide(path, pb, enable_downsample)
-							if report: reports.add(report)
-						q.task_done()
+						try:
+							path = q.get()
+							if buffer and buffer != 'vmtouch':
+								buffered_path = join(buffer, os.path.basename(path))
+								report = extract_tiles_from_slide(buffered_path, pb, enable_downsample)
+								if report: reports.add(report)
+								os.remove(buffered_path)
+							else:
+								report = extract_tiles_from_slide(path, pb, enable_downsample)
+								if report: reports.add(report)
+							q.task_done()
+						except queue.Empty:
+							if task_finished:
+								return
 
-				threads = [threading.Thread(target=worker, daemon=True) for t in range(num_threads)]
+				# Start the worker threads
+				threads = [threading.Thread(target=worker, daemon=True) for t in range(num_workers)]
 				for thread in threads:
 					thread.start()
 
+				# Put each slide path into queue
 				for slide_path in slide_list:
 					if buffer and buffer != 'vmtouch':
 						while True:
-							try:
-								shutil.copyfile(slide_path, join(buffer, os.path.basename(slide_path)))
-								q.put(slide_path)
-								break
-							except OSError:
-								time.sleep(5)
+							if q.qsize() < num_workers:
+								try:
+									shutil.copyfile(slide_path, join(buffer, os.path.basename(slide_path)))
+									q.put(slide_path)
+									break
+								except OSError:
+									time.sleep(1)
+							else:
+								time.sleep(1)
 					else:
 						q.put(slide_path)
 				q.join()
+				task_finished = True
 				if pb: pb.end()
 				log.empty("Generating PDF (this may take some time)...", )
 				pdf_report = sfslide.ExtractionReport(reports.getAll(), tile_px=tile_px, tile_um=tile_um)
 				timestring = datetime.now().strftime("%Y%m%d-%H%M%S")
 				pdf_report.save(join(self.PROJECT['root'], f'tile_extraction_report-{timestring}.pdf'))
-			else:
+			elif len(slide_list):
 				reports = []
 				for slide_path in slide_list:
 					report = extract_tiles_from_slide(slide_path, pb, enable_downsample)
@@ -1621,7 +1625,7 @@ class SlideflowProject:
 	def generate_heatmaps(self, model, filters=None, filter_blank=None, directory=None, resolution='low', 
 							interpolation='none', show_roi=True, roi_method='inside', logit_cmap=None, skip_thumb=False, 
 							normalizer=None, normalizer_source=None, buffer=True, isolated_thread=True, 
-							model_format=None):
+							num_threads='auto', model_format=None):
 		'''Creates predictive heatmap overlays on a set of slides. 
 
 		Args:
@@ -1691,14 +1695,14 @@ class SlideflowProject:
 			if isolated_thread:
 				process = ctx.Process(target=_heatmap_generator, args=(slide, model, heatmaps_folder, roi_list, show_roi, roi_method,
 																		resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb,
-																		buffer, normalizer, normalizer_source, model_format, self.FLAGS))
+																		buffer, normalizer, normalizer_source, model_format, num_threads, self.FLAGS))
 				process.start()
 				log.empty(f"Spawning heatmaps process (PID: {process.pid})")
 				process.join()
 			else:
 				_heatmap_generator(slide, model, heatmaps_folder, roi_list, show_roi, roi_method,
 									resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb,
-									buffer, normalizer, normalizer_source, model_format, self.FLAGS)
+									buffer, normalizer, normalizer_source, model_format, num_threads, self.FLAGS)
 
 	def generate_mosaic(self, model, mosaic_filename=None, umap_filename=None, outcome_label_headers=None, filters=None,
 						filter_blank=None, focus_filters=None, resolution="low", num_tiles_x=50, 

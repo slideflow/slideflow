@@ -1,5 +1,6 @@
 import sys
 import os
+import shutil
 import csv
 import pickle
 import time
@@ -264,20 +265,11 @@ class ActivationsVisualizer:
 
 	def map_to_whitespace(self, whitespace_threshold=230, num_threads=16):
 
-		def _parse_function(record):
-			try:
-				features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION_LOC)
-			except tf.errors.InvalidArgumentError:
-				features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION)
-			slide = features['slide']
-			image_string = features['image_raw']
-			raw_image = tf.image.decode_jpeg(image_string, channels=3)
-			return raw_image, slide
-
 		def map_to_tfrecord(tfrecord, pb=None):
 			umap_x, umap_y, umap_meta = [], [], []
 			dataset = tf.data.TFRecordDataset(tfrecord)
-			dataset = dataset.map(_parse_function, num_parallel_calls=8)
+			parser = sfio.tfrecords.get_tfrecord_parser(tfrecord, ('image_raw', 'slide'))
+			dataset = dataset.map(parser, num_parallel_calls=8)
 			for i, data in enumerate(dataset):
 				if self.MAX_TILES_PER_SLIDE and i >= self.MAX_TILES_PER_SLIDE: break
 				image, slide = data
@@ -638,27 +630,6 @@ class ActivationsVisualizer:
 			if slide not in self.slide_loc_dict:
 				self.slide_loc_dict.update({slide: []})
 
-		def _parse_function(record):
-			try:
-				features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION_LOC) # TODO: FEATURE_DESCRIPTION_LOC
-				includes_loc = True
-			except tf.errors.InvalidArgumentError:
-				features = tf.io.parse_single_example(record, sfio.tfrecords.FEATURE_DESCRIPTION)
-				includes_loc = False
-
-			slide = features['slide']
-			image_string = features['image_raw']
-			location = [0,0] if not includes_loc else [features['loc_x'], features['loc_y']]
-			raw_image = tf.image.decode_jpeg(image_string, channels=3)
-
-			if normalizer:
-				raw_image = tf.py_function(normalizer.tf_to_rgb, [raw_image], tf.int32)
-
-			processed_image = tf.image.per_image_standardization(raw_image)
-			processed_image = tf.image.convert_image_dtype(processed_image, tf.float32)
-			processed_image.set_shape([self.IMAGE_SIZE, self.IMAGE_SIZE, 3])
-			return processed_image, slide, location
-
 		# Calculate final layer activations for each tfrecord
 		fla_start_time = time.time()
 		nodes_names, logits_names = [], []
@@ -669,8 +640,18 @@ class ActivationsVisualizer:
 
 		for t, tfrecord in enumerate(self.tfrecords):
 			dataset = tf.data.TFRecordDataset(tfrecord)
+			parser = sfio.tfrecords.get_tfrecord_parser(tfrecord, 
+													    ('image_raw', 'slide', 'loc_x', 'loc_y'),
+														normalizer=normalizer,
+														standardize=True,
+														size=self.IMAGE_SIZE,
+														error_if_invalid=False) # Will return None for loc_x/loc_y if not contained in tfrecords
 
-			dataset = dataset.map(_parse_function, num_parallel_calls=8)
+			def parser_with_loc(r):
+				i, s, lx, ly = parser(r)
+				return i, s, (lx, ly)
+
+			dataset = dataset.map(parser_with_loc, num_parallel_calls=8)
 			dataset = dataset.batch(batch_size, drop_remainder=False)
 			
 			fl_activations_combined, logits_combined, slides_combined, loc_combined = [], [], [], []
@@ -1147,7 +1128,7 @@ class TileVisualizer:
 			tilename = sfutil.path_to_name(image_jpg)
 			self.tile_image = Image.open(image_jpg)
 			image_file = open(image_jpg, 'rb')
-			tf_decoded_image = tf.image.decode_jpeg(image_file.read(), channels=3)
+			tf_decoded_image = tf.image.decode_png(image_file.read(), channels=3)
 		else:
 			slide, tf_decoded_image = sfio.tfrecords.get_tfrecord_by_index(tfrecord, index, decode=True)
 			tilename = f'{slide.numpy().decode("utf-8")}-{index}'
@@ -1228,7 +1209,7 @@ class Heatmap:
 
 	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16=True, stride_div=2, roi_dir=None, 
 					roi_list=None, roi_method='inside', buffer=True, normalizer=None, normalizer_source=None,
-					batch_size=16, skip_thumb=False, model_format=None):
+					batch_size=16, skip_thumb=False, model_format=None, num_threads=1):
 		'''Convolutes across a whole slide, calculating logits and saving predictions internally for later use.
 
 		Args:
@@ -1267,6 +1248,15 @@ class Heatmap:
 		pb = ProgressBar(1, counter_text='tiles', leadtext="Generating heatmap... ", show_counter=True, show_eta=True)
 		self.print = pb.print
 
+		# Create slide buffer
+		if buffer and os.path.isdir(buffer):
+			buffered_slide = True
+			new_path = os.path.join(buffer, os.path.basename(slide_path))
+			shutil.copy(slide_path, new_path)
+			slide_path = new_path
+		else:
+			buffered_slide = False
+
 		# Load the slide
 		self.slide = SlideReader(slide_path,
 								 size_px, 
@@ -1290,14 +1280,15 @@ class Heatmap:
 
 		# Pre-load thumbnail in separate thread
 		if not skip_thumb:
-			thumb_process = DProcess(target=self.slide.thumb)
+			thumb_process = DProcess(target=partial(self.slide.thumb, width=2048))
 			thumb_process.start()
 
 		# Create tile coordinate generator
 		gen_slice = self.slide.build_generator(normalizer=self.normalizer,
 											   normalizer_source=self.normalizer_source,
 											   include_loc=False,
-											   shuffle=False)
+											   shuffle=False,
+											   num_threads=num_threads)
 
 		if not gen_slice:
 			log.error(f"No tiles extracted from slide {sfutil.green(self.slide.name)}", 1)
@@ -1355,6 +1346,10 @@ class Heatmap:
 
 		if (type(self.logits) == bool) and (not self.logits):
 			log.error(f"Unable to create heatmap for slide {sfutil.green(self.slide.name)}", 1)
+		
+		# Unbuffer slide
+		if buffered_slide:
+			os.remove(new_path)
 
 	def _parse_function(self, record):
 		image = record['image']
@@ -1466,16 +1461,24 @@ class Heatmap:
 										}
 			skip_thumb:			Bool, whether to skip thumbnail (vs displaying with heatmap)
 		'''
-		print("\r\033[KPreparing figure...", end="")
-		self._prepare_figure(show_roi=False)
+		print("\r\033[KSaving base figures...", end="")
 
-		if not skip_thumb:
-			# Save plot without heatmaps
-			print("\r\033[KSaving base figure...", end="")
-			if show_roi: thumb = self.slide.annotated_thumb()
-			else: thumb = self.slide.thumb()
-			implot = self.ax.imshow(thumb, zorder=0)
-			plt.savefig(os.path.join(save_folder, f'{self.slide.name}-raw.png'), bbox_inches='tight')
+		# Save base thumbnail as separate figure
+		self._prepare_figure(show_roi=False)
+		self.ax.imshow(self.slide.thumb(width=2048), zorder=0)
+		plt.savefig(os.path.join(save_folder, f'{self.slide.name}-raw.png'), bbox_inches='tight')
+		plt.clf()
+
+		# Save thumbnail + ROI as separate figure
+		self._prepare_figure(show_roi=False)
+		self.ax.imshow(self.slide.annotated_thumb(width=2048), zorder=0)
+		plt.savefig(os.path.join(save_folder, f'{self.slide.name}-raw+roi.png'), bbox_inches='tight')
+		plt.clf()
+
+		# Now prepare base image for the the heatmap overlay
+		self._prepare_figure(show_roi=False)
+		thumb_func = self.slide.annotated_thumb if show_roi else self.slide.thumb
+		implot = self.ax.imshow(thumb_func(width=2048), zorder=0)
 
 		if logit_cmap:
 			if callable(logit_cmap):
@@ -1507,6 +1510,8 @@ class Heatmap:
 										 interpolation=interpolation, #bicubic
 										 zorder=10)
 				plt.savefig(os.path.join(save_folder, f'{self.slide.name}-{i}.png'), bbox_inches='tight')
+				heatmap.set_alpha(1)
+				plt.savefig(os.path.join(save_folder, f'{self.slide.name}-{i}-solid.png'), bbox_inches='tight')
 				heatmap.remove()
 
 		plt.close()
