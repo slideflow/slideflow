@@ -1550,10 +1550,12 @@ class SlideflowProject:
 									shutil.copy(slide_path, join(buffer, os.path.basename(slide_path)))
 									q.put(slide_path)
 									break
-								except OSError:
+								except OSError as e:
 									if not warned:
+										print(e)
 										log.warn(f"OSError encountered for slide {sfutil._shortname(sfutil.path_to_name(slide_path))}: buffer likely full")
 										warned = True
+										log.info(f"Q size: {q.qsize()}")
 									time.sleep(1)
 							else:
 								time.sleep(1)

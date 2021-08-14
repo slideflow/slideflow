@@ -2,6 +2,7 @@ import os
 import sys
 import csv
 import umap
+import time
 import pickle
 
 import seaborn as sns
@@ -1059,6 +1060,11 @@ def predict_from_model(model, dataset, num_tiles=0):
 	else:
 		pb = None
 
+	def decode_dataset(batch_img, batch_label, batch_slide):
+		return batch_img, batch_label, tf.strings.unicode_decode(batch_slide, 'UTF-8')
+
+	dataset = dataset.map(decode_dataset, num_parallel_calls=8)
+
 	# Get predictions and performance metrics
 	for i, batch in enumerate(dataset):
 		if pb:
@@ -1066,17 +1072,21 @@ def predict_from_model(model, dataset, num_tiles=0):
 		elif log.INFO_LEVEL > 0:
 			sys.stdout.write(f"\rGenerating predictions (batch {i})...")
 			sys.stdout.flush()
-		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in batch[2].numpy()]
-		y_true += [batch[1].numpy()]
-		y_pred += [model.predict_on_batch(batch[0])]
-		if not detected_batch_size: detected_batch_size = len(batch[1].numpy())
+
+		batch_predictions = model.predict_on_batch(batch[0])
+		batch_labels = batch[1].numpy()
+		batch_slides = batch[2].numpy()
+
+		tile_to_slides = batch_slides if tile_to_slides == [] else np.concatenate([tile_to_slides, batch_slides])#[slide_bytes.decode('utf-8') for slide_bytes in batch[2].numpy()]
+		y_true = batch_labels if y_true == [] else np.concatenate([y_true, batch_labels])
+		y_pred = batch_predictions if y_pred == [] else np.concatenate([y_pred, batch_predictions]) # [model.predict_on_batch(batch[0])]
+
+		if not detected_batch_size: detected_batch_size = batch_labels.shape[0]
 	
 	if log.INFO_LEVEL > 0:
 		sys.stdout.write("\r\033[K")
 		sys.stdout.flush()
 
-	y_pred = np.concatenate(y_pred)
-	y_true = np.concatenate(y_true)
 	return y_true, y_pred, tile_to_slides
 
 def predict_from_layer(model, layer_input, input_layer_name='hidden_0', ouput_layer_index=None):
@@ -1128,9 +1138,11 @@ def gen_metrics_from_dataset(model,
 		auc, r_squared, c_index
 	'''
 
+	start = time.time()
 	y_true, y_pred, tile_to_slides = predict_from_model(model, dataset, num_tiles=num_tiles)
-
-	return gen_metrics_from_predictions(y_true=y_true,
+	after_pred = time.time()
+	log.info(f'Validation predictions generated, time: {int(after_pred-start)} s')
+	metrics = gen_metrics_from_predictions(y_true=y_true,
 										y_pred=y_pred,
 										tile_to_slides=tile_to_slides,
 										annotations=annotations,
@@ -1142,6 +1154,9 @@ def gen_metrics_from_dataset(model,
 										verbose=verbose,
 										histogram=True,
 										plot=True)
+	after_metrics = time.time()
+	log.info(f'Validation metrics generated, time: {int(after_metrics-after_pred)} s')
+	return metrics
 	
 def permutation_feature_importance(model,
 								   dataset_with_slidenames,
