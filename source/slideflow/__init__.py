@@ -1542,14 +1542,18 @@ class SlideflowProject:
 
 				# Put each slide path into queue
 				for slide_path in slide_list:
+					warned = False
 					if buffer and buffer != 'vmtouch':
 						while True:
 							if q.qsize() < num_workers:
 								try:
-									shutil.copyfile(slide_path, join(buffer, os.path.basename(slide_path)))
+									shutil.copy(slide_path, join(buffer, os.path.basename(slide_path)))
 									q.put(slide_path)
 									break
 								except OSError:
+									if not warned:
+										log.warn(f"OSError encountered for slide {sfutil._shortname(sfutil.path_to_name(slide_path))}: buffer likely full")
+										warned = True
 									time.sleep(1)
 							else:
 								time.sleep(1)
