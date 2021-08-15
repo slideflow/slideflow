@@ -1,4 +1,5 @@
 import os
+import sys
 import types
 import shutil
 import logging
@@ -30,7 +31,6 @@ from slideflow.mosaic import Mosaic
 # 		will auto-handle finding the hyperparameters.json file, etc
 #TODO: put tfrecord report in tfrecord directories
 #DONE: put hyperparameters file in model folder
-#TODO: put tfrecord feature description in tfrecord directories
 
 __version__ = "1.11.0-dev3"
 
@@ -55,15 +55,19 @@ DEFAULT_FLAGS = {
 	}
 }
 
+def print_fn(string):
+	sys.stdout.write(f"\r\033[K{string}\n")
+	sys.stdout.flush()
+
 def _tile_extractor(slide_path, roi_dir, roi_method, skip_missing_roi, randomize_origin, 
 					img_format, tma, full_core, shuffle, tile_px, tile_um, stride_div, 
 					downsample, whitespace_fraction, whitespace_threshold, grayspace_fraction,
 					grayspace_threshold, normalizer, normalizer_source, split_fraction,
 					split_names, report_dir, tfrecord_dir, tiles_dir, save_tiles, save_tfrecord, 
-					buffer, threads_per_worker, pb):	
+					buffer, threads_per_worker, pb_counter, counter_lock):	
 
 	from slideflow.slide import TMAReader, SlideReader, TileCorruptionError
-	print_func = print if not pb else pb.print
+	print_func = print_fn
 	log.empty(f"Exporting tiles for slide {sfutil.path_to_name(slide_path)}", 1, print_func)
 
 	if tma:
@@ -73,8 +77,8 @@ def _tile_extractor(slide_path, roi_dir, roi_method, skip_missing_roi, randomize
 								stride_div,
 								enable_downsample=downsample,
 								report_dir=report_dir,
-								buffer=buffer,
-								pb=pb)
+								buffer=buffer)
+								#pb_counter=pb.get_counter())
 	else:
 		whole_slide = SlideReader(slide_path,
 								  tile_px,
@@ -86,7 +90,9 @@ def _tile_extractor(slide_path, roi_dir, roi_method, skip_missing_roi, randomize
 								  randomize_origin=randomize_origin,
 								  skip_missing_roi=skip_missing_roi,
 								  buffer=buffer,
-								  pb=pb)
+								  pb_counter=pb_counter,
+								  print_fn=print_func,
+								  counter_lock=counter_lock)
 
 	if not whole_slide.loaded_correctly():
 		return
@@ -137,8 +143,8 @@ def _tile_extractor(slide_path, roi_dir, roi_method, skip_missing_roi, randomize
 				save_tiles, 
 				save_tfrecord, 
 				buffer, 
-				threads_per_worker, 
-				pb)
+				threads_per_worker,
+				pb_counter)
 		else:
 			log.error(f"Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; skipping slide", 1, print_func)
 			return None
@@ -1545,8 +1551,12 @@ class SlideflowProject:
 			
 			if total_tiles:
 				pb = ProgressBar(total_tiles, counter_text='tiles', leadtext="Extracting tiles... ", show_counter=True, show_eta=True)
+				pb_counter, counter_lock = pb.get_counter()
 			else:
 				pb = None
+				print_fn = None
+				pb_counter = None
+				counter_lock = None
 
 			# Use multithreading if specified, extracting tiles from all slides in the filtered list
 			if len(slide_list):
@@ -1565,7 +1575,7 @@ class SlideflowProject:
 																				img_format, tma, full_core, shuffle, tile_px, tile_um, stride_div, False,
 																				whitespace_fraction, whitespace_threshold, grayspace_fraction, grayspace_threshold, normalizer, 
 																				normalizer_source, split_fraction, split_names, self.PROJECT['root'], tfrecord_dir, tiles_dir, 
-																				save_tiles, save_tfrecord, buffer, threads_per_worker, pb))
+																				save_tiles, save_tfrecord, buffer, threads_per_worker, pb_counter, counter_lock))
 
 							process.start()
 							process.join()
@@ -1586,6 +1596,8 @@ class SlideflowProject:
 					warned = False
 					if buffer and buffer != 'vmtouch':
 						while True:
+							print(f'refreshing pb: {pb_counter.value} / {pb.BARS[0].end_value}')
+							pb.refresh()
 							if q.qsize() < num_workers:
 								try:
 									buffered_path = join(buffer, os.path.basename(slide_path))

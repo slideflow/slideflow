@@ -414,14 +414,15 @@ class SlideLoader:
 	'''Object that loads an SVS slide and makes preparations for tile extraction.
 	Should not be used directly; this class must be inherited and extended by a child class'''
 	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False,
-					silent=False, buffer=None, pb=None):
+					silent=False, buffer=None, pb_counter=None, print_fn=None, counter_lock=None):
 		self.load_error = False
 		self.silent = silent
 
-		self.print = None if silent else (print if not pb else pb.print)
-		self.error_print = print if not pb else pb.print
+		self.print = None if silent else (print if not print_fn else print_fn)
+		self.error_print = print if not print_fn else print_fn
 
-		self.pb = pb
+		self.pb_counter = pb_counter
+		self.counter_lock = counter_lock
 		self.name = sfutil.path_to_name(path)
 		self.shortname = sfutil._shortname(self.name)
 		self.size_px = size_px
@@ -735,7 +736,8 @@ class SlideReader(SlideLoader):
 	'''Extension of slideflow.slide.SlideLoader. Loads a slide and its ROI annotations and sets up a tile generator.'''
 
 	def __init__(self, path, size_px, size_um, stride_div=1, enable_downsample=False, roi_dir=None, roi_list=None,
-					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, randomize_origin=False, silent=False, buffer=None, pb=None, pb_id=0):
+					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, randomize_origin=False, silent=False, buffer=None, 
+					pb_counter=None, print_fn=None, counter_lock=None):
 		'''Initializer.
 
 		Args:
@@ -756,7 +758,7 @@ class SlideReader(SlideLoader):
 			pb:					ProgressBar instance; will update progress bar during tile extraction if provided
 			pb_id:				ID of bar in ProgressBar, defaults to 0
 		'''
-		super().__init__(path, size_px, size_um, stride_div, enable_downsample, silent, buffer, pb)
+		super().__init__(path, size_px, size_um, stride_div, enable_downsample, silent, buffer, pb_counter, print_fn, counter_lock)
 
 		# Initialize calculated variables
 		self.extracted_x_size = 0
@@ -764,7 +766,7 @@ class SlideReader(SlideLoader):
 		self.estimated_num_tiles = 0
 		self.coord = []
 		self.annPolys = []
-		self.pb_id = pb_id
+		#self.pb_id = pb_id
 		self.ROI_SCALE = 10
 
 		if not self.loaded_correctly():
@@ -892,12 +894,14 @@ class SlideReader(SlideLoader):
 		def generator():
 			self.tile_mask = np.asarray([False for i in range(len(self.coord))], dtype=np.bool)
 
-			with mp.Pool(processes=num_threads) as p:
+			with mp.dummy.Pool(processes=num_threads) as p:
 				for res in p.imap(partial(slide_extraction_worker, args=worker_args), self.coord):
 					if res == 'skip': 
 						continue
-					if self.pb:
-						self.pb.increase_bar_value(id=self.pb_id)
+					#if self.pb:
+					#	self.pb.increase_bar_value(id=self.pb_id)
+					with self.counter_lock:
+						self.pb_counter.value += 1
 					if res is None:
 						continue
 					else:

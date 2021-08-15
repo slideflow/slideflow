@@ -8,6 +8,7 @@ import shutil
 import datetime
 import threading
 import logging
+import multiprocessing as mp
 import cv2
 
 from glob import glob
@@ -116,6 +117,10 @@ class StainNormalizer:
 class Bar:
 	def __init__(self, ending_value, starting_value=0, bar_length=20, label='',
 					show_eta=False, show_counter=False, counter_text='', update_interval=1):
+
+		self.counter = mp.Value('i', 0)
+		self.counter_lock = mp.Lock()
+		
 		# Setup timing
 		self.starttime = None
 		self.lastupdated = None
@@ -123,7 +128,7 @@ class Bar:
 		self.checkpoint_val = starting_value
 
 		# Other initializing variables
-		self.value = starting_value
+		self.counter.value = starting_value
 		self.end_value = ending_value
 		self.bar_length = bar_length
 		self.label = label
@@ -139,7 +144,7 @@ class Bar:
 		if not self.starttime:
 			self.starttime = current_time
 			self.checkpoint_time = current_time
-			self.checkpoint_val = self.value
+			self.checkpoint_val = self.counter.value
 			self.lastupdated = self.starttime
 		elif current_time == self.lastupdated:
 			return self.text
@@ -150,23 +155,23 @@ class Bar:
 
 		# Checkpoint every 5 seconds
 		if (current_time - self.checkpoint_time) > self.update_interval:
-			self.num_per_sec = (self.value - self.checkpoint_val) / (current_time - self.checkpoint_time)
+			self.num_per_sec = (self.counter.value - self.checkpoint_val) / (current_time - self.checkpoint_time)
 			# Reset checkpoint
-			self.checkpoint_val = self.value
+			self.checkpoint_val = self.counter.value
 			self.checkpoint_time = current_time
 
-		percent = float(self.value) / self.end_value
+		percent = float(self.counter.value) / self.end_value
 		arrow = chr(0x2588) * int(round(percent * self.bar_length))
 		spaces = u'-' * (self.bar_length - len(arrow))
 
 		self.text = u"\u007c{0}\u007c {1:.1f}%{2}".format(arrow + spaces, 
-													 (float(self.value) / self.end_value)*100, 
+													 (float(self.counter.value) / self.end_value)*100, 
 													 f' ({self.label})' if self.label else '')
 		if self.show_counter and self.num_per_sec:
 			num_per_sec_str = "?" if timediff == 0 else f'{self.num_per_sec:.1f}'
 			self.text += f" {num_per_sec_str}{self.counter_text}/sec"
 		if self.show_eta and timediff and self.num_per_sec:
-			eta_sec = (self.end_value - self.value) / self.num_per_sec
+			eta_sec = (self.end_value - self.counter.value) / self.num_per_sec
 			self.text += f" (ETA: {time.strftime('%H:%M:%S', time.gmtime(eta_sec))})"
 		elif self.show_eta:
 			self.text += f" (ETA: ?)"
@@ -193,11 +198,14 @@ class ProgressBar:
 		return len(self.BARS)-1
 
 	def increase_bar_value(self, amount=1, id=0):
-		self.BARS[id].value = min(self.BARS[id].value + amount, self.BARS[id].end_value)
+		self.BARS[id].counter.value = min(self.BARS[id].counter.value + amount, self.BARS[id].end_value)
 		self.refresh()
 
+	def get_counter(self, id=0):
+		return self.BARS[id].counter, self.BARS[id].counter_lock
+
 	def set_bar_value(self, value, id=0):
-		self.BARS[id].value = min(value, self.BARS[id].end_value)
+		self.BARS[id].counter.value = min(value, self.BARS[id].end_value)
 		self.refresh()
 
 	def set_bar_text(self, text, id=0):
