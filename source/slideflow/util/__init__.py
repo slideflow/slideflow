@@ -116,11 +116,16 @@ class StainNormalizer:
 
 class Bar:
 	def __init__(self, ending_value, starting_value=0, bar_length=20, label='',
-					show_eta=False, show_counter=False, counter_text='', update_interval=1):
+					show_eta=False, show_counter=False, counter_text='', update_interval=1,
+					mp_counter=None, mp_lock=None):
 
-		self.counter = mp.Value('i', 0)
-		self.counter_lock = mp.Lock()
-		
+		if mp_counter is not None:
+			self.counter = mp_counter
+			self.mp_lock = mp_lock
+		else:
+			self.counter = mp.Value('i', 0)
+			self.mp_lock = None
+
 		# Setup timing
 		self.starttime = None
 		self.lastupdated = None
@@ -184,10 +189,10 @@ class ProgressBar:
 	text = ''
 
 	def __init__(self, ending_val, starting_val=0, bar_length=20, endtext='', show_eta=False, 
-					show_counter=False, counter_text='', leadtext=''):
+					show_counter=False, counter_text='', leadtext='', mp_counter=None, mp_lock=None):
 		
 		self.leadtext = leadtext
-		self.BARS = [Bar(ending_val, starting_val, bar_length, endtext, show_eta, show_counter, counter_text)]
+		self.BARS = [Bar(ending_val, starting_val, bar_length, endtext, show_eta, show_counter, counter_text, mp_counter=mp_counter, mp_lock=mp_lock)]
 		self.refresh()
 
 	def add_bar(self, val, endval, bar_length=20, endtext='', show_eta=False,
@@ -202,7 +207,7 @@ class ProgressBar:
 		self.refresh()
 
 	def get_counter(self, id=0):
-		return self.BARS[id].counter, self.BARS[id].counter_lock
+		return self.BARS[id].counter
 
 	def set_bar_value(self, value, id=0):
 		self.BARS[id].counter.value = min(value, self.BARS[id].end_value)

@@ -414,15 +414,15 @@ class SlideLoader:
 	'''Object that loads an SVS slide and makes preparations for tile extraction.
 	Should not be used directly; this class must be inherited and extended by a child class'''
 	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False,
-					silent=False, buffer=None, pb_counter=None, print_fn=None, counter_lock=None):
+					silent=False, buffer=None, pb_counter=None, counter_lock=None, print_fn=None):
 		self.load_error = False
 		self.silent = silent
 
 		self.print = None if silent else (print if not print_fn else print_fn)
 		self.error_print = print if not print_fn else print_fn
 
-		self.pb_counter = pb_counter
 		self.counter_lock = counter_lock
+		self.pb_counter = pb_counter
 		self.name = sfutil.path_to_name(path)
 		self.shortname = sfutil._shortname(self.name)
 		self.size_px = size_px
@@ -628,7 +628,6 @@ class SlideLoader:
 			normalizer_source:		Path to normalizer source image
 			full_core:				Bool. Only used for TMAReader. If true, will extract full image cores regardless of supplied tile micron size.
 		'''
-
 		assert img_format in ('png', 'jpg', 'jpeg')
 
 		# Make base directories
@@ -737,7 +736,7 @@ class SlideReader(SlideLoader):
 
 	def __init__(self, path, size_px, size_um, stride_div=1, enable_downsample=False, roi_dir=None, roi_list=None,
 					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, randomize_origin=False, silent=False, buffer=None, 
-					pb_counter=None, print_fn=None, counter_lock=None):
+					pb_counter=None, counter_lock=None, print_fn=None):
 		'''Initializer.
 
 		Args:
@@ -758,7 +757,7 @@ class SlideReader(SlideLoader):
 			pb:					ProgressBar instance; will update progress bar during tile extraction if provided
 			pb_id:				ID of bar in ProgressBar, defaults to 0
 		'''
-		super().__init__(path, size_px, size_um, stride_div, enable_downsample, silent, buffer, pb_counter, print_fn, counter_lock)
+		super().__init__(path, size_px, size_um, stride_div, enable_downsample, silent, buffer, pb_counter, counter_lock, print_fn)
 
 		# Initialize calculated variables
 		self.extracted_x_size = 0
@@ -894,7 +893,7 @@ class SlideReader(SlideLoader):
 		def generator():
 			self.tile_mask = np.asarray([False for i in range(len(self.coord))], dtype=np.bool)
 
-			with mp.dummy.Pool(processes=num_threads) as p:
+			with mp.Pool(processes=num_threads) as p:
 				for res in p.imap(partial(slide_extraction_worker, args=worker_args), self.coord):
 					if res == 'skip': 
 						continue
@@ -908,7 +907,7 @@ class SlideReader(SlideLoader):
 						tile, idx = res
 						self.tile_mask[idx] = True
 						yield tile
-			
+		
 			log.label(self.shortname, f"Finished tile extraction for {sfutil.green(self.shortname)} ({np.sum(self.tile_mask)} tiles of {len(self.coord)} possible)", 2, self.print)
 
 		return generator

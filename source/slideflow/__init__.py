@@ -91,8 +91,8 @@ def _tile_extractor(slide_path, roi_dir, roi_method, skip_missing_roi, randomize
 								  skip_missing_roi=skip_missing_roi,
 								  buffer=buffer,
 								  pb_counter=pb_counter,
-								  print_fn=print_func,
-								  counter_lock=counter_lock)
+								  counter_lock=counter_lock,
+								  print_fn=print_func)
 
 	if not whole_slide.loaded_correctly():
 		return
@@ -144,10 +144,11 @@ def _tile_extractor(slide_path, roi_dir, roi_method, skip_missing_roi, randomize
 				save_tfrecord, 
 				buffer, 
 				threads_per_worker,
-				pb_counter)
+				pb_counter,
+				counter_lock)
 		else:
 			log.error(f"Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; skipping slide", 1, print_func)
-			return None
+			return
 	del whole_slide
 	return report
 
@@ -1549,22 +1550,30 @@ class SlideflowProject:
 			if log.INFO_LEVEL > 0: print("\r\033[K", end='')
 			log.complete(f"Verification complete. Total estimated tiles to extract: {total_tiles}", 1)
 			
+			#TODO: move this under if(len(slide_list))
+			q = queue.Queue()
+			task_finished = False
+			manager = multiprocessing.Manager()
+			ctx = multiprocessing.get_context('spawn')
+			reports = manager.dict()
+			counter = manager.Value('i', 0)
+			counter_lock = manager.Lock()
+
 			if total_tiles:
-				pb = ProgressBar(total_tiles, counter_text='tiles', leadtext="Extracting tiles... ", show_counter=True, show_eta=True)
-				pb_counter, counter_lock = pb.get_counter()
+				pb = ProgressBar(total_tiles, counter_text='tiles', leadtext="Extracting tiles... ", show_counter=True, show_eta=True, mp_counter=counter, mp_lock=counter_lock)
+				pb_counter = pb.get_counter()
 			else:
 				pb = None
 				print_fn = None
 				pb_counter = None
-				counter_lock = None
 
 			# Use multithreading if specified, extracting tiles from all slides in the filtered list
 			if len(slide_list):
-				q = queue.Queue()
+				'''q = queue.Queue()
 				task_finished = False
 				manager = multiprocessing.Manager()
 				ctx = multiprocessing.get_context('spawn')
-				reports = manager.dict()
+				reports = manager.dict()'''
 
 				# Worker to grab slide path from queue and start tile extraction
 				def worker():
@@ -1596,7 +1605,6 @@ class SlideflowProject:
 					warned = False
 					if buffer and buffer != 'vmtouch':
 						while True:
-							print(f'refreshing pb: {pb_counter.value} / {pb.BARS[0].end_value}')
 							pb.refresh()
 							if q.qsize() < num_workers:
 								try:
