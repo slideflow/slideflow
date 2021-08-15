@@ -879,8 +879,7 @@ def gen_metrics_from_predictions(y_true,
 		
 	# For categorical models, convert to one-hot encoding
 	if model_type == 'categorical':
-		#y_true = np.array([to_onehot(i, num_cat) for i in y_true])
-		y_true = np.array(map(partial(to_onehot, num_cat=num_cat), y_true))
+		y_true = np.array([to_onehot(i, num_cat) for i in y_true])
 
 	# Create dictionary mapping slides to one_hot category encoding
 	#  and check for data integrity problems (slide assigned to multiple outcomes, etc)
@@ -1078,7 +1077,7 @@ def predict_from_model(model, dataset, num_tiles=0):
 
 	log.info("Generating predictions...", 1)
 	y_pred = model.predict(dataset_img)
-	log.info("Predictions generated. Assembling slide labels...", 1)
+	log.info("Predictions generated. Reading slide labels...", 1)
 
 	y_true, tile_to_slides = list(zip(*list(dataset_labels)))
 	y_true = np.array(y_true)
