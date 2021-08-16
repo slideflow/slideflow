@@ -1,6 +1,5 @@
 import sys
 import json
-import types
 import csv
 import time
 import os
@@ -11,7 +10,6 @@ import threading
 import cv2
 
 from glob import glob
-from tensorflow.keras import backend as K
 from os.path import join, isdir, exists
 from PIL import Image
 import multiprocessing as mp
@@ -45,14 +43,6 @@ FORMATTING_OPTIONS = [HEADER, BLUE, GREEN, WARNING, FAIL, ENDC, BOLD, UNDERLINE]
 LOGGING_PREFIXES = ['', ' + ', '    - ']
 LOGGING_PREFIXES_WARN = ['', ' ! ', '    ! ']
 LOGGING_PREFIXES_EMPTY = ['', '   ', '     ']
-
-# Old BatchNorm fix for bug in TF v1.14
-#class UpdatedBatchNormalization(tf.keras.layers.BatchNormalization):
-#	def call(self, inputs, training=None):
-#		true_phase = int(K.get_session().run(K.learning_phase()))
-#		trainable = int(self.trainable)
-#		with K.learning_phase_scope(trainable * true_phase):
-#			return super(tf.keras.layers.BatchNormalization, self).call(inputs, training)
 
 class StainNormalizer:
 	'''Object to supervise stain normalization for images and 

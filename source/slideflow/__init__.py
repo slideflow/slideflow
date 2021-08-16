@@ -31,8 +31,9 @@ from slideflow.mosaic import Mosaic
 # 		will auto-handle finding the hyperparameters.json file, etc
 #TODO: put tfrecord report in tfrecord directories
 #DONE: put hyperparameters file in model folder
+#TODO: either fix or deprecate dual tile extraction
 
-__version__ = "1.11.0-dev3"
+__version__ = "1.11.0-dev4"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
