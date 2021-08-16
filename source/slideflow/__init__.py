@@ -33,7 +33,7 @@ from slideflow.mosaic import Mosaic
 #DONE: put hyperparameters file in model folder
 #TODO: either fix or deprecate dual tile extraction
 
-__version__ = "1.11.0-dev4"
+__version__ = "1.11.0-dev5"
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -251,6 +251,14 @@ def _evaluator(outcome_label_headers, model, project_config, results_dict, input
 																				use_float=(hp.model_type() in ['linear', 'cph']),
 																				key='outcome_label')
 
+	if hp.model_type() == 'categorical' and len(outcome_label_headers) > 1:
+		slide_labels_for_val_splitting = {k:{
+												'outcome_label': '-'.join(map(str, v['outcome_label'])) if type(v['outcome_label']) == list else v['outcome_label'],
+												sfutil.TCGA.patient:v[sfutil.TCGA.patient]
+											} for k,v in slide_labels_dict.items()}
+	else:
+		slide_labels_for_val_splitting = slide_labels_dict
+
 	# If using a specific k-fold, load validation plan
 	if eval_k_fold:
 		log.info(f"Using {sfutil.bold('k-fold iteration ' + str(eval_k_fold))}", 1)
@@ -258,7 +266,7 @@ def _evaluator(outcome_label_headers, model, project_config, results_dict, input
 		_, eval_tfrecords = sfio.tfrecords.get_training_and_validation_tfrecords(eval_dataset,
 																				 validation_log,
 																				 hp.model_type(),
-																				 slide_labels_dict,
+																				 slide_labels_for_val_splitting,
 																				 outcome_key='outcome_label',
 																				 validation_target=hp_data['validation_target'],
 																				 validation_strategy=hp_data['validation_strategy'],
@@ -332,7 +340,8 @@ def _evaluator(outcome_label_headers, model, project_config, results_dict, input
 								 normalizer=normalizer,
 								 normalizer_source=normalizer_source,
 								 feature_names=input_header,
-								 feature_sizes=feature_sizes)
+								 feature_sizes=feature_sizes,
+								 outcome_names=outcome_label_headers)
 
 	# Log model settings and hyperparameters
 	hp_file = join(model_dir, 'hyperparameters.json')
@@ -470,10 +479,22 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 	slide_labels_dict, unique_labels = training_dataset.get_labels_from_annotations(outcome_label_headers,
 																					use_float=(hp.model_type() in ['linear', 'cph']),
 																					key='outcome_label')
-	if hp.model_type() == 'categorical': 
+
+	if hp.model_type() == 'categorical' and len(outcome_label_headers) == 1: 
 		outcome_labels = dict(zip(range(len(unique_labels)), unique_labels))
+	elif hp.model_type() == 'categorical':
+		outcome_labels = {k:dict(zip(range(len(ul)), ul)) for k, ul in unique_labels.items()}
 	else:
 		outcome_labels = dict(zip(range(len(outcome_label_headers)), outcome_label_headers))
+
+	# If multiple categorical outcomes are used, create a merged variable for k-fold splitting
+	if hp.model_type() == 'categorical' and len(outcome_label_headers) > 1:
+		slide_labels_for_val_splitting = {k:{
+												'outcome_label':'-'.join(map(str, v['outcome_label'])),
+												sfutil.TCGA.patient:v[sfutil.TCGA.patient]
+											} for k,v in slide_labels_dict.items()}
+	else:
+		slide_labels_for_val_splitting = slide_labels_dict
 
 	# Get TFRecords for training and validation
 	manifest = training_dataset.get_manifest()
@@ -502,7 +523,7 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 		training_tfrecords, validation_tfrecords = sfio.tfrecords.get_training_and_validation_tfrecords(training_dataset,
 																										validation_log,
 																										hp.model_type(),
-																										slide_labels_dict,
+																										slide_labels_for_val_splitting,
 																										outcome_key='outcome_label',
 																										validation_target=validation_target,
 																										validation_strategy=validation_strategy,
@@ -578,7 +599,8 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 								 normalizer=normalizer,
 								 normalizer_source=normalizer_source,
 								 feature_names=input_header,
-								 feature_sizes=feature_sizes)
+								 feature_sizes=feature_sizes,
+								 outcome_names=outcome_label_headers)
 
 	# Log model settings and hyperparameters
 	hp_file = join(project_config['models_dir'], full_model_name, 'hyperparameters.json')
@@ -2273,7 +2295,7 @@ class SlideflowProject:
 		'''Saves current project configuration as "settings.json".'''
 		sfutil.write_json(self.PROJECT, join(self.PROJECT['root'], 'settings.json'))
 
-	def train(self, model_names=None, outcome_label_headers='category', input_header=None, multi_outcome=False, filters=None, filter_blank=None,
+	def train(self, model_names=None, outcome_label_headers='category', input_header=None, filters=None, filter_blank=None,
 				resume_training=None, checkpoint=None, pretrain='imagenet', pretrain_model_format=None, batch_file=None,
 				hyperparameters=None, validation_target=None, validation_strategy=None,validation_fraction=None,
 				validation_k_fold=None, k_fold_iter=None, k_fold_header=None, validation_dataset=None, validation_annotations=None,
@@ -2290,8 +2312,6 @@ class SlideflowProject:
 										May supply None if performing a hyperparameter sweep, in which case all models in the batch_train.tsv config file will be trained.
 			outcome_label_headers:	String or list. Specifies which header(s) in the annotation file to use for the output category. 
 										Defaults to 'category'.	If a list is provided, will loop through all outcomes and perform HP sweep on each.
-			multi_outcome:			If True, will train to multiple outcome labels simultaneously instead of looping through the
-										list of labels in "outcome_label_headers". Defaults to False.
 			filters:				Dictionary of column names mapping to column values by which to filter slides using the annotation file.
 			resume_training:		Path to Tensorflow model to continue training
 			checkpoint:				Path to cp.ckpt from which to load weights
@@ -2361,107 +2381,100 @@ class SlideflowProject:
 		hyperparameter_list = self._get_hyperparameter_combinations(hyperparameters, model_names, batch_train_file)
 
 		outcome_label_headers = [outcome_label_headers] if not isinstance(outcome_label_headers, list) else outcome_label_headers
-		if multi_outcome:
+		if len(outcome_label_headers) > 1:
 			log.info(f"Training ({len(hyperparameter_list)} models) using {len(outcome_label_headers)} variables as simultaneous outcomes:", 1)
-		else:
-			log.header(f"Training ({len(hyperparameter_list)} models) for each of {len(outcome_label_headers)} outcome variables:", 1)
-		for label in outcome_label_headers:
-			log.empty(label, 2)
-		if log.INFO_LEVEL > 0: print()
-		outcome_label_headers = [outcome_label_headers] if multi_outcome else outcome_label_headers
+			for label in outcome_label_headers:
+				log.empty(label, 2)
+			if log.INFO_LEVEL > 0: print()
 
 		# Next, prepare the multiprocessing manager (needed to free VRAM after training and keep track of results)
 		manager = multiprocessing.Manager()
 		results_dict = manager.dict()
 		ctx = multiprocessing.get_context('spawn')
 
-		# If using multiple outcomes, initiate hyperparameter sweep for each outcome label category specified
-		# If not training to multiple outcome, perform full hyperparameter sweep of the combined outcomes
-		for selected_outcome_label_headers in outcome_label_headers:
-			# For each hyperparameter combination, perform training
-			for hp, hp_model_name in hyperparameter_list:
+		# For each hyperparameter combination, perform training
+		for hp, hp_model_name in hyperparameter_list:
 
-				# Prepare k-fold validation configuration
-				results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
-				k_fold_iter = [k_fold_iter] if (k_fold_iter != None and not isinstance(k_fold_iter, list)) else k_fold_iter
+			# Prepare k-fold validation configuration
+			results_log_path = os.path.join(self.PROJECT['root'], "results_log.csv")
+			k_fold_iter = [k_fold_iter] if (k_fold_iter != None and not isinstance(k_fold_iter, list)) else k_fold_iter
 
-				if validation_strategy == 'k-fold-manual':
-					training_dataset = self.get_dataset(tile_px=hp.tile_px, 
-														tile_um=hp.tile_um,
-														filters=filters,
-														filter_blank=filter_blank)
+			if validation_strategy == 'k-fold-manual':
+				training_dataset = self.get_dataset(tile_px=hp.tile_px, 
+													tile_um=hp.tile_um,
+													filters=filters,
+													filter_blank=filter_blank)
 
-					k_fold_slide_labels, valid_k = training_dataset.slide_to_label(k_fold_header, return_unique=True)
-					k_fold = len(valid_k)
+				k_fold_slide_labels, valid_k = training_dataset.slide_to_label(k_fold_header, return_unique=True)
+				k_fold = len(valid_k)
+			else:
+				k_fold = validation_k_fold if validation_strategy in ('k-fold', 'k-fold-preserved-site', 'bootstrap') else 0
+				valid_k = [] if not k_fold else [kf for kf in range(1, k_fold+1) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
+				k_fold_slide_labels = None
+
+			# TODO: implement compatibility for multiple categorical outcomes
+			if hp.model_type() != 'linear' and len(outcome_label_headers) > 1:
+				#raise Exception("Multiple outcome labels only supported for linear outcome labels.")
+				log.info("Using experimental multi-outcome approach for categorical outcome")
+
+			# Auto-extract tiles if requested
+			if auto_extract:
+				self.extract_tiles(hp.tile_px,
+									hp.tile_um,
+									filters=filters,
+									filter_blank=filter_blank,
+									normalizer=tfrecord_normalizer,
+									normalizer_source=tfrecord_normalizer_source)
+
+			label_string = "-".join(outcome_label_headers)
+			model_name = f"{label_string}-{hp_model_name}"
+			model_iterations = [model_name] if not k_fold else [f"{model_name}-kfold{k}" for k in valid_k]
+
+			def start_training_process(k):
+				# Using a separate process ensures memory is freed once training has completed
+				process = ctx.Process(target=_trainer, args=(outcome_label_headers, model_name, self.PROJECT,
+															results_dict, hp, validation_strategy,  validation_target,
+															validation_fraction, validation_k_fold,  validation_log, validation_dataset, validation_annotations,
+															validation_filters, k, k_fold_slide_labels, input_header, filters, filter_blank, pretrain,
+															pretrain_model_format, resume_training, checkpoint, validate_on_batch, validation_steps,
+															max_tiles_per_slide, min_tiles_per_slide, starting_epoch, steps_per_epoch_override, train_normalizer, 
+															train_normalizer_source, use_tensorboard, multi_gpu, save_predictions, self.FLAGS))
+				process.start()
+				log.empty(f"Spawning training process (PID: {process.pid})")
+				process.join()
+
+			# Perform training
+			log.header("Training model...")
+			if k_fold:
+				for k in valid_k:
+					start_training_process(k)
+					
+			else:
+				start_training_process(None)
+
+			# Record results
+			for mi in model_iterations:
+				if mi not in results_dict:
+					log.error(f"Training failed for model {model_name}")
 				else:
-					k_fold = validation_k_fold if validation_strategy in ('k-fold', 'k-fold-preserved-site', 'bootstrap') else 0
-					valid_k = [] if not k_fold else [kf for kf in range(1, k_fold+1) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
-					k_fold_slide_labels = None
+					sfutil.update_results_log(results_log_path, mi, results_dict[mi]['epochs'])
+			log.complete(f"Training complete for model {model_name}, results saved to {sfutil.green(results_log_path)}")
 
-				# TODO: implement compatibility for multiple categorical outcomes
-				if multi_outcome and hp.model_type() != 'linear':
-					log.error("Multiple outcome labels only supported for linear outcome labels.")
-					return
-
-				# Auto-extract tiles if requested
-				if auto_extract:
-					self.extract_tiles(hp.tile_px,
-									   hp.tile_um,
-									   filters=filters,
-									   filter_blank=filter_blank,
-									   normalizer=tfrecord_normalizer,
-									   normalizer_source=tfrecord_normalizer_source)
-
-				# Generate model name
-				if isinstance(selected_outcome_label_headers, list):
-					label_string = "-".join(selected_outcome_label_headers)
-				else:
-					label_string = selected_outcome_label_headers
-					selected_outcome_label_headers = [selected_outcome_label_headers]
-
-				model_name = f"{label_string}-{hp_model_name}"
-				model_iterations = [model_name] if not k_fold else [f"{model_name}-kfold{k}" for k in valid_k]
-
-				def start_training_process(k):
-					# Using a separate process ensures memory is freed once training has completed
-					process = ctx.Process(target=_trainer, args=(selected_outcome_label_headers, model_name, self.PROJECT,
-																results_dict, hp, validation_strategy,  validation_target,
-																validation_fraction, validation_k_fold,  validation_log, validation_dataset, validation_annotations,
-																validation_filters, k, k_fold_slide_labels, input_header, filters, filter_blank, pretrain,
-																pretrain_model_format, resume_training, checkpoint, validate_on_batch, validation_steps,
-																max_tiles_per_slide, min_tiles_per_slide, starting_epoch, steps_per_epoch_override, train_normalizer, 
-																train_normalizer_source, use_tensorboard, multi_gpu, save_predictions, self.FLAGS))
-					process.start()
-					log.empty(f"Spawning training process (PID: {process.pid})")
-					process.join()
-
-				# Perform training
-				log.header("Training model...")
-				if k_fold:
-					for k in valid_k:
-						start_training_process(k)
-						
-				else:
-					start_training_process(None)
-
-				# Record results
-				for mi in model_iterations:
-					if mi not in results_dict:
-						log.error(f"Training failed for model {model_name}")
-					else:
-						sfutil.update_results_log(results_log_path, mi, results_dict[mi]['epochs'])
-				log.complete(f"Training complete for model {model_name}, results saved to {sfutil.green(results_log_path)}")
-
-			# Print summary of all models
-			log.complete("Training complete; validation accuracies:", 0)
-			for model in results_dict:
-				try:
-					last_epoch = max([int(e.split('epoch')[-1]) for e in results_dict[model]['epochs'].keys() if 'epoch' in e ])
-					final_metrics = results_dict[model]['epochs'][f'epoch{last_epoch}']
-					log.empty(f" - {sfutil.green(model)}: Train_Acc={str(final_metrics['train_acc'])}, " +
-						f"Val_loss={final_metrics['val_loss']}, Val_Acc={final_metrics['val_acc']}" )
-				except ValueError:
-					pass
+		# Print summary of all models
+		log.complete("Training complete; validation accuracies:", 0)
+		for model in results_dict:
+			try:
+				last_epoch = max([int(e.split('epoch')[-1]) for e in results_dict[model]['epochs'].keys() if 'epoch' in e ])
+				final_train_metrics = results_dict[model]['epochs'][f'epoch{last_epoch}']['train_metrics']
+				final_val_metrics = results_dict[model]['epochs'][f'epoch{last_epoch}']['val_metrics']
+				log.empty(f"{sfutil.green(model)} training metrics:", 1)
+				for m in final_train_metrics:
+					log.empty(f"{m}: {final_train_metrics[m]}", 2)
+				log.empty(f"{sfutil.green(model)} validation metrics:", 1)
+				for m in final_val_metrics:
+					log.empty(f"{m}: {final_val_metrics[m]}", 2)
+			except ValueError:
+				pass
 
 		return results_dict
 

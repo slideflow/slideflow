@@ -11,7 +11,7 @@ class ManifestError(Exception):
 	pass
 
 class ModelError(Exception):
-	def __init__(self, message, errors):
+	def __init__(self, message, errors=None):
 		log.error(message)
 		super().__init__(message)
 
