@@ -10,6 +10,7 @@ import pandas as pd
 import tensorflow as tf
 import slideflow.util as sfutil
 
+from functools import partial
 from slideflow.util import ProgressBar
 from os.path import join
 from slideflow.util import log
@@ -820,6 +821,8 @@ def gen_metrics_from_predictions(y_true,
 								 histogram=True,
 								 plot=True):
 
+
+	start = time.time()
 	label_end = "" if not label else f"_{label}"
 	label_start = "" if not label else f"{label}_"
 
@@ -827,6 +830,7 @@ def gen_metrics_from_predictions(y_true,
 	patients = list(set(tile_to_patients))
 	num_tiles = len(tile_to_slides)
 	unique_slides = list(set(tile_to_slides))
+	log.info(f"Checkpoint 1: {time.time() - start}", 2)
 
 	# Ensure that the number of outcome categories in the predictions matches the number of categories in the labels
 	if model_type == 'categorical':
@@ -849,6 +853,8 @@ def gen_metrics_from_predictions(y_true,
 	unique_slides = [us for us in unique_slides if us not in slides_to_filter]
 	if verbose:
 		log.info(f"Filtered out {num_total_slides - len(unique_slides)} of {num_total_slides} slides in evaluation set (minimum tiles per slide: {min_tiles_per_slide})", 1)
+
+	log.info(f"Checkpoint 2: {time.time() - start}", 2)
 
 	# Empty lists to store performance metrics
 	auc = {
@@ -891,6 +897,8 @@ def gen_metrics_from_predictions(y_true,
 		elif not patient_error and not np.array_equal(y_true_patient[patient], y_true[i]):
 			log.error("Data integrity failure when generating ROCs; patient assigned to multiple slides with different outcomes", 1)
 			patient_error = True
+
+	log.info(f"Checkpoint 3: {time.time() - start}", 2)
 
 	# Function to generate group-level averages (e.g. slide-level or patient-level)
 	def get_average_by_group(prediction_array, prediction_label, unique_groups, tile_to_group, y_true_group, label='group'):
@@ -935,6 +943,8 @@ def gen_metrics_from_predictions(y_true,
 			except IndexError:
 				log.warn(f"Unable to generate tile-level stats for outcome {i}", 1)
 
+		log.info(f"Checkpoint 4: {time.time() - start}", 2)
+
 		# Convert predictions to one-hot encoding
 		onehot_predictions = []
 		for x in range(len(y_pred)):
@@ -953,6 +963,8 @@ def gen_metrics_from_predictions(y_true,
 					log.info(f"Category {cat_index} accuracy: {cat_percent_acc:.1f}% ({num_correctly_predicted_in_category}/{num_tiles_in_category})", 1)
 			except IndexError:
 				log.warn(f"Unable to generate category-level accuracy stats for category index {cat_index}", 1)
+
+		log.info(f"Checkpoint 5: {time.time() - start}", 2)
 
 		# Generate slide-level percent calls
 		percent_calls_by_slide = get_average_by_group(onehot_predictions,
@@ -973,6 +985,8 @@ def gen_metrics_from_predictions(y_true,
 					log.info(f"Slide-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold:.3f})", 1)
 			except IndexError:
 				log.warn(f"Unable to generate slide-level stats for outcome {i}", 1)
+
+		log.info(f"Checkpoint 6: {time.time() - start}", 2)
 
 		if not patient_error:
 			# Generate patient-level percent calls
@@ -995,6 +1009,8 @@ def gen_metrics_from_predictions(y_true,
 				except IndexError:
 					log.warn(f"Unable to generate patient-level stats for outcome {i}", 1)
 	
+	log.info(f"Checkpoint 7: {time.time() - start}", 2)
+
 	if model_type == 'linear':
 		# Generate R-squared
 		r_squared['tile'] = generate_scatter(y_true, y_pred, data_dir, label_end, plot=plot)
@@ -1047,33 +1063,28 @@ def gen_metrics_from_predictions(y_true,
 				writer.writerow(row)
 		log.complete(f"Predictions saved to {sfutil.green(data_dir)}", 1)
 		
+	log.info(f"Checkpoint 8: {time.time() - start}", 2)
+
 	return auc, r_squared, c_index
 
 def predict_from_model(model, dataset, num_tiles=0):
-	# Initial preparations
+	start = time.time()
 	y_true, y_pred, tile_to_slides = [], [], []
-	detected_batch_size = 0
-	if log.INFO_LEVEL > 0:
-		sys.stdout.write("\rGenerating predictions...")
-		pb = ProgressBar(num_tiles, counter_text='images', leadtext="Generating predictions... ", show_counter=True, show_eta=True) if num_tiles else None
-	else:
-		pb = None
 
-	# Get predictions and performance metrics
-	for i, batch in enumerate(dataset):
-		if pb:
-			pb.increase_bar_value(detected_batch_size)
-		elif log.INFO_LEVEL > 0:
-			sys.stdout.write(f"\rGenerating predictions (batch {i})...")
-			sys.stdout.flush()
-		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in batch[2].numpy()]
-		y_true += [batch[1].numpy()]
-		y_pred += [model.predict_on_batch(batch[0])]
-		if not detected_batch_size: detected_batch_size = len(batch[1].numpy())
+	dataset_img = dataset.map((lambda i,l,s: i), num_parallel_calls=8)
+	dataset_labels = dataset.unbatch().map(lambda i,l,s: (l, s), num_parallel_calls=8)
+
+	log.info("Generating predictions...", 1)
+	y_pred = model.predict(dataset_img)
+	log.info("Predictions generated. Reading slide labels...", 1)
+
+	y_true, tile_to_slides = list(zip(*list(dataset_labels)))
+	y_true = np.array(y_true)
+
+	tile_to_slides = list(map(lambda x: x.numpy().decode('utf-8'), tile_to_slides))
 	
-	if log.INFO_LEVEL > 0:
-		sys.stdout.write("\r\033[K")
-		sys.stdout.flush()
+	end = time.time()
+	log.info(f"Prediction complete. Time to completion: {int(end-start)} s", 1)
 
 	y_pred = np.concatenate(y_pred)
 	y_true = np.concatenate(y_true)
@@ -1130,7 +1141,8 @@ def gen_metrics_from_dataset(model,
 
 	y_true, y_pred, tile_to_slides = predict_from_model(model, dataset, num_tiles=num_tiles)
 
-	return gen_metrics_from_predictions(y_true=y_true,
+	before_metrics = time.time()
+	metrics = gen_metrics_from_predictions(y_true=y_true,
 										y_pred=y_pred,
 										tile_to_slides=tile_to_slides,
 										annotations=annotations,
@@ -1142,6 +1154,9 @@ def gen_metrics_from_dataset(model,
 										verbose=verbose,
 										histogram=True,
 										plot=True)
+	after_metrics = time.time()
+	log.info(f'Validation metrics generated, time: {int(after_metrics-before_metrics)} s')
+	return metrics
 	
 def permutation_feature_importance(model,
 								   dataset_with_slidenames,
