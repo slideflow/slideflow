@@ -42,7 +42,6 @@ from functools import partial
 import multiprocessing as mp
 
 #TODO: implement randomization of center of tile extraction
-#TODO: implement randomization of starting grid for WSI tile extraction
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -414,15 +413,25 @@ class SlideLoader:
 	'''Object that loads an SVS slide and makes preparations for tile extraction.
 	Should not be used directly; this class must be inherited and extended by a child class'''
 	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False,
-					silent=False, buffer=None, pb_counter=None, counter_lock=None, print_fn=None):
+					silent=False, buffer=None, pb=None, pb_counter=None, counter_lock=None, print_fn=None):
 		self.load_error = False
 		self.silent = silent
+
+		# if a progress bar is not directly provided, use the provided multiprocess-friendly progress bar counter and lock 
+		# 	(for multiprocessing, as ProgressBar cannot be pickled)
+		if not pb:
+			self.pb_counter = pb_counter
+			self.counter_lock = counter_lock
+		# Otherwise, use the provided progress bar's counter and lock
+		else:
+			self.pb_counter = pb.get_counter()
+			self.counter_lock = pb.get_lock()
+			print_fn = pb.print if not print_fn else print_fn
 
 		self.print = None if silent else (print if not print_fn else print_fn)
 		self.error_print = print if not print_fn else print_fn
 
-		self.counter_lock = counter_lock
-		self.pb_counter = pb_counter
+		
 		self.name = sfutil.path_to_name(path)
 		self.shortname = sfutil._shortname(self.name)
 		self.size_px = size_px
@@ -736,7 +745,7 @@ class SlideReader(SlideLoader):
 
 	def __init__(self, path, size_px, size_um, stride_div=1, enable_downsample=False, roi_dir=None, roi_list=None,
 					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, randomize_origin=False, silent=False, buffer=None, 
-					pb_counter=None, counter_lock=None, print_fn=None):
+					pb=None, pb_counter=None, counter_lock=None, print_fn=None):
 		'''Initializer.
 
 		Args:
@@ -757,7 +766,7 @@ class SlideReader(SlideLoader):
 			pb:					ProgressBar instance; will update progress bar during tile extraction if provided
 			pb_id:				ID of bar in ProgressBar, defaults to 0
 		'''
-		super().__init__(path, size_px, size_um, stride_div, enable_downsample, silent, buffer, pb_counter, counter_lock, print_fn)
+		super().__init__(path, size_px, size_um, stride_div, enable_downsample, silent, buffer, pb, pb_counter, counter_lock, print_fn)
 
 		# Initialize calculated variables
 		self.extracted_x_size = 0

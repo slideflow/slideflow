@@ -67,90 +67,93 @@ def _tile_extractor(slide_path, roi_dir, roi_method, skip_missing_roi, randomize
 					buffer, threads_per_worker, pb_counter, counter_lock):	
 
 	from slideflow.slide import TMAReader, SlideReader, TileCorruptionError
-	print_func = print_fn
-	log.empty(f"Exporting tiles for slide {sfutil.path_to_name(slide_path)}", 1, print_func)
-
-	if tma:
-		whole_slide = TMAReader(slide_path,
-								tile_px,
-								tile_um,
-								stride_div,
-								enable_downsample=downsample,
-								report_dir=report_dir,
-								buffer=buffer)
-								#pb_counter=pb.get_counter())
-	else:
-		whole_slide = SlideReader(slide_path,
-								  tile_px,
-								  tile_um,
-								  stride_div,
-								  enable_downsample=downsample, 
-								  roi_dir=roi_dir,
-								  roi_method=roi_method,
-								  randomize_origin=randomize_origin,
-								  skip_missing_roi=skip_missing_roi,
-								  buffer=buffer,
-								  pb_counter=pb_counter,
-								  counter_lock=counter_lock,
-								  print_fn=print_func)
-
-	if not whole_slide.loaded_correctly():
-		return
-
 	try:
-		report = whole_slide.extract_tiles(tfrecord_dir=tfrecord_dir if save_tfrecord else None,
-											tiles_dir=tiles_dir if save_tiles else None,
-											split_fraction=split_fraction,
-											split_names=split_names,
-											whitespace_fraction=whitespace_fraction,
-											whitespace_threshold=whitespace_threshold,
-											grayspace_fraction=grayspace_fraction,
-											grayspace_threshold=grayspace_threshold,
-											normalizer=normalizer,
-											normalizer_source=normalizer_source,
-											img_format=img_format,
-											full_core=full_core,
-											shuffle=shuffle,
-											num_threads=threads_per_worker)
-	except TileCorruptionError:
-		if downsample:
-			log.warn(f"Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; will try re-extraction with downsampling disabled", 1, print_func)
-			report = _tile_extractor(
-				slide_path,
-				roi_dir,
-				roi_method,
-				skip_missing_roi,
-				randomize_origin,
-				img_format,
-				tma,
-				full_core,
-				shuffle,
-				tile_px,
-				tile_um,
-				stride_div,
-				False, #downsample = False
-				whitespace_fraction,
-				whitespace_threshold, 
-				grayspace_fraction, 
-				grayspace_threshold, 
-				normalizer, 
-				normalizer_source, 
-				split_fraction, 
-				split_names, 
-				report_dir,
-				tfrecord_dir, 
-				tiles_dir, 
-				save_tiles, 
-				save_tfrecord, 
-				buffer, 
-				threads_per_worker,
-				pb_counter,
-				counter_lock)
+		log.empty(f"Exporting tiles for slide {sfutil.path_to_name(slide_path)}", 1, print_fn)
+
+		if tma:
+			whole_slide = TMAReader(slide_path,
+									tile_px,
+									tile_um,
+									stride_div,
+									enable_downsample=downsample,
+									report_dir=report_dir,
+									buffer=buffer)
+									#pb_counter=pb.get_counter())
 		else:
-			log.error(f"Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; skipping slide", 1, print_func)
+			whole_slide = SlideReader(slide_path,
+									tile_px,
+									tile_um,
+									stride_div,
+									enable_downsample=downsample, 
+									roi_dir=roi_dir,
+									roi_method=roi_method,
+									randomize_origin=randomize_origin,
+									skip_missing_roi=skip_missing_roi,
+									buffer=buffer,
+									pb_counter=pb_counter,
+									counter_lock=counter_lock,
+									print_fn=print_fn)
+
+		if not whole_slide.loaded_correctly():
 			return
-	del whole_slide
-	return report
+
+		try:
+			report = whole_slide.extract_tiles(tfrecord_dir=tfrecord_dir if save_tfrecord else None,
+												tiles_dir=tiles_dir if save_tiles else None,
+												split_fraction=split_fraction,
+												split_names=split_names,
+												whitespace_fraction=whitespace_fraction,
+												whitespace_threshold=whitespace_threshold,
+												grayspace_fraction=grayspace_fraction,
+												grayspace_threshold=grayspace_threshold,
+												normalizer=normalizer,
+												normalizer_source=normalizer_source,
+												img_format=img_format,
+												full_core=full_core,
+												shuffle=shuffle,
+												num_threads=threads_per_worker)
+		except TileCorruptionError:
+			if downsample:
+				log.warn(f"Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; will try re-extraction with downsampling disabled", 1, print_fn)
+				report = _tile_extractor(
+					slide_path,
+					roi_dir,
+					roi_method,
+					skip_missing_roi,
+					randomize_origin,
+					img_format,
+					tma,
+					full_core,
+					shuffle,
+					tile_px,
+					tile_um,
+					stride_div,
+					False, #downsample = False
+					whitespace_fraction,
+					whitespace_threshold, 
+					grayspace_fraction, 
+					grayspace_threshold, 
+					normalizer, 
+					normalizer_source, 
+					split_fraction, 
+					split_names, 
+					report_dir,
+					tfrecord_dir, 
+					tiles_dir, 
+					save_tiles, 
+					save_tfrecord, 
+					buffer, 
+					threads_per_worker,
+					pb_counter,
+					counter_lock)
+			else:
+				log.error(f"Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; skipping slide", 1, print_fn)
+				return
+		del whole_slide
+		return report
+	except (KeyboardInterrupt, SystemExit):
+		print("Exiting...")
+		return
 
 def _activations_generator(project_config, model, outcome_label_headers=None, layers=None, filters=None, filter_blank=None, 
 								focus_nodes=[], node_exclusion=False, activations_export=None,
@@ -1098,7 +1101,9 @@ class SlideflowProject:
 											  stride_div, 
 											  roi_list=roi_list, 
 											  buffer=buffer, 
-											  pb=pb)
+											  pb_counter=pb.get_counter(),
+											  counter_lock=pb.get_lock(),
+											  print_fn=pb.print)
 
 			small_tile_generator = whole_slide.build_generator(dual_extract=True, 
 															   normalizer=normalizer, 
@@ -1135,7 +1140,8 @@ class SlideflowProject:
 			roi_list = extracting_dataset.get_rois()
 			dataset_config = extracting_dataset.datasets[dataset_name]
 			log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 2)
-			pb = None#ProgressBar(bar_length=5, counter_text='tiles')
+			pb = ProgressBar(bar_length=5, counter_text='tiles')
+			pb.auto_refresh()
 
 			if self.FLAGS['num_threads'] > 1:
 				pool = DPool(self.FLAGS['num_threads'])
@@ -1341,11 +1347,15 @@ class SlideflowProject:
 								leadtext="Extracting tiles... ", 
 								show_counter=True, 
 								show_eta=True)
+				pb.auto_refresh()
+				pb_counter = pb.get_counter()
+				pb_lock = pb.get_lock()
+				print_fn = pb.print
 			else:
-				pb = None
+				pb_counter, pb_lock, print_fn = None
 
 			# Function to extract tiles from a slide
-			def predict_wsi(slide_path, pb, downsample):
+			def predict_wsi(slide_path, downsample):
 				print_func = print if not pb else pb.print
 				log.empty(f"Working on slide {sfutil.path_to_name(slide_path)}", 1, print_func)
 				whole_slide = sfslide.SlideReader(slide_path,
@@ -1358,7 +1368,9 @@ class SlideflowProject:
 													randomize_origin=randomize_origin,
 													skip_missing_roi=skip_missing_roi,
 													buffer=buffer,
-													pb=pb)
+													pb_counter=pb_counter,
+													counter_lock=pb_lock,
+													print_fn=print_fn)
 
 				if not whole_slide.loaded_correctly():
 					return
@@ -1378,7 +1390,7 @@ class SlideflowProject:
 				except sfslide.TileCorruptionError:
 					if downsample:
 						log.warn(f"Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; will try re-extraction with downsampling disabled", 1, print_func)
-						predict_wsi(slide_path, pb, downsample=False)
+						predict_wsi(slide_path, downsample=False)
 					else:
 						log.error(f"Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; skipping slide", 1, print_func)
 						return None
@@ -1387,17 +1399,22 @@ class SlideflowProject:
 			if num_threads == -1: num_threads = self.FLAGS['num_threads']
 			if num_threads > 1 and len(slide_list):
 				q = queue.Queue()
+				task_finished = False
 				
 				def worker():
 					while True:
-						path = q.get()
-						if buffer and buffer != 'vmtouch':
-							buffered_path = join(buffer, os.path.basename(path))
-							predict_wsi(buffered_path, pb, enable_downsample)
-							os.remove(buffered_path)
-						else:
-							predict_wsi(path, pb, enable_downsample)
-						q.task_done()
+						try:
+							path = q.get()
+							if buffer and buffer != 'vmtouch':
+								buffered_path = join(buffer, os.path.basename(path))
+								predict_wsi(buffered_path, enable_downsample)
+								os.remove(buffered_path)
+							else:
+								predict_wsi(path, enable_downsample)
+							q.task_done()
+						except queue.Empty:
+							if task_finished:
+								return
 
 				threads = [threading.Thread(target=worker, daemon=True) for t in range(num_threads)]
 				for thread in threads:
@@ -1415,10 +1432,11 @@ class SlideflowProject:
 					else:
 						q.put(slide_path)
 				q.join()
+				task_finished = True
 				if pb: pb.end()
 			else:
 				for slide_path in slide_list:
-					predict_wsi(slide_path, pb, enable_downsample)
+					predict_wsi(slide_path, enable_downsample)
 				if pb: pb.end()
 
 	def extract_tiles(self, tile_px, tile_um, filters=None, filter_blank=None, stride_div=1, 
@@ -1550,41 +1568,32 @@ class SlideflowProject:
 			if log.INFO_LEVEL > 0: print("\r\033[K", end='')
 			log.complete(f"Verification complete. Total estimated tiles to extract: {total_tiles}", 1)
 			
-			#TODO: move this under if(len(slide_list))
-			q = queue.Queue()
-			task_finished = False
-			manager = multiprocessing.Manager()
-			ctx = multiprocessing.get_context('spawn')
-			reports = manager.dict()
-			counter = manager.Value('i', 0)
-			counter_lock = manager.Lock()
-
-			if total_tiles:
-				pb = ProgressBar(total_tiles, counter_text='tiles', leadtext="Extracting tiles... ", show_counter=True, show_eta=True, mp_counter=counter, mp_lock=counter_lock)
-				pb_counter = pb.get_counter()
-			else:
-				pb = None
-				print_fn = None
-				pb_counter = None
-
 			# Use multithreading if specified, extracting tiles from all slides in the filtered list
 			if len(slide_list):
-				'''q = queue.Queue()
+				q = queue.Queue()
 				task_finished = False
 				manager = multiprocessing.Manager()
 				ctx = multiprocessing.get_context('spawn')
-				reports = manager.dict()'''
+				reports = manager.dict()
+				counter = manager.Value('i', 0)
+				counter_lock = manager.Lock()
+
+				if total_tiles:
+					pb = ProgressBar(total_tiles, counter_text='tiles', leadtext="Extracting tiles... ", show_counter=True, show_eta=True, mp_counter=counter, mp_lock=counter_lock)
+					pb.auto_refresh()
+				else:
+					pb = None
 
 				# Worker to grab slide path from queue and start tile extraction
 				def worker():
 					while True:
 						try:
 							path = q.get()
-							process = ctx.Process(target=_tile_extractor, args=(slide_path, roi_dir, roi_method, skip_missing_roi, randomize_origin,
+							process = ctx.Process(target=_tile_extractor, args=(path, roi_dir, roi_method, skip_missing_roi, randomize_origin,
 																				img_format, tma, full_core, shuffle, tile_px, tile_um, stride_div, False,
 																				whitespace_fraction, whitespace_threshold, grayspace_fraction, grayspace_threshold, normalizer, 
 																				normalizer_source, split_fraction, split_names, self.PROJECT['root'], tfrecord_dir, tiles_dir, 
-																				save_tiles, save_tfrecord, buffer, threads_per_worker, pb_counter, counter_lock))
+																				save_tiles, save_tfrecord, buffer, threads_per_worker, counter, counter_lock))
 
 							process.start()
 							process.join()
@@ -1605,7 +1614,6 @@ class SlideflowProject:
 					warned = False
 					if buffer and buffer != 'vmtouch':
 						while True:
-							pb.refresh()
 							if q.qsize() < num_workers:
 								try:
 									buffered_path = join(buffer, os.path.basename(slide_path))

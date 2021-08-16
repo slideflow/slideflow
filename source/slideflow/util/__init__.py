@@ -1,5 +1,6 @@
 import sys
 import json
+import types
 import csv
 import time
 import os
@@ -7,14 +8,13 @@ import io
 import shutil
 import datetime
 import threading
-import logging
-import multiprocessing as mp
 import cv2
 
 from glob import glob
 from tensorflow.keras import backend as K
 from os.path import join, isdir, exists
 from PIL import Image
+import multiprocessing as mp
 import numpy as np
 
 # TODO: re-enable logging with maximum log file size
@@ -114,6 +114,11 @@ class StainNormalizer:
 			Image.fromarray(cv_image).save(output, format="JPEG", quality=75)
 			return output.getvalue()
 
+class DummyLock:
+	def __init__(self, *args): pass
+	def __enter__(self, *args): pass
+	def __exit__(self, *args): pass
+
 class Bar:
 	def __init__(self, ending_value, starting_value=0, bar_length=20, label='',
 					show_eta=False, show_counter=False, counter_text='', update_interval=1,
@@ -123,8 +128,9 @@ class Bar:
 			self.counter = mp_counter
 			self.mp_lock = mp_lock
 		else:
-			self.counter = mp.Value('i', 0)
-			self.mp_lock = None
+			manager = mp.Manager()
+			self.counter = manager.Value('i', 0)
+			self.mp_lock = manager.Lock()
 
 		# Setup timing
 		self.starttime = None
@@ -192,6 +198,8 @@ class ProgressBar:
 					show_counter=False, counter_text='', leadtext='', mp_counter=None, mp_lock=None):
 		
 		self.leadtext = leadtext
+		self.refresh_thread = None
+		self.live = True
 		self.BARS = [Bar(ending_val, starting_val, bar_length, endtext, show_eta, show_counter, counter_text, mp_counter=mp_counter, mp_lock=mp_lock)]
 		self.refresh()
 
@@ -203,19 +211,33 @@ class ProgressBar:
 		return len(self.BARS)-1
 
 	def increase_bar_value(self, amount=1, id=0):
-		self.BARS[id].counter.value = min(self.BARS[id].counter.value + amount, self.BARS[id].end_value)
+		with self.BARS[id].mp_lock:
+			self.BARS[id].counter.value = min(self.BARS[id].counter.value + amount, self.BARS[id].end_value)
 		self.refresh()
 
 	def get_counter(self, id=0):
 		return self.BARS[id].counter
 
+	def get_lock(self, id=0):
+		return self.BARS[id].mp_lock
+
 	def set_bar_value(self, value, id=0):
-		self.BARS[id].counter.value = min(value, self.BARS[id].end_value)
+		with self.BARS[id].mp_lock:
+			self.BARS[id].counter.value = min(value, self.BARS[id].end_value)
 		self.refresh()
 
 	def set_bar_text(self, text, id=0):
 		self.BARS[id].text = text
 		self.refresh()
+
+	def auto_refresh(self, freq=0.2):
+		def auto_refresh_worker():
+			while self.live:
+				self.refresh()
+				time.sleep(freq)
+			
+		self.refresh_thread = threading.Thread(target=auto_refresh_worker, daemon=True)
+		self.refresh_thread.start()
 
 	def refresh(self):
 		if len(self.BARS) == 0:
@@ -240,6 +262,7 @@ class ProgressBar:
 		else:
 			del(self.BARS[id])
 			print(f"\r\033[K{self.text}", end="")
+		self.live = False
 
 	def print(self, string):
 		sys.stdout.write(f"\r\033[K{string}\n")
