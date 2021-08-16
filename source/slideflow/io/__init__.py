@@ -392,6 +392,7 @@ class Dataset:
 		assigned_headers = {}
 		unique_labels = {}
 		for header in headers:
+			unique_labels_for_this_header = []
 			assigned_headers[header] = {}
 			try:
 				filtered_labels = [a[header] for a in filtered_annotations]

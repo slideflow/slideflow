@@ -2412,7 +2412,6 @@ class SlideflowProject:
 				valid_k = [] if not k_fold else [kf for kf in range(1, k_fold+1) if ((k_fold_iter and kf in k_fold_iter) or (not k_fold_iter))]
 				k_fold_slide_labels = None
 
-			# TODO: implement compatibility for multiple categorical outcomes
 			if hp.model_type() != 'linear' and len(outcome_label_headers) > 1:
 				#raise Exception("Multiple outcome labels only supported for linear outcome labels.")
 				log.info("Using experimental multi-outcome approach for categorical outcome")

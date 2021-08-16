@@ -18,7 +18,7 @@ from slideflow.statistics import TFRecordMap
 from glob import glob
 from os.path import join
 
-# Todo:
+#TODO:
 #- JPG, TIFF, SVS
 #- Verify properties: dimensions, properties (dict), level_dimensions, level_count, level_downsamples
 #- Verify ROI (area, coordinates)
