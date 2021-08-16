@@ -35,8 +35,6 @@ from multiprocessing.dummy import Pool as DPool
 from sklearn.neighbors import NearestNeighbors
 from PIL import Image
 
-# TODO: add check that cached PKL corresponds to current and correct model & slides
-
 def create_bool_mask(x, y, w, sx, sy):
 	l = max(0,  int(x-(w/2.)))
 	r = min(sx, int(x+(w/2.)))
@@ -58,7 +56,7 @@ class ActivationsVisualizer:
 	
 	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_label_headers=None, 
 					focus_nodes=[], use_fp16=True, normalizer=None, normalizer_source=None, 
-					activations_cache='default', batch_size=32, activations_export=None, max_tiles_per_slide=100,
+					activations_cache=None, batch_size=32, activations_export=None, max_tiles_per_slide=100,
 					min_tiles_per_slide=None, manifest=None, model_format=None, layers=['postconv']):
 		'''Object initializer.
 
@@ -1246,6 +1244,7 @@ class Heatmap:
 
 		# Create progress bar
 		pb = ProgressBar(1, counter_text='tiles', leadtext="Generating heatmap... ", show_counter=True, show_eta=True)
+		pb.auto_refresh()
 		self.print = pb.print
 
 		# Create slide buffer
@@ -1307,8 +1306,8 @@ class Heatmap:
 			postconv, logits = self.model.predict(batch_images)
 			logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
 			postconv_arr = postconv if postconv_arr == [] else np.concatenate([postconv_arr, postconv])
-
 		num_postconv_nodes = postconv_arr.shape[1]
+		pb.end()
 
 		if not skip_thumb:
 			print('\r\033[KFinished predictions. Waiting on thumbnail...', end="")

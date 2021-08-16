@@ -42,7 +42,6 @@ from functools import partial
 import multiprocessing as mp
 
 #TODO: implement randomization of center of tile extraction
-#TODO: implement randomization of starting grid for WSI tile extraction
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -414,14 +413,25 @@ class SlideLoader:
 	'''Object that loads an SVS slide and makes preparations for tile extraction.
 	Should not be used directly; this class must be inherited and extended by a child class'''
 	def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False,
-					silent=False, buffer=None, pb=None):
+					silent=False, buffer=None, pb=None, pb_counter=None, counter_lock=None, print_fn=None):
 		self.load_error = False
 		self.silent = silent
 
-		self.print = None if silent else (print if not pb else pb.print)
-		self.error_print = print if not pb else pb.print
+		# if a progress bar is not directly provided, use the provided multiprocess-friendly progress bar counter and lock 
+		# 	(for multiprocessing, as ProgressBar cannot be pickled)
+		if not pb:
+			self.pb_counter = pb_counter
+			self.counter_lock = counter_lock
+		# Otherwise, use the provided progress bar's counter and lock
+		else:
+			self.pb_counter = pb.get_counter()
+			self.counter_lock = pb.get_lock()
+			print_fn = pb.print if not print_fn else print_fn
 
-		self.pb = pb
+		self.print = None if silent else (print if not print_fn else print_fn)
+		self.error_print = print if not print_fn else print_fn
+
+		
 		self.name = sfutil.path_to_name(path)
 		self.shortname = sfutil._shortname(self.name)
 		self.size_px = size_px
@@ -627,7 +637,6 @@ class SlideLoader:
 			normalizer_source:		Path to normalizer source image
 			full_core:				Bool. Only used for TMAReader. If true, will extract full image cores regardless of supplied tile micron size.
 		'''
-
 		assert img_format in ('png', 'jpg', 'jpeg')
 
 		# Make base directories
@@ -735,7 +744,8 @@ class SlideReader(SlideLoader):
 	'''Extension of slideflow.slide.SlideLoader. Loads a slide and its ROI annotations and sets up a tile generator.'''
 
 	def __init__(self, path, size_px, size_um, stride_div=1, enable_downsample=False, roi_dir=None, roi_list=None,
-					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, randomize_origin=False, silent=False, buffer=None, pb=None, pb_id=0):
+					roi_method=EXTRACT_INSIDE, skip_missing_roi=True, randomize_origin=False, silent=False, buffer=None, 
+					pb=None, pb_counter=None, counter_lock=None, print_fn=None):
 		'''Initializer.
 
 		Args:
@@ -756,7 +766,7 @@ class SlideReader(SlideLoader):
 			pb:					ProgressBar instance; will update progress bar during tile extraction if provided
 			pb_id:				ID of bar in ProgressBar, defaults to 0
 		'''
-		super().__init__(path, size_px, size_um, stride_div, enable_downsample, silent, buffer, pb)
+		super().__init__(path, size_px, size_um, stride_div, enable_downsample, silent, buffer, pb, pb_counter, counter_lock, print_fn)
 
 		# Initialize calculated variables
 		self.extracted_x_size = 0
@@ -764,7 +774,7 @@ class SlideReader(SlideLoader):
 		self.estimated_num_tiles = 0
 		self.coord = []
 		self.annPolys = []
-		self.pb_id = pb_id
+		#self.pb_id = pb_id
 		self.ROI_SCALE = 10
 
 		if not self.loaded_correctly():
@@ -896,15 +906,17 @@ class SlideReader(SlideLoader):
 				for res in p.imap(partial(slide_extraction_worker, args=worker_args), self.coord):
 					if res == 'skip': 
 						continue
-					if self.pb:
-						self.pb.increase_bar_value(id=self.pb_id)
+					#if self.pb:
+					#	self.pb.increase_bar_value(id=self.pb_id)
+					with self.counter_lock:
+						self.pb_counter.value += 1
 					if res is None:
 						continue
 					else:
 						tile, idx = res
 						self.tile_mask[idx] = True
 						yield tile
-			
+		
 			log.label(self.shortname, f"Finished tile extraction for {sfutil.green(self.shortname)} ({np.sum(self.tile_mask)} tiles of {len(self.coord)} possible)", 2, self.print)
 
 		return generator

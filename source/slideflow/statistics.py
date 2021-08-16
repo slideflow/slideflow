@@ -2,7 +2,6 @@ import os
 import sys
 import csv
 import umap
-import time
 import pickle
 
 import seaborn as sns
@@ -1087,6 +1086,8 @@ def predict_from_model(model, dataset, num_tiles=0):
 	end = time.time()
 	log.info(f"Prediction complete. Time to completion: {int(end-start)} s", 1)
 
+	y_pred = np.concatenate(y_pred)
+	y_true = np.concatenate(y_true)
 	return y_true, y_pred, tile_to_slides
 
 def predict_from_layer(model, layer_input, input_layer_name='hidden_0', ouput_layer_index=None):
@@ -1137,7 +1138,6 @@ def gen_metrics_from_dataset(model,
 	Returns:
 		auc, r_squared, c_index
 	'''
-
 
 	y_true, y_pred, tile_to_slides = predict_from_model(model, dataset, num_tiles=num_tiles)
 

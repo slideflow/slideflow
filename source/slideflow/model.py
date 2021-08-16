@@ -18,6 +18,7 @@ import sys
 import csv
 import warnings
 import shutil
+import time
 warnings.filterwarnings('ignore')
 
 import numpy as np
@@ -923,7 +924,7 @@ class SlideflowModel:
 			#	r_squared = baseline_metrics
 			#if model_type == 'cph':
 			#	c_index = baseline_metrics
-		else:										   
+		else:
 			auc, r_squared, c_index = sfstats.gen_metrics_from_dataset(self.model,
 																		model_type=model_type,
 																		annotations=self.SLIDE_ANNOTATIONS, 
