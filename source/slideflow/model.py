@@ -388,7 +388,6 @@ class SlideflowModel:
 			try:
 				self.NUM_CLASSES = len(list(set(outcome_labels)))
 			except TypeError:
-				log.error("Unable to use multiple outcome labels with categorical model type.")
 				raise ModelError("Unable to use multiple outcome labels with categorical model type.")
 			with tf.device('/cpu'):
 				if slide_annotations:
@@ -401,7 +400,6 @@ class SlideflowModel:
 			try:
 				self.NUM_CLASSES = len(outcome_labels[0])
 			except TypeError:
-				log.error("Incorrect formatting of outcome labels for a linear model; must be formatted as an array.")
 				raise ModelError("Incorrect formatting of outcome labels for a linear model; must be formatted as an array.")
 			with tf.device('/cpu'):
 				self.ANNOTATIONS_TABLES = []
@@ -410,7 +408,6 @@ class SlideflowModel:
 						tf.lookup.KeyValueTensorInitializer(self.SLIDES, [o[oi] for o in outcome_labels]), -1
 					)]
 		else:
-			log.error(f"Unknown model type {model_type}")
 			raise ModelError(f"Unknown model type {model_type}")
 
 		if not os.path.exists(self.DATA_DIR):
@@ -460,7 +457,6 @@ class SlideflowModel:
 			else:
 				slide_feature_input_tensor = tf.keras.Input(shape=(self.NUM_SLIDE_FEATURES), name="slide_feature_input")
 		if self.MODEL_TYPE == 'cph' and not self.NUM_SLIDE_FEATURES:
-			log.error("Model error - CPH models must include event input")
 			raise ModelError("Model error - CPH models must include event input")
 
 		# Load pretrained model if applicable
@@ -655,7 +651,6 @@ class SlideflowModel:
 		prob_weights = None
 		
 		if tfrecords == []:
-			log.error(f"No TFRecords found.", 1)
 			raise ModelError("No TFRecords found.")
 
 		if self.MANIFEST:
@@ -752,16 +747,15 @@ class SlideflowModel:
 		try:
 			dataset = tf.data.experimental.sample_from_datasets(parsed_datasets, weights=prob_weights)
 			dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
-			dataset = dataset.prefetch(tf.data.AUTOTUNE)
+			dataset = dataset.prefetch(2)#tf.data.AUTOTUNE)
 		except IndexError:
-			log.error(f"No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder", 1)
-			raise ModelError("No TFRecords found after filter criteria.")
+			raise ModelError("No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder")
 
 		if include_slidenames:
 			parsed_dataset_with_slidenames = parsed_datasets = [self._get_parsed_datasets(d,f, augment=augment, include_slidenames=True) for d,f in zip(datasets, dataset_filenames)]
 			dataset_with_slidenames = tf.data.experimental.sample_from_datasets(parsed_dataset_with_slidenames, weights=prob_weights)
 			dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
-			dataset_with_slidenames = dataset_with_slidenames.prefetch(tf.data.AUTOTUNE)
+			dataset_with_slidenames = dataset_with_slidenames.prefetch(2)#tf.data.AUTOTUNE)
 		else:
 			dataset_with_slidenames = None
 		
@@ -982,7 +976,7 @@ class SlideflowModel:
 
 	def train(self, hp, pretrain='imagenet', pretrain_model_format=None, resume_training=None, checkpoint=None, log_frequency=100, multi_image=False, 
 				validate_on_batch=512, val_batch_size=32, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
-				ema_observations=20, ema_smoothing=2, steps_per_epoch_override=None, use_tensorboard=False, multi_gpu=False):
+				ema_observations=20, ema_smoothing=2, steps_per_epoch_override=None, use_tensorboard=False, multi_gpu=False, save_predictions=False):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -1172,7 +1166,9 @@ class SlideflowModel:
 																			label=epoch_label,
 																			data_dir=parent.DATA_DIR,
 																			num_tiles=num_tiles,
-																			verbose=True)
+																			histogram=False,
+																			verbose=True,
+																			save_predictions=save_predictions)
 				val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
 				log.info(f"Validation loss: {val_loss:.4f} | accuracy: {val_acc:.4f}", 1)
 				results['epochs'][f'epoch{epoch}'] = {}

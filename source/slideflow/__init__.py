@@ -429,7 +429,8 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 			validation_annotations=None, validation_filters=None, k_fold_i=None, k_fold_slide_labels=None, input_header=None, 
 			filters=None, filter_blank=None, pretrain=None, pretrain_model_format=None, resume_training=None, checkpoint=None,
 			validate_on_batch=0, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
-			steps_per_epoch_override=None, normalizer=None, normalizer_source=None, use_tensorboard=False, multi_gpu=False, flags=None):
+			steps_per_epoch_override=None, normalizer=None, normalizer_source=None, use_tensorboard=False, multi_gpu=False, 
+			save_predictions=False, flags=None):
 
 	'''Internal function to execute model training process.'''
 	import slideflow.model as sfmodel
@@ -624,7 +625,8 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 									 starting_epoch=starting_epoch,
 									 steps_per_epoch_override=steps_per_epoch_override,
 									 use_tensorboard=use_tensorboard,
-									 multi_gpu=multi_gpu)
+									 multi_gpu=multi_gpu,
+									 save_predictions=save_predictions)
 		results['history'] = history
 		results_dict.update({full_model_name: results})
 		logged_epochs = [int(e[5:]) for e in results['epochs'].keys() if e[:5] == 'epoch']
@@ -2277,7 +2279,7 @@ class SlideflowProject:
 				validation_k_fold=None, k_fold_iter=None, k_fold_header=None, validation_dataset=None, validation_annotations=None,
 				validation_filters=None, validate_on_batch=512, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0,
 				starting_epoch=0, steps_per_epoch_override=None, auto_extract=False, normalizer=None, 
-				normalizer_source=None, normalizer_strategy='tfrecord', use_tensorboard=False, multi_gpu=False):
+				normalizer_source=None, normalizer_strategy='tfrecord', use_tensorboard=False, multi_gpu=False, save_predictions=False):
 
 		'''Train model(s).
 
@@ -2428,7 +2430,7 @@ class SlideflowProject:
 																validation_filters, k, k_fold_slide_labels, input_header, filters, filter_blank, pretrain,
 																pretrain_model_format, resume_training, checkpoint, validate_on_batch, validation_steps,
 																max_tiles_per_slide, min_tiles_per_slide, starting_epoch, steps_per_epoch_override, train_normalizer, 
-																train_normalizer_source, use_tensorboard, multi_gpu, self.FLAGS))
+																train_normalizer_source, use_tensorboard, multi_gpu, save_predictions, self.FLAGS))
 					process.start()
 					log.empty(f"Spawning training process (PID: {process.pid})")
 					process.join()

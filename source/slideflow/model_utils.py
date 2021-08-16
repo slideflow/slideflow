@@ -2,6 +2,7 @@ import tensorflow as tf
 import os
 import tempfile
 import numpy as np
+from slideflow.util import log
 
 class HyperParameterError(Exception):
 	pass
@@ -10,7 +11,9 @@ class ManifestError(Exception):
 	pass
 
 class ModelError(Exception):
-	pass
+	def __init__(self, message, errors):
+		log.error(message)
+		super().__init__(message)
 
 class no_scope():
 	def __enter__(self):
