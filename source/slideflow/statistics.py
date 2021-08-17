@@ -1272,7 +1272,7 @@ def gen_metrics_from_dataset(model,
 											histogram=histogram,
 											plot=True)
 	after_metrics = time.time()
-	log.info(f'Validation metrics generated, time: {int(after_metrics-before_metrics)} s')
+	log.info(f'Validation metrics generated, time: {after_metrics-before_metrics:.2f} s')
 	return metrics
 	
 def permutation_feature_importance(model,
