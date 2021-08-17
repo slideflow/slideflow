@@ -1015,13 +1015,16 @@ def _categorical_metrics(args, outcome_name):
 def save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end):
 	# Save tile-level predictions
 	tile_csv_dir = os.path.join(data_dir, f"tile_predictions{label_end}.csv")
+	y_true_is_reduced = (len(y_true.shape) == 1)
+	y_pred_is_reduced = (len(y_true.shape) == 1)
 	with open(tile_csv_dir, 'w') as outfile:
 		writer = csv.writer(outfile)
-		header = ['slide'] + [f"y_true{i}" for i in range(y_true.shape[1])] + [f"y_pred{j}" for j in range(y_pred.shape[1])]
+		y_true_header = ["y_true0"] if y_true_is_reduced else [f"y_true{i}" for i in range(y_true.shape[1])]
+		header = ['slide'] + y_true_header + [f"y_pred{j}" for j in range(y_pred.shape[1])]
 		writer.writerow(header)
 		for i in range(len(y_true)):
-			y_true_str_list = [str(yti) for yti in y_true[i]]
-			y_pred_str_list = [str(ypi) for ypi in y_pred[i]]
+			y_true_str_list = [str(y_true[i])] if y_true_is_reduced else [str(yti) for yti in y_true[i]]
+			y_pred_str_list = [str(y_pred[i])] if y_pred_is_reduced else [str(ypi) for ypi in y_pred[i]]
 			row = np.concatenate([[tile_to_slides[i]], y_true_str_list, y_pred_str_list])
 			writer.writerow(row)
 	log.complete(f"Predictions saved to {sfutil.green(data_dir)}", 1)
@@ -1101,7 +1104,9 @@ def gen_metrics_from_predictions(y_true,
 	if model_type == 'categorical':
 		if not outcome_names:
 			outcome_names = {f"Outcome {i}" for i in range(y_true.shape[1])}
-		assert(len(outcome_names) == y_true.shape[1]), f"Number of outcome names {len(outcome_names)} does not match y_true {y_true.shape[1]}"
+
+		if (len(y_true.shape) == 1 and len(outcome_names) != 1) or (len(y_true.shape) > 1 and y_true.shape[1] != len(outcome_names)):
+			raise StatisticsError(f"Number of outcome names {len(outcome_names)} does not match y_true {y_true.shape[1]}")
 
 		for oi, outcome in enumerate(outcome_names):
 			if len(outcome_names) > 1:
@@ -1113,7 +1118,10 @@ def gen_metrics_from_predictions(y_true,
 				metric_args.y_true_patient = y_true_patient
 				metric_args.y_pred = y_pred
 
-			metric_args.y_true = y_true[:,oi]
+			if len(y_true.shape) > 1:
+				metric_args.y_true = y_true[:,oi]
+			else:
+				metric_args.y_true = y_true
 
 			log.info(f"Validation metrics for outcome {sfutil.green(outcome)}")
 			_categorical_metrics(metric_args, outcome)

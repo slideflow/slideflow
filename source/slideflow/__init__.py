@@ -32,6 +32,7 @@ from slideflow.mosaic import Mosaic
 #TODO: put tfrecord report in tfrecord directories
 #DONE: put hyperparameters file in model folder
 #TODO: either fix or deprecate dual tile extraction
+#TODO: fix broken AUC (evaluation)
 
 __version__ = "1.11.0-dev5"
 

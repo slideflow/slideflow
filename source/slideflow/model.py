@@ -368,7 +368,7 @@ class SlideflowModel:
 		
 		self.OUTCOME_NAMES = [f'Outcome {i}' for i in range(outcome_labels.shape[1])] if not outcome_names else outcome_names
 		self.OUTCOME_NAMES = [self.OUTCOME_NAMES] if not isinstance(self.OUTCOME_NAMES, list) else self.OUTCOME_NAMES
-		
+
 		if len(self.OUTCOME_NAMES) != outcome_labels.shape[1]:
 			raise ModelError(f"Provided outcome_names (len: {len(self.OUTCOME_NAMES)}) does not match number of outcomes {outcome_labels.shape[1]}")
 
@@ -806,8 +806,10 @@ class SlideflowModel:
 
 		if self.MODEL_TYPE in ['linear', 'cph']:
 			label = [self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(self.NUM_CLASSES)]
-		else:
+		elif len(self.NUM_CLASSES) > 1:
 			label = {f'out-{oi}': self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(len(self.NUM_CLASSES))}
+		else:
+			label = self.ANNOTATIONS_TABLES[0].lookup(slide)
 
 		# Add additional non-image feature inputs if indicated,
 		# 	excluding the event feature used for CPH models
@@ -894,11 +896,6 @@ class SlideflowModel:
 																					multi_image=multi_image,
 																					include_slidenames=True,
 																					augment=False)
-		#import pickle
-		#with open('/mnt/data/projects/TUMOR_NORMAL/normalizer_test/nonorm_nostd_noconv_tiles.pkl', 'wb') as pkl_file:
-		#	pickle.dump(next(iter(dataset)), pkl_file)
-		#sys.exit()
-
 		if model:
 			if model_type == 'cph':
 				self.model = tf.keras.models.load_model(model, custom_objects = {
@@ -953,13 +950,14 @@ class SlideflowModel:
 			log.info(f"Slide c-index: {c_index['slide']}", 1)
 			log.info(f"Patient c-index: {c_index['patient']}", 1)
 		
-		val_loss, val_acc = self.model.evaluate(dataset, verbose=(log.INFO_LEVEL > 0))
+		val_metrics = self.model.evaluate(dataset, verbose=(log.INFO_LEVEL > 0), return_dict=True)
 
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
-		results_dict = 	{ 'eval': {
-							'val_loss': val_loss,
-							'val_acc': val_acc }
-						}
+		log.info(f"Evaluation metrics:", 1)
+		for m in val_metrics:
+			log.info(f"{m}: {val_metrics[m]:.4f}", 2)
+
+		results_dict = 	{ 'eval': val_metrics }
 
 		if model_type == 'categorical':
 			results_dict['eval'].update({
@@ -982,7 +980,7 @@ class SlideflowModel:
 
 		sfutil.update_results_log(results_log, 'eval_model', results_dict)
 		
-		return val_acc
+		return val_metrics
 
 	def train(self, hp, pretrain='imagenet', pretrain_model_format=None, resume_training=None, checkpoint=None, log_frequency=100, multi_image=False, 
 				validate_on_batch=512, val_batch_size=32, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
