@@ -922,8 +922,9 @@ def _linear_metrics(args):
 		y_true_by_patient = np.array([args.y_true_patient[patient] for patient in args.patients])
 		args.r_squared['patient'] = generate_scatter(y_true_by_patient, averages_by_patient, args.data_dir, args.label_end+"_by_patient")
 
-def _categorical_metrics(args, outcome_name):
+def _categorical_metrics(args, outcome_name, starttime=None):
 	'''Internal function to calculate tile, slide, and patient level metrics for a categorical outcome.'''
+	start = starttime
 	num_observed_outcome_categories = max(args.y_true)+1
 	if num_observed_outcome_categories != args.y_pred.shape[1]:
 		log.warn(f"Model predictions have different number of outcome categories ({args.y_pred.shape[1]}) than provided annotations ({num_observed_outcome_categories})!", 1)
@@ -939,6 +940,8 @@ def _categorical_metrics(args, outcome_name):
 	args.auc['slide'][outcome_name] = []
 	args.auc['patient'][outcome_name] = []
 
+	log.info(f"Checkpoint 6: {time.time()-start:.2f} s", 2)
+
 	# Generate tile-level ROC
 	for i in range(num_cat):
 		try:
@@ -951,6 +954,8 @@ def _categorical_metrics(args, outcome_name):
 
 		except IndexError:
 			log.warn(f"Unable to generate tile-level stats for outcome {i}", 1)
+
+	log.info(f"Checkpoint 7: {time.time()-start:.2f} s", 2)
 
 	# Convert predictions to one-hot encoding
 	onehot_predictions = np.array([to_onehot(x, num_cat) for x in np.argmax(args.y_pred, axis=1)])
@@ -969,6 +974,8 @@ def _categorical_metrics(args, outcome_name):
 		except IndexError:
 			log.warn(f"Unable to generate category-level accuracy stats for category index {ci}", 1)
 
+	log.info(f"Checkpoint 8: {time.time()-start:.2f} s", 2)
+
 	# Generate slide-level percent calls
 	percent_calls_by_slide = get_average_by_group(onehot_predictions,
 												  prediction_label="percent_tiles_positive",
@@ -980,6 +987,8 @@ def _categorical_metrics(args, outcome_name):
 												  save_predictions=args.save_predictions,
 												  data_dir=args.data_dir,
 												  label="slide")
+
+	log.info(f"Checkpoint 9: {time.time()-start:.2f} s", 2)
 
 	# Generate slide-level ROC
 	for i in range(num_cat):
@@ -994,6 +1003,7 @@ def _categorical_metrics(args, outcome_name):
 			log.warn(f"Unable to generate slide-level stats for outcome {i}", 1)
 
 	if not args.patient_error:
+		log.info(f"Checkpoint 10: {time.time()-start:.2f} s", 2)
 		# Generate patient-level percent calls
 		percent_calls_by_patient = get_average_by_group(onehot_predictions,
 														prediction_label="percent_tiles_positive",
@@ -1006,6 +1016,7 @@ def _categorical_metrics(args, outcome_name):
 														data_dir=args.data_dir,
 														label="slide")
 
+		log.info(f"Checkpoint 11: {time.time()-start:.2f} s", 2)
 		# Generate patient-level ROC
 		for i in range(num_cat):
 			try:
@@ -1055,6 +1066,8 @@ def gen_metrics_from_predictions(y_true,
 	label_end = "" if not label else f"_{label}"
 	label_start = "" if not label else f"{label}_"
 
+	log.info(f"Checkpoint 1: {time.time()-start:.2f} s", 2)
+
 	tile_to_patients = np.array([annotations[slide][sfutil.TCGA.patient] for slide in tile_to_slides])
 	patients = np.unique(tile_to_patients)
 	unique_slides = np.unique(tile_to_slides)
@@ -1075,6 +1088,8 @@ def gen_metrics_from_predictions(y_true,
 	if verbose:
 		log.info(f"Filtered out {num_total_slides - len(unique_slides)} of {num_total_slides} slides in evaluation set (minimum tiles per slide: {min_tiles_per_slide})", 1)
 
+	log.info(f"Checkpoint 2: {time.time()-start:.2f} s", 2)
+
 	# Set up annotations
 	y_true_slide = {s: annotations[s]['outcome_label'] for s in annotations}
 	y_true_patient = {annotations[s][sfutil.TCGA.patient]: annotations[s]['outcome_label'] for s in annotations}
@@ -1086,6 +1101,8 @@ def gen_metrics_from_predictions(y_true,
 		if  y_true_slide[slide] != y_true_patient[patient]:
 			log.error("Data integrity failure when generating ROCs; patient assigned to multiple slides with different outcomes", 1)
 			patient_error = True
+
+	log.info(f"Checkpoint 3: {time.time()-start:.2f} s", 2)
 
 	metric_args = types.SimpleNamespace(
 		y_true = y_true,
@@ -1115,6 +1132,7 @@ def gen_metrics_from_predictions(y_true,
 			raise StatisticsError(f"Number of outcome names {len(outcome_names)} does not match y_true {y_true.shape[1]}")
 
 		for oi, outcome in enumerate(outcome_names):
+			log.info(f"Checkpoint 4: {time.time()-start:.2f} s", 2)
 			if len(outcome_names) > 1:
 				metric_args.y_true_slide = {s:v[oi] for s,v in y_true_slide.items()}
 				metric_args.y_true_patient = {s:v[oi] for s,v in y_true_patient.items()}
@@ -1130,7 +1148,8 @@ def gen_metrics_from_predictions(y_true,
 				metric_args.y_true = y_true
 
 			log.info(f"Validation metrics for outcome {sfutil.green(outcome)}")
-			_categorical_metrics(metric_args, outcome)
+			log.info(f"Checkpoint 5: {time.time()-start:.2f} s", 2)
+			_categorical_metrics(metric_args, outcome, starttime=start)
 
 	elif model_type == 'linear':
 		metric_args.y_true_slide = y_true_slide
@@ -1142,6 +1161,7 @@ def gen_metrics_from_predictions(y_true,
 		metric_args.y_true_patient = y_true_patient
 		_cph_metrics(metric_args)
 
+	log.info(f"Checkpoint 12: {time.time()-start:.2f} s", 2)
 	if verbose and save_predictions:
 		save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end)
 		
