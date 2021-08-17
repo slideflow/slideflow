@@ -34,7 +34,7 @@ def get_average_by_group(prediction_array, prediction_label, unique_groups, tile
 	'''For a given tile-level prediction array, calculate percent predictions 
 		in each outcome by group (e.g. patient, slide) and save to CSV.'''
 	avg_by_group, cat_index_warn = [], []
-	
+
 	split_predictions = np.split(prediction_array, num_cat, 1)
 	for group in unique_groups:
 		percent_predictions = []
@@ -684,7 +684,13 @@ def to_onehot(val, num_cat):
 def generate_roc(y_true, y_pred, save_dir=None, name='ROC'):
 	'''Generates and saves an ROC with a given set of y_true, y_pred values.'''
 	# ROC
-	fpr, tpr, threshold = metrics.roc_curve(y_true, y_pred)
+	try:
+		fpr, tpr, threshold = metrics.roc_curve(y_true, y_pred)
+	except:
+		log.error("Error with ROC curve:")
+		print(y_true)
+		print(y_pred)
+		sys.exit()
 	roc_auc = metrics.auc(fpr, tpr)
 
 	# Precision recall
@@ -936,6 +942,7 @@ def _categorical_metrics(args, outcome_name):
 	# Generate tile-level ROC
 	for i in range(num_cat):
 		try:
+			print("Tile-level ROC")
 			roc_auc, average_precision, optimal_threshold = generate_roc(args.y_true[:, i], args.y_pred[:, i], args.data_dir, f'{args.label_start}tile_ROC{i}')
 			args.auc['tile'][outcome_name] += [roc_auc]
 			if args.histogram:
@@ -965,21 +972,22 @@ def _categorical_metrics(args, outcome_name):
 
 	# Generate slide-level percent calls
 	percent_calls_by_slide = get_average_by_group(onehot_predictions,
-													prediction_label="percent_tiles_positive",
-													unique_groups=args.unique_slides,
-													tile_to_group=args.tile_to_slides,
-													y_true_group=args.y_true_slide,
-													num_cat=num_cat,
-													label_end=args.label_end,
-													save_predictions=args.save_predictions,
-													data_dir=args.data_dir,
-													label="slide")
+												  prediction_label="percent_tiles_positive",
+												  unique_groups=args.unique_slides,
+												  tile_to_group=args.tile_to_slides,
+												  y_true_group=args.y_true_slide,
+												  num_cat=num_cat,
+												  label_end=args.label_end,
+												  save_predictions=args.save_predictions,
+												  data_dir=args.data_dir,
+												  label="slide")
 
 	# Generate slide-level ROC
 	for i in range(num_cat):
 		try:
 			slide_y_pred = percent_calls_by_slide[:, i]
 			slide_y_true = [args.y_true_slide[slide][i] for slide in args.unique_slides]
+			print("Slide ROC")
 			roc_auc, average_precision, optimal_threshold = generate_roc(slide_y_true, slide_y_pred, args.data_dir, f'{args.label_start}slide_ROC{i}')
 			args.auc['slide'][outcome_name] += [roc_auc]
 			if args.verbose:
@@ -1005,6 +1013,7 @@ def _categorical_metrics(args, outcome_name):
 			try:
 				patient_y_pred = percent_calls_by_patient[:, i]
 				patient_y_true = np.array([args.y_true_patient[patient][i] for patient in args.patients])
+				print("Patient ROC")
 				roc_auc, average_precision, optimal_threshold = generate_roc(patient_y_true, patient_y_pred, args.data_dir, f'{args.label_start}patient_ROC{i}')
 				args.auc['patient'][outcome_name] += [roc_auc]
 				if args.verbose:
@@ -1142,7 +1151,7 @@ def gen_metrics_from_predictions(y_true,
 	return metric_args.auc, metric_args.r_squared, metric_args.c_index
 
 def predict_from_model(model, dataset, num_tiles=0):
-	start = time.time()
+	'''start = time.time()
 	y_true, y_pred, tile_to_slides = [], [], []
 
 	# Image-only dataset
@@ -1158,6 +1167,39 @@ def predict_from_model(model, dataset, num_tiles=0):
 	y_true = np.array(y_true)
 	tile_to_slides = np.array(list(map(lambda x: x.numpy().decode('utf-8'), tile_to_slides)))
 	
+	end = time.time()
+	log.info(f"Prediction complete. Time to completion: {int(end-start)} s", 1)'''
+
+	start = time.time()
+	y_true, y_pred, tile_to_slides = [], [], []
+	detected_batch_size = 0
+	if log.INFO_LEVEL > 0:
+		sys.stdout.write("\rGenerating predictions...")
+		pb = ProgressBar(num_tiles, counter_text='images', leadtext="Generating predictions... ", show_counter=True, show_eta=True) if num_tiles else None
+	else:
+		pb = None
+
+	# Get predictions and performance metrics
+	for i, (img, yt, slide) in enumerate(dataset):
+		if pb:
+			pb.increase_bar_value(detected_batch_size)
+		elif log.INFO_LEVEL > 0:
+			sys.stdout.write(f"\rGenerating predictions (batch {i})...")
+			sys.stdout.flush()
+		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in slide.numpy()]
+		y_true += [yt.numpy()]
+		y_pred += [model.predict_on_batch(img)]
+
+		if not detected_batch_size: detected_batch_size = len(yt.numpy())
+	
+	if log.INFO_LEVEL > 0:
+		sys.stdout.write("\r\033[K")
+		sys.stdout.flush()
+	
+	tile_to_slides = np.array(tile_to_slides)
+	y_pred = np.concatenate(y_pred)
+	y_true = np.concatenate(y_true)
+
 	end = time.time()
 	log.info(f"Prediction complete. Time to completion: {int(end-start)} s", 1)
 
