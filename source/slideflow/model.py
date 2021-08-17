@@ -28,7 +28,7 @@ from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
 from functools import partial
 from slideflow.util import log
-from slideflow.io import tfrecords
+from slideflow.io.tfrecords import detect_tfrecord_format, get_tfrecord_parser, TFRecordsError
 from slideflow.model_utils import *
 
 import slideflow.util as sfutil
@@ -652,13 +652,14 @@ class SlideflowModel:
 		log.info(f"Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min_tiles={min_tiles}", 1)
 		datasets = []
 		datasets_categories = []
-		dataset_filenames = []
 		num_tiles = []
 		global_num_tiles = 0
 		categories = {}
 		categories_prob = {}
 		categories_tile_fraction = {}
 		prob_weights = None
+		base_parser = None
+		detected_format = None
 		
 		if tfrecords == []:
 			raise ModelError("No TFRecords found.")
@@ -685,6 +686,19 @@ class SlideflowModel:
 					log.info(f"Skipping tfrecord {sfutil.green(slide_name)}; has {tiles} tiles (minimum: {min_tiles})", 2)
 					continue
 				
+				# Get the base TFRecord parser, based on the first tfrecord
+				if detected_format is None:
+					detected_format = detect_tfrecord_format(filename)
+				elif detected_format != detect_tfrecord_format(filename):
+					raise ModelError("Inconsistent TFRecord formatting among tfrecords. All records must be internally formatted the same.")
+				if base_parser is None:
+					base_parser = get_tfrecord_parser(filename, 
+							('slide', 'image_raw'),
+							standardize=True,
+							img_size=self.IMAGE_SIZE,
+							normalizer=self.normalizer,
+							augment=augment)
+
 				# Assign category by outcome if this is a categorical model, 
 				#	Merging category names if there are multiple outcomes (balancing across all combinations of outcome categories equally)
 				# Otherwise, consider all slides from the same category (effectively skipping balancing); appropriate for linear models.
@@ -695,9 +709,8 @@ class SlideflowModel:
 				else:
 					category = 1
 				
-				datasets += [tf.data.TFRecordDataset(filename, buffer_size=1024*1024*100, num_parallel_reads=tf.data.AUTOTUNE)]
+				datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=tf.data.AUTOTUNE)]
 				datasets_categories += [category]
-				dataset_filenames += [filename]
 
 				# Cap number of tiles to take from TFRecord at maximum specified
 				if max_tiles and tiles > max_tiles:
@@ -755,37 +768,28 @@ class SlideflowModel:
 				if slide_name not in self.SLIDES:
 					continue
 
-				datasets += [tf.data.TFRecordDataset(filename, buffer_size=1024*1024*100, num_parallel_reads=tf.data.AUTOTUNE)]
-				dataset_filenames += [filename]
+				datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=tf.data.AUTOTUNE)]
 
-		parsed_datasets = [self._get_parsed_datasets(d,f, augment=augment) for d,f in zip(datasets, dataset_filenames)]
-		
 		# Interleave and batch datasets
 		try:
-			dataset = tf.data.experimental.sample_from_datasets(parsed_datasets, weights=prob_weights)
+			sampled_dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
+			dataset = self._get_parsed_datasets(sampled_dataset, base_parser, include_slidenames=False)			
 			dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
-			dataset = dataset.prefetch(2)#tf.data.AUTOTUNE)
+			dataset = dataset.prefetch(tf.data.AUTOTUNE)
 		except IndexError:
 			raise ModelError("No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder")
 
 		if include_slidenames:
-			parsed_dataset_with_slidenames = parsed_datasets = [self._get_parsed_datasets(d,f, augment=augment, include_slidenames=True) for d,f in zip(datasets, dataset_filenames)]
-			dataset_with_slidenames = tf.data.experimental.sample_from_datasets(parsed_dataset_with_slidenames, weights=prob_weights)
+			dataset_with_slidenames = self._get_parsed_datasets(sampled_dataset, base_parser, include_slidenames=True)
 			dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
-			dataset_with_slidenames = dataset_with_slidenames.prefetch(2)#tf.data.AUTOTUNE)
+			dataset_with_slidenames = dataset_with_slidenames.prefetch(tf.data.AUTOTUNE)
+
 		else:
 			dataset_with_slidenames = None
 		
 		return dataset, dataset_with_slidenames, global_num_tiles
 
-	def _get_parsed_datasets(self, tfrecord_dataset, filename, augment=True, include_slidenames=False):
-		base_parser = tfrecords.get_tfrecord_parser(filename, 
-								('slide', 'image_raw'),
-								standardize=True,
-								img_size=self.IMAGE_SIZE,
-								normalizer=self.normalizer,
-								augment=augment)
-
+	def _get_parsed_datasets(self, tfrecord_dataset, base_parser, include_slidenames=False):
 		if include_slidenames:
 			training_parser_with_slidenames = partial(self._parse_tfrecord_function, base_parser=base_parser, include_slidenames=True)
 			dataset_with_slidenames = tfrecord_dataset.map(training_parser_with_slidenames, num_parallel_calls=tf.data.AUTOTUNE)

@@ -942,7 +942,6 @@ def _categorical_metrics(args, outcome_name):
 	# Generate tile-level ROC
 	for i in range(num_cat):
 		try:
-			print("Tile-level ROC")
 			roc_auc, average_precision, optimal_threshold = generate_roc(args.y_true[:, i], args.y_pred[:, i], args.data_dir, f'{args.label_start}tile_ROC{i}')
 			args.auc['tile'][outcome_name] += [roc_auc]
 			if args.histogram:
@@ -987,7 +986,6 @@ def _categorical_metrics(args, outcome_name):
 		try:
 			slide_y_pred = percent_calls_by_slide[:, i]
 			slide_y_true = [args.y_true_slide[slide][i] for slide in args.unique_slides]
-			print("Slide ROC")
 			roc_auc, average_precision, optimal_threshold = generate_roc(slide_y_true, slide_y_pred, args.data_dir, f'{args.label_start}slide_ROC{i}')
 			args.auc['slide'][outcome_name] += [roc_auc]
 			if args.verbose:
@@ -1013,7 +1011,6 @@ def _categorical_metrics(args, outcome_name):
 			try:
 				patient_y_pred = percent_calls_by_patient[:, i]
 				patient_y_true = np.array([args.y_true_patient[patient][i] for patient in args.patients])
-				print("Patient ROC")
 				roc_auc, average_precision, optimal_threshold = generate_roc(patient_y_true, patient_y_pred, args.data_dir, f'{args.label_start}patient_ROC{i}')
 				args.auc['patient'][outcome_name] += [roc_auc]
 				if args.verbose:
