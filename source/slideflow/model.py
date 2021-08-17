@@ -1114,16 +1114,27 @@ class SlideflowModel:
 
 			def on_train_batch_end(self, batch, logs={}):
 				if using_validation and validate_on_batch and (batch > 0) and (batch % validate_on_batch == 0):
-					val_loss, val_acc = self.model.evaluate(validation_data, verbose=0, steps=validation_steps)
+					val_metrics = self.model.evaluate(validation_data, verbose=0, steps=validation_steps, return_dict=True)
+					print(val_metrics)
+					val_loss = val_metrics['loss']
 					self.model.stop_training = False
-					early_stop_value = val_acc if hp.early_stop_method == 'accuracy' else val_loss
+					if hp.early_stop_method == 'accuracy' and 'val_accuracy' in val_metrics:
+						early_stop_value = val_metrics['val_accuracy']
+						val_acc = f"{val_metrics['val_accuracy']:3f}"
+					else:
+						early_stop_value = val_loss
+						val_acc = ', '.join([f'{val_metrics[v]:.3f}' for v in val_metrics if 'accuracy' in v])
+					if 'accuracy' in logs:
+						train_acc = f"{logs['accuracy']:.3f}"
+					else:
+						train_acc = ', '.join([f'{logs[v]:.3f}' for v in logs if 'accuracy' in v])
 					if log.INFO_LEVEL > 0: print("\r\033[K", end="")
 					self.moving_average += [early_stop_value]
 					# Base logging message
 					if self.model_type == 'categorical':
-						log_message = f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['accuracy']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f}"
+						log_message = f"{sfutil.info(f'Batch {batch:<5}')} {sfutil.green('loss')}: {logs['loss']:.3f}, {sfutil.green('acc')}: {train_acc} | {sfutil.purple('val_loss')}: {val_loss:.3f}, {sfutil.purple('val_acc')}: {val_acc}"
 					else:
-						log_message = f"Batch {batch:<5} loss: {logs['loss']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f}"
+						log_message = f"{sfutil.info(f'Batch {batch:<5}')} {sfutil.green('loss')}: {logs['loss']:.3f} | {sfutil.purple('val_loss')}: {val_loss:.3f}"
 					# First, skip moving average calculations if using an invalid metric
 					if self.model_type != 'categorical' and hp.early_stop_method == 'accuracy':
 						log.empty(log_message)
