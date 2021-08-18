@@ -1033,7 +1033,7 @@ class SlideflowModel:
 			using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
 			if using_validation:
 				with tf.name_scope('input'):
-					validation_data, validation_data_with_slidenames, _ = self._interleave_tfrecords(self.VALIDATION_TFRECORDS, 
+					validation_data, validation_data_with_slidenames, num_val_tiles = self._interleave_tfrecords(self.VALIDATION_TFRECORDS, 
 																									batch_size=val_batch_size, 
 																									balance=hp.balanced_validation, 
 																									finite=True,
@@ -1183,7 +1183,7 @@ class SlideflowModel:
 																			outcome_names=parent.OUTCOME_NAMES,
 																			label=epoch_label,
 																			data_dir=parent.DATA_DIR,
-																			num_tiles=num_tiles,
+																			num_tiles=num_val_tiles,
 																			histogram=False,
 																			verbose=True,
 																			save_predictions=save_predictions)

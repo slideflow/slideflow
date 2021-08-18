@@ -1765,7 +1765,7 @@ class SlideflowProject:
 		heatmaps_dataset = self.get_dataset(filters=filters,
 											filter_blank=filter_blank,
 											tile_px=hp_data['hp']['tile_px'],
-											tile_um=hp_data['hp']['tile_um'])										
+											tile_um=hp_data['hp']['tile_um'])
 		slide_list = heatmaps_dataset.get_slide_paths()
 		roi_list = heatmaps_dataset.get_rois()
 
