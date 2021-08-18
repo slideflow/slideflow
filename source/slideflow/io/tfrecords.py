@@ -484,7 +484,6 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 				err_msg = f"Multiple outcome labels found for patient {patient} ({patients_dict[patient]['outcome_label']}, {slide_labels_dict[slide][outcome_key]})"
 				log.error(err_msg, 1)
 				raise TFRecordsError(err_msg)
-				
 			else:
 				patients_dict[patient]['slides'] += [slide]
 		if num_warned >= warn_threshold:

@@ -1060,7 +1060,9 @@ def gen_metrics_from_predictions(y_true,
 								 save_predictions=True,
 								 histogram=True,
 								 plot=True):
-
+	'''
+		For multiple outcomes, y_true and y_pred are expected to be a list of numpy arrays (each numpy array corresponding to whole-dataset predictions for a single outcome)
+	'''
 
 	start = time.time()
 	label_end = "" if not label else f"_{label}"
@@ -1125,11 +1127,20 @@ def gen_metrics_from_predictions(y_true,
 	)
 
 	if model_type == 'categorical':
-		if not outcome_names:
-			outcome_names = {f"Outcome {i}" for i in range(y_true.shape[1])}
 
-		if (len(y_true.shape) == 1 and len(outcome_names) != 1) or (len(y_true.shape) > 1 and y_true.shape[1] != len(outcome_names)):
-			raise StatisticsError(f"Number of outcome names {len(outcome_names)} does not match y_true {y_true.shape[1]}")
+		# Detect the number of outcomes by y_true
+		if type(y_true) == list:
+			num_outcomes_by_y_true = len(y_true)
+		elif len(y_true.shape) == 1:
+			num_outcomes_by_y_true = 1
+		else:
+			raise StatisticsError(f"y_true expected to be formated as list of numpy arrays for each outcome category.")
+
+		# Confirm that the number of outcomes provided by y_true match the provided outcome names
+		if not outcome_names:
+			outcome_names = {f"Outcome {i}" for i in range(num_outcomes_by_y_true)}
+		elif len(outcome_names) != num_outcomes_by_y_true:
+			raise StatisticsError(f"Number of outcome names {len(outcome_names)} does not match y_true {num_outcomes_by_y_true}")
 
 		for oi, outcome in enumerate(outcome_names):
 			log.info(f"Checkpoint 4: {time.time()-start:.2f} s", 2)
@@ -1137,14 +1148,11 @@ def gen_metrics_from_predictions(y_true,
 				metric_args.y_true_slide = {s:v[oi] for s,v in y_true_slide.items()}
 				metric_args.y_true_patient = {s:v[oi] for s,v in y_true_patient.items()}
 				metric_args.y_pred = y_pred[oi]
+				metric_args.y_true = y_true[oi]
 			else: 
 				metric_args.y_true_slide = y_true_slide
 				metric_args.y_true_patient = y_true_patient
 				metric_args.y_pred = y_pred
-
-			if len(y_true.shape) > 1:
-				metric_args.y_true = y_true[:,oi]
-			else:
 				metric_args.y_true = y_true
 
 			log.info(f"Validation metrics for outcome {sfutil.green(outcome)}")
@@ -1191,7 +1199,6 @@ def predict_from_model(model, dataset, num_tiles=0):
 	y_true, y_pred, tile_to_slides = [], [], []
 	detected_batch_size = 0
 	if log.INFO_LEVEL > 0:
-		sys.stdout.write("\rGenerating predictions...")
 		pb = ProgressBar(num_tiles, counter_text='images', leadtext="Generating predictions... ", show_counter=True, show_eta=True) if num_tiles else None
 	else:
 		pb = None
@@ -1203,19 +1210,29 @@ def predict_from_model(model, dataset, num_tiles=0):
 		elif log.INFO_LEVEL > 0:
 			sys.stdout.write(f"\rGenerating predictions (batch {i})...")
 			sys.stdout.flush()
-		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in slide.numpy()]
-		y_true += [yt.numpy()]
+		
 		y_pred += [model.predict_on_batch(img)]
+		
+		if type(yt) == dict:
+			y_true += [[yt[f'out-{o}'].numpy() for o in range(len(yt))]]
+		else:
+			y_true += [yt.numpy()]
 
-		if not detected_batch_size: detected_batch_size = len(yt.numpy())
-	
-	if log.INFO_LEVEL > 0:
-		sys.stdout.write("\r\033[K")
-		sys.stdout.flush()
-	
+		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in slide.numpy()]
+		if not detected_batch_size: detected_batch_size = len(tile_to_slides)
+	if log.INFO_LEVEL > 0: sfutil.clear_console()
+
 	tile_to_slides = np.array(tile_to_slides)
-	y_pred = np.concatenate(y_pred)
-	y_true = np.concatenate(y_true)
+	if type(y_pred[0]) == list:
+		# Concatenate predictions for each outcome
+		y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
+	else:
+		y_pred = np.concatenate(y_pred)
+	if type(y_true[0]) == list:
+		# Concatenate y_true for each outcome
+		y_true = [np.concatenate(yt) for yt in zip(*y_true)]
+	else:
+		y_true = np.concatenate(y_true)
 
 	end = time.time()
 	log.info(f"Prediction complete. Time to completion: {int(end-start)} s", 1)

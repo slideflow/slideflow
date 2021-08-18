@@ -396,6 +396,10 @@ class ThreadSafeList:
 			items, self.items = self.items, []
 		return items
 
+def clear_console():
+	sys.stdout.write("\r\033[K")
+	sys.stdout.flush()
+
 def make_dir(_dir):
 	'''Makes a directory if one does not already exist, in a manner compatible with multithreading. '''
 	if not exists(_dir):
