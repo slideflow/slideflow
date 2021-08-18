@@ -28,7 +28,7 @@ from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
 from functools import partial
 from slideflow.util import log
-from slideflow.io import tfrecords
+from slideflow.io.tfrecords import detect_tfrecord_format, get_tfrecord_parser, TFRecordsError
 from slideflow.model_utils import *
 
 import slideflow.util as sfutil
@@ -41,6 +41,8 @@ NO_BALANCE = 'NO_BALANCE'
 MODEL_FORMAT_1_9 = "1.9"
 MODEL_FORMAT_CURRENT = MODEL_FORMAT_1_9
 MODEL_FORMAT_LEGACY = "legacy"
+
+#TODO: Make multiple linear outcomes match multiple categorical outcomes
 
 class ModelActivationsInterface:
 	'''Provides an interface to obtain logits and post-convolutional activations 
@@ -331,7 +333,7 @@ class SlideflowModel:
 
 	def __init__(self, data_directory, image_size, slide_annotations, train_tfrecords, validation_tfrecords, 
 					manifest=None, use_fp16=True, model_type='categorical', normalizer=None, normalizer_source=None, 
-					feature_sizes=None, feature_names=None):
+					feature_sizes=None, feature_names=None, outcome_names=None):
 		'''Model initializer.
 
 		Args:
@@ -359,7 +361,19 @@ class SlideflowModel:
 		self.NUM_SLIDE_FEATURES = 0 if not feature_sizes else sum(feature_sizes)
 		self.FEATURE_NAMES = feature_names
 
-		outcome_labels = [slide_annotations[slide]['outcome_label'] for slide in self.SLIDES]
+		# Format outcome labels (ensures compatibility with single and multi-outcome models)
+		outcome_labels = np.array([slide_annotations[slide]['outcome_label'] for slide in self.SLIDES])
+		if len(outcome_labels.shape) == 1:
+			outcome_labels = np.expand_dims(outcome_labels, axis=1)
+		
+		self.OUTCOME_NAMES = [f'Outcome {i}' for i in range(outcome_labels.shape[1])] if not outcome_names else outcome_names
+		self.OUTCOME_NAMES = [self.OUTCOME_NAMES] if not isinstance(self.OUTCOME_NAMES, list) else self.OUTCOME_NAMES
+
+		if len(self.OUTCOME_NAMES) != outcome_labels.shape[1]:
+			raise ModelError(f"Provided outcome_names (len: {len(self.OUTCOME_NAMES)}) does not match number of outcomes {outcome_labels.shape[1]}")
+
+		if model_type not in ('categorical', 'linear', 'cph'):
+			raise ModelError(f"Unknown model type {model_type}")
 
 		# Setup slide-level input
 		if self.NUM_SLIDE_FEATURES:
@@ -383,33 +397,22 @@ class SlideflowModel:
 		if normalizer: log.info(f"Using realtime {normalizer} normalization", 1)
 		self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
-		# Setup outcome label hash tables
-		if model_type == 'categorical':
+		if model_type in ['linear', 'cph']:
 			try:
-				self.NUM_CLASSES = len(list(set(outcome_labels)))
-			except TypeError:
-				raise ModelError("Unable to use multiple outcome labels with categorical model type.")
-			with tf.device('/cpu'):
-				if slide_annotations:
-					self.ANNOTATIONS_TABLES = [tf.lookup.StaticHashTable(
-						tf.lookup.KeyValueTensorInitializer(self.SLIDES, outcome_labels), -1
-					)]
-				else:
-					self.ANNOTATIONS_TABLES = []
-		elif model_type in ['linear', 'cph']:
-			try:
-				self.NUM_CLASSES = len(outcome_labels[0])
+				self.NUM_CLASSES = outcome_labels.shape[1]
 			except TypeError:
 				raise ModelError("Incorrect formatting of outcome labels for a linear model; must be formatted as an array.")
-			with tf.device('/cpu'):
-				self.ANNOTATIONS_TABLES = []
-				for oi in range(self.NUM_CLASSES):
-					self.ANNOTATIONS_TABLES += [tf.lookup.StaticHashTable(
-						tf.lookup.KeyValueTensorInitializer(self.SLIDES, [o[oi] for o in outcome_labels]), -1
-					)]
-		else:
-			raise ModelError(f"Unknown model type {model_type}")
 
+		if model_type == 'categorical':
+			self.NUM_CLASSES = {i: np.unique(outcome_labels[:,i]).shape[0] for i in range(outcome_labels.shape[1])}
+
+		with tf.device('/cpu'):
+			self.ANNOTATIONS_TABLES = []
+			for oi in range(outcome_labels.shape[1]):
+				self.ANNOTATIONS_TABLES += [tf.lookup.StaticHashTable(
+					tf.lookup.KeyValueTensorInitializer(self.SLIDES, outcome_labels[:,oi]), -1
+				)]
+		
 		if not os.path.exists(self.DATA_DIR):
 			os.makedirs(self.DATA_DIR)
 		
@@ -481,8 +484,7 @@ class SlideflowModel:
 				base_model = pretrained_model.get_layer(index=0)
 		else:
 			# Create core model
-			base_model = hp.get_model(#input_tensor=tile_input_tensor,
-									  weights=pretrain)
+			base_model = hp.get_model(weights=pretrain)
 
 		# Add L2 regularization to all compatible layers in the base model
 		if hp.L2_weight != 0:
@@ -552,14 +554,22 @@ class SlideflowModel:
 		if hp.dropout:
 			merged_model = tf.keras.layers.Dropout(hp.dropout)(merged_model) #TODO: Change this later -> if no hidden layers are used with a merged model, this may drop out input
 
-		final_dense_layer = tf.keras.layers.Dense(self.NUM_CLASSES, kernel_regularizer=regularizer, name="prelogits")(merged_model)
-		output = tf.keras.layers.Activation(activation, dtype='float32', name='output')(final_dense_layer)
+		# Multi-categorical outcomes
+		if type(self.NUM_CLASSES) == dict:
+			outputs = []
+			for c in self.NUM_CLASSES:
+				final_dense_layer = tf.keras.layers.Dense(self.NUM_CLASSES[c], kernel_regularizer=regularizer, name=f"prelogits-{c}")(merged_model)
+				outputs += [tf.keras.layers.Activation(activation, dtype='float32', name=f'out-{c}')(final_dense_layer)]
+
+		else:
+			final_dense_layer = tf.keras.layers.Dense(self.NUM_CLASSES, kernel_regularizer=regularizer, name="prelogits")(merged_model)
+			outputs = [tf.keras.layers.Activation(activation, dtype='float32', name='output')(final_dense_layer)]
 
 		if self.MODEL_TYPE == 'cph':
-			output = tf.keras.layers.Concatenate(name="output_merge_CPH", dtype='float32')([output, event_input_tensor])
+			outputs[0] = tf.keras.layers.Concatenate(name="output_merge_CPH", dtype='float32')([outputs[0], event_input_tensor])
 
 		# Assemble final model
-		model = tf.keras.Model(inputs=model_inputs, outputs=output)
+		model = tf.keras.Model(inputs=model_inputs, outputs=outputs)
 
 		if checkpoint:
 			log.info(f"Loading checkpoint weights from {sfutil.green(checkpoint)}", 1)
@@ -642,13 +652,14 @@ class SlideflowModel:
 		log.info(f"Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min_tiles={min_tiles}", 1)
 		datasets = []
 		datasets_categories = []
-		dataset_filenames = []
 		num_tiles = []
 		global_num_tiles = 0
 		categories = {}
 		categories_prob = {}
 		categories_tile_fraction = {}
 		prob_weights = None
+		base_parser = None
+		detected_format = None
 		
 		if tfrecords == []:
 			raise ModelError("No TFRecords found.")
@@ -675,12 +686,31 @@ class SlideflowModel:
 					log.info(f"Skipping tfrecord {sfutil.green(slide_name)}; has {tiles} tiles (minimum: {min_tiles})", 2)
 					continue
 				
-				# Assign category by outcome if this is a categorical model.
+				# Get the base TFRecord parser, based on the first tfrecord
+				if detected_format is None:
+					detected_format = detect_tfrecord_format(filename)
+				elif detected_format != detect_tfrecord_format(filename):
+					raise ModelError("Inconsistent TFRecord formatting among tfrecords. All records must be internally formatted the same.")
+				if base_parser is None:
+					base_parser = get_tfrecord_parser(filename, 
+							('slide', 'image_raw'),
+							standardize=True,
+							img_size=self.IMAGE_SIZE,
+							normalizer=self.normalizer,
+							augment=augment)
+
+				# Assign category by outcome if this is a categorical model, 
+				#	Merging category names if there are multiple outcomes (balancing across all combinations of outcome categories equally)
 				# Otherwise, consider all slides from the same category (effectively skipping balancing); appropriate for linear models.
-				category = self.SLIDE_ANNOTATIONS[slide_name]['outcome_label'] if self.MODEL_TYPE == 'categorical' else 1
-				datasets += [tf.data.TFRecordDataset(filename, buffer_size=1024*1024*100, num_parallel_reads=tf.data.AUTOTUNE)]
+				if self.MODEL_TYPE == 'categorical':
+					category = self.SLIDE_ANNOTATIONS[slide_name]['outcome_label']
+					category = [category] if not isinstance(category, list) else category
+					category = '-'.join(map(str, category))
+				else:
+					category = 1
+				
+				datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=tf.data.AUTOTUNE)]
 				datasets_categories += [category]
-				dataset_filenames += [filename]
 
 				# Cap number of tiles to take from TFRecord at maximum specified
 				if max_tiles and tiles > max_tiles:
@@ -738,37 +768,28 @@ class SlideflowModel:
 				if slide_name not in self.SLIDES:
 					continue
 
-				datasets += [tf.data.TFRecordDataset(filename, buffer_size=1024*1024*100, num_parallel_reads=tf.data.AUTOTUNE)]
-				dataset_filenames += [filename]
+				datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=tf.data.AUTOTUNE)]
 
-		parsed_datasets = [self._get_parsed_datasets(d,f, augment=augment) for d,f in zip(datasets, dataset_filenames)]
-		
 		# Interleave and batch datasets
 		try:
-			dataset = tf.data.experimental.sample_from_datasets(parsed_datasets, weights=prob_weights)
+			sampled_dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
+			dataset = self._get_parsed_datasets(sampled_dataset, base_parser, include_slidenames=False)			
 			dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
-			dataset = dataset.prefetch(2)#tf.data.AUTOTUNE)
+			dataset = dataset.prefetch(tf.data.AUTOTUNE)
 		except IndexError:
 			raise ModelError("No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder")
 
 		if include_slidenames:
-			parsed_dataset_with_slidenames = parsed_datasets = [self._get_parsed_datasets(d,f, augment=augment, include_slidenames=True) for d,f in zip(datasets, dataset_filenames)]
-			dataset_with_slidenames = tf.data.experimental.sample_from_datasets(parsed_dataset_with_slidenames, weights=prob_weights)
+			dataset_with_slidenames = self._get_parsed_datasets(sampled_dataset, base_parser, include_slidenames=True)
 			dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
-			dataset_with_slidenames = dataset_with_slidenames.prefetch(2)#tf.data.AUTOTUNE)
+			dataset_with_slidenames = dataset_with_slidenames.prefetch(tf.data.AUTOTUNE)
+
 		else:
 			dataset_with_slidenames = None
 		
 		return dataset, dataset_with_slidenames, global_num_tiles
 
-	def _get_parsed_datasets(self, tfrecord_dataset, filename, augment=True, include_slidenames=False):
-		base_parser = tfrecords.get_tfrecord_parser(filename, 
-								('slide', 'image_raw'),
-								standardize=True,
-								img_size=self.IMAGE_SIZE,
-								normalizer=self.normalizer,
-								augment=augment)
-
+	def _get_parsed_datasets(self, tfrecord_dataset, base_parser, include_slidenames=False):
 		if include_slidenames:
 			training_parser_with_slidenames = partial(self._parse_tfrecord_function, base_parser=base_parser, include_slidenames=True)
 			dataset_with_slidenames = tfrecord_dataset.map(training_parser_with_slidenames, num_parallel_calls=tf.data.AUTOTUNE)
@@ -789,6 +810,8 @@ class SlideflowModel:
 
 		if self.MODEL_TYPE in ['linear', 'cph']:
 			label = [self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(self.NUM_CLASSES)]
+		elif len(self.NUM_CLASSES) > 1:
+			label = {f'out-{oi}': self.ANNOTATIONS_TABLES[oi].lookup(slide) for oi in range(len(self.NUM_CLASSES))}
 		else:
 			label = self.ANNOTATIONS_TABLES[0].lookup(slide)
 
@@ -877,11 +900,6 @@ class SlideflowModel:
 																					multi_image=multi_image,
 																					include_slidenames=True,
 																					augment=False)
-		#import pickle
-		#with open('/mnt/data/projects/TUMOR_NORMAL/normalizer_test/nonorm_nostd_noconv_tiles.pkl', 'wb') as pkl_file:
-		#	pickle.dump(next(iter(dataset)), pkl_file)
-		#sys.exit()
-
 		if model:
 			if model_type == 'cph':
 				self.model = tf.keras.models.load_model(model, custom_objects = {
@@ -904,26 +922,20 @@ class SlideflowModel:
 																			 self.SLIDE_ANNOTATIONS, 
 																			 model_type,
 																			 self.DATA_DIR,
+																			 outcome_names=self.OUTCOME_NAMES,
 																			 label="eval",
 																			 manifest=self.MANIFEST,
 																			 num_tiles=num_tiles,
 																			 feature_names=self.FEATURE_NAMES,
 																			 feature_sizes=self.FEATURE_SIZES,
 																			 drop_images=((hp.tile_px==0) or hp.drop_images))
-			#if model_type == 'categorical':
-			#	tile_auc = auc['tile']
-			#	slide_auc = auc['slide']
-			#	patient_auc = auc['patient']
-			#if model_type == 'linear':
-			#	r_squared = baseline_metrics
-			#if model_type == 'cph':
-			#	c_index = baseline_metrics
 		else:
 			auc, r_squared, c_index = sfstats.gen_metrics_from_dataset(self.model,
 																		model_type=model_type,
 																		annotations=self.SLIDE_ANNOTATIONS, 
 																		manifest=self.MANIFEST,
 																		dataset=dataset_with_slidenames,
+																		outcome_names=self.OUTCOME_NAMES,
 																		label="eval",
 																		data_dir=self.DATA_DIR,
 																		num_tiles=num_tiles,
@@ -942,14 +954,14 @@ class SlideflowModel:
 			log.info(f"Slide c-index: {c_index['slide']}", 1)
 			log.info(f"Patient c-index: {c_index['patient']}", 1)
 		
-		val_loss, val_acc = self.model.evaluate(dataset, verbose=(log.INFO_LEVEL > 0))
+		val_metrics = self.model.evaluate(dataset, verbose=(log.INFO_LEVEL > 0), return_dict=True)
 
-		# Log results
 		results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
-		results_dict = 	{ 'eval': {
-							'val_loss': val_loss,
-							'val_acc': val_acc }
-						}
+		log.info(f"Evaluation metrics:", 1)
+		for m in val_metrics:
+			log.info(f"{m}: {val_metrics[m]:.4f}", 2)
+
+		results_dict = 	{ 'eval': val_metrics }
 
 		if model_type == 'categorical':
 			results_dict['eval'].update({
@@ -972,7 +984,7 @@ class SlideflowModel:
 
 		sfutil.update_results_log(results_log, 'eval_model', results_dict)
 		
-		return val_acc
+		return val_metrics
 
 	def train(self, hp, pretrain='imagenet', pretrain_model_format=None, resume_training=None, checkpoint=None, log_frequency=100, multi_image=False, 
 				validate_on_batch=512, val_batch_size=32, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
@@ -1021,7 +1033,7 @@ class SlideflowModel:
 			using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
 			if using_validation:
 				with tf.name_scope('input'):
-					validation_data, validation_data_with_slidenames, _ = self._interleave_tfrecords(self.VALIDATION_TFRECORDS, 
+					validation_data, validation_data_with_slidenames, num_val_tiles = self._interleave_tfrecords(self.VALIDATION_TFRECORDS, 
 																									batch_size=val_batch_size, 
 																									balance=hp.balanced_validation, 
 																									finite=True,
@@ -1104,16 +1116,27 @@ class SlideflowModel:
 
 			def on_train_batch_end(self, batch, logs={}):
 				if using_validation and validate_on_batch and (batch > 0) and (batch % validate_on_batch == 0):
-					val_loss, val_acc = self.model.evaluate(validation_data, verbose=0, steps=validation_steps)
+					val_metrics = self.model.evaluate(validation_data, verbose=0, steps=validation_steps, return_dict=True)
+					print(val_metrics)
+					val_loss = val_metrics['loss']
 					self.model.stop_training = False
-					early_stop_value = val_acc if hp.early_stop_method == 'accuracy' else val_loss
+					if hp.early_stop_method == 'accuracy' and 'val_accuracy' in val_metrics:
+						early_stop_value = val_metrics['val_accuracy']
+						val_acc = f"{val_metrics['val_accuracy']:3f}"
+					else:
+						early_stop_value = val_loss
+						val_acc = ', '.join([f'{val_metrics[v]:.3f}' for v in val_metrics if 'accuracy' in v])
+					if 'accuracy' in logs:
+						train_acc = f"{logs['accuracy']:.3f}"
+					else:
+						train_acc = ', '.join([f'{logs[v]:.3f}' for v in logs if 'accuracy' in v])
 					if log.INFO_LEVEL > 0: print("\r\033[K", end="")
 					self.moving_average += [early_stop_value]
 					# Base logging message
 					if self.model_type == 'categorical':
-						log_message = f"Batch {batch:<5} loss: {logs['loss']:.3f}, acc: {logs['accuracy']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f}"
+						log_message = f"{sfutil.info(f'Batch {batch:<5}')} {sfutil.green('loss')}: {logs['loss']:.3f}, {sfutil.green('acc')}: {train_acc} | {sfutil.purple('val_loss')}: {val_loss:.3f}, {sfutil.purple('val_acc')}: {val_acc}"
 					else:
-						log_message = f"Batch {batch:<5} loss: {logs['loss']:.3f} | val_loss: {val_loss:.3f}, val_acc: {val_acc:.3f}"
+						log_message = f"{sfutil.info(f'Batch {batch:<5}')} {sfutil.green('loss')}: {logs['loss']:.3f} | {sfutil.purple('val_loss')}: {val_loss:.3f}"
 					# First, skip moving average calculations if using an invalid metric
 					if self.model_type != 'categorical' and hp.early_stop_method == 'accuracy':
 						log.empty(log_message)
@@ -1152,29 +1175,24 @@ class SlideflowModel:
 			def evaluate_model(self, logs={}):
 				epoch = self.epoch_count
 				epoch_label = f"val_epoch{epoch}"
-				if hp.model_type() == 'cph':
-					train_acc = logs['concordance_index']
-				elif hp.model_type() == 'linear':
-					train_acc = logs[hp.loss]
-				else:
-					train_acc = logs['accuracy']
 				auc, r_squared, c_index = sfstats.gen_metrics_from_dataset(self.model,
 																			model_type=hp.model_type(),
 																			annotations=parent.SLIDE_ANNOTATIONS,
 																			manifest=parent.MANIFEST,
 																			dataset=validation_data_with_slidenames,
+																			outcome_names=parent.OUTCOME_NAMES,
 																			label=epoch_label,
 																			data_dir=parent.DATA_DIR,
-																			num_tiles=num_tiles,
+																			num_tiles=num_val_tiles,
 																			histogram=False,
 																			verbose=True,
 																			save_predictions=save_predictions)
-				val_loss, val_acc = self.model.evaluate(validation_data, verbose=0)
-				log.info(f"Validation loss: {val_loss:.4f} | accuracy: {val_acc:.4f}", 1)
-				results['epochs'][f'epoch{epoch}'] = {}
-				results['epochs'][f'epoch{epoch}']['train_acc'] = np.amax(train_acc)
-				results['epochs'][f'epoch{epoch}']['val_loss'] = val_loss
-				results['epochs'][f'epoch{epoch}']['val_acc'] = val_acc
+				val_metrics = self.model.evaluate(validation_data, verbose=0, return_dict=True)
+				log.info(f"Validation metrics:", 1)
+				for m in val_metrics:
+					log.info(f"{m}: {val_metrics[m]:.4f}", 2)
+				results['epochs'][f'epoch{epoch}'] = {'train_metrics': logs,
+														'val_metrics': val_metrics }
 				for i, c in enumerate(auc['tile']):
 					results['epochs'][f'epoch{epoch}'][f'tile_auc{i}'] = c
 				for i, c in enumerate(auc['slide']):
@@ -1203,7 +1221,7 @@ class SlideflowModel:
 											pretrain_model_format=pretrain_model_format, 
 											checkpoint=checkpoint)
 
-			# Retrain top layer only if using transfer learning and not resuming training
+			# Retrain top layer only, if using transfer learning and not resuming training
 			if hp.toplayer_epochs:
 				self._retrain_top_layers(hp, train_data, validation_data_for_training, steps_per_epoch, 
 										callbacks=None, epochs=hp.toplayer_epochs)

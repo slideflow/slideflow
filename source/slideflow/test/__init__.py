@@ -18,7 +18,7 @@ from slideflow.statistics import TFRecordMap
 from glob import glob
 from os.path import join
 
-# Todo:
+#TODO:
 #- JPG, TIFF, SVS
 #- Verify properties: dimensions, properties (dict), level_dimensions, level_count, level_downsamples
 #- Verify ROI (area, coordinates)
@@ -375,7 +375,7 @@ class TestSuite:
 					test.fail()
 
 			# Test multiple sequential categorical outcome models
-			with TaskWrapper("Training sequentially to multiple outcomes from batch train file...") as test:
+			with TaskWrapper("Training to multiple outcomes...") as test:
 				self.SFP.train(outcome_label_headers=['category1', 'category2'],
 							   k_fold_iter=1,
 							   steps_per_epoch_override=5)
@@ -385,7 +385,6 @@ class TestSuite:
 			with TaskWrapper("Training to multiple linear outcomes...") as test:
 				hp = self.setup_hp('linear')
 				self.SFP.train(outcome_label_headers=['linear1', 'linear2'],
-							   multi_outcome=True,
 							   k_fold_iter=1,
 							   validate_on_batch=50,
 							   steps_per_epoch_override=5)

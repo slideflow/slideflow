@@ -252,7 +252,7 @@ class Dataset:
 					else:
 						if ann_val not in filter_vals:
 							skip_annotation = True
-							break						
+							break
 
 			# Filter out slides that are blank in a given annotation column ("filter_blank")
 			if self.filter_blank and self.filter_blank != [None]:
@@ -390,8 +390,9 @@ class Dataset:
 		results = {}
 		headers = [headers] if not isinstance(headers, list) else headers
 		assigned_headers = {}
-		unique_labels = None
+		unique_labels = {}
 		for header in headers:
+			unique_labels_for_this_header = []
 			assigned_headers[header] = {}
 			try:
 				filtered_labels = [a[header] for a in filtered_annotations]
@@ -423,9 +424,9 @@ class Dataset:
 					raise TypeError(f"Unable to convert label {header} into type 'float'.")
 			else:
 				log.info(f'Assigning label descriptors in column "{header}" to numerical values', 1)
-				unique_labels = list(set(filtered_labels))
-				unique_labels.sort()
-				for i, ul in enumerate(unique_labels):
+				unique_labels_for_this_header = list(set(filtered_labels))
+				unique_labels_for_this_header.sort()
+				for i, ul in enumerate(unique_labels_for_this_header):
 					num_matching_slides_filtered = sum(l == ul for l in filtered_labels)
 					if assigned_labels and ul not in assigned_labels:
 						raise KeyError(f"assigned_labels was provided, but label {ul} not found in this dict")
@@ -441,7 +442,7 @@ class Dataset:
 				elif assigned_labels:
 					return assigned_labels[o]
 				else:
-					return unique_labels.index(o)
+					return unique_labels_for_this_header.index(o)
 
 			# Assemble results dictionary
 			patient_labels = {}
@@ -475,6 +476,9 @@ class Dataset:
 						results[slide][TCGA.patient] = patient
 			if num_warned >= warn_threshold:
 				log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
+			unique_labels[header] = unique_labels_for_this_header
+		if len(headers) == 1:
+			unique_labels = unique_labels[headers[0]]
 		return results, unique_labels
 
 	def slide_to_label(self, headers, use_float=False, return_unique=False):
