@@ -161,7 +161,7 @@ def _activations_generator(project_config, model, outcome_label_headers=None, la
 								focus_nodes=[], node_exclusion=False, activations_export=None,
 								activations_cache='default', normalizer=None, normalizer_source=None, 
 								max_tiles_per_slide=100, min_tiles_per_slide=None, model_format=None, 
-								batch_size=None, torch_export=None, results_dict=None):
+								include_logits=True, batch_size=None, torch_export=None, results_dict=None):
 		from slideflow.activations import ActivationsVisualizer
 
 		log.header("Generating layer activations...")
@@ -202,6 +202,7 @@ def _activations_generator(project_config, model, outcome_label_headers=None, la
 								   manifest=activations_dataset.get_manifest(),
 								   model_format=model_format,
 								   layers=layers,
+								   include_logits=include_logits,
 								   batch_size=(batch_size if batch_size else hp_data['hp']['batch_size']))
 
 		if torch_export:
@@ -440,7 +441,7 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 			filters=None, filter_blank=None, pretrain=None, pretrain_model_format=None, resume_training=None, checkpoint=None,
 			validate_on_batch=0, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
 			steps_per_epoch_override=None, normalizer=None, normalizer_source=None, use_tensorboard=False, multi_gpu=False, 
-			save_predictions=False, flags=None):
+			save_predictions=False, skip_metrics=False, flags=None):
 
 	'''Internal function to execute model training process.'''
 	import slideflow.model as sfmodel
@@ -481,12 +482,50 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 																					use_float=(hp.model_type() in ['linear', 'cph']),
 																					key='outcome_label')
 
+
+	'''# ===== RNA-SEQ ===================================
+	patient_to_slide = {}
+	for s in slide_labels_dict:
+		slide_labels_dict[s]['outcome_label'] = []
+		patient = sfutil._shortname(s)
+		if patient not in patient_to_slide:
+			patient_to_slide[patient] = [s]
+		else:
+			patient_to_slide[patient] += [s]
+
+	rna_seq_csv = '/mnt/data/TCGA_HNSC/hnsc_tcga_pan_can_atlas_2018/data_RNA_Seq_v2_mRNA_median_all_sample_Zscores.txt'
+	print ('Importing csv data...')
+	num_genes = 0
+	with open(rna_seq_csv, 'r') as csv_file:
+		reader = csv.reader(csv_file, delimiter='\t')
+		header = next(reader)
+		pt_with_rna_seq = [h[:12] for h in header[2:]]
+		slide_labels_dict = {s:v for s,v in slide_labels_dict.items() if sfutil._shortname(s) in pt_with_rna_seq}
+		for row in reader:
+			exp_data = row[2:]
+			if "NA" in exp_data:
+				continue
+			num_genes += 1
+			for p, exp in enumerate(exp_data):
+				if pt_with_rna_seq[p] in patient_to_slide:
+					for s in patient_to_slide[pt_with_rna_seq[p]]:
+						slide_labels_dict[s]['outcome_label'] += [float(exp)]
+	print(f"Loaded {num_genes} genes for {len(slide_labels_dict)} patients.")
+	outcome_label_headers = None
+
+	if True:
+		outcome_labels=None
+
+	# ========================================='''
+	
 	if hp.model_type() == 'categorical' and len(outcome_label_headers) == 1: 
 		outcome_labels = dict(zip(range(len(unique_labels)), unique_labels))
 	elif hp.model_type() == 'categorical':
 		outcome_labels = {k:dict(zip(range(len(ul)), ul)) for k, ul in unique_labels.items()}
 	else:
 		outcome_labels = dict(zip(range(len(outcome_label_headers)), outcome_label_headers))
+
+	# SKIP THE BELOW IF DOING RNA-SEQ
 
 	# If multiple categorical outcomes are used, create a merged variable for k-fold splitting
 	if hp.model_type() == 'categorical' and len(outcome_label_headers) > 1:
@@ -649,7 +688,8 @@ def _trainer(outcome_label_headers, model_name, project_config, results_dict, hp
 									 steps_per_epoch_override=steps_per_epoch_override,
 									 use_tensorboard=use_tensorboard,
 									 multi_gpu=multi_gpu,
-									 save_predictions=save_predictions)
+									 save_predictions=save_predictions,
+									 skip_metrics=skip_metrics)
 		results['history'] = history
 		results_dict.update({full_model_name: results})
 		logged_epochs = [int(e[5:]) for e in results['epochs'].keys() if e[:5] == 'epoch']
@@ -1670,7 +1710,7 @@ class SlideflowProject:
 	def generate_activations(self, model, outcome_label_headers=None, layers=['postconv'], filters=None, filter_blank=None, 
 								focus_nodes=[], node_exclusion=False, activations_export=None,
 								activations_cache=None, normalizer=None, normalizer_source=None, 
-								max_tiles_per_slide=0, min_tiles_per_slide=None, model_format=None, 
+								max_tiles_per_slide=0, min_tiles_per_slide=None, model_format=None, include_logits=True,
 								batch_size=None, torch_export=None, isolated_thread=False):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.
 		Note: GPU memory will remain in use, as the Keras model associated with the visualizer is active.
@@ -1701,7 +1741,7 @@ class SlideflowProject:
 																		focus_nodes, node_exclusion, activations_export,
 																		activations_cache, normalizer, normalizer_source, 
 																		max_tiles_per_slide, min_tiles_per_slide, model_format, 
-																		batch_size, torch_export, results_dict))
+																		include_logits, batch_size, torch_export, results_dict))
 			process.start()
 			log.empty(f"Spawning activations process (PID: {process.pid})")
 			process.join()
@@ -1711,7 +1751,7 @@ class SlideflowProject:
 										focus_nodes, node_exclusion, activations_export,
 										activations_cache, normalizer, normalizer_source, 
 										max_tiles_per_slide, min_tiles_per_slide, model_format, 
-										batch_size, torch_export, None)
+										include_logits, batch_size, torch_export, None)
 			return AV
 
 	def generate_heatmaps(self, model, filters=None, filter_blank=None, directory=None, resolution='low', 
@@ -1878,6 +1918,7 @@ class SlideflowProject:
 		log.info(f"Generating mosaic from {len(tfrecords_list)} slides, with focus on {0 if not focus_list else len(focus_list)} slides.", 1)
 
 		# If a header category is supplied and we are not showing predictions, then assign slide labels from annotations
+		if model_type == 'linear': use_float = True
 		if outcome_label_headers and (show_prediction is None):
 			slide_labels = mosaic_dataset.slide_to_label(outcome_label_headers, use_float=use_float)
 		else:
@@ -2302,7 +2343,8 @@ class SlideflowProject:
 				validation_k_fold=None, k_fold_iter=None, k_fold_header=None, validation_dataset=None, validation_annotations=None,
 				validation_filters=None, validate_on_batch=512, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0,
 				starting_epoch=0, steps_per_epoch_override=None, auto_extract=False, normalizer=None, 
-				normalizer_source=None, normalizer_strategy='tfrecord', use_tensorboard=False, multi_gpu=False, save_predictions=False):
+				normalizer_source=None, normalizer_strategy='tfrecord', use_tensorboard=False, multi_gpu=False, save_predictions=False,
+				skip_metrics=False):
 
 		'''Train model(s).
 
@@ -2438,7 +2480,7 @@ class SlideflowProject:
 															validation_filters, k, k_fold_slide_labels, input_header, filters, filter_blank, pretrain,
 															pretrain_model_format, resume_training, checkpoint, validate_on_batch, validation_steps,
 															max_tiles_per_slide, min_tiles_per_slide, starting_epoch, steps_per_epoch_override, train_normalizer, 
-															train_normalizer_source, use_tensorboard, multi_gpu, save_predictions, self.FLAGS))
+															train_normalizer_source, use_tensorboard, multi_gpu, save_predictions, skip_metrics, self.FLAGS))
 				process.start()
 				log.empty(f"Spawning training process (PID: {process.pid})")
 				process.join()

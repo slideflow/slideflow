@@ -57,7 +57,7 @@ class ActivationsVisualizer:
 	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_label_headers=None, 
 					focus_nodes=[], use_fp16=True, normalizer=None, normalizer_source=None, 
 					activations_cache=None, batch_size=32, activations_export=None, max_tiles_per_slide=100,
-					min_tiles_per_slide=None, manifest=None, model_format=None, layers=['postconv']):
+					min_tiles_per_slide=None, manifest=None, model_format=None, layers=['postconv'], include_logits=True):
 		'''Object initializer.
 
 		Args:
@@ -148,7 +148,8 @@ class ActivationsVisualizer:
 												 export=activations_export,
 												 normalizer=normalizer,
 												 normalizer_source=normalizer_source,
-												 layers=layers)
+												 layers=layers,
+												 include_logits=include_logits)
 
 			if self.slide_node_dict != {}:
 				self.nodes = list(self.slide_node_dict[list(self.slide_node_dict.keys())[0]].keys())
@@ -598,7 +599,7 @@ class ActivationsVisualizer:
 
 	def generate_activations_from_model(self, model, use_fp16=True, batch_size=16, export=None, 
 										normalizer=None, normalizer_source=None, model_format=None,
-										layers=['postconv']):
+										layers=['postconv'], include_logits=True):
 		'''Calculates activations from a given model.
 
 		Args:
@@ -611,7 +612,7 @@ class ActivationsVisualizer:
 		log.info(f"Calculating layer activations from {sfutil.green(model)}, max {self.MAX_TILES_PER_SLIDE} tiles per slide.", 1)
 
 		# Load model
-		combined_model = ModelActivationsInterface(model, model_format=model_format, layers=layers)
+		combined_model = ModelActivationsInterface(model, model_format=model_format, layers=layers, include_logits=include_logits)
 		unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in self.tfrecords]))
 		self.num_features = combined_model.num_features
 			
@@ -657,14 +658,15 @@ class ActivationsVisualizer:
 
 				model_output = combined_model.predict(batch_processed_images)
 
-				fl_activations, logits = model_output
+				if include_logits:	fl_activations, logits = model_output
+				else:				fl_activations = model_output
 
 				fl_activations_combined = fl_activations if fl_activations_combined == [] else np.concatenate([fl_activations_combined, fl_activations])
 				slides_combined = batch_slides if slides_combined == [] else np.concatenate([slides_combined, batch_slides])
 				loc_x_combined = batch_loc_x.numpy() if loc_x_combined == [] else np.concatenate([loc_x_combined, batch_loc_x.numpy()])
 				loc_y_combined = batch_loc_y.numpy() if loc_y_combined == [] else np.concatenate([loc_y_combined, batch_loc_y.numpy()])
 
-				logits_combined = logits if logits_combined == [] else np.concatenate([logits_combined, logits])
+				if include_logits: 	logits_combined = logits if logits_combined == [] else np.concatenate([logits_combined, logits])
 
 				if log.INFO_LEVEL > 0:
 					sys.stdout.write(f"\r(TFRecord {t+1:>3}/{len(self.tfrecords):>3}) (Batch {i+1:>3}) ({len(fl_activations_combined):>5} images): {sfutil.green(sfutil.path_to_name(tfrecord))}")
@@ -683,7 +685,10 @@ class ActivationsVisualizer:
 
 			if not detected_logit_structure:
 				nodes_names = [f"FLNode{f}" for f in range(fl_activations_combined.shape[1])]
-				logits_names = [f"Logits{l}" for l in range(logits_combined.shape[1])]
+				if include_logits: 	
+					logits_names = [f"Logits{l}" for l in range(logits_combined.shape[1])]
+				else:
+					logits_names = []
 				if export:
 					header = ["Slide"] + logits_names + nodes_names
 					csvwriter.writerow(header)
@@ -707,7 +712,10 @@ class ActivationsVisualizer:
 				slide = unique_slides[slides_combined[i]]
 				loc = loc_combined[i].tolist()
 				activations_vals = fl_activations_combined[i].tolist()
-				logits_vals = logits_combined[i].tolist()
+				if include_logits:	
+					logits_vals = logits_combined[i].tolist()
+				else:
+					logits_vals = []
 
 				# Write to CSV
 				if export:
@@ -718,9 +726,10 @@ class ActivationsVisualizer:
 				for n in range(len(nodes_names)):
 					val = activations_vals[n]
 					self.slide_node_dict[slide][n] += [val]
-				for l in range(len(logits_names)):
-					val = logits_vals[l]
-					self.slide_logits_dict[slide][l] += [val]
+				if include_logits:
+					for l in range(len(logits_names)):
+						val = logits_vals[l]
+						self.slide_logits_dict[slide][l] += [val]
 				self.slide_loc_dict[slide] += [loc]
 
 		if export:

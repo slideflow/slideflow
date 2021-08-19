@@ -49,7 +49,7 @@ class ModelActivationsInterface:
 		from saved Slideflow Keras models. Provides support for newer models (v1.9.1+) 
 		and legacy slideflow models (1.9.0b and earlier)'''
 
-	def __init__(self, path, model_format=None, layers=['postconv']):
+	def __init__(self, path, model_format=None, layers=['postconv'], include_logits=True):
 		'''Initializer.
 		
 		Args:
@@ -63,12 +63,15 @@ class ModelActivationsInterface:
 		if not model_format: model_format = MODEL_FORMAT_CURRENT
 		self.model_format = model_format
 		self.path = path
+		self.num_classes = 0
+		self.num_features = 0
 		self.duplicate_input = (model_format == MODEL_FORMAT_LEGACY)
 		self._model = tf.keras.models.load_model(self.path)
 		self._build(layer_names=[l for l in layers if l != 'postconv'], 
-					include_postconv=('postconv' in layers))
+					include_postconv=('postconv' in layers),
+					include_logits=include_logits)
 
-	def _build(self, layer_names=['block4_pool', 'block13_pool'], include_postconv=True):
+	def _build(self, layer_names=['block4_pool', 'block13_pool'], pooling=None, include_postconv=False, include_logits=True):
 		'''Builds a model that outputs feature activations at the designated layers and concatenates into a single final output vector.'''
 
 		if layer_names in [None, []]:
@@ -77,6 +80,8 @@ class ModelActivationsInterface:
 			log.info(f"Setting up activations interface to return activations from layers {', '.join(layer_names)} {'and post-conv activations' if include_postconv else ''}", 1)
 		
 		assert (layer_names is not None) or include_postconv
+		if pooling:
+			assert type(pooling) == list and len(pooling) == len(layer_names)
 
 		if self.model_format == MODEL_FORMAT_1_9:
 			model_core = self._model.layers[1]
@@ -84,20 +89,32 @@ class ModelActivationsInterface:
 			model_core = self._model.layers[0]
 
 		inputs = model_core.input
-		self.duplicate_input = True
+		self.duplicate_input = True # Why is this here?
+
+		layer_sources = {}
 		if layer_names:
-			try:
-				raw_output_layers = [model_core.get_layer(l).output for l in layer_names]
-			except AttributeError:
-				if self.model_format != MODEL_FORMAT_LEGACY:
+			for layer_name in layer_names:
+				if layer_name in [l.name for l in self._model.layers]:
+					layer_sources[layer_name] = self._model
+				elif layer_name in [l.name for l in model_core.layers]:
+					layer_sources[layer_name] = model_core
+				elif self.model_format != MODEL_FORMAT_LEGACY:
 					log.warn("Unable to read model using modern format, will try using legacy format", 1)
 					self.model_format = MODEL_FORMAT_LEGACY
 					self._build(layer_names, include_postconv)
 					return
 				else:
-					raise ModelError("Unable to read model.")
+					raise ModelError(f"Unable to read model: could not find layer {layer_name}")
+			raw_output_layers = [layer_sources[l].get_layer(l).output for l in layer_names]
 
-			activation_layers = [tf.keras.layers.GlobalAveragePooling2D(name=f'act_pooling_{idx}')(al) for idx, al in enumerate(raw_output_layers)]
+			if pooling:
+				activation_layers = []
+				for idx, al in enumerate(raw_output_layers):
+					if pooling[idx]:
+						activation_layers += [tf.keras.layers.GlobalAveragePooling2D(name=f'act_pooling_{idx}')(al)]
+					else:
+						activation_layers += [al]
+			activation_layers = raw_output_layers
 		else:
 			activation_layers = []
 
@@ -106,9 +123,14 @@ class ModelActivationsInterface:
 
 		merged_output = activation_layers[0] if len(activation_layers) == 1 else tf.keras.layers.Concatenate(axis=1)(activation_layers)
 		
+		if include_logits:
+			outputs = [merged_output, self._model.output]
+		else:
+			outputs = [merged_output]
+
 		try:
 			self.model = tf.keras.models.Model(inputs=[self._model.input, model_core.input],
-											outputs=[merged_output, self._model.output])
+											   outputs=outputs)
 		except AttributeError:
 			if self.model_format != MODEL_FORMAT_LEGACY:
 				log.warn("Unable to read model using modern format, will try using legacy format", 1)
@@ -118,10 +140,13 @@ class ModelActivationsInterface:
 			else:
 				raise ModelError("Unable to read model.")
 
-		self.num_features = self.model.output_shape[0][1]
-		self.num_classes = self.model.output_shape[1][1]
+		if include_logits:
+			self.num_features = self.model.output_shape[0][1]
+			self.num_classes = self.model.output_shape[1][1]
+			log.info(f"Number of logits: {self.model.output_shape[1][1]}", 2)
+		else:
+			self.num_features = self.model.output_shape[1]
 		log.info(f"Number of activation features: {self.num_features}", 2)
-		log.info(f"Number of logits: {self.model.output_shape[1][1]}", 2)
 
 	def predict(self, image_batch):
 		'''Given a batch of images, will return a batch of post-convolutional activations and a batch of logits.'''
@@ -412,7 +437,8 @@ class SlideflowModel:
 				self.ANNOTATIONS_TABLES += [tf.lookup.StaticHashTable(
 					tf.lookup.KeyValueTensorInitializer(self.SLIDES, outcome_labels[:,oi]), -1
 				)]
-		
+			#self.RNA_SEQ_TABLE = {self.SLIDES[i]:outcome_labels[i] for i in range(len(self.SLIDES))}
+
 		if not os.path.exists(self.DATA_DIR):
 			os.makedirs(self.DATA_DIR)
 		
@@ -543,6 +569,24 @@ class SlideflowModel:
 												 name=f"hidden_{i}", 
 												 activation='relu', 
 												 kernel_regularizer=regularizer)(merged_model)
+		
+		'''merged_model = tf.keras.layers.Dense(512, name=f"hidden_0", activation=None, kernel_regularizer=regularizer)(merged_model)
+		merged_model = tf.keras.layers.LeakyReLU()(merged_model)
+		merged_model = tf.keras.layers.Dense(128, name=f"hidden_1", activation=None, kernel_regularizer=regularizer)(merged_model)
+		merged_model = tf.keras.layers.LeakyReLU()(merged_model)
+		merged_model = tf.keras.layers.Dense(32, name=f"autoencoder", activation='tanh', kernel_regularizer=regularizer)(merged_model)
+		merged_model = tf.keras.layers.Dense(64, name=f"reencode_0", activation=None, kernel_regularizer=regularizer)(merged_model)
+		merged_model = tf.keras.layers.LeakyReLU()(merged_model)
+		merged_model = tf.keras.layers.Dense(128, name=f"reencode_1", activation=None, kernel_regularizer=regularizer)(merged_model)
+		merged_model = tf.keras.layers.LeakyReLU()(merged_model)
+		merged_model = tf.keras.layers.Dense(256, name=f"reencode_2", activation=None, kernel_regularizer=regularizer)(merged_model)
+		merged_model = tf.keras.layers.LeakyReLU()(merged_model)
+		merged_model = tf.keras.layers.Dense(512, name=f"reencode_3", activation=None, kernel_regularizer=regularizer)(merged_model)
+		merged_model = tf.keras.layers.LeakyReLU()(merged_model)
+		merged_model = tf.keras.layers.Dense(1024, name=f"reencode_4", activation=None, kernel_regularizer=regularizer)(merged_model)
+		merged_model = tf.keras.layers.LeakyReLU()(merged_model)
+		merged_model = tf.keras.layers.Dense(2048, name=f"reencode_5", activation=None, kernel_regularizer=regularizer)(merged_model)
+		merged_model = tf.keras.layers.LeakyReLU()(merged_model)'''
 
 		# Add the softmax prediction layer
 		if hp.model_type() in ['linear', 'cph']:
@@ -563,6 +607,7 @@ class SlideflowModel:
 
 		else:
 			final_dense_layer = tf.keras.layers.Dense(self.NUM_CLASSES, kernel_regularizer=regularizer, name="prelogits")(merged_model)
+			#final_dense_layer = tf.keras.layers.Dropout(0.2)(final_dense_layer) # include for rna seq
 			outputs = [tf.keras.layers.Activation(activation, dtype='float32', name='output')(final_dense_layer)]
 
 		if self.MODEL_TYPE == 'cph':
@@ -815,6 +860,14 @@ class SlideflowModel:
 		else:
 			label = self.ANNOTATIONS_TABLES[0].lookup(slide)
 
+		# === RNA SEQ ==========
+		def rna_seq_lookup(s): return self.RNA_SEQ_TABLE[s.numpy().decode('utf-8')]
+
+		label = tf.py_function(func=rna_seq_lookup,
+								inp=[slide],
+								Tout=tf.float32)
+		# ====================
+
 		# Add additional non-image feature inputs if indicated,
 		# 	excluding the event feature used for CPH models
 		if self.NUM_SLIDE_FEATURES:
@@ -988,7 +1041,8 @@ class SlideflowModel:
 
 	def train(self, hp, pretrain='imagenet', pretrain_model_format=None, resume_training=None, checkpoint=None, log_frequency=100, multi_image=False, 
 				validate_on_batch=512, val_batch_size=32, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
-				ema_observations=20, ema_smoothing=2, steps_per_epoch_override=None, use_tensorboard=False, multi_gpu=False, save_predictions=False):
+				ema_observations=20, ema_smoothing=2, steps_per_epoch_override=None, use_tensorboard=False, multi_gpu=False, save_predictions=False,
+				skip_metrics=False):
 		'''Train the model for a number of steps, according to flags set by the argument parser.
 		
 		Args:
@@ -1117,7 +1171,6 @@ class SlideflowModel:
 			def on_train_batch_end(self, batch, logs={}):
 				if using_validation and validate_on_batch and (batch > 0) and (batch % validate_on_batch == 0):
 					val_metrics = self.model.evaluate(validation_data, verbose=0, steps=validation_steps, return_dict=True)
-					print(val_metrics)
 					val_loss = val_metrics['loss']
 					self.model.stop_training = False
 					if hp.early_stop_method == 'accuracy' and 'val_accuracy' in val_metrics:
@@ -1175,32 +1228,36 @@ class SlideflowModel:
 			def evaluate_model(self, logs={}):
 				epoch = self.epoch_count
 				epoch_label = f"val_epoch{epoch}"
-				auc, r_squared, c_index = sfstats.gen_metrics_from_dataset(self.model,
-																			model_type=hp.model_type(),
-																			annotations=parent.SLIDE_ANNOTATIONS,
-																			manifest=parent.MANIFEST,
-																			dataset=validation_data_with_slidenames,
-																			outcome_names=parent.OUTCOME_NAMES,
-																			label=epoch_label,
-																			data_dir=parent.DATA_DIR,
-																			num_tiles=num_val_tiles,
-																			histogram=False,
-																			verbose=True,
-																			save_predictions=save_predictions)
+				if not skip_metrics:
+					auc, r_squared, c_index = sfstats.gen_metrics_from_dataset(self.model,
+																				model_type=hp.model_type(),
+																				annotations=parent.SLIDE_ANNOTATIONS,
+																				manifest=parent.MANIFEST,
+																				dataset=validation_data_with_slidenames,
+																				outcome_names=parent.OUTCOME_NAMES,
+																				label=epoch_label,
+																				data_dir=parent.DATA_DIR,
+																				num_tiles=num_val_tiles,
+																				histogram=False,
+																				verbose=True,
+																				save_predictions=save_predictions)
+
 				val_metrics = self.model.evaluate(validation_data, verbose=0, return_dict=True)
 				log.info(f"Validation metrics:", 1)
 				for m in val_metrics:
 					log.info(f"{m}: {val_metrics[m]:.4f}", 2)
 				results['epochs'][f'epoch{epoch}'] = {'train_metrics': logs,
 														'val_metrics': val_metrics }
-				for i, c in enumerate(auc['tile']):
-					results['epochs'][f'epoch{epoch}'][f'tile_auc{i}'] = c
-				for i, c in enumerate(auc['slide']):
-					results['epochs'][f'epoch{epoch}'][f'slide_auc{i}'] = c
-				for i, c in enumerate(auc['patient']):
-					results['epochs'][f'epoch{epoch}'][f'patient_auc{i}'] = c
-				results['epochs'][f'epoch{epoch}']['r_squared'] = r_squared
-				results['epochs'][f'epoch{epoch}']['c_index'] = c_index
+				if not skip_metrics:
+					for i, c in enumerate(auc['tile']):
+						results['epochs'][f'epoch{epoch}'][f'tile_auc{i}'] = c
+					for i, c in enumerate(auc['slide']):
+						results['epochs'][f'epoch{epoch}'][f'slide_auc{i}'] = c
+					for i, c in enumerate(auc['patient']):
+						results['epochs'][f'epoch{epoch}'][f'patient_auc{i}'] = c
+					results['epochs'][f'epoch{epoch}']['r_squared'] = r_squared
+					results['epochs'][f'epoch{epoch}']['c_index'] = c_index
+
 				epoch_results = results['epochs'][f'epoch{epoch}']
 				sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
 							
