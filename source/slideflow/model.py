@@ -861,11 +861,11 @@ class SlideflowModel:
 			label = self.ANNOTATIONS_TABLES[0].lookup(slide)
 
 		# === RNA SEQ ==========
-		def rna_seq_lookup(s): return self.RNA_SEQ_TABLE[s.numpy().decode('utf-8')]
+		#def rna_seq_lookup(s): return self.RNA_SEQ_TABLE[s.numpy().decode('utf-8')]
 
-		label = tf.py_function(func=rna_seq_lookup,
-								inp=[slide],
-								Tout=tf.float32)
+		#label = tf.py_function(func=rna_seq_lookup,
+		#						inp=[slide],
+		#						Tout=tf.float32)
 		# ====================
 
 		# Add additional non-image feature inputs if indicated,
