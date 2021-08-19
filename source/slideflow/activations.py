@@ -741,7 +741,7 @@ class ActivationsVisualizer:
 
 		return self.slide_node_dict, self.slide_logits_dict
 
-	def export_to_csv(self, filename, nodes=None):
+	def export_to_csv(self, filename, method='mean', nodes=None):
 		'''Exports calculated activations to csv.
 
 		Args:
@@ -757,8 +757,11 @@ class ActivationsVisualizer:
 			for slide in self.slide_node_dict:
 				row = [slide]
 				for n in nodes:
-					row += [self.slide_node_dict[slide][n]]
-				csvwriter.writewrow(row)
+					if method in ('mean', 'average', 'avg'):
+						row += [mean(self.slide_node_dict[slide][n])]
+					else:
+						row += [self.slide_node_dict[slide][n]]
+				csvwriter.writerow(row)
 
 	def export_to_torch(self, output_directory):
 		import torch
