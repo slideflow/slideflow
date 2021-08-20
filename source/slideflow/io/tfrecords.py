@@ -1,5 +1,4 @@
 import imghdr
-import sys
 import csv
 import numpy as np
 import os

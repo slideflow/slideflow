@@ -9,13 +9,11 @@ import pickle
 import seaborn as sns
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 import slideflow.util as sfutil
 
 from slideflow.util import ProgressBar
 from os.path import join
 from slideflow.util import log
-from slideflow.model_utils import get_layer_index_by_name
 from scipy import stats
 from random import sample
 from sklearn import metrics
@@ -1240,6 +1238,9 @@ def predict_from_model(model, dataset, num_tiles=0):
 	return y_true, y_pred, tile_to_slides
 
 def predict_from_layer(model, layer_input, input_layer_name='hidden_0', ouput_layer_index=None):
+	import tensorflow as tf
+	from slideflow.model_utils import get_layer_index_by_name
+
 	first_hidden_layer_index = get_layer_index_by_name(model, input_layer_name)
 	input_shape = model.layers[first_hidden_layer_index].get_input_shape_at(0) # get the input shape of desired layer
 	x = input_tensor = tf.keras.Input(shape=input_shape) # a new input tensor to be able to feed the desired layer
@@ -1347,6 +1348,7 @@ def permutation_feature_importance(model,
 		Dictiory of AUCs with keys 'tile', 'slide', and 'patient'
 
 	'''
+	import tensorflow as tf
 	
 	y_true = [] # True outcomes for each tile
 	tile_to_slides = [] # Associated slide name for each tile
