@@ -144,11 +144,11 @@ def get_locations_from_tfrecord(filename):
 		loc_dict.update({ i: (loc_x, loc_y)	})
 	return loc_dict
 
-def tfrecord_example(slide, image_string, loc_x=None, loc_y=None):
+def tfrecord_example(slide, image_raw, loc_x=None, loc_y=None):
 	'''Returns a Tensorflow Data example for TFRecord storage.'''
 	feature = {
 		'slide':     _bytes_feature(slide),
-		'image_raw':_bytes_feature(image_string),
+		'image_raw':_bytes_feature(image_raw),
 		'loc_x': _int64_feature(loc_x),
 		'loc_y': _int64_feature(loc_y)
 	}
