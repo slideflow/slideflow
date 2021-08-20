@@ -622,7 +622,7 @@ def update_tfrecord(tfrecord_file, old_feature_description=FEATURE_DESCRIPTION, 
 	shutil.move(tfrecord_file, tfrecord_file+".old")
 	dataset = tf.data.TFRecordDataset(tfrecord_file+".old")
 	writer = tf.io.TFRecordWriter(tfrecord_file)
-	feature_description, _ = detect_tfrecord_format(tfrecord_file)
+	feature_description, _ = detect_tfrecord_format(tfrecord_file+'.old')
 	for record in dataset:
 		slidename = bytes(assign_slide, 'utf-8') if assign_slide else None
 		writer.write(_read_and_return_record(record, feature_description, assign_slide=slidename))
