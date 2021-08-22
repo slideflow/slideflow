@@ -199,10 +199,15 @@ def evaluator(outcome_label_headers, model, project_config, results_dict, input_
 						   annotations=project_config['annotations'],
 						   filters=filters,
 						   filter_blank=filter_blank)
+	if hp.model_type() == 'categorical':
+		outcome_label_to_int = {o: {v: int(k) for k, v in hp_data['outcome_labels'][o].items()} for o in hp_data['outcome_labels']}
+	else:
+		outcome_label_to_int = None
 
 	slide_labels_dict, unique_labels = eval_dataset.get_labels_from_annotations(outcome_label_headers, 
 																				use_float=(hp.model_type() in ['linear', 'cph']),
-																				key='outcome_label')
+																				key='outcome_label',
+																				assigned_labels=outcome_label_to_int)
 
 	if hp.model_type() == 'categorical' and len(outcome_label_headers) > 1:
 		slide_labels_for_val_splitting = {k:{

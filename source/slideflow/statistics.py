@@ -11,8 +11,10 @@ import pickle
 import seaborn as sns
 import numpy as np
 import pandas as pd
+import multiprocessing as mp
 import slideflow.util as sfutil
 
+from functools import partial
 from slideflow.util import ProgressBar
 from os.path import join
 from slideflow.util import log
@@ -25,10 +27,19 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import pyplot as plt
 from matplotlib.widgets import LassoSelector
 from lifelines.utils import concordance_index as c_index
-from multiprocessing.dummy import Pool as DPool
-from multiprocessing import Pool
 
 # TODO: remove 'hidden_0' reference as this may not be present if the model does not have hidden layers
+
+# Generate tile-level ROC
+def generate_tile_roc(i, y_true, y_pred, data_dir, label_start, histogram=False):
+	try:
+		roc_auc, average_precision, optimal_threshold = generate_roc(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_ROC{i}')
+		if histogram:
+			generate_histogram(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_histogram{i}')			
+	except IndexError:
+		log.warn(f"Unable to generate tile-level stats for outcome {i}", 1)
+		return None, None, None
+	return roc_auc, average_precision, optimal_threshold
 
 # Function to generate group-level averages (e.g. slide-level or patient-level)
 def get_average_by_group(prediction_array, prediction_label, unique_groups, tile_to_group, y_true_group,
@@ -43,7 +54,7 @@ def get_average_by_group(prediction_array, prediction_label, unique_groups, tile
 		i, g = ttg
 		groups[g] += [prediction_array[i]]
 
-	with DPool(processes=16) as p:
+	with mp.dummy.Pool(processes=16) as p:
 		p.map(update_group, enumerate(tile_to_group))
 
 	group_percents = {g:np.array(groups[g]).mean(axis=0) for g in unique_groups}
@@ -665,8 +676,8 @@ def generate_histogram(y_true, y_pred, data_dir, name='histogram'):
 	plt.clf()
 	plt.title('Tile-level Predictions')
 	try:
-		sns.distplot( cat_false , color="skyblue", label="Negative")
-		sns.distplot( cat_true , color="red", label="Positive")
+		sns.displot( cat_false , color="skyblue", label="Negative")
+		sns.displot( cat_true , color="red", label="Positive")
 	except np.linalg.LinAlgError:
 		log.warn("Unable to generate histogram, insufficient data", 1)
 	plt.legend()
@@ -944,19 +955,18 @@ def _categorical_metrics(args, outcome_name, starttime=None):
 
 	log.info(f"Checkpoint 6: {time.time()-start:.2f} s", 2)
 
-	# Generate tile-level ROC
-	def generate_tile_roc(cat_index):
-		try:
-			roc_auc, average_precision, optimal_threshold = generate_roc(args.y_true[:, i], args.y_pred[:, i], args.data_dir, f'{args.label_start}tile_ROC{i}')
-			if args.histogram:
-				generate_histogram(args.y_true[:, i], args.y_pred[:, i], args.data_dir, f'{args.label_start}tile_histogram{i}')			
-			if args.verbose:
-				log.info(f"Tile-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold:.3f})", 1)
-		except IndexError:
-			log.warn(f"Unable to generate tile-level stats for outcome {i}", 1)
-	
-	with Pool(processes=8) as p:
-		args.auc['tile'][outcome_name] = p.map(generate_tile_roc, range(num_cat))
+	with mp.Pool(processes=8) as p:
+		# TODO: this is memory inefficient as it copies y_true / y_pred to each subprocess
+		# Furthermore, it copies all categories when only one category is needed for each process
+		# Need to implement shared memory, ideally compatible with python 3.7
+		for i, (auc, ap, thresh) in enumerate(p.imap(partial(generate_tile_roc, y_true=args.y_true,
+																				y_pred=args.y_pred,
+																				data_dir=args.data_dir,
+																				label_start=args.label_start,
+																				histogram=args.histogram), range(num_cat))):
+			args.auc['tile'][outcome_name] += [auc]
+			if args.verbose:		
+				log.info(f"Tile-level AUC (cat #{i:>2}): {auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})", 1)
 
 	log.info(f"Checkpoint 7: {time.time()-start:.2f} s", 2)
 
@@ -1188,6 +1198,7 @@ def gen_metrics_from_predictions(y_true,
 
 def predict_from_model(model, dataset, num_tiles=0):
 	'''Generates predictions (y_true, y_pred, tile_to_slide) from a given model and dataset.'''
+	import tensorflow as tf
 
 	@tf.function
 	def get_predictions(img):
@@ -1218,7 +1229,6 @@ def predict_from_model(model, dataset, num_tiles=0):
 
 		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in slide.numpy()]
 		if not detected_batch_size: detected_batch_size = len(tile_to_slides)
-		if i > 0: break
 
 	pb.end()
 	if log.INFO_LEVEL > 0: sfutil.clear_console()

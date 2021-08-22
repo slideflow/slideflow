@@ -390,6 +390,13 @@ class Dataset:
 		assigned_headers = {}
 		unique_labels = {}
 		for header in headers:
+			if assigned_labels and len(headers) > 1:
+				assigned_labels_for_this_header = assigned_labels[header]
+			elif assigned_labels:
+				assigned_labels_for_this_header = assigned_labels
+			else:
+				assigned_labels_for_this_header = None
+
 			unique_labels_for_this_header = []
 			assigned_headers[header] = {}
 			try:
@@ -426,10 +433,10 @@ class Dataset:
 				unique_labels_for_this_header.sort()
 				for i, ul in enumerate(unique_labels_for_this_header):
 					num_matching_slides_filtered = sum(l == ul for l in filtered_labels)
-					if assigned_labels and ul not in assigned_labels:
+					if assigned_labels_for_this_header and ul not in assigned_labels_for_this_header:
 						raise KeyError(f"assigned_labels was provided, but label {ul} not found in this dict")
-					elif assigned_labels:
-						log.empty(f"{header} '{sfutil.info(ul)}' assigned to value '{assigned_labels[ul]}' [{sfutil.bold(str(num_matching_slides_filtered))} slides]", 2)
+					elif assigned_labels_for_this_header:
+						log.empty(f"{header} '{sfutil.info(ul)}' assigned to value '{assigned_labels_for_this_header[ul]}' [{sfutil.bold(str(num_matching_slides_filtered))} slides]", 2)
 					else:
 						log.empty(f"{header} '{sfutil.info(ul)}' assigned to value '{i}' [{sfutil.bold(str(num_matching_slides_filtered))} slides]", 2)
 			
@@ -437,8 +444,8 @@ class Dataset:
 			def _process_label(o):
 				if use_float_for_this_header:
 					return float(o)
-				elif assigned_labels:
-					return assigned_labels[o]
+				elif assigned_labels_for_this_header:
+					return assigned_labels_for_this_header[o]
 				else:
 					return unique_labels_for_this_header.index(o)
 
