@@ -1,6 +1,8 @@
 import os
 import sys
 import csv
+
+from numpy.lib.arraysetops import unique
 import umap
 import types
 import time
@@ -23,6 +25,8 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import pyplot as plt
 from matplotlib.widgets import LassoSelector
 from lifelines.utils import concordance_index as c_index
+from multiprocessing.dummy import Pool as DPool
+from multiprocessing import Pool
 
 # TODO: remove 'hidden_0' reference as this may not be present if the model does not have hidden layers
 
@@ -31,23 +35,22 @@ def get_average_by_group(prediction_array, prediction_label, unique_groups, tile
 							num_cat, label_end, save_predictions=False, data_dir=None, label='group'):
 	'''For a given tile-level prediction array, calculate percent predictions 
 		in each outcome by group (e.g. patient, slide) and save to CSV.'''
-	avg_by_group, cat_index_warn = [], []
 
-	split_predictions = np.split(prediction_array, num_cat, 1)
-	for group in unique_groups:
-		percent_predictions = []
-		for ci, cat_pred_array in enumerate(split_predictions):
-			try:
-				outcome_in_group = cat_pred_array[np.argwhere(tile_to_group==group)].flatten()
-				percent_predictions += [np.sum(outcome_in_group) / outcome_in_group.shape[0]]
-			except:
-				if ci not in cat_index_warn:
-					log.warn(f"Unable to generate group-level stats for category index {ci}", 1)
-					cat_index_warn += [ci]
-		avg_by_group += [percent_predictions]
-	avg_by_group = np.array(avg_by_group)
+	groups = {g:[] for g in unique_groups}
+
+	def update_group(ttg):
+		nonlocal groups
+		i, g = ttg
+		groups[g] += [prediction_array[i]]
+
+	with DPool(processes=16) as p:
+		p.map(update_group, enumerate(tile_to_group))
+
+	group_percents = {g:np.array(groups[g]).mean(axis=0) for g in unique_groups}
+	avg_by_group = np.array([group_percents[g] for g in unique_groups])
 
 	if save_predictions:
+		print("Saving predictions...")
 		save_path = join(data_dir, f"{label}_predictions{label_end}.csv")
 		with open(save_path, 'w') as outfile:
 			writer = csv.writer(outfile)
@@ -56,6 +59,7 @@ def get_average_by_group(prediction_array, prediction_label, unique_groups, tile
 			for i, group in enumerate(unique_groups):
 				row = np.concatenate([ [group], y_true_group[group], avg_by_group[i] ])
 				writer.writerow(row)
+		print("Done saving predictions!")
 	return avg_by_group
 
 class StatisticsError(Exception):
@@ -941,17 +945,18 @@ def _categorical_metrics(args, outcome_name, starttime=None):
 	log.info(f"Checkpoint 6: {time.time()-start:.2f} s", 2)
 
 	# Generate tile-level ROC
-	for i in range(num_cat):
+	def generate_tile_roc(cat_index):
 		try:
 			roc_auc, average_precision, optimal_threshold = generate_roc(args.y_true[:, i], args.y_pred[:, i], args.data_dir, f'{args.label_start}tile_ROC{i}')
-			args.auc['tile'][outcome_name] += [roc_auc]
 			if args.histogram:
 				generate_histogram(args.y_true[:, i], args.y_pred[:, i], args.data_dir, f'{args.label_start}tile_histogram{i}')			
 			if args.verbose:
 				log.info(f"Tile-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold:.3f})", 1)
-
 		except IndexError:
 			log.warn(f"Unable to generate tile-level stats for outcome {i}", 1)
+	
+	with Pool(processes=8) as p:
+		args.auc['tile'][outcome_name] = p.map(generate_tile_roc, range(num_cat))
 
 	log.info(f"Checkpoint 7: {time.time()-start:.2f} s", 2)
 
@@ -1028,7 +1033,12 @@ def _categorical_metrics(args, outcome_name, starttime=None):
 				log.warn(f"Unable to generate patient-level stats for outcome {i}", 1)
 
 def save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end):
+	#TODO: fix predictions to CSV with multiple outcomes
+
 	# Save tile-level predictions
+	if type(y_true) == list:
+		assert len(y_true) == len(y_pred), "Number of outcomes in y_true and y_pred must match"
+
 	tile_csv_dir = os.path.join(data_dir, f"tile_predictions{label_end}.csv")
 	y_true_is_reduced = (len(y_true.shape) == 1)
 	y_pred_is_reduced = (len(y_true.shape) == 1)
@@ -1169,29 +1179,19 @@ def gen_metrics_from_predictions(y_true,
 
 	log.info(f"Checkpoint 12: {time.time()-start:.2f} s", 2)
 	if verbose and save_predictions:
-		save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end)
+		try:
+			save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end)
+		except:
+			log.error("Unable to save predictions to CSV - not yet implemented for multiple outcomes")
 		
 	return metric_args.auc, metric_args.r_squared, metric_args.c_index
 
 def predict_from_model(model, dataset, num_tiles=0):
-	'''start = time.time()
-	y_true, y_pred, tile_to_slides = [], [], []
+	'''Generates predictions (y_true, y_pred, tile_to_slide) from a given model and dataset.'''
 
-	# Image-only dataset
-	dataset_img = dataset.map((lambda i,l,s: i), num_parallel_calls=8)
-	# Flat map the dataset labels from dictionary format (if multiple categircal outcomes) to a list of outcomes
-	dataset_labels = dataset.unbatch().map(lambda i,l,s: (([l[f'out-{li}'] for li in range(len(l))] if type(l) == dict else l), s), num_parallel_calls=8)
-
-	log.info("Generating predictions...", 1)
-	y_pred = model.predict(dataset_img)
-	log.info("Predictions generated. Reading slide labels...", 1)
-
-	y_true, tile_to_slides = list(zip(*list(dataset_labels)))
-	y_true = np.array(y_true)
-	tile_to_slides = np.array(list(map(lambda x: x.numpy().decode('utf-8'), tile_to_slides)))
-	
-	end = time.time()
-	log.info(f"Prediction complete. Time to completion: {int(end-start)} s", 1)'''
+	@tf.function
+	def get_predictions(img):
+		return model(img, training=False)
 
 	start = time.time()
 	y_true, y_pred, tile_to_slides = [], [], []
@@ -1209,7 +1209,7 @@ def predict_from_model(model, dataset, num_tiles=0):
 			sys.stdout.write(f"\rGenerating predictions (batch {i})...")
 			sys.stdout.flush()
 		
-		y_pred += [model.predict_on_batch(img)]
+		y_pred += [get_predictions(img)]
 		
 		if type(yt) == dict:
 			y_true += [[yt[f'out-{o}'].numpy() for o in range(len(yt))]]
@@ -1218,6 +1218,9 @@ def predict_from_model(model, dataset, num_tiles=0):
 
 		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in slide.numpy()]
 		if not detected_batch_size: detected_batch_size = len(tile_to_slides)
+		if i > 0: break
+
+	pb.end()
 	if log.INFO_LEVEL > 0: sfutil.clear_console()
 
 	tile_to_slides = np.array(tile_to_slides)
