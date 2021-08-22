@@ -52,7 +52,6 @@ class Mosaic:
 		tile_point_distances = []	
 		max_distance_factor = leniency
 		mapping_method = 'expanded' if expanded else 'strict'
-		tile_zoom_factor = tile_zoom # TODO: investigate if this argument is required
 		self.mapped_tiles = {}
 		self.umap = umap
 		self.num_tiles_x = num_tiles_x
@@ -142,7 +141,7 @@ class Mosaic:
 		for g in self.GRID:
 			max_grid_density = max(max_grid_density, len(g['points']))
 		for grid_tile in self.GRID:
-			rect_size = min((len(grid_tile['points']) / max_grid_density) * tile_zoom_factor, 1) * tile_size
+			rect_size = min((len(grid_tile['points']) / max_grid_density) * tile_zoom, 1) * tile_size
 
 			tile = patches.Rectangle((grid_tile['coord'][0] - rect_size/2, 
 									  grid_tile['coord'][1] - rect_size/2), 

@@ -1,9 +1,7 @@
 import os
 import argparse
 import shutil
-from slideflow.model import HyperParameters
 import slideflow.util as sfutil
-import json
 
 from os.path import join, isdir, exists
 

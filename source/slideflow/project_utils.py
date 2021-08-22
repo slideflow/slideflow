@@ -279,7 +279,7 @@ def evaluator(outcome_label_headers, model, project_config, results_dict, input_
 		feature_sizes = None
 	
 	if feature_sizes and (sum(feature_sizes) != sum(hp_data['input_feature_sizes'])):
-		raise Exception("Patient-level feature matrix not equal to what was used for model training. TODO: consider using training matrix")
+		raise Exception("Patient-level feature matrix not equal to what was used for model training.") #TODO: consider using training matrix
 		#feature_sizes = hp_data['feature_sizes']
 		#feature_names = hp_data['feature_names']
 		#num_slide_features = sum(hp_data['feature_sizes'])

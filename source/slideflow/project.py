@@ -31,9 +31,6 @@ from slideflow.io import Dataset
 from slideflow.statistics import TFRecordMap, calculate_centroid
 from slideflow.util import TCGA, ProgressBar, load_model_hyperparameters, log, StainNormalizer
 
-NO_LABEL = 'no_label'
-SILENT = 'SILENT'
-SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -430,7 +427,7 @@ class SlideflowProject:
 		self.PROJECT = project
 
 		# Write a sample actions.py file
-		with open(join(SOURCE_DIR, 'sample_actions.py'), 'r') as sample_file:
+		with open(join(os.path.dirname(os.path.realpath(__file__)), 'sample_actions.py'), 'r') as sample_file:
 			sample_actions = sample_file.read()
 			with open(os.path.join(project_folder, 'actions.py'), 'w') as actions_file:
 				actions_file.write(sample_actions)

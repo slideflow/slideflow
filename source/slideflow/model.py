@@ -10,11 +10,9 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import sys
 import csv
 import warnings
 import shutil
-import time
 warnings.filterwarnings('ignore')
 
 import numpy as np
@@ -23,14 +21,12 @@ import tensorflow as tf
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
 from functools import partial
 from slideflow.util import log
-from slideflow.io.tfrecords import detect_tfrecord_format, get_tfrecord_parser, TFRecordsError
+from slideflow.io.tfrecords import detect_tfrecord_format, get_tfrecord_parser
 from slideflow.model_utils import *
 
 import slideflow.util as sfutil
 from slideflow.util import StainNormalizer
 import slideflow.statistics as sfstats
-
-# TODO: Progress bar for interleaving tfrecords
 
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
@@ -38,8 +34,6 @@ NO_BALANCE = 'NO_BALANCE'
 MODEL_FORMAT_1_9 = "1.9"
 MODEL_FORMAT_CURRENT = MODEL_FORMAT_1_9
 MODEL_FORMAT_LEGACY = "legacy"
-
-#TODO: Make multiple linear outcomes match multiple categorical outcomes
 
 class ModelActivationsInterface:
 	'''Provides an interface to obtain logits and post-convolutional activations 
@@ -538,6 +532,8 @@ class SlideflowModel:
 			layers += [tf.keras.layers.Flatten()]
 		layers += [post_convolution_identity_layer]
 		tile_image_model = tf.keras.Sequential(layers)
+		if hp.dropout:
+			tile_image_model = tf.keras.layers.Dropout(hp.dropout)(tile_image_model)
 		model_inputs = [tile_image_model.input]
 
 		# Merge layers
@@ -592,9 +588,6 @@ class SlideflowModel:
 		else:
 			activation = 'softmax'
 		log.info(f"Using {activation} activation", 1)
-
-		if hp.dropout:
-			merged_model = tf.keras.layers.Dropout(hp.dropout)(merged_model) #TODO: Change this later -> if no hidden layers are used with a merged model, this may drop out input
 
 		# Multi-categorical outcomes
 		if type(self.NUM_CLASSES) == dict:
@@ -1177,6 +1170,8 @@ class SlideflowModel:
 					log.complete(f"Trained model saved to {sfutil.green(model_path)}", 1)
 					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
 						self.evaluate_model(logs)
+				elif self.early_stop:
+					self.evaluate_model(logs)
 				self.model.stop_training = self.early_stop
 
 			def on_train_batch_end(self, batch, logs={}):

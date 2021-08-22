@@ -957,7 +957,7 @@ def _categorical_metrics(args, outcome_name, starttime=None):
 	with mp.Pool(processes=8) as p:
 		# TODO: this is memory inefficient as it copies y_true / y_pred to each subprocess
 		# Furthermore, it copies all categories when only one category is needed for each process
-		# Need to implement shared memory, ideally compatible with python 3.7
+		# Consider implementing shared memory, ideally compatible with python 3.7
 		for i, (auc, ap, thresh) in enumerate(p.imap(partial(generate_tile_roc, y_true=args.y_true,
 																				y_pred=args.y_pred,
 																				data_dir=args.data_dir,
