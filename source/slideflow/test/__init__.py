@@ -182,18 +182,9 @@ class TestSuite:
 		# Set logging level
 		if debug:
 			os.environ['TF_CPP_MIN_LOG_LEVEL'] = "0"
-			import tensorflow as tf
-			tf.get_logger().setLevel("INFO")
 		else:
 			os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
 			logging.getLogger("tensorflow").setLevel(logging.ERROR)
-			import tensorflow as tf
-			tf.get_logger().setLevel("ERROR")
-
-		# Check if GPU available
-		with TaskWrapper("Checking GPU availability...") as gpu_test:
-			if not tf.test.is_gpu_available():
-				gpu_test.fail()
 
 		# Configure testing environment
 		self.config = TestConfigurator(root, download=download, tma=include_tma)
@@ -213,16 +204,28 @@ class TestSuite:
 			'complete': 3 if debug else 0,
 			'silent': False if debug else True
 		}
-		flags = sf.DEFAULT_FLAGS
+		flags = sf.project.DEFAULT_FLAGS
 		flags['num_threads'] = num_threads
 		flags['logging_levels'] = log_levels
 
 		self.SFP = sf.SlideflowProject(self.config.PROJECT['root'],
 									   interactive=False,
 									   flags=flags,
-									   force_gpu=gpu)
+									   gpu=gpu)
 		self.SFP.PROJECT = self.config.PROJECT
 		self.SFP.save_project()
+
+		# Check if GPU available
+		import tensorflow as tf
+		with TaskWrapper("Checking GPU availability...") as gpu_test:
+			if not tf.config.list_physical_devices('GPU'):
+				gpu_test.fail()
+
+		# Finish logging settings after importing tensorflow
+		if debug:
+			tf.get_logger().setLevel("INFO")
+		else:
+			tf.get_logger().setLevel("ERROR")
 
 		# Configure datasets (input)
 		self.configure_datasets()

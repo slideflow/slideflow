@@ -5,10 +5,6 @@
 # Written by James Dolezal <jamesmdolezal@gmail.com>, September 2019
 # ==========================================================================
 
-# Update 3/2/2019: Beginning tf.data implementation
-# Update 5/29/2019: Supports both loose image tiles and TFRecords, 
-#   annotations supplied by separate annotation file upon initial model call
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -25,7 +21,6 @@ import numpy as np
 import tensorflow as tf
 
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
-
 from functools import partial
 from slideflow.util import log
 from slideflow.io.tfrecords import detect_tfrecord_format, get_tfrecord_parser, TFRecordsError
