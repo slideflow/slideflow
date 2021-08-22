@@ -167,7 +167,7 @@ def activations_generator(project_config, model, outcome_label_headers=None, lay
 def evaluator(outcome_label_headers, model, project_config, results_dict, input_header=None, filters=None, 
 				hyperparameters=None, checkpoint=None, eval_k_fold=None, max_tiles_per_slide=0,
 				min_tiles_per_slide=0, normalizer=None, normalizer_source=None, flags=None,
-				permutation_importance=False):
+				permutation_importance=False, histogram=False, save_predictions=False):
 
 	'''Internal function to execute model evaluation process.'''
 
@@ -199,6 +199,7 @@ def evaluator(outcome_label_headers, model, project_config, results_dict, input_
 						   annotations=project_config['annotations'],
 						   filters=filters,
 						   filter_blank=filter_blank)
+
 	if hp.model_type() == 'categorical':
 		outcome_label_to_int = {o: {v: int(k) for k, v in hp_data['outcome_labels'][o].items()} for o in hp_data['outcome_labels']}
 	else:
@@ -343,7 +344,9 @@ def evaluator(outcome_label_headers, model, project_config, results_dict, input_
 						   batch_size=flags['eval_batch_size'],
 						   max_tiles_per_slide=max_tiles_per_slide,
 						   min_tiles_per_slide=min_tiles_per_slide, 
-						   permutation_importance=permutation_importance)
+						   permutation_importance=permutation_importance,
+						   histogram=histogram,
+						   save_predictions=save_predictions)
 
 	# Load results into multiprocessing dictionary
 	results_dict['results'] = results

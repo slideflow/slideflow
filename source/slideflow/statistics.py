@@ -1076,7 +1076,7 @@ def gen_metrics_from_predictions(y_true,
 								 data_dir=None,
 								 verbose=True,
 								 save_predictions=True,
-								 histogram=True,
+								 histogram=False,
 								 plot=True):
 	'''
 		For multiple outcomes, y_true and y_pred are expected to be a list of numpy arrays (each numpy array corresponding to whole-dataset predictions for a single outcome)
@@ -1283,7 +1283,7 @@ def gen_metrics_from_dataset(model,
 							 min_tiles_per_slide=0,
 							 data_dir=None,
 							 num_tiles=0,
-							 histogram=True,
+							 histogram=False,
 							 verbose=True,
 							 save_predictions=True):
 

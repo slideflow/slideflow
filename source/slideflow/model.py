@@ -926,7 +926,8 @@ class SlideflowModel:
 		return toplayer_model.history
 
 	def evaluate(self, tfrecords, hp=None, model=None, model_type='categorical', checkpoint=None, batch_size=None, 
-					max_tiles_per_slide=0, min_tiles_per_slide=0, multi_image=False, permutation_importance=False):
+					max_tiles_per_slide=0, min_tiles_per_slide=0, multi_image=False, permutation_importance=False, 
+					histogram=False, save_predictions=False):
 		'''Evaluate model.
 
 		Args:
@@ -998,7 +999,9 @@ class SlideflowModel:
 																		label="eval",
 																		data_dir=self.DATA_DIR,
 																		num_tiles=num_tiles,
-																		verbose=True)
+																		histogram=histogram,
+																		verbose=True,
+																		save_predictions=save_predictions)
 
 		if model_type == 'categorical':
 			log.info(f"Tile AUC: {auc['tile']}", 1)

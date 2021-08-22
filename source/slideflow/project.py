@@ -441,7 +441,8 @@ class SlideflowProject:
     
 	def evaluate(self, model, outcome_label_headers, hyperparameters=None, filters=None, checkpoint=None,
 					eval_k_fold=None, max_tiles_per_slide=0, min_tiles_per_slide=0, normalizer=None,
-					normalizer_source=None, input_header=None, permutation_importance=False):
+					normalizer_source=None, input_header=None, permutation_importance=False, histogram=True, 
+					save_predictions=False):
 		'''Evaluates a saved model on a given set of tfrecords.
 		
 		Args:
@@ -470,7 +471,7 @@ class SlideflowProject:
 		
 		process = ctx.Process(target=project_utils.evaluator, args=(outcome_label_headers, model, self.PROJECT, results_dict, input_header, filters, hyperparameters, 
 														checkpoint, eval_k_fold, max_tiles_per_slide, min_tiles_per_slide, normalizer, normalizer_source,
-														self.FLAGS, permutation_importance))
+														self.FLAGS, permutation_importance, histogram, save_predictions))
 		process.start()
 		log.empty(f"Spawning evaluation process (PID: {process.pid})")
 		process.join()
