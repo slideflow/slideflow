@@ -30,9 +30,10 @@ from slideflow.mosaic import Mosaic
 #TODO: unify slideflow model loading, even straight from directory, into a SlideflowModel file, which
 # 		will auto-handle finding the hyperparameters.json file, etc
 #TODO: put tfrecord report in tfrecord directories
-#DONE: put hyperparameters file in model folder
 #TODO: either fix or deprecate dual tile extraction
-#TODO: Fix (and test) multiple slides per patient
+#TODO: [urgent] fix model evaluation: should detect category assignments from hyperparameter file
+#DONE: put hyperparameters file in model folder
+#DONE: Fix (and test) multiple slides per patient
 
 __version__ = "1.11.0-dev5"
 

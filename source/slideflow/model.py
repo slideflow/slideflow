@@ -35,6 +35,8 @@ import slideflow.util as sfutil
 from slideflow.util import StainNormalizer
 import slideflow.statistics as sfstats
 
+# TODO: Progress bar for interleaving tfrecords
+
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
 NO_BALANCE = 'NO_BALANCE'
@@ -705,11 +707,14 @@ class SlideflowModel:
 		prob_weights = None
 		base_parser = None
 		detected_format = None
+		num_tfrecords_empty = 0
+		num_tfrecords_less_than_min = 0
 		
 		if tfrecords == []:
 			raise ModelError("No TFRecords found.")
 
 		if self.MANIFEST:
+			pb = sfutil.ProgressBar(len(tfrecords), counter_text='files', leadtext="Interleaving tfrecords... ")
 			for filename in tfrecords:
 				slide_name = sfutil.path_to_name(filename)
 				
@@ -725,10 +730,10 @@ class SlideflowModel:
 				
 				# Ensure TFRecord has minimum number of tiles; otherwise, skip
 				if not min_tiles and tiles == 0:
-					log.info(f"Skipping empty tfrecord {sfutil.green(slide_name)}", 2)
+					num_tfrecords_empty += 1
 					continue
 				elif tiles < min_tiles:
-					log.info(f"Skipping tfrecord {sfutil.green(slide_name)}; has {tiles} tiles (minimum: {min_tiles})", 2)
+					num_tfrecords_less_than_min
 					continue
 				
 				# Get the base TFRecord parser, based on the first tfrecord
@@ -754,7 +759,7 @@ class SlideflowModel:
 				else:
 					category = 1
 				
-				datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=tf.data.AUTOTUNE)]
+				datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=16)]
 				datasets_categories += [category]
 
 				# Cap number of tiles to take from TFRecord at maximum specified
@@ -769,6 +774,12 @@ class SlideflowModel:
 					categories[category]['num_slides'] += 1
 					categories[category]['num_tiles'] += tiles
 				num_tiles += [tiles]
+				pb.increase_bar_value()
+			pb.end()
+
+			if num_tfrecords_empty or num_tfrecords_less_than_min:
+				log.info(f"Skipped {num_tfrecords_empty} empty tfrecords", 2)
+				log.info(f"Skipped {num_tfrecords_less_than_min} tfrecords with less than {min_tiles} tiles", 2)
 
 			for category in categories:
 				lowest_category_slide_count = min([categories[i]['num_slides'] for i in categories])
@@ -778,10 +789,10 @@ class SlideflowModel:
 
 			# Balancing
 			if balance == NO_BALANCE:
-				log.empty(f"Not balancing input", 2)
+				log.info(f"Not balancing input", 2)
 				prob_weights = [i/sum(num_tiles) for i in num_tiles]
 			if balance == BALANCE_BY_PATIENT:
-				log.empty(f"Balancing input across slides", 2)
+				log.info(f"Balancing input across slides", 2)
 				prob_weights = [1.0] * len(datasets)
 				if finite:
 					# Only take as many tiles as the number of tiles in the smallest dataset
@@ -789,14 +800,14 @@ class SlideflowModel:
 					for i in range(len(datasets)):
 						num_tiles[i] = minimum_tiles
 			if balance == BALANCE_BY_CATEGORY:
-				log.empty(f"Balancing input across categories", 2)
+				log.info(f"Balancing input across categories", 2)
 				prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
 				if finite:
 					# Only take as many tiles as the number of tiles in the smallest category
 					for i in range(len(datasets)):
 						num_tiles[i] = int(num_tiles[i] * categories_tile_fraction[datasets_categories[i]])
-						log.empty(f"Tile fraction (dataset {i+1}/{len(datasets)}): {categories_tile_fraction[datasets_categories[i]]}, taking {num_tiles[i]}", 2)
-					log.empty(f"Global num tiles: {global_num_tiles}", 2)
+						log.empty(f"Tile fraction (dataset {i+1}/{len(datasets)}): {categories_tile_fraction[datasets_categories[i]]}, taking {num_tiles[i]}", 3)
+					log.empty(f"Global num tiles: {global_num_tiles}", 3)
 			
 			# Take the calculcated number of tiles from each dataset and calculate global number of tiles
 			for i in range(len(datasets)):
@@ -806,28 +817,28 @@ class SlideflowModel:
 			global_num_tiles = sum(num_tiles)
 
 		else:
-			log.error("No manifest detected!! Unable to perform tfrecord balancing or any tile-level selection operations (min or max tiles per slide)", 1)
+			log.error("No manifest detected! Unable to perform tfrecord balancing or any tile-level selection operations (min or max tiles per slide)", 1)
 			for filename in tfrecords:
 				slide_name = sfutil.path_to_name(filename)
 				
 				if slide_name not in self.SLIDES:
 					continue
 
-				datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=tf.data.AUTOTUNE)]
+				datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=16)]
 
 		# Interleave and batch datasets
 		try:
 			sampled_dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
 			dataset = self._get_parsed_datasets(sampled_dataset, base_parser, include_slidenames=False)			
 			dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
-			dataset = dataset.prefetch(tf.data.AUTOTUNE)
+			#dataset = dataset.prefetch(tf.data.AUTOTUNE)
 		except IndexError:
 			raise ModelError("No TFRecords found after filter criteria; please ensure all tiles have been extracted and all TFRecords are in the appropriate folder")
 
 		if include_slidenames:
 			dataset_with_slidenames = self._get_parsed_datasets(sampled_dataset, base_parser, include_slidenames=True)
 			dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
-			dataset_with_slidenames = dataset_with_slidenames.prefetch(tf.data.AUTOTUNE)
+			#dataset_with_slidenames = dataset_with_slidenames.prefetch(tf.data.AUTOTUNE)
 
 		else:
 			dataset_with_slidenames = None
@@ -837,11 +848,11 @@ class SlideflowModel:
 	def _get_parsed_datasets(self, tfrecord_dataset, base_parser, include_slidenames=False):
 		if include_slidenames:
 			training_parser_with_slidenames = partial(self._parse_tfrecord_function, base_parser=base_parser, include_slidenames=True)
-			dataset_with_slidenames = tfrecord_dataset.map(training_parser_with_slidenames, num_parallel_calls=tf.data.AUTOTUNE)
+			dataset_with_slidenames = tfrecord_dataset.map(training_parser_with_slidenames, num_parallel_calls=32)#tf.data.AUTOTUNE)
 			return dataset_with_slidenames
 		else:
 			training_parser = partial(self._parse_tfrecord_function, base_parser=base_parser, include_slidenames=False)
-			dataset = tfrecord_dataset.map(training_parser, num_parallel_calls=tf.data.AUTOTUNE)
+			dataset = tfrecord_dataset.map(training_parser, num_parallel_calls=32)#tf.data.AUTOTUNE)
 			return dataset
 
 	def _parse_tfrecord_function(self, record, base_parser, include_slidenames=True, multi_image=False):
