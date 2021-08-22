@@ -499,7 +499,7 @@ class SlideflowModel:
 					pretrained_output = pretrained_model.get_layer(name="post_convolution").output 
 					base_model = tf.keras.Model(inputs=pretrained_input, 
 												outputs=pretrained_output, 
-												name=f"pretrained_{pretrained_name}")
+												name=f"pretrained_{pretrained_name}").layers[1]
 				except ValueError:
 					log.warn("Unable to read pretrained model using modern format, will try legacy model format", 1)
 					pretrain_model_format = MODEL_FORMAT_LEGACY
@@ -522,7 +522,8 @@ class SlideflowModel:
 			# Per Jakob's models, all but last 10, 20, or 30 layers were frozen. His last three layers were a 1000-node fully connected layer (eqv. to our hidden layers), 
 			# then softmax, then classification. It looks like we don't add a classification layer on though, I don't see it added anywhere.
 			# I see below that we add on the hidden layer and softmax layer, so I am freezing (10-2=8) only, since when we add the last layers on it will add up to 10, 20, 30
-			freezeIndex = int(len(base_model.layers) - (hp.trainable_layers - hp.hidden_layers - 1))
+			freezeIndex = int(len(base_model.layers) - (hp.trainable_layers - 1 ))# - hp.hidden_layers - 1))
+			log.info(f"Only training on last {hp.trainable_layers} layers (of {len(base_model.layers)} total layers)", 2)
 			for layer in base_model.layers[:freezeIndex]:
 				layer.trainable = False
 
