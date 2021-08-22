@@ -25,11 +25,8 @@ def update_models(root):
 			model_folders = [mf for mf in os.listdir(join(project_folder, 'models')) if isdir(join(project_folder, 'models', mf))]
 			for model_folder in model_folders:
 				full_model_folder = join(project_folder, 'models', model_folder)
-
-				try:
-					with open(join(full_model_folder, 'hyperparameters.json'), 'r') as hp_file:
-						hyperparameters = json.load(hp_file)
-				except FileNotFoundError:
+				hyperparameters = sfutil.load_model_hyperparameters(full_model_folder)
+				if hyperparameters is None:
 					print(f"Unable to find hyperparameters file for model {folder} > {model_folder}, skipping")
 					continue
 

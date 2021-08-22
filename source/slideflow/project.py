@@ -29,7 +29,7 @@ import slideflow.io as sfio
 from slideflow import project_utils
 from slideflow.io import Dataset
 from slideflow.statistics import TFRecordMap, calculate_centroid
-from slideflow.util import TCGA, ProgressBar, log, StainNormalizer
+from slideflow.util import TCGA, ProgressBar, load_model_hyperparameters, log, StainNormalizer
 
 NO_LABEL = 'no_label'
 SILENT = 'SILENT'
@@ -38,7 +38,6 @@ logging.getLogger("tensorflow").setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 DEFAULT_FLAGS = {
-	'skip_verification': False,
 	'eval_batch_size': 64,
 	'num_threads': 4,
 	'logging_levels': {
@@ -1129,7 +1128,7 @@ class SlideflowProject:
 		log.header("Generating heatmaps...")
 
 		# Prepare dataset
-		hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
+		hp_data = sfutil.load_model_hyperparameters(model)
 		heatmaps_dataset = self.get_dataset(filters=filters,
 											filter_blank=filter_blank,
 											tile_px=hp_data['hp']['tile_px'],
@@ -1138,12 +1137,10 @@ class SlideflowProject:
 		roi_list = heatmaps_dataset.get_rois()
 
 		# Attempt to auto-detect supplied model name
-		detected_model_name = sfutil.path_to_name(model)
-		hp_file = join(*model.split('/')[:-1], 'hyperparameters.json')
-		if exists(hp_file):
-			loaded_hp = sfutil.load_json(hp_file)
-			if 'model_name' in loaded_hp:
-				detected_model_name = loaded_hp['model_name']
+		detected_model_name = os.path.basename(model)
+		hp_data = sfutil.load_model_hyperparameters(model)
+		if hp_data and 'model_name' in hp_data:
+			detected_model_name = hp_data['model_name']
 		
 		# Make output directory
 		heatmaps_folder = directory if directory else os.path.join(self.PROJECT['root'], 'heatmaps', detected_model_name)
@@ -1233,7 +1230,7 @@ class SlideflowProject:
 			umap_cache = join(stats_root, umap_cache)
 
 		# Prepare dataset & model
-		hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
+		hp_data = sfutil.load_model_hyperparameters(model)
 		mosaic_dataset = self.get_dataset(filters=filters,
 										  filter_blank=filter_blank,
 										  tile_px=hp_data['hp']['tile_px'],
@@ -1255,11 +1252,11 @@ class SlideflowProject:
 
 		# If showing predictions, try to automatically load prediction labels
 		if (show_prediction is not None) and (not use_float) and (not label_names):
-			if exists(join(dirname(model), 'hyperparameters.json')):
-				model_hyperparameters = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
-				outcome_labels = model_hyperparameters['outcome_labels']
-				model_type = model_type if model_type else model_hyperparameters['model_type']
-				log.info(f'Automatically loaded prediction labels found at {sfutil.green(dirname(model))}', 1)
+			model_hp = sfutil.load_model_hyperparameters(model)
+			if model_hp:
+				outcome_labels = model_hp['outcome_labels']
+				model_type = model_type if model_type else model_hp['model_type']
+				log.info(f'Automatically loaded prediction labels found at {sfutil.green(model)}', 1)
 			else:
 				log.info(f'Unable to auto-detect prediction labels from model hyperparameters file', 1)
 				
@@ -1915,7 +1912,7 @@ class SlideflowProject:
 		if model is not None:
 			# First, ensure the model is valid with a hyperparameters file
 			try:
-				hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
+				hp_data = sfutil.load_model_hyperparameters(model)
 				tile_px = hp_data['tile_px']
 				tile_um = hp_data['tile_um']
 			except FileNotFoundError:
@@ -2328,7 +2325,7 @@ class SlideflowProject:
 		'''
 		from slideflow.activations import TileVisualizer
 
-		hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
+		hp_data = sfutil.load_model_hyperparameters(model)
 		tile_px = hp_data['hp']['tile_px']
 		TV = TileVisualizer(model=model, 
 							node=node,

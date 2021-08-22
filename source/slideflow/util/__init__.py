@@ -10,7 +10,7 @@ import threading
 import cv2
 
 from glob import glob
-from os.path import join, isdir, exists
+from os.path import join, isdir, exists, dirname
 from PIL import Image
 import multiprocessing as mp
 import numpy as np
@@ -532,6 +532,16 @@ def write_json(data, filename):
 	'''Writes data to JSON file.'''
 	with open(filename, "w") as data_file:
 		json.dump(data, data_file, indent=1)
+
+def load_model_hyperparameters(model_path):
+	if exists(join(model_path, 'hyperparameters.json')):
+		return load_json(join(model_path, 'hyperparameters.json'))
+	elif exists(join(dirname(model_path), 'hyperparameters.json')):
+		log.warn("Hyperparameters file not found in model directory; loading from parent directory. Please move hyperparameters.json into model folder.")
+		return load_json(join(dirname(model_path), 'hyperparameters.json'))
+	else:
+		log.warn("Hyperparameters file not found.")
+		return None
 
 def get_slide_paths(slides_dir):
 	'''Get all slide paths from a given directory containing slides.'''

@@ -1,6 +1,6 @@
 import os
 import sys
-from os.path import join, exists, dirname
+from os.path import join, exists, dirname, basename
 import slideflow.util as sfutil
 import slideflow.io as sfio
 
@@ -123,7 +123,7 @@ def activations_generator(project_config, model, outcome_label_headers=None, lay
 		if not exists(stats_root): os.makedirs(stats_root)
 
 		# Load dataset for evaluation
-		hp_data = sfutil.load_json(join(dirname(model), 'hyperparameters.json'))
+		hp_data = sfutil.load_model_hyperparameters(model)
 		activations_dataset = Dataset(config_file=project_config['dataset_config'],
 										sources=project_config['datasets'],
 										tile_px=hp_data['hp']['tile_px'],
@@ -175,15 +175,16 @@ def evaluator(outcome_label_headers, model, project_config, results_dict, input_
 	from slideflow.statistics import to_onehot
 	if not flags: flags = DEFAULT_FLAGS
 
-	model_root = dirname(model)
 	log.configure(filename=join(project_config['root'], "log.log"), levels=flags['logging_levels'])
 
 	# Load hyperparameters from saved model
-	hp_file = hyperparameters if hyperparameters else join(model_root, 'hyperparameters.json')
-	hp_data = sfutil.load_json(hp_file)
+	if hyperparameters:
+		hp_data = sfutil.load_json(hyperparameters)
+	else:
+		hp_data = sfutil.load_model_hyperparameters(model)
 	hp = sfmodel.HyperParameters()
 	hp._load_dict(hp_data['hp'])
-	model_name = f"eval-{hp_data['model_name']}-{sfutil.path_to_name(model)}"
+	model_name = f"eval-{hp_data['model_name']}-{basename(model)}"
 
 	# Filter out slides that are blank in the outcome label, or blank in any of the input_header categories
 	filter_blank = [outcome_label_headers] if not isinstance(outcome_label_headers, list) else outcome_label_headers
@@ -373,7 +374,7 @@ def heatmap_generator(slide, model_path, save_folder, roi_list, show_roi, roi_me
 		log.empty(f"Skipping already-completed heatmap for slide {sfutil.path_to_name(slide)}", 1)
 		return
 
-	hp_data = sfutil.load_json(join(dirname(model_path), 'hyperparameters.json'))
+	hp_data = sfutil.load_model_hyperparameters(model_path)
 
 	heatmap = Heatmap(slide,
 					  model_path,
@@ -602,6 +603,7 @@ def trainer(outcome_label_headers, model_name, project_config, results_dict, hp,
 
 	# Log model settings and hyperparameters
 	hp_file = join(project_config['models_dir'], full_model_name, 'hyperparameters.json')
+	
 	hp_data = {
 		"model_name": model_name,
 		"stage": "training",
