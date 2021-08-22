@@ -772,8 +772,9 @@ class SlideflowModel:
 				pb.increase_bar_value()
 			pb.end()
 
-			if num_tfrecords_empty or num_tfrecords_less_than_min:
+			if num_tfrecords_empty:
 				log.info(f"Skipped {num_tfrecords_empty} empty tfrecords", 2)
+			if num_tfrecords_less_than_min:
 				log.info(f"Skipped {num_tfrecords_less_than_min} tfrecords with less than {min_tiles} tiles", 2)
 
 			for category in categories:
@@ -990,18 +991,18 @@ class SlideflowModel:
 																			 feature_sizes=self.FEATURE_SIZES,
 																			 drop_images=((hp.tile_px==0) or hp.drop_images))
 		else:
-			auc, r_squared, c_index = sfstats.gen_metrics_from_dataset(self.model,
-																		model_type=model_type,
-																		annotations=self.SLIDE_ANNOTATIONS, 
-																		manifest=self.MANIFEST,
-																		dataset=dataset_with_slidenames,
-																		outcome_names=self.OUTCOME_NAMES,
-																		label="eval",
-																		data_dir=self.DATA_DIR,
-																		num_tiles=num_tiles,
-																		histogram=histogram,
-																		verbose=True,
-																		save_predictions=save_predictions)
+			auc, r_squared, c_index = sfstats.metrics_from_dataset(self.model,
+																   model_type=model_type,
+																   annotations=self.SLIDE_ANNOTATIONS, 
+																   manifest=self.MANIFEST,
+																   dataset=dataset_with_slidenames,
+																   outcome_names=self.OUTCOME_NAMES,
+																   label="eval",
+																   data_dir=self.DATA_DIR,
+																   num_tiles=num_tiles,
+																   histogram=histogram,
+																   verbose=True,
+																   save_predictions=save_predictions)
 
 		if model_type == 'categorical':
 			log.info(f"Tile AUC: {auc['tile']}", 1)
@@ -1238,18 +1239,18 @@ class SlideflowModel:
 				epoch = self.epoch_count
 				epoch_label = f"val_epoch{epoch}"
 				if not skip_metrics:
-					auc, r_squared, c_index = sfstats.gen_metrics_from_dataset(self.model,
-																				model_type=hp.model_type(),
-																				annotations=parent.SLIDE_ANNOTATIONS,
-																				manifest=parent.MANIFEST,
-																				dataset=validation_data_with_slidenames,
-																				outcome_names=parent.OUTCOME_NAMES,
-																				label=epoch_label,
-																				data_dir=parent.DATA_DIR,
-																				num_tiles=num_val_tiles,
-																				histogram=False,
-																				verbose=True,
-																				save_predictions=save_predictions)
+					auc, r_squared, c_index = sfstats.metrics_from_dataset(self.model,
+																		   model_type=hp.model_type(),
+																		   annotations=parent.SLIDE_ANNOTATIONS,
+																		   manifest=parent.MANIFEST,
+																		   dataset=validation_data_with_slidenames,
+																		   outcome_names=parent.OUTCOME_NAMES,
+																		   label=epoch_label,
+																		   data_dir=parent.DATA_DIR,
+																		   num_tiles=num_val_tiles,
+																		   histogram=False,
+																		   verbose=True,
+																		   save_predictions=save_predictions)
 
 				val_metrics = self.model.evaluate(validation_data, verbose=0, return_dict=True)
 				log.info(f"Validation metrics:", 1)
