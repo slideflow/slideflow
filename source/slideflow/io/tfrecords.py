@@ -373,7 +373,7 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True, preserve
 		return list(split(patient_list, n))
 
 def get_training_and_validation_tfrecords(dataset, validation_log, model_type, slide_labels_dict, outcome_key, validation_target, validation_strategy, 
-											validation_fraction, validation_k_fold=None, k_fold_iter=None, read_only=False):
+											validation_fraction=None, validation_k_fold=None, k_fold_iter=None, read_only=False):
 	'''From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
 	If a validation plan has already been prepared (e.g. K-fold iterations were already determined), the previously generated plan will be used.
 	Otherwise, create a new plan and log the result in the TFRecord directory so future models may use the same plan for consistency.
@@ -391,7 +391,7 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 										}
 		outcome_key:			Key indicating outcome variable in slide_labels_dict
 		model_type:				Either 'categorical' or 'linear'
-		validation_target:		Either 'per-slide' or 'per-tile'
+		validation_target:		Either 'per-patient' or 'per-tile'
 		validation_strategy:	Either 'k-fold', 'k-fold-preserved-site', 'bootstrap', or 'fixed'.
 		validation_fraction:	Float, proportion of data for validation. Not used if strategy is k-fold.
 		validation_k_fold:		K, if using K-fold validation.
@@ -713,20 +713,6 @@ def get_tfrecord_by_index(tfrecord, index, decode=True):
 
 	log.error(f"Unable to find record at index {index} in {sfutil.green(tfrecord)} ({total} total records)", 1)
 	return False, False
-
-def get_tfrecords_from_model_manifest(manifest, dataset='validation'):
-	slides = []
-	with open(manifest, 'r') as manifest_file:
-		reader = csv.reader(manifest_file)
-		header = next(reader)
-		dataset_index = header.index('dataset')
-		slide_index = header.index('slide')
-		for row in reader:
-			dataset_name = row[dataset_index]
-			slide_name = row[slide_index]
-			if dataset_name == dataset or not dataset:
-				slides += [slide_name]
-	return slides
 
 def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION, feature_label='image_raw'):
 	'''Reads and saves images from a TFRecord to a destination folder.'''

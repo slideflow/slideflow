@@ -19,9 +19,7 @@ if __name__=='__main__':
 		os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
 		print("Set environmental variable 'HDF5_USE_FILE_LOCKING'='FALSE'")
 
-	SFP = sf.SlideflowProject(args.project, gpu=args.gpu, gpu_pool=args.gpu_pool)
-
-	SFP.FLAGS['num_threads'] = args.threads
+	SFP = sf.SlideflowProject(args.project, gpu=args.gpu, gpu_pool=args.gpu_pool, num_threads=args.threads)
 
 	sys.path.insert(0, args.project)
 	try:

@@ -3,20 +3,25 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Slideflow Documentation &mdash; slideflow 1.9.1 documentation</title>
+  <title>Slideflow Documentation &mdash; slideflow 1.11.0 documentation</title>
   
 
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
 
   
   
+
   
+  
+
   
 
   
@@ -26,10 +31,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
-        <script src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -50,7 +55,7 @@
           
 
           
-            <a href="#" class="icon icon-home" alt="Documentation Home"> slideflow
+            <a href="#" class="icon icon-home"> slideflow
           
 
           
@@ -60,7 +65,7 @@
             
             
               <div class="version">
-                1.9
+                1.11
               </div>
             
           
@@ -85,7 +90,7 @@
               
             
             
-              <p class="caption"><span class="caption-text">Contents:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="index.html">Introduction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
@@ -137,6 +142,8 @@
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -148,7 +155,7 @@
     
       <li class="wy-breadcrumbs-aside">
         
-            
+          
             <a href="_sources/root.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -165,7 +172,7 @@
   <div class="section" id="slideflow-documentation">
 <h1>Slideflow Documentation<a class="headerlink" href="#slideflow-documentation" title="Permalink to this headline">¶</a></h1>
 <div class="toctree-wrapper compound">
-<p class="caption"><span class="caption-text">Contents:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="index.html">Introduction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a><ul>
@@ -186,22 +193,28 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="validation.html#configuring-a-validation-plan">Configuring a validation plan</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="validation.html#validation-target">validation_target</a></li>
-<li class="toctree-l3"><a class="reference internal" href="validation.html#validation-strategy">validation_strategy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="validation.html#validation-target">Validation target</a></li>
+<li class="toctree-l3"><a class="reference internal" href="validation.html#validation-strategy">Validation strategy</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="validation.html#selecting-an-evaluation-cohort">Selecting an evaluation cohort</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="extract_tiles.html#rois">ROIs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="extract_tiles.html#normalization">Normalization</a></li>
 <li class="toctree-l2"><a class="reference internal" href="extract_tiles.html#whitespace-grayspace-filtering">Whitespace/grayspace filtering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extract_tiles.html#performance-optimization">Performance optimization</a></li>
 <li class="toctree-l2"><a class="reference internal" href="extract_tiles.html#extraction-reports">Extraction reports</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="training.html#prepare-hyperparameters">Prepare hyperparameters</a></li>
 <li class="toctree-l2"><a class="reference internal" href="training.html#begin-training">Begin training</a></li>
+<li class="toctree-l2"><a class="reference internal" href="training.html#multiple-outcomes">Multiple outcomes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="training.html#multiple-input-variables">Multiple input variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="training.html#cox-proportional-hazards-cph-models">Cox Proportional Hazards (CPH) models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="training.html#distributed-training-across-gpus">Distributed training across GPUs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="training.html#monitoring-performance">Monitoring performance</a></li>
 </ul>
 </li>
@@ -222,13 +235,14 @@
 <li class="toctree-l1"><a class="reference internal" href="slideflow.html">Source</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="slideflow.html#slideflowproject">SlideflowProject</a></li>
 <li class="toctree-l2"><a class="reference internal" href="slideflow.html#module-slideflow.activations">activations</a></li>
-<li class="toctree-l2"><a class="reference internal" href="slideflow.html#io-datasets">io.datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.html#module-slideflow.io">io</a></li>
 <li class="toctree-l2"><a class="reference internal" href="slideflow.html#module-slideflow.io.tfrecords">io.tfrecords</a></li>
 <li class="toctree-l2"><a class="reference internal" href="slideflow.html#module-slideflow.model">model</a></li>
 <li class="toctree-l2"><a class="reference internal" href="slideflow.html#module-slideflow.slide">slide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="slideflow.html#module-slideflow.mosaic">mosaic</a></li>
 <li class="toctree-l2"><a class="reference internal" href="slideflow.html#module-slideflow.statistics">statistics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="slideflow.html#module-slideflow.util">util</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slideflow.html#module-slideflow.experimental">experimental</a></li>
 </ul>
 </li>
 </ul>
@@ -248,35 +262,28 @@
            
           </div>
           <footer>
-  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="index.html" class="btn btn-neutral float-right" title="Introduction" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
+        <a href="index.html" class="btn btn-neutral float-right" title="Introduction" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        
-        &copy; Copyright 2020, James M Dolezal
+        &#169; Copyright 2021, James M Dolezal.
 
     </p>
   </div>
     
     
     
-    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
     
     provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 

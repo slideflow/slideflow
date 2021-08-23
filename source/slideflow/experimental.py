@@ -1,12 +1,12 @@
 import os
-import shuffle
 from io import BytesIO
 from PIL import Image
 from os.path import exists, join
-
+from random import shuffle
 from functools import partial
 from multiprocessing.dummy import Pool as DPool
 from slideflow.util import log, ProgressBar
+import slideflow.io as sfio
 import slideflow.util as sfutil
 
 def extract_dual_tiles(project, tile_um, tile_px, stride_div=1, filters=None, 
@@ -62,7 +62,7 @@ def extract_dual_tiles(project, tile_um, tile_px, stride_div=1, filters=None,
                 tf_example = sfio.tfrecords.multi_image_example(label, image_string_dict)
                 writer.write(tf_example.SerializeToString())
 
-    for dataset_name in project.PROJECT['datasets']:
+    for dataset_name in project.datasets:
         log.empty(f"Working on dataset {sfutil.bold(dataset_name)}", 1)
         slide_list = extracting_dataset.get_slide_paths(dataset=dataset_name)
         roi_list = extracting_dataset.get_rois()
@@ -71,8 +71,8 @@ def extract_dual_tiles(project, tile_um, tile_px, stride_div=1, filters=None,
         pb = ProgressBar(bar_length=5, counter_text='tiles')
         pb.auto_refresh()
 
-        if project.FLAGS['num_threads'] > 1:
-            pool = DPool(project.FLAGS['num_threads'])
+        if project.num_threads > 1:
+            pool = DPool(project.num_threads)
             pool.map(partial(extract_tiles_from_slide, 
                                 roi_list=roi_list, 
                                 dataset_config=dataset_config, 

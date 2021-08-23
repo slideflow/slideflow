@@ -1,4 +1,5 @@
 import os
+import types
 
 # internal imports
 from slideflow.clam.utils.file_utils import save_pkl
@@ -15,6 +16,42 @@ import torch.nn.functional as F
 
 import pandas as pd
 import numpy as np
+
+def get_args(**kwargs):
+	args_dict = {
+		'num_splits': 1,
+		'k': 1,
+		'k_start': -1,
+		'k_end': -1,
+		'max_epochs': 20,
+		'lr': 1e-4,
+		'reg': 1e-5,
+		'label_frac': 1,
+		'bag_loss': 'ce',
+		'bag_weight': 0.7,
+		'model_type': 'clam_sb',
+		'model_size': None,
+		'use_drop_out': False,
+		'drop_out': False,
+		'weighted_sample': False,
+		'opt': 'adam',
+		'inst_loss': None,
+		'no_inst_cluster': False,
+		'B': 8,								 
+		'log_data': False,
+		'testing': False,
+		'early_stopping': False,
+		'subtyping': False,
+		'seed': 1,
+		'results_dir': None,
+		'n_classes': None,
+		'split_dir': None,
+		'data_root_dir': None
+	}
+	for k in kwargs:
+		args_dict[k] = kwargs[k]
+	args = types.SimpleNamespace(**args_dict)
+	return args
 
 def detect_num_features(path_to_pt):
     features = torch.load(path_to_pt)

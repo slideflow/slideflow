@@ -4,7 +4,7 @@ Source
 SlideflowProject
 ****************
 
-.. autoclass:: slideflow.SlideflowProject
+.. autoclass:: slideflow.project.SlideflowProject
 	:members:
 
 activations
@@ -13,10 +13,10 @@ activations
 .. automodule:: slideflow.activations
 	:members:
 
-io.datasets
-***********
+io
+**
 
-.. automodule:: slideflow.io.datasets
+.. automodule:: slideflow.io
 	:members:
 
 io.tfrecords
@@ -53,4 +53,10 @@ util
 ****
 
 .. automodule:: slideflow.util
+	:members:
+
+experimental
+************
+
+.. automodule:: slideflow.experimental
 	:members:

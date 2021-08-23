@@ -390,7 +390,7 @@ class Dataset:
 		assigned_headers = {}
 		unique_labels = {}
 		for header in headers:
-			if assigned_labels and len(headers) > 1:
+			if assigned_labels and (len(headers) > 1 or header in assigned_labels):
 				assigned_labels_for_this_header = assigned_labels[header]
 			elif assigned_labels:
 				assigned_labels_for_this_header = assigned_labels

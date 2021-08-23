@@ -139,15 +139,17 @@ class ModelActivationsInterface:
 			self.num_features = self.model.output_shape[1]
 		log.info(f"Number of activation features: {self.num_features}", 2)
 
+	@tf.function
+	def _predict(self, inp):
+		return self.model(inp, training=False)
+
 	def predict(self, image_batch):
 		'''Given a batch of images, will return a batch of post-convolutional activations and a batch of logits.'''
-		# ======================
-		#return self.functor(image_batch)
-		# ======================
+
 		if self.duplicate_input:
-			return self.model.predict([image_batch, image_batch])
+			return self._predict([image_batch, image_batch])			
 		else:
-			return self.model.predict(image_batch)
+			return self._predict(image_batch)
 
 class HyperParameters:
 	'''Object to supervise construction of a set of hyperparameters for Slideflow models.'''
@@ -348,7 +350,7 @@ class SlideflowModel:
 	build a training and validation set model, and monitor and execute training.'''
 
 	def __init__(self, data_directory, image_size, slide_annotations, train_tfrecords, validation_tfrecords, 
-					manifest=None, use_fp16=True, model_type='categorical', normalizer=None, normalizer_source=None, 
+					manifest=None, mixed_precision=True, model_type='categorical', normalizer=None, normalizer_source=None, 
 					feature_sizes=None, feature_names=None, outcome_names=None):
 		'''Model initializer.
 
@@ -359,7 +361,7 @@ class SlideflowModel:
 			train_tfrecords:		List of tfrecord paths for training
 			validation_tfrecords:	List of tfrecord paths for validation
 			manifest:				Manifest dictionary mapping TFRecords to number of tiles
-			use_fp16:				Bool, if True, will use FP16 (rather than FP32)
+			mixed_precision:		Bool, if True, will use FP16 mixed precision (rather than FP32)
 			model_type:				Type of model outcome label, either 'categorical' or 'linear'
 			normalizer:				Tile image normalization to perform in real-time during training
 			normalizer_source:		Source image for normalization if being performed in real-time
@@ -367,7 +369,6 @@ class SlideflowModel:
 		self.DATA_DIR = data_directory
 		self.MANIFEST = manifest
 		self.IMAGE_SIZE = image_size
-		self.DTYPE = 'float16' if use_fp16 else 'float32'
 		self.SLIDE_ANNOTATIONS = slide_annotations
 		self.TRAIN_TFRECORDS = train_tfrecords
 		self.VALIDATION_TFRECORDS = validation_tfrecords
@@ -459,7 +460,7 @@ class SlideflowModel:
 			pretrain:	Either 'imagenet' or path to model to use as pretraining
 			checkpoint:	Path to checkpoint from which to resume model training
 		'''
-		if self.DTYPE == 'float16':
+		if self.mixed_precision:
 			log.info("Training with mixed precision", 1)
 			policy = tf.keras.mixed_precision.experimental.Policy('mixed_float16')
 			mixed_precision.set_policy(policy)
@@ -1047,7 +1048,7 @@ class SlideflowModel:
 				validate_on_batch=512, val_batch_size=32, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
 				ema_observations=20, ema_smoothing=2, steps_per_epoch_override=None, use_tensorboard=False, multi_gpu=False, save_predictions=False,
 				skip_metrics=False):
-		'''Train the model for a number of steps, according to flags set by the argument parser.
+		'''Train the model.
 		
 		Args:
 			hp:						HyperParameters object
@@ -1164,8 +1165,9 @@ class SlideflowModel:
 					# Try to copy model settings/hyperparameters file into the model folder
 					try:
 						shutil.copy(os.path.join(os.path.dirname(model_path), 'hyperparameters.json'), os.path.join(model_path, 'hyperparameters.json'), )
+						shutil.copy(os.path.join(os.path.dirname(model_path), 'slide_manifest.log'), os.path.join(model_path, 'slide_manifest.log'), )
 					except:
-						log.warning("Unable to copy model hyperparameters.json file into model directory.", 1)
+						log.warning("Unable to copy model hyperparameters.json & slide_manifest.log files into model directory.", 1)
 
 					log.complete(f"Trained model saved to {sfutil.green(model_path)}", 1)
 					if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):

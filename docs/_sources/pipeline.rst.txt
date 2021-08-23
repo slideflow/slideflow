@@ -5,18 +5,20 @@ Pipeline Overview
 
 The overall pipeline is separated into two phases and 6 steps. 
 
-The first phase - **Model Creation** - involves three steps: 1) labeling slides with regions of interest (ROIs), 2) tessellating and preparing image tiles from the slides, and 3) training a neural network model. 
+The first phase - **Model Creation** - involves three steps: 1) labeling slides with regions of interest (ROIs), 2) tessellating and preparing image tiles from the slides, and 3) training a model. 
 
-The second phase - **Model Assessment** - also involves three steps: 1) analytics describing model performance, including basic measures like percent accuracy as well as ROCs and scatter plots, 2) creating heatmap overlays for whole-slide images to visualize predictions, and 3) generating mosaic maps to visualize learned image features.
+The second phase - **Model Assessment** - also involves three steps: 1) analytics describing model performance, including basic measures like percent accuracy, ROCs, and scatter plots, 2) creating heatmap overlays for whole-slide images to visualize predictions, and 3) generating mosaic maps to visualize learned image features.
 
 A high-level overview of each of the six steps is provided below. We will examine execution of these steps in more detail in the following sections.
 
 Step 1: Create ROIs
 *******************
 
-1) **Label ROIs**. Using `QuPath <https://qupath.github.io/>`_, annotate whole-slide images with the Polygon tool. Then, click **Automate** -> **Show script editor**. In the box that comes up, click **File** -> **Open** and load the ``qupath_roi.groovy`` script. Press CTRL + R and wait for the script to finish.
+1) **Label ROIs** (optional). Using `QuPath <https://qupath.github.io/>`_, annotate whole-slide images with the Polygon tool. Then, click **Automate** -> **Show script editor**. In the box that comes up, click **File** -> **Open** and load the ``qupath_roi.groovy`` script. Press CTRL + R and wait for the script to finish.
 
-*You may choose to speed-up workflow by loading multiple SVS files into a QuPath project, and then running the script on the entire project using "Run for project."*	
+*You may choose to speed-up workflow by loading multiple SVS files into a QuPath project, and then running the script on the entire project using "Run for project."*
+
+*This step may be skipped if you are performing analysis on whole-slide images, rather than annotated tumor regions.*
 
 Step 2: Data Preparation
 ************************
@@ -29,26 +31,24 @@ Step 2: Data Preparation
 
 .. image:: dataset_assembly.png
 
-3) **Set aside final evaluation set**. After TFrecords have been saved, a certain number of slides should be set aside for final evaluation testing after training is complete. Slides may be "earmarked" for final evaluation by using an annotations file. Model performance should only be assessed on these slides once the final model is complete and no further training will be done, in order to reduce bias.
+3) **Set aside final evaluation set**. Using the project annotations CSV file, designate which slides should be saved for final evaluation.
 
-4) **Establish training and validation dataset**. A certain number of training slides should be set aside for validation testing during training. By default, the pipeline will recommend splitting your training data into thirds and training with three-fold cross-validation. Model performance on the left-out-third will help guide model fine-tuning.
+4) **Establish training and validation dataset**. By default, three-fold cross-validation will be performed during training. Many other validation strategies are also supported (:ref:`validation_planning`).
 
 Step 3: Model Training
 **********************
 
-5) **Choose hyperparameters**. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). One often does not know the best model architecture and hyperparameters to use for a given dataset; training will often need to occur across a variety of models and different combinations of hyperparameters in order to find the combination with the best performance. You may either choose to train a single model and hyperparameter set one at a time, or you can setup an automatic hyperparameter sweep to test many combinations at once. 
+5) **Choose hyperparameters**. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). This can be done explicitly one at a time, or an automatic hyperparameter sweep can be configured. 
 
-6) **Initiate training**. After the hyperparameters have been set up, training can commence. Train your model across all desired hyperparameters and select the best-performing hyperparameter combination for final evaluation testing.
+6) **Initiate training**. Train your model across all desired hyperparameters and select the best-performing hyperparameter combination for final evaluation testing.
 
 Step 4: Analytics
 *****************
-Validation testing is performed both during training - at specified intervals, or epochs - and after training has completed. Validation testing is used to assess model performance and anticipated generalizability. Various metrics are recorded in the project directory at these intervals to assist with model performance assessment, including:
+Validation testing is performed both during training - at specified epochs - and after training has completed. Various metrics are recorded in the project directory at these intervals to assist with model performance assessment, including:
 
-- **Training loss**
-- **Validation loss**
-- **Training accuracy** (for categorical outcomes)
-- **Validation accuracy** (for categorical outcomes)
-- **Tile-level, slide-level, and patient-level ROC and AUC** (for categorical outcomes)
+- **Training and validation loss**
+- **Training and validation accuracy** (for categorical outcomes)
+- **Tile-level, slide-level, and patient-level AUROC and AP** (for categorical outcomes)
 - **Tile-level, slide-level, and patient-level scatter plots with R-squared** (for continuous outcomes)
 - **Histograms of predictions** (for continuous outcomes)
 
@@ -60,8 +60,6 @@ In addition to the above metrics, performance of a trained model can be assessed
 	
 Step 6: Mosaic maps
 *******************
-Finally, learned image features can be visualized using dimensionality reduction on penultimate layer activations. 
-
-A set of image tiles is first provided to your trained model, which calculate *penultimate* layer activations (as opposed to final layer activations, or predictions). These penultimate layer activations represent image features and are plotted with dimensionality reduction (UMAP/t-SNE). Points on the plot are replaced with image tiles, generating a mosaic map.
+Finally, learned image features can be visualized using dimensionality reduction on model layer activations. A set of image tiles is first provided to your trained model, which calculates activations at a specified intermediate layer. Tile-level activations are then plotted with dimensionality reduction (UMAP/t-SNE), and points on the plot are replaced with image tiles, generating a mosaic map.
 
 .. image:: mosaic_example.png

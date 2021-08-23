@@ -533,7 +533,29 @@ def write_json(data, filename):
 	with open(filename, "w") as data_file:
 		json.dump(data, data_file, indent=1)
 
-def load_model_hyperparameters(model_path):
+def get_slides_from_model_manifest(model_path, dataset=None):
+	slides = []
+	if exists(join(model_path, 'slide_manifest.log')):
+		manifest = join(model_path, 'slide_manifest.log')
+	elif exists(join(dirname(model_path), 'slide_manifest.log')):
+		log.warn("Slide manifest file not found in model directory; loading from parent directory. Please move slide_manifest.log into model folder.")
+		manifest = join(dirname(model_path), 'slide_manifest.log')
+	else:
+		log.error("Slide manifest file not found.")
+		return None
+	with open(manifest, 'r') as manifest_file:
+		reader = csv.reader(manifest_file)
+		header = next(reader)
+		dataset_index = header.index('dataset')
+		slide_index = header.index('slide')
+		for row in reader:
+			dataset_name = row[dataset_index]
+			slide_name = row[slide_index]
+			if dataset_name == dataset or not dataset:
+				slides += [slide_name]
+	return slides
+
+def get_model_hyperparameters(model_path):
 	if exists(join(model_path, 'hyperparameters.json')):
 		return load_json(join(model_path, 'hyperparameters.json'))
 	elif exists(join(dirname(model_path), 'hyperparameters.json')):

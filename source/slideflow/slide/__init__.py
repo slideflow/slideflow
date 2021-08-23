@@ -609,8 +609,10 @@ class SlideLoader:
 		loc_arr = []
 		for i, (batch_images, batch_loc) in enumerate(tile_dataset):
 			act, logits = model_interface.predict(batch_images)
-			act_arr = act if act_arr == [] else np.concatenate([act_arr, act])
-			loc_arr = batch_loc if loc_arr == [] else np.concatenate([loc_arr, batch_loc])
+			act_arr += [act]
+			loc_arr += [batch_loc.numpy()]
+		act_arr = np.concatenate(act_arr)
+		loc_arr = np.concatenate(loc_arr)
 
 		for i, act in enumerate(act_arr):
 			xi = loc_arr[i][0]

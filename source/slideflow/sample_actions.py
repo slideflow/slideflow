@@ -64,8 +64,8 @@ def main(SFP):
 	#                              filters={"HPV": ["HPV+", "HPV-"]})
 	#AV.generate_box_plots()
 	#umap = TFRecordMap.from_activations(AV)
-	#umap.save_2d_plot(join(SFP.PROJECT['root'], 'stats', '2d_umap.png'))
+	#umap.save_2d_plot(join(SFP.root, 'stats', '2d_umap.png'))
 	#top_nodes = AV.get_top_nodes_by_slide()
 	#for node in top_nodes[:10]:
-	#	umap.save_3d_node_plot(node, join(SFP.PROJECT['root'], 'stats', f'3d_node{node}.png'))
+	#	umap.save_3d_node_plot(node, join(SFP.root, 'stats', f'3d_node{node}.png'))
 	pass

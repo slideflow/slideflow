@@ -596,7 +596,6 @@ def get_average_by_group(prediction_array, prediction_label, unique_groups, tile
 	avg_by_group = np.array([group_percents[g] for g in unique_groups])
 
 	if save_predictions:
-		print("Saving predictions...")
 		save_path = join(data_dir, f"{label}_predictions{label_end}.csv")
 		with open(save_path, 'w') as outfile:
 			writer = csv.writer(outfile)
@@ -605,7 +604,6 @@ def get_average_by_group(prediction_array, prediction_label, unique_groups, tile
 			for i, group in enumerate(unique_groups):
 				row = np.concatenate([ [group], y_true_group[group], avg_by_group[i] ])
 				writer.writerow(row)
-		print("Done saving predictions!")
 	return avg_by_group
 
 def get_centroid_index(input_array):
@@ -961,7 +959,7 @@ def _categorical_metrics(args, outcome_name, starttime=None):
 		for i, (auc, ap, thresh) in enumerate(p.imap(partial(generate_tile_roc, y_true=args.y_true,
 																				y_pred=args.y_pred,
 																				data_dir=args.data_dir,
-																				label_start=args.label_start,
+																				label_start=args.label_start + outcome_name + "_",
 																				histogram=args.histogram), range(num_cat))):
 			args.auc['tile'][outcome_name] += [auc]
 			if args.verbose:		
@@ -991,7 +989,7 @@ def _categorical_metrics(args, outcome_name, starttime=None):
 												  tile_to_group=args.tile_to_slides,
 												  y_true_group=args.y_true_slide,
 												  num_cat=num_cat,
-												  label_end=args.label_end,
+												  label_end="_" + outcome_name + args.label_end,
 												  save_predictions=args.save_slide_predictions,
 												  data_dir=args.data_dir,
 												  label="slide")
@@ -1001,7 +999,7 @@ def _categorical_metrics(args, outcome_name, starttime=None):
 		try:
 			slide_y_pred = percent_calls_by_slide[:, i]
 			slide_y_true = [args.y_true_slide[slide][i] for slide in args.unique_slides]
-			roc_auc, average_precision, optimal_threshold = generate_roc(slide_y_true, slide_y_pred, args.data_dir, f'{args.label_start}slide_ROC{i}')
+			roc_auc, average_precision, optimal_threshold = generate_roc(slide_y_true, slide_y_pred, args.data_dir, f'{args.label_start}{outcome_name}_slide_ROC{i}')
 			args.auc['slide'][outcome_name] += [roc_auc]
 			if args.verbose:
 				log.info(f"Slide-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold:.3f})", 1)
@@ -1016,7 +1014,7 @@ def _categorical_metrics(args, outcome_name, starttime=None):
 														tile_to_group=args.tile_to_patients,
 														y_true_group=args.y_true_patient,
 														num_cat=num_cat,
-														label_end=args.label_end,
+														label_end="_" + outcome_name + args.label_end,
 														save_predictions=args.save_patient_predictions,
 														data_dir=args.data_dir,
 														label="slide")
@@ -1026,33 +1024,57 @@ def _categorical_metrics(args, outcome_name, starttime=None):
 			try:
 				patient_y_pred = percent_calls_by_patient[:, i]
 				patient_y_true = np.array([args.y_true_patient[patient][i] for patient in args.patients])
-				roc_auc, average_precision, optimal_threshold = generate_roc(patient_y_true, patient_y_pred, args.data_dir, f'{args.label_start}patient_ROC{i}')
+				roc_auc, average_precision, optimal_threshold = generate_roc(patient_y_true, patient_y_pred, args.data_dir, f'{args.label_start}{outcome_name}_patient_ROC{i}')
 				args.auc['patient'][outcome_name] += [roc_auc]
 				if args.verbose:
 					log.info(f"Patient-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {average_precision:.3f} (opt. threshold: {optimal_threshold:.3f})", 1)
 			except IndexError:
 				log.warn(f"Unable to generate patient-level stats for outcome {i}", 1)
 
-def save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end):
-	#TODO: fix predictions to CSV with multiple outcomes
-
+def save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end, outcome_names=None):
 	# Save tile-level predictions
 	if type(y_true) == list:
 		assert len(y_true) == len(y_pred), "Number of outcomes in y_true and y_pred must match"
+		assert len(y_true) == len(outcome_names), "Number of provided outcome names must equal the number of y_true outcomes"
 
 	tile_csv_dir = os.path.join(data_dir, f"tile_predictions{label_end}.csv")
-	y_true_is_reduced = (len(y_true.shape) == 1)
-	y_pred_is_reduced = (len(y_true.shape) == 1)
 	with open(tile_csv_dir, 'w') as outfile:
 		writer = csv.writer(outfile)
-		y_true_header = ["y_true0"] if y_true_is_reduced else [f"y_true{i}" for i in range(y_true.shape[1])]
-		header = ['slide'] + y_true_header + [f"y_pred{j}" for j in range(y_pred.shape[1])]
-		writer.writerow(header)
-		for i in range(len(y_true)):
-			y_true_str_list = [str(y_true[i])] if y_true_is_reduced else [str(yti) for yti in y_true[i]]
-			y_pred_str_list = [str(y_pred[i])] if y_pred_is_reduced else [str(ypi) for ypi in y_pred[i]]
-			row = np.concatenate([[tile_to_slides[i]], y_true_str_list, y_pred_str_list])
-			writer.writerow(row)
+		# If multiple outcomes are present
+		if type(y_true) == list:
+			y_true_is_reduced = (len(y_true[0].shape) == 1)
+			y_pred_is_reduced = (len(y_pred[0].shape) == 1)
+			y_true_header = []
+			y_pred_header = []
+			for cat_i in range(len(y_true)):
+				y_true_cat_header = [f"{outcome_names[cat_i]}_y_true0"] if y_true_is_reduced else [f"{outcome_names[cat_i]}_y_true{i}" for i in range(y_true[cat_i].shape[1])]
+				y_pred_cat_header = [f"{outcome_names[cat_i]}_y_pred0"] if y_pred_is_reduced else [f"{outcome_names[cat_i]}_y_pred{i}" for i in range(y_pred[cat_i].shape[1])]
+				y_true_header += y_true_cat_header
+				y_pred_header += y_pred_cat_header
+			header = ['slide'] + y_true_header + y_pred_header
+			writer.writerow(header)
+			for i in range(len(y_true)):
+				y_true_str_list = []
+				y_pred_str_list = []
+				for cat_i in range(len(y_true)):
+					y_true_str_cat_list = [str(y_true[cat_i][i])] if y_true_is_reduced else [str(yti) for yti in y_true[cat_i][i]]
+					y_pred_str_cat_list = [str(y_pred[cat_i][i])] if y_pred_is_reduced else [str(ypi) for ypi in y_pred[cat_i][i]]
+					y_true_str_list += y_true_str_cat_list
+					y_pred_str_list += y_pred_str_cat_list
+				row = np.concatenate([[tile_to_slides[i]], y_true_str_list, y_pred_str_list])
+				writer.writerow(row)
+		# If there is only a single outcome
+		else:
+			y_true_is_reduced = (len(y_true.shape) == 1)
+			y_pred_is_reduced = (len(y_pred.shape) == 1)
+			y_true_header = ["y_true0"] if y_true_is_reduced else [f"y_true{i}" for i in range(y_true.shape[1])]
+			header = ['slide'] + y_true_header + [f"y_pred{j}" for j in range(y_pred.shape[1])]
+			writer.writerow(header)
+			for i in range(len(y_true)):
+				y_true_str_list = [str(y_true[i])] if y_true_is_reduced else [str(yti) for yti in y_true[i]]
+				y_pred_str_list = [str(y_pred[i])] if y_pred_is_reduced else [str(ypi) for ypi in y_pred[i]]
+				row = np.concatenate([[tile_to_slides[i]], y_true_str_list, y_pred_str_list])
+				writer.writerow(row)
 	log.complete(f"Predictions saved to {sfutil.green(data_dir)}", 1)
 
 def metrics_from_predictions(y_true,
@@ -1180,7 +1202,7 @@ def metrics_from_predictions(y_true,
 
 	if metric_args.save_tile_predictions:
 		try:
-			save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end)
+			save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end, outcome_names)
 		except:
 			log.error("Unable to save predictions to CSV - not yet implemented for multiple outcomes")
 		
@@ -1220,7 +1242,7 @@ def predict_from_model(model, dataset, num_tiles=0):
 		tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in slide.numpy()]
 		if not detected_batch_size: detected_batch_size = len(tile_to_slides)
 
-	pb.end()
+	if pb: pb.end()
 	if log.INFO_LEVEL > 0: sfutil.clear_console()
 
 	tile_to_slides = np.array(tile_to_slides)

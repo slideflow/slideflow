@@ -50,7 +50,7 @@ if __name__=='__main__':
 		actions = __import__(actions_name)
 		# Create project
 		SFP = sf.SlideflowProject(actions.project, gpu=args.gpu, gpu_pool=args.gpu_pool)
-		SFP.FLAGS['num_threads'] = args.threads
+		SFP.num_threads = args.threads
 		# Execute actions
 		actions.main(SFP)
 		# Move actions file into finished category

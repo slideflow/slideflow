@@ -1,5 +1,6 @@
 import os
 import sys
+import types
 from os.path import join, exists, dirname, basename
 import slideflow.util as sfutil
 import slideflow.io as sfio
@@ -9,17 +10,45 @@ from slideflow.util import log
 
 '''Utility functions for SlideflowProject, primarily for use in the context of multiprocessing.'''
 
-DEFAULT_FLAGS = {
-	'eval_batch_size': 64,
-	'num_threads': 4,
-	'logging_levels': {
-		'info': 3,
-		'warn': 3,
-		'error': 3,
-		'complete': 3,
-		'silent': False
+def get_validation_settings(**kwargs):
+	'''
+	Returns a namespace of validation settings.
+
+	Args:
+		target: 			(default: 'per-patient') Whether to select validation data on a 'per-patient' (default) or 'per-tile' basis.
+		strategy: 			(default: 'k-fold') Validation dataset selection strategy (bootstrap, k-fold, k-fold-manual, k-fold-preserved-site, fixed, none).
+		k_fold: 			(default: 3) Number of k-folds, if strategy is 'k-fold'
+		k_fold_iter: 		K iteration, if using k-folds.
+		k_fold_header: 		Annotations file header column for manually specifying k-fold. Only used if validation_strategy is 'k-fold-manual'
+		fraction: 			Fraction of data to use for validation testing, if strategy is "fixed"
+		dataset: 			If specified, will use this dataset for validation
+		annotations: 		If specified, will use this annotations file for validation
+		filters:			If specified, will use these filters for validation
+		validate_on_batch:	Validation will be performed every N batches.
+		validation_steps:	Number of steps of validation to perform each time doing a validation check.
+	'''
+
+	args_dict = {
+		'target': 'per-patient',	
+		'strategy': 'k-fold',		
+		'k_fold': 3,
+		'k_fold_iter': None,
+		'k_fold_header': None,
+		'fraction': None,
+		'dataset': None,
+		'annotations': None,
+		'filters': None,
+		'validate_on_batch': 512,
+		'validation_steps': 200,
 	}
-}
+	for k in kwargs:
+		args_dict[k] = kwargs[k]
+	args = types.SimpleNamespace(**args_dict)
+
+	if (args.k_fold_header is None and args.strategy == 'k-fold-manual'):
+		raise Exception("Must supply 'k_fold_header' if validation strategy is 'k-fold-manual'")
+
+	return args
 
 def print_fn(string):
 	sys.stdout.write(f"\r\033[K{string}\n")
@@ -120,7 +149,7 @@ def tile_extractor(slide_path, roi_dir, roi_method, skip_missing_roi, randomize_
 		print("Exiting...")
 		return
 
-def activations_generator(project_config, model, outcome_label_headers=None, layers=None, filters=None, filter_blank=None, 
+def activations_generator(project, model, outcome_label_headers=None, layers=None, filters=None, filter_blank=None, 
 								focus_nodes=[], activations_export=None,
 								activations_cache='default', normalizer=None, normalizer_source=None, 
 								max_tiles_per_slide=100, min_tiles_per_slide=None, model_format=None, 
@@ -131,16 +160,16 @@ def activations_generator(project_config, model, outcome_label_headers=None, lay
 		layers = [layers] if type(layers) != list else layers
 
 		# Setup directories
-		stats_root = join(project_config['root'], 'stats')
+		stats_root = join(project.root, 'stats')
 		if not exists(stats_root): os.makedirs(stats_root)
 
 		# Load dataset for evaluation
-		hp_data = sfutil.load_model_hyperparameters(model)
-		activations_dataset = Dataset(config_file=project_config['dataset_config'],
-										sources=project_config['datasets'],
+		hp_data = sfutil.get_model_hyperparameters(model)
+		activations_dataset = Dataset(config_file=project.dataset_config,
+										sources=project.datasets,
 										tile_px=hp_data['hp']['tile_px'],
 										tile_um=hp_data['hp']['tile_um'],
-										annotations=project_config['annotations'],
+										annotations=project.annotations,
 										filters=filters,
 										filter_blank=filter_blank)
 
@@ -150,12 +179,11 @@ def activations_generator(project_config, model, outcome_label_headers=None, lay
 
 		AV = ActivationsVisualizer(model=model,
 								   tfrecords=tfrecords_list,
-								   root_dir=project_config['root'],
+								   root_dir=project.root,
 								   image_size=hp_data['hp']['tile_px'],
-								   annotations=project_config['annotations'],
+								   annotations=project.annotations,
 								   outcome_label_headers=outcome_label_headers,
 								   focus_nodes=focus_nodes,
-								   use_fp16=project_config['use_fp16'],
 								   normalizer=normalizer,
 								   normalizer_source=normalizer_source,
 								   activations_export=None if not activations_export else join(stats_root, activations_export),
@@ -176,45 +204,48 @@ def activations_generator(project_config, model, outcome_label_headers=None, lay
 		
 		return AV
 
-def evaluator(outcome_label_headers, model, project_config, results_dict, input_header=None, filters=None, 
+def evaluator(project, outcome_label_headers, model, results_dict, input_header=None, filters=None, 
 				hyperparameters=None, checkpoint=None, eval_k_fold=None, max_tiles_per_slide=0,
-				min_tiles_per_slide=0, normalizer=None, normalizer_source=None, flags=None,
+				min_tiles_per_slide=0, normalizer=None, normalizer_source=None, 
 				permutation_importance=False, histogram=False, save_predictions=False):
 
 	'''Internal function to execute model evaluation process.'''
 
 	import slideflow.model as sfmodel
 	from slideflow.statistics import to_onehot
-	if not flags: flags = DEFAULT_FLAGS
 
-	log.configure(filename=join(project_config['root'], "log.log"), levels=flags['logging_levels'])
+	log.configure(filename=join(project.root, "log.log"), levels=project.log_levels)
+	outcome_label_headers = [outcome_label_headers] if not isinstance(outcome_label_headers, list) else outcome_label_headers
 
 	# Load hyperparameters from saved model
 	if hyperparameters:
 		hp_data = sfutil.load_json(hyperparameters)
 	else:
-		hp_data = sfutil.load_model_hyperparameters(model)
+		hp_data = sfutil.get_model_hyperparameters(model)
 	hp = sfmodel.HyperParameters()
 	hp._load_dict(hp_data['hp'])
 	model_name = f"eval-{hp_data['model_name']}-{basename(model)}"
 
 	# Filter out slides that are blank in the outcome label, or blank in any of the input_header categories
-	filter_blank = [outcome_label_headers] if not isinstance(outcome_label_headers, list) else outcome_label_headers
+	filter_blank = [o for o in outcome_label_headers]
 	if input_header:
 		input_header = [input_header] if not isinstance(input_header, list) else input_header
 		filter_blank += input_header
 
 	# Load dataset and annotations for evaluation
-	eval_dataset = Dataset(config_file=project_config['dataset_config'],
-						   sources=project_config['datasets'],
+	eval_dataset = Dataset(config_file=project.dataset_config,
+						   sources=project.datasets,
 						   tile_px=hp.tile_px,
 						   tile_um=hp.tile_um,
-						   annotations=project_config['annotations'],
+						   annotations=project.annotations,
 						   filters=filters,
 						   filter_blank=filter_blank)
 
 	if hp.model_type() == 'categorical':
-		outcome_label_to_int = {o: {v: int(k) for k, v in hp_data['outcome_labels'][o].items()} for o in hp_data['outcome_labels']}
+		if len(outcome_label_headers) == 1 and outcome_label_headers[0] not in hp_data['outcome_labels']:
+			outcome_label_to_int = {outcome_label_headers[0]: {v: int(k) for k, v in hp_data['outcome_labels'].items()}}
+		else:
+			outcome_label_to_int = {o: {v: int(k) for k, v in hp_data['outcome_labels'][o].items()} for o in hp_data['outcome_labels']}
 	else:
 		outcome_label_to_int = None
 
@@ -234,7 +265,7 @@ def evaluator(outcome_label_headers, model, project_config, results_dict, input_
 	# If using a specific k-fold, load validation plan
 	if eval_k_fold:
 		log.info(f"Using {sfutil.bold('k-fold iteration ' + str(eval_k_fold))}", 1)
-		validation_log = join(project_config['root'], "validation_plans.json")
+		validation_log = join(project.root, "validation_plans.json")
 		_, eval_tfrecords = sfio.tfrecords.get_training_and_validation_tfrecords(eval_dataset,
 																				 validation_log,
 																				 hp.model_type(),
@@ -298,7 +329,7 @@ def evaluator(outcome_label_headers, model, project_config, results_dict, input_
 
 	# Set up model for evaluation
 	# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
-	model_dir = join(project_config['models_dir'], model_name)
+	model_dir = join(project.models_dir, model_name)
 
 	# Build a model using the slide list as input and the annotations dictionary as output labels
 	SFM = sfmodel.SlideflowModel(model_dir, 
@@ -307,7 +338,7 @@ def evaluator(outcome_label_headers, model, project_config, results_dict, input_
 								 train_tfrecords=None,
 								 validation_tfrecords=eval_tfrecords,
 								 manifest=eval_dataset.get_manifest(),
-								 use_fp16=project_config['use_fp16'],
+								 mixed_precision=project.mixed_precision,
 								 model_type=hp.model_type(),
 								 normalizer=normalizer,
 								 normalizer_source=normalizer_source,
@@ -330,9 +361,9 @@ def evaluator(outcome_label_headers, model, project_config, results_dict, input_
 		"input_feature_sizes": feature_sizes,
 		"input_feature_labels": input_labels_dict,
 		"outcome_labels": None if hp.model_type() != 'categorical' else dict(zip(range(len(unique_labels)), unique_labels)),
-		"dataset_config": project_config['dataset_config'],
-		"datasets": project_config['datasets'],
-		"annotations": project_config['annotations'],
+		"dataset_config": project.dataset_config,
+		"datasets": project.datasets,
+		"annotations": project.annotations,
 		"validation_target": hp_data['validation_target'],
 		"validation_strategy": hp_data['validation_strategy'],
 		"validation_fraction": hp_data['validation_fraction'],
@@ -354,7 +385,7 @@ def evaluator(outcome_label_headers, model, project_config, results_dict, input_
 						   model=model,
 						   model_type=hp.model_type(),
 						   checkpoint=checkpoint,
-						   batch_size=flags['eval_batch_size'],
+						   batch_size=project.eval_batch_size,
 						   max_tiles_per_slide=max_tiles_per_slide,
 						   min_tiles_per_slide=min_tiles_per_slide, 
 						   permutation_importance=permutation_importance,
@@ -365,15 +396,14 @@ def evaluator(outcome_label_headers, model, project_config, results_dict, input_
 	results_dict['results'] = results
 	return results_dict
 
-def heatmap_generator(slide, model_path, save_folder, roi_list, show_roi, roi_method,
-						resolution, interpolation, project_config, logit_cmap=None,
-						buffer=True, normalizer=None, normalizer_source=None, model_format=None, num_threads='auto', flags=None):
+def heatmap_generator(project, slide, model_path, save_folder, roi_list, show_roi, roi_method,
+						resolution, interpolation, logit_cmap=None, buffer=True, normalizer=None,
+						normalizer_source=None, model_format=None, num_threads='auto'):
 
 	'''Internal function to execute heatmap generator process.'''
 	from slideflow.activations import Heatmap
 
-	if not flags: flags = DEFAULT_FLAGS
-	log.configure(filename=join(project_config['root'], "log.log"), levels=flags['logging_levels'])
+	log.configure(filename=join(project.root, "log.log"), levels=project.log_levels)
 
 	resolutions = {'low': 1, 'medium': 2, 'high': 4}
 	try:
@@ -386,46 +416,43 @@ def heatmap_generator(slide, model_path, save_folder, roi_list, show_roi, roi_me
 		log.empty(f"Skipping already-completed heatmap for slide {sfutil.path_to_name(slide)}", 1)
 		return
 
-	hp_data = sfutil.load_model_hyperparameters(model_path)
+	hp_data = sfutil.get_model_hyperparameters(model_path)
 
 	heatmap = Heatmap(slide,
 					  model_path,
 					  hp_data['tile_px'],
 					  hp_data['tile_um'],
-					  use_fp16=project_config['use_fp16'],
 					  stride_div=stride_div,
 					  roi_list=roi_list,
 					  roi_method=roi_method,
 					  buffer=buffer,
 					  normalizer=normalizer,
 					  normalizer_source=normalizer_source,
-					  batch_size=flags['eval_batch_size'],
+					  batch_size=project.eval_batch_size,
 					  model_format=model_format,
 					  num_threads=num_threads)
 
 	heatmap.save(save_folder, show_roi=show_roi, interpolation=interpolation, logit_cmap=logit_cmap)
 
-def trainer(outcome_label_headers, model_name, project_config, results_dict, hp, validation_strategy, 
-			validation_target, validation_fraction, validation_k_fold, validation_log, validation_dataset=None, 
-			validation_annotations=None, validation_filters=None, k_fold_i=None, k_fold_slide_labels=None, input_header=None, 
-			filters=None, filter_blank=None, pretrain=None, pretrain_model_format=None, resume_training=None, checkpoint=None,
-			validate_on_batch=0, validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0,
-			steps_per_epoch_override=None, normalizer=None, normalizer_source=None, use_tensorboard=False, multi_gpu=False, 
-			save_predictions=False, skip_metrics=False, flags=None):
+def trainer(project, outcome_label_headers, model_name, results_dict, hp, val_settings, validation_log, 
+			k_fold_i=None, k_fold_slide_labels=None, input_header=None, filters=None, filter_blank=None,
+			pretrain=None, pretrain_model_format=None, resume_training=None, checkpoint=None,
+			max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, steps_per_epoch_override=None,
+			normalizer=None, normalizer_source=None, use_tensorboard=False, multi_gpu=False, 
+			save_predictions=False, skip_metrics=False):
 
 	'''Internal function to execute model training process.'''
 	import slideflow.model as sfmodel
 	import tensorflow as tf
 	from slideflow.statistics import to_onehot
 
-	if not flags: flags = DEFAULT_FLAGS
-	log.configure(filename=join(project_config['root'], "log.log"), levels=flags['logging_levels'])
+	log.configure(filename=join(project.root, "log.log"), levels=project.log_levels)
 
 	# First, clear prior Tensorflow graph to free memory
 	tf.keras.backend.clear_session()
 
 	# Log current model name and k-fold iteration, if applicable
-	k_fold_msg = "" if not k_fold_i else f" ({validation_strategy} iteration #{k_fold_i})"
+	k_fold_msg = "" if not k_fold_i else f" ({val_settings.strategy} iteration #{k_fold_i})"
 	log.empty(f"Training model {sfutil.bold(model_name)}{k_fold_msg}...")
 	log.empty(hp, 1)
 	full_model_name = model_name if not k_fold_i else model_name+f"-kfold{k_fold_i}"
@@ -439,11 +466,11 @@ def trainer(outcome_label_headers, model_name, project_config, results_dict, hp,
 		filter_blank += input_header
 
 	# Load dataset and annotations for training
-	training_dataset = Dataset(config_file=project_config['dataset_config'],
-							   sources=project_config['datasets'],
+	training_dataset = Dataset(config_file=project.dataset_config,
+							   sources=project.datasets,
 							   tile_px=hp.tile_px,
 							   tile_um=hp.tile_um,
-							   annotations=project_config['annotations'],
+							   annotations=project.annotations,
 							   filters=filters,
 							   filter_blank=filter_blank)
 
@@ -510,13 +537,13 @@ def trainer(outcome_label_headers, model_name, project_config, results_dict, hp,
 	manifest = training_dataset.get_manifest()
 
 	# Use external validation dataset if specified
-	if validation_dataset:
+	if val_settings.dataset:
 		training_tfrecords = training_dataset.get_tfrecords()
-		validation_dataset = Dataset(config_file=project_config['dataset_config'],
-									 sources=validation_dataset,
-									 annotations=validation_annotations,
-									 filters=validation_filters,
-									 filter_blank=filter_blank)
+		validation_dataset = Dataset(config_file=project.dataset_config,
+									 sources=val_settings.dataset,
+									 annotations=val_settings.annotations,
+									 filters=val_settings.filters,
+									 filter_blank=val_settings.filter_blank)
 
 		validation_tfrecords = validation_dataset.get_tfrecords()
 		manifest.update(validation_dataset.get_manifest())
@@ -524,7 +551,7 @@ def trainer(outcome_label_headers, model_name, project_config, results_dict, hp,
 																			  use_float=(hp.model_type() in ['linear', 'cph']),
 																			  key='outcome_label')
 		slide_labels_dict.update(validation_labels)
-	elif validation_strategy == 'k-fold-manual':
+	elif val_settings.strategy == 'k-fold-manual':
 		all_tfrecords = training_dataset.get_tfrecords()
 		training_tfrecords = [tfr for tfr in all_tfrecords if k_fold_slide_labels[sfutil.path_to_name(tfr)] != k_fold_i]
 		validation_tfrecords = [tfr for tfr in all_tfrecords if k_fold_slide_labels[sfutil.path_to_name(tfr)] == k_fold_i]
@@ -535,10 +562,10 @@ def trainer(outcome_label_headers, model_name, project_config, results_dict, hp,
 																										hp.model_type(),
 																										slide_labels_for_val_splitting,
 																										outcome_key='outcome_label',
-																										validation_target=validation_target,
-																										validation_strategy=validation_strategy,
-																										validation_fraction=validation_fraction,
-																										validation_k_fold=validation_k_fold,
+																										validation_target=val_settings.target,
+																										validation_strategy=val_settings.strategy,
+																										validation_fraction=val_settings.fraction,
+																										validation_k_fold=val_settings.k_fold,
 																										k_fold_iter=k_fold_i)
 	# Prepare additional slide-level input
 	if input_header:
@@ -555,7 +582,7 @@ def trainer(outcome_label_headers, model_name, project_config, results_dict, hp,
 			# Check if variable can be converted to float (default). If not, will assume categorical. 
 			try:
 				training_dataset.get_labels_from_annotations(input_var, use_float=True)
-				if validation_dataset:
+				if val_settings.dataset:
 					validation_dataset.get_labels_from_annotations(input_var, use_float=True)
 				is_float = True
 			except TypeError:
@@ -563,7 +590,7 @@ def trainer(outcome_label_headers, model_name, project_config, results_dict, hp,
 			log.info("Adding input variable " + input_var + " as " + ("float" if is_float else " categorical"), 1)
 
 			# Next, if this is a categorical variable, harmonize categories in training and validation datasets
-			if (not is_float) and validation_dataset:
+			if (not is_float) and val_settings.dataset:
 				_, unique_train_input_labels = training_dataset.get_labels_from_annotations(input_var, use_float=is_float)
 				_, unique_val_input_labels = validation_dataset.get_labels_from_annotations(input_var, use_float=is_float)
 
@@ -595,7 +622,7 @@ def trainer(outcome_label_headers, model_name, project_config, results_dict, hp,
 
 	# Initialize model
 	# Using the project annotation file, assemble list of slides for training, as well as the slide annotations dictionary (output labels)
-	model_dir = join(project_config['models_dir'], full_model_name)
+	model_dir = join(project.models_dir, full_model_name)
 
 	# Build a model using the slide list as input and the annotations dictionary as output labels
 	SFM = sfmodel.SlideflowModel(model_dir,
@@ -604,7 +631,7 @@ def trainer(outcome_label_headers, model_name, project_config, results_dict, hp,
 								 training_tfrecords,
 								 validation_tfrecords,
 								 manifest=manifest,
-								 use_fp16=project_config['use_fp16'],
+								 mixed_precision=project.mixed_precision,
 								 model_type=hp.model_type(),
 								 normalizer=normalizer,
 								 normalizer_source=normalizer_source,
@@ -613,7 +640,7 @@ def trainer(outcome_label_headers, model_name, project_config, results_dict, hp,
 								 outcome_names=outcome_label_headers)
 
 	# Log model settings and hyperparameters
-	hp_file = join(project_config['models_dir'], full_model_name, 'hyperparameters.json')
+	hp_file = join(project.models_dir, full_model_name, 'hyperparameters.json')
 	
 	hp_data = {
 		"model_name": model_name,
@@ -626,13 +653,13 @@ def trainer(outcome_label_headers, model_name, project_config, results_dict, hp,
 		"input_feature_sizes": feature_sizes,
 		"input_feature_labels": input_labels_dict,
 		"outcome_labels": outcome_labels,
-		"dataset_config": project_config['dataset_config'],
-		"datasets": project_config['datasets'],
-		"annotations": project_config['annotations'],
-		"validation_target": validation_target,
-		"validation_strategy": validation_strategy,
-		"validation_fraction": validation_fraction,
-		"validation_k_fold": validation_k_fold,
+		"dataset_config": project.dataset_config,
+		"datasets": project.datasets,
+		"annotations": project.annotations,
+		"validation_target": val_settings.target,
+		"validation_strategy": val_settings.strategy,
+		"validation_fraction": val_settings.fraction,
+		"validation_k_fold": val_settings.k_fold,
 		"k_fold_i": k_fold_i,
 		"filters": filters,
 		"pretrain": pretrain,
@@ -649,9 +676,9 @@ def trainer(outcome_label_headers, model_name, project_config, results_dict, hp,
 									 pretrain_model_format=pretrain_model_format,
 									 resume_training=resume_training, 
 									 checkpoint=checkpoint,
-									 validate_on_batch=validate_on_batch,
-									 val_batch_size=flags['eval_batch_size'],
-									 validation_steps=validation_steps,
+									 validate_on_batch=val_settings.validate_on_batch,
+									 val_batch_size=project.eval_batch_size,
+									 validation_steps=val_settings.validation_steps,
 									 max_tiles_per_slide=max_tiles_per_slide,
 									 min_tiles_per_slide=min_tiles_per_slide,
 									 starting_epoch=starting_epoch,

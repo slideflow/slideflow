@@ -9,18 +9,32 @@ There are two methods for configuring model hyperparameters. If you intend to tr
 .. code-block:: python
 
 	from slideflow.model import HyperParameters
-	hp = HyperParameters(finetune_epochs=[1], toplayer_epochs=0, model='Xception', pooling='avg', loss='sparse_categorical_crossentropy',
-				learning_rate=0.00001, batch_size=8, hidden_layers=1, optimizer='Adam', early_stop=False, 
-				early_stop_patience=0, balanced_training='BALANCE_BY_PATIENT', balanced_validation='NO_BALANCE', 
-				augment=True)
+	hp = HyperParameters(
+		finetune_epochs=[1, 5],
+		model='Xception',
+		loss='sparse_categorical_crossentropy',
+		learning_rate=0.00001,
+		batch_size=8)
 
-Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the ``create_hyperparameter_sweep`` function to automatically configure a sweep to a batch_train CSV file. For example, the following code would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:
+Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the ``create_hyperparameter_sweep`` function to automatically save a sweep to a CSV file. For example, the following would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:
 
 .. code-block:: python
 
-	SFP.create_hyperparameter_sweep(finetune_epochs=[5], toplayer_epochs=0, model=['Xception'], pooling=['avg'], loss='sparse_categorical_crossentropy', 
-					learning_rate=[0.01, 0.001], batch_size=64, hidden_layers=[1], optimizer='Adam', early_stop=True, early_stop_patience=15, balanced_training=['BALANCE_BY_CATEGORY'],
-					balanced_validation='NO_BALANCE', augment=True, filename=None)
+	SFP.create_hyperparameter_sweep(
+		finetune_epochs=[5],
+		toplayer_epochs=0,
+		model=['Xception'],
+		pooling=['avg'],
+		loss='sparse_categorical_crossentropy', 
+		learning_rate=[0.01, 0.001],
+		batch_size=64,
+		hidden_layers=[1],
+		optimizer='Adam',
+		early_stop=True,
+		early_stop_patience=15,
+		balanced_training=['BALANCE_BY_CATEGORY'],
+		balanced_validation='NO_BALANCE',
+		augment=True)
 
 Available hyperparameters include:
 
@@ -32,6 +46,8 @@ Available hyperparameters include:
 - **pooling** - pooling strategy to use before final fully-connected layers; either 'max', 'avg', or 'none'
 - **loss** - loss function; please see `Keras loss documentation <https://www.tensorflow.org/api_docs/python/tf/keras/losses>`_ for all options
 - **learning_rate** - learning rate for training
+- **learning_rate_decay** - learning rate decay during training
+- **learning_rate_decay_steps** - number of steps after which to decay learning rate
 - **batch_size** - batch size for training
 - **hidden_layers** - number of fully-connected final hidden layers before softmax prediction
 - **hidden_layer_width** - width of hidden layers
@@ -43,6 +59,7 @@ Available hyperparameters include:
 - **balanced_validation** - validation input balancing strategy; please see :ref:`balancing` for more details
 - **trainable_layers** - number of layers available for training, other layers will be frozen. If 0, all layers are trained
 - **L2_weight** - if provided, adds L2 regularization to all layers with this weight
+- **dropout** - dropout, used for post-convolutional layer.
 - **augment** - whether to augment data with random flipping/rotating during training
 
 If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.HyperParameters._LinearLoss``, and all available loss functions are in ``slideflow.model.HyperParameters._AllLoss``.
@@ -57,30 +74,53 @@ Once your hyperparameter settings have been chosen you may begin training using 
 
 If you used the ``HyperParameters`` class to configure a single combination of parameters, pass this object via the ``hyperparameters`` argument. If you configured a hyperparameter sweep, set the ``batch_file`` argument to the name of your hyperparameter sweep file (saved by default to 'batch_train.tsv').
 
-Your outcome variable is specified with the ``outcome_header`` argument. You may filter slides for training using the ``filter`` argument, as previously described. 
-
-The validation settings configured in the project settings file (``settings.json``) will be used by default. If you would like to use a different validation plan than the default configuration, you many manually pass the relevant variables as arguments (e.g. ``validation_strategy``, ``validation_fraction``, and ``validation_k_fold``).
+Your outcome variable(s) are specified with the ``outcome_label_headers`` argument. You may filter slides for training using the ``filter`` argument, as previously described. 
 
 For example, to train using only slides labeled as "train" in the "dataset" column, with the outcome variable defined by the column "category", use the following syntax:
 
 .. code-block:: python
 
-	SFP.train(outcome_header="category",
+	SFP.train(outcome_label_headers="category",
 		  filters={"dataset": ["train"]},
 		  batch_file='batch_train.tsv')
 
+If you would like to use a different validation plan than the default, manually pass the relevant variables to :func:`slideflow.project.get_validation_settings`, and pass the returned settings namespace to the train() function's ``validation_settings``)
 
 To begin training, save your ``actions.py`` file and execute the ``run_project.py`` script in the slideflow directory.
 
-Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the ``results_log.csv`` file in the project directory. Additional analytic data, including ROCs and scatter plots, are saved in the model directories.
+Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the ``results_log.csv`` file in the project directory. Additional data, including ROCs and scatter plots, are saved in the model directories.
+
+At each designated epoch, models are saved in their own folders. Each model directory will include a copy of its hyperparameters in a ``hyperparameters.json`` file, and a copy of its training/validation slide manifest in ``slide.log``.
+
+Multiple outcomes
+*****************
+
+Slideflow supports both categorical and linear outcomes, as well as training to single or multiple outcomes at once. To use multiple outcomes simultaneously, simply pass multiple annotation headers to the ``outcome_label_headers`` argument.
+
+Multiple input variables
+************************
+
+In addition to training using image data, clinical data can also be provided as model input by passing annotation column headers to the variable ''input_header''. This input is merged at the post-convolutional layer, prior to any configured hidden layers.
+
+If desired, models can also be trained with clinical input data alone, without images, by using the hyperparameter argument ``drop_images=True``.
+
+Cox Proportional Hazards (CPH) models
+*************************************
+
+Models can also be trained to a time series outcome using CPH and negative log likelihood loss. For CPH models, use 'negative_log_likelihood' loss and set ``outcome_label_header`` equal to the annotation column indicating event *time*. Specify the event *type* (0 or 1) by passing the event type annotation column to the argument ``input_header``. If you are using multiple clinical inputs, the first header passed to ``input_header`` must be event type.
+
+Distributed training across GPUs
+********************************
+
+If multiple GPUs are available, training can be distributed by passing the argument ``multi_gpu=True``. If provided, slideflow will use all available (and visible) GPUs for training.
 
 Monitoring performance
 **********************
 
-During training, progress can be monitored using Tensorflow's bundled ``Tensorboard`` package:
+During training, progress can be monitored using Tensorflow's bundled ``Tensorboard`` package by passing the argument ``use_tensorboard=True``. This functionality was disabled by default due to a recent bug in Tensorflow. To use tensorboard to monitor training, execute:
 
 .. code-block:: bash
 
 	$ tensorboard --logdir=/path/to/model/directory
 
-... and then opening http://localhost:6006 in your web browser.
+... and open http://localhost:6006 in your web browser.

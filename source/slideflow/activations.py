@@ -55,7 +55,7 @@ class ActivationsVisualizer:
 		Will also read/write processed activations to a PKL cache file to save time in future iterations.'''
 	
 	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_label_headers=None, 
-					focus_nodes=[], use_fp16=True, normalizer=None, normalizer_source=None, 
+					focus_nodes=[], normalizer=None, normalizer_source=None, 
 					activations_cache=None, batch_size=32, activations_export=None, max_tiles_per_slide=100,
 					min_tiles_per_slide=None, manifest=None, model_format=None, layers=['postconv'], include_logits=True):
 		'''Object initializer.
@@ -68,7 +68,6 @@ class ActivationsVisualizer:
 			annotations:			Path to CSV file containing slide annotations
 			outcome_label_headers:			String, name of outcome header in annotations file, used to compare activations between categories
 			focus_nodes:			List of int, nodes on which to focus when generating cross-category statistics
-			use_fp16:				Bool, whether to use FP16 (rather than FP32)
 			normalizer:				String, which real-time normalization to use on images taken from TFRecords
 			noramlizer_source:		String, path to image to use as source for real-time normalization
 			activations_cache:		File in which to store activations PKL cache
@@ -143,7 +142,6 @@ class ActivationsVisualizer:
 		else:
 			self.generate_activations_from_model(model, 
 												 model_format=model_format, 
-												 use_fp16=use_fp16,
 												 batch_size=batch_size,
 												 export=activations_export,
 												 normalizer=normalizer,
@@ -175,16 +173,7 @@ class ActivationsVisualizer:
 		log.info(f"Loaded activations from {(len(self.slides)-len(missing_slides))}/{len(self.slides)} slides ({len(missing_slides)} missing)", 2)
 		if len(missing_slides):
 			log.warn(f"Activations missing for {len(missing_slides)} slides", 1)
-			#missing_tfrecords = [tfr for tfr in self.tfrecords if sfutil.path_to_name(tfr) in missing_slides]
-			#self.generate_activations_from_model(model, 
-			#									 missing_tfrecords, 
-			#									 use_fp16=use_fp16, 
-			#									 batch_size=batch_size, 
-			#									 export=activations_export, 
-			#									 normalizer=normalizer, 
-			#									 normalizer_source=normalizer_source,
-			# 									 layers=layers)
-		
+
 		# Record which categories have been included in the specified tfrecords
 		if self.categories:
 			self.used_categories = list(set([self.slide_category_dict[slide] for slide in self.slides]))
@@ -597,14 +586,13 @@ class ActivationsVisualizer:
 		#	print(slide, mean(filtered_predictions[slide]))
 		return neighbors
 
-	def generate_activations_from_model(self, model, use_fp16=True, batch_size=16, export=None, 
+	def generate_activations_from_model(self, model, batch_size=16, export=None, 
 										normalizer=None, normalizer_source=None, model_format=None,
 										layers=['postconv'], include_logits=True):
 		'''Calculates activations from a given model.
 
 		Args:
 			model:		Path to Tensorflow model from which to calculate final layer activations.
-			use_fp16:	If true, uses Float16 (default) instead of Float32.
 			batch_size:	Batch size for model predictions.
 			export:		String (default: None). If provided, will export CSV of activations with this filename.'''
 
@@ -661,12 +649,13 @@ class ActivationsVisualizer:
 				if include_logits:	fl_activations, logits = model_output
 				else:				fl_activations = model_output
 
-				fl_activations_combined = fl_activations if fl_activations_combined == [] else np.concatenate([fl_activations_combined, fl_activations])
-				slides_combined = batch_slides if slides_combined == [] else np.concatenate([slides_combined, batch_slides])
-				loc_x_combined = batch_loc_x.numpy() if loc_x_combined == [] else np.concatenate([loc_x_combined, batch_loc_x.numpy()])
-				loc_y_combined = batch_loc_y.numpy() if loc_y_combined == [] else np.concatenate([loc_y_combined, batch_loc_y.numpy()])
+				fl_activations_combined += [fl_activations]
+				slides_combined += [batch_slides]
+				loc_x_combined += [batch_loc_x.numpy()]
+				loc_y_combined += [batch_loc_y.numpy()]
 
-				if include_logits: 	logits_combined = logits if logits_combined == [] else np.concatenate([logits_combined, logits])
+				if include_logits:
+					logits_combined += [logits] #logits if logits_combined == [] else np.concatenate([logits_combined, logits])
 
 				if log.INFO_LEVEL > 0:
 					sys.stdout.write(f"\r(TFRecord {t+1:>3}/{len(self.tfrecords):>3}) (Batch {i+1:>3}) ({len(fl_activations_combined):>5} images): {sfutil.green(sfutil.path_to_name(tfrecord))}")
@@ -674,6 +663,14 @@ class ActivationsVisualizer:
 
 				if self.MAX_TILES_PER_SLIDE and (len(fl_activations_combined) >= self.MAX_TILES_PER_SLIDE):
 					break
+
+			fl_activations_combined = np.concatenate(fl_activations_combined)
+			slides_combined = np.concatenate(slides_combined)
+			loc_x_combined = np.concatenate(loc_x_combined)
+			loc_y_combined = np.concatenate(loc_y_combined)
+
+			if include_logits:
+				logits_combined = np.concatenate(logits_combined)
 
 			# Merge x and y locations into a single array
 			loc_combined = np.stack((loc_x_combined, loc_y_combined), axis=-1)
@@ -1217,7 +1214,7 @@ class TileVisualizer:
 class Heatmap:
 	'''Generates heatmap by calculating predictions from a sliding scale window across a slide.'''
 
-	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16=True, stride_div=2, roi_dir=None, 
+	def __init__(self, slide_path, model_path, size_px, size_um, stride_div=2, roi_dir=None, 
 					roi_list=None, roi_method='inside', buffer=True, normalizer=None, normalizer_source=None,
 					batch_size=16, model_format=None, num_threads=1):
 		'''Convolutes across a whole slide, calculating logits and saving predictions internally for later use.
@@ -1227,7 +1224,6 @@ class Heatmap:
 			model_path:			Path to Tensorflow model
 			size_px:			Size of image tiles, in pixels
 			size_um:			Size of image tiles, in microns
-			use_fp16:			Bool, whether to use FP16 (vs FP32)
 			stride_div:			Divisor for stride when convoluting across slide
 			roi_dir:			Directory in which slide ROI is contained
 			roi_list:			If a roi_dir is not supplied, a list of paths to ROI CSVs can be provided
@@ -1241,7 +1237,6 @@ class Heatmap:
 		'''
 		from slideflow.slide import SlideReader
 
-		#self.DTYPE = tf.float16 if use_fp16 else tf.float32
 		self.logits = None
 		self.tile_px = size_px
 		self.tile_um = size_um
@@ -1314,8 +1309,10 @@ class Heatmap:
 		postconv_arr = []	# Post-convolutional layer (post-convolutional activations)
 		for batch_images in tile_dataset:
 			postconv, logits = self.model.predict(batch_images)
-			logits_arr = logits if logits_arr == [] else np.concatenate([logits_arr, logits])
-			postconv_arr = postconv if postconv_arr == [] else np.concatenate([postconv_arr, postconv])
+			logits_arr += [logits]
+			postconv_arr += [postconv]
+		logits_arr = np.concatenate(logits_arr)
+		postconv_arr = np.concatenate(postconv_arr)
 		num_postconv_nodes = postconv_arr.shape[1]
 		pb.end()
 
