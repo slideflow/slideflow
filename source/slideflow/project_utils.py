@@ -9,6 +9,18 @@ from slideflow.util import log
 
 '''Utility functions for SlideflowProject, primarily for use in the context of multiprocessing.'''
 
+DEFAULT_FLAGS = {
+	'eval_batch_size': 64,
+	'num_threads': 4,
+	'logging_levels': {
+		'info': 3,
+		'warn': 3,
+		'error': 3,
+		'complete': 3,
+		'silent': False
+	}
+}
+
 def print_fn(string):
 	sys.stdout.write(f"\r\033[K{string}\n")
 	sys.stdout.flush()
@@ -68,7 +80,7 @@ def tile_extractor(slide_path, roi_dir, roi_method, skip_missing_roi, randomize_
 		except TileCorruptionError:
 			if downsample:
 				log.warn(f"Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; will try re-extraction with downsampling disabled", 1, print_fn)
-				report = _tile_extractor(
+				report = tile_extractor(
 					slide_path,
 					roi_dir,
 					roi_method,
@@ -109,7 +121,7 @@ def tile_extractor(slide_path, roi_dir, roi_method, skip_missing_roi, randomize_
 		return
 
 def activations_generator(project_config, model, outcome_label_headers=None, layers=None, filters=None, filter_blank=None, 
-								focus_nodes=[], node_exclusion=False, activations_export=None,
+								focus_nodes=[], activations_export=None,
 								activations_cache='default', normalizer=None, normalizer_source=None, 
 								max_tiles_per_slide=100, min_tiles_per_slide=None, model_format=None, 
 								include_logits=True, batch_size=None, torch_export=None, results_dict=None):

@@ -14,12 +14,7 @@ import matplotlib.colors as mcol
 
 from os.path import join, exists, isdir, dirname
 from glob import glob
-from random import shuffle
-from multiprocessing.dummy import Pool as DPool
-from functools import partial
 from datetime import datetime
-from PIL import Image
-from io import BytesIO
 from statistics import mean, median
 
 import slideflow as sf
@@ -29,22 +24,10 @@ import slideflow.io as sfio
 from slideflow import project_utils
 from slideflow.io import Dataset
 from slideflow.statistics import TFRecordMap, calculate_centroid
-from slideflow.util import TCGA, ProgressBar, load_model_hyperparameters, log, StainNormalizer
+from slideflow.util import TCGA, ProgressBar, log, StainNormalizer
 
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
-DEFAULT_FLAGS = {
-	'eval_batch_size': 64,
-	'num_threads': 4,
-	'logging_levels': {
-		'info': 3,
-		'warn': 3,
-		'error': 3,
-		'complete': 3,
-		'silent': False
-	}
-}
 
 class SlideflowProject:
 
@@ -63,7 +46,7 @@ class SlideflowProject:
 		'''
 		
 		# Configure flags and logging
-		self.FLAGS = flags if flags else DEFAULT_FLAGS
+		self.FLAGS = flags if flags else project_utils.DEFAULT_FLAGS
 		log.configure(levels=self.FLAGS['logging_levels'])
 
 		log.header(f"Slideflow v{sf.__version__}\n================")
@@ -443,8 +426,8 @@ class SlideflowProject:
 		
 		Args:
 			model:					Path to Tensorflow model to evaluate.
-			outcome_label_headers:			Annotation column header that specifies the outcome label.
-			hyperparameters:		Path to model's hyperparameters.json file. If None, searches for this file in the same directory as the model.
+			outcome_label_headers:	Annotation column header that specifies the outcome label(s).
+			hyperparameters:		Path to model's hyperparameters.json file. If None (default), searches for this file in the same directory as the model.
 			filters:				Filters to use when selecting tfrecords on which to perform evaluation.
 			checkpoint:				Path to cp.ckpt file to load, if evaluating a saved checkpoint.
 			eval_k_fold:			K-fold iteration number to evaluate. If None, will evaluate all tfrecords irrespective of K-fold.
@@ -453,7 +436,12 @@ class SlideflowProject:
 										for best slide-level AUC, a minimum of at least 10 tiles per slide is recommended.
 			normalizer:				Normalization strategy to use on image tiles.
 			normalizer_source:		Path to normalizer source image.
+			input_header:			Annotation column header to use as additional input to the model.
 			permutation_importance:	Bool. True if you want to calculate the permutation feature importance (used to determine relative importance when using multiple model inputs
+			histogram:				Bool. If true, will create tile-level histograms to show prediction distributions for each class.
+			save_predictions:		Either True, False, or a list with any combination of 'tile', 'patient', or 'slide'.
+										Will save tile-level, patient-level, and/or slide-level predictions.
+										If True, will save all.
 		'''							
 		log.header(f"Evaluating model {sfutil.green(model)}...")
 		
@@ -474,82 +462,6 @@ class SlideflowProject:
 
 		return results_dict
 
-	def extract_dual_tiles(self, tile_um, tile_px, stride_div=1, filters=None, 
-							buffer=True, normalizer=None, normalizer_source=None):
-		'''Experimental function to extract dual tiles at two different px/um sizes, saving both within the same TFRecord.'''
-		import slideflow.slide as sfslide
-		import tensorflow as tf
-
-		log.header("Extracting dual-image tiles...")
-		extracting_dataset = self.get_dataset(filters=filters, tile_px=tile_px, tile_um=tile_um)
-
-		def extract_tiles_from_slide(slide_path, roi_list, dataset_config, pb):
-			root_path = join(dataset_config["tfrecords"], dataset_config["label"])
-			if not exists(root_path): 
-					os.makedirs(root_path)
-
-			whole_slide = sfslide.SlideReader(slide_path, 
-											  tile_px, 
-											  tile_um, 
-											  stride_div, 
-											  roi_list=roi_list, 
-											  buffer=buffer, 
-											  pb_counter=pb.get_counter(),
-											  counter_lock=pb.get_lock(),
-											  print_fn=pb.print)
-
-			small_tile_generator = whole_slide.build_generator(dual_extract=True, 
-															   normalizer=normalizer, 
-															   normalizer_source=normalizer_source)
-
-			tfrecord_name = sfutil.path_to_name(slide_path)
-			tfrecord_path = join(root_path, f"{tfrecord_name}.tfrecords")
-			records = []
-
-			for image_dict in small_tile_generator():
-				label = bytes(tfrecord_name, 'utf-8')
-				image_string_dict = {}
-				for image_label in image_dict:
-					np_image = image_dict[image_label]
-					image = Image.fromarray(np_image).convert('RGB')
-					with BytesIO() as output:
-						image.save(output, format="JPEG")
-						image_string = output.getvalue()
-						image_string_dict.update({
-							image_label: image_string
-						})
-				records += [[label, image_string_dict]]
-
-			shuffle(records)
-			
-			with tf.io.TFRecordWriter(tfrecord_path) as writer:
-				for label, image_string_dict in records:
-					tf_example = sfio.tfrecords.multi_image_example(label, image_string_dict)
-					writer.write(tf_example.SerializeToString())
-
-		for dataset_name in self.PROJECT['datasets']:
-			log.empty(f"Working on dataset {sfutil.bold(dataset_name)}", 1)
-			slide_list = extracting_dataset.get_slide_paths(dataset=dataset_name)
-			roi_list = extracting_dataset.get_rois()
-			dataset_config = extracting_dataset.datasets[dataset_name]
-			log.info(f"Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)", 2)
-			pb = ProgressBar(bar_length=5, counter_text='tiles')
-			pb.auto_refresh()
-
-			if self.FLAGS['num_threads'] > 1:
-				pool = DPool(self.FLAGS['num_threads'])
-				pool.map(partial(extract_tiles_from_slide, 
-								 roi_list=roi_list, 
-								 dataset_config=dataset_config, 
-								 pb=pb), 
-						 slide_list)
-				pool.close()
-			else:
-				for slide_path in slide_list:
-					extract_tiles_from_slide(slide_path, roi_list, dataset_config, pb)
-		
-		extracting_dataset.update_manifest()
-
 	def tfrecord_report(self, tile_px, tile_um, filters=None, filter_blank=None, dataset=None,
 						 destination='auto', normalizer=None, normalizer_source=None):
 		'''Creates a PDF report of TFRecords, including 10 example tiles per TFRecord.
@@ -560,10 +472,10 @@ class SlideflowProject:
 			filters:				Dataset filters to use for selecting TFRecords
 			filter_blank:			List of label headers; slides that have blank entries in this label header
 								 		in the annotations file will be excluded
+			dataset:				Optional. Name of dataset from which to generate reports. Defaults to all project datasets.
 			destination:			Either 'auto' or explicit filename at which to save the PDF report
 			normalizer:				Normalization strategy to use on image tiles
 			normalizer_source:		Path to normalizer source image
-			dataset:				Name of dataset from which to select TFRecords. If not provided, will use all project datasets
 		'''
 		from slideflow.slide import ExtractionReport, SlideReport
 		import tensorflow as tf
@@ -863,9 +775,12 @@ class SlideflowProject:
 			whitespace_threshold:	Int 0-255. Threshold above which a pixel (averaged across R,G,B) is considered whitespace.
 			grayspace_fraction:		Float 0-1. Fraction of grayspace which causes a tile to be discarded. If 1, will not perform grayspace filtering.
 			grayspace_threshold:	Int 0-1. HSV (hue, saturation, value) is calculated for each pixel. If a pixel's saturation is below this threshold, it is considered grayspace.
+			img_format:				'png' or 'jpg'. Format of images for internal storage in tfrecords. PNG (lossless) format recommended for fidelity, JPG (lossy) for space efficiency.
+			randomize_origin:		Bool. If true, will slightly randomize the exact pixel starting position during tile extraction.
 			buffer:					Either 'vmtouch' or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
 										If a directory, slides will be copied to the directory as a buffer before extraction.
 										Either method vastly improves tile extraction for slides on HDDs by maximizing sequential read speed
+			shuffle:				Bool. If true (default), will shuffle tiles in tfrecords.
 			num_workers:			Number of slides from which to be extracting tiles simultaneously.
 			threads_per_worker:		Number of processes to allocate to each slide for tile extraction.
 		'''
@@ -980,7 +895,7 @@ class SlideflowProject:
 						try:
 							path = q.get()
 							process = ctx.Process(target=project_utils.tile_extractor, args=(path, roi_dir, roi_method, skip_missing_roi, randomize_origin,
-																				img_format, tma, full_core, shuffle, tile_px, tile_um, stride_div, False,
+																				img_format, tma, full_core, shuffle, tile_px, tile_um, stride_div, enable_downsample,
 																				whitespace_fraction, whitespace_threshold, grayspace_fraction, grayspace_threshold, normalizer, 
 																				normalizer_source, split_fraction, split_names, self.PROJECT['root'], tfrecord_dir, tiles_dir, 
 																				save_tiles, save_tfrecord, buffer, threads_per_worker, counter, counter_lock))
@@ -1032,37 +947,44 @@ class SlideflowProject:
 			extracting_dataset.update_manifest()
 
 	def generate_activations(self, model, outcome_label_headers=None, layers=['postconv'], filters=None, filter_blank=None, 
-								focus_nodes=[], node_exclusion=False, activations_export=None,
+								focus_nodes=[], activations_export=None,
 								activations_cache=None, normalizer=None, normalizer_source=None, 
 								max_tiles_per_slide=0, min_tiles_per_slide=None, model_format=None, include_logits=True,
-								batch_size=None, torch_export=None, isolated_thread=False):
+								batch_size=None, torch_export=None, isolated_process=False):
 		'''Calculates final layer activations and displays information regarding the most significant final layer nodes.
 		Note: GPU memory will remain in use, as the Keras model associated with the visualizer is active.
 		
 		Args:
-			model:				Path to Tensorflow model
-			outcome_label_headers:		Column header in annotations file; used for category-level comparisons
-			filters:			Dataset filters for selecting TFRecords
-			filter_blank:		List of label headers; slides that have blank entries in this label header
-									in the annotations file will be excluded
-			focus_nodes:		List of int, indicates which nodes are of interest for subsequent analysis
-			activations_export:	Path to CSV file, if provided, will save activations in CSV format to this file
-			activations_cache:	Either 'default' or path to 'PKL' file; will save activations to this file in PKL format as cache
-			normalizer:			Normalization strategy to use on image tiles
-			normalizer_source:	Path to normalizer source image
-			model_format:		Optional. May supply format of saved Slideflow Keras model if the model was made with a legacy version.
-									Default value will be slideflow.model.MODEL_FORMAT_CURRENT,
-									but slideflow.model.MODEL_FORMAT_LEGACY may be supplied.
-			batch_size:			Batch size to use when calculating activations.
+			model:						Path to Tensorflow model
+			outcome_label_headers:		(optional) Column header in annotations file; used for category-level comparisons
+			layers:						Layers from which to generate activations.
+			filters:					Dataset filters for selecting TFRecords
+			filter_blank:				List of label headers; slides that have blank entries in this label header
+											in the annotations file will be excluded
+			focus_nodes:				List of int, indicates which nodes are of interest for subsequent analysis
+			activations_export:			Path to CSV file, if provided, will save activations in CSV format to this file
+			activations_cache:			Either 'default' or path to 'PKL' file; will save activations to this file in PKL format as cache
+			normalizer:					Normalization strategy to use on image tiles
+			normalizer_source:			Path to normalizer source image
+			max_tiles_per_slide:		Int. If > 0, will only take this many tiles per slide.
+			min_tiles_per_slide:		Int. If > 0, will skip slides with fewer than this many tiles.
+			model_format:				Optional. May supply format of saved Slideflow Keras model if the model was made with a legacy version.
+											Default value will be slideflow.model.MODEL_FORMAT_CURRENT,
+											but slideflow.model.MODEL_FORMAT_LEGACY may be supplied.
+			include_logits:				If true, will also generate logit predictions along with layer activations.
+			batch_size:					Batch size to use when calculating activations.
+			torch_export:				Path. If true, will export activations to torch-compatible file in this location.
+			isolated_process:			Bool. If true, will run in an isolated process (multiprocessing), allowing GPU memory to be freed after completion, and return None.
+											If false, will return the ActivationsVisualizer object after completion.
 		'''
 
-		if isolated_thread:
+		if isolated_process:
 			manager = multiprocessing.Manager()
 			results_dict = manager.dict()
 			ctx = multiprocessing.get_context('spawn')
 			
 			process = ctx.Process(target=project_utils.activations_generator, args=(self.PROJECT, model, outcome_label_headers, layers, filters, filter_blank, 
-																		focus_nodes, node_exclusion, activations_export,
+																		focus_nodes, activations_export,
 																		activations_cache, normalizer, normalizer_source, 
 																		max_tiles_per_slide, min_tiles_per_slide, model_format, 
 																		include_logits, batch_size, torch_export, results_dict))
@@ -1072,7 +994,7 @@ class SlideflowProject:
 			return results_dict
 		else:
 			AV = project_utils.activations_generator(self.PROJECT, model, outcome_label_headers, layers, filters, filter_blank, 
-										focus_nodes, node_exclusion, activations_export,
+										focus_nodes, activations_export,
 										activations_cache, normalizer, normalizer_source, 
 										max_tiles_per_slide, min_tiles_per_slide, model_format, 
 										include_logits, batch_size, torch_export, None)
