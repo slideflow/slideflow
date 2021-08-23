@@ -1219,7 +1219,7 @@ class Heatmap:
 
 	def __init__(self, slide_path, model_path, size_px, size_um, use_fp16=True, stride_div=2, roi_dir=None, 
 					roi_list=None, roi_method='inside', buffer=True, normalizer=None, normalizer_source=None,
-					batch_size=16, skip_thumb=False, model_format=None, num_threads=1):
+					batch_size=16, model_format=None, num_threads=1):
 		'''Convolutes across a whole slide, calculating logits and saving predictions internally for later use.
 
 		Args:
@@ -1238,7 +1238,6 @@ class Heatmap:
 			normalizer:			Normalization strategy to use on image tiles
 			normalizer_source:	Path to normalizer source image
 			batch_size:			Batch size when calculating predictions
-			skip_thumb:			If true, will skip thumbnail generation (can save time if saving heatmap without thumbnail image)
 		'''
 		from slideflow.slide import SlideReader
 
@@ -1290,9 +1289,8 @@ class Heatmap:
 			raise ActivationsError(f"Unable to load slide {self.slide.name} for heatmap generation")
 
 		# Pre-load thumbnail in separate thread
-		if not skip_thumb:
-			thumb_process = DProcess(target=partial(self.slide.thumb, width=2048))
-			thumb_process.start()
+		thumb_process = DProcess(target=partial(self.slide.thumb, width=2048))
+		thumb_process.start()
 
 		# Create tile coordinate generator
 		gen_slice = self.slide.build_generator(normalizer=self.normalizer,
@@ -1321,9 +1319,8 @@ class Heatmap:
 		num_postconv_nodes = postconv_arr.shape[1]
 		pb.end()
 
-		if not skip_thumb:
-			print('\r\033[KFinished predictions. Waiting on thumbnail...', end="")
-			thumb_process.join()
+		print('\r\033[KFinished predictions. Waiting on thumbnail...', end="")
+		thumb_process.join()
 
 		if ((self.slide.tile_mask is not None) and
 			 (self.slide.extracted_x_size) and
@@ -1384,7 +1381,7 @@ class Heatmap:
 				x,y = poly.exterior.xy
 				plt.plot(x, y, zorder=20, color='k', linewidth=5)
 
-	def display(self, show_roi=True, interpolation='none', logit_cmap=None, skip_thumb=False):
+	def display(self, show_roi=True, interpolation='none', logit_cmap=None):
 		'''Interactively displays calculated logits as a heatmap.
 		
 		Args:
@@ -1404,15 +1401,13 @@ class Heatmap:
 											'g': 3,
 											'b': 1
 										}
-			skip_thumb:			Bool, whether to skip thumbnail (vs displaying with heatmap)
 		'''
 		self._prepare_figure(show_roi=False)
 		heatmap_dict = {}
 
-		if not skip_thumb:
-			if show_roi: thumb = self.slide.annotated_thumb()
-			else: thumb = self.slide.thumb()
-			implot = FastImshow(thumb, self.ax, extent=None, tgt_res=1024)
+		if show_roi: thumb = self.slide.annotated_thumb()
+		else: thumb = self.slide.thumb()
+		implot = FastImshow(thumb, self.ax, extent=None, tgt_res=1024)
 
 		def slider_func(val):
 			for h, s in heatmap_dict.values():
@@ -1425,9 +1420,8 @@ class Heatmap:
 				def map_logit(l): 
 					# Make heatmap with specific logit predictions mapped to r, g, and b
 					return (l[logit_cmap['r']], l[logit_cmap['g']], l[logit_cmap['b']])
-			extent = None if skip_thumb else implot.extent
 			heatmap = self.ax.imshow([[map_logit(l) for l in row] for row in self.logits], 
-									 extent=extent, 
+									 extent=implot.extent, 
 									 interpolation=interpolation, 
 									 zorder=10)
 		else:
@@ -1450,7 +1444,7 @@ class Heatmap:
 		implot.show()
 		plt.show()
 
-	def save(self, save_folder, show_roi=True, interpolation='none', logit_cmap=None, skip_thumb=False):
+	def save(self, save_folder, show_roi=True, interpolation='none', logit_cmap=None):
 		'''Saves calculated logits as heatmap overlays.
 		
 		Args:
@@ -1470,7 +1464,6 @@ class Heatmap:
 											'g': 3,
 											'b': 1
 										}
-			skip_thumb:			Bool, whether to skip thumbnail (vs displaying with heatmap)
 		'''
 		print("\r\033[KSaving base figures...", end="")
 
@@ -1498,10 +1491,9 @@ class Heatmap:
 				def map_logit(l): 
 					# Make heatmap with specific logit predictions mapped to r, g, and b
 					return (l[logit_cmap['r']], l[logit_cmap['g']], l[logit_cmap['b']])
-			extent = None if skip_thumb else implot.get_extent()
 
 			heatmap = self.ax.imshow([[map_logit(l) for l in row] for row in self.logits],
-									 extent=extent, 
+									 extent=implot.get_extent(), 
 									 interpolation=interpolation, 
 									 zorder=10)
 

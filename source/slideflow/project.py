@@ -1001,7 +1001,7 @@ class SlideflowProject:
 			return AV
 
 	def generate_heatmaps(self, model, filters=None, filter_blank=None, directory=None, resolution='low', 
-							interpolation='none', show_roi=True, roi_method='inside', logit_cmap=None, skip_thumb=False, 
+							interpolation='none', show_roi=True, roi_method='inside', logit_cmap=None,
 							normalizer=None, normalizer_source=None, buffer=True, isolated_thread=True, 
 							num_threads='auto', model_format=None):
 		'''Creates predictive heatmap overlays on a set of slides. 
@@ -1030,7 +1030,6 @@ class SlideflowProject:
 									Thus, the corresponding color will only reflect predictions of up to three label categories.
 										Example (this would map prediction for label 0 to the red colorspace, label 3 to green colorspace, etc):
 										{'r': 0, 'g': 3, 'b': 1 }
-			skip_thumb:			Bool. If True, will not display thumbnail with heatmap.
 			normalizer:			Normalization strategy to use on image tiles
 			normalizer_source:	Path to normalizer source image
 			buffer:				Either 'vmtouch' or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
@@ -1070,14 +1069,14 @@ class SlideflowProject:
 		for slide in slide_list:
 			if isolated_thread:
 				process = ctx.Process(target=project_utils.heatmap_generator, args=(slide, model, heatmaps_folder, roi_list, show_roi, roi_method,
-																		resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb,
+																		resolution, interpolation, self.PROJECT, logit_cmap,
 																		buffer, normalizer, normalizer_source, model_format, num_threads, self.FLAGS))
 				process.start()
 				log.empty(f"Spawning heatmaps process (PID: {process.pid})")
 				process.join()
 			else:
 				project_utils.heatmap_generator(slide, model, heatmaps_folder, roi_list, show_roi, roi_method,
-									resolution, interpolation, self.PROJECT, logit_cmap, skip_thumb,
+									resolution, interpolation, self.PROJECT, logit_cmap, 
 									buffer, normalizer, normalizer_source, model_format, num_threads, self.FLAGS)
 
 	def generate_mosaic(self, model, mosaic_filename=None, umap_filename=None, outcome_label_headers=None, filters=None,

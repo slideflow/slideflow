@@ -366,7 +366,7 @@ def evaluator(outcome_label_headers, model, project_config, results_dict, input_
 	return results_dict
 
 def heatmap_generator(slide, model_path, save_folder, roi_list, show_roi, roi_method,
-						resolution, interpolation, project_config, logit_cmap=None, skip_thumb=False, 
+						resolution, interpolation, project_config, logit_cmap=None,
 						buffer=True, normalizer=None, normalizer_source=None, model_format=None, num_threads='auto', flags=None):
 
 	'''Internal function to execute heatmap generator process.'''
@@ -400,11 +400,10 @@ def heatmap_generator(slide, model_path, save_folder, roi_list, show_roi, roi_me
 					  normalizer=normalizer,
 					  normalizer_source=normalizer_source,
 					  batch_size=flags['eval_batch_size'],
-					  skip_thumb=skip_thumb,
 					  model_format=model_format,
 					  num_threads=num_threads)
 
-	heatmap.save(save_folder, show_roi=show_roi, interpolation=interpolation, logit_cmap=logit_cmap, skip_thumb=skip_thumb)
+	heatmap.save(save_folder, show_roi=show_roi, interpolation=interpolation, logit_cmap=logit_cmap)
 
 def trainer(outcome_label_headers, model_name, project_config, results_dict, hp, validation_strategy, 
 			validation_target, validation_fraction, validation_k_fold, validation_log, validation_dataset=None, 
