@@ -377,6 +377,7 @@ class SlideflowModel:
 		self.FEATURE_SIZES = feature_sizes
 		self.NUM_SLIDE_FEATURES = 0 if not feature_sizes else sum(feature_sizes)
 		self.FEATURE_NAMES = feature_names
+		self.mixed_precision = mixed_precision
 
 		# Format outcome labels (ensures compatibility with single and multi-outcome models)
 		outcome_labels = np.array([slide_annotations[slide]['outcome_label'] for slide in self.SLIDES])
