@@ -6,6 +6,7 @@ from slideflow.project import SlideflowProject
 #TODO: remove/rework SFP flags -> properties
 #TODO: put tfrecord report in tfrecord directories
 #TODO: relative paths in projects, denoted by $ROOT/...
+#TODO: Put slide manifest into model folders
 
 # Known Issues / Bugs
 #TODO: fix slide predictions saving to CSV with multiple outcomes

@@ -1411,6 +1411,7 @@ class SlideflowProject:
 			size:				Int. Width/height of thumbnail in pixels.
 			filters:			Dataset filters.
 			filter_blank:		Header columns in annotations by which to filter slides, if the slides are blank in this column.
+			roi:				Bool. If True, will include ROI in the thumbnail images.
 			enable_downsample:	Bool. If True and a thumbnail is not embedded in the slide file, downsampling is permitted in order
 									to accelerate thumbnail calculation.
 		'''
@@ -1631,6 +1632,8 @@ class SlideflowProject:
 										If realtime, then normalization is performed during training.
 			use_tensorboard:		Bool. If True, will add tensorboard callback during training for realtime monitoring.
 			multi_gpu:				Bool. If True, will attempt to train using multiple GPUs using Keras MirroredStrategy.
+			save_predicitons:		Bool. If True, will save predictions with each validation. May increase validation time for large projects.
+			skip_metrics:			Bool. If True, will skip metrics (ROC, AP, F1) during validation, which may improve training time for large projects.
 			
 		Returns:
 			A dictionary containing model names mapped to train_acc, val_loss, and val_acc
@@ -1765,26 +1768,84 @@ class SlideflowProject:
 
 		return results_dict
 
-	def train_clam(self, exp_name, outcome_label_headers, model=None, pt_files='auto', num_features=None, filters=None, filter_blank=None, 
-					activation_layers=['postconv'],	max_tiles_per_slide=0, min_tiles_per_slide=16, train_slides='same', validation_slides='same',
-					tile_px=None, tile_um=None, k=1, k_start=-1, k_end=-1, max_epochs=20, lr=1e-4, label_frac=1, reg=1e-5, early_stopping=False, opt='adam',
+	def generate_features_for_clam(self, model, export_dir='auto', activation_layers=['postconv'],
+								   max_tiles_per_slide=0, min_tiles_per_slide=8,
+								   filters=None, filter_blank=None, force_regenerate=False):
+		'''Using the specified model, generates tile-level features for slides for use with CLAM.
+		
+		Args:
+			model:					Path to model from which to generate activations. May provide either this or "pt_files"
+			export_dir:				Path in which to save exported activations in .pt format. If 'auto', will save in project directory.
+			activation_layers:		Which model layer(s) from which to generate activations.
+			max_tiles_per_slide:	Maximum number of tiles to take per slide
+			min_tiles_per_slide:	Minimum number of tiles per slide. Will skip slides not meeting this threshold.
+			filters:				Dictionary of column names mapping to column values by which to filter slides using the annotation file.
+			filter_blank:			List of annotations headers; slides blank in this column will be excluded.
+			force_regenerate:		If true, will generate activations for all slides. If false, will skip slides that
+										already have a .pt file in the export directory.
+		Returns:
+			Path to directory containing exported .pt files
+		'''
+		assert min_tiles_per_slide > 8, "Slides must have at least 8 tiles to train CLAM."
+
+		# First, ensure the model is valid with a hyperparameters file
+		hp_data = sfutil.load_model_hyperparameters(model)
+		if not hp_data:
+			raise Exception('Unable to find model hyperparameters file.')
+		tile_px = hp_data['tile_px']
+		tile_um = hp_data['tile_um']	
+
+		# Set up the pt_files directory for storing model activations
+		if export_dir.lower() == 'auto':
+			model_name_end = '' if 'k_fold_i' not in hp_data else f'_kfold{hp_data["k_fold_i"]}'
+			export_dir = join(self.PROJECT['root'], 'pt_files', hp_data['model_name']+model_name_end)
+		if not exists(export_dir):
+			os.makedirs(export_dir)
+
+		# Detect already generated pt files
+		already_generated = [sfutil.path_to_name(f) for f in os.listdir(export_dir) if sfutil.path_to_ext(join(export_dir, f)) == 'pt']
+		if force_regenerate or not len(already_generated):
+			activation_filters = filters
+		else:
+			pt_dataset = self.get_dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank)
+			all_slides = pt_dataset.get_slides()
+			slides_to_generate = [s for s in all_slides if s not in already_generated]
+			activation_filters = filters.copy()
+			activation_filters['slide'] = slides_to_generate
+			filtered_dataset = self.get_dataset(tile_px, tile_um, filters=activation_filters, filter_blank=filter_blank)
+			filtered_slides_to_generate = filtered_dataset.get_slides()
+			log.info(f'Activations already generated for {len(already_generated)} files, will not regenerate for these.', 1)
+			log.info(f'Attempting to generate for {len(filtered_slides_to_generate)} slides', 1)
+
+		# Set up activations interface
+		self.generate_activations(model,
+								  filters=activation_filters,
+								  filter_blank=filter_blank,
+								  layers=activation_layers,
+								  max_tiles_per_slide=max_tiles_per_slide,
+								  min_tiles_per_slide=min_tiles_per_slide,
+								  torch_export=export_dir,
+								  isolated_thread=True,
+								  activations_cache=None)
+		return export_dir
+
+	def train_clam(self, pt_files, outcome_label_headers, tile_px, tile_um, exp_name='auto',
+					filters=None, filter_blank=None, train_slides='same', validation_slides='same',
+					k=1, k_start=-1, k_end=-1, max_epochs=20, lr=1e-4, label_frac=1, reg=1e-5, early_stopping=False, opt='adam',
 					drop_out=False, bag_loss='ce', bag_weight=0.7, model_type='clam_sb', weighted_sample=False, no_inst_cluster=False, inst_loss=None,
-					subtyping=False, B=8, attention_heatmaps=True, force_regenerate_features=False):
+					subtyping=False, B=8, attention_heatmaps=True):
 
 		'''Using a trained model, generate feature activations and train a CLAM model.
 		
 		Args:
-			exp_name
-			model
-			outcome_label_headers
-			pt_files
-			filters
-			filter_blank
-			max_tiles_per_slide
-			min_tiles_per_slide
-			train_src
-			val_src
-			k
+			pt_files:				Path to pt_files containing tile-level features.
+			exp_name:				Name of experiment. If 'auto', will auto-name experiment.
+			outcome_label_headers:	Name in annotation column which specifies the outcome label.
+			
+			
+			filters:				Dictionary of column names mapping to column values by which to filter slides using the annotation file.
+			filter_blank:			List of annotations headers; slides blank in this column will be excluded.
+			k:						
 			k_start
 			k_end
 			max_epochs
@@ -1816,63 +1877,18 @@ class SlideflowProject:
 		from slideflow.clam.create_attention import export_attention
 		from slideflow.io.tfrecords import get_tfrecords_from_model_manifest
 
-		assert min_tiles_per_slide > 8, "Slides must have at least 8 tiles to train CLAM."
-		assert model is not None or pt_files != 'auto', 'Must supply either a valid model to generate activations, or a path to pt_files'
-		assert not (model is None and num_features is None), 'If supplying pre-generated activations via pt_files, must specify "num_features"'
-		assert not (model is None and (train_slides == 'same' or validation_slides == 'same')), 'Must supply valid slide list with "train_slides" and "validation_slides" if not supplying a model.'
-		assert not (model is None and (tile_px is None or tile_um is None)), 'If supplying pre-generated activations via pt_files, must specify "tile_px" and "tile_um"'
+		assert not (train_slides == 'same' or validation_slides == 'same'), 'Must supply valid slide list with "train_slides" and "validation_slides" if not supplying a model.'
 
 		# Set up CLAM experiment data directory
 		clam_dir = join(self.PROJECT['root'], 'clam', exp_name)
 		results_dir = join(clam_dir, 'results')
 		if not exists(results_dir): os.makedirs(results_dir)
 
-		if model is not None:
-			# First, ensure the model is valid with a hyperparameters file
-			try:
-				hp_data = sfutil.load_model_hyperparameters(model)
-				tile_px = hp_data['tile_px']
-				tile_um = hp_data['tile_um']
-			except FileNotFoundError:
-				raise Exception('Unable to find model hyperparameters file.')
+		# Detect number of features automatically from saved pt_files
+		pt_file_paths = [p for p in os.listdir(pt_files) if sfutil.path_to_ext(join(pt_files, p)) == 'pt']
+		num_features = clam.detect_num_features(pt_file_paths[0])
 
-			# Set up the pt_files directory for storing model activations
-			if pt_files.lower() == 'auto':
-				model_name_end = '' if 'k_fold_i' not in hp_data else f'_kfold{hp_data["k_fold_i"]}'
-				pt_files = join(self.PROJECT['root'], 'pt_files', hp_data['model_name']+model_name_end)
-			if not exists(pt_files):
-				os.makedirs(pt_files)
-
-			# Detect already generated pt files
-			already_generated = [sfutil.path_to_name(f) for f in os.listdir(pt_files) if sfutil.path_to_ext(join(pt_files, f)) == 'pt']
-			if force_regenerate_features or not len(already_generated):
-				activation_filters = filters
-			else:
-				pt_dataset = self.get_dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank)
-				all_slides = pt_dataset.get_slides()
-				slides_to_generate = [s for s in all_slides if s not in already_generated]
-				activation_filters = filters.copy()
-				activation_filters['slide'] = slides_to_generate
-				filtered_dataset = self.get_dataset(tile_px, tile_um, filters=activation_filters, filter_blank=filter_blank)
-				filtered_slides_to_generate = filtered_dataset.get_slides()
-				log.info(f'Activations already generated for {len(already_generated)} files, will not regenerate for these.', 1)
-				log.info(f'Attempting to generate for {len(filtered_slides_to_generate)} slides', 1)
-
-			# Set up activations interface
-			activations_results = self.generate_activations(model,
-															filters=activation_filters,
-															filter_blank=filter_blank,
-															layers=activation_layers,
-															max_tiles_per_slide=max_tiles_per_slide,
-															min_tiles_per_slide=min_tiles_per_slide,
-															torch_export=pt_files,
-															isolated_thread=True,
-															activations_cache=None)
-
-			# Export activations to pt_files folder in torch format
-			num_features = activations_results['num_features']
-
-		model_size = [num_features,256,128]
+		model_size = [num_features, 256, 128]
 
 		# Set up training/validation splits (mirror base model)
 		split_dir = join(clam_dir, 'splits')
@@ -2100,7 +2116,17 @@ class SlideflowProject:
 				self.generate_tfrecord_heatmap(tfr, attention_dict, heatmaps_dir, tile_px=tile_px, tile_um=tile_um)
 
 	def generate_tfrecord_heatmap(self, tfrecord, tile_dict, export_dir, tile_px, tile_um):
-		'''Creates a tfrecord-based WSI heatmap using a dictionary of tile values for heatmap display. '''
+		'''Creates a tfrecord-based WSI heatmap using a dictionary of tile values for heatmap display.
+		
+		Args:
+			tfrecord:		Path to tfrecord
+			tile_dict:		Dictionary mapping tfrecord indices to a tile-level value for display in heatmap format
+			export_dir:		Path to directory in which to save images
+			tile_px:		Tile width in pixels
+			tile_um:		Tile width in microns
+		
+		Returns:
+			Dictionary mapping slide names to dict of statistics (mean, median, above_0, and above_1)'''
 		
 		from slideflow.io.tfrecords import get_locations_from_tfrecord
 		from slideflow.slide import SlideReader

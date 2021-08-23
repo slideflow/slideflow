@@ -16,6 +16,10 @@ import torch.nn.functional as F
 import pandas as pd
 import numpy as np
 
+def detect_num_features(path_to_pt):
+    features = torch.load(path_to_pt)
+    return features.size()[1]
+
 def main(args, dataset):
     # create results directory if necessary
     if not os.path.isdir(args.results_dir):
