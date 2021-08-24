@@ -297,7 +297,8 @@ class TestSuite:
 											early_stop_method='loss',
 											hidden_layer_width=500,
 											trainable_layers=0,
-											L2_weight=0,
+											L2_weight=0.1,
+											dropout=0.1,
 											balanced_training=["BALANCE_BY_PATIENT"],
 											balanced_validation=["NO_BALANCE"],
 											augment=[True],
@@ -306,7 +307,7 @@ class TestSuite:
 
 		# Create single hyperparameter combination
 		hp = sf.model.HyperParameters(finetune_epochs=1, toplayer_epochs=0, model='InceptionV3', pooling='max', loss=loss,
-				learning_rate=0.001, batch_size=64, hidden_layers=1, optimizer='Adam', early_stop=False, 
+				learning_rate=0.001, batch_size=64, hidden_layers=1, optimizer='Adam', early_stop=False, dropout=0.1, L2_weight=0.1,
 				early_stop_patience=0, balanced_training='BALANCE_BY_PATIENT', balanced_validation='NO_BALANCE', 
 				augment=True)
 		return hp
