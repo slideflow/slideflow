@@ -887,7 +887,7 @@ def _cph_metrics(args):
 													label_end=args.label_end,
 													save_predictions=args.save_patient_predictions,
 													data_dir=args.data_dir,
-													label="slide")
+													label="patient")
 		y_true_by_patient = np.array([args.y_true_patient[patient] for patient in args.patients])
 		args.c_index['patient'] = concordance_index(y_true_by_patient, averages_by_patient)	
 
@@ -924,7 +924,7 @@ def _linear_metrics(args):
 													label_end=args.label_end,
 													save_predictions=args.save_patient_predictions,
 													data_dir=args.data_dir,
-													label="slide")
+													label="patient")
 
 		y_true_by_patient = np.array([args.y_true_patient[patient] for patient in args.patients])
 		args.r_squared['patient'] = generate_scatter(y_true_by_patient, averages_by_patient, args.data_dir, args.label_end+"_by_patient")
@@ -1012,7 +1012,7 @@ def _categorical_metrics(args, outcome_name, starttime=None):
 														label_end="_" + outcome_name + args.label_end,
 														save_predictions=args.save_patient_predictions,
 														data_dir=args.data_dir,
-														label="slide")
+														label="patient")
 
 		# Generate patient-level ROC
 		for i in range(num_cat):
@@ -1452,6 +1452,8 @@ def permutation_feature_importance(model,
 																	  histogram=False,
 																	  plot=False)
 	base_auc_list = np.array([base_auc['tile'], base_auc['slide'], base_auc['patient']])
+	base_r_squared_list = np.array([base_r_squared['tile'], base_r_squared['slide'], base_r_squared['patient']])
+	base_c_index_list = np.array([base_c_index['tile'], base_c_index['slide'], base_c_index['patient']])
 
 	total_features = sum(feature_sizes)
 	if model_type == 'cph':
@@ -1483,7 +1485,7 @@ def permutation_feature_importance(model,
 		else:
 			y_pred = predict_from_layer(model, pre_hl_new, input_layer_name='hidden_0')
 
-		new_auc, _, _ = metrics_from_predictions(y_true=y_true,
+		new_auc, new_r, new_c = metrics_from_predictions(y_true=y_true,
 												y_pred=y_pred,
 												tile_to_slides=tile_to_slides,
 												annotations=annotations,
@@ -1496,7 +1498,13 @@ def permutation_feature_importance(model,
 												verbose=False,
 												histogram=False,
 												plot=False)
-		metrics[feature] = base_auc_list - np.array([new_auc['tile'], new_auc['slide'], new_auc['patient']])
+
+		if model_type == 'categorical':
+			metrics[feature] = base_auc_list - np.array([new_auc['tile'], new_auc['slide'], new_auc['patient']])
+		if model_type == 'linear':
+			metrics[feature] = base_r_squared_list - np.array([new_r['tile'], new_r['slide'], new_r['patient']])
+		if model_type == 'cph':
+			metrics[feature] = base_c_index_list - np.array([new_c['tile'], new_c['slide'], new_c['patient']])
 
 	#Probably makes sense to measure only at the tile level - unless we write code to do permutation of patient level data which would be probably more work than its worth
 	feature_text = ""
