@@ -3,53 +3,52 @@
 Validation Planning
 ===================
 
-An important first step in creating a new project is to determine the validation plan. When training neural networks, data is segregated into three groups:
+An important first step in creating a new project is to determine the validation plan. Three groups of data are required:
 
 1) **Training data** - data used for learning during training
 2) **Validation data** - data used for performance testing during training
 3) **Evaluation data** - data used for final evaluation once training has completed. Preferably an external cohort.
 
-Validation data is used to assess model performance during training. Good performance on validation data generally indicates that your model is learning generalizable features. Poor performance on validation data despite good training performance is a sign of overfitting.
-
-Over the course of a project, you will perform many model training iterations as you test different hyperparameter combinations. Throughout all of these training iterations, you will be using the same validation data to assess performance. Ideally, you will end up choosing hyperparameters which result in the best performance on your validation data. 
-
-Once you have finished training models on all of your hyperparameter combinations, pick the best hyperparameters and train one last model on *both* your training data and validation data. Assess this final model's performance on your reserved evaluation dataset; this is your model's final performance.
-
-Saving a subset of data for final evaluation testing reduces the risk of bias and ensures a more accurate assessment of model generalizability.
+Validation data is used to assess model performance and generalizability during training. Once the model and hyperparameters have been tuned with training/validation, the final model's performance is assessed on the held-out evaluation set.
 
 Configuring a validation plan
 *****************************
 
-There are several ways you can plan to validate your data. The project configuration options in slideflow are the following:
+There are several ways you can plan to validate your data. The validation settings available include:
 
-- **validation_target**:  *'per-patient'* or *'per-tile'*
-- **validation_strategy**:  *'bootstrap'*, *'k-fold'*, *'fixed'*, *'none'*
-- **validation_fraction**:  (float between 0-1)
-- **validation_k_fold**:  int
+- **target**:  *'per-patient'* or *'per-tile'*
+- **strategy**:  *'bootstrap'*, *'k-fold'*, *k-fold-manual'*, *k-fold-preserved-site*, *'fixed'*, *'none'*
+- **fraction**:  (float between 0-1)
+- **k_fold**:  int
 
-These options can be supplied either via your global project configuration (stored in ``settings.json``) or at the time of training by passing the arguments directly. Arguments passed at the time of training will override any project settings.
+The default arguments are 'per-patient' target and 'k-fold' strategy, with K=3. If a different validation strategy is required, create a custom validation plan using :func:`slideflow.project.get_validation_settings` and passing the arguments to customize.
 
-validation_target
+Validation target
 ^^^^^^^^^^^^^^^^^
 
-The first consideration is whether you will be separating validation data on a **tile-level** (setting aside a certain % of tiles from every slide for validation) or **slide-level** (setting aside a certain number of slides). In most instances, it is best to use slide-level validation separation, as this will offer the best insight into whether your model is generalizable on a different set of slides.
+The first consideration is whether you will be separating validation data on a **tile-level** (setting aside a certain % of tiles from every slide for validation) or **patient-level** (splitting patients, and their constituent slides, into training/validation datasets). Patient-level validation is highly recommended and used by default, due to risk of bias and overfitting when using tile-level validation.
 
 *Note: if using tile-level validation, this must be configured at the time of tile extraction due to the way TFRecord tile data is stored. If you change validation_target mid-project, you may need to re-extract tiles.*
 
-validation_strategy
+Validation strategy
 ^^^^^^^^^^^^^^^^^^^
 
-The ``validation_strategy`` option determines how the validation data is selected.
+The ``strategy`` option determines how the validation data is selected.
 
-If **fixed**, a certain percentage of your training data is set aside for testing (determined by ``validation_fraction``). The chosen validation subset is saved to a log file and will be re-used for all training iterations.
+If **fixed**, a certain percentage of your training data is set aside for testing (determined by ``fraction``). The chosen validation subset is saved to a log file and will be re-used for all training iterations.
 
-If **bootstrap**, validation data will be selected at random (percentage determined by ``validation_fraction``), and all training iterations will be repeated a number of times equal to ``validation_k_fold``. The saved and reported model training metrics will be an average of all bootstrap iterations. 
+If **bootstrap**, validation data will be selected at random (percentage determined by ``fraction``), and all training iterations will be repeated a number of times equal to ``k_fold``. The saved and reported model training metrics will be an average of all bootstrap iterations. 
 
-If **k-fold**, training data will be separated into *k* number of groups (where *k* is equal to ``validation_k_fold``), and all training iterations will be repeated *k* number of times using k-fold cross validation. The saved and reported model training metrics will be an average of all k-fold iterations. 
+If **k-fold**, training data will be automatically separated into *k* number of groups (where *k* is equal to ``k_fold``), and all training iterations will be repeated *k* number of times using k-fold cross validation. The saved and reported model training metrics will be an average of all k-fold iterations. 
+
+If you would like to manually separate your data into k-folds, you may do so with the **k-fold-manual** strategy, by indicating which k-fold each slide should be in using the annotations file, and designating the appropriate column header with ``k_fold_header``
+
+The **k-fold-preserved-site** strategy is a cross-validation strategy that ensures site is preserved across the training/validation sets, in order to reduce bias from batch effect as described by `Howard, et al <https://www.nature.com/articles/s41467-021-24698-1>`_. This strategy is recommended when using data from The Cancer Genome Atlas (`TCGA <https://portal.gdc.cancer.gov/>`_).
 
 If **none**, no validation testing will be performed.
 
 Selecting an evaluation cohort
 ******************************
 
-Unlike validation testing, selecting a final evaluation dataset is more straightforward. Ideally, your evaluation data will come from an external source; e.g. slides from another institution, or from an entirely different group of patients, or slides taken during a different time period. If you do not have an external evaluation dataset, you may instead choose to set aside a certain proportion of your original dataset. There is no magic number for how much data to set aside, but I generally recommend setting aside about 30% for final evaluation.
+Designating an evaluation cohort is done using the project annotations file, with a column indicating whether a slide is set aside for evaluation.
+The training and evaluation functions include a ``filter`` argument which will allow you to restrict your training or evaluationg according to these annotations. This will be discussed in greater detail in subsequent sections. 

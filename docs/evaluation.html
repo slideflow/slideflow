@@ -3,20 +3,25 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Evaluation &mdash; slideflow 1.9.1 documentation</title>
+  <title>Evaluation &mdash; slideflow 1.11.0 documentation</title>
   
 
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
 
   
   
+
   
+  
+
   
 
   
@@ -26,10 +31,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
-        <script src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -51,7 +56,7 @@
           
 
           
-            <a href="root.html" class="icon icon-home" alt="Documentation Home"> slideflow
+            <a href="root.html" class="icon icon-home"> slideflow
           
 
           
@@ -61,7 +66,7 @@
             
             
               <div class="version">
-                1.9
+                1.11
               </div>
             
           
@@ -86,7 +91,7 @@
               
             
             
-              <p class="caption"><span class="caption-text">Contents:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="index.html">Introduction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
@@ -141,6 +146,8 @@
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -152,7 +159,7 @@
     
       <li class="wy-breadcrumbs-aside">
         
-            
+          
             <a href="_sources/evaluation.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -168,22 +175,23 @@
             
   <div class="section" id="evaluation">
 <h1>Evaluation<a class="headerlink" href="#evaluation" title="Permalink to this headline">¶</a></h1>
-<p>Once you have finished your hyperparameter selection and would like to test your model on a saved external evaluation dataset, you can perform a model evaluation using the <code class="docutils literal notranslate"><span class="pre">evaluate</span></code> function. Specify the saved model .h5 file with the <code class="docutils literal notranslate"><span class="pre">model</span></code> argument. For example:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;/path/to/trained_model.h5&quot;</span><span class="p">,</span>
-                <span class="n">outcome_header</span><span class="o">=</span><span class="s2">&quot;category&quot;</span><span class="p">,</span>
-                <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;evaluation&quot;</span><span class="p">]})</span>
+<p>Once training and hyperparameter tuning is complete, you can test model performance on your held-out evaluation set using the <code class="docutils literal notranslate"><span class="pre">evaluate</span></code> function. Specify the path to the saved with the <code class="docutils literal notranslate"><span class="pre">model</span></code> argument. For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span>
+        <span class="n">model</span><span class="o">=</span><span class="s2">&quot;/path/to/trained_model_epoch1&quot;</span><span class="p">,</span>
+        <span class="n">outcome_label_headers</span><span class="o">=</span><span class="s2">&quot;category&quot;</span><span class="p">,</span>
+        <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;evaluation&quot;</span><span class="p">]})</span>
 </pre></div>
 </div>
 <dl class="py function">
-<dt>
-<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">evaluate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">self</span></em>, <em class="sig-param"><span class="n">model</span></em>, <em class="sig-param"><span class="n">outcome_header</span></em>, <em class="sig-param"><span class="n">hyperparameters</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">filters</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">checkpoint</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">eval_k_fold</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">max_tiles_per_slide</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">min_tiles_per_slide</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">normalizer</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">normalizer_source</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">slideflow.SlideflowProject.</span></span><span class="sig-name descname"><span class="pre">evaluate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome_label_headers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hyperparameters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eval_k_fold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles_per_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles_per_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_header</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">permutation_importance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">histogram</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_predictions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Evaluates a saved model on a given set of tfrecords.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>model</strong> – Path to .h5 model to evaluate.</p></li>
-<li><p><strong>outcome_header</strong> – Annotation column header that specifies the outcome label.</p></li>
-<li><p><strong>hyperparameters</strong> – Path to model’s hyperparameters.json file. If None, searches for this file in the same directory as the model.</p></li>
+<li><p><strong>model</strong> – Path to Tensorflow model to evaluate.</p></li>
+<li><p><strong>outcome_label_headers</strong> – Annotation column header that specifies the outcome label(s).</p></li>
+<li><p><strong>hyperparameters</strong> – Path to model’s hyperparameters.json file. If None (default), searches for this file in the same directory as the model.</p></li>
 <li><p><strong>filters</strong> – Filters to use when selecting tfrecords on which to perform evaluation.</p></li>
 <li><p><strong>checkpoint</strong> – Path to cp.ckpt file to load, if evaluating a saved checkpoint.</p></li>
 <li><p><strong>eval_k_fold</strong> – K-fold iteration number to evaluate. If None, will evaluate all tfrecords irrespective of K-fold.</p></li>
@@ -192,6 +200,12 @@
 for best slide-level AUC, a minimum of at least 10 tiles per slide is recommended.</p></li>
 <li><p><strong>normalizer</strong> – Normalization strategy to use on image tiles.</p></li>
 <li><p><strong>normalizer_source</strong> – Path to normalizer source image.</p></li>
+<li><p><strong>input_header</strong> – Annotation column header to use as additional input to the model.</p></li>
+<li><p><strong>permutation_importance</strong> – Bool. True if you want to calculate the permutation feature importance (used to determine relative importance when using multiple model inputs</p></li>
+<li><p><strong>histogram</strong> – Bool. If true, will create tile-level histograms to show prediction distributions for each class.</p></li>
+<li><p><strong>save_predictions</strong> – Either True, False, or a list with any combination of ‘tile’, ‘patient’, or ‘slide’.
+Will save tile-level, patient-level, and/or slide-level predictions.
+If True, will save all.</p></li>
 </ul>
 </dd>
 </dl>
@@ -200,20 +214,21 @@ for best slide-level AUC, a minimum of at least 10 tiles per slide is recommende
 <div class="section" id="generate-heatmaps">
 <h2>Generate heatmaps<a class="headerlink" href="#generate-heatmaps" title="Permalink to this headline">¶</a></h2>
 <p>To generate a predictive heatmap for a set of slides, use the <code class="docutils literal notranslate"><span class="pre">generate_heatmaps()</span></code> function as below, which will automatically save heatmap images in your project directory:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">generate_heatmaps</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;/path/to/trained_model.h5&quot;</span><span class="p">,</span>
-                        <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;evaluation&quot;</span><span class="p">]})</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">generate_heatmaps</span><span class="p">(</span>
+        <span class="n">model</span><span class="o">=</span><span class="s2">&quot;/path/to/trained_model_epoch1&quot;</span><span class="p">,</span>
+        <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;evaluation&quot;</span><span class="p">]})</span>
 </pre></div>
 </div>
 <dl class="py function">
-<dt>
-<code class="sig-prename descclassname">slideflow.SlideflowProject.</code><code class="sig-name descname">generate_heatmaps</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">self</span></em>, <em class="sig-param"><span class="n">model</span></em>, <em class="sig-param"><span class="n">filters</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">filter_blank</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">directory</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">resolution</span><span class="o">=</span><span class="default_value">'low'</span></em>, <em class="sig-param"><span class="n">interpolation</span><span class="o">=</span><span class="default_value">'none'</span></em>, <em class="sig-param"><span class="n">show_roi</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">logit_cmap</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">skip_thumb</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">normalizer</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">normalizer_source</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">buffer</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">single_thread</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">model_format</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">slideflow.SlideflowProject.</span></span><span class="sig-name descname"><span class="pre">generate_heatmaps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'low'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interpolation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'none'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_roi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'inside'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logit_cmap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isolated_thread</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_threads</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Creates predictive heatmap overlays on a set of slides.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>model</strong> – Path to .h5 model with which predictions will be generated.</p></li>
+<li><p><strong>model</strong> – Path to Tensorflow model with which predictions will be generated.</p></li>
 <li><p><strong>filters</strong> – Dataset filters to use when selecting slides for which to generate heatmaps.</p></li>
-<li><p><strong>filter_blank</strong> – List of outcome headers; slides that have blank entries in this outcome header
+<li><p><strong>filter_blank</strong> – List of label headers; slides that have blank entries in this label header
 in the annotations file will be excluded</p></li>
 <li><p><strong>directory</strong> – Directory in which to save heatmap images.</p></li>
 <li><p><strong>resolution</strong> – Heatmap resolution (determines stride of tile predictions).
@@ -222,29 +237,29 @@ in the annotations file will be excluded</p></li>
 “high” uses a stride equal to 1/4 tile width.</p></li>
 <li><p><strong>interpolation</strong> – Interpolation strategy for smoothing heatmap predictions (matplotlib imshow interpolation options).</p></li>
 <li><p><strong>show_roi</strong> – Bool. If True, will show ROI on heatmaps.</p></li>
+<li><p><strong>roi_method</strong> – ‘inside’, ‘outside’, or ‘none’. Determines where heatmap should be made with respect to annotated ROI.</p></li>
 <li><p><strong>logit_cmap</strong> – <p>Either a function or a dictionary used to create heatmap colormap.
-If None (default), separate heatmaps will be generated for each outcome category, with color representing likelihood of category prediction.
+If None (default), separate heatmaps will be generated for each label category, with color representing likelihood of category prediction.
 Each image tile will generate a list of predictions of length O,
-where O is the number of outcome categories.
+where O is the number of label categories.
 If logit_cmap is a function, then this logit prediction list will be passed to the function,
-and the function is expected to return [R, G, B] values which will be displayed. single_thread must be true if a function is passed.
-If the logit_cmap is a dictionary, it should map ‘r’, ‘g’, and ‘b’ to outcome indices;
-The prediction for these outcome categories will be mapped to the corresponding colors.
-Thus, the corresponding color will only reflect predictions of up to three outcome categories.</p>
+and the function is expected to return [R, G, B] values which will be displayed. isolated_thread must be true if a function is passed.
+If the logit_cmap is a dictionary, it should map ‘r’, ‘g’, and ‘b’ to label indices;
+The prediction for these label categories will be mapped to the corresponding colors.
+Thus, the corresponding color will only reflect predictions of up to three label categories.</p>
 <blockquote>
-<div><p>Example (this would map prediction for outcome 0 to the red colorspace, outcome 3 to green colorspace, etc):
+<div><p>Example (this would map prediction for label 0 to the red colorspace, label 3 to green colorspace, etc):
 {‘r’: 0, ‘g’: 3, ‘b’: 1 }</p>
 </div></blockquote>
 </p></li>
-<li><p><strong>skip_thumb</strong> – Bool. If True, will not display thumbnail with heatmap.</p></li>
 <li><p><strong>normalizer</strong> – Normalization strategy to use on image tiles</p></li>
 <li><p><strong>normalizer_source</strong> – Path to normalizer source image</p></li>
 <li><p><strong>buffer</strong> – Either ‘vmtouch’ or path to directory. If vmtouch, will use vmtouch to preload slide into memory before extraction.
 If a directory, slides will be copied to the directory as a buffer before extraction.
 Either method vastly improves tile extraction for slides on HDDs by maximizing sequential read speed</p></li>
-<li><p><strong>single_thread</strong> – Bool. If True, will perform as single thread (GPU memory may not be freed after completion).
-Allows use for functions being passed to logit_cmap (functions are not pickleable).
-If False, will wrap function in separate process, allowing GPU memory to be freed after completion.</p></li>
+<li><p><strong>isolated_thread</strong> – Bool. If True, will wrap function in separate process, allowing GPU memory to be freed after completion.
+If False, will perform as single thread (GPU memory may not be freed after completion).
+Allows use for functions being passed to logit_cmap (functions are not pickleable).</p></li>
 <li><p><strong>model_format</strong> – Optional. May supply format of saved Slideflow Keras model if the model was made with a legacy version.
 Default value will be slideflow.model.MODEL_FORMAT_CURRENT,
 but slideflow.model.MODEL_FORMAT_LEGACY may be supplied.</p></li>
@@ -266,37 +281,29 @@ but slideflow.model.MODEL_FORMAT_LEGACY may be supplied.</p></li>
            
           </div>
           <footer>
-  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="activations.html" class="btn btn-neutral float-right" title="Layer activations" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="training.html" class="btn btn-neutral float-left" title="Training" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+        <a href="activations.html" class="btn btn-neutral float-right" title="Layer activations" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="training.html" class="btn btn-neutral float-left" title="Training" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        
-        &copy; Copyright 2020, James M Dolezal
+        &#169; Copyright 2021, James M Dolezal.
 
     </p>
   </div>
     
     
     
-    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
     
     provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 

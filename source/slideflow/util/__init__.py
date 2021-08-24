@@ -7,13 +7,12 @@ import io
 import shutil
 import datetime
 import threading
-import logging
 import cv2
 
 from glob import glob
-from tensorflow.keras import backend as K
-from os.path import join, isdir, exists
+from os.path import join, isdir, exists, dirname
 from PIL import Image
+import multiprocessing as mp
 import numpy as np
 
 # TODO: re-enable logging with maximum log file size
@@ -44,14 +43,6 @@ FORMATTING_OPTIONS = [HEADER, BLUE, GREEN, WARNING, FAIL, ENDC, BOLD, UNDERLINE]
 LOGGING_PREFIXES = ['', ' + ', '    - ']
 LOGGING_PREFIXES_WARN = ['', ' ! ', '    ! ']
 LOGGING_PREFIXES_EMPTY = ['', '   ', '     ']
-
-# Old BatchNorm fix for bug in TF v1.14
-#class UpdatedBatchNormalization(tf.keras.layers.BatchNormalization):
-#	def call(self, inputs, training=None):
-#		true_phase = int(K.get_session().run(K.learning_phase()))
-#		trainable = int(self.trainable)
-#		with K.learning_phase_scope(trainable * true_phase):
-#			return super(tf.keras.layers.BatchNormalization, self).call(inputs, training)
 
 class StainNormalizer:
 	'''Object to supervise stain normalization for images and 
@@ -113,9 +104,24 @@ class StainNormalizer:
 			Image.fromarray(cv_image).save(output, format="JPEG", quality=75)
 			return output.getvalue()
 
+class DummyLock:
+	def __init__(self, *args): pass
+	def __enter__(self, *args): pass
+	def __exit__(self, *args): pass
+
 class Bar:
 	def __init__(self, ending_value, starting_value=0, bar_length=20, label='',
-					show_eta=False, show_counter=False, counter_text='', update_interval=1):
+					show_eta=False, show_counter=False, counter_text='', update_interval=1,
+					mp_counter=None, mp_lock=None):
+
+		if mp_counter is not None:
+			self.counter = mp_counter
+			self.mp_lock = mp_lock
+		else:
+			manager = mp.Manager()
+			self.counter = manager.Value('i', 0)
+			self.mp_lock = manager.Lock()
+
 		# Setup timing
 		self.starttime = None
 		self.lastupdated = None
@@ -123,7 +129,7 @@ class Bar:
 		self.checkpoint_val = starting_value
 
 		# Other initializing variables
-		self.value = starting_value
+		self.counter.value = starting_value
 		self.end_value = ending_value
 		self.bar_length = bar_length
 		self.label = label
@@ -139,7 +145,7 @@ class Bar:
 		if not self.starttime:
 			self.starttime = current_time
 			self.checkpoint_time = current_time
-			self.checkpoint_val = self.value
+			self.checkpoint_val = self.counter.value
 			self.lastupdated = self.starttime
 		elif current_time == self.lastupdated:
 			return self.text
@@ -150,23 +156,23 @@ class Bar:
 
 		# Checkpoint every 5 seconds
 		if (current_time - self.checkpoint_time) > self.update_interval:
-			self.num_per_sec = (self.value - self.checkpoint_val) / (current_time - self.checkpoint_time)
+			self.num_per_sec = (self.counter.value - self.checkpoint_val) / (current_time - self.checkpoint_time)
 			# Reset checkpoint
-			self.checkpoint_val = self.value
+			self.checkpoint_val = self.counter.value
 			self.checkpoint_time = current_time
 
-		percent = float(self.value) / self.end_value
+		percent = float(self.counter.value) / self.end_value
 		arrow = chr(0x2588) * int(round(percent * self.bar_length))
 		spaces = u'-' * (self.bar_length - len(arrow))
 
 		self.text = u"\u007c{0}\u007c {1:.1f}%{2}".format(arrow + spaces, 
-													 (float(self.value) / self.end_value)*100, 
+													 (float(self.counter.value) / self.end_value)*100, 
 													 f' ({self.label})' if self.label else '')
 		if self.show_counter and self.num_per_sec:
 			num_per_sec_str = "?" if timediff == 0 else f'{self.num_per_sec:.1f}'
 			self.text += f" {num_per_sec_str}{self.counter_text}/sec"
 		if self.show_eta and timediff and self.num_per_sec:
-			eta_sec = (self.end_value - self.value) / self.num_per_sec
+			eta_sec = (self.end_value - self.counter.value) / self.num_per_sec
 			self.text += f" (ETA: {time.strftime('%H:%M:%S', time.gmtime(eta_sec))})"
 		elif self.show_eta:
 			self.text += f" (ETA: ?)"
@@ -179,10 +185,12 @@ class ProgressBar:
 	text = ''
 
 	def __init__(self, ending_val, starting_val=0, bar_length=20, endtext='', show_eta=False, 
-					show_counter=False, counter_text='', leadtext=''):
+					show_counter=False, counter_text='', leadtext='', mp_counter=None, mp_lock=None):
 		
 		self.leadtext = leadtext
-		self.BARS = [Bar(ending_val, starting_val, bar_length, endtext, show_eta, show_counter, counter_text)]
+		self.refresh_thread = None
+		self.live = True
+		self.BARS = [Bar(ending_val, starting_val, bar_length, endtext, show_eta, show_counter, counter_text, mp_counter=mp_counter, mp_lock=mp_lock)]
 		self.refresh()
 
 	def add_bar(self, val, endval, bar_length=20, endtext='', show_eta=False,
@@ -193,16 +201,33 @@ class ProgressBar:
 		return len(self.BARS)-1
 
 	def increase_bar_value(self, amount=1, id=0):
-		self.BARS[id].value = min(self.BARS[id].value + amount, self.BARS[id].end_value)
+		with self.BARS[id].mp_lock:
+			self.BARS[id].counter.value = min(self.BARS[id].counter.value + amount, self.BARS[id].end_value)
 		self.refresh()
 
+	def get_counter(self, id=0):
+		return self.BARS[id].counter
+
+	def get_lock(self, id=0):
+		return self.BARS[id].mp_lock
+
 	def set_bar_value(self, value, id=0):
-		self.BARS[id].value = min(val, self.BARS[id].end_value)
+		with self.BARS[id].mp_lock:
+			self.BARS[id].counter.value = min(value, self.BARS[id].end_value)
 		self.refresh()
 
 	def set_bar_text(self, text, id=0):
 		self.BARS[id].text = text
 		self.refresh()
+
+	def auto_refresh(self, freq=0.2):
+		def auto_refresh_worker():
+			while self.live:
+				self.refresh()
+				time.sleep(freq)
+			
+		self.refresh_thread = threading.Thread(target=auto_refresh_worker, daemon=True)
+		self.refresh_thread.start()
 
 	def refresh(self):
 		if len(self.BARS) == 0:
@@ -227,6 +252,7 @@ class ProgressBar:
 		else:
 			del(self.BARS[id])
 			print(f"\r\033[K{self.text}", end="")
+		self.live = False
 
 	def print(self, string):
 		sys.stdout.write(f"\r\033[K{string}\n")
@@ -370,6 +396,10 @@ class ThreadSafeList:
 			items, self.items = self.items, []
 		return items
 
+def clear_console():
+	sys.stdout.write("\r\033[K")
+	sys.stdout.flush()
+
 def make_dir(_dir):
 	'''Makes a directory if one does not already exist, in a manner compatible with multithreading. '''
 	if not exists(_dir):
@@ -503,6 +533,38 @@ def write_json(data, filename):
 	with open(filename, "w") as data_file:
 		json.dump(data, data_file, indent=1)
 
+def get_slides_from_model_manifest(model_path, dataset=None):
+	slides = []
+	if exists(join(model_path, 'slide_manifest.log')):
+		manifest = join(model_path, 'slide_manifest.log')
+	elif exists(join(dirname(model_path), 'slide_manifest.log')):
+		log.warn("Slide manifest file not found in model directory; loading from parent directory. Please move slide_manifest.log into model folder.")
+		manifest = join(dirname(model_path), 'slide_manifest.log')
+	else:
+		log.error("Slide manifest file not found.")
+		return None
+	with open(manifest, 'r') as manifest_file:
+		reader = csv.reader(manifest_file)
+		header = next(reader)
+		dataset_index = header.index('dataset')
+		slide_index = header.index('slide')
+		for row in reader:
+			dataset_name = row[dataset_index]
+			slide_name = row[slide_index]
+			if dataset_name == dataset or not dataset:
+				slides += [slide_name]
+	return slides
+
+def get_model_hyperparameters(model_path):
+	if exists(join(model_path, 'hyperparameters.json')):
+		return load_json(join(model_path, 'hyperparameters.json'))
+	elif exists(join(dirname(model_path), 'hyperparameters.json')):
+		log.warn("Hyperparameters file not found in model directory; loading from parent directory. Please move hyperparameters.json into model folder.")
+		return load_json(join(dirname(model_path), 'hyperparameters.json'))
+	else:
+		log.warn("Hyperparameters file not found.")
+		return None
+
 def get_slide_paths(slides_dir):
 	'''Get all slide paths from a given directory containing slides.'''
 	slide_list = [i for i in glob(join(slides_dir, '**/*.*')) if path_to_ext(i).lower() in SUPPORTED_FORMATS]
@@ -519,8 +581,9 @@ def read_annotations(annotations_file):
 		try:
 			header = next(csv_reader, None)
 		except OSError:
-			log.error(f"Unable to open annotations file {green(annotations_file)}, is it open in another program?")
-			sys.exit()
+			err_msg = f"Unable to open annotations file {green(annotations_file)}, is it open in another program?"
+			log.error(err_msg)
+			raise OSError(err_msg)
 
 		for row in csv_reader:
 			row_dict = {}

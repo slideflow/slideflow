@@ -1,8 +1,6 @@
 import shutil
-import sys
 import os
 import csv
-import argparse
 import copy
 import slideflow.util as sfutil
 
@@ -27,11 +25,12 @@ def split_tiles(folder, fraction, names):
 
 	# Initial error checking
 	if len(fraction) != len(names):
-		log.error(f'When splitting tiles, length of "fraction" ({len(fraction)}) should equal length of "names" ({len(names)})')
-		sys.exit()
+		err_msg = f'When splitting tiles, length of "fraction" ({len(fraction)}) should equal length of "names" ({len(names)})'
+		log.error(err_msg)
+		raise DatasetError(err_msg)
 	if sum([i for i in fraction if i != -1]) > 1:
-		log.error(f'Unable to split tiles; Sum of fraction is greater than 1')
-		sys.exit()
+		log.error('Unable to split tiles; Sum of fraction is greater than 1')
+		raise DatasetError('Unable to split tiles; Sum of fraction is greater than 1')
 
 	# Setup directories
 	slides = [_dir for _dir in listdir(folder) if isdir(join(folder, _dir))]
@@ -64,8 +63,9 @@ def split_tiles(folder, fraction, names):
 
 		# Error checking
 		if sum(num_to_move) > num_files:
-			log.error(f"Error with separating tiles; tried to move {sum(num_to_move)} tiles into {len(fraction)} subfolders, only {num_files} tiles available", 1)
-			sys.exit()
+			err_msg = f"Error with separating tiles; tried to move {sum(num_to_move)} tiles into {len(fraction)} subfolders, only {num_files} tiles available"
+			log.error(err_msg, 1)
+			raise DatasetError(err_msg)
 		if sum(num_to_move) < num_files:
 			log.warn(f"Not all tiles separated into subfolders; {num_files - sum(num_to_move)} leftover tiles will be discarded.", 1)
 
@@ -123,11 +123,10 @@ def merge_validation(train_dir, eval_dir):
 class Dataset:
 	'''Object to supervise organization of slides, tfrecords, and tiles across a one or more datasets in a stored configuration file.'''
 
-	ANNOTATIONS = []
-	filters = None
-	filter_blank = None
-
 	def __init__(self, config_file, sources, tile_px, tile_um, annotations=None, filters=None, filter_blank=None):
+		self.ANNOTATIONS = []
+		self.filter_blank = []
+		self.filters = []
 		config = sfutil.load_json(config_file)
 		sources = sources if isinstance(sources, list) else [sources]
 
@@ -135,8 +134,9 @@ class Dataset:
 			self.datasets = {k:v for (k,v) in config.items() if k in sources}
 		except KeyError:
 			sources_list = ", ".join(sources)
-			log.error(f"Unable to find datasets named {sfutil.bold(sources_list)} in config file {sfutil.green(config_file)}", 1)
-			sys.exit()
+			err_msg = f"Unable to find datasets named {sfutil.bold(sources_list)} in config file {sfutil.green(config_file)}"
+			log.error(err_msg, 1)
+			raise DatasetError(err_msg)
 
 		if (tile_px is not None) and (tile_um is not None):
 			label = f"{tile_px}px_{tile_um}um"
@@ -156,8 +156,18 @@ class Dataset:
 		self.filters = filters
 		self.filter_blank = filter_blank
 
-	def get_manifest(self):
-		'''Generates a manifest of all tfrecords.'''
+	def get_manifest(self, key='path'):
+		'''Generates a manifest of all tfrecords.
+		
+		Args:
+			key:	Either 'path' (default) or 'name'. Determines key format in the manifest dictionary.
+			
+		Returns:
+			Dictionary mapping key (path or slide name) to number of total tiles. 
+		'''
+		if key not in ('path', 'name'):
+			raise DatasetError("'key' must be in ['path, 'name']")
+
 		combined_manifest = {}
 		for d in self.datasets:
 			if self.datasets[d]['label'] is None: continue
@@ -169,8 +179,17 @@ class Dataset:
 			relative_manifest = sfutil.load_json(manifest_path)
 			global_manifest = {}
 			for record in relative_manifest:
-				global_manifest.update({join(tfrecord_dir, record): relative_manifest[record]})
+				k = join(tfrecord_dir, record) if key == 'path' else sfutil.path_to_name(record)
+				global_manifest.update({k: relative_manifest[record]})
 			combined_manifest.update(global_manifest)
+		
+		# Now filter out any tfrecords that would be excluded by filters
+		filtered_tfrecords = self.get_tfrecords() if key =='path' else [sfutil.path_to_name(tfr) for tfr in self.get_tfrecords()]
+		manifest_tfrecords = list(combined_manifest.keys())
+		for tfr in manifest_tfrecords:
+			if tfr not in filtered_tfrecords:
+				del(combined_manifest[tfr])
+			
 		return combined_manifest
 
 	def get_rois(self):
@@ -193,8 +212,9 @@ class Dataset:
 		for ann in self.ANNOTATIONS:
 			skip_annotation = False
 			if TCGA.slide not in ann.keys():
-				log.error(f"{TCGA.slide} not found in annotations file.")
-				sys.exit()
+				err_msg = f"{TCGA.slide} not found in annotations file."
+				log.error(err_msg)
+				raise DatasetError(err_msg)
 
 			# Skip missing or blank slides
 			if ann[TCGA.slide] in sfutil.SLIDE_ANNOTATIONS_TO_IGNORE:
@@ -230,14 +250,16 @@ class Dataset:
 					else:
 						if ann_val not in filter_vals:
 							skip_annotation = True
-							break						
+							break
 
 			# Filter out slides that are blank in a given annotation column ("filter_blank")
 			if self.filter_blank and self.filter_blank != [None]:
 				for fb in self.filter_blank:
 					if fb not in ann.keys():
-						log.error(f"Unable to filter blank slides from header {fb}; this header was not found in the annotations file.")
-						sys.exit()
+						err_msg = f"Unable to filter blank slides from header {fb}; this header was not found in the annotations file."
+						log.error(err_msg)
+						raise DatasetError(err_msg)
+						
 					if not ann[fb] or ann[fb] == '':
 						skip_annotation = True
 						break
@@ -300,7 +322,7 @@ class Dataset:
 				if sfutil.yes_no_input(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} contains data split into sub-directories ({', '.join([sfutil.green(s) for s in subdirs])}); merge and use? [y/N] ", default='no'):
 					folders_to_search += [join(tfrecord_path, subdir) for subdir in subdirs]
 				else:
-					sys.exit()
+					raise NotImplementedError("Handling not implemented.")
 			else:
 				if len(subdirs):
 					log.warn(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} contains data split into sub-directories; ignoring sub-directories", 1)
@@ -310,7 +332,8 @@ class Dataset:
 
 		# Now filter the list
 		if self.ANNOTATIONS:
-			filtered_tfrecords_list = [tfrecord for tfrecord in tfrecords_list if tfrecord.split('/')[-1][:-10] in self.get_slides()]
+			slides = self.get_slides()
+			filtered_tfrecords_list = [tfrecord for tfrecord in tfrecords_list if tfrecord.split('/')[-1][:-10] in slides]
 			return filtered_tfrecords_list
 		else:
 			log.warn("No annotations loaded; unable to filter TFRecords list. Is the annotations file empty?", 1)
@@ -325,8 +348,9 @@ class Dataset:
 			base_dir = join(self.datasets[d]['tfrecords'], self.datasets[d]['label'])
 			tfrecord_path = join(base_dir, subfolder)
 			if not exists(tfrecord_path):
-				log.error(f"Unable to find subfolder {sfutil.bold(subfolder)} in dataset {sfutil.bold(d)}, tfrecord directory: {sfutil.green(base_dir)}")
-				sys.exit()
+				err_msg = f"Unable to find subfolder {sfutil.bold(subfolder)} in dataset {sfutil.bold(d)}, tfrecord directory: {sfutil.green(base_dir)}"
+				log.error(err_msg)
+				raise DatasetError(err_msg)
 			folders_to_search += [tfrecord_path]
 		for folder in folders_to_search:
 			tfrecords_list += glob(join(folder, "*.tfrecords"))
@@ -340,101 +364,140 @@ class Dataset:
 			folders += [join(self.datasets[d]['tfrecords'], self.datasets[d]['label'])]
 		return folders
 
-	def get_outcomes_from_annotations(self, headers, use_float=False, assigned_outcome=None):
-		'''Returns a dictionary of slide names mapping to patient id and [an] outcome variable(s).
+	def get_labels_from_annotations(self, headers, use_float=False, assigned_labels=None, key='label'):
+		'''Returns a dictionary of slide names mapping to patient id and [an] label(s).
 
 		Args:
-			headers			annotation header(s) that specifies outcome variable. May be a list.
-			use_float		If true, will try to convert data into float
+			headers			annotation header(s) that specifies label variable. May be a list.
+			use_float		Either bool, dict, or 'auto'. 
+								If true, will try to convert all data into float. If unable, will raise TypeError.
+								If false, will interpret all data as categorical.
+								If a dict is provided, will look up each header to determine whether float should be used.
+								If 'auto', will try to convert all data into float. For each header in which this fails, 
+									will interpret as categorical instead.
+			assigned_labels	Dictionary mapping label ids to label names. If not provided, will map
+								ids to names by sorting alphabetically.
+			key				Key name to use for the returned dictionary. Defaults to 'label'
 
 		Returns:
-			Dictionary with slides as keys and dictionaries as values. The value dictionaries contain both "TCGA.patient" and "outcome" keys.
+			1) Dictionary with slides as keys and dictionaries as values. The value dictionaries contain both "TCGA.patient" and "label" (or manually specified) keys.
+			2) list of unique labels
 		'''
 		slides = self.get_slides()
 		filtered_annotations = [a for a in self.ANNOTATIONS if a[TCGA.slide] in slides]
 		results = {}
 		headers = [headers] if not isinstance(headers, list) else headers
 		assigned_headers = {}
-		unique_outcomes = None
+		unique_labels = {}
 		for header in headers:
+			if assigned_labels and (len(headers) > 1 or header in assigned_labels):
+				assigned_labels_for_this_header = assigned_labels[header]
+			elif assigned_labels:
+				assigned_labels_for_this_header = assigned_labels
+			else:
+				assigned_labels_for_this_header = None
+
+			unique_labels_for_this_header = []
 			assigned_headers[header] = {}
 			try:
-				filtered_outcomes = [a[header] for a in filtered_annotations]
+				filtered_labels = [a[header] for a in filtered_annotations]
 			except KeyError:
 				log.error(f"Unable to find column {header} in annotation file.", 1)
-				sys.exit()
+				raise DatasetError(f"Unable to find column {header} in annotation file.")
 
-			# Ensure outcomes can be converted to desired type
-			if use_float:
+			# Determine whether values should be converted into float
+			if type(use_float) == dict and header not in use_float:
+				raise DatasetError(f"Dict was provided to use_float, but header {header} is missing.")
+			elif type(use_float) == dict:
+				use_float_for_this_header = use_float[header]
+			elif type(use_float) == bool:
+				use_float_for_this_header = use_float
+			elif use_float == 'auto':
 				try:
-					filtered_outcomes = [float(o) for o in filtered_outcomes]
+					filtered_labels = [float(o) for o in filtered_labels]
+					use_float_for_this_header = True
 				except ValueError:
-					log.error(f"Unable to convert outcome {sfutil.bold(header)} into type 'float'.", 1)
-					raise TypeError(f"Unable to convert outcome {header} into type 'float'.")
+					use_float_for_this_header = False
 			else:
-				log.info(f'Assigning outcome descriptors in column "{header}" to numerical values', 1)
-				unique_outcomes = list(set(filtered_outcomes))
-				unique_outcomes.sort()
-				for i, uo in enumerate(unique_outcomes):
-					num_matching_slides_filtered = sum(o == uo for o in filtered_outcomes)
-					if assigned_outcome and uo not in assigned_outcome:
-						raise KeyError(f"assigned_outcome was provided, but outcome {uo} not found in this dict")
-					elif assigned_outcome:
-						log.empty(f"{header} '{sfutil.info(uo)}' assigned to value '{assigned_outcome[uo]}' [{sfutil.bold(str(num_matching_slides_filtered))} slides]", 2)
+				raise DatasetError(f"Invalid use_float option {use_float}")
+
+			# Ensure labels can be converted to desired type, then assign values
+			if use_float_for_this_header:
+				try:
+					filtered_labels = [float(o) for o in filtered_labels]
+				except ValueError:
+					raise TypeError(f"Unable to convert label {header} into type 'float'.")
+			else:
+				log.info(f'Assigning label descriptors in column "{header}" to numerical values', 1)
+				unique_labels_for_this_header = list(set(filtered_labels))
+				unique_labels_for_this_header.sort()
+				for i, ul in enumerate(unique_labels_for_this_header):
+					num_matching_slides_filtered = sum(l == ul for l in filtered_labels)
+					if assigned_labels_for_this_header and ul not in assigned_labels_for_this_header:
+						raise KeyError(f"assigned_labels was provided, but label {ul} not found in this dict")
+					elif assigned_labels_for_this_header:
+						log.empty(f"{header} '{sfutil.info(ul)}' assigned to value '{assigned_labels_for_this_header[ul]}' [{sfutil.bold(str(num_matching_slides_filtered))} slides]", 2)
 					else:
-						log.empty(f"{header} '{sfutil.info(uo)}' assigned to value '{i}' [{sfutil.bold(str(num_matching_slides_filtered))} slides]", 2)
+						log.empty(f"{header} '{sfutil.info(ul)}' assigned to value '{i}' [{sfutil.bold(str(num_matching_slides_filtered))} slides]", 2)
 			
-			# Create function to process/convert outcome
-			def _process_outcome(o):
-				if use_float:
+			# Create function to process/convert label
+			def _process_label(o):
+				if use_float_for_this_header:
 					return float(o)
-				elif assigned_outcome:
-					return assigned_outcome[o]
+				elif assigned_labels_for_this_header:
+					return assigned_labels_for_this_header[o]
 				else:
-					return unique_outcomes.index(o)
+					return unique_labels_for_this_header.index(o)
 
 			# Assemble results dictionary
-			patient_outcomes = {}
+			patient_labels = {}
 			num_warned = 0
 			warn_threshold = 3
 			for annotation in filtered_annotations:
 				slide = annotation[TCGA.slide]
 				patient = annotation[TCGA.patient]
-				annotation_outcome = _process_outcome(annotation[header])
+				annotation_label = _process_label(annotation[header])
 				print_func = print if num_warned < warn_threshold else None
 
-				# Mark this slide as having been already assigned an outcome with his header
+				# Mark this slide as having been already assigned a label with his header
 				assigned_headers[header][slide] = True
 
-				# Ensure patients do not have multiple outcomes
-				if patient not in patient_outcomes:
-					patient_outcomes[patient] = annotation_outcome
-				elif patient_outcomes[patient] != annotation_outcome:
-					log.error(f"Multiple different outcomes in header {header} found for patient {patient} ({patient_outcomes[patient]}, {annotation_outcome})", 1, print_func)
+				# Ensure patients do not have multiple labels
+				if patient not in patient_labels:
+					patient_labels[patient] = annotation_label
+				elif patient_labels[patient] != annotation_label:
+					log.error(f"Multiple different labels in header {header} found for patient {patient} ({patient_labels[patient]}, {annotation_label})", 1, print_func)
 					num_warned += 1
 				elif (slide in slides) and (slide in results) and (slide in assigned_headers[header]):
 					continue
 
 				if slide in slides:
 					if slide in results:
-						so = results[slide]['outcome']
-						results[slide]['outcome'] = [so] if not isinstance(so, list) else so
-						results[slide]['outcome'] += [annotation_outcome]
+						so = results[slide][key]
+						results[slide][key] = [so] if not isinstance(so, list) else so
+						results[slide][key] += [annotation_label]
 					else:
-						results[slide] = {'outcome': annotation_outcome if not use_float else [annotation_outcome]}
+						results[slide] = {key: annotation_label if not use_float_for_this_header else [annotation_label]}
 						results[slide][TCGA.patient] = patient
 			if num_warned >= warn_threshold:
 				log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
-		return results, unique_outcomes
+			unique_labels[header] = unique_labels_for_this_header
+		if len(headers) == 1:
+			unique_labels = unique_labels[headers[0]]
+		return results, unique_labels
 
-	def slide_to_outcome(self, headers, use_float=False):
-		outcomes, unique_outcomes = self.get_outcomes_from_annotations(headers=headers, use_float=use_float)
-		if not use_float and not unique_outcomes:
-			raise DatasetError(f"No outcomes were detected for header {headers} in this dataset")
+	def slide_to_label(self, headers, use_float=False, return_unique=False):
+		labels, unique_labels = self.get_labels_from_annotations(headers=headers, use_float=use_float)
+		if not use_float and not unique_labels:
+			raise DatasetError(f"No labels were detected for header {headers} in this dataset")
 		elif not use_float:
-			return {k:unique_outcomes[v['outcome']] for k, v in outcomes.items()}
+			return_dict = {k:unique_labels[v['label']] for k, v in labels.items()}
 		else:
-			return {k:outcomes[k]['outcome'] for k,v in outcomes.items()}
+			return_dict = {k:labels[k]['label'] for k,v in labels.items()}
+		if return_unique:
+			return return_dict, unique_labels
+		else:
+			return return_dict
 
 	def load_annotations(self, annotations_file):
 		'''Load annotations from a given CSV file.'''
@@ -446,16 +509,18 @@ class Dataset:
 
 		# Check for duplicate headers in annotations file
 		if len(header) != len(set(header)):
-			log.error("Annotations file containers at least one duplicate header; all headers must be unique")
-			sys.exit()
+			err_msg = "Annotations file containers at least one duplicate header; all headers must be unique"
+			log.error(err_msg)
+			raise DatasetError(err_msg)
 
 		# Verify there is a patient header
 		try:
 			patient_index = header.index(TCGA.patient)
 		except:
 			print(header)
-			log.error(f"Check that annotations file is formatted correctly and contains header '{TCGA.patient}'.", 1)
-			sys.exit()
+			err_msg = f"Check that annotations file is formatted correctly and contains header '{TCGA.patient}'."
+			log.error(err_msg, 1)
+			raise DatasetError(err_msg)
 
 		# Verify that a slide header exists; if not, offer to make one and automatically associate slide names with patients
 		try:
@@ -474,7 +539,7 @@ class Dataset:
 		slide_list_from_annotations = self.get_slides()
 		if len(slide_list_from_annotations) != len(list(set(slide_list_from_annotations))):
 			log.error("Duplicate slide names detected in the annotation file.")
-			sys.exit()
+			raise DatasetError("Duplicate slide names detected in the annotation file.")
 
 		# Verify all SVS files in the annotation column are valid
 		num_warned = 0
@@ -572,8 +637,9 @@ class Dataset:
 		try:
 			patient_index = header.index(TCGA.patient)
 		except:
-			log.error(f"Patient header {TCGA.patient} not found in annotations file.")
-			sys.exit()
+			err_msg = f"Patient header {TCGA.patient} not found in annotations file."
+			log.error(err_msg)
+			raise DatasetError(f"Patient header {TCGA.patient} not found in annotations file.")
 		patients = []
 		patient_slide_dict = {}
 		with open(annotations_file) as csv_file:
@@ -655,7 +721,12 @@ class Dataset:
 							row.extend([""])
 							num_missing += 1
 						csv_writer.writerow(row)
-		log.complete(f"Successfully associated slides with {num_updated_annotations} annotation entries. Slides not found for {num_missing} annotations.", 1)
+		if num_updated_annotations:
+			log.complete(f"Successfully associated slides with {num_updated_annotations} annotation entries. Slides not found for {num_missing} annotations.", 1)
+		elif num_missing:
+			log.complete(f"No annotation updates performed. Slides not found for {num_missing} annotations.", 1)
+		else:
+			log.complete(f"Annotations up-to-date, no changes made.", 1)
 
 		# Finally, backup the old annotation file and overwrite existing with the new data
 		backup_file = f"{annotations_file}.backup"
