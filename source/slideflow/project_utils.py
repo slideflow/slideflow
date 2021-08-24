@@ -18,7 +18,7 @@ def get_validation_settings(**kwargs):
 		target: 			(default: 'per-patient') Whether to select validation data on a 'per-patient' (default) or 'per-tile' basis.
 		strategy: 			(default: 'k-fold') Validation dataset selection strategy (bootstrap, k-fold, k-fold-manual, k-fold-preserved-site, fixed, none).
 		k_fold: 			(default: 3) Number of k-folds, if strategy is 'k-fold'
-		k_fold_iter: 		K iteration, if using k-folds.
+		k_fold_iter: 		K iteration, if using k-folds. Starts at 1.
 		k_fold_header: 		Annotations file header column for manually specifying k-fold. Only used if validation_strategy is 'k-fold-manual'
 		fraction: 			Fraction of data to use for validation testing, if strategy is "fixed"
 		dataset: 			If specified, will use this dataset for validation

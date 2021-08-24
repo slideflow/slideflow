@@ -92,6 +92,10 @@ def _decode_image(img_string, img_type, size=None, standardize=False, normalizer
 		image.set_shape([size, size, 3])
 	return image
 
+def get_tfrecords_from_model_manifest(path_to_model):
+	log.warn("Deprecation Warning: sf.io.tfrecords.get_tfrecord_from_model_manifest() will be removed in a future version. Please use sf.util.get_slides_from_model_manifest()")
+	return sfutil.get_slides_from_model_manifest(path_to_model)
+
 def detect_tfrecord_format(tfr):
 	record = next(iter(tf.data.TFRecordDataset(tfr)))
 	try:

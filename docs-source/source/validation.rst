@@ -51,4 +51,4 @@ Selecting an evaluation cohort
 ******************************
 
 Designating an evaluation cohort is done using the project annotations file, with a column indicating whether a slide is set aside for evaluation.
-The training and evaluation functions include a ``filter`` argument which will allow you to restrict your training or evaluationg according to these annotations. This will be discussed in greater detail in subsequent sections. 
+The training and evaluation functions include a ``filter`` argument which will allow you to restrict your training or evaluation according to these annotations. This will be discussed in greater detail in subsequent sections. 

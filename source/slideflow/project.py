@@ -119,7 +119,11 @@ class SlideflowProject:
 
 	@property
 	def mixed_precision(self):
-		return self._settings['mixed_precision']
+		if 'mixed_precision' in self._settings:
+			return self._settings['mixed_precision']
+		elif 'use_fp16' in self._settings:
+			log.warn("'mixed_precision' not found in project settings. Please consider updating your project settings.json file.")
+			return self._settings['use_fp16']
 
 	def _read_relative_path(self, path):
 		if path[:6] == '$ROOT/':
