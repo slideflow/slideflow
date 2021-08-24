@@ -533,12 +533,10 @@ class SlideflowModel:
 		if not hp.pooling:
 			layers += [tf.keras.layers.Flatten()]
 		layers += [post_convolution_identity_layer]
-		tile_image_model = tf.keras.Sequential(layers)
 		if hp.dropout:
-			tile_image_model = tf.keras.layers.Dropout(hp.dropout)(tile_image_model.output)
-			model_inputs = [tile_image_model]
-		else:
-			model_inputs = [tile_image_model.input]
+			layers += [tf.keras.layers.Dropout(hp.dropout)]
+		tile_image_model = tf.keras.Sequential(layers)
+		model_inputs = [tile_image_model.input]
 
 		# Merge layers
 		if self.NUM_SLIDE_FEATURES:
