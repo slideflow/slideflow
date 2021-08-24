@@ -16,3 +16,5 @@ spams
 cplex
 cvxpy
 lifelines
+torch
+torch-vision
