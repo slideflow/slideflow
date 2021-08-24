@@ -364,7 +364,7 @@ class Dataset:
 			folders += [join(self.datasets[d]['tfrecords'], self.datasets[d]['label'])]
 		return folders
 
-	def get_labels_from_annotations(self, headers, use_float=False, assigned_labels=None, key='label'):
+	def get_labels_from_annotations(self, headers, use_float=False, assigned_labels=None, key='label', verbose=True):
 		'''Returns a dictionary of slide names mapping to patient id and [an] label(s).
 
 		Args:
@@ -428,7 +428,7 @@ class Dataset:
 				except ValueError:
 					raise TypeError(f"Unable to convert label {header} into type 'float'.")
 			else:
-				log.info(f'Assigning label descriptors in column "{header}" to numerical values', 1)
+				if verbose: log.info(f'Assigning label descriptors in column "{header}" to numerical values', 1)
 				unique_labels_for_this_header = list(set(filtered_labels))
 				unique_labels_for_this_header.sort()
 				for i, ul in enumerate(unique_labels_for_this_header):
@@ -436,9 +436,9 @@ class Dataset:
 					if assigned_labels_for_this_header and ul not in assigned_labels_for_this_header:
 						raise KeyError(f"assigned_labels was provided, but label {ul} not found in this dict")
 					elif assigned_labels_for_this_header:
-						log.empty(f"{header} '{sfutil.info(ul)}' assigned to value '{assigned_labels_for_this_header[ul]}' [{sfutil.bold(str(num_matching_slides_filtered))} slides]", 2)
+						if verbose: log.empty(f"{header} '{sfutil.info(ul)}' assigned to value '{assigned_labels_for_this_header[ul]}' [{sfutil.bold(str(num_matching_slides_filtered))} slides]", 2)
 					else:
-						log.empty(f"{header} '{sfutil.info(ul)}' assigned to value '{i}' [{sfutil.bold(str(num_matching_slides_filtered))} slides]", 2)
+						if verbose: log.empty(f"{header} '{sfutil.info(ul)}' assigned to value '{i}' [{sfutil.bold(str(num_matching_slides_filtered))} slides]", 2)
 			
 			# Create function to process/convert label
 			def _process_label(o):
@@ -486,8 +486,8 @@ class Dataset:
 			unique_labels = unique_labels[headers[0]]
 		return results, unique_labels
 
-	def slide_to_label(self, headers, use_float=False, return_unique=False):
-		labels, unique_labels = self.get_labels_from_annotations(headers=headers, use_float=use_float)
+	def slide_to_label(self, headers, use_float=False, return_unique=False, verbose=True):
+		labels, unique_labels = self.get_labels_from_annotations(headers=headers, use_float=use_float, verbose=verbose)
 		if not use_float and not unique_labels:
 			raise DatasetError(f"No labels were detected for header {headers} in this dataset")
 		elif not use_float:

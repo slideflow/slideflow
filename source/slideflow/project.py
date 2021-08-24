@@ -2073,8 +2073,11 @@ class SlideflowProject:
 													filters=filters,
 													filter_blank=filter_blank)
 
-				k_fold_slide_labels, valid_k = training_dataset.slide_to_label(val_settings.k_fold_header, return_unique=True)
+				k_fold_slide_labels, valid_k = training_dataset.slide_to_label(val_settings.k_fold_header, return_unique=True, verbose=False)
 				k_fold = len(valid_k)
+				log.info(f"Manual K-fold iterations detected: {', '.join(valid_k)}")
+				if k_iter:
+					valid_k = [kf for kf in valid_k if (int(kf) in k_iter or kf in k_iter)]
 			else:
 				k_fold = val_settings.k_fold if val_settings.strategy in ('k-fold', 'k-fold-preserved-site', 'bootstrap') else 0
 				valid_k = [] if not k_fold else [kf for kf in range(1, k_fold+1) if ((k_iter and kf in k_iter) or (not k_iter))]

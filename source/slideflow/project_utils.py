@@ -452,7 +452,7 @@ def trainer(project, outcome_label_headers, model_name, results_dict, hp, val_se
 	tf.keras.backend.clear_session()
 
 	# Log current model name and k-fold iteration, if applicable
-	k_fold_msg = "" if not k_fold_i else f" ({val_settings.strategy} iteration #{k_fold_i})"
+	k_fold_msg = "" if not k_fold_i else f" ({val_settings.strategy} iteration {k_fold_i})"
 	log.empty(f"Training model {sfutil.bold(model_name)}{k_fold_msg}...")
 	log.empty(hp, 1)
 	full_model_name = model_name if not k_fold_i else model_name+f"-kfold{k_fold_i}"
