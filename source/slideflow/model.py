@@ -536,7 +536,9 @@ class SlideflowModel:
 		tile_image_model = tf.keras.Sequential(layers)
 		if hp.dropout:
 			tile_image_model = tf.keras.layers.Dropout(hp.dropout)(tile_image_model.output)
-		model_inputs = [tile_image_model.input]
+			model_inputs = [tile_image_model]
+		else:
+			model_inputs = [tile_image_model.input]
 
 		# Merge layers
 		if self.NUM_SLIDE_FEATURES:
