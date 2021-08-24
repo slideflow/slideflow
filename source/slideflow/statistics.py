@@ -668,6 +668,7 @@ def gen_umap(array, n_components=2, n_neighbors=20, min_dist=0.01, metric='cosin
 
 def save_histogram(y_true, y_pred, data_dir, name='histogram'):
 	'''Generates histogram of y_pred, labeled by y_true'''
+	#TODO: switch from distplot (deprecated) to displot or histplot (neither working during last test)
 
 	cat_false = [yp for i, yp in enumerate(y_pred) if y_true[i] == 0]
 	cat_true = [yp for i, yp in enumerate(y_pred) if y_true[i] == 1]
@@ -675,8 +676,8 @@ def save_histogram(y_true, y_pred, data_dir, name='histogram'):
 	plt.clf()
 	plt.title('Tile-level Predictions')
 	try:
-		sns.displot( cat_false , color="skyblue", label="Negative")
-		sns.displot( cat_true , color="red", label="Positive")
+		sns.distplot( cat_false , color="skyblue", label="Negative")
+		sns.distplot( cat_true , color="red", label="Positive")
 	except np.linalg.LinAlgError:
 		log.warn("Unable to generate histogram, insufficient data", 1)
 	plt.legend()
@@ -696,13 +697,7 @@ def to_onehot(val, num_cat):
 def generate_roc(y_true, y_pred, save_dir=None, name='ROC'):
 	'''Generates and saves an ROC with a given set of y_true, y_pred values.'''
 	# ROC
-	try:
-		fpr, tpr, threshold = metrics.roc_curve(y_true, y_pred)
-	except:
-		log.error("Error with ROC curve:")
-		print(y_true)
-		print(y_pred)
-		sys.exit()
+	fpr, tpr, threshold = metrics.roc_curve(y_true, y_pred)
 	roc_auc = metrics.auc(fpr, tpr)
 
 	# Precision recall
@@ -937,12 +932,12 @@ def _linear_metrics(args):
 def _categorical_metrics(args, outcome_name, starttime=None):
 	'''Internal function to calculate tile, slide, and patient level metrics for a categorical outcome.'''
 	start = starttime
-	num_observed_outcome_categories = max(args.y_true)+1
+	num_observed_outcome_categories = np.max(args.y_true)+1
 	if num_observed_outcome_categories != args.y_pred.shape[1]:
 		log.warn(f"Model predictions have different number of outcome categories ({args.y_pred.shape[1]}) than provided annotations ({num_observed_outcome_categories})!", 1)
 
 	num_cat = max(num_observed_outcome_categories, args.y_pred.shape[1])
-
+	
 	# For categorical models, convert to one-hot encoding
 	args.y_true = np.array([to_onehot(i, num_cat) for i in args.y_true])
 	args.y_true_slide = {k:to_onehot(v, num_cat) for k,v in args.y_true_slide.items()}
