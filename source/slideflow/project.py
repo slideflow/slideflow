@@ -192,6 +192,8 @@ class SlideflowProject:
                         else:
                             raise ValueError(f'Unable to parse "{value}" for batch file argument "{arg}" into a bool.')
                         setattr(hp, arg, bool_val)
+                    elif arg in ("L2_weight", "dropout"):
+                        setattr(hp, arg, float(value))
                     else:
                         setattr(hp, arg, arg_type(value))
                 else:
