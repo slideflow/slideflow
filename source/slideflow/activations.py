@@ -840,7 +840,7 @@ class ActivationsVisualizer:
             return
 
         # First ensure basic stats have been calculated
-        if not hasattr(self, 'sorted_nodes'):
+        if not self.sorted_nodes:
             self.calculate_activation_averages_and_stats()
         if not export_folder: export_folder = self.export_dir
 
