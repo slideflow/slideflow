@@ -2174,7 +2174,6 @@ class SlideflowProject:
 		import slideflow.clam as clam
 		from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
 		from slideflow.clam.create_attention import export_attention
-		from slideflow.util import get_slides_from_model_manifest
 
 		# Set up CLAM experiment data directory
 		clam_dir = join(self.root, 'clam', exp_name)
@@ -2204,7 +2203,7 @@ class SlideflowProject:
 																				 outcome_key='outcome_label',
 																				 validation_target='per-patient',
 																				 validation_strategy='k-fold',
-																				 validation_k_fold=k,
+																				 validation_k_fold=clam_args.k,
 																				 k_fold_iter=0) # TODO fix this monstrosity
 			train_slides = [sfutil.path_to_name(t) for t in train_tfrecords]
 			validation_slides = [sfutil.path_to_name(v) for v in eval_tfrecords]
