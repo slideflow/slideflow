@@ -163,7 +163,7 @@ class ModelActivationsInterface:
 
 class HyperParameters:
     '''Object to supervise construction of a set of hyperparameters for Slideflow models.'''
-    OptDict = {
+    _OptDict = {
         'Adam':	tf.keras.optimizers.Adam,
         'SGD': tf.keras.optimizers.SGD,
         'RMSprop': tf.keras.optimizers.RMSprop,
@@ -172,7 +172,7 @@ class HyperParameters:
         'Adamax': tf.keras.optimizers.Adamax,
         'Nadam': tf.keras.optimizers.Nadam
     }
-    ModelDict = {
+    _ModelDict = {
         'Xception': tf.keras.applications.Xception,
         'VGG16': tf.keras.applications.VGG16,
         'VGG19': tf.keras.applications.VGG19,
@@ -192,7 +192,7 @@ class HyperParameters:
         #'DenseNet': tf.keras.applications.DenseNet,
         #'NASNet': tf.keras.applications.NASNet
     }
-    LinearLoss = ['mean_squared_error',
+    _LinearLoss = ['mean_squared_error',
                    'mean_absolute_error',
                    'mean_absolute_percentage_error',
                    'mean_squared_logarithmic_error',
@@ -201,7 +201,7 @@ class HyperParameters:
                    'logcosh',
                    'negative_log_likelihood']
 
-    AllLoss = ['mean_squared_error',
+    _AllLoss = ['mean_squared_error',
                 'mean_absolute_error',
                 'mean_absolute_percentage_error',
                 'mean_squared_logarithmic_error',
@@ -240,15 +240,15 @@ class HyperParameters:
         assert isinstance(finetune_epochs, (int, list))
         if isinstance(finetune_epochs, list):
             assert all([isinstance(t, int) for t in finetune_epochs])
-        assert model in self.ModelDict.keys()
+        assert model in self._ModelDict.keys()
         assert pooling in ['max', 'avg', 'none']
-        assert loss in self.AllLoss
+        assert loss in self._AllLoss
         assert isinstance(learning_rate, float)
         assert isinstance(learning_rate_decay, (int, float))
         assert isinstance(learning_rate_decay_steps, (int))
         assert isinstance(batch_size, int)
         assert isinstance(hidden_layers, int)
-        assert optimizer in self.OptDict.keys()
+        assert optimizer in self._OptDict.keys()
         assert isinstance(early_stop, bool)
         assert isinstance(early_stop_patience, int)
         assert early_stop_method in ['loss', 'accuracy']
@@ -336,13 +336,13 @@ class HyperParameters:
                 decay_rate=self.learning_rate_decay,
                 staircase=True
             )
-            return self.OptDict[self.optimizer](learning_rate=lr_schedule)
+            return self._OptDict[self.optimizer](learning_rate=lr_schedule)
         else:
-            return self.OptDict[self.optimizer](lr=self.learning_rate)
+            return self._OptDict[self.optimizer](lr=self.learning_rate)
 
     def get_model(self, image_shape=None, input_tensor=None, weights=None):
         '''Returns a Keras model of the appropriate architecture, input shape, pooling, and initial weights.'''
-        return self.ModelDict[self.model](
+        return self._ModelDict[self.model](
             input_shape=image_shape,
             input_tensor=input_tensor,
             include_top=False,
@@ -354,7 +354,7 @@ class HyperParameters:
         '''Returns either 'linear' or 'categorical' depending on the loss type.'''
         if self.loss == 'negative_log_likelihood':
             return 'cph'
-        elif self.loss in self.LinearLoss:
+        elif self.loss in self._LinearLoss:
             return 'linear'
         else:
             return 'categorical'
