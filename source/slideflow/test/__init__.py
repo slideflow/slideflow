@@ -207,7 +207,7 @@ class TestSuite:
                                        interactive=False,
                                        gpu=gpu,
                                        verbosity='default' if debug else 'error',
-                                       num_threads=num_threads)
+                                       default_threads=num_threads)
         self.SFP._settings = self.config.PROJECT
         self.SFP.save_project()
 

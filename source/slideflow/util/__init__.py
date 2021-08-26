@@ -56,14 +56,14 @@ class StainNormalizer:
             source:		Path to source image for normalizer.
                             If not provided, defaults to an internal example image.
         '''
-        from slideflow.slide import stainNorm_Macenko, stainNorm_Reinhard, stainNorm_Vahadane, stainNorm_Augment, stainNorm_Reinhard_Mask
+        import slideflow.slide.normalizers as normalizers
 
         self.normalizers = {
-            'macenko':  stainNorm_Macenko.Normalizer,
-            'reinhard': stainNorm_Reinhard.Normalizer,
-            'reinhard_mask': stainNorm_Reinhard_Mask.Normalizer,
-            'vahadane': stainNorm_Vahadane.Normalizer,
-            'augment': stainNorm_Augment.Normalizer
+            'macenko':  normalizers.stainNorm_Macenko.Normalizer,
+            'reinhard': normalizers.stainNorm_Reinhard.Normalizer,
+            'reinhard_mask': normalizers.stainNorm_Reinhard_Mask.Normalizer,
+            'vahadane': normalizers.stainNorm_Vahadane.Normalizer,
+            'augment': normalizers.stainNorm_Augment.Normalizer
         }
 
         if not source:

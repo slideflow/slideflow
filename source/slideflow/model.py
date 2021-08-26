@@ -296,14 +296,16 @@ class HyperParameters:
         return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt',
                                                                             'get_model',
                                                                             'model_type',
-                                                                            'validate']]
-    def _get_dict(self):
+                                                                            'validate',
+                                                                            'get_dict',
+                                                                            'load_dict']]
+    def get_dict(self):
         d = {}
         for arg in self._get_args():
             d.update({arg: getattr(self, arg)})
         return d
 
-    def _load_dict(self, hp_dict):
+    def load_dict(self, hp_dict):
         for key, value in hp_dict.items():
             try:
                 setattr(self, key, value)

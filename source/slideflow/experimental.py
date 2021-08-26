@@ -79,8 +79,8 @@ def extract_dual_tiles(project,
         pb = ProgressBar(ending_val=0, bar_length=5, counter_text='tiles')
         pb.auto_refresh()
 
-        if project.num_threads > 1:
-            pool = DPool(project.num_threads)
+        if project.default_threads > 1:
+            pool = DPool(project.default_threads)
             pool.map(partial(extract_tiles_from_slide,
                              roi_list=roi_list,
                              dataset_config=dataset_config,

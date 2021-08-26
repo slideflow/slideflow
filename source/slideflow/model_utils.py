@@ -1,7 +1,9 @@
 import tensorflow as tf
 import os
+import csv
 import tempfile
 import numpy as np
+import slideflow.util as sfutil
 from slideflow.util import log
 
 class HyperParameterError(Exception):
@@ -170,6 +172,114 @@ def add_regularization(model, regularizer):
     # Reload the model weights
     model.load_weights(tmp_weights_path, by_name=True)
     return model
+
+def get_hyperparameter_combinations(hyperparameters, models, batch_train_file):
+    '''Organizes a list of hyperparameters ojects and associated models names.
+
+    Args:
+        hyperparameters:		List of Hyperparameters objects
+        models:					List of model names
+        batch_train_file:		Path to train train TSV file
+
+    Returns:
+        List of (Hyperparameter, model_name) for each HP combination
+    '''
+    if not hyperparameters:
+        hp_models_to_train = get_valid_models_from_batch_file(batch_train_file, models)
+    else:
+        hp_models_to_train = [models]
+
+    hyperparameter_list = []
+    if not hyperparameters:
+        # Assembling list of models and hyperparameters from batch_train.tsv file
+        batch_train_rows = []
+        with open(batch_train_file) as csv_file:
+            reader = csv.reader(csv_file, delimiter='\t')
+            header = next(reader)
+            for row in reader:
+                batch_train_rows += [row]
+
+        for row in batch_train_rows:
+            # Read hyperparameters
+            try:
+                hp, hp_model_name = get_hp_from_row(row, header)
+            except HyperParameterError as e:
+                log.error('Invalid Hyperparameter combination: ' + str(e))
+                return
+
+            if hp_model_name not in hp_models_to_train: continue
+
+            hyperparameter_list += [[hp, hp_model_name]]
+    elif isinstance(hyperparameters, list) and isinstance(models, list):
+        if len(models) != len(hyperparameters):
+            log.error(f'Unable to iterate through hyperparameters provided; number of hyperparameters \
+                        ({len(hyperparameters)}) must match number of models ({len(models)})', 1)
+            return
+        for i in range(len(models)):
+            if not hyperparameters[i].validate():
+                return
+            hyperparameter_list += [[hyperparameters[i], models[i]]]
+    else:
+        if not hyperparameters.validate():
+            return
+        hyperparameter_list = [[hyperparameters, models]]
+    return hyperparameter_list
+
+def get_valid_models_from_batch_file(batch_train_file, models):
+    '''Scans a batch_train file for valid, trainable models.'''
+    models_to_train = []
+    with open(batch_train_file) as csv_file:
+        reader = csv.reader(csv_file, delimiter='\t')
+        header = next(reader)
+        try:
+            model_name_i = header.index('model_name')
+        except:
+            err_msg = "Unable to find column 'model_name' in the batch training config file."
+            log.error(err_msg)
+            raise ValueError(err_msg)
+        for row in reader:
+            model_name = row[model_name_i]
+            # First check if this row is a valid model
+            if (not models) or (isinstance(models, str) and model_name==models) or model_name in models:
+                # Now verify there are no duplicate model names
+                if model_name in models_to_train:
+                    err_msg = f'Duplicate model names found in {sfutil.green(batch_train_file)}.'
+                    log.error(err_msg)
+                    raise ValueError(err_msg)
+                models_to_train += [model_name]
+    return models_to_train
+
+def get_hp_from_row(row, header):
+    '''Converts a row in the batch_train CSV file into a HyperParameters object.'''
+    from slideflow.model import HyperParameters
+
+    model_name_i = header.index('model_name')
+    args = header[0:model_name_i] + header[model_name_i+1:]
+    model_name = row[model_name_i]
+    hp = HyperParameters()
+    for arg in args:
+        value = row[header.index(arg)]
+        if arg in hp._get_args():
+            if arg != 'finetune_epochs':
+                arg_type = type(getattr(hp, arg))
+                if arg_type == bool:
+                    if value.lower() in ['true', 'yes', 'y', 't']:
+                        bool_val = True
+                    elif value.lower() in ['false', 'no', 'n', 'f']:
+                        bool_val = False
+                    else:
+                        raise ValueError(f'Unable to parse "{value}" for batch file argument "{arg}" into a bool.')
+                    setattr(hp, arg, bool_val)
+                elif arg in ('L2_weight', 'dropout'):
+                    setattr(hp, arg, float(value))
+                else:
+                    setattr(hp, arg, arg_type(value))
+            else:
+                epochs = [int(i) for i in value.translate(str.maketrans({'[':'', ']':''})).split(',')]
+                setattr(hp, arg, epochs)
+        else:
+            log.error(f"Unknown argument '{arg}' found in training config file.", 0)
+    return hp, model_name
 
 # ====== Scratch code for new CPH models
 
