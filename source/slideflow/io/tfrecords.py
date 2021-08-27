@@ -1,8 +1,11 @@
 import imghdr
-import csv
 import numpy as np
 import os
 import shutil
+import logging
+
+logging.getLogger("tensorflow").setLevel(logging.ERROR)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from os import listdir
 from os.path import isfile, isdir, join, exists
@@ -107,6 +110,9 @@ def detect_tfrecord_format(tfr):
     record = next(iter(tf.data.TFRecordDataset(tfr)))
     try:
         features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
+        for feature in FEATURE_DESCRIPTION:
+            if feature not in features:
+                raise tf.errors.InvalidArgumentError
         feature_description = FEATURE_DESCRIPTION
     except tf.errors.InvalidArgumentError:
         try:
