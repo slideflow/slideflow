@@ -1,14 +1,17 @@
 import imghdr
-import csv
 import numpy as np
 import os
 import shutil
+import logging
 
 from os import listdir
 from os.path import isfile, isdir, join, exists
 from random import shuffle, randint
 from slideflow.util import log
 from glob import glob
+
+logging.getLogger("tensorflow").setLevel(logging.ERROR)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import tensorflow as tf
 import slideflow.util as sfutil
