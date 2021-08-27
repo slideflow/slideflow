@@ -132,7 +132,7 @@ class SlideflowProject:
         if 'mixed_precision' in self._settings:
             return self._settings['mixed_precision']
         elif 'use_fp16' in self._settings:
-            log.warn("'mixed_precision' not found in project settings. Please update your project settings.json file.")
+            log.warn("'mixed_precision' not found in project settings. Please update the settings.json file.")
             return self._settings['use_fp16']
 
     def _read_relative_path(self, path):
@@ -232,7 +232,8 @@ class SlideflowProject:
             writer.writerow(header)
             writer.writerow(firstrow)
 
-    def create_hyperparameter_sweep(self, tile_px, tile_um, finetune_epochs, label=None, filename=None, **kwargs):
+    def create_hyperparameter_sweep(self, tile_px, tile_um, finetune_epochs,
+                                    label=None, filename=None, **kwargs):
         '''Prepares a hyperparameter sweep, saving to a batch train TSV file.'''
         log.header('Preparing hyperparameter sweep...')
         pdict = kwargs
@@ -268,7 +269,8 @@ class SlideflowProject:
         log.complete(f'Wrote {len(sweep)} combinations for sweep to {sfutil.green(filename)}')
 
     def create_project(self, project_folder):
-        '''Prompts user to provide all relevant project configuration and saves configuration to "settings.json".'''
+        '''Prompts user to provide all relevant project configuration
+            and saves configuration to "settings.json".'''
         # General setup and slide configuration
         project = {
             'root': project_folder,
@@ -276,7 +278,8 @@ class SlideflowProject:
         }
         project['name'] = input('What is the project name? ')
 
-        # Ask for annotations file location; if one has not been made, offer to create a blank template and then exit
+        # Ask for annotations file location; if one has not been made,
+        # offer to create a blank template and then exit
         if not sfutil.yes_no_input('Has an annotations (CSV) file already been created? [y/N] ', default='no'):
             if sfutil.yes_no_input('Create a blank annotations file? [Y/n] ', default='yes'):
                 project['annotations'] = sfutil.file_input('Annotations file location [./annotations.csv] ',
@@ -309,8 +312,9 @@ class SlideflowProject:
                 for i, name in enumerate(datasets_names):
                     print(f' {i+1}. {name}')
                 print(f' {len(datasets_names)+1}. ADD NEW')
+                valid_dataset_choices = [str(l) for l in range(1, len(datasets_names)+2)]
                 dataset_selection = sfutil.choice_input(f'Which datasets should be used? ',
-                                                        valid_choices=[str(l) for l in range(1, len(datasets_names)+2)],
+                                                        valid_choices=valid_dataset_choices,
                                                         multi_choice=True)
 
             if not len(datasets_names) or str(len(datasets_names)+1) in dataset_selection:
@@ -347,7 +351,7 @@ class SlideflowProject:
                                                   default='./models',
                                                   create_on_invalid=True)
 
-        project['mixed_precision'] = sfutil.yes_no_input('Use mixed precision? (recommended) [Y/n] ', default='yes')
+        project['mixed_precision'] = sfutil.yes_no_input('Use mixed precision? [Y/n] ', default='yes')
         project['batch_train_config'] = sfutil.file_input('Batch training TSV location [./batch_train.tsv] ',
                                                           root=project['root'],
                                                           default='./batch_train.tsv',
@@ -400,7 +404,7 @@ class SlideflowProject:
             model:					Path to Tensorflow model to evaluate.
             outcome_label_headers:	Annotation column header that specifies the outcome label(s).
             hyperparameters:		Path to model's hyperparameters.json file.
-                                        If None (default), searches for this file in the same directory as the model.
+                                        If None (default), searches in the model directory.
             filters:				Filters to use when selecting tfrecords on which to perform evaluation.
             checkpoint:				Path to cp.ckpt file to load, if evaluating a saved checkpoint.
             eval_k_fold:			K-fold iteration number to evaluate.
@@ -416,7 +420,7 @@ class SlideflowProject:
                                         Used to determine relative importance when using multiple model inputs.
             histogram:				Bool. If true, will create tile-level histograms to show
                                         prediction distributions for each class.
-            save_predictions:		Either True, False, or a list with any combination of 'tile', 'patient', or 'slide'.
+            save_predictions:		Either True, False, or any combination of 'tile', 'patient', or 'slide'.
                                         Will save tile-level, patient-level, and/or slide-level predictions.
                                         If True, will save all.
         '''
@@ -582,8 +586,8 @@ class SlideflowProject:
                         skip_extracted=True, dataset=None, validation_settings=None,
                         normalizer=None, normalizer_source=None, whitespace_fraction=1.0,
                         whitespace_threshold=230, grayspace_fraction=0.6,
-                        grayspace_threshold=0.05, img_format='png', randomize_origin=False, buffer=None, shuffle=True,
-                        num_workers=4, threads_per_worker=4):
+                        grayspace_threshold=0.05, img_format='png', randomize_origin=False,
+                        buffer=None, shuffle=True, num_workers=4, threads_per_worker=4):
 
         '''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the
         validation target is 'per-patient'; and generate TFRecord files from the raw images.
@@ -875,8 +879,9 @@ class SlideflowProject:
                              torch_export=None,
                              isolated_process=False):
 
-        '''Calculates final layer activations and displays information regarding the most significant final layer nodes.
-        Note: GPU memory will remain in use, as the Keras model associated with the visualizer is active.
+        '''Calculates final layer activations and displays information regarding
+        the most significant final layer nodes. Note: GPU memory will remain in use,
+        as the Keras model associated with the visualizer is active.
 
         Args:
             model:						Path to Tensorflow model
@@ -1151,6 +1156,7 @@ class SlideflowProject:
                         show_prediction=None,
                         restrict_pred=None,
                         predict_on_axes=None,
+                        include_logits=True,
                         label_names=None,
                         cmap=None,
                         model_type=None,
@@ -1275,6 +1281,7 @@ class SlideflowProject:
                                    normalizer=normalizer,
                                    normalizer_source=normalizer_source,
                                    batch_size=batch_size,
+                                   include_logits=include_logits,
                                    activations_export=activations_export,
                                    max_tiles_per_slide=max_tiles_per_slide,
                                    cache=activations_cache,

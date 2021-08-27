@@ -34,6 +34,8 @@ MODEL_FORMAT_1_9 = '1.9'
 MODEL_FORMAT_CURRENT = MODEL_FORMAT_1_9
 MODEL_FORMAT_LEGACY = 'legacy'
 
+#TODO: Fix ModelActivationsInterface for multiple categorical outcomes
+
 class ModelActivationsInterface:
     '''Provides an interface to obtain logits and post-convolutional activations
         from saved Slideflow Keras models. Provides support for newer models (v1.9.1+)
@@ -144,7 +146,7 @@ class ModelActivationsInterface:
         if include_logits:
             self.num_features = self.model.output_shape[0][1]
             self.num_classes = self.model.output_shape[1][1]
-            log.info(f'Number of logits: {self.model.output_shape[1][1]}', 2)
+            log.info(f'Number of logits: {self.num_classes}', 2)
         else:
             self.num_features = self.model.output_shape[1]
         log.info(f'Number of activation features: {self.num_features}', 2)
