@@ -5,6 +5,8 @@ import slideflow.util as sfutil
 
 from os.path import join, isdir, exists
 
+#TODO: update validation logs ("outcome" -> "outcome_label")
+
 def update_project_models(project_folder):
     import tensorflow as tf
     from slideflow.model_utils import negative_log_likelihood, concordance_index

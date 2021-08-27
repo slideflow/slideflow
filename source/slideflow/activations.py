@@ -537,7 +537,8 @@ class ActivationsVisualizer:
         # Calculate final layer activations for each tfrecord
         fla_start_time = time.time()
         nodes_names, logits_names = [], []
-        detected_logit_structure=False
+        detected_logit_structure = False
+        include_tfrecord_loc = True
         if export:
             outfile = open(export, 'w')
             csvwriter = csv.writer(outfile)
@@ -570,11 +571,15 @@ class ActivationsVisualizer:
 
                 fl_activations_combined += [fl_activations]
                 slides_combined += [batch_slides]
-                loc_x_combined += [batch_loc_x.numpy()]
-                loc_y_combined += [batch_loc_y.numpy()]
 
                 if include_logits:
                     logits_combined += [logits]
+
+                if not batch_loc_x:
+                    include_tfrecord_loc = False
+                if include_tfrecord_loc:
+                    loc_x_combined += [batch_loc_x.numpy()]
+                    loc_y_combined += [batch_loc_y.numpy()]
 
                 if log.INFO_LEVEL > 0:
                     name_str = f'\r(TFRecord {t+1:>3}/{len(self.tfrecords):>3})'
@@ -588,14 +593,15 @@ class ActivationsVisualizer:
 
             fl_activations_combined = np.concatenate(fl_activations_combined)
             slides_combined = np.concatenate(slides_combined)
-            loc_x_combined = np.concatenate(loc_x_combined)
-            loc_y_combined = np.concatenate(loc_y_combined)
 
             if include_logits:
                 logits_combined = np.concatenate(logits_combined)
-
-            # Merge x and y locations into a single array
-            loc_combined = np.stack((loc_x_combined, loc_y_combined), axis=-1)
+            if include_tfrecord_loc:
+                loc_x_combined = np.concatenate(loc_x_combined)
+                loc_y_combined = np.concatenate(loc_y_combined)
+                loc_combined = np.stack((loc_x_combined, loc_y_combined), axis=-1)
+            else:
+                loc_combined = None
 
             # Check if TFRecord was empty
             if fl_activations_combined == []:
@@ -622,20 +628,21 @@ class ActivationsVisualizer:
 
             if max_tiles_per_slide and len(fl_activations_combined) > max_tiles_per_slide:
                 slides_combined = slides_combined[:max_tiles_per_slide]
-                loc_combined = loc_combined[:max_tiles_per_slide]
-
                 fl_activations_combined = fl_activations_combined[:max_tiles_per_slide]
                 logits_combined = logits_combined[:max_tiles_per_slide]
+                if include_tfrecord_loc:
+                    loc_combined = loc_combined[:max_tiles_per_slide]
 
             # Export to memory and CSV
             for i in range(len(fl_activations_combined)):
                 slide = unique_slides[slides_combined[i]]
-                loc = loc_combined[i].tolist()
                 activations_vals = fl_activations_combined[i].tolist()
                 if include_logits:
                     logits_vals = logits_combined[i].tolist()
                 else:
                     logits_vals = []
+                if include_tfrecord_loc:
+                    loc = loc_combined[i].tolist()
 
                 # Write to CSV
                 if export:
@@ -650,7 +657,8 @@ class ActivationsVisualizer:
                     for l in range(len(logits_names)):
                         val = logits_vals[l]
                         self.slide_logits_dict[slide][l] += [val]
-                self.slide_loc_dict[slide] += [loc]
+                if include_tfrecord_loc:
+                    self.slide_loc_dict[slide] += [loc]
 
         if export:
             outfile.close()
