@@ -53,9 +53,9 @@ class ActivationsError(Exception):
 class ActivationsVisualizer:
 	'''Loads annotations, saved layer activations, and prepares output saving directories.
 		Will also read/write processed activations to a PKL cache file to save time in future iterations.'''
-	
-	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_label_headers=None, 
-					focus_nodes=[], normalizer=None, normalizer_source=None, 
+
+	def __init__(self, model, tfrecords, root_dir, image_size, annotations=None, outcome_label_headers=None,
+					focus_nodes=[], normalizer=None, normalizer_source=None,
 					activations_cache=None, batch_size=32, activations_export=None, max_tiles_per_slide=100,
 					min_tiles_per_slide=None, manifest=None, model_format=None, layers=['postconv'], include_logits=True):
 		'''Object initializer.
@@ -95,7 +95,7 @@ class ActivationsVisualizer:
 		self.MAX_TILES_PER_SLIDE = max_tiles_per_slide
 		self.MIN_TILES_PER_SLIDE = min_tiles_per_slide
 		self.IMAGE_SIZE = image_size
-		
+
 		if self.MIN_TILES_PER_SLIDE and not manifest:
 			raise ActivationsError("'manifest' must be provided if specifying min_tiles_per_slide.")
 		if self.MIN_TILES_PER_SLIDE:
@@ -117,11 +117,11 @@ class ActivationsVisualizer:
 
 		# Load activations
 		# Load from PKL (cache) if present
-		if self.ACTIVATIONS_CACHE and exists(self.ACTIVATIONS_CACHE): 
+		if self.ACTIVATIONS_CACHE and exists(self.ACTIVATIONS_CACHE):
 			# Load saved PKL cache
 			log.empty(f"Loading pre-calculated predictions and activations from {self.ACTIVATIONS_CACHE}...", 1)
 			with open(self.ACTIVATIONS_CACHE, 'rb') as pt_pkl_file:
-				
+
 				self.slide_node_dict, self.slide_logits_dict, self.slide_loc_dict = pickle.load(pt_pkl_file)
 				first_slide = list(self.slide_node_dict.keys())[0]
 				logits = 	  list(self.slide_logits_dict[first_slide].keys())
@@ -140,8 +140,8 @@ class ActivationsVisualizer:
 
 		# Otherwise will need to generate new activations from a given model
 		else:
-			self.generate_activations_from_model(model, 
-												 model_format=model_format, 
+			self.generate_activations_from_model(model,
+												 model_format=model_format,
 												 batch_size=batch_size,
 												 export=activations_export,
 												 normalizer=normalizer,
@@ -188,16 +188,16 @@ class ActivationsVisualizer:
 
 	def _save_node_statistics_to_csv(self, sorted_nodes, slide_node_dict, filename, tile_stats=None, slide_stats=None):
 		'''Internal function to exports statistics (ANOVA p-values and slide-level averages) to CSV.
-		
+
 		Args:
 			sorted_nodes:		List of node IDs (int) sorted in order of significance.
 			slide_node_dict:	Dict mapping slides to dict of nodes mapping to slide-level values as calculated elsewhere.
 									Slide-level node values could be mean, median, thresholded, or other.
 			filename:			Filename
-			tile_stats:			Dictionary mapping nodes to a dict of tile-level stats 
+			tile_stats:			Dictionary mapping nodes to a dict of tile-level stats
 									containing 'p' (ANOVA P-value) and 'f' (ANOVA F-value) for each node
 									As calculated elsewhere by comparing node activations between categories
-			slide_stats:		Dictionary mapping nodes to a dict of slide-level stats 
+			slide_stats:		Dictionary mapping nodes to a dict of slide-level stats
 									containing 'p' (ANOVA P-value), 'f' (ANOVA F-value),
 									and 'num_above_threshold' for each node,
 									as calculated elsewhere by comparing node activations between categories
@@ -247,7 +247,7 @@ class ActivationsVisualizer:
 		result = {}
 		for slide in self.slides:
 			num_tiles = len(self.slide_node_dict[slide][0])
-			result.update({slide: [[self.slide_node_dict[slide][node][tile_index] for node in self.nodes] 
+			result.update({slide: [[self.slide_node_dict[slide][node][tile_index] for node in self.nodes]
 																				  for tile_index in range(num_tiles)]})
 		return result
 
@@ -282,21 +282,21 @@ class ActivationsVisualizer:
 		total_tiles = 0
 		if self.manifest:
 			try:
-				total_tiles = sum([min(self.manifest[tfrecord]['total'], self.MAX_TILES_PER_SLIDE) if self.MAX_TILES_PER_SLIDE 
-																								   else self.manifest[tfrecord]['total'] 
+				total_tiles = sum([min(self.manifest[tfrecord]['total'], self.MAX_TILES_PER_SLIDE) if self.MAX_TILES_PER_SLIDE
+																								   else self.manifest[tfrecord]['total']
 																								   for tfrecord in self.tfrecords])
 			except:
 				pass
-		
+
 		if total_tiles:
 			pb = ProgressBar(total_tiles,
-							counter_text='tiles', 
-							leadtext="Calculating whitespace... ", 
-							show_counter=True, 
+							counter_text='tiles',
+							leadtext="Calculating whitespace... ",
+							show_counter=True,
 							show_eta=True)
 		else:
 			pb = None
-		
+
 		pool = DPool(num_threads)
 		result = pool.map(partial(map_to_tfrecord, pb=pb), self.tfrecords)
 		pool.close()
@@ -310,11 +310,11 @@ class ActivationsVisualizer:
 	def map_to_predictions(self, x=0, y=0):
 		'''Returns coordinates and metadata for tile-level predictions for all tiles,
 		which can be used to create a TFRecordMap.
-		
+
 		Args:
 			x:			Int, identifies the outcome category id for which predictions will be mapped to the X-axis
 			y:			Int, identifies the outcome category id for which predictions will be mapped to the Y-axis
-		
+
 		Returns:
 			mapped_x:	List of x-axis coordinates (predictions for the category 'x')
 			mapped_y:	List of y-axis coordinates (predictions for the category 'y')
@@ -412,7 +412,7 @@ class ActivationsVisualizer:
 
 	def load_annotations(self, annotations, outcome_label_headers):
 		'''Loads annotations from a given file with the specified outcome header.
-		
+
 		Args:
 			annotations:				Path to CSV annotations file.
 			outcome_label_headers:		String, name of column header from which to read outcome variables.
@@ -451,14 +451,14 @@ class ActivationsVisualizer:
 
 		Args:
 			node:		Int, id of node.
-		
+
 		Returns:
 			List of node activations separated by category.
 				Example:
 				[[0.1, 0.2, 0.7, 0.1, 0.0], # Activations for node "N" across all tiles from slides in category 1
 				 [0.8, 0.2, 0.1]] 			# Activations for node "N" across all tiles from slides in category 2
 		'''
-		if not self.categories: 
+		if not self.categories:
 			log.warn("Unable to calculate node activations by category; annotations not loaded. Please load with load_annotations()")
 			return
 		tile_node_activations_by_category = []
@@ -468,7 +468,7 @@ class ActivationsVisualizer:
 		return tile_node_activations_by_category
 
 	def get_top_nodes_by_slide(self):
-		'''First, slide-level average node activations are calculated for all slides. 
+		'''First, slide-level average node activations are calculated for all slides.
 			Then, the significance of the difference in average node activations between for slides
 			belonging to the different outcome categories is calculated using ANOVA.
 			This function then returns a list of all nodes, sorted by ANOVA p-value (most significant first).
@@ -476,7 +476,7 @@ class ActivationsVisualizer:
 		# First ensure basic stats have been calculated
 		if not hasattr(self, 'sorted_nodes'):
 			self.calculate_activation_averages_and_stats()
-		
+
 		return self.sorted_nodes
 
 	def get_top_nodes_by_tile(self):
@@ -488,7 +488,7 @@ class ActivationsVisualizer:
 		# First ensure basic stats have been calculated
 		if not hasattr(self, 'sorted_nodes'):
 			self.calculate_activation_averages_and_stats()
-		
+
 		return self.nodes
 
 	def find_neighbors(self, neighbor_AV, neighbor_slides, n_neighbors, algorithm='ball_tree'):
@@ -496,18 +496,18 @@ class ActivationsVisualizer:
 
 		Args:
 			neighbor_AV:		ActivationsVisualizer, will be used to look for neighbors
-			neighbor_slides:	Either a single slide name or a list of slide names. 
+			neighbor_slides:	Either a single slide name or a list of slide names.
 									Corresponds to slides in the provided neighboring AV.
 									Will look for neighbors to all tiles in these slides.
 			n_neighbors:		Number of neighbors to find for each tile
 			algorithm:			NearestNeighbors algorithm, either 'kd_tree', 'ball_tree', or 'brute'
 
 		Returns:
-			Dict mapping slide names (from self.slides) to tile indices for tiles 
+			Dict mapping slide names (from self.slides) to tile indices for tiles
 				that were found to be neighbors to the provided neighbor_AV and neighbor_slides.
 		'''
 		if type(neighbor_slides) != list: neighbor_slides = [neighbor_slides]
-		
+
 		# Setup source slide-tile indices
 		slide_tile_indices = []
 		for slide in self.slide_node_dict:
@@ -521,14 +521,14 @@ class ActivationsVisualizer:
 				raise ActivationsError(f"Slide {slide} not found in neighboring ActivationsVisualizer")
 			for tile_index in range(len(neighbor_AV.slide_node_dict[slide][0])):
 				neighbor_slide_tile_indices += [(slide, tile_index)]
-		
+
 		log.empty("Initializing nearest neighbor search...", 1)
 		X = np.array([[self.slide_node_dict[slide][n][tile_index] for n in self.nodes] for (slide, tile_index) in slide_tile_indices])
 		nbrs = NearestNeighbors(n_neighbors=5, algorithm=algorithm, n_jobs=-1).fit(X)
 		neighbors = {}
 
 		log.empty("Searching for nearest neighbors...", 1)
-		neighbor_activations = [[neighbor_AV.slide_node_dict[slide][n][tile_index] for n in neighbor_AV.nodes] 
+		neighbor_activations = [[neighbor_AV.slide_node_dict[slide][n][tile_index] for n in neighbor_AV.nodes]
 																				   for (slide, tile_index) in neighbor_slide_tile_indices]
 		distances, all_indices = nbrs.kneighbors(neighbor_activations)
 
@@ -543,7 +543,7 @@ class ActivationsVisualizer:
 		#filtered_predictions = {}
 		#filtered_predictions[neighbor_slide] = []
 		#sentinel = {}
-		
+
 		#for tile_index, neighbor_indices in enumerate(all_indices):
 			#neighbor_indices = neighbor_indices[:50]
 			#prediction = 'Ras-like' if self.slide_logits_dict[slide][0][tile_index] > 0.5 else ('Braf-like' if self.slide_logits_dict[slide][0][tile_index] < -0.5 else 'None')
@@ -557,11 +557,11 @@ class ActivationsVisualizer:
 		#			neighbors[neighbor_slide] += [neighbor_index]
 		#		else:
 		#			neighbors.update({neighbor_slide: [neighbor_index]})
-			
+
 			# Hotspot / sentinel zone defined by:
 			#  - 99% of neighbors belong to the category that the tile is predicted to be
 			#  - At least 10 different slides in this category can be found among the neighbors
-			
+
 			#if percent_matching_categories > 0.95 and most_common_category_in_neighbors == prediction:
 			#	filtered_predictions[slide] += [self.slide_logits_dict[slide][0][tile_index]]
 			#	num_unique_matching_slides = len(list(set([tumap.point_meta[_i]['slide'] for _i in neighbor_indices if tumap.slide_labels[tumap.point_meta[_i]['slide']] == prediction])))
@@ -586,7 +586,7 @@ class ActivationsVisualizer:
 		#	print(slide, mean(filtered_predictions[slide]))
 		return neighbors
 
-	def generate_activations_from_model(self, model, batch_size=16, export=None, 
+	def generate_activations_from_model(self, model, batch_size=16, export=None,
 										normalizer=None, normalizer_source=None, model_format=None,
 										layers=['postconv'], include_logits=True):
 		'''Calculates activations from a given model.
@@ -603,7 +603,7 @@ class ActivationsVisualizer:
 		combined_model = ModelActivationsInterface(model, model_format=model_format, layers=layers, include_logits=include_logits)
 		unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in self.tfrecords]))
 		self.num_features = combined_model.num_features
-			
+
 		# Prepare normalizer
 		if normalizer: log.info(f"Using realtime {normalizer} normalization", 1)
 		normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
@@ -620,15 +620,17 @@ class ActivationsVisualizer:
 		# Calculate final layer activations for each tfrecord
 		fla_start_time = time.time()
 		nodes_names, logits_names = [], []
-		detected_logit_structure=False
+		detected_logit_structure = False
+		include_tfrecord_loc = True
 		if export:
 			outfile = open(export, 'w')
 			csvwriter = csv.writer(outfile)
 
+
 		for t, tfrecord in enumerate(self.tfrecords):
 			dataset = tf.data.TFRecordDataset(tfrecord)
-			parser = sfio.tfrecords.get_tfrecord_parser(tfrecord, 
-													    ('image_raw', 'slide', 'loc_x', 'loc_y'),
+			parser = sfio.tfrecords.get_tfrecord_parser(tfrecord,
+														('image_raw', 'slide', 'loc_x', 'loc_y'),
 														normalizer=normalizer,
 														standardize=True,
 														img_size=self.IMAGE_SIZE,
@@ -636,7 +638,7 @@ class ActivationsVisualizer:
 
 			dataset = dataset.map(parser, num_parallel_calls=8)
 			dataset = dataset.batch(batch_size, drop_remainder=False)
-			
+
 			fl_activations_combined, logits_combined, slides_combined, loc_x_combined, loc_y_combined = [], [], [], [], []
 
 			for i, data in enumerate(dataset):
@@ -651,11 +653,15 @@ class ActivationsVisualizer:
 
 				fl_activations_combined += [fl_activations]
 				slides_combined += [batch_slides]
-				loc_x_combined += [batch_loc_x.numpy()]
-				loc_y_combined += [batch_loc_y.numpy()]
+
 
 				if include_logits:
 					logits_combined += [logits] #logits if logits_combined == [] else np.concatenate([logits_combined, logits])
+				if not batch_loc_x:
+					include_tfrecord_loc = False
+				if include_tfrecord_loc:
+					loc_x_combined += [batch_loc_x.numpy()]
+					loc_y_combined += [batch_loc_y.numpy()]
 
 				if log.INFO_LEVEL > 0:
 					sys.stdout.write(f"\r(TFRecord {t+1:>3}/{len(self.tfrecords):>3}) (Batch {i+1:>3}) ({len(fl_activations_combined):>5} images): {sfutil.green(sfutil.path_to_name(tfrecord))}")
@@ -666,15 +672,16 @@ class ActivationsVisualizer:
 
 			fl_activations_combined = np.concatenate(fl_activations_combined)
 			slides_combined = np.concatenate(slides_combined)
-			loc_x_combined = np.concatenate(loc_x_combined)
-			loc_y_combined = np.concatenate(loc_y_combined)
 
 			if include_logits:
 				logits_combined = np.concatenate(logits_combined)
+			if include_tfrecord_loc:
+				loc_x_combined = np.concatenate(loc_x_combined)
+				loc_y_combined = np.concatenate(loc_y_combined)
+				loc_combined = np.stack((loc_x_combined, loc_y_combined), axis=-1)
+			else:
+				loc_combined = None
 
-			# Merge x and y locations into a single array
-			loc_combined = np.stack((loc_x_combined, loc_y_combined), axis=-1)
-			
 			# Check if TFRecord was empty
 			if fl_activations_combined == []:
 				log.warn(f"Unable to calculate activations from {sfutil.green(sfutil.path_to_name(tfrecord))}; is the TFRecord empty?", 1)
@@ -682,7 +689,7 @@ class ActivationsVisualizer:
 
 			if not detected_logit_structure:
 				nodes_names = [f"FLNode{f}" for f in range(fl_activations_combined.shape[1])]
-				if include_logits: 	
+				if include_logits:
 					logits_names = [f"Logits{l}" for l in range(logits_combined.shape[1])]
 				else:
 					logits_names = []
@@ -699,20 +706,23 @@ class ActivationsVisualizer:
 
 			if self.MAX_TILES_PER_SLIDE and len(fl_activations_combined) > self.MAX_TILES_PER_SLIDE:
 				slides_combined = slides_combined[:self.MAX_TILES_PER_SLIDE]
-				loc_combined = loc_combined[:self.MAX_TILES_PER_SLIDE]
-				
 				fl_activations_combined = fl_activations_combined[:self.MAX_TILES_PER_SLIDE]
-				logits_combined = logits_combined[:self.MAX_TILES_PER_SLIDE]
+				if include_logits:
+					logits_combined = logits_combined[:self.MAX_TILES_PER_SLIDE]
+				if loc_combined is not None:
+					loc_combined = loc_combined[:self.MAX_TILES_PER_SLIDE]
 
 			# Export to memory and CSV
 			for i in range(len(fl_activations_combined)):
 				slide = unique_slides[slides_combined[i]]
-				loc = loc_combined[i].tolist()
+
 				activations_vals = fl_activations_combined[i].tolist()
-				if include_logits:	
+				if include_logits:
 					logits_vals = logits_combined[i].tolist()
 				else:
 					logits_vals = []
+				if loc_combined is not None:
+					loc = loc_combined[i].tolist()
 
 				# Write to CSV
 				if export:
@@ -727,7 +737,10 @@ class ActivationsVisualizer:
 					for l in range(len(logits_names)):
 						val = logits_vals[l]
 						self.slide_logits_dict[slide][l] += [val]
-				self.slide_loc_dict[slide] += [loc]
+				if loc_combined is not None:
+					self.slide_loc_dict[slide] += [loc]
+				else:
+					self.slide_loc_dict = None
 
 		if export:
 			outfile.close()
@@ -738,7 +751,7 @@ class ActivationsVisualizer:
 		log.info(f"Number of activation features: {self.num_features}", 1)
 		if export:
 			log.complete(f"Activations saved to {sfutil.green(export)}", 1)
-		
+
 		# Dump PKL dictionary to file
 		if self.ACTIVATIONS_CACHE:
 			with open(self.ACTIVATIONS_CACHE, 'wb') as pt_pkl_file:
@@ -752,7 +765,7 @@ class ActivationsVisualizer:
 
 		Args:
 			filename:	Path to CSV file for export.
-			nodes:		(optional) List of int. Activations of these nodes will be exported. 
+			nodes:		(optional) List of int. Activations of these nodes will be exported.
 							If None, activations for all nodes will be exported.
 		'''
 		with open(filename, 'w') as outfile:
@@ -797,10 +810,10 @@ class ActivationsVisualizer:
 		log.complete("Activations exported in Torch format.", 1)
 
 	def calculate_activation_averages_and_stats(self, filename=None, node_method='avg', threshold=0.5):
-		'''Calculates activation averages across categories, 
-			as well as tile-level and patient-level statistics using ANOVA, 
+		'''Calculates activation averages across categories,
+			as well as tile-level and patient-level statistics using ANOVA,
 			exporting to CSV if desired.
-			
+
 		Args:
 			filename:		Path to CSV file for export.
 			node_method:	Either 'avg' (default) or 'threshold'. If avg, slide-level node data is calculated by averaging
@@ -847,10 +860,10 @@ class ActivationsVisualizer:
 					node_val = sum([1 for t in self.slide_node_dict[slide][node] if t > threshold]) / len(self.slide_node_dict[slide][node])
 				self.node_cat_dict[node][pt_cat] += [node_val]
 				slide_node_dict[slide][node] = node_val
-			
+
 			# Tile-level ANOVA
 			fvalue, pvalue = stats.f_oneway(*self.get_tile_node_activations_by_category(node))
-			if not isnan(fvalue) and not isnan(pvalue): 
+			if not isnan(fvalue) and not isnan(pvalue):
 				tile_node_stats.update({node: {'f': fvalue,
 										  'p': pvalue} })
 			else:
@@ -859,7 +872,7 @@ class ActivationsVisualizer:
 
 			# Patient-level ANOVA
 			fvalue, pvalue = stats.f_oneway(*[self.node_cat_dict[node][c] for c in self.used_categories])
-			if not isnan(fvalue) and not isnan(pvalue): 
+			if not isnan(fvalue) and not isnan(pvalue):
 				slide_node_stats.update({node: {'f': fvalue,
 												 'p': pvalue} })
 			else:
@@ -886,7 +899,7 @@ class ActivationsVisualizer:
 		except:
 			log.warn("No stats calculated; unable to sort nodes.", 1)
 			self.sorted_nodes = self.nodes
-			
+
 		for i, node in enumerate(self.nodes):
 			if self.focus_nodes and (node not in self.focus_nodes): continue
 			try:
@@ -898,15 +911,15 @@ class ActivationsVisualizer:
 
 		# Export results
 		export_file = self.STATS_CSV_FILE if not filename else filename
-		self._save_node_statistics_to_csv(self.sorted_nodes, 
-										  slide_node_dict, 
-										  filename=export_file, 
-										  tile_stats=tile_node_stats, 
+		self._save_node_statistics_to_csv(self.sorted_nodes,
+										  slide_node_dict,
+										  filename=export_file,
+										  tile_stats=tile_node_stats,
 										  slide_stats=slide_node_stats)
 		return slide_node_dict, tile_node_stats, slide_node_stats
 
 	def logistic_regression(self, slide_method='avg', node_threshold=0.5):
-		'''Experimental function, creates a logistic regression model 
+		'''Experimental function, creates a logistic regression model
 			to generate slide-level predictions from slide-level statistics.'''
 
 		from sklearn.linear_model import LogisticRegression
@@ -917,7 +930,7 @@ class ActivationsVisualizer:
 		log.empty("Working on logistic regression...", 1)
 		x = np.array([[slide_node_dict[slide][n] for n in self.nodes] for slide in self.slides])
 		y = np.array([self.categories.index(self.slide_category_dict[slide]) for slide in self.slides])
-		
+
 		model = LogisticRegression(solver='lbfgs', max_iter=100, multi_class='ovr').fit(x, y)
 		yhat = model.predict(x)
 		log.complete(f"Regression complete, accuracy: {model.score(x, y):.3f}", 1)
@@ -925,7 +938,7 @@ class ActivationsVisualizer:
 
 	def generate_box_plots(self, export_folder=None):
 		'''Generates box plots comparing nodal activations at the slide-level and tile-level.
-		
+
 		Args:
 			export_folder:	(optional) Path to directory in which to save box plots.
 								If None, will save boxplots to STATS_ROOT directory.
@@ -970,7 +983,7 @@ class ActivationsVisualizer:
 			if (not self.focus_nodes) and i>4: break
 
 	def save_example_tiles_gradient(self, nodes=None, export_folder=None, tile_filter=None):
-		'''For a given set of activation nodes, saves image tiles named according 
+		'''For a given set of activation nodes, saves image tiles named according
 			to their corresponding node activations, for easy sorting and visualization.
 			Duplicate image tiles will be saved for each node, organized into subfolders named according to node id.
 
@@ -988,7 +1001,7 @@ class ActivationsVisualizer:
 		for node in nodes:
 			if not exists(join(export_folder, node)):
 				os.makedirs(join(export_folder, node))
-			
+
 			gradient = []
 			for slide in self.slides:
 				for i, tile in enumerate(self.slide_node_dict[slide][node]):
@@ -1020,7 +1033,7 @@ class ActivationsVisualizer:
 
 		Args:
 			nodes:			List of int. Nodes with which to perform this function.
-			slides:			List of slide names. Will load tile images from these slides. 
+			slides:			List of slide names. Will load tile images from these slides.
 			export_folder:	Path to directory in which to save image tiles.
 		'''
 		if not export_folder: export_folder = join(self.STATS_ROOT, "example_tiles")
@@ -1053,12 +1066,12 @@ class ActivationsVisualizer:
 
 class TileVisualizer:
 	'''Class to supervize visualization of node activations across an image tile.
-	Visualization is accomplished by performing sequential convolutional masking 
+	Visualization is accomplished by performing sequential convolutional masking
 		and determining impact of masking on node activation. In this way,
 		the masking reveals spatial importance with respect to activation of the given node.
 	'''
 
-	def __init__(self, model, node, tile_px, mask_width=None, 
+	def __init__(self, model, node, tile_px, mask_width=None,
 					normalizer=None, normalizer_source=None, model_format=None):
 		'''Object initializer.
 
@@ -1103,7 +1116,7 @@ class TileVisualizer:
 				print(f"Calculating activations at x:{xi}, y:{yi}; act={act[0][self.NODE]}", end='\033[K\r')
 		max_center_x = max(range(min_x, max_x, stride))
 		max_center_y = max(range(min_y, max_y, stride))
-		reshaped_array = np.reshape(np.array(act_array), [len(range(min_x, max_x, stride)), 
+		reshaped_array = np.reshape(np.array(act_array), [len(range(min_x, max_x, stride)),
 														  len(range(min_y, max_y, stride))])
 		print()
 		return reshaped_array, max_center_x, max_center_y
@@ -1112,12 +1125,12 @@ class TileVisualizer:
 		mask = create_bool_mask(x, y, self.MASK_WIDTH, self.IMAGE_SHAPE[0], self.IMAGE_SHAPE[1])
 		masked = self.tf_processed_image.numpy() * mask
 		act, _ = self.loaded_model.predict(np.array([masked]))
-		return act[0][index]	
+		return act[0][index]
 
-	def visualize_tile(self, tfrecord=None, index=None, image_jpg=None, 
+	def visualize_tile(self, tfrecord=None, index=None, image_jpg=None,
 						export_folder=None, zoomed=True, interactive=False):
 		'''Visualizes tiles, either interactively or saving to directory.
-		
+
 		Args:
 			tfrecord:			If provided, will visualize tile from the designated tfrecord.
 									Must supply either a tfrecord and index or image_jpg
@@ -1142,7 +1155,7 @@ class TileVisualizer:
 			self.tile_image = Image.fromarray(tf_decoded_image.numpy())
 
 		# Normalize PIL image & TF image
-		if self.normalizer: 
+		if self.normalizer:
 			self.tile_image = self.normalizer.pil_to_pil(self.tile_image)
 			tf_decoded_image = tf.py_function(self.normalizer.tf_to_rgb, [self.tile_image], tf.int32)
 
@@ -1180,12 +1193,12 @@ class TileVisualizer:
 				self.MASK_WIDTH = max(0, self.MASK_WIDTH - 25)
 				self.rect.set_width(self.MASK_WIDTH)
 				self.rect.set_height(self.MASK_WIDTH)
-			self.fig.canvas.draw_idle()	
+			self.fig.canvas.draw_idle()
 
 		if interactive:
 			self.fig.canvas.mpl_connect('motion_notify_event', hover)
 			self.fig.canvas.mpl_connect('button_press_event', click)
-		
+
 		if activation_map is not None:
 			# Define color map
 			jetMap = np.flip(np.linspace(0.45, 0.95, 255))
@@ -1198,7 +1211,7 @@ class TileVisualizer:
 				extent = (hw, max_center_x, max_center_y, hw)
 			else:
 				extent = (0, max_center_x+hw, max_center_y+hw, 0)
-			
+
 			# Heatmap
 			self.ax.imshow(activation_map, extent=extent,
 										   cmap=newMap,
@@ -1214,7 +1227,7 @@ class TileVisualizer:
 class Heatmap:
 	'''Generates heatmap by calculating predictions from a sliding scale window across a slide.'''
 
-	def __init__(self, slide_path, model_path, size_px, size_um, stride_div=2, roi_dir=None, 
+	def __init__(self, slide_path, model_path, size_px, size_um, stride_div=2, roi_dir=None,
 					roi_list=None, roi_method='inside', buffer=True, normalizer=None, normalizer_source=None,
 					batch_size=16, model_format=None, num_threads=1):
 		'''Convolutes across a whole slide, calculating logits and saving predictions internally for later use.
@@ -1264,11 +1277,11 @@ class Heatmap:
 
 		# Load the slide
 		self.slide = SlideReader(slide_path,
-								 size_px, 
-								 size_um, 
-								 stride_div, 
-								 enable_downsample=False, 
-								 roi_dir=roi_dir, 
+								 size_px,
+								 size_um,
+								 stride_div,
+								 enable_downsample=False,
+								 roi_dir=roi_dir,
 								 roi_list=roi_list,
 								 roi_method=roi_method,
 								 silent=True,
@@ -1351,7 +1364,7 @@ class Heatmap:
 
 		if (type(self.logits) == bool) and (not self.logits):
 			log.error(f"Unable to create heatmap for slide {sfutil.green(self.slide.name)}", 1)
-		
+
 		# Unbuffer slide
 		if buffered_slide:
 			os.remove(new_path)
@@ -1380,12 +1393,12 @@ class Heatmap:
 
 	def display(self, show_roi=True, interpolation='none', logit_cmap=None):
 		'''Interactively displays calculated logits as a heatmap.
-		
+
 		Args:
 			show_roi:			Bool, whether to overlay ROIs onto heatmap image
 			interpolation:		Interpolation strategy to use for smoothing heatmap
 			logit_cmap:			Either function or a dictionary use to create heatmap colormap.
-									Each image tile will generate a list of predictions of length O, 
+									Each image tile will generate a list of predictions of length O,
 									where O is the number of outcome categories.
 									If logit_cmap is a function, then this logit prediction list will be passed to the function,
 										and the function is expected to return [R, G, B] values which will be displayed.
@@ -1414,22 +1427,22 @@ class Heatmap:
 			if callable(logit_cmap):
 				map_logit = logit_cmap
 			else:
-				def map_logit(l): 
+				def map_logit(l):
 					# Make heatmap with specific logit predictions mapped to r, g, and b
 					return (l[logit_cmap['r']], l[logit_cmap['g']], l[logit_cmap['b']])
-			heatmap = self.ax.imshow([[map_logit(l) for l in row] for row in self.logits], 
-									 extent=implot.extent, 
-									 interpolation=interpolation, 
+			heatmap = self.ax.imshow([[map_logit(l) for l in row] for row in self.logits],
+									 extent=implot.extent,
+									 interpolation=interpolation,
 									 zorder=10)
 		else:
 			divnorm=mcol.TwoSlopeNorm(vmin=0, vcenter=0.5, vmax=1.0)
 			for i in range(self.num_classes):
-				heatmap = self.ax.imshow(self.logits[:, :, i], 
-										 extent=implot.extent, 
+				heatmap = self.ax.imshow(self.logits[:, :, i],
+										 extent=implot.extent,
 										 cmap='coolwarm',
 										 norm=divnorm,
-										 alpha = 0.0, 
-										 interpolation=interpolation, 
+										 alpha = 0.0,
+										 interpolation=interpolation,
 										 zorder=10) #bicubic
 
 				ax_slider = self.fig.add_axes([0.25, 0.2-(0.2/self.num_classes)*i, 0.5, 0.03], facecolor='lightgoldenrodyellow')
@@ -1443,12 +1456,12 @@ class Heatmap:
 
 	def save(self, save_folder, show_roi=True, interpolation='none', logit_cmap=None):
 		'''Saves calculated logits as heatmap overlays.
-		
+
 		Args:
 			show_roi:			Bool, whether to overlay ROIs onto heatmap image
 			interpolation:		Interpolation strategy to use for smoothing heatmap
 			logit_cmap:			Either function or a dictionary use to create heatmap colormap.
-									Each image tile will generate a list of predictions of length O, 
+									Each image tile will generate a list of predictions of length O,
 									where O is the number of outcome categories.
 									If logit_cmap is a function, then this logit prediction list will be passed to the function,
 										and the function is expected to return [R, G, B] values which will be displayed.
@@ -1485,13 +1498,13 @@ class Heatmap:
 			if callable(logit_cmap):
 				map_logit = logit_cmap
 			else:
-				def map_logit(l): 
+				def map_logit(l):
 					# Make heatmap with specific logit predictions mapped to r, g, and b
 					return (l[logit_cmap['r']], l[logit_cmap['g']], l[logit_cmap['b']])
 
 			heatmap = self.ax.imshow([[map_logit(l) for l in row] for row in self.logits],
-									 extent=implot.get_extent(), 
-									 interpolation=interpolation, 
+									 extent=implot.get_extent(),
+									 interpolation=interpolation,
 									 zorder=10)
 
 			plt.savefig(os.path.join(save_folder, f'{self.slide.name}-custom.png'), bbox_inches='tight')
@@ -1500,7 +1513,7 @@ class Heatmap:
 			for i in range(self.num_classes):
 				print(f"\r\033[KMaking heatmap {i+1} of {self.num_classes}...", end="")
 				divnorm=mcol.TwoSlopeNorm(vmin=0, vcenter=0.5, vmax=1.0)
-				heatmap = self.ax.imshow(self.logits[:, :, i], 
+				heatmap = self.ax.imshow(self.logits[:, :, i],
 										 extent=implot.get_extent(),
 										 cmap='coolwarm',
 										 norm=divnorm,
