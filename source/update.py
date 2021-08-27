@@ -5,10 +5,45 @@ import slideflow.util as sfutil
 
 from os.path import join, isdir, exists
 
-def update_models(root):
-    '''Updates models from Keras H5 to Tensorflow SavedModel format'''
+def update_project_models(project_folder):
     import tensorflow as tf
     from slideflow.model_utils import negative_log_likelihood, concordance_index
+    folder = project_folder
+
+    if exists(join(project_folder, 'models')):
+        model_folders = [mf for mf in os.listdir(join(project_folder, 'models')) if isdir(join(project_folder, 'models', mf))]
+        for model_folder in model_folders:
+            full_model_folder = join(project_folder, 'models', model_folder)
+            hyperparameters = sfutil.get_model_hyperparameters(full_model_folder)
+            if hyperparameters is None:
+                print(f"Unable to find hyperparameters file for model {folder} > {model_folder}, skipping")
+                continue
+
+            models = [m for m in os.listdir(full_model_folder) if sfutil.path_to_ext(m) == 'h5']
+            for model in models:
+                model_path = join(full_model_folder, model)
+                new_model_path = join(full_model_folder, sfutil.path_to_name(model))
+
+                print(f"Upgrading {sfutil.info(folder)} > {sfutil.warn(model_folder)} > {sfutil.green(model)} ... ", end="")
+                try:
+                    if hyperparameters['model_type'] == 'cph':
+                        loaded_model = tf.keras.models.load_model(model_path,custom_objects = {
+                                                                                'negative_log_likelihood':negative_log_likelihood,
+                                                                                'concordance_index':concordance_index
+                                                                            })
+                    else:
+                        loaded_model = tf.keras.models.load_model(model_path)
+                    loaded_model.save(new_model_path)
+                    os.remove(model_path)
+                    print(sfutil.green('DONE'))
+                except ValueError:
+
+                    print(sfutil.fail('FAIL'))
+                    print(" - Unable to load model, incorrect python version")
+
+
+def update_models(root):
+    '''Updates models from Keras H5 to Tensorflow SavedModel format'''
     print(f"{sfutil.warn('WARNING!!! ')} Although tested, this conversion function does not guarantee model integrity post-conversion.")
     print("Please backup your models before continuing!")
     input("Acknowledge (press enter) > ")
@@ -18,37 +53,7 @@ def update_models(root):
     project_folders = [f for f in os.listdir(root) if isdir(join(root, f)) and exists(join(root, f, 'settings.json'))]
     for folder in project_folders:
         project_folder = join(root, folder)
-        project_settings = sfutil.load_json(join(project_folder, 'settings.json'))
-        if exists(join(project_folder, 'models')):
-            model_folders = [mf for mf in os.listdir(join(project_folder, 'models')) if isdir(join(project_folder, 'models', mf))]
-            for model_folder in model_folders:
-                full_model_folder = join(project_folder, 'models', model_folder)
-                hyperparameters = sfutil.get_model_hyperparameters(full_model_folder)
-                if hyperparameters is None:
-                    print(f"Unable to find hyperparameters file for model {folder} > {model_folder}, skipping")
-                    continue
-
-                models = [m for m in os.listdir(full_model_folder) if sfutil.path_to_ext(m) == 'h5']
-                for model in models:
-                    model_path = join(full_model_folder, model)
-                    new_model_path = join(full_model_folder, sfutil.path_to_name(model))
-
-                    print(f"Upgrading {sfutil.info(folder)} > {sfutil.warn(model_folder)} > {sfutil.green(model)} ... ", end="")
-                    try:
-                        if hyperparameters['model_type'] == 'cph':
-                            loaded_model = tf.keras.models.load_model(model_path,custom_objects = {
-                                                                                  'negative_log_likelihood':negative_log_likelihood,
-                                                                                  'concordance_index':concordance_index
-                                                                                })
-                        else:
-                            loaded_model = tf.keras.models.load_model(model_path)
-                        loaded_model.save(new_model_path)
-                        os.remove(model_path)
-                        print(sfutil.green('DONE'))
-                    except ValueError:
-
-                        print(sfutil.fail('FAIL'))
-                        print(" - Unable to load model, incorrect python version")
+        update_project_models(project_folder)
 
 def update_version(root):
     '''Updates slideflow projects from version 1.6-1.8 to 1.9+'''
