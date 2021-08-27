@@ -71,13 +71,13 @@ def _decode_image(img_string, img_type, size=None, standardize=False, normalizer
 	}
 	decoder = tf_decoders[img_type.lower()]
 	image = decoder(img_string, channels=3)
-	
-	if normalizer: 	
+
+	if normalizer:
 		image = tf.py_function(normalizer.tf_to_rgb, [image], tf.int32)
 		if size: image.set_shape([size, size, 3])
 	if augment:
 		# Augment with random compession
-		image = tf.cond(tf.random.uniform(shape=[], minval=0, maxval=1, dtype=tf.float32) < 0.5, 
+		image = tf.cond(tf.random.uniform(shape=[], minval=0, maxval=1, dtype=tf.float32) < 0.5,
 						true_fn=lambda: tf.image.adjust_jpeg_quality(image, tf.random.uniform(shape=[], minval=50, maxval=100, dtype=tf.int32)),
 						false_fn=lambda: image)
 
@@ -100,6 +100,9 @@ def detect_tfrecord_format(tfr):
 	record = next(iter(tf.data.TFRecordDataset(tfr)))
 	try:
 		features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
+		for feature in FEATURE_DESCRIPTION:
+			if feature not in features:
+				raise tf.errors.InvalidArgumentError
 		feature_description = FEATURE_DESCRIPTION
 	except tf.errors.InvalidArgumentError:
 		try:
@@ -110,7 +113,7 @@ def detect_tfrecord_format(tfr):
 	image_type = imghdr.what('', features['image_raw'].numpy())
 	return feature_description, image_type
 
-def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False, decode_images=True, 
+def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False, decode_images=True,
 						standardize=False, img_size=None, normalizer=None, augment=False, error_if_invalid=True,):
 	feature_description, img_type = detect_tfrecord_format(tfrecord_path)
 	if features_to_return is None:
@@ -255,11 +258,11 @@ def print_tfrecord(target):
 	else:
 		tfrecord_files = glob(join(target, "*.tfrecords"))
 		for tfr in tfrecord_files:
-			_print_record(tfr)		
+			_print_record(tfr)
 
 def write_tfrecords_merge(input_directory, output_directory, filename):
-	'''Scans a folder for subfolders, assumes subfolders are slide names. Assembles all image tiles within 
-	subfolders and labels using the provided annotation_dict, assuming the subfolder is the slide name. 
+	'''Scans a folder for subfolders, assumes subfolders are slide names. Assembles all image tiles within
+	subfolders and labels using the provided annotation_dict, assuming the subfolder is the slide name.
 	Collects all image tiles and exports into a single tfrecord file.'''
 	tfrecord_path = join(output_directory, filename)
 	if not exists(output_directory):
@@ -282,8 +285,8 @@ def write_tfrecords_merge(input_directory, output_directory, filename):
 	return len(keys)
 
 def write_tfrecords_multi(input_directory, output_directory):
-	'''Scans a folder for subfolders, assumes subfolders are slide names. Assembles all image tiles within 
-	subfolders and labels using the provided annotation_dict, assuming the subfolder is the slide name. 
+	'''Scans a folder for subfolders, assumes subfolders are slide names. Assembles all image tiles within
+	subfolders and labels using the provided annotation_dict, assuming the subfolder is the slide name.
 	Collects all image tiles and exports into multiple tfrecord files, one for each slide.'''
 	slide_dirs = [_dir for _dir in listdir(input_directory) if isdir(join(input_directory, _dir))]
 	total_tiles = 0
@@ -347,7 +350,7 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True, preserve
 		if preserved_site:
 			import pandas as pd
 			import slideflow.io.preservedsite.crossfolds as cv
-			
+
 			site_list = [p[5:7] for p in patients_dict]
 			df = pd.DataFrame(list(zip(patient_list, patient_outcome_labels, site_list)), columns = ['patient', 'outcome_label', 'site'])
 			df = cv.generate(df, 'outcome_label', unique_labels, crossfolds = n, target_column = 'CV', patient_column = 'patient', site_column = 'site')
@@ -356,9 +359,9 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True, preserve
 			log.empty(sfutil.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_labels)))])), 2)
 			for k in range(n):
 				log.empty(f"K-fold-{k}\t" + "\t".join([str(len(df[(df.CV == str(k+1)) & (df.outcome_label == o)].index)) for o in unique_labels]), 2)
-			
+
 			return [df.loc[df.CV == str(ni+1), "patient"].tolist() for ni in range(n)]
-			
+
 		else:
 			# Now, split patient_list according to outcomes
 			patients_split_by_outcomes = [[p for p in patient_list if patients_dict[p][balance] == uo] for uo in unique_labels]
@@ -376,7 +379,7 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True, preserve
 	else:
 		return list(split(patient_list, n))
 
-def get_training_and_validation_tfrecords(dataset, validation_log, model_type, slide_labels_dict, outcome_key, validation_target, validation_strategy, 
+def get_training_and_validation_tfrecords(dataset, validation_log, model_type, slide_labels_dict, outcome_key, validation_target, validation_strategy,
 											validation_fraction=None, validation_k_fold=None, k_fold_iter=None, read_only=False):
 	'''From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
 	If a validation plan has already been prepared (e.g. K-fold iterations were already determined), the previously generated plan will be used.
@@ -402,7 +405,7 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 		k_fold_iter:			Which K-fold iteration, if using K-fold validation.
 
 	Returns:
-		Two arrays: 	an array of full paths to training tfrecords, and an array of paths to validation tfrecords.''' 
+		Two arrays: 	an array of full paths to training tfrecords, and an array of paths to validation tfrecords.'''
 
 	# Prepare dataset
 	tfr_folders = dataset.get_tfrecords_folders()
@@ -419,7 +422,7 @@ def get_training_and_validation_tfrecords(dataset, validation_log, model_type, s
 			log.error("Unable to combine TFRecords from datasets; TFRecord subdirectory structures do not match.")
 			raise TFRecordsError("Unable to combine TFRecords from datasets; TFRecord subdirectory structures do not match.")
 
-	if k_fold_iter: 
+	if k_fold_iter:
 		k_fold_index = int(k_fold_iter)-1
 	k_fold = validation_k_fold
 	training_tfrecords = []
@@ -686,7 +689,7 @@ def shuffle_tfrecord(target):
 
 	for record in extracted_tfrecord:
 		writer.write(record)
-	
+
 	writer.close()
 
 def shuffle_tfrecords_by_dir(directory):
