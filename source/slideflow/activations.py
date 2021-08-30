@@ -664,7 +664,7 @@ class ActivationsVisualizer:
 					loc_y_combined += [batch_loc_y.numpy()]
 
 				if log.INFO_LEVEL > 0:
-					sys.stdout.write(f"\r(TFRecord {t+1:>3}/{len(self.tfrecords):>3}) (Batch {i+1:>3}) ({len(fl_activations_combined):>5} images): {sfutil.green(sfutil.path_to_name(tfrecord))}")
+					sys.stdout.write(f"\r(TFRecord {t+1:>3}/{len(self.tfrecords):>3}) (Batch {i+1:>3}) ({(i+1)*batch_size:>5} images): {sfutil.green(sfutil.path_to_name(tfrecord))}")
 					sys.stdout.flush()
 
 				if self.MAX_TILES_PER_SLIDE and (len(fl_activations_combined) >= self.MAX_TILES_PER_SLIDE):
