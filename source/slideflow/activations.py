@@ -589,7 +589,7 @@ class ActivationsVisualizer:
                     sys.stdout.write(f'{name_str} {batch_str} {img_str}: {sfutil.green(sfutil.path_to_name(tfrecord))}')
                     sys.stdout.flush()
 
-                if max_tiles_per_slide and (len(fl_activations_combined) >= max_tiles_per_slide):
+                if max_tiles_per_slide and (i+1)*batch_size >= max_tiles_per_slide:
                     break
 
             fl_activations_combined = np.concatenate(fl_activations_combined)
