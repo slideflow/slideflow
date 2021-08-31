@@ -35,6 +35,9 @@ from multiprocessing.dummy import Pool as DPool
 from sklearn.neighbors import NearestNeighbors
 from PIL import Image
 
+# TODO: change slide_node_dict and slide_logits_dict to be multidimensional arrays
+# 		rather than this nested dictionary garbage
+
 def create_bool_mask(x, y, w, sx, sy):
 	l = max(0,  int(x-(w/2.)))
 	r = min(sx, int(x+(w/2.)))
@@ -626,9 +629,12 @@ class ActivationsVisualizer:
 			outfile = open(export, 'w')
 			csvwriter = csv.writer(outfile)
 
-
 		for t, tfrecord in enumerate(self.tfrecords):
 			dataset = tf.data.TFRecordDataset(tfrecord)
+			tfr_features, tfr_img_type = sfio.tfrecords.detect_tfrecord_format(tfrecord)
+			if 'loc_x' not in tfr_features:
+				include_tfrecord_loc = False
+
 			parser = sfio.tfrecords.get_tfrecord_parser(tfrecord,
 														('image_raw', 'slide', 'loc_x', 'loc_y'),
 														normalizer=normalizer,
@@ -651,14 +657,11 @@ class ActivationsVisualizer:
 				if include_logits:	fl_activations, logits = model_output
 				else:				fl_activations = model_output
 
-				fl_activations_combined += [fl_activations]
+				fl_activations_combined += [fl_activations.numpy()]
 				slides_combined += [batch_slides]
 
-
 				if include_logits:
-					logits_combined += [logits] #logits if logits_combined == [] else np.concatenate([logits_combined, logits])
-				if not batch_loc_x:
-					include_tfrecord_loc = False
+					logits_combined += [logits.numpy()] #logits if logits_combined == [] else np.concatenate([logits_combined, logits])
 				if include_tfrecord_loc:
 					loc_x_combined += [batch_loc_x.numpy()]
 					loc_y_combined += [batch_loc_y.numpy()]
@@ -716,31 +719,38 @@ class ActivationsVisualizer:
 			for i in range(len(fl_activations_combined)):
 				slide = unique_slides[slides_combined[i]]
 
-				activations_vals = fl_activations_combined[i].tolist()
+				activations_vals = fl_activations_combined[i]
 				if include_logits:
-					logits_vals = logits_combined[i].tolist()
-				else:
-					logits_vals = []
+					logits_vals = logits_combined[i]
 				if loc_combined is not None:
-					loc = loc_combined[i].tolist()
+					loc = loc_combined[i]
 
 				# Write to CSV
-				if export:
-					row = [slide] + logits_vals + activations_vals
+				if export and include_logits:
+					row = [slide] + logits_vals.tolist() + activations_vals.tolist()
+					csvwriter.writerow(row)
+				elif export:
+					row = [slide] + activations_vals.tolist()
 					csvwriter.writerow(row)
 
-				# Write to memory
-				for n in range(len(nodes_names)):
-					val = activations_vals[n]
-					self.slide_node_dict[slide][n] += [val]
-				if include_logits:
-					for l in range(len(logits_names)):
-						val = logits_vals[l]
-						self.slide_logits_dict[slide][l] += [val]
-				if loc_combined is not None:
-					self.slide_loc_dict[slide] += [loc]
+			# Write to memory
+			for n in range(len(nodes_names)):
+				node_activations = fl_activations_combined[:,n]
+				if self.slide_node_dict[slide][n] == []:
+					self.slide_node_dict[slide][n] = node_activations
 				else:
-					self.slide_loc_dict = None
+					self.slide_node_dict[slide][n] = np.concatenate(self.slide_node_dict[slide][n], node_activations)
+			if include_logits:
+				for l in range(len(logits_names)):
+					logit_values = logits_combined[:, l]
+					if self.slide_logits_dict[slide][l] == []:
+						self.slide_logits_dict[slide][l] = logit_values
+					else:
+						self.slide_logits_dict[slide][l] = np.concatenate(self.slide_logits_dict[slide][l], logit_values)
+			if loc_combined is not None and self.slide_loc_dict[slide] == []:
+				self.slide_loc_dict[slide] = loc_combined
+			elif loc_combined is not None:
+				self.slide_loc_dict[slide] = np.concatenate(self.slide_loc_dict[slide], loc_combined)
 
 		if export:
 			outfile.close()
