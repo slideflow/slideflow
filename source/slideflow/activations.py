@@ -637,29 +637,37 @@ class ActivationsVisualizer:
             # Export to memory and CSV
             for i in range(len(fl_activations_combined)):
                 slide = unique_slides[slides_combined[i]]
-                activations_vals = fl_activations_combined[i].tolist()
+
+                activations_vals = fl_activations_combined[i]
                 if include_logits:
-                    logits_vals = logits_combined[i].tolist()
-                else:
-                    logits_vals = []
-                if include_tfrecord_loc:
-                    loc = loc_combined[i].tolist()
+                    logits_vals = logits_combined[i]
 
                 # Write to CSV
-                if export:
-                    row = [slide] + logits_vals + activations_vals
+                if export and include_logits:
+                    row = [slide] + logits_vals.tolist() + activations_vals.tolist()
+                    csvwriter.writerow(row)
+                elif export:
+                    row = [slide] + activations_vals.tolist()
                     csvwriter.writerow(row)
 
-                # Write to memory
-                for n in range(len(nodes_names)):
-                    val = activations_vals[n]
-                    self.slide_node_dict[slide][n] += [val]
-                if include_logits:
-                    for l in range(len(logits_names)):
-                        val = logits_vals[l]
-                        self.slide_logits_dict[slide][l] += [val]
-                if include_tfrecord_loc:
-                    self.slide_loc_dict[slide] += [loc]
+            # Write to memory
+            for n in range(len(nodes_names)):
+                node_activations = fl_activations_combined[:,n]
+                if self.slide_node_dict[slide][n] == []:
+                    self.slide_node_dict[slide][n] = node_activations
+                else:
+                    self.slide_node_dict[slide][n] = np.concatenate(self.slide_node_dict[slide][n], node_activations)
+            if include_logits:
+                for l in range(len(logits_names)):
+                    logit_values = logits_combined[:, l]
+                    if self.slide_logits_dict[slide][l] == []:
+                        self.slide_logits_dict[slide][l] = logit_values
+                    else:
+                        self.slide_logits_dict[slide][l] = np.concatenate(self.slide_logits_dict[slide][l], logit_values)
+            if loc_combined is not None and self.slide_loc_dict[slide] == []:
+                self.slide_loc_dict[slide] = loc_combined
+            elif loc_combined is not None:
+                self.slide_loc_dict[slide] = np.concatenate(self.slide_loc_dict[slide], loc_combined)
 
         if export:
             outfile.close()
