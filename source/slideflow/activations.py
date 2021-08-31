@@ -670,7 +670,7 @@ class ActivationsVisualizer:
 					sys.stdout.write(f"\r(TFRecord {t+1:>3}/{len(self.tfrecords):>3}) (Batch {i+1:>3}) ({(i+1)*batch_size:>5} images): {sfutil.green(sfutil.path_to_name(tfrecord))}")
 					sys.stdout.flush()
 
-				if self.MAX_TILES_PER_SLIDE and (len(fl_activations_combined) >= self.MAX_TILES_PER_SLIDE):
+				if self.MAX_TILES_PER_SLIDE and ((i+1)*batch_size >= self.MAX_TILES_PER_SLIDE):
 					break
 
 			fl_activations_combined = np.concatenate(fl_activations_combined)
