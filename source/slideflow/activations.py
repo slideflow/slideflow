@@ -545,6 +545,10 @@ class ActivationsVisualizer:
 
         for t, tfrecord in enumerate(self.tfrecords):
             dataset = tf.data.TFRecordDataset(tfrecord)
+            tfr_features, tfr_img_type = sfio.tfrecords.detect_tfrecord_format(tfrecord)
+            if 'loc_x' not in tfr_features:
+                include_tfrecord_loc = False
+
             parser = sfio.tfrecords.get_tfrecord_parser(tfrecord,
                                                         ('image_raw', 'slide', 'loc_x', 'loc_y'),
                                                         normalizer=normalizer,
@@ -574,9 +578,6 @@ class ActivationsVisualizer:
 
                 if include_logits:
                     logits_combined += [logits]
-
-                if not batch_loc_x:
-                    include_tfrecord_loc = False
                 if include_tfrecord_loc:
                     loc_x_combined += [batch_loc_x.numpy()]
                     loc_y_combined += [batch_loc_y.numpy()]
@@ -584,7 +585,7 @@ class ActivationsVisualizer:
                 if log.INFO_LEVEL > 0:
                     name_str = f'\r(TFRecord {t+1:>3}/{len(self.tfrecords):>3})'
                     batch_str = f'(Batch {i+1:>3})'
-                    img_str = f'({len(fl_activations_combined):>5} images)'
+                    img_str = f'({(i+1)*batch_size:>5} images)'
                     sys.stdout.write(f'{name_str} {batch_str} {img_str}: {sfutil.green(sfutil.path_to_name(tfrecord))}')
                     sys.stdout.flush()
 
