@@ -34,6 +34,9 @@ from multiprocessing.dummy import Process as DProcess
 from sklearn.neighbors import NearestNeighbors
 from PIL import Image
 
+# TODO: change slide_node_dict and slide_logits_dict to be multidimensional arrays
+#       rather than this nested dictionary garbage
+
 class ActivationsError(Exception):
     pass
 
@@ -573,11 +576,11 @@ class ActivationsVisualizer:
                 else:
                     fl_activations = model_output
 
-                fl_activations_combined += [fl_activations]
+                fl_activations_combined += [fl_activations.numpy()]
                 slides_combined += [batch_slides]
 
                 if include_logits:
-                    logits_combined += [logits]
+                    logits_combined += [logits.numpy()]
                 if include_tfrecord_loc:
                     loc_x_combined += [batch_loc_x.numpy()]
                     loc_y_combined += [batch_loc_y.numpy()]
@@ -627,7 +630,7 @@ class ActivationsVisualizer:
                         self.slide_logits_dict[slide].update({l: []})
                 detected_logit_structure=True
 
-            if max_tiles_per_slide and len(fl_activations_combined) > max_tiles_per_slide:
+            if max_tiles_per_slide and ((i+1)*batch_size) > max_tiles_per_slide:
                 slides_combined = slides_combined[:max_tiles_per_slide]
                 fl_activations_combined = fl_activations_combined[:max_tiles_per_slide]
                 logits_combined = logits_combined[:max_tiles_per_slide]
