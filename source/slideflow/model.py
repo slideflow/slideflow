@@ -20,7 +20,7 @@ import tensorflow as tf
 
 from functools import partial
 from slideflow.util import log
-from slideflow.io.tfrecords import detect_tfrecord_format, get_tfrecord_parser
+from slideflow.io.tfrecords import interleave_tfrecords
 from slideflow.model_utils import *
 
 import slideflow.util as sfutil
@@ -681,192 +681,7 @@ class SlideflowModel:
                            loss=loss_fn,
                            metrics=metrics)
 
-    def _interleave_tfrecords(self, tfrecords, batch_size, balance, finite, max_tiles=None, min_tiles=None,
-                                drop_remainder=False, include_slidenames=False, augment=True):
-
-        '''Generates an interleaved dataset from a collection of tfrecord files,
-        sampling from tfrecord files randomly according to balancing if provided.
-        Requires self.MANIFEST. Assumes TFRecord files are named by slide.
-
-        Args:
-            tfrecords:				Array of paths to TFRecord files
-            batch_size:				Batch size
-            balance:				Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,
-                                        BALANCE_BY_PATIENT, and NO_BALANCE. If finite option is used, will drop
-                                        tiles in order to maintain proportions across the interleaved dataset.
-            augment:					Whether to use data augmentation (random flip/rotate)
-            finite:					Whether create finite or infinite datasets. WARNING: If finite option is
-                                        used with balancing, some tiles will be skipped.
-            max_tiles:				Maximum number of tiles to use per slide.
-            min_tiles:				Minimum number of tiles that each slide must have to be included.
-        '''
-        log.info(f'Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min={min_tiles}', 1)
-        datasets = []
-        datasets_categories = []
-        num_tiles = []
-        global_num_tiles = 0
-        categories = {}
-        categories_prob = {}
-        categories_tile_fraction = {}
-        prob_weights = None
-        base_parser = None
-        detected_format = None
-        num_tfrecords_empty = 0
-        num_tfrecords_less_than_min = 0
-
-        if tfrecords == []:
-            raise ModelError('No TFRecords found.')
-
-        if self.MANIFEST:
-            pb = sfutil.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
-            for filename in tfrecords:
-                slide_name = sfutil.path_to_name(filename)
-
-                if slide_name not in self.SLIDES:
-                    continue
-
-                # Determine total number of tiles available in TFRecord
-                try:
-                    tiles = self.MANIFEST[filename]['total']
-                except KeyError:
-                    log.error(f'Manifest not finished, unable to find {sfutil.green(filename)}', 1)
-                    raise ManifestError(f'Manifest not finished, unable to find {filename}')
-
-                # Ensure TFRecord has minimum number of tiles; otherwise, skip
-                if not min_tiles and tiles == 0:
-                    num_tfrecords_empty += 1
-                    continue
-                elif tiles < min_tiles:
-                    num_tfrecords_less_than_min
-                    continue
-
-                # Get the base TFRecord parser, based on the first tfrecord
-                if detected_format is None:
-                    detected_format = detect_tfrecord_format(filename)
-                elif detected_format != detect_tfrecord_format(filename):
-                    raise ModelError('Inconsistent TFRecord internal formatting; all must be formatted the same.')
-                if base_parser is None:
-                    base_parser = get_tfrecord_parser(filename,
-                            ('slide', 'image_raw'),
-                            standardize=True,
-                            img_size=self.IMAGE_SIZE,
-                            normalizer=self.normalizer,
-                            augment=augment)
-
-                # Assign category by outcome if this is a categorical model,
-                #	Merging category names if there are multiple outcomes
-                #   (balancing across all combinations of outcome categories equally)
-                # Otherwise, consider all slides from the same category (effectively skipping balancing).
-                #   Appropriate for linear models.
-                if self.MODEL_TYPE == 'categorical':
-                    category = self.SLIDE_ANNOTATIONS[slide_name]['outcome_label']
-                    category = [category] if not isinstance(category, list) else category
-                    category = '-'.join(map(str, category))
-                else:
-                    category = 1
-
-                datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=16)]
-                datasets_categories += [category]
-
-                # Cap number of tiles to take from TFRecord at maximum specified
-                if max_tiles and tiles > max_tiles:
-                    log.info(f'Only taking maximum of {max_tiles} (of {tiles}) tiles from {sfutil.green(filename)}', 2)
-                    tiles = max_tiles
-
-                if category not in categories.keys():
-                    categories.update({category: {'num_slides': 1,
-                                                'num_tiles': tiles}})
-                else:
-                    categories[category]['num_slides'] += 1
-                    categories[category]['num_tiles'] += tiles
-                num_tiles += [tiles]
-                pb.increase_bar_value()
-            pb.end()
-
-            if num_tfrecords_empty:
-                log.info(f'Skipped {num_tfrecords_empty} empty tfrecords', 2)
-            if num_tfrecords_less_than_min:
-                log.info(f'Skipped {num_tfrecords_less_than_min} tfrecords with less than {min_tiles} tiles', 2)
-
-            for category in categories:
-                lowest_category_slide_count = min([categories[i]['num_slides'] for i in categories])
-                lowest_category_tile_count = min([categories[i]['num_tiles'] for i in categories])
-                categories_prob[category] = lowest_category_slide_count / categories[category]['num_slides']
-                categories_tile_fraction[category] = lowest_category_tile_count / categories[category]['num_tiles']
-
-            # Balancing
-            if balance == NO_BALANCE:
-                log.info(f'Not balancing input', 2)
-                prob_weights = [i/sum(num_tiles) for i in num_tiles]
-            if balance == BALANCE_BY_PATIENT:
-                log.info(f'Balancing input across slides', 2)
-                prob_weights = [1.0] * len(datasets)
-                if finite:
-                    # Only take as many tiles as the number of tiles in the smallest dataset
-                    minimum_tiles = min(num_tiles)
-                    for i in range(len(datasets)):
-                        num_tiles[i] = minimum_tiles
-            if balance == BALANCE_BY_CATEGORY:
-                log.info(f'Balancing input across categories', 2)
-                prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
-                if finite:
-                    # Only take as many tiles as the number of tiles in the smallest category
-                    for i in range(len(datasets)):
-                        num_tiles[i] = int(num_tiles[i] * categories_tile_fraction[datasets_categories[i]])
-                        fraction = categories_tile_fraction[datasets_categories[i]]
-                        log.empty(f'Tile fraction (dataset {i+1}/{len(datasets)}): {fraction}, taking {num_tiles[i]}', 3)
-                    log.empty(f'Global num tiles: {global_num_tiles}', 3)
-
-            # Take the calculcated number of tiles from each dataset and calculate global number of tiles
-            for i in range(len(datasets)):
-                datasets[i] = datasets[i].take(num_tiles[i])
-                if not finite:
-                    datasets[i] = datasets[i].repeat()
-            global_num_tiles = sum(num_tiles)
-
-        else:
-            log.error('No manifest detected! Unable to perform balancing or any tile-level selection operations', 1)
-            for filename in tfrecords:
-                slide_name = sfutil.path_to_name(filename)
-
-                if slide_name not in self.SLIDES:
-                    continue
-
-                datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=16)]
-
-        # Interleave and batch datasets
-        try:
-            sampled_dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
-            dataset = self._get_parsed_datasets(sampled_dataset, base_parser, include_slidenames=False)
-            dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
-            #dataset = dataset.prefetch(tf.data.AUTOTUNE)
-        except IndexError:
-            raise ModelError('No TFRecords found after filter criteria; please verify TFRecords exist')
-
-        if include_slidenames:
-            dataset_with_slidenames = self._get_parsed_datasets(sampled_dataset, base_parser, include_slidenames=True)
-            dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
-            #dataset_with_slidenames = dataset_with_slidenames.prefetch(tf.data.AUTOTUNE)
-
-        else:
-            dataset_with_slidenames = None
-
-        return dataset, dataset_with_slidenames, global_num_tiles
-
-    def _get_parsed_datasets(self, tfrecord_dataset, base_parser, include_slidenames=False):
-        if include_slidenames:
-            training_parser_with_slidenames = partial(self._parse_tfrecord_function,
-                                                      base_parser=base_parser,
-                                                      include_slidenames=True)
-
-            dataset_with_slidenames = tfrecord_dataset.map(training_parser_with_slidenames, num_parallel_calls=32)
-            return dataset_with_slidenames
-        else:
-            training_parser = partial(self._parse_tfrecord_function, base_parser=base_parser, include_slidenames=False)
-            dataset = tfrecord_dataset.map(training_parser, num_parallel_calls=32)
-            return dataset
-
-    def _parse_tfrecord_function(self, record, base_parser, include_slidenames=True):
+    def _parse_tfrecord_labels(self, record, base_parser, include_slidenames=True):
         '''Parses raw entry read from TFRecord.'''
 
         # Note: multi-image functionality removed in version 1.11 due to lack of use and changes in tfrecord processing
@@ -967,14 +782,22 @@ class SlideflowModel:
             raise ModelError('If using a checkpoint for evaluation, hyperparameters must be specified.')
         if not batch_size: batch_size = hp.batch_size
         with tf.name_scope('input'):
-            dataset, dataset_with_slidenames, num_tiles = self._interleave_tfrecords(tfrecords,
-                                                                                    batch_size=batch_size,
-                                                                                    balance=NO_BALANCE,
-                                                                                    finite=True,
-                                                                                    max_tiles=max_tiles_per_slide,
-                                                                                    min_tiles=min_tiles_per_slide,
-                                                                                    include_slidenames=True,
-                                                                                    augment=False)
+
+            dataset, dataset_with_slidenames, num_tiles = interleave_tfrecords(tfrecords,
+                                                                               image_size=self.IMAGE_SIZE,
+                                                                               batch_size=batch_size,
+                                                                               balance=NO_BALANCE,
+                                                                               finite=True,
+                                                                               model_type=self.MODEL_TYPE,
+                                                                               label_parser=self._parse_tfrecord_labels,
+                                                                               annotations=self.SLIDE_ANNOTATIONS,
+                                                                               max_tiles=max_tiles_per_slide,
+                                                                               min_tiles=min_tiles_per_slide,
+                                                                               include_slidenames=True,
+                                                                               augment=False,
+                                                                               normalizer=self.normalizer,
+                                                                               manifest=self.MANIFEST,
+                                                                               slides=self.SLIDES)
         if model:
             if model_type == 'cph':
                 custom_objects = {'negative_log_likelihood':negative_log_likelihood,
@@ -1113,26 +936,41 @@ class SlideflowModel:
         with strategy.scope() if strategy is not None else no_scope():
             # Build inputs
             with tf.name_scope('input'):
+
                 train_data, _, num_tiles = self._interleave_tfrecords(self.TRAIN_TFRECORDS,
+                                                                      image_size=self.IMAGE_SIZE,
                                                                       batch_size=hp.batch_size,
                                                                       balance=hp.balanced_training,
                                                                       finite=False,
+                                                                      model_type=self.MODEL_TYPE,
+                                                                      label_parser=self._parse_tfrecord_labels,
+                                                                      annotations=self.SLIDE_ANNOTATIONS,
                                                                       max_tiles=max_tiles_per_slide,
                                                                       min_tiles=min_tiles_per_slide,
                                                                       include_slidenames=False,
-                                                                      augment=hp.augment)
+                                                                      augment=hp.augment,
+                                                                      normalizer=self.normalizer,
+                                                                      manifest=self.MANIFEST,
+                                                                      slides=self.SLIDES)
             # Set up validation data
             using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
             if using_validation:
                 with tf.name_scope('input'):
                     interleave_results = self._interleave_tfrecords(self.VALIDATION_TFRECORDS,
+                                                                    image_size=self.IMAGE_SIZE,
                                                                     batch_size=val_batch_size,
                                                                     balance=hp.balanced_validation,
                                                                     finite=True,
+                                                                    model_type=self.MODEL_TYPE,
+                                                                    label_parser=self._parse_tfrecord_labels,
+                                                                    annotations=self.SLIDE_ANNOTATIONS,
                                                                     max_tiles=max_tiles_per_slide,
                                                                     min_tiles=min_tiles_per_slide,
                                                                     include_slidenames=True,
-                                                                    augment=False)
+                                                                    augment=False,
+                                                                    normalizer=self.noramlizer,
+                                                                    manifest=self.MANIFEST,
+                                                                    slides=self.SLIDES)
                     validation_data, validation_data_with_slidenames, num_val_tiles = interleave_results
 
                 val_log_msg = '' if not validate_on_batch else f'every {sfutil.bold(str(validate_on_batch))} steps and '

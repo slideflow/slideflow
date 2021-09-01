@@ -2,8 +2,6 @@ import os
 import sys
 import csv
 
-from numpy.lib.arraysetops import unique
-import umap
 import types
 import time
 import pickle
@@ -671,6 +669,7 @@ def normalize_layout(layout, min_percentile=1, max_percentile=99, relative_margi
 
 def gen_umap(array, n_components=2, n_neighbors=20, min_dist=0.01, metric='cosine', low_memory=False):
     '''Generates and returns a umap from a given array.'''
+    import umap
     try:
         layout = umap.UMAP(n_components=n_components,
                            verbose=(log.INFO_LEVEL > 0),
