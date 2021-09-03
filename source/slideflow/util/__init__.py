@@ -585,7 +585,7 @@ def read_annotations(annotations_file):
     '''Read an annotations file.'''
     results = []
     # Open annotations file and read header
-    with open(annotations_file) as csv_file:
+    with open(annotations_file, 'r') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         # First, try to open file
         try:

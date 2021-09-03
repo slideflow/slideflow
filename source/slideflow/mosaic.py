@@ -5,6 +5,7 @@ from __future__ import print_function
 import math
 import time
 import cv2
+import os
 import sys
 import csv
 
@@ -351,6 +352,8 @@ class Mosaic:
         '''Saves the mosaic map figure to the given filename.'''
 
         log.empty('Exporting figure...', 1)
+        if not os.path.exists(os.path.dirname(filename)):
+            os.makedirs(filename)
         plt.savefig(filename, bbox_inches='tight')
         log.complete(f'Saved figure to {sfutil.green(filename)}', 1)
         plt.close()

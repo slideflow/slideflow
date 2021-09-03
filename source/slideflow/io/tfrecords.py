@@ -51,7 +51,7 @@ def _int64_feature(value):
 
 def _get_images_by_dir(directory):
     files = [f for f in listdir(directory) if (isfile(join(directory, f))) and
-                (sfutil.path_to_ext(f) == "jpg")]
+                (sfutil.path_to_ext(f) in ("jpg", "png"))]
     return files
 
 def _read_and_return_record(record, feature_description, assign_slide=None):
@@ -359,7 +359,8 @@ def interleave_tfrecords(tfrecords,
                                             label_parser=label_parser,
                                             base_parser=base_parser,
                                             include_slidenames=False)
-        dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
+        if batch_size:
+            dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
         #dataset = dataset.prefetch(tf.data.AUTOTUNE)
     except IndexError:
         raise TFRecordsError('No TFRecords found after filter criteria; please verify TFRecords exist')
@@ -369,7 +370,8 @@ def interleave_tfrecords(tfrecords,
                                                             label_parser=label_parser,
                                                             base_parser=base_parser,
                                                             include_slidenames=True)
-        dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
+        if batch_size:
+            dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
         #dataset_with_slidenames = dataset_with_slidenames.prefetch(tf.data.AUTOTUNE)
 
     else:
@@ -394,13 +396,14 @@ def default_label_parser(record, base_parser, include_slidenames=True):
         '''Parses raw entry read from TFRecord.'''
 
         slide, image = base_parser(record)
+        label = None
 
         if include_slidenames:
-            return image, slide
+            return image, label, slide
         else:
-            return image
+            return image, label
 
-def tfrecord_example(slide, image_raw, loc_x=None, loc_y=None):
+def tfrecord_example(slide, image_raw, loc_x=0, loc_y=0):
     '''Returns a Tensorflow Data example for TFRecord storage.'''
     feature = {
         'slide':     _bytes_feature(slide),
