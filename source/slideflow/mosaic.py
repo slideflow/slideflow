@@ -353,7 +353,7 @@ class Mosaic:
 
         log.empty('Exporting figure...', 1)
         if not os.path.exists(os.path.dirname(filename)):
-            os.makedirs(filename)
+            os.makedirs(os.path.dirname(filename))
         plt.savefig(filename, bbox_inches='tight')
         log.complete(f'Saved figure to {sfutil.green(filename)}', 1)
         plt.close()
