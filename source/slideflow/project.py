@@ -9,6 +9,7 @@ import threading
 import time
 import pickle
 import numpy as np
+import shapely.geometry as sg
 import multiprocessing
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcol
@@ -1515,8 +1516,8 @@ class SlideflowProject:
         for slide_path in slide_list:
             print(f'\r\033[KWorking on {sfutil.green(sfutil.path_to_name(slide_path))}...', end='')
             whole_slide = sfslide.SlideReader(slide_path,
-                                              size_px=1000,
-                                              size_um=1000,
+                                              tile_px=1000,
+                                              tile_um=1000,
                                               stride_div=1,
                                               enable_downsample=enable_downsample,
                                               roi_list=roi_list,
@@ -2516,6 +2517,45 @@ class SlideflowProject:
                         print(f'Unable to find attention scores for slide {slide}, skipping')
                         continue
                     self.generate_tfrecord_heatmap(tfr, attention_dict, heatmaps_dir, tile_px=tile_px, tile_um=tile_um)
+
+    def split_tfrecords_by_roi(self, tile_px, tile_um, destination, filters=None, filter_blank=None):
+        from slideflow.slide import SlideReader
+        import slideflow.io.tfrecords
+        import tensorflow as tf
+        from tqdm import tqdm
+
+        dataset = self.get_dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank)
+        tfrecords = dataset.get_tfrecords()
+        slides = {sfutil.path_to_name(s):s for s in dataset.get_slide_paths()}
+        rois = dataset.get_rois()
+        manifest = dataset.get_manifest()
+
+        for tfr in tfrecords:
+            slidename = sfutil.path_to_name(tfr)
+            if slidename not in slides:
+                continue
+            slide = SlideReader(slides[slidename], tile_px, tile_um, roi_list=rois)
+            if slide.load_error:
+                continue
+            feature_description, _ = sf.io.tfrecords.detect_tfrecord_format(tfr)
+            parser = sf.io.tfrecords.get_tfrecord_parser(tfr, ('loc_x', 'loc_y'), to_numpy=True)
+            reader = tf.data.TFRecordDataset(tfr)
+            if not exists(join(destination, 'inside')):
+                os.makedirs(join(destination, 'inside'))
+            if not exists(join(destination, 'outside')):
+                os.makedirs(join(destination, 'outside'))
+            inside_roi_writer = tf.io.TFRecordWriter(join(destination, 'inside', f'{slidename}.tfrecords'))
+            outside_roi_writer = tf.io.TFRecordWriter(join(destination, 'outside', f'{slidename}.tfrecords'))
+            for record in tqdm(reader, total=manifest[tfr]['total']):
+                loc_x, loc_y = parser(record)
+                tile_in_roi = any([annPoly.contains(sg.Point(loc_x, loc_y)) for annPoly in slide.annPolys])
+                record_bytes = sf.io.tfrecords._read_and_return_record(record, feature_description)
+                if tile_in_roi:
+                    inside_roi_writer.write(record_bytes)
+                else:
+                    outside_roi_writer.write(record_bytes)
+            inside_roi_writer.close()
+            outside_roi_writer.close()
 
     def visualize_tiles(self, model, node, tfrecord_dict=None, directory=None, mask_width=None,
                         normalizer=None, normalizer_source=None):

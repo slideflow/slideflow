@@ -108,7 +108,7 @@ def slide_extraction_worker(c, args):
 
     # Read the region and resize to target size
     region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
-    region = region.thumbnail_image(args.size_px)
+    region = region.thumbnail_image(args.tile_px)
 
     # Read regions into memory and convert to numpy arrays
     np_image = vips2numpy(region)[:,:,:-1]
@@ -119,7 +119,7 @@ def slide_extraction_worker(c, args):
                                                             c[1]-args.full_stride),
                                                             args.downsample_level,
                                                             [args.extract_px*3, args.extract_px*3])
-            surrounding_region = surrounding_region.thumbnail_image(args.size_px)
+            surrounding_region = surrounding_region.thumbnail_image(args.tile_px)
             outer_region = vips2numpy(surrounding_region)[:,:,:-1]
         except:
             return
@@ -133,13 +133,13 @@ def slide_extraction_worker(c, args):
     else:
         # Perform whitespace filtering
         if args.whitespace_fraction < 1:
-            fraction = (np.mean(np_image, axis=2) > args.whitespace_threshold).sum() / (args.size_px**2)
+            fraction = (np.mean(np_image, axis=2) > args.whitespace_threshold).sum() / (args.tile_px**2)
             if fraction > args.whitespace_fraction: return
 
         # Perform grayspace filtering
         if args.grayspace_fraction < 1:
             hsv_image = mcol.rgb_to_hsv(np_image)
-            fraction = (hsv_image[:,:,1] < args.grayspace_threshold).sum() / (args.size_px**2)
+            fraction = (hsv_image[:,:,1] < args.grayspace_threshold).sum() / (args.tile_px**2)
             if fraction > args.grayspace_fraction: return
 
         # Apply normalization
@@ -412,7 +412,7 @@ class ROIObject:
 class SlideLoader:
     '''Object that loads an SVS slide and makes preparations for tile extraction.
     Should not be used directly; this class must be inherited and extended by a child class'''
-    def __init__(self, path, size_px, size_um, stride_div, enable_downsample=False,
+    def __init__(self, path, tile_px, tile_um, stride_div, enable_downsample=False,
                     silent=False, buffer=None, pb=None, pb_counter=None, counter_lock=None, print_fn=None):
         self.load_error = False
         self.silent = silent
@@ -434,8 +434,8 @@ class SlideLoader:
 
         self.name = sfutil.path_to_name(path)
         self.shortname = sfutil._shortname(self.name)
-        self.size_px = size_px
-        self.size_um = size_um
+        self.tile_px = tile_px
+        self.tile_um = tile_um
         self.tile_mask = None
         self.enable_downsample = enable_downsample
         self.thumb_image = None
@@ -462,10 +462,10 @@ class SlideLoader:
             self.load_error = True
             return
         self.full_shape = self.slide.dimensions
-        self.full_extract_px = int(self.size_um / self.MPP)
+        self.full_extract_px = int(self.tile_um / self.MPP)
 
         # Load downsampled level based on desired extraction size
-        downsample_desired = self.full_extract_px / size_px
+        downsample_desired = self.full_extract_px / tile_px
         if enable_downsample:
             self.downsample_level = self.slide.get_best_level_for_downsample(downsample_desired)
         else:
@@ -550,13 +550,13 @@ class SlideLoader:
         return self.thumb_image
 
     def build_generator(self, **kwargs):
-        lead_msg = f'Extracting {sfutil.bold(self.size_um)}um tiles'
-        resize_msg = f'(resizing {sfutil.bold(self.extract_px)}px -> {sfutil.bold(self.size_px)}px)'
+        lead_msg = f'Extracting {sfutil.bold(self.tile_um)}um tiles'
+        resize_msg = f'(resizing {sfutil.bold(self.extract_px)}px -> {sfutil.bold(self.tile_px)}px)'
         stride_msg = f'stride: {sfutil.bold(int(self.stride))}px'
         log.label(self.shortname, f"{lead_msg} {resize_msg}; {stride_msg}", 2, self.print)
-        if self.size_px > self.extract_px:
+        if self.tile_px > self.extract_px:
             upscale_msg = 'Tiles will be up-scaled with bilinear interpolation'
-            upscale_amount = f'({self.extract_px}px -> {self.size_px}px)'
+            upscale_amount = f'({self.extract_px}px -> {self.tile_px}px)'
             log.label(self.shortname, f"[{sfutil.fail('!WARN!')}] {upscale_msg} {upscale_amount}", 2, self.print)
 
         def empty_generator():
@@ -704,15 +704,30 @@ class SlideLoader:
 class SlideReader(SlideLoader):
     '''Extension of slideflow.slide.SlideLoader. Loads a slide and its ROI annotations and sets up a tile generator.'''
 
-    def __init__(self, path, size_px, size_um, stride_div=1, enable_downsample=False, roi_dir=None, roi_list=None,
-                    roi_method=EXTRACT_INSIDE, skip_missing_roi=True, randomize_origin=False, silent=False, buffer=None,
-                    pb=None, pb_counter=None, counter_lock=None, print_fn=None):
+    def __init__(self,
+                 path,
+                 tile_px,
+                 tile_um,
+                 stride_div=1,
+                 enable_downsample=False,
+                 roi_dir=None,
+                 roi_list=None,
+                 roi_method=EXTRACT_INSIDE,
+                 skip_missing_roi=True,
+                 randomize_origin=False,
+                 silent=False,
+                 buffer=None,
+                 pb=None,
+                 pb_counter=None,
+                 counter_lock=None,
+                 print_fn=None):
+
         '''Initializer.
 
         Args:
             path:				Path to slide
-            size_px:			Size of tiles to extract, in pixels
-            size_um:			Size of tiles to extract, in microns
+            tile_px:			Size of tiles to extract, in pixels
+            tile_um:			Size of tiles to extract, in microns
             stride_div:			Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc)
             enable_downsample:	Bool, if True, allows use of downsampled intermediate layers in the slide image pyramid,
                                     which greatly improves tile extraction speed.
@@ -727,8 +742,8 @@ class SlideReader(SlideLoader):
             pb_id:				ID of bar in ProgressBar, defaults to 0
         '''
         super().__init__(path,
-                         size_px,
-                         size_um,
+                         tile_px,
+                         tile_um,
                          stride_div,
                          enable_downsample,
                          silent,
@@ -858,7 +873,7 @@ class SlideReader(SlideLoader):
             'downsample_level': self.downsample_level,
             'path': self.path,
             'extract_px': self.extract_px,
-            'size_px': self.size_px,
+            'tile_px': self.tile_px,
             'dual_extract': dual_extract,
             'full_stride': self.full_stride,
             'normalizer': normalizer,
@@ -1004,13 +1019,13 @@ class SlideReader(SlideLoader):
             loc = record['loc']
             parsed_image = tf.image.per_image_standardization(image)
             parsed_image = tf.image.convert_image_dtype(parsed_image, tf.float32)
-            parsed_image.set_shape([self.size_px, self.size_px, 3])
+            parsed_image.set_shape([self.tile_px, self.tile_px, 3])
             return parsed_image, loc
 
         # Generate dataset from the generator
         log.info("Setting up tile generator", 1, self.print)
         with tf.name_scope('dataset_input'):
-            output_signature={'image':tf.TensorSpec(shape=(self.size_px,self.size_px,3), dtype=tf.uint8),
+            output_signature={'image':tf.TensorSpec(shape=(self.tile_px,self.tile_px,3), dtype=tf.uint8),
                               'loc':tf.TensorSpec(shape=(2), dtype=tf.uint32)}
             tile_dataset = tf.data.Dataset.from_generator(generator, output_signature=output_signature)
             tile_dataset = tile_dataset.map(_parse_function, num_parallel_calls=8)
@@ -1048,14 +1063,14 @@ class TMAReader(SlideLoader):
     RED = (100, 100, 200)
     WHITE = (255,255,255)
 
-    def __init__(self, path, size_px, size_um, stride_div, annotations_dir=None,
+    def __init__(self, path, tile_px, tile_um, stride_div, annotations_dir=None,
                     enable_downsample=False, silent=False, report_dir=None, buffer=None, pb=None, pb_id=0):
         '''Initializer.
 
         Args:
             path:				Path to slide
-            size_px:			Size of tiles to extract, in pixels
-            size_um:			Size of tiles to extract, in microns
+            tile_px:			Size of tiles to extract, in pixels
+            tile_um:			Size of tiles to extract, in microns
             stride_div:			Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc)
             enable_downsample:	Bool, if True, allows use of downsampled intermediate layers in the slide image pyramid,
                                     which greatly improves tile extraction speed.
@@ -1064,7 +1079,7 @@ class TMAReader(SlideLoader):
             pb:					ProgressBar instance; will update progress bar during tile extraction if provided
             pb_id:				ID of bar in ProgressBar, defaults to 0
         '''
-        super().__init__(path, size_px, size_um, stride_div, enable_downsample, silent, buffer, pb)
+        super().__init__(path, tile_px, tile_um, stride_div, enable_downsample, silent, buffer, pb)
 
         if not self.loaded_correctly():
             return
@@ -1115,7 +1130,7 @@ class TMAReader(SlideLoader):
 
     def _resize_to_target(self, image_tile):
         '''Resizes image tile to the desired target output size.'''
-        target_MPP = self.size_um / self.size_px
+        target_MPP = self.tile_um / self.tile_px
         current_MPP = self.MPP * self.downsample_factor
         resize_factor = current_MPP / target_MPP
         return cv2.resize(image_tile, (0, 0), fx=resize_factor, fy=resize_factor)
@@ -1123,13 +1138,13 @@ class TMAReader(SlideLoader):
     def _split_core(self, image):
         '''Splits core into desired sub-images.'''
         height, width, channels = image.shape
-        num_y = int(height / self.size_px)
-        num_x = int(width  / self.size_px)
+        num_y = int(height / self.tile_px)
+        num_x = int(width  / self.tile_px)
 
         # If the desired micron tile size is too large, expand and center the source image
         if not num_y or not num_x:
-            expand_y = 0 if num_y else int((self.size_px-height)/2)+1
-            expand_x = 0 if num_x else int((self.size_px-width)/2)+1
+            expand_y = 0 if num_y else int((self.tile_px-height)/2)+1
+            expand_x = 0 if num_x else int((self.tile_px-width)/2)+1
             image = cv2.copyMakeBorder(image,
                                        expand_y,
                                        expand_y,
@@ -1139,19 +1154,19 @@ class TMAReader(SlideLoader):
                                        value=self.WHITE)
 
             height, width, _ = image.shape
-            num_y = int(height / self.size_px)
-            num_x = int(width  / self.size_px)
+            num_y = int(height / self.tile_px)
+            num_x = int(width  / self.tile_px)
 
-        y_start = int((height - (num_y * self.size_px))/2)
-        x_start = int((width  - (num_x * self.size_px))/2)
+        y_start = int((height - (num_y * self.tile_px))/2)
+        x_start = int((width  - (num_x * self.tile_px))/2)
 
         subtiles = []
 
         for y in range(num_y):
             for x in range(num_x):
-                sub_x_start = x_start + (x * self.size_px)
-                sub_y_start = y_start + (y * self.size_px)
-                subtiles += [image[sub_y_start:sub_y_start+self.size_px, sub_x_start:sub_x_start+self.size_px]]
+                sub_x_start = x_start + (x * self.tile_px)
+                sub_y_start = y_start + (y * self.tile_px)
+                subtiles += [image[sub_y_start:sub_y_start+self.tile_px, sub_x_start:sub_x_start+self.tile_px]]
 
         return subtiles
 
@@ -1272,19 +1287,19 @@ class TMAReader(SlideLoader):
                     resized_core = self._resize_to_target(image_core)
 
                     if full_core:
-                        yield cv2.resize(image_core, (self.size_px, self.size_px))
+                        yield cv2.resize(image_core, (self.tile_px, self.tile_px))
                     else:
                         subtiles = self._split_core(resized_core)
                         for subtile in subtiles:
                             # Perform whitespace filtering
                             if whitespace_fraction < 1:
-                                fraction = (np.mean(subtile, axis=2) > whitespace_threshold).sum() / (self.size_px**2)
+                                fraction = (np.mean(subtile, axis=2) > whitespace_threshold).sum() / (self.tile_px**2)
                                 if fraction > whitespace_fraction: continue
 
                             # Perform grayspace filtering
                             if grayspace_fraction < 1:
                                 hsv_image = mcol.rgb_to_hsv(subtile)
-                                fraction = (hsv_image[:,:,1] < grayspace_threshold).sum() / (self.size_px**2)
+                                fraction = (hsv_image[:,:,1] < grayspace_threshold).sum() / (self.tile_px**2)
                                 if fraction > grayspace_fraction: continue
 
                             # Apply normalization

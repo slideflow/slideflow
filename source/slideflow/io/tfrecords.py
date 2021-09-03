@@ -1,6 +1,7 @@
 import imghdr
 import numpy as np
 import os
+import copy
 import shutil
 import logging
 
@@ -127,8 +128,16 @@ def detect_tfrecord_format(tfr):
     image_type = imghdr.what('', features['image_raw'].numpy())
     return feature_description, image_type
 
-def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False, decode_images=True,
-                        standardize=False, img_size=None, normalizer=None, augment=False, error_if_invalid=True,):
+def get_tfrecord_parser(tfrecord_path,
+                        features_to_return=None,
+                        to_numpy=False,
+                        decode_images=True,
+                        standardize=False,
+                        img_size=None,
+                        normalizer=None,
+                        augment=False,
+                        error_if_invalid=True):
+
     feature_description, img_type = detect_tfrecord_format(tfrecord_path)
     if features_to_return is None:
         features_to_return = list(feature_description.keys())
@@ -1059,3 +1068,65 @@ def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION, featur
         image_string = open(join(dest_folder, tile_filename), 'wb')
         image_string.write(image_raw)
         image_string.close()
+
+def update_manifest_at_dir(directory, force_update=False):
+    '''Log number of tiles in each TFRecord file present in the given directory and all subdirectories,
+    saving manifest to file within the parent directory.'''
+
+    manifest_path = join(directory, "manifest.json")
+    manifest = {} if not exists(manifest_path) else sfutil.load_json(manifest_path)
+    prior_manifest = copy.deepcopy(manifest)
+    try:
+        relative_tfrecord_paths = sfutil.get_relative_tfrecord_paths(directory)
+    except FileNotFoundError:
+        log.warn(f"Unable to find TFRecords in the directory {directory}", 1)
+        return
+
+    # Verify all tfrecords in manifest exist
+    for rel_tfr in prior_manifest.keys():
+        tfr = join(directory, rel_tfr)
+        if not exists(tfr):
+            log.warn(f"TFRecord in manifest was not found at {tfr}; removing", 1)
+            del(manifest[rel_tfr])
+
+    for rel_tfr in relative_tfrecord_paths:
+        tfr = join(directory, rel_tfr)
+
+        if (not force_update) and (rel_tfr in manifest) and ('total' in manifest[rel_tfr]):
+            continue
+
+        manifest.update({rel_tfr: {}})
+        try:
+            raw_dataset = tf.data.TFRecordDataset(tfr)
+        except Exception as e:
+            log.error(f"Unable to open TFRecords file with Tensorflow: {str(e)}")
+            return
+        if log.INFO_LEVEL > 0: print(f"\r\033[K + Verifying tiles in {sfutil.green(rel_tfr)}...", end="")
+        total = 0
+        try:
+            #TODO: consider updating this to use sf.io.tfrecords.get_tfrecord_parser()
+            for raw_record in raw_dataset:
+                example = tf.train.Example()
+                example.ParseFromString(raw_record.numpy())
+                slide = example.features.feature['slide'].bytes_list.value[0].decode('utf-8')
+                if slide not in manifest[rel_tfr]:
+                    manifest[rel_tfr][slide] = 1
+                else:
+                    manifest[rel_tfr][slide] += 1
+                total += 1
+        except tf.errors.DataLossError:
+            print('\r\033[K', end="")
+            log.error(f"Corrupt or incomplete TFRecord at {tfr}", 1)
+            log.info(f"Deleting and removing corrupt TFRecord from manifest...", 1)
+            del(raw_dataset)
+            os.remove(tfr)
+            del(manifest[rel_tfr])
+            continue
+        manifest[rel_tfr]['total'] = total
+        print('\r\033[K', end="")
+
+    # Write manifest file
+    if (manifest != prior_manifest) or (manifest == {}):
+        sfutil.write_json(manifest, manifest_path)
+
+    return manifest

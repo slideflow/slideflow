@@ -1,7 +1,6 @@
 import shutil
 import os
 import csv
-import copy
 import slideflow.util as sfutil
 
 from glob import glob
@@ -179,7 +178,12 @@ class Dataset:
             manifest_path = join(tfrecord_dir, "manifest.json")
             if not exists(manifest_path):
                 log.info(f"No manifest file detected in {tfrecord_dir}; will create now", 1)
-                self.update_manifest_at_dir(tfrecord_dir)
+
+                # Import delayed until here in order to avoid importing tensorflow until necessary,
+                # as tensorflow claims a GPU once imported
+                import slideflow.io.tfrecords
+                slideflow.io.tfrecords.update_manifest_at_dir(tfrecord_dir)
+
             relative_manifest = sfutil.load_json(manifest_path)
             global_manifest = {}
             for record in relative_manifest:
@@ -576,77 +580,14 @@ class Dataset:
             log.info(f"Slides successfully verified, no errors found.", 1)
 
     def update_manifest(self, force_update=False):
+        # Import delayed until here in order to avoid importing tensorflow until necessary,
+        # as tensorflow claims a GPU once imported
+        import slideflow.io.tfrecords
+
         tfrecords_folders = self.get_tfrecords_folders()
         for tfr_folder in tfrecords_folders:
-            self.update_manifest_at_dir(directory=tfr_folder,
-                                        force_update=force_update)
-
-    def update_manifest_at_dir(self, directory, force_update=False):
-        '''Log number of tiles in each TFRecord file present in the given directory and all subdirectories,
-        saving manifest to file within the parent directory.'''
-        import tensorflow as tf
-
-        manifest_path = join(directory, "manifest.json")
-        manifest = {} if not exists(manifest_path) else sfutil.load_json(manifest_path)
-        prior_manifest = copy.deepcopy(manifest)
-        try:
-            relative_tfrecord_paths = sfutil.get_relative_tfrecord_paths(directory)
-        except FileNotFoundError:
-            log.warn(f"Unable to find TFRecords in the directory {directory}", 1)
-            return
-        slide_names_from_annotations = self.get_slides()
-
-        # Verify all tfrecords in manifest exist
-        for rel_tfr in prior_manifest.keys():
-            tfr = join(directory, rel_tfr)
-            if not exists(tfr):
-                log.warn(f"TFRecord in manifest was not found at {tfr}; removing", 1)
-                del(manifest[rel_tfr])
-
-        # Verify detected TFRecords are in manifest, recording number of tiles if not
-        slide_list_errors = []
-
-        for rel_tfr in relative_tfrecord_paths:
-            tfr = join(directory, rel_tfr)
-
-            if (not force_update) and (rel_tfr in manifest) and ('total' in manifest[rel_tfr]):
-                continue
-
-            manifest.update({rel_tfr: {}})
-            try:
-                raw_dataset = tf.data.TFRecordDataset(tfr)
-            except Exception as e:
-                log.error(f"Unable to open TFRecords file with Tensorflow: {str(e)}")
-                return
-            if log.INFO_LEVEL > 0: print(f"\r\033[K + Verifying tiles in {sfutil.green(rel_tfr)}...", end="")
-            total = 0
-            try:
-                #TODO: consider updating this to use sf.io.tfrecords.get_tfrecord_parser()
-                for raw_record in raw_dataset:
-                    example = tf.train.Example()
-                    example.ParseFromString(raw_record.numpy())
-                    slide = example.features.feature['slide'].bytes_list.value[0].decode('utf-8')
-                    if slide not in manifest[rel_tfr]:
-                        manifest[rel_tfr][slide] = 1
-                    else:
-                        manifest[rel_tfr][slide] += 1
-                    total += 1
-            except tf.errors.DataLossError:
-                print('\r\033[K', end="")
-                log.error(f"Corrupt or incomplete TFRecord at {tfr}", 1)
-                log.info(f"Deleting and removing corrupt TFRecord from manifest...", 1)
-                del(raw_dataset)
-                os.remove(tfr)
-                del(manifest[rel_tfr])
-                continue
-            manifest[rel_tfr]['total'] = total
-            print('\r\033[K', end="")
-
-        # Write manifest file
-        if (manifest != prior_manifest) or (manifest == {}):
-            sfutil.write_json(manifest, manifest_path)
-
-        return manifest
+            slideflow.io.tfrecords.update_manifest_at_dir(directory=tfr_folder,
+                                                          force_update=force_update)
 
     def update_annotations_with_slidenames(self, annotations_file):
         '''Attempts to automatically associate slide names from a directory with patients in a given annotations file,

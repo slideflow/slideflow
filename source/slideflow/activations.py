@@ -1164,8 +1164,8 @@ class Heatmap:
     def __init__(self,
                  slide_path,
                  model_path,
-                 size_px,
-                 size_um,
+                 tile_px,
+                 tile_um,
                  stride_div=2,
                  roi_dir=None,
                  roi_list=None,
@@ -1181,8 +1181,8 @@ class Heatmap:
         Args:
             slide_path:			Path to slide
             model_path:			Path to Tensorflow model
-            size_px:			Size of image tiles, in pixels
-            size_um:			Size of image tiles, in microns
+            tile_px:			Size of image tiles, in pixels
+            tile_um:			Size of image tiles, in microns
             stride_div:			Divisor for stride when convoluting across slide
             roi_dir:			Directory in which slide ROI is contained
             roi_list:			If a roi_dir is not supplied, a list of paths to ROI CSVs can be provided
@@ -1198,8 +1198,8 @@ class Heatmap:
         from slideflow.slide import SlideReader
 
         self.logits = None
-        self.tile_px = size_px
-        self.tile_um = size_um
+        self.tile_px = tile_px
+        self.tile_um = tile_um
 
         # Setup normalization
         self.normalizer = normalizer
@@ -1224,8 +1224,8 @@ class Heatmap:
 
         # Load the slide
         self.slide = SlideReader(slide_path,
-                                 size_px,
-                                 size_um,
+                                 tile_px,
+                                 tile_um,
                                  stride_div,
                                  enable_downsample=False,
                                  roi_dir=roi_dir,
@@ -1259,7 +1259,7 @@ class Heatmap:
 
         # Generate dataset from the generator
         with tf.name_scope('dataset_input'):
-            output_signature = {'image':tf.TensorSpec(shape=(size_px,size_px,3), dtype=tf.int32)}
+            output_signature = {'image':tf.TensorSpec(shape=(tile_px,tile_px,3), dtype=tf.int32)}
             tile_dataset = tf.data.Dataset.from_generator(gen_slice, output_signature=output_signature)
             tile_dataset = tile_dataset.map(self._parse_function, num_parallel_calls=8)
             tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
