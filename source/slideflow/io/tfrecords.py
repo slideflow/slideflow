@@ -112,7 +112,11 @@ def get_tfrecords_from_model_manifest(path_to_model):
     return sfutil.get_slides_from_model_manifest(path_to_model)
 
 def detect_tfrecord_format(tfr):
-    record = next(iter(tf.data.TFRecordDataset(tfr)))
+    try:
+        record = next(iter(tf.data.TFRecordDataset(tfr)))
+    except StopIteration:
+        log.warn(f"TFRecord {tfr} is empty.")
+        return None, None
     try:
         features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
         for feature in FEATURE_DESCRIPTION:

@@ -1773,9 +1773,6 @@ class SlideflowProject:
         # Enable logging
         log.logfile = join(self.root, 'log.log')
 
-        # Auto-update slidenames for newly added slides
-        self.associate_slide_names()
-
     def predict_wsi(self,
                     model_path,
                     tile_px,
@@ -2123,11 +2120,12 @@ class SlideflowProject:
         for tfr in tfrecord_list:
             print(f'\r\033[KGenerating report for tfrecord {sfutil.green(sfutil.path_to_name(tfr))}...', end='')
             dataset = tf.data.TFRecordDataset(tfr)
-            parser = sfio.tfrecords.get_tfrecord_parser(tfr, ('image_raw'), to_numpy=True, decode_images=False)
+            parser = sfio.tfrecords.get_tfrecord_parser(tfr, ('image_raw',), to_numpy=True, decode_images=False)
+            if not parser: continue
             sample_tiles = []
             for i, record in enumerate(dataset):
                 if i > 9: break
-                image_raw_data = parser(record)
+                image_raw_data = parser(record)[0]
                 if normalizer:
                     image_raw_data = normalizer.jpeg_to_jpeg(image_raw_data)
                 sample_tiles += [image_raw_data]

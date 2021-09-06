@@ -53,6 +53,8 @@ if __name__=='__main__':
                                   gpu=args.gpu,
                                   gpu_pool=args.gpu_pool,
                                   default_threads=args.threads)
+        # Auto-update slidenames for newly added slides
+        SFP.associate_slide_names()
         # Execute actions
         actions.main(SFP)
         # Move actions file into finished category

@@ -20,6 +20,8 @@ if __name__=='__main__':
         print("Set environmental variable 'HDF5_USE_FILE_LOCKING'='FALSE'")
 
     SFP = sf.SlideflowProject(args.project, gpu=args.gpu, gpu_pool=args.gpu_pool, default_threads=args.threads)
+    # Auto-update slidenames for newly added slides
+    SFP.associate_slide_names()
 
     sys.path.insert(0, args.project)
     try:
