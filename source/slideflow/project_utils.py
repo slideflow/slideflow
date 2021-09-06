@@ -422,8 +422,8 @@ def evaluator(project, outcome_label_headers, model, results_dict, input_header=
     return results_dict
 
 def heatmap_generator(project, slide, model_path, save_folder, roi_list, show_roi, roi_method,
-                        resolution, interpolation, logit_cmap=None, buffer=True, normalizer=None,
-                        normalizer_source=None, batch_size=64, num_threads='auto'):
+                        resolution, interpolation, logit_cmap=None, vmin=0, vcenter=0.5, vmax=1,
+                        buffer=True, normalizer=None, normalizer_source=None, batch_size=64, num_threads='auto'):
 
     '''Internal function to execute heatmap generator process.'''
     from slideflow.activations import Heatmap
@@ -456,7 +456,13 @@ def heatmap_generator(project, slide, model_path, save_folder, roi_list, show_ro
                       batch_size=batch_size,
                       num_threads=num_threads)
 
-    heatmap.save(save_folder, show_roi=show_roi, interpolation=interpolation, logit_cmap=logit_cmap)
+    heatmap.save(save_folder,
+                 show_roi=show_roi,
+                 interpolation=interpolation,
+                 logit_cmap=logit_cmap,
+                 vmin=vmin,
+                 vcenter=vcenter,
+                 vmax=vmax)
 
 def trainer(project, outcome_label_headers, model_name, results_dict, hp, val_settings, validation_log,
             k_fold_i=None, k_fold_slide_labels=None, input_header=None, filters=None, filter_blank=None,

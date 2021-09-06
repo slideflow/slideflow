@@ -1034,6 +1034,9 @@ class SlideflowProject:
                           show_roi=True,
                           roi_method='inside',
                           logit_cmap=None,
+                          vmin=0,
+                          vcenter=0.5,
+                          vmax=1,
                           normalizer=None,
                           normalizer_source=None,
                           batch_size=64,
@@ -1115,6 +1118,9 @@ class SlideflowProject:
                                                                                     resolution,
                                                                                     interpolation,
                                                                                     logit_cmap,
+                                                                                    vmin,
+                                                                                    vcenter,
+                                                                                    vmax,
                                                                                     buffer,
                                                                                     normalizer,
                                                                                     normalizer_source,
@@ -1134,6 +1140,9 @@ class SlideflowProject:
                                                 resolution,
                                                 interpolation,
                                                 logit_cmap,
+                                                vmin,
+                                                vcenter,
+                                                vmax,
                                                 buffer,
                                                 normalizer,
                                                 normalizer_source,
@@ -2073,7 +2082,7 @@ class SlideflowProject:
         pdf_report.save(filename)
         log.complete(f'Slide report saved to {sfutil.green(filename)}', 1)
 
-    def tfrecord_report(self, tile_px, tile_um, filters=None, filter_blank=None, dataset=None,
+    def tfrecord_report(self, tile_px, tile_um, source_directory=None, filters=None, filter_blank=None, dataset=None,
                          destination='auto', normalizer=None, normalizer_source=None):
         '''Creates a PDF report of TFRecords, including 10 example tiles per TFRecord.
 
@@ -2098,28 +2107,32 @@ class SlideflowProject:
         if normalizer: log.info(f'Using realtime {normalizer} normalization', 1)
         normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
-        tfrecord_dataset = self.get_dataset(filters=filters,
-                                            filter_blank=filter_blank,
-                                            tile_px=tile_px,
-                                            tile_um=tile_um)
-        log.header('Generating TFRecords report...')
+        if source_directory:
+            tfrecord_list = [join(source_directory, t) for t in os.listdir(source_directory)
+                                                       if sfutil.path_to_ext(t) == 'tfrecord']
+        else:
+            tfrecord_list = []
+            tfrecord_dataset = self.get_dataset(filters=filters,
+                                                filter_blank=filter_blank,
+                                                tile_px=tile_px,
+                                                tile_um=tile_um)
+            for dataset_name in datasets:
+                tfrecord_list += tfrecord_dataset.get_tfrecords(dataset=dataset_name)
         reports = []
-        for dataset_name in datasets:
-            tfrecord_list = tfrecord_dataset.get_tfrecords(dataset=dataset_name)
-            for tfr in tfrecord_list:
-                print(f'\r\033[KGenerating report for tfrecord {sfutil.green(sfutil.path_to_name(tfr))}...', end='')
-                dataset = tf.data.TFRecordDataset(tfr)
-                parser = sfio.tfrecords.get_tfrecord_parser(tfr, ('image_raw'), to_numpy=True, decode_images=False)
-                sample_tiles = []
-                for i, record in enumerate(dataset):
-                    if i > 9: break
-                    image_raw_data = parser(record)
+        log.header('Generating TFRecords report...')
+        for tfr in tfrecord_list:
+            print(f'\r\033[KGenerating report for tfrecord {sfutil.green(sfutil.path_to_name(tfr))}...', end='')
+            dataset = tf.data.TFRecordDataset(tfr)
+            parser = sfio.tfrecords.get_tfrecord_parser(tfr, ('image_raw'), to_numpy=True, decode_images=False)
+            sample_tiles = []
+            for i, record in enumerate(dataset):
+                if i > 9: break
+                image_raw_data = parser(record)
+                if normalizer:
+                    image_raw_data = normalizer.jpeg_to_jpeg(image_raw_data)
+                sample_tiles += [image_raw_data]
+            reports += [SlideReport(sample_tiles, tfr)]
 
-                    if normalizer:
-                        image_raw_data = normalizer.jpeg_to_jpeg(image_raw_data)
-
-                    sample_tiles += [image_raw_data]
-                reports += [SlideReport(sample_tiles, tfr)]
         print('\r\033[K', end='')
         log.empty('Generating PDF (this may take some time)...', 1)
         pdf_report = ExtractionReport(reports, tile_px=tile_px, tile_um=tile_um)

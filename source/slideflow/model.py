@@ -35,6 +35,7 @@ MODEL_FORMAT_CURRENT = MODEL_FORMAT_1_9
 MODEL_FORMAT_LEGACY = 'legacy'
 
 #TODO: Fix ModelActivationsInterface for multiple categorical outcomes
+#TODO: make different SlideflowModel class for each type of input & overload base class
 
 class ModelActivationsInterface:
     '''Provides an interface to obtain logits and post-convolutional activations
@@ -937,40 +938,40 @@ class SlideflowModel:
             # Build inputs
             with tf.name_scope('input'):
 
-                train_data, _, num_tiles = self._interleave_tfrecords(self.TRAIN_TFRECORDS,
-                                                                      image_size=self.IMAGE_SIZE,
-                                                                      batch_size=hp.batch_size,
-                                                                      balance=hp.balanced_training,
-                                                                      finite=False,
-                                                                      model_type=self.MODEL_TYPE,
-                                                                      label_parser=self._parse_tfrecord_labels,
-                                                                      annotations=self.SLIDE_ANNOTATIONS,
-                                                                      max_tiles=max_tiles_per_slide,
-                                                                      min_tiles=min_tiles_per_slide,
-                                                                      include_slidenames=False,
-                                                                      augment=hp.augment,
-                                                                      normalizer=self.normalizer,
-                                                                      manifest=self.MANIFEST,
-                                                                      slides=self.SLIDES)
+                train_data, _, num_tiles = interleave_tfrecords(self.TRAIN_TFRECORDS,
+                                                                image_size=self.IMAGE_SIZE,
+                                                                batch_size=hp.batch_size,
+                                                                balance=hp.balanced_training,
+                                                                finite=False,
+                                                                model_type=self.MODEL_TYPE,
+                                                                label_parser=self._parse_tfrecord_labels,
+                                                                annotations=self.SLIDE_ANNOTATIONS,
+                                                                max_tiles=max_tiles_per_slide,
+                                                                min_tiles=min_tiles_per_slide,
+                                                                include_slidenames=False,
+                                                                augment=hp.augment,
+                                                                normalizer=self.normalizer,
+                                                                manifest=self.MANIFEST,
+                                                                slides=self.SLIDES)
             # Set up validation data
             using_validation = (self.VALIDATION_TFRECORDS and len(self.VALIDATION_TFRECORDS))
             if using_validation:
                 with tf.name_scope('input'):
-                    interleave_results = self._interleave_tfrecords(self.VALIDATION_TFRECORDS,
-                                                                    image_size=self.IMAGE_SIZE,
-                                                                    batch_size=val_batch_size,
-                                                                    balance=hp.balanced_validation,
-                                                                    finite=True,
-                                                                    model_type=self.MODEL_TYPE,
-                                                                    label_parser=self._parse_tfrecord_labels,
-                                                                    annotations=self.SLIDE_ANNOTATIONS,
-                                                                    max_tiles=max_tiles_per_slide,
-                                                                    min_tiles=min_tiles_per_slide,
-                                                                    include_slidenames=True,
-                                                                    augment=False,
-                                                                    normalizer=self.noramlizer,
-                                                                    manifest=self.MANIFEST,
-                                                                    slides=self.SLIDES)
+                    interleave_results = interleave_tfrecords(self.VALIDATION_TFRECORDS,
+                                                              image_size=self.IMAGE_SIZE,
+                                                              batch_size=val_batch_size,
+                                                              balance=hp.balanced_validation,
+                                                              finite=True,
+                                                              model_type=self.MODEL_TYPE,
+                                                              label_parser=self._parse_tfrecord_labels,
+                                                              annotations=self.SLIDE_ANNOTATIONS,
+                                                              max_tiles=max_tiles_per_slide,
+                                                              min_tiles=min_tiles_per_slide,
+                                                              include_slidenames=True,
+                                                              augment=False,
+                                                              normalizer=self.noramlizer,
+                                                              manifest=self.MANIFEST,
+                                                              slides=self.SLIDES)
                     validation_data, validation_data_with_slidenames, num_val_tiles = interleave_results
 
                 val_log_msg = '' if not validate_on_batch else f'every {sfutil.bold(str(validate_on_batch))} steps and '

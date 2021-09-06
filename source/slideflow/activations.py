@@ -1401,7 +1401,7 @@ class Heatmap:
         implot.show()
         plt.show()
 
-    def save(self, save_folder, show_roi=True, interpolation='none', logit_cmap=None):
+    def save(self, save_folder, show_roi=True, interpolation='none', logit_cmap=None, vmin=0, vmax=1, vcenter=0.5):
         '''Saves calculated logits as heatmap overlays.
 
         Args:
@@ -1460,13 +1460,13 @@ class Heatmap:
             # Make heatmap plots and sliders for each outcome category
             for i in range(self.num_classes):
                 print(f'\r\033[KMaking heatmap {i+1} of {self.num_classes}...', end='')
-                divnorm=mcol.TwoSlopeNorm(vmin=0, vcenter=0.5, vmax=1.0)
+                divnorm=mcol.TwoSlopeNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
                 heatmap = self.ax.imshow(self.logits[:, :, i],
                                          extent=implot.get_extent(),
                                          cmap='coolwarm',
                                          norm=divnorm,
-                                         vmin=0,
-                                         vmax=1,
+                                         vmin=vmin,
+                                         vmax=vmax,
                                          alpha=0.6,
                                          interpolation=interpolation, #bicubic
                                          zorder=10)
