@@ -2109,7 +2109,7 @@ class SlideflowProject:
 
         if source_directory:
             tfrecord_list = [join(source_directory, t) for t in os.listdir(source_directory)
-                                                       if sfutil.path_to_ext(t) == 'tfrecord']
+                                                       if sfutil.path_to_ext(t) == 'tfrecords']
         else:
             tfrecord_list = []
             tfrecord_dataset = self.get_dataset(filters=filters,
