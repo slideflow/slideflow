@@ -8,4 +8,4 @@ from slideflow.project import SlideflowProject
 #TODO: improved interface
 #TODO: neptune integration
 
-__version__ = "1.11.0"
+__version__ = "1.11.1"
