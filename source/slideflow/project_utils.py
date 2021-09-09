@@ -725,12 +725,11 @@ def trainer(project, outcome_label_headers, model_name, results_dict, hp, val_se
                                      skip_metrics=skip_metrics)
         results['history'] = history
         results_dict.update({full_model_name: results})
-
-        del SFM
-        return history
     except tf.errors.ResourceExhaustedError as e:
         log.empty('\n')
         print(e)
         log.error(f'Training failed for {sfutil.bold(model_name)}, GPU memory exceeded.', 0)
-        del SFM
-        return None
+        history = None
+
+    del SFM
+    return history
