@@ -29,9 +29,9 @@ class Normalizer(object):
         return
 
     def transform(self, I):
-    
+
         hsv = cv.cvtColor(I, cv.COLOR_RGB2HSV)
-        
+
         #hsv = np.array(hsv, dtype = np.uint8)
         #clahe = cv.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
         #hsv[:,:,2] = clahe.apply(hsv[:,:,2])
