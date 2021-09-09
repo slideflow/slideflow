@@ -19,6 +19,8 @@ if __name__=='__main__':
         os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
         print("Set environmental variable 'HDF5_USE_FILE_LOCKING'='FALSE'")
 
+    print(f'Slideflow v{sf.__version__}\n{"="*(len(sf.__version__)+11)}\n')
+
     SFP = sf.SlideflowProject(args.project, gpu=args.gpu, gpu_pool=args.gpu_pool, default_threads=args.threads)
     # Auto-update slidenames for newly added slides
     SFP.associate_slide_names()

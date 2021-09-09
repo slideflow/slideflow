@@ -66,9 +66,6 @@ class SlideflowProject:
         log.configure(levels=self.log_levels)
         self.default_threads = default_threads
 
-        log.header(f'Slideflow v{sf.__version__}\n================')
-        log.header('Loading project...')
-
         if project_folder and not os.path.exists(project_folder):
             if interactive:
                 print(f'Directory "{project_folder}" does not exist.')
@@ -1743,10 +1740,10 @@ class SlideflowProject:
             log.warn('No datasets configured.')
 
         if verification in ('both', 'slides'):
-            log.header('Verifying slide annotations...')
+            log.empty("Verifying slide annotations...")
             dataset.verify_annotations_slides()
         if verification in ('both', 'tfrecords'):
-            log.header('Verifying tfrecords and updating manifest...')
+            log.empty("Verifying tfrecords...")
             dataset.update_manifest()
 
         return dataset
@@ -1766,7 +1763,6 @@ class SlideflowProject:
         '''Loads a saved and pre-configured project from the specified directory.'''
         if exists(join(directory, 'settings.json')):
             self._settings = sfutil.load_json(join(directory, 'settings.json'))
-            log.empty('Project configuration loaded.')
         else:
             raise OSError(f'Unable to locate settings.json at location "{directory}".')
 

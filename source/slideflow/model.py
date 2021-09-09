@@ -715,17 +715,13 @@ class SlideflowModel:
                 def event_lookup(s): return self.SLIDE_FEATURE_TABLE[s.numpy().decode('utf-8')][0]
                 num_features = self.NUM_SLIDE_FEATURES - 1
 
-                event_input_val = tf.py_function(func=event_lookup,
-                                                    inp=[slide],
-                                                    Tout=[tf.float32])
+                event_input_val = tf.py_function(func=event_lookup, inp=[slide], Tout=[tf.float32])
                 image_dict.update({'event_input': event_input_val})
             else:
                 def slide_lookup(s): return self.SLIDE_FEATURE_TABLE[s.numpy().decode('utf-8')]
                 num_features = self.NUM_SLIDE_FEATURES
 
-            slide_feature_input_val = tf.py_function(func=slide_lookup,
-                                                        inp=[slide],
-                                                        Tout=[tf.float32] * num_features)
+            slide_feature_input_val = tf.py_function(func=slide_lookup, inp=[slide], Tout=[tf.float32] * num_features)
 
             # Add slide input features, excluding the event feature used for CPH models
             if not ((self.NUM_SLIDE_FEATURES == 1) and (self.MODEL_TYPE == 'cph')):

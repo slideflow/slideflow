@@ -25,6 +25,8 @@ if __name__=='__main__':
     if not args.queue or not os.path.exists(args.queue):
         parser.error("You must specify a valid queue directory using the -q flag.")
 
+    print(f'Slideflow v{sf.__version__}\n{"="*(len(sf.__version__)+11)}\n')
+
     finished_dir = os.path.join(args.queue, "finished")
     in_process_dir = os.path.join(args.queue, "in_process")
     sys.path.insert(1, in_process_dir)

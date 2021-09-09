@@ -185,11 +185,12 @@ def interleave_tfrecords(tfrecords,
                          balance=None,
                          finite=False,
                          annotations=None,
-                         max_tiles=None,
-                         min_tiles=None,
+                         max_tiles=0,
+                         min_tiles=0,
                          drop_remainder=False,
                          include_slidenames=False,
                          augment=True,
+                         standardize=True,
                          normalizer=None,
                          manifest=None,
                          slides=None):
@@ -211,186 +212,189 @@ def interleave_tfrecords(tfrecords,
         min_tiles:				Minimum number of tiles that each slide must have to be included.
     '''
     log.info(f'Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min={min_tiles}', 1)
-    datasets = []
-    datasets_categories = []
-    num_tiles = []
-    global_num_tiles = 0
-    categories = {}
-    categories_prob = {}
-    categories_tile_fraction = {}
-    prob_weights = None
-    base_parser = None
-    detected_format = None
-    num_tfrecords_empty = 0
-    num_tfrecords_less_than_min = 0
+    with tf.device('cpu'):
+        datasets = []
+        datasets_categories = []
+        num_tiles = []
+        global_num_tiles = 0
+        categories = {}
+        categories_prob = {}
+        categories_tile_fraction = {}
+        prob_weights = None
+        base_parser = None
+        detected_format = None
+        num_tfrecords_empty = 0
+        num_tfrecords_less_than_min = 0
 
-    if label_parser is None:
-        label_parser = default_label_parser
+        if label_parser is None:
+            label_parser = default_label_parser
 
-    if slides is None:
-        slides = [sfutil.path_to_name(t) for t in tfrecords]
+        if slides is None:
+            slides = [sfutil.path_to_name(t) for t in tfrecords]
 
-    if tfrecords == []:
-        raise TFRecordsError('No TFRecords found.')
+        if tfrecords == []:
+            raise TFRecordsError('No TFRecords found.')
 
-    if manifest:
-        pb = sfutil.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
-        for filename in tfrecords:
-            slide_name = sfutil.path_to_name(filename)
+        if manifest:
+            pb = sfutil.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
+            for filename in tfrecords:
+                slide_name = sfutil.path_to_name(filename)
 
-            if slide_name not in slides:
-                continue
+                if slide_name not in slides:
+                    continue
 
-            # Determine total number of tiles available in TFRecord
-            try:
-                tiles = manifest[filename]['total']
-            except KeyError:
-                log.error(f'Manifest not finished, unable to find {sfutil.green(filename)}', 1)
-                raise TFRecordsError(f'Manifest not finished, unable to find {filename}')
+                # Determine total number of tiles available in TFRecord
+                try:
+                    tiles = manifest[filename]['total']
+                except KeyError:
+                    log.error(f'Manifest not finished, unable to find {sfutil.green(filename)}', 1)
+                    raise TFRecordsError(f'Manifest not finished, unable to find {filename}')
 
-            # Ensure TFRecord has minimum number of tiles; otherwise, skip
-            if not min_tiles and tiles == 0:
-                num_tfrecords_empty += 1
-                continue
-            elif tiles < min_tiles:
-                num_tfrecords_less_than_min
-                continue
+                # Ensure TFRecord has minimum number of tiles; otherwise, skip
+                if not min_tiles and tiles == 0:
+                    num_tfrecords_empty += 1
+                    continue
+                elif tiles < min_tiles:
+                    num_tfrecords_less_than_min
+                    continue
 
-            # Get the base TFRecord parser, based on the first tfrecord
-            if detected_format is None:
-                detected_format = detect_tfrecord_format(filename)
-            elif detected_format != detect_tfrecord_format(filename):
-                raise TFRecordsError('Inconsistent TFRecord internal formatting; all must be formatted the same.')
-            if base_parser is None:
-                base_parser = get_tfrecord_parser(filename,
-                        ('slide', 'image_raw'),
-                        standardize=True,
-                        img_size=image_size,
-                        normalizer=normalizer,
-                        augment=augment)
+                # Get the base TFRecord parser, based on the first tfrecord
+                if detected_format is None:
+                    detected_format = detect_tfrecord_format(filename)
+                elif detected_format != detect_tfrecord_format(filename):
+                    raise TFRecordsError('Inconsistent TFRecord internal formatting; all must be formatted the same.')
+                if base_parser is None:
+                    base_parser = get_tfrecord_parser(filename,
+                            ('slide', 'image_raw'),
+                            standardize=standardize,
+                            img_size=image_size,
+                            normalizer=normalizer,
+                            augment=augment)
 
-            # Assign category by outcome if this is a categorical model,
-            #	Merging category names if there are multiple outcomes
-            #   (balancing across all combinations of outcome categories equally)
-            # Otherwise, consider all slides from the same category (effectively skipping balancing).
-            #   Appropriate for linear models.
-            if model_type == 'categorical':
-                category = annotations[slide_name]['outcome_label']
-                category = [category] if not isinstance(category, list) else category
-                category = '-'.join(map(str, category))
-            else:
-                category = 1
+                # Assign category by outcome if this is a categorical model,
+                #	Merging category names if there are multiple outcomes
+                #   (balancing across all combinations of outcome categories equally)
+                # Otherwise, consider all slides from the same category (effectively skipping balancing).
+                #   Appropriate for linear models.
+                if model_type == 'categorical' and annotations is not None:
+                    category = annotations[slide_name]['outcome_label']
+                    category = [category] if not isinstance(category, list) else category
+                    category = '-'.join(map(str, category))
+                elif model_type == 'categorical' and balance == BALANCE_BY_CATEGORY:
+                    raise TFRecordsError('No annotations provided; unable to perform category-level balancing')
+                else:
+                    category = 1
 
-            datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=16)]
-            datasets_categories += [category]
+                datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=4)]
+                datasets_categories += [category]
 
-            # Cap number of tiles to take from TFRecord at maximum specified
-            if max_tiles and tiles > max_tiles:
-                log.info(f'Only taking maximum of {max_tiles} (of {tiles}) tiles from {sfutil.green(filename)}', 2)
-                tiles = max_tiles
+                # Cap number of tiles to take from TFRecord at maximum specified
+                if max_tiles and tiles > max_tiles:
+                    log.info(f'Only taking maximum of {max_tiles} (of {tiles}) tiles from {sfutil.green(filename)}', 2)
+                    tiles = max_tiles
 
-            if category not in categories.keys():
-                categories.update({category: {'num_slides': 1,
-                                            'num_tiles': tiles}})
-            else:
-                categories[category]['num_slides'] += 1
-                categories[category]['num_tiles'] += tiles
-            num_tiles += [tiles]
-            pb.increase_bar_value()
-        pb.end()
+                if category not in categories.keys():
+                    categories.update({category: {'num_slides': 1,
+                                                'num_tiles': tiles}})
+                else:
+                    categories[category]['num_slides'] += 1
+                    categories[category]['num_tiles'] += tiles
+                num_tiles += [tiles]
+                pb.increase_bar_value()
+            pb.end()
 
-        if num_tfrecords_empty:
-            log.info(f'Skipped {num_tfrecords_empty} empty tfrecords', 2)
-        if num_tfrecords_less_than_min:
-            log.info(f'Skipped {num_tfrecords_less_than_min} tfrecords with less than {min_tiles} tiles', 2)
+            if num_tfrecords_empty:
+                log.info(f'Skipped {num_tfrecords_empty} empty tfrecords', 2)
+            if num_tfrecords_less_than_min:
+                log.info(f'Skipped {num_tfrecords_less_than_min} tfrecords with less than {min_tiles} tiles', 2)
 
-        for category in categories:
-            lowest_category_slide_count = min([categories[i]['num_slides'] for i in categories])
-            lowest_category_tile_count = min([categories[i]['num_tiles'] for i in categories])
-            categories_prob[category] = lowest_category_slide_count / categories[category]['num_slides']
-            categories_tile_fraction[category] = lowest_category_tile_count / categories[category]['num_tiles']
+            for category in categories:
+                lowest_category_slide_count = min([categories[i]['num_slides'] for i in categories])
+                lowest_category_tile_count = min([categories[i]['num_tiles'] for i in categories])
+                categories_prob[category] = lowest_category_slide_count / categories[category]['num_slides']
+                categories_tile_fraction[category] = lowest_category_tile_count / categories[category]['num_tiles']
 
-        # Balancing
-        if not balance or balance == NO_BALANCE:
-            log.info(f'Not balancing input', 2)
-            prob_weights = [i/sum(num_tiles) for i in num_tiles]
-        if balance == BALANCE_BY_PATIENT:
-            log.info(f'Balancing input across slides', 2)
-            prob_weights = [1.0] * len(datasets)
-            if finite:
-                # Only take as many tiles as the number of tiles in the smallest dataset
-                minimum_tiles = min(num_tiles)
-                for i in range(len(datasets)):
-                    num_tiles[i] = minimum_tiles
-        if balance == BALANCE_BY_CATEGORY:
-            log.info(f'Balancing input across categories', 2)
-            prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
-            if finite:
-                # Only take as many tiles as the number of tiles in the smallest category
-                for i in range(len(datasets)):
-                    num_tiles[i] = int(num_tiles[i] * categories_tile_fraction[datasets_categories[i]])
-                    fraction = categories_tile_fraction[datasets_categories[i]]
-                    log.empty(f'Tile fraction (dataset {i+1}/{len(datasets)}): {fraction}, taking {num_tiles[i]}', 3)
-                log.empty(f'Global num tiles: {global_num_tiles}', 3)
+            # Balancing
+            if not balance or balance == NO_BALANCE:
+                log.info(f'Not balancing input', 2)
+                prob_weights = [i/sum(num_tiles) for i in num_tiles]
+            if balance == BALANCE_BY_PATIENT:
+                log.info(f'Balancing input across slides', 2)
+                prob_weights = [1.0] * len(datasets)
+                if finite:
+                    # Only take as many tiles as the number of tiles in the smallest dataset
+                    minimum_tiles = min(num_tiles)
+                    for i in range(len(datasets)):
+                        num_tiles[i] = minimum_tiles
+            if balance == BALANCE_BY_CATEGORY:
+                log.info(f'Balancing input across categories', 2)
+                prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
+                if finite:
+                    # Only take as many tiles as the number of tiles in the smallest category
+                    for i in range(len(datasets)):
+                        num_tiles[i] = int(num_tiles[i] * categories_tile_fraction[datasets_categories[i]])
+                        fraction = categories_tile_fraction[datasets_categories[i]]
+                        log.empty(f'Tile fraction (dataset {i+1}/{len(datasets)}): {fraction}, taking {num_tiles[i]}', 3)
+                    log.empty(f'Global num tiles: {global_num_tiles}', 3)
 
-        # Take the calculcated number of tiles from each dataset and calculate global number of tiles
-        for i in range(len(datasets)):
-            datasets[i] = datasets[i].take(num_tiles[i])
-            if not finite:
-                datasets[i] = datasets[i].repeat()
-        global_num_tiles = sum(num_tiles)
+            # Take the calculcated number of tiles from each dataset and calculate global number of tiles
+            for i in range(len(datasets)):
+                datasets[i] = datasets[i].take(num_tiles[i])
+                if not finite:
+                    datasets[i] = datasets[i].repeat()
+            global_num_tiles = sum(num_tiles)
 
-    else:
-        manifest_msg = 'No manifest detected! Unable to perform balancing or any tile-level selection operations'
-        if (balance and balance != NO_BALANCE) or max_tiles or min_tiles:
-            log.error(manifest_msg, 1)
         else:
-            log.warn(manifest_msg, 1)
-        pb = sfutil.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
-        for filename in tfrecords:
-            slide_name = sfutil.path_to_name(filename)
+            manifest_msg = 'No manifest detected! Unable to perform balancing or any tile-level selection operations'
+            if (balance and balance != NO_BALANCE) or max_tiles or min_tiles:
+                log.error(manifest_msg, 1)
+            else:
+                log.warn(manifest_msg, 1)
+            pb = sfutil.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
+            for filename in tfrecords:
+                slide_name = sfutil.path_to_name(filename)
 
-            if slide_name not in slides:
-                continue
+                if slide_name not in slides:
+                    continue
 
-            if base_parser is None:
-                base_parser = get_tfrecord_parser(filename,
-                        ('slide', 'image_raw'),
-                        standardize=True,
-                        img_size=image_size,
-                        normalizer=normalizer,
-                        augment=augment)
+                if base_parser is None:
+                    base_parser = get_tfrecord_parser(filename,
+                            ('slide', 'image_raw'),
+                            standardize=standardize,
+                            img_size=image_size,
+                            normalizer=normalizer,
+                            augment=augment)
 
-            datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=16)]
-            pb.increase_bar_value()
-        pb.end()
+                datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=4)]
+                pb.increase_bar_value()
+            pb.end()
 
-    # Interleave and batch datasets
-    try:
-        sampled_dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
-        dataset = get_parsed_datasets(sampled_dataset,
-                                            label_parser=label_parser,
-                                            base_parser=base_parser,
-                                            include_slidenames=False)
-        if batch_size:
-            dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
-        #dataset = dataset.prefetch(tf.data.AUTOTUNE)
-    except IndexError:
-        raise TFRecordsError('No TFRecords found after filter criteria; please verify TFRecords exist')
+        # Interleave and batch datasets
+        try:
+            sampled_dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
+            dataset = get_parsed_datasets(sampled_dataset,
+                                                label_parser=label_parser,
+                                                base_parser=base_parser,
+                                                include_slidenames=False)
+            if batch_size:
+                dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
+            #dataset = dataset.prefetch(tf.data.AUTOTUNE)
+        except IndexError:
+            raise TFRecordsError('No TFRecords found after filter criteria; please verify TFRecords exist')
 
-    if include_slidenames:
-        dataset_with_slidenames = get_parsed_datasets(sampled_dataset,
-                                                            label_parser=label_parser,
-                                                            base_parser=base_parser,
-                                                            include_slidenames=True)
-        if batch_size:
-            dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
-        #dataset_with_slidenames = dataset_with_slidenames.prefetch(tf.data.AUTOTUNE)
+        if include_slidenames:
+            dataset_with_slidenames = get_parsed_datasets(sampled_dataset,
+                                                                label_parser=label_parser,
+                                                                base_parser=base_parser,
+                                                                include_slidenames=True)
+            if batch_size:
+                dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
+            #dataset_with_slidenames = dataset_with_slidenames.prefetch(tf.data.AUTOTUNE)
 
-    else:
-        dataset_with_slidenames = None
+        else:
+            dataset_with_slidenames = None
 
-    return dataset, dataset_with_slidenames, global_num_tiles
+        return dataset, dataset_with_slidenames, global_num_tiles
 
 def get_parsed_datasets(tfrecord_dataset, label_parser, base_parser, include_slidenames=False):
     if include_slidenames:
@@ -398,11 +402,11 @@ def get_parsed_datasets(tfrecord_dataset, label_parser, base_parser, include_sli
                                                     base_parser=base_parser,
                                                     include_slidenames=True)
 
-        dataset_with_slidenames = tfrecord_dataset.map(training_parser_with_slidenames, num_parallel_calls=32)
+        dataset_with_slidenames = tfrecord_dataset.map(training_parser_with_slidenames, num_parallel_calls=8)
         return dataset_with_slidenames
     else:
         training_parser = partial(label_parser, base_parser=base_parser, include_slidenames=False)
-        dataset = tfrecord_dataset.map(training_parser, num_parallel_calls=32)
+        dataset = tfrecord_dataset.map(training_parser, num_parallel_calls=8)
         return dataset
 
 def default_label_parser(record, base_parser, include_slidenames=True):
