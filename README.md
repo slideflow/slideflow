@@ -1,4 +1,7 @@
 ![slideflow logo](http://jmd172.bitbucket.io/_images/full_logo.png)
+
+[![Python application](https://github.com/pearson-laboratory/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/pearson-laboratory/slideflow/actions/workflows/python-app.yml)
+
 # Slideflow README
 
 Slideflow is a Python package which aims to provide an easy and intuitive way of building and testing neural network models for use in histology image analysis. It is built using Keras (with Tensorflow backend) and supports many standard network architectures - e.g. InceptionV3, Resnet, and VGG16 - as well as custom architectures.
