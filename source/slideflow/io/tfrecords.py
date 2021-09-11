@@ -87,7 +87,7 @@ def _decode_image(img_string, img_type, size=None, standardize=False, normalizer
     if normalizer:
         image = tf.py_function(normalizer.tf_to_rgb, [image], tf.int32)
         if size: image.set_shape([size, size, 3])
-    if augment:
+    if augment is True or (isinstance(augment, str) and 'j' in augment):
         # Augment with random compession
         image = tf.cond(tf.random.uniform(shape=[],
                                           minval=0,
@@ -98,11 +98,13 @@ def _decode_image(img_string, img_type, size=None, standardize=False, normalizer
                                                                                               maxval=100,
                                                                                               dtype=tf.int32)),
                         false_fn=lambda: image)
-
+    if augment is True or (isinstance(augment, str) and 'r' in augment):
         # Rotate randomly 0, 90, 180, 270 degrees
         image = tf.image.rot90(image, tf.random.uniform(shape=[], minval=0, maxval=4, dtype=tf.int32))
         # Random flip and rotation
+    if augment is True or (isinstance(augment, str) and 'x' in augment):
         image = tf.image.random_flip_left_right(image)
+    if augment is True or (isinstance(augment, str) and 'y' in augment):
         image = tf.image.random_flip_up_down(image)
     if standardize:
         image = tf.image.per_image_standardization(image)

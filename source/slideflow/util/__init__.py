@@ -320,6 +320,16 @@ class Logger:
             if 'complete' in levels: self.COMPLETE_LEVEL = levels['complete']
             if 'silent' in levels: self.SILENT = levels['silent']
 
+        elif 'verbosity' in kwargs:
+            verbosity = kwargs['verbosity']
+            self.configure(levels={
+                'complete': 0 if verbosity in ('warn', 'error', 'silent') else 3,
+                'info': 0 if verbosity in ('warn', 'error', 'silent') else 3,
+                'warn': 0 if verbosity in ('error', 'silent') else 3,
+                'error': 0 if verbosity in ('error', 'silent') else 3,
+                'silent': verbosity in ('error', 'silent')
+            })
+
     def info(self, text, l=0, print_func=print):
         l = min(l, len(LOGGING_PREFIXES)-1)
         message = f"{LOGGING_PREFIXES[l]}[{info('INFO')}] {text}"

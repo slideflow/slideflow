@@ -36,34 +36,22 @@ class SlideflowProject:
 
     '''Class to assist with organizing datasets and executing pipeline functions.'''
 
-    def __init__(self,
-                 project_folder,
-                 gpu=None,
-                 gpu_pool=None,
-                 reverse_select_gpu=True,
-                 interactive=True,
-                 default_threads=4,
-                 verbosity='default'):
+    def __init__(self, project_folder, gpu=None, gpu_pool=None, reverse_select_gpu=True,
+                 interactive=True, default_threads=4, verbosity='full'):
 
-        '''Initializes project by creating project folder, prompting user for project settings, and project
+        """Initializes project by creating project folder, prompting user for project settings, and project
         settings to "settings.json" within the project directory.
 
         Args:
-            project_folder:		Project folder
-            gpu_pool:			Number of available GPUs. Will try to autoselect GPU if provided
-            reverse_select_gpu:	Will try to select GPU from available pool in reverse
-            gpu:				Int, forces GPU selection to the indicated GPU number.
-            interactive:		Bool, if true, will solicit project information from the user
-                                    via text prompts if if the project has not yet been initialized
-        '''
-        self.log_levels = {
-            'complete': 0 if verbosity in ('warn', 'error', 'silent') else 3,
-            'info': 0 if verbosity in ('warn', 'error', 'silent') else 3,
-            'warn': 0 if verbosity in ('error', 'silent') else 3,
-            'error': 0 if verbosity in ('error', 'silent') else 3,
-            'silent': True if verbosity in ('error', 'silent') else False
-        }
-        log.configure(levels=self.log_levels)
+            project_folder (str):                 Path to project directory.
+            gpu (int, optional):                  Manually assign GPU. Defaults to None.
+            gpu_pool (int, optional):             List of ints indicating available GPUs. Defaults to None.
+            reverse_select_gpu (bool, optional):  Select from gpu_pool in reverse order. Defaults to True.
+            interactive (bool, optional):         Prompt user for settings if project not initialized. Defaults to True.
+            default_threads (int, optional):      Default threads available for multithreaded functions. Defaults to 4.
+            verbosity (str, optional):            Default project-wide verbosity. Defaults to 'full'.
+        """
+        log.configure(verbosity=verbosity)
         self.default_threads = default_threads
 
         if project_folder and not os.path.exists(project_folder):
