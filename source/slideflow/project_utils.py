@@ -224,7 +224,7 @@ def evaluator(project, outcome_label_headers, model, results_dict, input_header=
     if not isinstance(outcome_label_headers, list):
         outcome_label_headers = [outcome_label_headers]
 
-    log.configure(filename=join(project.root, 'log.log'), levels=project.log_levels)
+    log.configure(filename=join(project.root, 'log.log'), verbosity=project.verbosity)
 
     # Load hyperparameters from saved model
     if hyperparameters:
@@ -428,7 +428,7 @@ def heatmap_generator(project, slide, model_path, save_folder, roi_list, show_ro
     '''Internal function to execute heatmap generator process.'''
     from slideflow.activations import Heatmap
 
-    log.configure(filename=join(project.root, 'log.log'), levels=project.log_levels)
+    log.configure(filename=join(project.root, 'log.log'), verbosity=project.verbosity)
 
     resolutions = {'low': 1, 'medium': 2, 'high': 4}
     try:
@@ -475,7 +475,7 @@ def trainer(project, outcome_label_headers, model_name, results_dict, hp, val_se
     import tensorflow as tf
     from slideflow.statistics import to_onehot
 
-    log.configure(filename=join(project.root, 'log.log'), levels=project.log_levels)
+    log.configure(filename=join(project.root, 'log.log'), verbosity=project.verbosity)
 
     # First, clear prior Tensorflow graph to free memory
     tf.keras.backend.clear_session()

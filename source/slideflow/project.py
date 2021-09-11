@@ -52,6 +52,7 @@ class SlideflowProject:
             verbosity (str, optional):            Default project-wide verbosity. Defaults to 'full'.
         """
         log.configure(verbosity=verbosity)
+        self.verbosity = verbosity
         self.default_threads = default_threads
 
         if project_folder and not os.path.exists(project_folder):

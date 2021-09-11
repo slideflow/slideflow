@@ -965,7 +965,7 @@ class SlideflowModel:
                                                               min_tiles=min_tiles_per_slide,
                                                               include_slidenames=True,
                                                               augment=False,
-                                                              normalizer=self.noramlizer,
+                                                              normalizer=self.normalizer,
                                                               manifest=self.MANIFEST,
                                                               slides=self.SLIDES)
                     validation_data, validation_data_with_slidenames, num_val_tiles = interleave_results
