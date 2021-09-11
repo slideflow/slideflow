@@ -306,10 +306,6 @@ class Logger:
     def configure(self, **kwargs):
         '''Configures logger to record the designated logging levels, overriding defaults.'''
 
-        for arg in kwargs:
-            if arg not in ('filename', 'levels'):
-                raise TypeError(f"Unknown argument '{arg}'")
-
         if 'filename' in kwargs: self.logfile = kwargs['filename']
 
         if 'levels' in kwargs:
