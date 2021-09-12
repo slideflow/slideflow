@@ -213,7 +213,7 @@ def get_hyperparameter_combinations(hyperparameters, models, batch_train_file):
     elif isinstance(hyperparameters, list) and isinstance(models, list):
         if len(models) != len(hyperparameters):
             log.error(f'Unable to iterate through hyperparameters provided; number of hyperparameters \
-                        ({len(hyperparameters)}) must match number of models ({len(models)})', 1)
+                        ({len(hyperparameters)}) must match number of models ({len(models)})')
             return
         for i in range(len(models)):
             if not hyperparameters[i].validate():

@@ -65,11 +65,11 @@ def split_tiles(folder, fraction, names):
         if sum(num_to_move) > num_files:
             err_msg = f"Error with separating tiles; tried to move {sum(num_to_move)} tiles into \
                         {len(fraction)} subfolders, only {num_files} tiles available"
-            log.error(err_msg, 1)
+            log.error(err_msg)
             raise DatasetError(err_msg)
         if sum(num_to_move) < num_files:
             num_discard = num_files - sum(num_to_move)
-            log.warn(f"Not all tiles separated into subfolders; {num_discard} tiles will be discarded.", 1)
+            log.warning(f"Not all tiles separated into subfolders; {num_discard} tiles will be discarded.")
 
         # Split tiles by subfolder
         for n, name in enumerate(names):
@@ -83,14 +83,14 @@ def split_tiles(folder, fraction, names):
             for f in files_to_move:
                 shutil.move(join(slide_directory, f), join(slide_subfolder_directory, f))
             num_moved[n] += num
-            log.empty(f"Moved {num} tiles for slide {sfutil.green(slide)} into subfolder {name}", 1)
+            log.info(f"Moved {num} tiles for slide {sfutil.green(slide)} into subfolder {name}")
 
         # Remove the empty directory
         shutil.rmtree(slide_directory)
 
     # Print results
     for n, name in enumerate(names):
-        log.complete(f"Moved {num_moved[n]} tiles into subfolder {name}", 1)
+        log.info(f"Moved {num_moved[n]} tiles into subfolder {name}")
 
 def build_validation(train_dir, eval_dir, fraction = 0.1):
     total_moved = 0
@@ -106,8 +106,8 @@ def build_validation(train_dir, eval_dir, fraction = 0.1):
         total_moved += num_to_move
         for file in files[0:num_to_move]:
             shutil.move(join(train_dir, slide_dir, file), join(eval_dir, slide_dir, file))
-        log.empty(f"Set aside {num_to_move} tiles for slide {sfutil.green(slide_dir)} for validation dataset", 1)
-    log.complete(f"Set aside {sfutil.bold(total_moved)} tiles for validation dataset", 1)
+        log.info(f"Set aside {num_to_move} tiles for slide {sfutil.green(slide_dir)} for validation dataset")
+    log.info(f"Set aside {sfutil.bold(total_moved)} tiles for validation dataset")
 
 def merge_validation(train_dir, eval_dir):
     cat_dirs = [_dir for _dir in listdir(eval_dir) if isdir(join(eval_dir, _dir))]
@@ -138,7 +138,7 @@ class Dataset:
         except KeyError:
             sources_list = ", ".join(sources)
             err_msg = f"Unable to find dataset '{sfutil.bold(sources_list)}' in config file {sfutil.green(config_file)}"
-            log.error(err_msg, 1)
+            log.error(err_msg)
             raise DatasetError(err_msg)
 
         if (tile_px is not None) and (tile_um is not None):
@@ -177,7 +177,7 @@ class Dataset:
             tfrecord_dir = join(self.datasets[d]['tfrecords'], self.datasets[d]['label'])
             manifest_path = join(tfrecord_dir, "manifest.json")
             if not exists(manifest_path):
-                log.info(f"No manifest file detected in {tfrecord_dir}; will create now", 1)
+                log.info(f"No manifest file detected in {tfrecord_dir}; will create now")
 
                 # Import delayed until here in order to avoid importing tensorflow until necessary,
                 # as tensorflow claims a GPU once imported
@@ -320,7 +320,7 @@ class Dataset:
             if label is None: continue
             tfrecord_path = join(tfrecords, label)
             if not exists(tfrecord_path):
-                log.warn(f"TFRecords path not found: {sfutil.green(tfrecord_path)}", 1)
+                log.warning(f"TFRecords path not found: {sfutil.green(tfrecord_path)}")
                 return []
             subdirs = [sd for sd in listdir(tfrecord_path) if isdir(join(tfrecord_path, sd))]
             formatted_subdirs = ', '.join([sfutil.green(s) for s in subdirs])
@@ -329,7 +329,7 @@ class Dataset:
             # If true, can merge inputs and to use all data, likely for evaluation
             if len(subdirs) and merge_subdirs:
                 log.info(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} contains data split into \
-                            sub-directories ({formatted_subdirs}); will use all", 1)
+                            sub-directories ({formatted_subdirs}); will use all")
                 folders_to_search += [join(tfrecord_path, subdir) for subdir in subdirs]
             elif len(subdirs) and ask_to_merge_subdirs:
                 if sfutil.yes_no_input(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} contains data split \
@@ -339,7 +339,7 @@ class Dataset:
                     raise NotImplementedError("Handling not implemented.")
             else:
                 if len(subdirs):
-                    log.warn(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} is split; ignoring sub-directories", 1)
+                    log.warning(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} is split; ignoring sub-directories")
                 folders_to_search += [tfrecord_path]
         for folder in folders_to_search:
             tfrecords_list += glob(join(folder, "*.tfrecords"))
@@ -350,7 +350,7 @@ class Dataset:
             filtered_tfrecords_list = [tfrecord for tfrecord in tfrecords_list if tfrecord.split('/')[-1][:-10] in slides]
             return filtered_tfrecords_list
         else:
-            log.warn("No annotations loaded; unable to filter TFRecords list. Is the annotations file empty?", 1)
+            log.warning("No annotations loaded; unable to filter TFRecords list. Is the annotations file empty?")
             return tfrecords_list
 
     def get_tfrecords_by_subfolder(self, subfolder):
@@ -418,7 +418,7 @@ class Dataset:
             try:
                 filtered_labels = [a[header] for a in filtered_annotations]
             except KeyError:
-                log.error(f"Unable to find column {header} in annotation file.", 1)
+                log.error(f"Unable to find column {header} in annotation file.")
                 raise DatasetError(f"Unable to find column {header} in annotation file.")
 
             # Determine whether values should be converted into float
@@ -444,7 +444,7 @@ class Dataset:
                 except ValueError:
                     raise TypeError(f"Unable to convert label {header} into type 'float'.")
             else:
-                if verbose: log.info(f'Assigning label descriptors in column "{header}" to numerical values', 1)
+                if verbose: log.info(f'Assigning label descriptors in column "{header}" to numerical values')
                 unique_labels_for_this_header = list(set(filtered_labels))
                 unique_labels_for_this_header.sort()
                 for i, ul in enumerate(unique_labels_for_this_header):
@@ -455,11 +455,11 @@ class Dataset:
                         if verbose:
                             val_msg = assigned_labels_for_this_header[ul]
                             n_s = sfutil.bold(str(num_matching_slides_filtered))
-                            log.empty(f"{header} '{sfutil.info(ul)}' assigned to value '{val_msg}' [{n_s} slides]", 2)
+                            log.info(f"{header} '{sfutil.blue(ul)}' assigned to value '{val_msg}' [{n_s} slides]")
                     else:
                         if verbose:
                             n_s = sfutil.bold(str(num_matching_slides_filtered))
-                            log.empty(f"{header} '{sfutil.info(ul)}' assigned to value '{i}' [{n_s} slides]", 2)
+                            log.info(f"{header} '{sfutil.blue(ul)}' assigned to value '{i}' [{n_s} slides]")
 
             # Create function to process/convert label
             def _process_label(o):
@@ -487,9 +487,9 @@ class Dataset:
                 if patient not in patient_labels:
                     patient_labels[patient] = annotation_label
                 elif patient_labels[patient] != annotation_label:
-                    log.error(f"Multiple different labels in header {header} found for patient {patient}:", 1, print_func)
-                    log.error(f"{patient_labels[patient]}", 2, print_func)
-                    log.error(f"{annotation_label}", 2, print_func)
+                    log.error(f"Multiple different labels in header {header} found for patient {patient}:")
+                    log.error(f"{patient_labels[patient]}")
+                    log.error(f"{annotation_label}")
                     num_warned += 1
                 elif (slide in slides) and (slide in results) and (slide in assigned_headers[header]):
                     continue
@@ -503,7 +503,7 @@ class Dataset:
                         results[slide] = {key: annotation_label if not use_float_for_this_header else [annotation_label]}
                         results[slide][TCGA.patient] = patient
             if num_warned >= warn_threshold:
-                log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
+                log.warning(f"...{num_warned} total warnings, see project log for details")
             unique_labels[header] = unique_labels_for_this_header
         if len(headers) == 1:
             unique_labels = unique_labels[headers[0]]
@@ -542,7 +542,7 @@ class Dataset:
         except:
             print(header)
             err_msg = f"Check that annotations file is formatted correctly and contains header '{TCGA.patient}'."
-            log.error(err_msg, 1)
+            log.error(err_msg)
             raise DatasetError(err_msg)
 
         # Verify that a slide header exists; if not, offer to make one and
@@ -550,8 +550,8 @@ class Dataset:
         try:
             slide_index = header.index(TCGA.slide)
         except:
-            log.info(f"Header column '{TCGA.slide}' not found.", 1)
-            log.info("Attempting to automatically associate patients with slides...", 1)
+            log.info(f"Header column '{TCGA.slide}' not found.")
+            log.info("Attempting to automatically associate patients with slides...")
             self.update_annotations_with_slidenames(annotations_file)
             header, current_annotations = sfutil.read_annotations(annotations_file)
         self.ANNOTATIONS = current_annotations
@@ -572,12 +572,12 @@ class Dataset:
             print_func = print if num_warned < warn_threshold else None
             slide = annotation[TCGA.slide]
             if slide == '':
-                log.warn(f"Patient {sfutil.green(annotation[TCGA.patient])} has no slide assigned.", 1, print_func)
+                log.warning(f"Patient {sfutil.green(annotation[TCGA.patient])} has no slide assigned.")
                 num_warned += 1
         if num_warned >= warn_threshold:
-            log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
+            log.warning(f"...{num_warned} total warnings, see project log for details")
         if not num_warned:
-            log.info(f"Slides successfully verified, no errors found.", 1)
+            log.info(f"Slides successfully verified, no errors found.")
 
     def update_manifest(self, force_update=False):
         # Import delayed until here in order to avoid importing tensorflow until necessary,
@@ -610,8 +610,8 @@ class Dataset:
             for row in csv_reader:
                 patients.extend([row[patient_index]])
         patients = list(set(patients))
-        log.info(f"Number of patients in annotations: {len(patients)}", 1)
-        log.info(f"Slides found: {len(slide_list)}", 1)
+        log.info(f"Number of patients in annotations: {len(patients)}")
+        log.info(f"Slides found: {len(slide_list)}")
 
         # Then, check for sets of slides that would match to the same patient; due to ambiguity, these will be skipped.
         num_occurrences = {}
@@ -631,12 +631,12 @@ class Dataset:
             # First, skip this slide due to ambiguity if needed
             if slide_name in slides_to_skip:
                 lead_msg = f"Unable to associate slide {slide_name} due to ambiguity"
-                log.warn(f"{lead_msg}; multiple slides match to patient {_shortname(slide_name)}; skipping.", 1)
+                log.warning(f"{lead_msg}; multiple slides match to patient {_shortname(slide_name)}; skipping.")
                 num_warned += 1
             # Then, make sure the shortname and long name aren't both in the annotation file
             if (slide_name != _shortname(slide_name)) and (slide_name in patients) and (_shortname(slide_name) in patients):
                 lead_msg = f"Unable to associate slide {slide_name} due to ambiguity"
-                log.warn(f"{lead_msg}; both {slide_name} and {_shortname(slide_name)} are patients; skipping.", 1)
+                log.warning(f"{lead_msg}; both {slide_name} and {_shortname(slide_name)} are patients; skipping.")
                 num_warned += 1
 
             # Check if either the slide name or the shortened version are in the annotation file
@@ -644,11 +644,11 @@ class Dataset:
                 slide = slide_name if slide_name in patients else _shortname(slide_name)
                 patient_slide_dict.update({slide: slide_name})
             else:
-                #log.warn(f"Slide '{slide_name}' not found in annotations file, skipping.", 1, print_func)
+                #log.warning(f"Slide '{slide_name}' not found in annotations file, skipping.")
                 #num_warned += 1
                 pass
         if num_warned >= warn_threshold:
-            log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
+            log.warning(f"...{num_warned} total warnings, see project log for details")
 
         # Now, write the assocations
         num_updated_annotations = 0
@@ -686,12 +686,12 @@ class Dataset:
                             num_missing += 1
                         csv_writer.writerow(row)
         if num_updated_annotations:
-            log.complete(f"Successfully associated slides with {num_updated_annotations} annotation entries.", 1)
-            log.info(f"Slides not found for {num_missing} annotations.", 1)
+            log.info(f"Successfully associated slides with {num_updated_annotations} annotation entries.")
+            log.info(f"Slides not found for {num_missing} annotations.")
         elif num_missing:
-            log.complete(f"No annotation updates performed. Slides not found for {num_missing} annotations.", 1)
+            log.info(f"No annotation updates performed. Slides not found for {num_missing} annotations.")
         else:
-            log.complete(f"Annotations up-to-date, no changes made.", 1)
+            log.info(f"Annotations up-to-date, no changes made.")
 
         # Finally, backup the old annotation file and overwrite existing with the new data
         backup_file = f"{annotations_file}.backup"

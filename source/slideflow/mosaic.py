@@ -79,9 +79,9 @@ class Mosaic:
         self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
         # Initialize figure
-        log.empty('Initializing figure...', 1)
+        log.info('Initializing figure...')
         if resolution not in ('high', 'low'):
-            log.warn(f"Unknown resolution option '{resolution}', defaulting to low resolution", 1)
+            log.warning(f"Unknown resolution option '{resolution}', defaulting to low resolution", 1)
         if resolution == 'high':
             fig = plt.figure(figsize=(200,200))
             ax = fig.add_subplot(111, aspect='equal')
@@ -96,7 +96,7 @@ class Mosaic:
         ax.set_yticklabels([])
 
         # First, load UMAP coordinates
-        log.empty('Loading coordinates and plotting points...', 1)
+        log.info('Loading coordinates and plotting points...')
         self.points = []
 
         for i in range(len(tfrecord_map.x)):
@@ -119,7 +119,7 @@ class Mosaic:
         min_x = min(x_points) - buffer
         max_y = max(y_points) + buffer
         min_y = min(y_points) - buffer
-        log.info(f'Loaded {len(self.points)} points.', 2)
+        log.info(f'Loaded {len(self.points)} points.')
 
         tile_size = (max_x - min_x) / self.num_tiles_x
         self.num_tiles_y = int((max_y - min_y) / tile_size)
@@ -152,10 +152,10 @@ class Mosaic:
                     points_added += 1
         for g in self.GRID:
             shuffle(g['points'])
-        log.info(f'{points_added} points added to grid', 2)
+        log.info(f'{points_added} points added to grid')
 
         # Next, prepare mosaic grid by placing tile outlines
-        log.empty('Placing tile outlines...', 1)
+        log.info('Placing tile outlines...')
         max_grid_density = 1
         for g in self.GRID:
             max_grid_density = max(max_grid_density, len(g['points']))
@@ -180,12 +180,12 @@ class Mosaic:
         if mapping_method not in ('strict', 'expanded'):
             raise TypeError('Unknown mapping method; must be strict or expanded')
         else:
-            log.info(f'Mapping method: {mapping_method}', 2)
+            log.info(f'Mapping method: {mapping_method}')
 
         if tile_select not in ('nearest', 'centroid'):
             raise TypeError('Unknown tile selection method; must be nearest or centroid')
         else:
-            log.info(f'Tile selection method: {tile_select}', 2)
+            log.info(f'Tile selection method: {tile_select}')
 
         def calc_distance(tile, global_point_coords):
             if mapping_method == 'strict':
@@ -210,24 +210,24 @@ class Mosaic:
                                                     'grid_index':tile['grid_index'],
                                                     'point_index':self.points[i]['global_index']})
 
-        log.empty('Calculating tile-point distances...', 1)
+        log.info('Calculating tile-point distances...')
         tile_point_start = time.time()
         global_point_coords = np.asarray([p['coord'] for p in self.points])
         pool = DPool(8)
         dist_fn = partial(calc_distance, global_point_coords=global_point_coords)
         for i, _ in enumerate(pool.imap_unordered(dist_fn, self.GRID), 1):
-            if log.INFO_LEVEL > 0: sys.stderr.write(f'\rCompleted {i/len(self.GRID):.2%}')
+            if log.getEffectiveLevel() <= 20: sys.stderr.write(f'\rCompleted {i/len(self.GRID):.2%}')
         pool.close()
         pool.join()
         tile_point_end = time.time()
-        if log.INFO_LEVEL > 0: sys.stdout.write('\r\033[K')
-        log.info(f'Calculations complete ({tile_point_end-tile_point_start:.0f} sec)', 2)
+        if log.getEffectiveLevel() <= 20: sys.stdout.write('\r\033[K')
+        log.info(f'Calculations complete ({tile_point_end-tile_point_start:.0f} sec)')
 
         if mapping_method == 'expanded':
             tile_point_distances.sort(key=lambda d: d['distance'])
 
         # Then, pair grid tiles and points according to their distances
-        log.empty('Placing image tiles...', 1)
+        log.info('Placing image tiles...')
         num_placed = 0
         if mapping_method == 'strict':
             for tile in self.GRID:
@@ -298,8 +298,8 @@ class Mosaic:
                                       zorder=99)
                     tile['image'] = image
                     num_placed += 1
-            if log.INFO_LEVEL > 0: print('\r\033[K', end='')
-        log.info(f'Num placed: {num_placed}', 2)
+            if log.getEffectiveLevel() <= 20: print('\r\033[K', end='')
+        log.info(f'Num placed: {num_placed}')
 
         # Focus on a subset of TFRecords if desired
         if focus: self.focus(focus)
@@ -351,11 +351,11 @@ class Mosaic:
     def save(self, filename):
         '''Saves the mosaic map figure to the given filename.'''
 
-        log.empty('Exporting figure...', 1)
+        log.info('Exporting figure...')
         if not os.path.exists(os.path.dirname(filename)):
             os.makedirs(os.path.dirname(filename))
         plt.savefig(filename, bbox_inches='tight')
-        log.complete(f'Saved figure to {sfutil.green(filename)}', 1)
+        log.info(f'Saved figure to {sfutil.green(filename)}', 1)
         plt.close()
 
     def save_report(self, filename):
@@ -367,11 +367,11 @@ class Mosaic:
             writer.writerow(['slide', 'index'])
             for tfr in self.mapped_tiles:
                 writer.writerow([tfr, self.mapped_tiles[tfr]])
-        log.complete(f'Mosaic report saved to {sfutil.green(filename)}', 1)
+        log.info(f'Mosaic report saved to {sfutil.green(filename)}', 1)
 
     def display(self):
         '''Displays the mosaic map as an interactive matplotlib figure.'''
-        log.empty('Displaying figure...')
+        log.info('Displaying figure...')
         while True:
             try:
                 plt.show()

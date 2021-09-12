@@ -7,5 +7,6 @@ from slideflow.project import SlideflowProject
 #TODO: put tfrecord report in tfrecord directories
 #TODO: improved interface
 #TODO: neptune integration
+#TODO: remove print_fn remnants from old progress bar / logging
 
 __version__ = "1.11.2"

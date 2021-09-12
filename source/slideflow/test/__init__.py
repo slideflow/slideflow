@@ -143,24 +143,29 @@ class TestConfigurator:
 
 class TaskWrapper:
     '''Test wrapper to assist with logging.'''
+    VERBOSITY = logging.DEBUG
+
     def __init__(self, message):
         self.message = message
         self.failed = False
         self.skipped = False
         self.start = time.time()
-        self.spinner = Spinner(message)
+        if self.VERBOSITY >= logging.WARNING:
+            self.spinner = Spinner(message)
 
     def __enter__(self):
-        self.spinner.__enter__()
+        if self.VERBOSITY >= logging.WARNING:
+            self.spinner.__enter__()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_traceback):
         duration = time.time() - self.start
-        self.spinner.__exit__(exc_type, exc_val, exc_traceback)
+        if self.VERBOSITY >= logging.WARNING:
+            self.spinner.__exit__(exc_type, exc_val, exc_traceback)
         if self.failed:
-            self._end_msg("FAIL", sfutil.fail, f' [{duration:.0f} s]')
+            self._end_msg("FAIL", sfutil.red, f' [{duration:.0f} s]')
         elif self.skipped:
-            self._end_msg("SKIPPED", sfutil.warn, f' [{duration:.0f} s]')
+            self._end_msg("SKIPPED", sfutil.yellow, f' [{duration:.0f} s]')
         else:
             self._end_msg("DONE", sfutil.green, f' [{duration:.0f} s]')
 
@@ -189,9 +194,13 @@ class TestSuite:
         # Set logging level
         if debug:
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = "0"
+            self.verbosity = logging.DEBUG
         else:
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
             logging.getLogger("tensorflow").setLevel(logging.ERROR)
+            self.verbosity = logging.WARNING
+
+        TaskWrapper.VERBOSITY = self.verbosity
 
         # Configure testing environment
         self.config = TestConfigurator(root, download=download, tma=include_tma)
@@ -206,7 +215,7 @@ class TestSuite:
         self.SFP = sf.SlideflowProject(self.config.PROJECT['root'],
                                        interactive=False,
                                        gpu=gpu,
-                                       verbosity='default' if debug else 'error',
+                                       verbosity=logging.DEBUG if debug else logging.ERROR,
                                        default_threads=num_threads)
         self.SFP._settings = self.config.PROJECT
         self.SFP.save_project()

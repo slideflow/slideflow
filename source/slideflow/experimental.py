@@ -22,7 +22,7 @@ def extract_dual_tiles(project,
     import slideflow.slide as sfslide
     import tensorflow as tf
 
-    log.header('Extracting dual-image tiles...')
+    log.info('Extracting dual-image tiles...')
     extracting_dataset = project.get_dataset(filters=filters, tile_px=tile_px, tile_um=tile_um)
 
     def extract_tiles_from_slide(slide_path, roi_list, dataset_config, pb):
@@ -70,11 +70,11 @@ def extract_dual_tiles(project,
                 writer.write(tf_example.SerializeToString())
 
     for dataset_name in project.datasets:
-        log.empty(f'Working on dataset {sfutil.bold(dataset_name)}', 1)
+        log.info(f'Working on dataset {sfutil.bold(dataset_name)}')
         slide_list = extracting_dataset.get_slide_paths(dataset=dataset_name)
         roi_list = extracting_dataset.get_rois()
         dataset_config = extracting_dataset.datasets[dataset_name]
-        log.info(f'Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)', 2)
+        log.info(f'Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)')
         #TODO: ending_val needs to be calculated from total number of tiles
         pb = ProgressBar(ending_val=0, bar_length=5, counter_text='tiles')
         pb.auto_refresh()

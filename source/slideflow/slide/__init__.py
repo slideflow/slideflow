@@ -272,11 +272,11 @@ class OpenslideToVIPS:
 
         # If Openslide MPP is not available, try reading from metadata
         if OPS_MPP_X not in self.properties.keys():
-            log.warn(f"Unable to detect openslide Microns-Per-Pixel (MPP) property, will search EXIF data", 1)
+            log.warning(f"Unable to detect openslide Microns-Per-Pixel (MPP) property, will search EXIF data")
             try:
                 with Image.open(path) as img:
                     if TIF_EXIF_KEY_MPP in img.tag.keys():
-                        log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}", 1)
+                        log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}")
                         self.properties[OPS_MPP_X] = img.tag[TIF_EXIF_KEY_MPP][0]
             except UnidentifiedImageError:
                 log.error(f"PIL image reading error; slide {sfutil.path_to_name(path)} is corrupt.")
@@ -388,10 +388,10 @@ class JPGslideToVIPS(OpenslideToVIPS):
         # MPP data
         with Image.open(path) as img:
             if TIF_EXIF_KEY_MPP in img.tag.keys():
-                log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}", 1)
+                log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}")
                 self.properties[OPS_MPP_X] = img.tag[TIF_EXIF_KEY_MPP][0]
             else:
-                log.info(f"Setting MPP to default {DEFAULT_JPG_MPP}", 1)
+                log.info(f"Setting MPP to default {DEFAULT_JPG_MPP}")
                 self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
 
 class ROIObject:
@@ -450,7 +450,7 @@ class SlideLoader:
             else:
                 self.slide = OpenslideToVIPS(path, buffer=buffer)
         else:
-            log.error(f"Unsupported file type '{filetype}' for slide {self.name}.", 1, self.error_print)
+            log.error(f"Unsupported file type '{filetype}' for slide {self.name}.")
             self.load_error = True
             return
 
@@ -458,7 +458,7 @@ class SlideLoader:
         try:
             self.MPP = float(self.slide.properties[OPS_MPP_X])
         except KeyError:
-            log.error(f"Slide {sfutil.green(self.name)} missing MPP property ({OPS_MPP_X})", 1, self.error_print)
+            log.error(f"Slide {sfutil.green(self.name)} missing MPP property ({OPS_MPP_X})")
             self.load_error = True
             return
         self.full_shape = self.slide.dimensions
@@ -553,11 +553,11 @@ class SlideLoader:
         lead_msg = f'Extracting {sfutil.bold(self.tile_um)}um tiles'
         resize_msg = f'(resizing {sfutil.bold(self.extract_px)}px -> {sfutil.bold(self.tile_px)}px)'
         stride_msg = f'stride: {sfutil.bold(int(self.stride))}px'
-        log.label(self.shortname, f"{lead_msg} {resize_msg}; {stride_msg}", 2, self.print)
+        log.info(f"{self.shortname}: {lead_msg} {resize_msg}; {stride_msg}")
         if self.tile_px > self.extract_px:
             upscale_msg = 'Tiles will be up-scaled with bilinear interpolation'
             upscale_amount = f'({self.extract_px}px -> {self.tile_px}px)'
-            log.label(self.shortname, f"[{sfutil.fail('!WARN!')}] {upscale_msg} {upscale_amount}", 2, self.print)
+            log.info(f"{self.shortname}: [{sfutil.red('!WARN!')}] {upscale_msg} {upscale_amount}")
 
         def empty_generator():
             yield None
@@ -648,7 +648,7 @@ class SlideLoader:
         slidename_bytes = bytes(self.name, 'utf-8')
 
         if not generator:
-            log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1, self.print)
+            log.error(f"No tiles extracted from slide {sfutil.green(self.name)}")
             return
 
         sample_tiles = []
@@ -689,7 +689,7 @@ class SlideLoader:
             try:
                 os.remove(unfinished_marker)
             except:
-                log.error(f"Unable to mark slide {self.name} as tile extraction complete", 1)
+                log.error(f"Unable to mark slide {self.name} as tile extraction complete")
 
         # Unbuffer slide
         self.slide.unbuffer()
@@ -697,7 +697,7 @@ class SlideLoader:
         # Generate extraction report
         report = SlideReport(sample_tiles, self.slide.path)
 
-        log.complete(f"Finished tile extraction for slide {sfutil.green(self.shortname)}", 1, self.print)
+        log.info(f"Finished tile extraction for slide {sfutil.green(self.shortname)}")
 
         return report
 
@@ -786,26 +786,26 @@ class SlideReader(SlideLoader):
                 if rn == self.name:
                     matching_rois += [rp]
             if len(matching_rois) > 1:
-                log.warn(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}", 1, self.print)
+                log.warning(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}")
             self.load_csv_roi(matching_rois[0])
 
         # Handle missing ROIs
         if not len(self.rois) and skip_missing_roi and roi_method != 'ignore':
-            log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.error_print)
+            log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide")
             self.shape = None
             self.load_error = True
             return None
         elif not len(self.rois):
             self.estimated_num_tiles = int(len(self.coord))
-            log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
+            log.warning(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.")
 
         mpp_roi_msg = f'{self.MPP} um/px | {len(self.rois)} ROI(s)'
         size_msg = f'Size: {self.full_shape[0]} x {self.full_shape[1]}'
-        log.label(self.shortname, f"Slide info: {mpp_roi_msg} | {size_msg}", 2, self.print)
+        log.info(f"{self.shortname}: Slide info: {mpp_roi_msg} | {size_msg}")
 
         # Abort if errors were raised during ROI loading
         if self.load_error:
-            log.error(f'Skipping slide {sfutil.green(self.name)} due to loading error', 1, self.error_print)
+            log.error(f'Skipping slide {sfutil.green(self.name)} due to loading error')
             return None
 
     def _build_coord(self, randomize_origin):
@@ -817,7 +817,7 @@ class SlideReader(SlideLoader):
         if randomize_origin:
             start_x = random.randint(0, self.full_stride-1)
             start_y = random.randint(0, self.full_stride-1)
-            log.info(f"Random origin: X: {start_x}, Y: {start_y}", 2, self.print)
+            log.info(f"Random origin: X: {start_x}, Y: {start_y}")
         else:
             start_x = start_y = 0
 
@@ -834,7 +834,7 @@ class SlideReader(SlideLoader):
                 index += 1
 
         self.grid = np.zeros((len(x_range), len(y_range)))
-        log.info(f"Grid shape: {self.grid.shape}", 2, self.print)
+        log.info(f"Grid shape: {self.grid.shape}")
 
     def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=1.0,
                             whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05,
@@ -854,7 +854,7 @@ class SlideReader(SlideLoader):
         super().build_generator()
 
         if self.estimated_num_tiles == 0:
-            log.warn(f"No tiles extracted at the given micron size for slide {sfutil.green(self.name)}", 1, self.print)
+            log.warning(f"No tiles extracted at the given micron size for slide {sfutil.green(self.name)}")
             return None
 
         if num_threads == 'auto':
@@ -906,7 +906,7 @@ class SlideReader(SlideLoader):
 
             name_msg = sfutil.green(self.shortname)
             num_msg = f'({np.sum(self.tile_mask)} tiles of {len(self.coord)} possible)'
-            log.label(self.shortname, f"Finished tile extraction for {name_msg} {num_msg}", 2, self.print)
+            log.info(f"{self.shortname}: Finished tile extraction for {name_msg} {num_msg}")
 
         return generator
 
@@ -945,7 +945,7 @@ class SlideReader(SlideLoader):
                 index_y = headers.index("y_base")
             except:
                 log.error(f'Unable to read CSV ROI file {sfutil.green(path)}, please check file integrity and \
-                                ensure headers contain "ROI_name", "X_base", and "Y_base".', 1, self.error_print)
+                                ensure headers contain "ROI_name", "X_base", and "Y_base".')
                 self.load_error = True
                 return
             for row in reader:
@@ -967,8 +967,8 @@ class SlideReader(SlideLoader):
                 try:
                     self.annPolys += [sg.Polygon(annotation.scaled_area(self.ROI_SCALE))]
                 except ValueError:
-                    log.warn(f"Unable to use ROI {i} in slide {sfutil.green(self.name)}, at least 3 points required \
-                                to create a geometric shape.", 1, self.print)
+                    log.warning(f"Unable to use ROI {i} in slide {sfutil.green(self.name)}, at least 3 points required \
+                                to create a geometric shape.")
             roi_area = sum([poly.area for poly in self.annPolys])
         else:
             roi_area = 1
@@ -1011,7 +1011,7 @@ class SlideReader(SlideLoader):
                                         **kwargs)
 
         if not generator:
-            log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1, self.print)
+            log.error(f"No tiles extracted from slide {sfutil.green(self.name)}")
             return
 
         def _parse_function(record):
@@ -1023,7 +1023,7 @@ class SlideReader(SlideLoader):
             return parsed_image, loc
 
         # Generate dataset from the generator
-        log.info("Setting up tile generator", 1, self.print)
+        log.info("Setting up tile generator")
         with tf.name_scope('dataset_input'):
             output_signature={'image':tf.TensorSpec(shape=(self.tile_px,self.tile_px,3), dtype=tf.uint8),
                               'loc':tf.TensorSpec(shape=(2), dtype=tf.uint32)}
@@ -1095,7 +1095,7 @@ class TMAReader(SlideLoader):
         self.pb_id = pb_id
         num_cores, self.estimated_num_tiles = self._detect_cores(report_dir=report_dir)
         size_msg = f'Size: {self.full_shape[0]} x {self.full_shape[1]}'
-        log.label(self.shortname, f"Slide info: {self.MPP} um/px | {size_msg}", 2, self.print)
+        log.info(f"{self.shortname}: Slide info: {self.MPP} um/px | {size_msg}")
 
     def _get_sub_image(self, rect):
         '''Gets a sub-image from the slide using the specified rectangle as a guide.'''
@@ -1216,7 +1216,7 @@ class TMAReader(SlideLoader):
                 box = np.int0(box)
                 cv2.drawContours(img_annotated, [box], 0, self.RED, 2)
 
-        log.info(f"Number of detected cores: {num_filtered}", 2, self.print)
+        log.info(f"Number of detected cores: {num_filtered}")
 
         # Write annotated image to ExtractionReport
         if report_dir:

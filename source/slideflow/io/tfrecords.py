@@ -73,7 +73,7 @@ def _print_record(filename):
 
     for i, record in enumerate(dataset):
         slide, loc_x, loc_y = parser(record)
-        print(f"{sfutil.header(filename)}: Record {i}: Slide: {sfutil.green(str(slide))} Loc: {(loc_x, loc_y)}")
+        print(f"{sfutil.purple(filename)}: Record {i}: Slide: {sfutil.green(str(slide))} Loc: {(loc_x, loc_y)}")
 
 def _decode_image(img_string, img_type, size=None, standardize=False, normalizer=None, augment=False):
     tf_decoders = {
@@ -113,7 +113,7 @@ def _decode_image(img_string, img_type, size=None, standardize=False, normalizer
     return image
 
 def get_tfrecords_from_model_manifest(path_to_model):
-    log.warn("Deprecation Warning: sf.io.tfrecords.get_tfrecord_from_model_manifest() will be removed in a future version. \
+    log.warning("Deprecation Warning: sf.io.tfrecords.get_tfrecord_from_model_manifest() will be removed in a future version. \
                 Please use sf.util.get_slides_from_model_manifest()")
     return sfutil.get_slides_from_model_manifest(path_to_model)
 
@@ -121,7 +121,7 @@ def detect_tfrecord_format(tfr):
     try:
         record = next(iter(tf.data.TFRecordDataset(tfr)))
     except StopIteration:
-        log.warn(f"TFRecord {tfr} is empty.")
+        log.warning(f"TFRecord {tfr} is empty.")
         return None, None
     try:
         features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
@@ -217,7 +217,7 @@ def interleave_tfrecords(tfrecords,
         max_tiles:				Maximum number of tiles to use per slide.
         min_tiles:				Minimum number of tiles that each slide must have to be included.
     '''
-    log.info(f'Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min={min_tiles}', 1)
+    log.info(f'Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min={min_tiles}')
     with tf.device('cpu'):
         datasets = []
         datasets_categories = []
@@ -253,7 +253,7 @@ def interleave_tfrecords(tfrecords,
                 try:
                     tiles = manifest[filename]['total']
                 except KeyError:
-                    log.error(f'Manifest not finished, unable to find {sfutil.green(filename)}', 1)
+                    log.error(f'Manifest not finished, unable to find {sfutil.green(filename)}')
                     raise TFRecordsError(f'Manifest not finished, unable to find {filename}')
 
                 # Ensure TFRecord has minimum number of tiles; otherwise, skip
@@ -296,7 +296,7 @@ def interleave_tfrecords(tfrecords,
 
                 # Cap number of tiles to take from TFRecord at maximum specified
                 if max_tiles and tiles > max_tiles:
-                    log.info(f'Only taking maximum of {max_tiles} (of {tiles}) tiles from {sfutil.green(filename)}', 2)
+                    log.info(f'Only taking maximum of {max_tiles} (of {tiles}) tiles from {sfutil.green(filename)}')
                     tiles = max_tiles
 
                 if category not in categories.keys():
@@ -310,9 +310,9 @@ def interleave_tfrecords(tfrecords,
             pb.end()
 
             if num_tfrecords_empty:
-                log.info(f'Skipped {num_tfrecords_empty} empty tfrecords', 2)
+                log.info(f'Skipped {num_tfrecords_empty} empty tfrecords')
             if num_tfrecords_less_than_min:
-                log.info(f'Skipped {num_tfrecords_less_than_min} tfrecords with less than {min_tiles} tiles', 2)
+                log.info(f'Skipped {num_tfrecords_less_than_min} tfrecords with less than {min_tiles} tiles')
 
             for category in categories:
                 lowest_category_slide_count = min([categories[i]['num_slides'] for i in categories])
@@ -322,10 +322,10 @@ def interleave_tfrecords(tfrecords,
 
             # Balancing
             if not balance or balance == NO_BALANCE:
-                log.info(f'Not balancing input', 2)
+                log.info(f'Not balancing input')
                 prob_weights = [i/sum(num_tiles) for i in num_tiles]
             if balance == BALANCE_BY_PATIENT:
-                log.info(f'Balancing input across slides', 2)
+                log.info(f'Balancing input across slides')
                 prob_weights = [1.0] * len(datasets)
                 if finite:
                     # Only take as many tiles as the number of tiles in the smallest dataset
@@ -333,15 +333,15 @@ def interleave_tfrecords(tfrecords,
                     for i in range(len(datasets)):
                         num_tiles[i] = minimum_tiles
             if balance == BALANCE_BY_CATEGORY:
-                log.info(f'Balancing input across categories', 2)
+                log.info(f'Balancing input across categories')
                 prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
                 if finite:
                     # Only take as many tiles as the number of tiles in the smallest category
                     for i in range(len(datasets)):
                         num_tiles[i] = int(num_tiles[i] * categories_tile_fraction[datasets_categories[i]])
                         fraction = categories_tile_fraction[datasets_categories[i]]
-                        log.empty(f'Tile fraction (dataset {i+1}/{len(datasets)}): {fraction}, taking {num_tiles[i]}', 3)
-                    log.empty(f'Global num tiles: {global_num_tiles}', 3)
+                        log.info(f'Tile fraction (dataset {i+1}/{len(datasets)}): {fraction}, taking {num_tiles[i]}')
+                    log.info(f'Global num tiles: {global_num_tiles}')
 
             # Take the calculcated number of tiles from each dataset and calculate global number of tiles
             for i in range(len(datasets)):
@@ -353,9 +353,9 @@ def interleave_tfrecords(tfrecords,
         else:
             manifest_msg = 'No manifest detected! Unable to perform balancing or any tile-level selection operations'
             if (balance and balance != NO_BALANCE) or max_tiles or min_tiles:
-                log.error(manifest_msg, 1)
+                log.error(manifest_msg)
             else:
-                log.warn(manifest_msg, 1)
+                log.warning(manifest_msg)
             pb = sfutil.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
             for filename in tfrecords:
                 slide_name = sfutil.path_to_name(filename)
@@ -557,7 +557,7 @@ def write_tfrecords_merge(input_directory, output_directory, filename):
             image_string = open(filename, 'rb').read()
             tf_example = tfrecord_example(label, image_string)
             writer.write(tf_example.SerializeToString())
-    log.empty(f"Wrote {len(keys)} image tiles to {sfutil.green(tfrecord_path)}", 1)
+    log.info(f"Wrote {len(keys)} image tiles to {sfutil.green(tfrecord_path)}")
     return len(keys)
 
 def write_tfrecords_multi(input_directory, output_directory):
@@ -573,7 +573,7 @@ def write_tfrecords_multi(input_directory, output_directory):
                                               slide_dir)
     msg_num_tiles = sfutil.bold(total_tiles)
     msg_num_tfr = sfutil.bold(len(slide_dirs))
-    log.complete(f"Wrote {msg_num_tiles} tiles across {msg_num_tfr} tfrecords in {sfutil.green(output_directory)}", 1)
+    log.info(f"Wrote {msg_num_tiles} tiles across {msg_num_tfr} tfrecords in {sfutil.green(output_directory)}")
 
 def write_tfrecords_single(input_directory, output_directory, filename, slide):
     '''Scans a folder for image tiles, annotates using the provided slide, exports
@@ -593,7 +593,7 @@ def write_tfrecords_single(input_directory, output_directory, filename, slide):
             image_string = open(filename, 'rb').read()
             tf_example = tfrecord_example(label, image_string)
             writer.write(tf_example.SerializeToString())
-    log.empty(f"Wrote {len(keys)} image tiles to {sfutil.green(tfrecord_path)}", 1)
+    log.info(f"Wrote {len(keys)} image tiles to {sfutil.green(tfrecord_path)}")
     return len(keys)
 
 def checkpoint_to_tf_model(models_dir, model_name):
@@ -643,11 +643,11 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True, preserve
                              patient_column = 'patient',
                              site_column = 'site')
 
-            log.empty(sfutil.bold("Generating Split with Preserved Site Cross Validation"))
-            log.empty(sfutil.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_labels)))])), 2)
+            log.info(sfutil.bold("Generating Split with Preserved Site Cross Validation"))
+            log.info(sfutil.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_labels)))])))
             for k in range(n):
-                log.empty(f"K-fold-{k}\t" + "\t".join([str(len(df[(df.CV == str(k+1)) & (df.outcome_label == o)].index))
-                                                       for o in unique_labels]), 2)
+                log.info(f"K-fold-{k}\t" + "\t".join([str(len(df[(df.CV == str(k+1)) & (df.outcome_label == o)].index))
+                                                       for o in unique_labels]))
 
             return [df.loc[df.CV == str(ni+1), "patient"].tolist() for ni in range(n)]
 
@@ -659,9 +659,9 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True, preserve
             patients_split_by_outcomes_split_by_n = [list(split(sub_l, n)) for sub_l in patients_split_by_outcomes]
 
             # Print splitting as a table
-            log.empty(sfutil.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_labels)))])), 2)
+            log.info(sfutil.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_labels)))])))
             for k in range(n):
-                log.empty(f"K-fold-{k}\t" + "\t".join([str(len(clist[k])) for clist in patients_split_by_outcomes_split_by_n]), 2)
+                log.info(f"K-fold-{k}\t" + "\t".join([str(len(clist[k])) for clist in patients_split_by_outcomes_split_by_n]))
 
             # Join sublists
             return [flatten([item[ni] for item in patients_split_by_outcomes_split_by_n]) for ni in range(n)]
@@ -733,10 +733,10 @@ def get_train_and_val_tfrecords(dataset,
 
     # If validation is done per-tile, use pre-separated TFRecord files (validation separation done at time of TFRecord creation)
     if val_target == 'per-tile':
-        log.info(f"Attempting to load pre-separated TFRecords", 1)
+        log.info(f"Attempting to load pre-separated TFRecords")
         if val_strategy == 'bootstrap':
-            log.warn("Validation bootstrapping is not supported when the validation target is per-tile; \
-                        using tfrecords in 'training' and 'validation' subdirectories", 1)
+            log.warning("Validation bootstrapping is not supported when the validation target is per-tile; \
+                        using tfrecords in 'training' and 'validation' subdirectories")
         if val_strategy in ('bootstrap', 'fixed'):
             # Load tfrecords from 'validation' and 'training' subdirectories
             if ('validation' not in subdirs) or ('training' not in subdirs):
@@ -748,11 +748,11 @@ def get_train_and_val_tfrecords(dataset,
             validation_tfrecords += dataset.get_tfrecords_by_subfolder("validation")
         elif val_strategy == 'k-fold':
             if not k_fold_iter:
-                log.warn("No k-fold iteration specified; assuming iteration #1", 1)
+                log.warning("No k-fold iteration specified; assuming iteration #1")
                 k_fold_iter = 1
             if k_fold_iter > k_fold:
                 err_msg = f"K-fold iteration supplied ({k_fold_iter}) exceeds the project K-fold setting ({k_fold})"
-                log.error(err_msg, 1)
+                log.error(err_msg)
                 raise TFRecordsError(err_msg)
             for k in range(k_fold):
                 if k == k_fold_index:
@@ -763,7 +763,7 @@ def get_train_and_val_tfrecords(dataset,
             if len(subdirs):
                 err_msg = f"Validation strategy set as 'none' but the TFRecord directory has been configured \
                                 for validation (contains subfolders {', '.join(subdirs)})"
-                log.error(err_msg, 1)
+                log.error(err_msg)
                 raise TFRecordsError(err_msg)
         # Remove tfrecords not specified in slide_list
         training_tfrecords = [tfr for tfr in training_tfrecords if tfr.split('/')[-1][:-10] in slide_list]
@@ -782,7 +782,7 @@ def get_train_and_val_tfrecords(dataset,
             print_func = print if num_warned < warn_threshold else None
             # Skip slides not found in directory
             if slide not in tfrecord_dir_list_names:
-                log.warn(f"Slide {slide} not found in tfrecord directory, skipping", 1, print_func)
+                log.warning(f"Slide {slide} not found in tfrecord directory, skipping")
                 num_warned += 1
                 continue
             if patient not in patients_dict:
@@ -794,12 +794,12 @@ def get_train_and_val_tfrecords(dataset,
                 ol = patients_dict[patient]['outcome_label']
                 ok = slide_labels_dict[slide][outcome_key]
                 err_msg = f"Multiple outcome labels found for patient {patient} ({ol}, {ok})"
-                log.error(err_msg, 1)
+                log.error(err_msg)
                 raise TFRecordsError(err_msg)
             else:
                 patients_dict[patient]['slides'] += [slide]
         if num_warned >= warn_threshold:
-            log.warn(f"...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details", 1)
+            log.warning(f"...{num_warned} total warnings, see project log for details")
         patients = list(patients_dict.keys())
         sorted_patients = [p for p in patients]
         sorted_patients.sort()
@@ -809,21 +809,21 @@ def get_train_and_val_tfrecords(dataset,
         if len(subdirs):
             err_msg = f"Validation target set to 'per-patient', but the TFRecord directory has validation configured \
                             per-tile (contains subfolders {', '.join(subdirs)}"
-            log.error(err_msg, 1)
+            log.error(err_msg)
             raise TFRecordsError(err_msg)
         if val_strategy == 'none':
-            log.info(f"Validation strategy set to 'none'; selecting no tfrecords for validation.", 1)
+            log.info(f"Validation strategy set to 'none'; selecting no tfrecords for validation.")
             training_slides = np.concatenate([patients_dict[patient]['slides']
                                               for patient in patients_dict.keys()]).tolist()
             validation_slides = []
         elif val_strategy == 'bootstrap':
             num_val = int(val_fraction * len(patients))
-            log.info(f"Boostrap validation: selecting {sfutil.bold(num_val)} pts at random for validation testing", 1)
+            log.info(f"Boostrap validation: selecting {sfutil.bold(num_val)} pts at random for validation testing")
             validation_patients = patients[0:num_val]
             training_patients = patients[num_val:]
             if not len(validation_patients) or not len(training_patients):
                 err_msg = "Insufficient number of patients to generate validation dataset."
-                log.error(err_msg, 1)
+                log.error(err_msg)
                 raise TFRecordsError(err_msg)
             validation_slides = np.concatenate([patients_dict[patient]['slides']
                                                 for patient in validation_patients]).tolist()
@@ -850,13 +850,13 @@ def get_train_and_val_tfrecords(dataset,
                     if [patients_dict[p]['outcome_label'] for p in plan_patients] == \
                         [plan['patients'][p]['outcome_label']for p in plan_patients]:
 
-                        log.info(f"Using {val_strategy} validation plan detected at {sfutil.green(validation_log)}", 1)
+                        log.info(f"Using {val_strategy} validation plan detected at {sfutil.green(validation_log)}")
                         accepted_plan = plan
                         break
 
             # If no plan found, create a new one
             if not accepted_plan:
-                log.info(f"No suitable validation plan found; will log plan at {sfutil.green(validation_log)}", 1)
+                log.info(f"No suitable validation plan found; will log plan at {sfutil.green(validation_log)}")
                 new_plan = {
                     'strategy':		val_strategy,
                     'patients':		patients_dict,
@@ -868,7 +868,7 @@ def get_train_and_val_tfrecords(dataset,
                     training_patients = patients[num_val:]
                     if not len(validation_patients) or not len(training_patients):
                         err_msg = "Insufficient number of patients to generate validation dataset."
-                        log.error(err_msg, 1)
+                        log.error(err_msg)
                         raise TFRecordsError(err_msg)
                     validation_slides = np.concatenate([patients_dict[patient]['slides']
                                                         for patient in validation_patients]).tolist()
@@ -886,7 +886,7 @@ def get_train_and_val_tfrecords(dataset,
                     # Verify at least one patient is in each k_fold group
                     if not min([len(patients) for patients in k_fold_patients]):
                         err_msg = "Insufficient number of patients to generate validation dataset."
-                        log.error(err_msg, 1)
+                        log.error(err_msg)
                         raise TFRecordsError(err_msg)
                     training_patients = []
                     for k in range(k_fold):
@@ -936,11 +936,11 @@ def get_train_and_val_tfrecords(dataset,
         training_tfrecords = [tfr for tfr in tfrecord_dir_list if sfutil.path_to_name(tfr) in training_slides]
     else:
         err_msg = f"Invalid validation strategy '{val_target}' detected; must be either 'per-tile' or 'per-patient'."
-        log.error(err_msg, 1)
+        log.error(err_msg)
         raise TFRecordsError(err_msg)
     train_msg = sfutil.bold(len(training_tfrecords))
     val_msg = sfutil.bold(len(validation_tfrecords))
-    log.info(f"Using {train_msg} TFRecords for training, {val_msg} for validation", 1)
+    log.info(f"Using {train_msg} TFRecords for training, {val_msg} for validation")
     return training_tfrecords, validation_tfrecords
 
 def update_tfrecord_dir(directory,
@@ -978,14 +978,14 @@ def update_tfrecord(tfrecord_file,
 def transform_tfrecord(origin,target, assign_slide=None, hue_shift=None, resize=None, silent=False):
     '''Transforms images in a single tfrecord. Can perform hue shifting, resizing, or re-assigning slide label.'''
     print_func = None if silent else print
-    log.empty(f"Transforming tiles in tfrecord {sfutil.green(origin)}", 1, print_func)
-    log.info(f"Saving to new tfrecord at {sfutil.green(target)}", 2, print_func)
+    log.info(f"Transforming tiles in tfrecord {sfutil.green(origin)}")
+    log.info(f"Saving to new tfrecord at {sfutil.green(target)}")
     if assign_slide:
-        log.info(f"Assigning slide name {sfutil.bold(assign_slide)}", 2, print_func)
+        log.info(f"Assigning slide name {sfutil.bold(assign_slide)}")
     if hue_shift:
-        log.info(f"Shifting hue by {sfutil.bold(str(hue_shift))}", 2, print_func)
+        log.info(f"Shifting hue by {sfutil.bold(str(hue_shift))}")
     if resize:
-        log.info(f"Resizing records to ({resize}, {resize})", 2, print_func)
+        log.info(f"Resizing records to ({resize}, {resize})")
 
     dataset = tf.data.TFRecordDataset(origin)
     writer = tf.io.TFRecordWriter(target)
@@ -1037,7 +1037,7 @@ def shuffle_tfrecords_by_dir(directory):
     '''For each TFRecord in a directory, shuffles records in the TFRecord, saving the original to a .old file.'''
     records = [tfr for tfr in listdir(directory) if tfr[-10:] == ".tfrecords"]
     for record in records:
-        log.empty(f'Working on {record}')
+        log.info(f'Working on {record}')
         shuffle_tfrecord(join(directory, record))
 
 def get_tfrecord_by_index(tfrecord, index, decode=True):
@@ -1059,15 +1059,15 @@ def get_tfrecord_by_index(tfrecord, index, decode=True):
             return parser(record)
         else: continue
 
-    log.error(f"Unable to find record at index {index} in {sfutil.green(tfrecord)} ({total} total records)", 1)
+    log.error(f"Unable to find record at index {index} in {sfutil.green(tfrecord)} ({total} total records)")
     return False, False
 
 def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION, feature_label='image_raw'):
     '''Reads and saves images from a TFRecord to a destination folder.'''
     if not exists(destination):
         os.makedirs(destination)
-    log.empty(f"Extracting tiles from tfrecord {sfutil.green(tfrecord)}", 1)
-    log.info(f"Saving tiles to directory {sfutil.green(destination)}", 2)
+    log.info(f"Extracting tiles from tfrecord {sfutil.green(tfrecord)}")
+    log.info(f"Saving tiles to directory {sfutil.green(destination)}")
 
     dataset = tf.data.TFRecordDataset(tfrecord)
     _, img_type = detect_tfrecord_format(tfrecord)
@@ -1093,14 +1093,14 @@ def update_manifest_at_dir(directory, force_update=False):
     try:
         relative_tfrecord_paths = sfutil.get_relative_tfrecord_paths(directory)
     except FileNotFoundError:
-        log.warn(f"Unable to find TFRecords in the directory {directory}", 1)
+        log.warning(f"Unable to find TFRecords in the directory {directory}")
         return
 
     # Verify all tfrecords in manifest exist
     for rel_tfr in prior_manifest.keys():
         tfr = join(directory, rel_tfr)
         if not exists(tfr):
-            log.warn(f"TFRecord in manifest was not found at {tfr}; removing", 1)
+            log.warning(f"TFRecord in manifest was not found at {tfr}; removing")
             del(manifest[rel_tfr])
 
     for rel_tfr in relative_tfrecord_paths:
@@ -1115,7 +1115,7 @@ def update_manifest_at_dir(directory, force_update=False):
         except Exception as e:
             log.error(f"Unable to open TFRecords file with Tensorflow: {str(e)}")
             return
-        if log.INFO_LEVEL > 0: print(f"\r\033[K + Verifying tiles in {sfutil.green(rel_tfr)}...", end="")
+        if log.getEffectiveLevel() <= 20: print(f"\r\033[K + Verifying tiles in {sfutil.green(rel_tfr)}...", end="")
         total = 0
         try:
             #TODO: consider updating this to use sf.io.tfrecords.get_tfrecord_parser()
@@ -1130,8 +1130,8 @@ def update_manifest_at_dir(directory, force_update=False):
                 total += 1
         except tf.errors.DataLossError:
             print('\r\033[K', end="")
-            log.error(f"Corrupt or incomplete TFRecord at {tfr}", 1)
-            log.info(f"Deleting and removing corrupt TFRecord from manifest...", 1)
+            log.error(f"Corrupt or incomplete TFRecord at {tfr}")
+            log.info(f"Deleting and removing corrupt TFRecord from manifest...")
             del(raw_dataset)
             os.remove(tfr)
             del(manifest[rel_tfr])
