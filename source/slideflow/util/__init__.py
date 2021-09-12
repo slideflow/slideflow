@@ -155,6 +155,10 @@ class DummyLock:
     def __enter__(self, *args): pass
     def __exit__(self, *args): pass
 
+class DummyCounter:
+    def __init__(self, value):
+        self.value = value
+
 class Bar:
     def __init__(self, ending_value, starting_value=0, bar_length=20, label='',
                     show_eta=False, show_counter=False, counter_text='', update_interval=1,
@@ -164,9 +168,13 @@ class Bar:
             self.counter = mp_counter
             self.mp_lock = mp_lock
         else:
-            manager = mp.Manager()
-            self.counter = manager.Value('i', 0)
-            self.mp_lock = manager.Lock()
+            try:
+                manager = mp.Manager()
+                self.counter = manager.Value('i', 0)
+                self.mp_lock = manager.Lock()
+            except AssertionError:
+                self.counter = DummyCounter(0)
+                self.mp_lock = DummyLock()
 
         # Setup timing
         self.starttime = None

@@ -261,7 +261,7 @@ def interleave_tfrecords(tfrecords,
                     num_tfrecords_empty += 1
                     continue
                 elif tiles < min_tiles:
-                    num_tfrecords_less_than_min
+                    num_tfrecords_less_than_min += 1
                     continue
 
                 # Get the base TFRecord parser, based on the first tfrecord

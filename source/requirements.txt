@@ -18,3 +18,4 @@ cvxpy
 lifelines
 torch
 torch-vision
+dareblopy
