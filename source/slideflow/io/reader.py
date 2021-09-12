@@ -1,3 +1,4 @@
+import io
 import imghdr
 import numpy as np
 import random
@@ -31,8 +32,8 @@ def _get_images_by_dir(directory):
 def _decode_image(img_string, img_type, standardize=False, normalizer=None, augment=False):
     tf_decoders = {
         'png': pyspng.load,
-        'jpeg': lambda x: np.array(Image.open(x)),
-        'jpg': lambda x: np.array(Image.open(x))
+        'jpeg': lambda x: np.array(Image.open(io.BytesIO(x))),
+        'jpg': lambda x: np.array(Image.open(io.BytesIO(x)))
     }
     decoder = tf_decoders[img_type.lower()]
     image = decoder(img_string)
