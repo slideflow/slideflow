@@ -19,3 +19,4 @@ lifelines
 torch
 torch-vision
 dareblopy
+pyspng

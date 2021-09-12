@@ -199,7 +199,10 @@ def interleave_tfrecords(tfrecords,
                          standardize=True,
                          normalizer=None,
                          manifest=None,
-                         slides=None):
+                         slides=None,
+                         num_shards=None,
+                         shard_idx=None,
+                         num_parallel_reads=4):
 
     '''Generates an interleaved dataset from a collection of tfrecord files,
     sampling from tfrecord files randomly according to balancing if provided.
@@ -291,7 +294,11 @@ def interleave_tfrecords(tfrecords,
                 else:
                     category = 1
 
-                datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=4)]
+                tf_dts = tf.data.TFRecordDataset(filename, num_parallel_reads=num_parallel_reads)
+                if num_shards:
+                    tf_dts = tf_dts.shard(num_shards, index=shard_idx)
+
+                datasets += [tf_dts]
                 datasets_categories += [category]
 
                 # Cap number of tiles to take from TFRecord at maximum specified
@@ -345,7 +352,11 @@ def interleave_tfrecords(tfrecords,
 
             # Take the calculcated number of tiles from each dataset and calculate global number of tiles
             for i in range(len(datasets)):
-                datasets[i] = datasets[i].take(num_tiles[i])
+                if max_tiles or (balance in (BALANCE_BY_PATIENT, BALANCE_BY_CATEGORY)):
+                    to_take = num_tiles[i]
+                    if num_shards:
+                        to_take = to_take // num_shards
+                    datasets[i] = datasets[i].take(to_take)
                 if not finite:
                     datasets[i] = datasets[i].repeat()
             global_num_tiles = sum(num_tiles)
@@ -371,7 +382,7 @@ def interleave_tfrecords(tfrecords,
                             normalizer=normalizer,
                             augment=augment)
 
-                datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=4)]
+                datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=num_parallel_reads)]
                 pb.increase_bar_value()
             pb.end()
 
