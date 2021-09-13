@@ -73,7 +73,12 @@ def get_tfrecord_parser(tfrecord_path,
     if features_to_return is None:
         features_to_return = list(FEATURE_DESCRIPTION.keys())
 
-    def parser(slide, img, loc_x, loc_y):
+    def parser(slide, img, loc_x, loc_y):#slide, img, loc_x, loc_y):
+
+        slide = slide[0]#np.squeeze(slide)
+        img = img[0]#np.squeeze(img)
+        loc_x = loc_x[0]#np.squeeze(loc_x)
+        loc_y = loc_y[0]#np.squeeze(loc_y)
         if decode_images:
             img = _decode_image(img, img_type, standardize, normalizer, augment)
         slide = slide.decode('utf-8')
@@ -267,7 +272,7 @@ def interleave_tfrecords(tfrecords,
             idx = random.choices(range(len(datasets)), prob_weights, k=1)[0]
             sampled_dataset = datasets[idx]
             try:
-                slide, img = base_parser(*np.squeeze(next(sampled_dataset)))
+                slide, img = base_parser(*next(sampled_dataset)) #*np.squeeze(next(sampled_dataset))
                 parsed_img, label = label_parser(img, slide)
                 if include_slidenames:
                     yield parsed_img, label, slide,
@@ -280,7 +285,7 @@ def interleave_tfrecords(tfrecords,
                     del prob_weights[idx]
                     continue
                 else:
-                    print("Re-creating a db iterator")
+                    #log.debug("Re-creating a db iterator")
                     datasets[idx] = db.ParsedTFRecordsDatasetIterator(filenames=[filename], batch_size=1, features=FEATURE_DESCRIPTION, buffer_size=buffer_size)
 
     dataset = dataset_generator(False)
