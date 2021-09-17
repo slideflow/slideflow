@@ -1,7 +1,6 @@
 import io
 import imghdr
 import numpy as np
-import random
 import pyspng
 
 from os import listdir
@@ -280,19 +279,19 @@ def interleave_tfrecords(tfrecords,
 
     def interleaver(include_slidenames=True):
         while len(datasets):
-            idx = random.choices(range(len(datasets)), prob_weights, k=1)[0]
+            idx = np.random.choice(range(len(datasets)), 1, p=prob_weights)[0]
             try:
                 record = next(datasets[idx])[0]
                 yield process_record(record, include_slidenames)
             except StopIteration:
                 if finite:
-                    #log.debug(f"TFRecord iterator exhausted: {dataset_filenames[idx]}")
+                    log.debug(f"TFRecord iterator exhausted: {dataset_filenames[idx]}")
                     del datasets[idx]
                     del prob_weights[idx]
                     del dataset_filenames[idx]
                     continue
                 else:
-                    #log.debug(f"Re-creating iterator for {dataset_filenames[idx]}")
+                    log.debug(f"Re-creating iterator for {dataset_filenames[idx]}")
                     datasets[idx] = db.TFRecordsDatasetIterator(filenames=[dataset_filenames[idx]], batch_size=1, buffer_size=buffer_size)
 
     #pool = DPool(1)

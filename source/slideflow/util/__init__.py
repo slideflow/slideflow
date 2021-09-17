@@ -45,7 +45,7 @@ def purple(text):     return '\033[38;5;5m' + str(text) + '\033[0m'
 # ---------------------------------------------------------
 
 log = logging.getLogger('slideflow')
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)
 
 class LogFormatter(logging.Formatter):
     MSG_FORMAT = "%(asctime)s [%(levelname)s] - %(message)s"

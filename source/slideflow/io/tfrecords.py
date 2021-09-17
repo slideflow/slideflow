@@ -157,7 +157,7 @@ def get_tfrecord_parser(tfrecord_path,
 
         def process_feature(f):
             if f not in features and error_if_invalid:
-                raise TFRecordsError(f"Unknown feature {f}")
+                raise TFRecordsError(f"Unknown feature {f} (available features: {', '.join(features)})")
             elif f not in features:
                 return None
             elif f == 'image_raw' and decode_images:
