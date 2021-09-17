@@ -74,11 +74,10 @@ def get_tfrecord_parser(tfrecord_path,
         features_to_return = list(FEATURE_DESCRIPTION.keys())
 
     def parser(slide, img, loc_x, loc_y):#slide, img, loc_x, loc_y):
-
-        slide = slide[0]#np.squeeze(slide)
-        img = img[0]#np.squeeze(img)
-        loc_x = loc_x[0]#np.squeeze(loc_x)
-        loc_y = loc_y[0]#np.squeeze(loc_y)
+        slide = slide[0]
+        img = img[0]
+        #loc_x = loc_x[0]#np.squeeze(loc_x)
+        #loc_y = loc_y[0]#np.squeeze(loc_y)
         if decode_images:
             img = _decode_image(img, img_type, standardize, normalizer, augment)
         slide = slide.decode('utf-8')
@@ -100,7 +99,7 @@ def interleave_tfrecords(tfrecords,
                          model_type='categorical',
                          balance=None,
                          finite=False,
-                         annotations=None,
+                         annotations=None,  # Maps slide to outcome category directly
                          max_tiles=0,
                          min_tiles=0,
                          augment=True,
@@ -127,9 +126,9 @@ def interleave_tfrecords(tfrecords,
         min_tiles:				Minimum number of tiles that each slide must have to be included.
     '''
     log.info(f'Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min={min_tiles}')
-    datasets, datasets_categories, num_tiles = [], [], []
+    datasets, datasets_categories, dataset_filenames, num_tiles = [], [], [], []
     global_num_tiles, num_tfrecords_empty, num_tfrecords_less_than_min = 0, 0, 0
-    prob_weights, base_parser, detected_format = None, None, None
+    prob_weights, base_parser = None, None
     categories, categories_prob, categories_tile_fraction = {}, {}, {}
 
     if label_parser is None:
@@ -179,7 +178,7 @@ def interleave_tfrecords(tfrecords,
             # Otherwise, consider all slides from the same category (effectively skipping balancing).
             #   Appropriate for linear models.
             if model_type == 'categorical' and annotations is not None:
-                category = annotations[slide_name]['outcome_label']
+                category = annotations[slide_name]
                 category = [category] if not isinstance(category, list) else category
                 category = '-'.join(map(str, category))
             elif model_type == 'categorical' and balance == BALANCE_BY_CATEGORY:
@@ -187,7 +186,8 @@ def interleave_tfrecords(tfrecords,
             else:
                 category = 1
 
-            datasets += [db.ParsedTFRecordsDatasetIterator(filenames=[filename], batch_size=1, features=FEATURE_DESCRIPTION, buffer_size=buffer_size)]
+            datasets += [db.TFRecordsDatasetIterator(filenames=[filename], batch_size=1, buffer_size=buffer_size)]
+            dataset_filenames += [filename]
             datasets_categories += [category]
 
             # Cap number of tiles to take from TFRecord at maximum specified
@@ -259,7 +259,8 @@ def interleave_tfrecords(tfrecords,
             if slide_name not in slides:
                 continue
 
-            datasets += [db.ParsedTFRecordsDatasetIterator(filenames=[filename], batch_size=1, features=FEATURE_DESCRIPTION, buffer_size=buffer_size)]
+            datasets += [db.TFRecordsDatasetIterator(filenames=[filename], batch_size=1, buffer_size=buffer_size)]
+            dataset_filenames += [filename]
             pb.increase_bar_value()
         pb.end()
 
@@ -267,29 +268,40 @@ def interleave_tfrecords(tfrecords,
     if not len(datasets):
         raise TFRecordsError('No TFRecords found after filter criteria; please verify TFRecords exist')
 
-    def dataset_generator(include_slidenames=True):
+    db_parser = db.RecordParser(FEATURE_DESCRIPTION, True)
+    def process_record(record, include_slidenames=True):
+        db_parsed = db_parser.parse_single_example(record)
+        slide, img = base_parser(*db_parsed)
+        parsed_img, label = label_parser(img, slide)
+        if include_slidenames:
+            return parsed_img, label, slide
+        else:
+            return parsed_img, label
+
+    def interleaver(include_slidenames=True):
         while len(datasets):
             idx = random.choices(range(len(datasets)), prob_weights, k=1)[0]
-            sampled_dataset = datasets[idx]
             try:
-                slide, img = base_parser(*next(sampled_dataset)) #*np.squeeze(next(sampled_dataset))
-                parsed_img, label = label_parser(img, slide)
-                if include_slidenames:
-                    yield parsed_img, label, slide,
-                else:
-                    yield parsed_img, label
-
+                record = next(datasets[idx])[0]
+                yield process_record(record, include_slidenames)
             except StopIteration:
                 if finite:
+                    #log.debug(f"TFRecord iterator exhausted: {dataset_filenames[idx]}")
                     del datasets[idx]
                     del prob_weights[idx]
+                    del dataset_filenames[idx]
                     continue
                 else:
-                    #log.debug("Re-creating a db iterator")
-                    datasets[idx] = db.ParsedTFRecordsDatasetIterator(filenames=[filename], batch_size=1, features=FEATURE_DESCRIPTION, buffer_size=buffer_size)
+                    #log.debug(f"Re-creating iterator for {dataset_filenames[idx]}")
+                    datasets[idx] = db.TFRecordsDatasetIterator(filenames=[dataset_filenames[idx]], batch_size=1, buffer_size=buffer_size)
 
-    dataset = dataset_generator(False)
-    dataset_with_slidenames = dataset_generator(True)
+    #pool = DPool(1)
+    #pool2 = DPool(1)
+    #dataset = pool.imap(partial(process_record, include_slidenames=False), interleaver())
+    #dataset_with_slidenames = pool2.imap(partial(process_record, include_slidenames=True), interleaver())
+
+    dataset = interleaver(False)
+    dataset_with_slidenames = interleaver(True)
 
     return dataset, dataset_with_slidenames, global_num_tiles
 
