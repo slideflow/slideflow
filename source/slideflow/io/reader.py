@@ -1,6 +1,7 @@
 import io
 import imghdr
 import numpy as np
+import random
 import pyspng
 
 from os import listdir
@@ -106,7 +107,8 @@ def interleave_tfrecords(tfrecords,
                          normalizer=None,
                          manifest=None,
                          slides=None,
-                         buffer_size=8):
+                         buffer_size=8,
+                         seed=None):
 
     '''Generates an interleaved dataset from a collection of tfrecord files,
     sampling from tfrecord files randomly according to balancing if provided.
@@ -129,6 +131,9 @@ def interleave_tfrecords(tfrecords,
     global_num_tiles, num_tfrecords_empty, num_tfrecords_less_than_min = 0, 0, 0
     prob_weights, base_parser = None, None
     categories, categories_prob, categories_tile_fraction = {}, {}, {}
+    if seed is not None:
+        log.debug(f"Initializing with random seed {seed}")
+        random.seed(seed)
 
     if label_parser is None:
         label_parser = default_label_parser
@@ -279,7 +284,8 @@ def interleave_tfrecords(tfrecords,
 
     def interleaver(include_slidenames=True):
         while len(datasets):
-            idx = np.random.choice(range(len(datasets)), 1, p=prob_weights)[0]
+            #idx = np.random.choice(range(len(datasets)), 1, p=prob_weights)[0]
+            idx = random.choices(range(len(datasets)), prob_weights, k=1)[0]
             try:
                 record = next(datasets[idx])[0]
                 yield process_record(record, include_slidenames)
