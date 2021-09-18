@@ -565,7 +565,7 @@ class Dataset:
             log.error("Duplicate slide names detected in the annotation file.")
             raise DatasetError("Duplicate slide names detected in the annotation file.")
 
-        # Verify all SVS files in the annotation column are valid
+        # Verify all slides in the annotation column are valid
         num_warned = 0
         warn_threshold = 3
         for annotation in self.ANNOTATIONS:
@@ -622,7 +622,7 @@ class Dataset:
                 num_occurrences[_shortname(slide)] += 1
         slides_to_skip = [slide for slide in slide_list if num_occurrences[_shortname(slide)] > 1]
 
-        # Next, search through the slides folder for all SVS/JPG files
+        # Next, search through the slides folder for all valid slide files
         num_warned = 0
         warn_threshold = 1
         for slide_filename in slide_list:
