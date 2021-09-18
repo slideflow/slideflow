@@ -5,10 +5,6 @@ import copy
 import shutil
 import logging
 
-logging.getLogger("tensorflow").setLevel(logging.ERROR)
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
-
 from os import listdir
 from os.path import isfile, isdir, join, exists
 from random import shuffle, randint

@@ -42,6 +42,7 @@ from functools import partial
 import multiprocessing as mp
 
 #TODO: implement randomization of center of tile extraction
+#TODO: move progress bar out of build_generator, and fix dependence on counter_lock & counter.value
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -674,7 +675,7 @@ class SlideLoader:
                     save_dir = join(tiles_dir, random.choices(split_names, weights=split_fraction))
                 else:
                     save_dir = tiles_dir
-                with open(join(tiles_dir, f'{self.shortname}_{index}.{img_format}'), 'wb') as outfile:
+                with open(join(save_dir, f'{self.shortname}_{index}.{img_format}'), 'wb') as outfile:
                     outfile.write(image_string)
             if tfrecord_dir:
                 if split_fraction and split_names:
@@ -1223,7 +1224,6 @@ class TMAReader(SlideLoader):
             cv2.imwrite(join(report_dir, "tma_extraction_report.jpg"), cv2.resize(img_annotated, (1400, 1000)))
 
         return num_filtered, num_filtered
-
 
     def build_generator(self, shuffle=True, whitespace_fraction=1.0, whitespace_threshold=230,
                             grayspace_fraction=0.6, grayspace_threshold=0.05,
