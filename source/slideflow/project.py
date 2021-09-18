@@ -1987,7 +1987,7 @@ class SlideflowProject:
 
     def slide_report(self, tile_px, tile_um, filters=None, filter_blank=None, dataset=None,
                         stride_div=1, destination='auto', tma=False, enable_downsample=False,
-                        roi_method='inside', skip_missing_roi=True, normalizer=None, normalizer_source=None):
+                        roi_method='inside', skip_missing_roi=False, normalizer=None, normalizer_source=None):
         '''Creates a PDF report of slides, including images of 10 example extracted tiles.
 
         Args:
@@ -2528,7 +2528,7 @@ class SlideflowProject:
             slidename = sfutil.path_to_name(tfr)
             if slidename not in slides:
                 continue
-            slide = SlideReader(slides[slidename], tile_px, tile_um, roi_list=rois)
+            slide = SlideReader(slides[slidename], tile_px, tile_um, roi_list=rois, skip_missing_roi=True)
             if slide.load_error:
                 continue
             feature_description, _ = sf.io.tfrecords.detect_tfrecord_format(tfr)

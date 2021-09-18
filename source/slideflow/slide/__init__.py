@@ -40,9 +40,9 @@ from datetime import datetime
 import types
 from functools import partial
 import multiprocessing as mp
+from tqdm import tqdm
 
 #TODO: implement randomization of center of tile extraction
-#TODO: move progress bar out of build_generator, and fix dependence on counter_lock & counter.value
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -102,10 +102,10 @@ def slide_extraction_worker(c, args):
         point_in_roi = any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in args.annPolys])
         # If the extraction method is EXTRACT_INSIDE, skip the tile if it's not in an ROI
         if (args.roi_method == EXTRACT_INSIDE) and not point_in_roi:
-            return 'skip'
+            return
         # If the extraction method is EXTRACT_OUTSIDE, skip the tile if it's in an ROI
         elif (args.roi_method == EXTRACT_OUTSIDE) and point_in_roi:
-            return 'skip'
+            return
 
     # Read the region and resize to target size
     region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
@@ -164,6 +164,9 @@ class InvalidTileSplitException(Exception):
 
 class TileCorruptionError(Exception):
     '''Raised when image normalization fails due to tile corruption.'''
+    pass
+
+class UserError(Exception):
     pass
 
 class SlideReport:
@@ -576,9 +579,7 @@ class SlideLoader:
         return loaded_correctly
 
     def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None,
-                        whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6,
-                        grayspace_threshold=0.05, normalizer=None, normalizer_source=None, img_format='png',
-                        shuffle=True, num_threads=4,  **kwargs):
+                      img_format='png', shuffle=True, num_threads=4, **kwargs):
         '''Extractes tiles from slide and saves into a TFRecord file or as loose JPG tiles in a directory.
         Args:
             tfrecord_dir:			If provided, saves tiles into a TFRecord file (named according to slide name) here.
@@ -588,15 +589,27 @@ class SlideLoader:
                                         Should add up to 1 (except for fractions of -1).
                                         Remaining tiles are split between fractions of "-1".
             split_names:			List of names to label the split fractions
-            whitespace_fraction:	Int from 0-100 (percent). Tiles with this percent of pixels classified as
-                                        "whitespace" will be skipped during extraction.
-            whitespace_threshold:	Int from 0-255, pixel brightness above which a pixel is considered whitespace
+            img_format:				'png' or 'jpg'. Format of images for internal storage in tfrecords.
+                                        PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
+            shuffle:                Bool. If true, will shuffle tiles prior to storage. (default = True)
+            num_threads:            Number of threads to allocate to tile extraction workers.
+
+        Kwargs:
             normalizer:				Normalization strategy to use on image tiles
             normalizer_source:		Path to normalizer source image
+            whitespace_fraction:	Float 0-1. Fraction of whitespace which causes a tile to be discarded.
+                                        If 1, will not perform whitespace filtering.
+            whitespace_threshold:	Int 0-255. Threshold above which a pixel (RGB average) is considered whitespace.
+            grayspace_fraction:		Float 0-1. Fraction of grayspace which causes a tile to be discarded.
+                                        If 1, will not perform grayspace filtering.
+            grayspace_threshold:	Int 0-1. HSV (hue, saturation, value) is calculated for each pixel.
+                                        If a pixel's saturation is below this threshold, it is considered grayspace.
             full_core:				Bool. Only used for TMAReader. If true, will extract full image cores
                                         regardless of supplied tile micron size.
         '''
         assert img_format in ('png', 'jpg', 'jpeg')
+        if tfrecord_dir is None and tiles_dir is None:
+            raise UserError("Must supply either tfrecord_dir or tiles_dir as destination for tile extraction.")
 
         # Make base directories
         if tfrecord_dir:
@@ -637,15 +650,7 @@ class SlideLoader:
             elif tfrecord_dir:
                 tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
 
-        generator = self.build_generator(shuffle=shuffle,
-                                         normalizer=normalizer,
-                                         normalizer_source=normalizer_source,
-                                         whitespace_fraction=whitespace_fraction,
-                                         whitespace_threshold=whitespace_threshold,
-                                         grayspace_fraction=grayspace_fraction,
-                                         grayspace_threshold=grayspace_threshold,
-                                         num_threads=num_threads,
-                                         **kwargs)
+        generator = self.build_generator(shuffle=shuffle, num_threads=num_threads, **kwargs)
         slidename_bytes = bytes(self.name, 'utf-8')
 
         if not generator:
@@ -653,11 +658,22 @@ class SlideLoader:
             return
 
         sample_tiles = []
-        for index, tile_dict in enumerate(generator()):
-            # Convert numpy array (in RGB) to jpeg string using CV2 (which first requires BGR format)
+        generator_iterator = generator()
+
+        # If not using a multiprocessing progress bar, use tqdm
+        if self.counter_lock is None:
+            generator_iterator = tqdm(generator_iterator, total=self.estimated_num_tiles, ncols=80)
+
+        for index, tile_dict in enumerate(generator_iterator):
+
+            # Increase multiprocessing progress bar, if provided
+            if self.counter_lock is not None:
+                with self.counter_lock:
+                    self.pb_counter.value += 1
+
             tile = tile_dict['image']
             location = tile_dict['loc']
-
+            # Convert numpy array (in RGB) to jpeg string using CV2 (which first requires BGR format)
             if img_format.lower() == 'png':
                 image_string = cv2.imencode('.png', cv2.cvtColor(tile, cv2.COLOR_RGB2BGR))[1].tobytes()
             elif img_format.lower() in ('jpg', 'jpeg'):
@@ -714,7 +730,7 @@ class SlideReader(SlideLoader):
                  roi_dir=None,
                  roi_list=None,
                  roi_method=EXTRACT_INSIDE,
-                 skip_missing_roi=True,
+                 skip_missing_roi=False,
                  randomize_origin=False,
                  silent=False,
                  buffer=None,
@@ -799,6 +815,7 @@ class SlideReader(SlideLoader):
         elif not len(self.rois):
             self.estimated_num_tiles = int(len(self.coord))
             log.warning(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.")
+            self.roi_method = 'ignore'
 
         mpp_roi_msg = f'{self.MPP} um/px | {len(self.rois)} ROI(s)'
         size_msg = f'Size: {self.full_shape[0]} x {self.full_shape[1]}'
@@ -892,12 +909,6 @@ class SlideReader(SlideLoader):
 
             with mp.Pool(processes=num_threads) as p:
                 for res in p.imap(partial(slide_extraction_worker, args=worker_args), self.coord):
-                    if res == 'skip':
-                        continue
-                    #if self.pb:
-                    #	self.pb.increase_bar_value(id=self.pb_id)
-                    with self.counter_lock:
-                        self.pb_counter.value += 1
                     if res is None:
                         continue
                     else:
