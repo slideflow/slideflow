@@ -6,6 +6,7 @@ from random import shuffle
 from functools import partial
 from multiprocessing.dummy import Pool as DPool
 from slideflow.util import log, ProgressBar
+from tqdm import tqdm
 import slideflow.io as sfio
 import slideflow.util as sfutil
 
@@ -38,6 +39,7 @@ def extract_dual_tiles(project,
                                           buffer=buffer,
                                           pb_counter=pb.get_counter(),
                                           counter_lock=pb.get_lock(),
+                                          skip_missing_roi=True,
                                           print_fn=pb.print)
 
         small_tile_generator = whole_slide.build_generator(dual_extract=True,
@@ -48,7 +50,7 @@ def extract_dual_tiles(project,
         tfrecord_path = join(root_path, f'{tfrecord_name}.tfrecords')
         records = []
 
-        for image_dict in small_tile_generator():
+        for image_dict in tqdm(small_tile_generator(), total=whole_slide.estimated_num_tiles):
             label = bytes(tfrecord_name, 'utf-8')
             image_string_dict = {}
             for image_label in image_dict:

@@ -33,6 +33,7 @@ from functools import partial
 from multiprocessing.dummy import Process as DProcess
 from sklearn.neighbors import NearestNeighbors
 from PIL import Image
+from tqdm import tqdm
 
 # TODO: change slide_node_dict and slide_logits_dict to be multidimensional arrays
 #       rather than this nested dictionary garbage
@@ -1233,6 +1234,7 @@ class Heatmap:
                                  roi_method=roi_method,
                                  silent=True,
                                  buffer=buffer,
+                                 skip_missing_roi = (roi_method == 'inside'),
                                  pb=pb)
 
         pb.BARS[0].end_value = self.slide.estimated_num_tiles
@@ -1268,7 +1270,7 @@ class Heatmap:
         # Iterate through generator to calculate logits +/- final layer activations for all tiles
         logits_arr = []		# Logits (predictions)
         postconv_arr = []	# Post-convolutional layer (post-convolutional activations)
-        for batch_images in tile_dataset:
+        for batch_images in tqdm(tile_dataset, total=self.slide.estimated_num_tiles // batch_size, ncols=80):
             postconv, logits = self.model.predict(batch_images)
             logits_arr += [logits]
             postconv_arr += [postconv]

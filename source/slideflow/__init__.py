@@ -8,5 +8,6 @@ from slideflow.project import SlideflowProject
 #TODO: improved interface
 #TODO: neptune integration
 #TODO: remove print_fn remnants from old progress bar / logging
+#TODO: multiprocessing logging
 
 __version__ = "1.11.2"
