@@ -345,10 +345,14 @@ class HyperParameters:
         else:
             return self._OptDict[self.optimizer](lr=self.learning_rate)
 
-    def get_model(self, image_shape=None, input_tensor=None, weights=None):
+    def get_model(self, input_tensor=None, weights=None):
         '''Returns a Keras model of the appropriate architecture, input shape, pooling, and initial weights.'''
+        if self.model == 'NASNetLarge':
+            input_shape = (self.tile_px, self.tile_px, 3)
+        else:
+            input_shape = None
         return self._ModelDict[self.model](
-            input_shape=image_shape,
+            input_shape=input_shape,
             input_tensor=input_tensor,
             include_top=False,
             pooling=self.pooling,
