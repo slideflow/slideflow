@@ -20,7 +20,7 @@ def extract_dual_tiles(project,
                        normalizer_source=None):
 
     '''Experimental function to extract dual tiles at two different px/um sizes, saving both in the same TFRecord.'''
-    import slideflow.slide as sfslide
+    from slideflow.slide import WSI
     import tensorflow as tf
 
     log.info('Extracting dual-image tiles...')
@@ -31,16 +31,16 @@ def extract_dual_tiles(project,
         if not exists(root_path):
             os.makedirs(root_path)
 
-        whole_slide = sfslide.SlideReader(slide_path,
-                                          tile_px,
-                                          tile_um,
-                                          stride_div,
-                                          roi_list=roi_list,
-                                          buffer=buffer,
-                                          pb_counter=pb.get_counter(),
-                                          counter_lock=pb.get_lock(),
-                                          skip_missing_roi=True,
-                                          print_fn=pb.print)
+        whole_slide = WSI(slide_path,
+                          tile_px,
+                          tile_um,
+                          stride_div,
+                          roi_list=roi_list,
+                          buffer=buffer,
+                          pb_counter=pb.get_counter(),
+                          counter_lock=pb.get_lock(),
+                          skip_missing_roi=True,
+                          print_fn=pb.print)
 
         small_tile_generator = whole_slide.build_generator(dual_extract=True,
                                                            normalizer=normalizer,

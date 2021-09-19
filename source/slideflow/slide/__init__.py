@@ -4,10 +4,9 @@
 # Written by James Dolezal <jamesmdolezal@gmail.com>, March 2019
 # ==========================================================================
 
-'''This module includes tools to convolutionally section whole slide images into tiles
-using python Generators. These tessellated tiles can be exported as JPGs, with or without
-data augmentation, or used as input for a trained Tensorflow model. Model predictions
-can then be visualized as a heatmap overlay.
+'''This module includes tools to convolutionally section whole slide images into tiles.
+These tessellated tiles can be exported as PNG or JPG as raw images or stored in the binary
+format TFRecords, with or without data augmentation. 
 
 Requires: libvips (https://libvips.github.io/libvips/).'''
 
@@ -17,6 +16,7 @@ from __future__ import print_function
 
 import os
 import io
+import types
 import tensorflow as tf
 import numpy as np
 import csv
@@ -30,19 +30,18 @@ import warnings
 
 import matplotlib.colors as mcol
 import slideflow.util as sfutil
+import multiprocessing as mp
 
 from os.path import join, exists
 from PIL import Image, ImageDraw, UnidentifiedImageError
-from slideflow.util import log, StainNormalizer
+from slideflow.util import log, StainNormalizer, SUPPORTED_FORMATS
 from slideflow.io.tfrecords import tfrecord_example
-from fpdf import FPDF
 from datetime import datetime
-import types
 from functools import partial
-import multiprocessing as mp
 from tqdm import tqdm
+from fpdf import FPDF
 
-#TODO: implement randomization of center of tile extraction
+#TODO: optionally randomize center of individual tile extraction
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -86,8 +85,8 @@ def vips2numpy(vi):
                       shape=[vi.height, vi.width, vi.bands])
 
 def slide_extraction_worker(c, args):
-    '''Multiprocessing working for SlideReader. Extracts a tile at the given coordinates'''
-    slide = OpenslideToVIPS(args.path)
+    '''Multiprocessing working for WSI. Extracts a tile at the given coordinates'''
+    slide = VIPSWrapper(args.path)
     normalizer = None if not args.normalizer else StainNormalizer(method=args.normalizer, source=args.normalizer_source)
 
     index = c[2]
@@ -159,7 +158,7 @@ def slide_extraction_worker(c, args):
             return {'image': np_image}, index
 
 class InvalidTileSplitException(Exception):
-    '''Raised when invalid tile splitting parameters are given to SlideReader.'''
+    '''Raised when invalid tile splitting parameters are given to WSI.'''
     pass
 
 class TileCorruptionError(Exception):
@@ -257,7 +256,7 @@ class ExtractionReport:
     def save(self, filename):
         self.pdf.output(filename)
 
-class OpenslideToVIPS:
+class VIPSWrapper:
     '''Wrapper for VIPS to preserve openslide-like functions.'''
     def __init__(self, path, buffer=None):
         self.path = path
@@ -360,7 +359,7 @@ class OpenslideToVIPS:
         if self.buffer == 'vmtouch':
             os.system(f'vmtouch -e "{self.path}"')
 
-class JPGslideToVIPS(OpenslideToVIPS):
+class JPGslideToVIPS(VIPSWrapper):
     '''Wrapper for JPG files, which do not possess separate levels, to preserve openslide-like functions.'''
     def __init__(self, path, buffer=None):
         self.buffer = buffer
@@ -413,7 +412,7 @@ class ROIObject:
         for point in shape:
             self.add_coord(point)
 
-class SlideLoader:
+class BaseLoader:
     '''Object that loads an SVS slide and makes preparations for tile extraction.
     Should not be used directly; this class must be inherited and extended by a child class'''
     def __init__(self, path, tile_px, tile_um, stride_div, enable_downsample=False,
@@ -435,7 +434,6 @@ class SlideLoader:
         self.print = None if silent else (print if not print_fn else print_fn)
         self.error_print = print if not print_fn else print_fn
 
-
         self.name = sfutil.path_to_name(path)
         self.shortname = sfutil._shortname(self.name)
         self.tile_px = tile_px
@@ -452,7 +450,7 @@ class SlideLoader:
             if filetype.lower() == 'jpg':
                 self.slide = JPGslideToVIPS(path)
             else:
-                self.slide = OpenslideToVIPS(path, buffer=buffer)
+                self.slide = VIPSWrapper(path, buffer=buffer)
         else:
             log.error(f"Unsupported file type '{filetype}' for slide {self.name}.")
             self.load_error = True
@@ -604,7 +602,7 @@ class SlideLoader:
                                         If 1, will not perform grayspace filtering.
             grayspace_threshold:	Int 0-1. HSV (hue, saturation, value) is calculated for each pixel.
                                         If a pixel's saturation is below this threshold, it is considered grayspace.
-            full_core:				Bool. Only used for TMAReader. If true, will extract full image cores
+            full_core:				Bool. Only used for TMA. If true, will extract full image cores
                                         regardless of supplied tile micron size.
         '''
         assert img_format in ('png', 'jpg', 'jpeg')
@@ -718,8 +716,8 @@ class SlideLoader:
 
         return report
 
-class SlideReader(SlideLoader):
-    '''Extension of slideflow.slide.SlideLoader. Loads a slide and its ROI annotations and sets up a tile generator.'''
+class WSI(BaseLoader):
+    '''Extension of slideflow.slide.BaseLoader. Loads a slide and its annotated region of interest (ROI).'''
 
     def __init__(self,
                  path,
@@ -776,18 +774,15 @@ class SlideReader(SlideLoader):
         self.estimated_num_tiles = 0
         self.coord = []
         self.annPolys = []
-        #self.pb_id = pb_id
         self.ROI_SCALE = 10
+        self.rois = []
+        self.roi_method = roi_method
 
         if not self.loaded_correctly():
             return
 
         # Build coordinate grid
         self._build_coord(randomize_origin=randomize_origin)
-
-        # Establish ROIs
-        self.rois = []
-        self.roi_method = roi_method
 
         # Look in ROI directory if available
         if roi_dir and exists(join(roi_dir, self.name + ".csv")):
@@ -1060,9 +1055,8 @@ class SlideReader(SlideLoader):
 
         return prediction_grid
 
-class TMAReader(SlideLoader):
-    '''Extension of slideflow.slide.SlideLoader. Loads a TMA-formatted slide,
-            detects tissue cores, and sets up a tile generator.'''
+class TMA(BaseLoader):
+    '''Extension of slideflow.slide.BaseLoader. Loads a TMA-formatted slide and detects tissue cores.'''
 
     QUEUE_SIZE = 8
     NUM_EXTRACTION_WORKERS = 8

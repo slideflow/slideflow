@@ -167,7 +167,6 @@ class ActivationsVisualizer:
         loaded_slides = list(self.slide_node_dict.keys())
         for loaded_slide in loaded_slides:
             if loaded_slide not in self.slides:
-                print('removing slide', loaded_slide)
                 del self.slide_node_dict[loaded_slide]
                 del self.slide_logits_dict[loaded_slide]
                 del self.slide_loc_dict[loaded_slide]
@@ -1196,7 +1195,7 @@ class Heatmap:
             normalizer_source:	Path to normalizer source image
             batch_size:			Batch size when calculating predictions
         '''
-        from slideflow.slide import SlideReader
+        from slideflow.slide import WSI
 
         self.logits = None
         self.tile_px = tile_px
@@ -1209,11 +1208,6 @@ class Heatmap:
         # Load the designated model
         self.model = ModelActivationsInterface(model_path)
 
-        # Create progress bar
-        pb = ProgressBar(1, counter_text='tiles', leadtext='Generating heatmap... ', show_counter=True, show_eta=True)
-        pb.auto_refresh()
-        self.print = pb.print
-
         # Create slide buffer
         if buffer and os.path.isdir(buffer):
             buffered_slide = True
@@ -1224,23 +1218,20 @@ class Heatmap:
             buffered_slide = False
 
         # Load the slide
-        self.slide = SlideReader(slide_path,
-                                 tile_px,
-                                 tile_um,
-                                 stride_div,
-                                 enable_downsample=False,
-                                 roi_dir=roi_dir,
-                                 roi_list=roi_list,
-                                 roi_method=roi_method,
-                                 silent=True,
-                                 buffer=buffer,
-                                 skip_missing_roi = (roi_method == 'inside'),
-                                 pb=pb)
-
-        pb.BARS[0].end_value = self.slide.estimated_num_tiles
+        self.slide = WSI(slide_path,
+                         tile_px,
+                         tile_um,
+                         stride_div,
+                         enable_downsample=False,
+                         roi_dir=roi_dir,
+                         roi_list=roi_list,
+                         roi_method=roi_method,
+                         silent=True,
+                         buffer=buffer,
+                         skip_missing_roi=(roi_method == 'inside'))
 
         # Record the number of classes in the model
-        self.num_classes = self.model.num_classes#_model.layers[-1].output_shape[-1]
+        self.num_classes = self.model.num_classes #_model.layers[-1].output_shape[-1]
 
         if not self.slide.loaded_correctly():
             raise ActivationsError(f'Unable to load slide {self.slide.name} for heatmap generation')
@@ -1270,16 +1261,21 @@ class Heatmap:
         # Iterate through generator to calculate logits +/- final layer activations for all tiles
         logits_arr = []		# Logits (predictions)
         postconv_arr = []	# Post-convolutional layer (post-convolutional activations)
-        for batch_images in tqdm(tile_dataset, total=self.slide.estimated_num_tiles // batch_size, ncols=80):
+        tile_progress = tqdm(tile_dataset, 
+                             desc='Generating heatmap... ', 
+                             total=self.slide.estimated_num_tiles // batch_size, 
+                             ncols=80)
+
+        for batch_images in tile_progress:
             postconv, logits = self.model.predict(batch_images)
             logits_arr += [logits]
             postconv_arr += [postconv]
+        tile_progress.close()
         logits_arr = np.concatenate(logits_arr)
         postconv_arr = np.concatenate(postconv_arr)
         num_postconv_nodes = postconv_arr.shape[1]
-        pb.end()
 
-        print('\r\033[KFinished predictions. Waiting on thumbnail...', end='')
+        log.info('Finished predictions. Waiting on thumbnail...')
         thumb_process.join()
 
         if ((self.slide.tile_mask is not None) and

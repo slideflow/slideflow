@@ -626,7 +626,7 @@ class SlideflowProject:
             threads_per_worker:		Number of processes to allocate to each slide for tile extraction.
         '''
 
-        import slideflow.slide as sfslide
+        from slideflow.slide import WSI, TMA, ExtractionReport
 
         log.info('Extracting image tiles...')
 
@@ -702,16 +702,16 @@ class SlideflowProject:
             total_tiles = 0
             for slide_path in tqdm(slide_list, leave=False):
                 if tma:
-                    slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, silent=True)
+                    slide = TMA(slide_path, tile_px, tile_um, stride_div, silent=True)
                 else:
-                    slide = sfslide.SlideReader(slide_path,
-                                                tile_px,
-                                                tile_um,
-                                                stride_div,
-                                                roi_dir=roi_dir,
-                                                roi_method=roi_method,
-                                                skip_missing_roi=False,
-                                                silent=True)
+                    slide = WSI(slide_path,
+                                tile_px,
+                                tile_um,
+                                stride_div,
+                                roi_dir=roi_dir,
+                                roi_method=roi_method,
+                                skip_missing_roi=False,
+                                silent=True)
                 log.info(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
                 total_tiles += slide.estimated_num_tiles
                 del slide
@@ -815,7 +815,7 @@ class SlideflowProject:
                 task_finished = True
                 if pb: pb.end()
                 log.info('Generating PDF (this may take some time)...', )
-                pdf_report = sfslide.ExtractionReport(reports.values(), tile_px=tile_px, tile_um=tile_um)
+                pdf_report = ExtractionReport(reports.values(), tile_px=tile_px, tile_um=tile_um)
                 timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
                 pdf_report.save(join(self.root, f'tile_extraction_report-{timestring}.pdf'))
 
@@ -1498,7 +1498,7 @@ class SlideflowProject:
             enable_downsample:	Bool. If True and a thumbnail is not embedded in the slide file,
                                     downsampling is permitted in order to accelerate thumbnail calculation.
         '''
-        import slideflow.slide as sfslide
+        from slideflow.slide import WSI
         log.info('Generating thumbnails...')
 
         thumb_folder = join(self.root, 'thumbs')
@@ -1510,15 +1510,15 @@ class SlideflowProject:
 
         for slide_path in slide_list:
             print(f'\r\033[KWorking on {sfutil.green(sfutil.path_to_name(slide_path))}...', end='')
-            whole_slide = sfslide.SlideReader(slide_path,
-                                              tile_px=1000,
-                                              tile_um=1000,
-                                              stride_div=1,
-                                              enable_downsample=enable_downsample,
-                                              roi_list=roi_list,
-                                              skip_missing_roi=roi,
-                                              buffer=None,
-                                              silent=True)
+            whole_slide = WSI(slide_path,
+                              tile_px=1000,
+                              tile_um=1000,
+                              stride_div=1,
+                              enable_downsample=enable_downsample,
+                              roi_list=roi_list,
+                              skip_missing_roi=roi,
+                              buffer=None,
+                              silent=True)
             if roi:
                 thumb = whole_slide.annotated_thumb()
             else:
@@ -1575,7 +1575,7 @@ class SlideflowProject:
             Dictionary mapping slide names to dict of statistics (mean, median, above_0, and above_1)'''
 
         from slideflow.io.tfrecords import get_locations_from_tfrecord
-        from slideflow.slide import SlideReader
+        from slideflow.slide import WSI
 
         slide_name = sfutil.path_to_name(tfrecord)
         loc_dict = get_locations_from_tfrecord(tfrecord)
@@ -1592,7 +1592,7 @@ class SlideflowProject:
                                 number of tiles stored in the TFRecord ({len(list(loc_dict.keys()))}).')
 
         print(f'Generating TFRecord heatmap for {sfutil.green(tfrecord)}...')
-        slide = SlideReader(slide_path, tile_px, tile_um, skip_missing_roi=False)
+        slide = WSI(slide_path, tile_px, tile_um, skip_missing_roi=False)
 
         stats = {}
 
@@ -1815,7 +1815,7 @@ class SlideflowProject:
 
         Returns:
             None'''
-        import slideflow.slide as sfslide
+        from slideflow.slide import WSI, TileCorruptionError
 
         log.info('Generating WSI prediction / activation maps...')
         if not exists(export_dir):
@@ -1848,15 +1848,15 @@ class SlideflowProject:
             log.info('Verifying slides...')
             total_tiles = 0
             for slide_path in tqdm(slide_list, leave=False):
-                slide = sfslide.SlideReader(slide_path,
-                                            tile_px,
-                                            tile_um,
-                                            stride_div,
-                                            roi_dir=roi_dir,
-                                            roi_method=roi_method,
-                                            skip_missing_roi=False,
-                                            silent=True,
-                                            buffer=None)
+                slide = WSI(slide_path,
+                            tile_px,
+                            tile_um,
+                            stride_div,
+                            roi_dir=roi_dir,
+                            roi_method=roi_method,
+                            skip_missing_roi=False,
+                            silent=True,
+                            buffer=None)
                 log.info(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
                 total_tiles += slide.estimated_num_tiles
                 del slide
@@ -1879,19 +1879,19 @@ class SlideflowProject:
             def predict_wsi_from_slide(slide_path, downsample):
                 print_func = print if not pb else pb.print
                 log.info(f'Working on slide {sfutil.path_to_name(slide_path)}')
-                whole_slide = sfslide.SlideReader(slide_path,
-                                                  tile_px,
-                                                  tile_um,
-                                                  stride_div,
-                                                  enable_downsample=downsample,
-                                                  roi_dir=roi_dir,
-                                                  roi_method=roi_method,
-                                                  randomize_origin=randomize_origin,
-                                                  skip_missing_roi=skip_missing_roi,
-                                                  buffer=buffer,
-                                                  pb_counter=pb_counter,
-                                                  counter_lock=pb_lock,
-                                                  print_fn=print_fn)
+                whole_slide = WSI(slide_path,
+                                  tile_px,
+                                  tile_um,
+                                  stride_div,
+                                  enable_downsample=downsample,
+                                  roi_dir=roi_dir,
+                                  roi_method=roi_method,
+                                  randomize_origin=randomize_origin,
+                                  skip_missing_roi=skip_missing_roi,
+                                  buffer=buffer,
+                                  pb_counter=pb_counter,
+                                  counter_lock=pb_lock,
+                                  print_fn=print_fn)
 
                 if not whole_slide.loaded_correctly():
                     return
@@ -1908,7 +1908,7 @@ class SlideflowProject:
                     with open (join(export_dir, whole_slide.name+'.pkl'), 'wb') as pkl_file:
                         pickle.dump(wsi_grid, pkl_file)
 
-                except sfslide.TileCorruptionError:
+                except TileCorruptionError:
                     if downsample:
                         log.warn(f'Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; will try \
                                     re-extraction with downsampling disabled')
@@ -2008,7 +2008,7 @@ class SlideflowProject:
             normalizer:				Normalization strategy to use on image tiles
             normalizer_source:		Path to normalizer source image
         '''
-        import slideflow.slide as sfslide
+        from slideflow.slide import TMA, WSI, ExtractionReport
 
         if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
         else:		datasets = self.datasets
@@ -2029,22 +2029,22 @@ class SlideflowProject:
                 print(f'\r\033[KGenerating report for slide {sfutil.green(sfutil.path_to_name(slide_path))}...', end='')
 
                 if tma:
-                    whole_slide = sfslide.TMAReader(slide_path,
-                                                    tile_px,
-                                                    tile_um,
-                                                    stride_div,
-                                                    enable_downsample=enable_downsample,
-                                                    silent=True)
+                    whole_slide = TMA(slide_path,
+                                      tile_px,
+                                      tile_um,
+                                      stride_div,
+                                      enable_downsample=enable_downsample,
+                                      silent=True)
                 else:
-                    whole_slide = sfslide.SlideReader(slide_path,
-                                                      tile_px,
-                                                      tile_um,
-                                                      stride_div,
-                                                      enable_downsample=enable_downsample,
-                                                      roi_dir=roi_dir,
-                                                      roi_method=roi_method,
-                                                      silent=True,
-                                                      skip_missing_roi=skip_missing_roi)
+                    whole_slide = WSI(slide_path,
+                                      tile_px,
+                                      tile_um,
+                                      stride_div,
+                                      enable_downsample=enable_downsample,
+                                      roi_dir=roi_dir,
+                                      roi_method=roi_method,
+                                      silent=True,
+                                      skip_missing_roi=skip_missing_roi)
 
                 if not whole_slide.loaded_correctly():
                     return
@@ -2057,7 +2057,7 @@ class SlideflowProject:
                 reports += [report]
         print('\r\033[K', end='')
         log.info('Generating PDF (this may take some time)...', )
-        pdf_report = sfslide.ExtractionReport(reports, tile_px=tile_px, tile_um=tile_um)
+        pdf_report = ExtractionReport(reports, tile_px=tile_px, tile_um=tile_um)
         timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
         filename = destination if destination != 'auto' else join(self.root, f'tile_extraction_report-{timestring}.pdf')
         pdf_report.save(filename)
@@ -2514,7 +2514,7 @@ class SlideflowProject:
                     self.generate_tfrecord_heatmap(tfr, attention_dict, heatmaps_dir, tile_px=tile_px, tile_um=tile_um)
 
     def split_tfrecords_by_roi(self, tile_px, tile_um, destination, filters=None, filter_blank=None):
-        from slideflow.slide import SlideReader
+        from slideflow.slide import WSI
         import slideflow.io.tfrecords
         import tensorflow as tf
 
@@ -2528,7 +2528,7 @@ class SlideflowProject:
             slidename = sfutil.path_to_name(tfr)
             if slidename not in slides:
                 continue
-            slide = SlideReader(slides[slidename], tile_px, tile_um, roi_list=rois, skip_missing_roi=True)
+            slide = WSI(slides[slidename], tile_px, tile_um, roi_list=rois, skip_missing_roi=True)
             if slide.load_error:
                 continue
             feature_description, _ = sf.io.tfrecords.detect_tfrecord_format(tfr)

@@ -65,13 +65,13 @@ def tile_extractor(slide_path, roi_dir, roi_method, skip_missing_roi, randomize_
                     split_names, report_dir, tfrecord_dir, tiles_dir, save_tiles, save_tfrecord,
                     buffer, threads_per_worker, pb_counter, counter_lock):
 
-    from slideflow.slide import TMAReader, SlideReader, TileCorruptionError
+    from slideflow.slide import TMA, WSI, TileCorruptionError
     log.handlers[0].flush_line = True
     try:
         log.info(f'Extracting tiles for slide {sfutil.path_to_name(slide_path)}')
 
         if tma:
-            whole_slide = TMAReader(slide_path,
+            whole_slide = TMA(slide_path,
                                     tile_px,
                                     tile_um,
                                     stride_div,
@@ -79,7 +79,7 @@ def tile_extractor(slide_path, roi_dir, roi_method, skip_missing_roi, randomize_
                                     report_dir=report_dir,
                                     buffer=buffer)
         else:
-            whole_slide = SlideReader(slide_path,
+            whole_slide = WSI(slide_path,
                                     tile_px,
                                     tile_um,
                                     stride_div,
