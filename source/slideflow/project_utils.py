@@ -424,7 +424,7 @@ def evaluator(project, outcome_label_headers, model, results_dict, input_header=
 
 def heatmap_generator(project, slide, model_path, save_folder, roi_list, show_roi, roi_method,
                         resolution, interpolation, logit_cmap=None, vmin=0, vcenter=0.5, vmax=1,
-                        buffer=True, normalizer=None, normalizer_source=None, batch_size=64, num_threads='auto'):
+                        buffer=True, normalizer=None, normalizer_source=None, batch_size=64, num_threads=4):
 
     '''Internal function to execute heatmap generator process.'''
     from slideflow.activations import Heatmap

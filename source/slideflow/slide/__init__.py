@@ -870,9 +870,6 @@ class WSI(BaseLoader):
             log.warning(f"No tiles extracted at the given micron size for slide {sfutil.green(self.name)}")
             return None
 
-        if num_threads == 'auto':
-            num_threads = None
-
         # Shuffle coordinates to randomize extraction order
         if shuffle:
             random.shuffle(self.coord)
@@ -900,6 +897,7 @@ class WSI(BaseLoader):
         worker_args = types.SimpleNamespace(**worker_args)
 
         def generator():
+            log.debug(f"Building tile extraction generator with {num_threads} thread workers")
             self.tile_mask = np.asarray([False for i in range(len(self.coord))], dtype=np.bool)
 
             with mp.Pool(processes=num_threads) as p:

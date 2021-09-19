@@ -1028,7 +1028,7 @@ class SlideflowProject:
                           batch_size=64,
                           buffer=True,
                           isolated_process=True,
-                          num_threads='auto'):
+                          num_threads=8):
 
         '''Creates predictive heatmap overlays on a set of slides.
 

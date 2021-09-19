@@ -1174,7 +1174,7 @@ class Heatmap:
                  normalizer=None,
                  normalizer_source=None,
                  batch_size=16,
-                 num_threads=1):
+                 num_threads=8):
 
         '''Convolutes across a whole slide, calculating logits and saving predictions internally for later use.
 
