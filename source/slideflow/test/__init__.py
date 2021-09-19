@@ -424,7 +424,10 @@ class TestSuite:
                 sfdataset = self.SFP.get_dataset()
                 slide_paths = sfdataset.get_slide_paths(dataset='TEST')
                 patient_name = sfutil.path_to_name(slide_paths[0])
-            self.SFP.generate_heatmaps(self.config.SAVED_MODEL, filters={sfutil.TCGA.patient: [patient_name]}, **heatmap_kwargs)
+            self.SFP.generate_heatmaps(self.config.SAVED_MODEL, 
+                                       filters={sfutil.TCGA.patient: [patient_name]}, 
+                                       roi_method='ignore',
+                                       **heatmap_kwargs)
 
     def test_mosaic(self, **mosaic_kwargs):
         with TaskWrapper("Testing mosaic generation...") as test:
