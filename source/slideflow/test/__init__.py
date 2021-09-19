@@ -117,7 +117,7 @@ class TestConfigurator:
                                        message=f"Downloading {sfutil.green(slide)} from TCGA...")
 
         self.annotations = random_annotations(slides_path)
-        self.SAVED_MODEL = join(self.project_settings['models_dir'], 'category1-performance-kfold1', 'trained_model_epoch1')
+        self.SAVED_MODEL = join(path, 'project', 'models', 'category1-performance-kfold1', 'trained_model_epoch1')
         self.REFERENCE_MODEL = None
 
 class TaskWrapper:
