@@ -45,7 +45,7 @@ class SlideflowProject:
 
         Args:
             project_folder (str):                 Path to project directory.
-            gpu (int, optional):                  Manually assign GPU. Defaults to None.
+            gpu (str, optional):                  Manually assign GPU. Comma separated int. Defaults to None.
             gpu_pool (int, optional):             List of ints indicating available GPUs. Defaults to None.
             reverse_select_gpu (bool, optional):  Select from gpu_pool in reverse order. Defaults to True.
             interactive (bool, optional):         Prompt user for settings if project not initialized. Defaults to True.

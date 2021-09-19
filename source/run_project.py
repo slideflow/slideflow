@@ -9,7 +9,7 @@ if __name__=='__main__':
 
     parser = argparse.ArgumentParser(description = "Helper to guide through the Slideflow pipeline")
     parser.add_argument('-p', '--project', required=True, help='Path to project directory.')
-    parser.add_argument('-g', '--gpu', type=int, help='Manually specify GPU to use.')
+    parser.add_argument('-g', '--gpu', type=str, help='Manually specify GPU to use.')
     parser.add_argument('-gp', '--gpu_pool', type=int, help='Number of available GPUs in pool, from which to autoselect GPU.')
     parser.add_argument('-t', '--threads', type=int, default=4, help='Number of threads to use during tile extraction.')
     parser.add_argument('--nfs', action="store_true", help="Sets environmental variable HDF5_USE_FILE_LOCKING='FALSE' as a fix to problems with NFS file systems.")
