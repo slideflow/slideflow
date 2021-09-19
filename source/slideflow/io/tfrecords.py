@@ -109,8 +109,8 @@ def _decode_image(img_string, img_type, size=None, standardize=False, normalizer
     return image
 
 def get_tfrecords_from_model_manifest(path_to_model):
-    log.warning("Deprecation Warning: sf.io.tfrecords.get_tfrecord_from_model_manifest() will be removed in a future version. \
-                Please use sf.util.get_slides_from_model_manifest()")
+    log.warning("Deprecation Warning: sf.io.tfrecords.get_tfrecord_from_model_manifest() will be removed " + \
+                "in a future version. Please use sf.util.get_slides_from_model_manifest()")
     return sfutil.get_slides_from_model_manifest(path_to_model)
 
 def detect_tfrecord_format(tfr):
@@ -742,8 +742,8 @@ def get_train_and_val_tfrecords(dataset,
     if val_target == 'per-tile':
         log.info(f"Attempting to load pre-separated TFRecords")
         if val_strategy == 'bootstrap':
-            log.warning("Validation bootstrapping is not supported when the validation target is per-tile; \
-                        using tfrecords in 'training' and 'validation' subdirectories")
+            log.warning("Validation bootstrapping is not supported when the validation target is per-tile; " + \
+                        "using tfrecords in 'training' and 'validation' subdirectories")
         if val_strategy in ('bootstrap', 'fixed'):
             # Load tfrecords from 'validation' and 'training' subdirectories
             if ('validation' not in subdirs) or ('training' not in subdirs):
@@ -768,8 +768,8 @@ def get_train_and_val_tfrecords(dataset,
                     training_tfrecords += dataset.get_tfrecords_by_subfolder(f'kfold-{k}')
         elif val_strategy == 'none':
             if len(subdirs):
-                err_msg = f"Validation strategy set as 'none' but the TFRecord directory has been configured \
-                                for validation (contains subfolders {', '.join(subdirs)})"
+                err_msg = "Validation strategy set as 'none' but the TFRecord directory has been configured " + \
+                                f"for validation (contains subfolders {', '.join(subdirs)})"
                 log.error(err_msg)
                 raise TFRecordsError(err_msg)
         # Remove tfrecords not specified in slide_list
@@ -814,8 +814,8 @@ def get_train_and_val_tfrecords(dataset,
 
         # Create and log a validation subset
         if len(subdirs):
-            err_msg = f"Validation target set to 'per-patient', but the TFRecord directory has validation configured \
-                            per-tile (contains subfolders {', '.join(subdirs)}"
+            err_msg = "Validation target set to 'per-patient', but TFRecord directory has validation configured " + \
+                            f"per-tile (contains subfolders {', '.join(subdirs)}"
             log.error(err_msg)
             raise TFRecordsError(err_msg)
         if val_strategy == 'none':

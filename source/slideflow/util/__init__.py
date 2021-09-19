@@ -481,8 +481,8 @@ def get_slides_from_model_manifest(model_path, dataset=None):
     if exists(join(model_path, 'slide_manifest.log')):
         manifest = join(model_path, 'slide_manifest.log')
     elif exists(join(dirname(model_path), 'slide_manifest.log')):
-        log.warning("Slide manifest file not found in model directory; loading from parent directory. \
-                    Please move slide_manifest.log into model folder.")
+        log.warning("Slide manifest file not found in model directory; loading from parent directory. " + \
+                    "Please move slide_manifest.log into model folder.")
         manifest = join(dirname(model_path), 'slide_manifest.log')
     else:
         log.error("Slide manifest file not found.")
@@ -503,8 +503,8 @@ def get_model_hyperparameters(model_path):
     if exists(join(model_path, 'hyperparameters.json')):
         return load_json(join(model_path, 'hyperparameters.json'))
     elif exists(join(dirname(model_path), 'hyperparameters.json')):
-        log.warning("Hyperparameters file not found in model directory; loading from parent directory. \
-                    Please move hyperparameters.json into model folder.")
+        log.warning("Hyperparameters file not found in model directory; loading from parent directory. " + \
+                    "Please move hyperparameters.json into model folder.")
         return load_json(join(dirname(model_path), 'hyperparameters.json'))
     else:
         log.warning("Hyperparameters file not found.")

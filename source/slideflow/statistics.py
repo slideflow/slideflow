@@ -678,8 +678,8 @@ def gen_umap(array, n_components=2, n_neighbors=20, min_dist=0.01, metric='cosin
                            metric=metric,
                            low_memory=low_memory).fit_transform(array)
     except ValueError:
-        raise StatisticsError("Error performing UMAP. Please make sure you are supplying a non-empty TFRecord array \
-                                and that the TFRecords are not empty.")
+        raise StatisticsError("Error performing UMAP. Please make sure you are supplying a non-empty TFRecord array " + \
+                                "and that the TFRecords are not empty.")
 
     return normalize_layout(layout)
 
@@ -958,8 +958,8 @@ def _categorical_metrics(args, outcome_name, starttime=None):
     start = starttime
     num_observed_outcome_categories = np.max(args.y_true)+1
     if num_observed_outcome_categories != args.y_pred.shape[1]:
-        log.warning(f"Model predictions have different number of outcome categories ({args.y_pred.shape[1]}) \
-                    than provided annotations ({num_observed_outcome_categories})!")
+        log.warning(f"Model predictions have different number of outcome categories ({args.y_pred.shape[1]}) " + \
+                    f"than provided annotations ({num_observed_outcome_categories})!")
 
     num_cat = max(num_observed_outcome_categories, args.y_pred.shape[1])
 
@@ -1154,8 +1154,8 @@ def metrics_from_predictions(y_true,
         log.warning("Manifest not provided, unable to filter tfrecords by min_tiles_per_slide")
     unique_slides = [us for us in unique_slides if us not in slides_to_filter]
     if verbose:
-        log.info(f"Filtered out {num_total_slides - len(unique_slides)} of {num_total_slides} slides \
-                    in evaluation set (minimum tiles per slide: {min_tiles_per_slide})")
+        log.info(f"Filtered out {num_total_slides - len(unique_slides)} of {num_total_slides} slides " + \
+                    f"in evaluation set (minimum tiles per slide: {min_tiles_per_slide})")
 
     # Set up annotations
     y_true_slide = {s: annotations[s]['outcome_label'] for s in annotations}
@@ -1211,8 +1211,8 @@ def metrics_from_predictions(y_true,
         if not outcome_names:
             outcome_names = {f"Outcome {i}" for i in range(num_outcomes_by_y_true)}
         elif len(outcome_names) != num_outcomes_by_y_true:
-            raise StatisticsError(f"Number of outcome names {len(outcome_names)} does not \
-                                        match y_true {num_outcomes_by_y_true}")
+            raise StatisticsError(f"Number of outcome names {len(outcome_names)} does not " + \
+                                        f"match y_true {num_outcomes_by_y_true}")
 
         for oi, outcome in enumerate(outcome_names):
             if len(outcome_names) > 1:

@@ -24,8 +24,8 @@ def split_tiles(folder, fraction, names):
 
     # Initial error checking
     if len(fraction) != len(names):
-        err_msg = f'When splitting tiles, length of "fraction" ({len(fraction)}) should equal \
-                        length of "names" ({len(names)})'
+        err_msg = f'When splitting tiles, length of "fraction" ({len(fraction)}) should equal ' + \
+                        f'length of "names" ({len(names)})'
         log.error(err_msg)
         raise DatasetError(err_msg)
     if sum([i for i in fraction if i != -1]) > 1:
@@ -63,8 +63,8 @@ def split_tiles(folder, fraction, names):
 
         # Error checking
         if sum(num_to_move) > num_files:
-            err_msg = f"Error with separating tiles; tried to move {sum(num_to_move)} tiles into \
-                        {len(fraction)} subfolders, only {num_files} tiles available"
+            err_msg = f"Error with separating tiles; tried to move {sum(num_to_move)} tiles into " + \
+                        f"{len(fraction)} subfolders, only {num_files} tiles available"
             log.error(err_msg)
             raise DatasetError(err_msg)
         if sum(num_to_move) < num_files:
@@ -328,12 +328,12 @@ class Dataset:
             # Check if given subfolder contains split data (tiles split into multiple TFRecords, likely for validation testing)
             # If true, can merge inputs and to use all data, likely for evaluation
             if len(subdirs) and merge_subdirs:
-                log.info(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} contains data split into \
-                            sub-directories ({formatted_subdirs}); will use all")
+                log.info(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} contains data split into " + \
+                            f"sub-directories ({formatted_subdirs}); will use all")
                 folders_to_search += [join(tfrecord_path, subdir) for subdir in subdirs]
             elif len(subdirs) and ask_to_merge_subdirs:
-                if sfutil.yes_no_input(f"Warning: TFRecord directory {sfutil.green(tfrecord_path)} contains data split \
-                                            into sub-directories ({formatted_subdirs}); merge? [y/N] ", default='no'):
+                if sfutil.yes_no_input(f"Warning: directory {sfutil.green(tfrecord_path)} contains data split " + \
+                                            "into sub-directories ({formatted_subdirs}); merge? [y/N] ", default='no'):
                     folders_to_search += [join(tfrecord_path, subdir) for subdir in subdirs]
                 else:
                     raise NotImplementedError("Handling not implemented.")
@@ -362,8 +362,8 @@ class Dataset:
             base_dir = join(self.datasets[d]['tfrecords'], self.datasets[d]['label'])
             tfrecord_path = join(base_dir, subfolder)
             if not exists(tfrecord_path):
-                err_msg = f"Unable to find subfolder {sfutil.bold(subfolder)} in dataset {sfutil.bold(d)}, \
-                            tfrecord directory: {sfutil.green(base_dir)}"
+                err_msg = f"Unable to find subfolder {sfutil.bold(subfolder)} in dataset {sfutil.bold(d)}, " + \
+                            f"tfrecord directory: {sfutil.green(base_dir)}"
                 log.error(err_msg)
                 raise DatasetError(err_msg)
             folders_to_search += [tfrecord_path]

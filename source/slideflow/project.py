@@ -1330,8 +1330,8 @@ class SlideflowProject:
                 use_float = True
             elif use_float:
                 # Displaying linear predictions needs to be implemented here
-                raise TypeError("If showing predictions & use_float=True, set 'show_prediction' \
-                                    to category to be predicted.")
+                raise TypeError("If showing predictions & use_float=True, set 'show_prediction' " + \
+                                    "to category to be predicted.")
             # Otherwise, show_prediction is assumed to be just "True", in which case show categorical predictions
             else:
                 try:
@@ -1588,8 +1588,8 @@ class SlideflowProject:
             raise Exception(f'Unable to locate slide {slide_name}')
 
         if tile_dict.keys() != loc_dict.keys():
-            raise Exception(f'Length of provided tile_dict ({len(list(tile_dict.keys()))}) does not match \
-                                number of tiles stored in the TFRecord ({len(list(loc_dict.keys()))}).')
+            raise Exception(f'Length of provided tile_dict ({len(list(tile_dict.keys()))}) does not match ' + \
+                                f'number of tiles stored in the TFRecord ({len(list(loc_dict.keys()))}).')
 
         print(f'Generating TFRecord heatmap for {sfutil.green(tfrecord)}...')
         slide = WSI(slide_path, tile_px, tile_um, skip_missing_roi=False)
@@ -1910,8 +1910,8 @@ class SlideflowProject:
 
                 except TileCorruptionError:
                     if downsample:
-                        log.warn(f'Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; will try \
-                                    re-extraction with downsampling disabled')
+                        log.warn(f'Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; will try ' + \
+                                    're-extraction with downsampling disabled')
                         predict_wsi_from_slide(slide_path, downsample=False)
                     else:
                         formatted_slide = sfutil.green(sfutil.path_to_name(slide_path))

@@ -625,8 +625,8 @@ class BaseLoader:
             if split_fraction and split_names:
                 # Tile splitting error checking
                 if len(split_fraction) != len(split_names):
-                    raise InvalidTileSplitException(f'When splitting tiles, length of "fraction" ({len(split_fraction)}) \
-                                                        should equal length of "names" ({len(split_names)})')
+                    raise InvalidTileSplitException(f'When splitting tiles, "fraction" length ({len(split_fraction)})' + \
+                                                        f' should equal length of "names" ({len(split_names)})')
                 if sum([i for i in split_fraction if i != -1]) > 1:
                     raise InvalidTileSplitException("Unable to split tiles; sum of split_fraction is greater than 1")
                 # Calculate dynamic splitting
@@ -951,8 +951,8 @@ class WSI(BaseLoader):
                 index_x = headers.index("x_base")
                 index_y = headers.index("y_base")
             except:
-                log.error(f'Unable to read CSV ROI file {sfutil.green(path)}, please check file integrity and \
-                                ensure headers contain "ROI_name", "X_base", and "Y_base".')
+                log.error(f'Unable to read CSV ROI file {sfutil.green(path)}, please check file integrity and ' + \
+                                'ensure headers contain "ROI_name", "X_base", and "Y_base".')
                 self.load_error = True
                 return
             for row in reader:
@@ -974,8 +974,8 @@ class WSI(BaseLoader):
                 try:
                     self.annPolys += [sg.Polygon(annotation.scaled_area(self.ROI_SCALE))]
                 except ValueError:
-                    log.warning(f"Unable to use ROI {i} in slide {sfutil.green(self.name)}, at least 3 points required \
-                                to create a geometric shape.")
+                    log.warning(f"Unable to use ROI {i} in slide {sfutil.green(self.name)}, at least 3 points required " + \
+                                "to create a geometric shape.")
             roi_area = sum([poly.area for poly in self.annPolys])
         else:
             roi_area = 1
