@@ -75,13 +75,13 @@ class Mosaic:
         self.tfrecords_paths = tfrecord_map.tfrecords
 
         # Setup normalization
-        if normalizer: log.info(f'Using realtime {normalizer} normalization', 1)
+        if normalizer: log.info(f'Using realtime {normalizer} normalization')
         self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
         # Initialize figure
         log.info('Initializing figure...')
         if resolution not in ('high', 'low'):
-            log.warning(f"Unknown resolution option '{resolution}', defaulting to low resolution", 1)
+            log.warning(f"Unknown resolution option '{resolution}', defaulting to low resolution")
         if resolution == 'high':
             fig = plt.figure(figsize=(200,200))
             ax = fig.add_subplot(111, aspect='equal')
@@ -236,7 +236,7 @@ class Mosaic:
                 point = self.points[closest_point]
 
                 if not point['tfrecord']:
-                    log.error(f"TFRecord {point['slide']} not found in tfrecord_map; verify that the TFRecord exists.", 1)
+                    log.error(f"TFRecord {point['slide']} not found in tfrecord_map; verify that the TFRecord exists.")
                     continue
                 _, tile_image = sfio.tfrecords.get_tfrecord_by_index(point['tfrecord'],
                                                                      point['tfrecord_index'],
@@ -314,7 +314,7 @@ class Mosaic:
         for tfr in self.tfrecords_paths:
             if sfutil.path_to_name(tfr) == slide:
                 return tfr
-        log.error(f'Unable to find TFRecord path for slide {sfutil.green(slide)}', 1)
+        log.error(f'Unable to find TFRecord path for slide {sfutil.green(slide)}')
 
     def _decode_image_string(self, string):
         '''Internal method to convert a JPEG string (as stored in TFRecords) to an RGB array.'''
@@ -355,7 +355,7 @@ class Mosaic:
         if not os.path.exists(os.path.dirname(filename)):
             os.makedirs(os.path.dirname(filename))
         plt.savefig(filename, bbox_inches='tight')
-        log.info(f'Saved figure to {sfutil.green(filename)}', 1)
+        log.info(f'Saved figure to {sfutil.green(filename)}')
         plt.close()
 
     def save_report(self, filename):
@@ -367,7 +367,7 @@ class Mosaic:
             writer.writerow(['slide', 'index'])
             for tfr in self.mapped_tiles:
                 writer.writerow([tfr, self.mapped_tiles[tfr]])
-        log.info(f'Mosaic report saved to {sfutil.green(filename)}', 1)
+        log.info(f'Mosaic report saved to {sfutil.green(filename)}')
 
     def display(self):
         '''Displays the mosaic map as an interactive matplotlib figure.'''

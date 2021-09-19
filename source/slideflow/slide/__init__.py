@@ -101,10 +101,10 @@ def slide_extraction_worker(c, args):
         point_in_roi = any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in args.annPolys])
         # If the extraction method is EXTRACT_INSIDE, skip the tile if it's not in an ROI
         if (args.roi_method == EXTRACT_INSIDE) and not point_in_roi:
-            return
+            return 'skip'
         # If the extraction method is EXTRACT_OUTSIDE, skip the tile if it's in an ROI
         elif (args.roi_method == EXTRACT_OUTSIDE) and point_in_roi:
-            return
+            return 'skip'
 
     # Read the region and resize to target size
     region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
@@ -851,7 +851,8 @@ class WSI(BaseLoader):
 
     def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=1.0,
                             whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05,
-                            normalizer=None, normalizer_source=None, include_loc=True, num_threads=4, **kwargs):
+                            normalizer=None, normalizer_source=None, include_loc=True, num_threads=4, 
+                            show_progress=False, **kwargs):
 
         '''Builds generator to supervise extraction of tiles across the slide.
 
@@ -901,13 +902,22 @@ class WSI(BaseLoader):
             self.tile_mask = np.asarray([False for i in range(len(self.coord))], dtype=np.bool)
 
             with mp.Pool(processes=num_threads) as p:
-                for res in p.imap(partial(slide_extraction_worker, args=worker_args), self.coord):
+                iterator = p.imap(partial(slide_extraction_worker, args=worker_args), self.coord)
+                if show_progress:
+                    iterator = tqdm(iterator, total=self.estimated_num_tiles, ncols=80)
+                for res in iterator:
+                    if res == 'skip':
+                        continue
+                    if show_progress:
+                        iterator.update(1)
                     if res is None:
                         continue
                     else:
                         tile, idx = res
                         self.tile_mask[idx] = True
                         yield tile
+                if show_progress:
+                    iterator.close()
 
             name_msg = sfutil.green(self.shortname)
             num_msg = f'({np.sum(self.tile_mask)} tiles of {len(self.coord)} possible)'

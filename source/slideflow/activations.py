@@ -167,9 +167,7 @@ class ActivationsVisualizer:
         loaded_slides = list(self.slide_node_dict.keys())
         for loaded_slide in loaded_slides:
             if loaded_slide not in self.slides:
-                del self.slide_node_dict[loaded_slide]
-                del self.slide_logits_dict[loaded_slide]
-                del self.slide_loc_dict[loaded_slide]
+                self.remove_slide(loaded_slide)
 
         # Now screen for missing slides in activations
         missing_slides = []
@@ -542,6 +540,7 @@ class ActivationsVisualizer:
         nodes_names, logits_names = [], []
         detected_logit_structure = False
         include_tfrecord_loc = True
+        slides_to_remove = []
         if export:
             outfile = open(export, 'w')
             csvwriter = csv.writer(outfile)
@@ -549,6 +548,10 @@ class ActivationsVisualizer:
         for t, tfrecord in enumerate(self.tfrecords):
             dataset = tf.data.TFRecordDataset(tfrecord)
             tfr_features, tfr_img_type = sfio.tfrecords.detect_tfrecord_format(tfrecord)
+            if tfr_features is None:
+                log.warning(f"Unable to read tfrecord at {tfrecord} - is it empty?")
+                slides_to_remove += [sfutil.path_to_name(tfrecord)]
+                continue
             if 'loc_x' not in tfr_features:
                 include_tfrecord_loc = False
 
@@ -672,6 +675,9 @@ class ActivationsVisualizer:
             elif loc_combined is not None:
                 self.slide_loc_dict[slide] = np.concatenate(self.slide_loc_dict[slide], loc_combined)
 
+        for slide in slides_to_remove:
+            self.remove_slide(slide)
+
         if export:
             outfile.close()
 
@@ -689,6 +695,16 @@ class ActivationsVisualizer:
             log.info(f'Predictions and activations cached to {sfutil.green(cache)}')
 
         return self.slide_node_dict, self.slide_logits_dict
+
+    def remove_slide(self, slide):
+        del self.slide_node_dict[slide]
+        del self.slide_logits_dict[slide]
+        del self.slide_loc_dict[slide]
+        self.tfrecords = [t for t in self.tfrecords if sfutil.path_to_name(t) != slide]
+        try:
+            self.slides.remove(slide)
+        except ValueError:
+            pass
 
     def export_to_csv(self, filename, method='mean', nodes=None):
         '''Exports calculated activations to csv.
@@ -1245,7 +1261,8 @@ class Heatmap:
                                                normalizer_source=self.normalizer_source,
                                                include_loc=False,
                                                shuffle=False,
-                                               num_threads=num_threads)
+                                               num_threads=num_threads,
+                                               show_progress=True)
 
         if not gen_slice:
             log.error(f'No tiles extracted from slide {sfutil.green(self.slide.name)}')
@@ -1261,16 +1278,10 @@ class Heatmap:
         # Iterate through generator to calculate logits +/- final layer activations for all tiles
         logits_arr = []		# Logits (predictions)
         postconv_arr = []	# Post-convolutional layer (post-convolutional activations)
-        tile_progress = tqdm(tile_dataset, 
-                             desc='Generating heatmap... ', 
-                             total=self.slide.estimated_num_tiles // batch_size, 
-                             ncols=80)
-
-        for batch_images in tile_progress:
+        for batch_images in tile_dataset:
             postconv, logits = self.model.predict(batch_images)
             logits_arr += [logits]
             postconv_arr += [postconv]
-        tile_progress.close()
         logits_arr = np.concatenate(logits_arr)
         postconv_arr = np.concatenate(postconv_arr)
         num_postconv_nodes = postconv_arr.shape[1]
@@ -1380,7 +1391,7 @@ class Heatmap:
                                      interpolation=interpolation,
                                      zorder=10)
         else:
-            divnorm=mcol.TwoSlopeNorm(vmin=0, vcenter=0.5, vmax=1.0)
+            divnorm = mcol.TwoSlopeNorm(vmin=0, vcenter=0.5, vmax=1.0)
             for i in range(self.num_classes):
                 heatmap = self.ax.imshow(self.logits[:, :, i],
                                          extent=implot.extent,
@@ -1458,7 +1469,7 @@ class Heatmap:
             # Make heatmap plots and sliders for each outcome category
             for i in range(self.num_classes):
                 print(f'\r\033[KMaking heatmap {i+1} of {self.num_classes}...', end='')
-                divnorm=mcol.TwoSlopeNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
+                divnorm = mcol.TwoSlopeNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
                 heatmap = self.ax.imshow(self.logits[:, :, i],
                                          extent=implot.get_extent(),
                                          cmap='coolwarm',
