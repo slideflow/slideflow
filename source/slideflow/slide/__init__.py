@@ -6,7 +6,7 @@
 
 '''This module includes tools to convolutionally section whole slide images into tiles.
 These tessellated tiles can be exported as PNG or JPG as raw images or stored in the binary
-format TFRecords, with or without data augmentation. 
+format TFRecords, with or without data augmentation.
 
 Requires: libvips (https://libvips.github.io/libvips/).'''
 
@@ -34,7 +34,7 @@ import multiprocessing as mp
 
 from os.path import join, exists
 from PIL import Image, ImageDraw, UnidentifiedImageError
-from slideflow.util import log, StainNormalizer, SUPPORTED_FORMATS
+from slideflow.util import log, StainNormalizer, SUPPORTED_FORMATS, UserError
 from slideflow.io.tfrecords import tfrecord_example
 from datetime import datetime
 from functools import partial
@@ -163,9 +163,6 @@ class InvalidTileSplitException(Exception):
 
 class TileCorruptionError(Exception):
     '''Raised when image normalization fails due to tile corruption.'''
-    pass
-
-class UserError(Exception):
     pass
 
 class SlideReport:
@@ -416,7 +413,7 @@ class BaseLoader:
     '''Object that loads an SVS slide and makes preparations for tile extraction.
     Should not be used directly; this class must be inherited and extended by a child class'''
     def __init__(self, path, tile_px, tile_um, stride_div, enable_downsample=False,
-                    silent=False, buffer=None, pb=None, pb_counter=None, counter_lock=None, print_fn=None):
+                    silent=False, buffer=None, pb=None, pb_counter=None, counter_lock=None):
         self.load_error = False
         self.silent = silent
 
@@ -429,10 +426,6 @@ class BaseLoader:
         else:
             self.pb_counter = pb.get_counter()
             self.counter_lock = pb.get_lock()
-            print_fn = pb.print if not print_fn else print_fn
-
-        self.print = None if silent else (print if not print_fn else print_fn)
-        self.error_print = print if not print_fn else print_fn
 
         self.name = sfutil.path_to_name(path)
         self.shortname = sfutil._shortname(self.name)
@@ -552,14 +545,14 @@ class BaseLoader:
         return self.thumb_image
 
     def build_generator(self, **kwargs):
-        lead_msg = f'Extracting {sfutil.bold(self.tile_um)}um tiles'
-        resize_msg = f'(resizing {sfutil.bold(self.extract_px)}px -> {sfutil.bold(self.tile_px)}px)'
-        stride_msg = f'stride: {sfutil.bold(int(self.stride))}px'
-        log.info(f"{self.shortname}: {lead_msg} {resize_msg}; {stride_msg}")
+        lead_msg = f'Extracting {self.tile_um}um tiles'
+        resize_msg = f'(resizing {self.extract_px}px -> {self.tile_px}px)'
+        stride_msg = f'stride: {int(self.stride)}px'
+        log.debug(f"{self.shortname}: {lead_msg} {resize_msg}; {stride_msg}")
         if self.tile_px > self.extract_px:
             upscale_msg = 'Tiles will be up-scaled with bilinear interpolation'
             upscale_amount = f'({self.extract_px}px -> {self.tile_px}px)'
-            log.info(f"{self.shortname}: [{sfutil.red('!WARN!')}] {upscale_msg} {upscale_amount}")
+            log.warn(f"{self.shortname}: [{sfutil.red('!WARN!')}] {upscale_msg} {upscale_amount}")
 
         def empty_generator():
             yield None
@@ -663,7 +656,6 @@ class BaseLoader:
             generator_iterator = tqdm(generator_iterator, total=self.estimated_num_tiles, ncols=80)
 
         for index, tile_dict in enumerate(generator_iterator):
-
             # Increase multiprocessing progress bar, if provided
             if self.counter_lock is not None:
                 with self.counter_lock:
@@ -698,9 +690,10 @@ class BaseLoader:
                     writer = tfrecord_writer
                 tf_example = tfrecord_example(slidename_bytes, image_string, location[0], location[1])
                 writer.write(tf_example.SerializeToString())
+        if self.counter_lock is None:
+            generator_iterator.close()
 
         if tfrecord_dir or tiles_dir:
-            # Mark extraction of current slide as finished
             try:
                 os.remove(unfinished_marker)
             except:
@@ -711,9 +704,6 @@ class BaseLoader:
 
         # Generate extraction report
         report = SlideReport(sample_tiles, self.slide.path)
-
-        log.info(f"Finished tile extraction for slide {sfutil.green(self.shortname)}")
-
         return report
 
 class WSI(BaseLoader):
@@ -734,8 +724,7 @@ class WSI(BaseLoader):
                  buffer=None,
                  pb=None,
                  pb_counter=None,
-                 counter_lock=None,
-                 print_fn=None):
+                 counter_lock=None):
 
         '''Initializer.
 
@@ -765,8 +754,7 @@ class WSI(BaseLoader):
                          buffer,
                          pb,
                          pb_counter,
-                         counter_lock,
-                         print_fn)
+                         counter_lock)
 
         # Initialize calculated variables
         self.extracted_x_size = 0
@@ -814,7 +802,8 @@ class WSI(BaseLoader):
 
         mpp_roi_msg = f'{self.MPP} um/px | {len(self.rois)} ROI(s)'
         size_msg = f'Size: {self.full_shape[0]} x {self.full_shape[1]}'
-        log.info(f"{self.shortname}: Slide info: {mpp_roi_msg} | {size_msg}")
+        log.debug(f"{self.shortname}: Slide info: {mpp_roi_msg} | {size_msg}")
+        log.debug(f"{self.shortname}: Grid shape: {self.grid.shape} | Tiles to extract: {self.estimated_num_tiles}")
 
         # Abort if errors were raised during ROI loading
         if self.load_error:
@@ -847,12 +836,11 @@ class WSI(BaseLoader):
                 index += 1
 
         self.grid = np.zeros((len(x_range), len(y_range)))
-        log.info(f"Grid shape: {self.grid.shape}")
 
     def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=1.0,
                             whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05,
-                            normalizer=None, normalizer_source=None, include_loc=True, num_threads=4, 
-                            show_progress=False, **kwargs):
+                            normalizer=None, normalizer_source=None, include_loc=True, num_threads=4,
+                            show_progress=False):
 
         '''Builds generator to supervise extraction of tiles across the slide.
 
@@ -902,14 +890,13 @@ class WSI(BaseLoader):
             self.tile_mask = np.asarray([False for i in range(len(self.coord))], dtype=np.bool)
 
             with mp.Pool(processes=num_threads) as p:
-                iterator = p.imap(partial(slide_extraction_worker, args=worker_args), self.coord)
                 if show_progress:
-                    iterator = tqdm(iterator, total=self.estimated_num_tiles, ncols=80)
-                for res in iterator:
+                    pbar = tqdm(total=self.estimated_num_tiles, ncols=80)
+                for res in p.imap(partial(slide_extraction_worker, args=worker_args), self.coord):
                     if res == 'skip':
                         continue
                     if show_progress:
-                        iterator.update(1)
+                        pbar.update(1)
                     if res is None:
                         continue
                     else:
@@ -917,11 +904,11 @@ class WSI(BaseLoader):
                         self.tile_mask[idx] = True
                         yield tile
                 if show_progress:
-                    iterator.close()
+                    pbar.close()
 
             name_msg = sfutil.green(self.shortname)
             num_msg = f'({np.sum(self.tile_mask)} tiles of {len(self.coord)} possible)'
-            log.info(f"{self.shortname}: Finished tile extraction for {name_msg} {num_msg}")
+            log.info(f"Finished tile extraction for {name_msg} {num_msg}")
 
         return generator
 
@@ -1038,7 +1025,6 @@ class WSI(BaseLoader):
             return parsed_image, loc
 
         # Generate dataset from the generator
-        log.info("Setting up tile generator")
         with tf.name_scope('dataset_input'):
             output_signature={'image':tf.TensorSpec(shape=(self.tile_px,self.tile_px,3), dtype=tf.uint8),
                               'loc':tf.TensorSpec(shape=(2), dtype=tf.uint32)}
@@ -1049,10 +1035,11 @@ class WSI(BaseLoader):
 
         act_arr = []
         loc_arr = []
-        for i, (batch_images, batch_loc) in enumerate(tile_dataset):
+        for i, (batch_images, batch_loc) in tqdm(enumerate(tile_dataset), total=self.estimated_num_tiles // batch_size, ncols=80):
             act, logits = model_interface.predict(batch_images)
             act_arr += [act]
             loc_arr += [batch_loc.numpy()]
+
         act_arr = np.concatenate(act_arr)
         loc_arr = np.concatenate(loc_arr)
 
@@ -1240,7 +1227,7 @@ class TMA(BaseLoader):
 
     def build_generator(self, shuffle=True, whitespace_fraction=1.0, whitespace_threshold=230,
                             grayspace_fraction=0.6, grayspace_threshold=0.05,
-                            normalizer=None, normalizer_source=None, **kwargs):
+                            normalizer=None, normalizer_source=None, full_core=None):
 
         '''Builds generator to supervise extraction of tiles across the slide.
 
@@ -1254,9 +1241,6 @@ class TMA(BaseLoader):
             export_full_core:	If true, will also save a thumbnail of each fully extracted core.'''
 
         super().build_generator()
-
-        # Process kwargs
-        full_core = None if 'full_core' not in kwargs else kwargs['full_core']
 
         # Setup normalization
         normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)

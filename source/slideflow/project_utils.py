@@ -1,14 +1,16 @@
-'''Utility functions for SlideflowProject, primarily for use in the context of multiprocessing.'''
+'''Utility functions for Project, primarily for use in the context of multiprocessing.'''
 
 import os
-import sys
+import csv
 import types
+import json
 from os.path import join, exists, basename
 import slideflow.util as sfutil
 import slideflow.io as sfio
+import slideflow as sf
 
 from slideflow.io import Dataset
-from slideflow.util import log
+from slideflow.util import log, TCGA
 
 def get_validation_settings(**kwargs):
     '''
@@ -54,9 +56,180 @@ def get_validation_settings(**kwargs):
 
     return args
 
-def print_fn(string):
-    sys.stdout.write(f'\r\033[K{string}\n')
-    sys.stdout.flush()
+def add_dataset(name, slides, roi, tiles, tfrecords, path):
+    '''Adds a dataset to the dataset configuration file.
+
+    Args:
+        name:		Dataset name.
+        slides:		Path to directory containing slides.
+        roi:		Path to directory containing CSV ROIs.
+        tiles:		Path to directory in which to store extracted tiles.
+        tfrecords:	Path to directory in which to store TFRecords of extracted tiles.
+        path:		(optional) Path to dataset configuration file. If not provided, uses project default.
+    '''
+    try:
+        datasets_data = sfutil.load_json(path)
+    except FileNotFoundError:
+        datasets_data = {}
+    datasets_data.update({name: {
+        'slides': slides,
+        'roi': roi,
+        'tiles': tiles,
+        'tfrecords': tfrecords,
+    }})
+    sfutil.write_json(datasets_data, path)
+    log.info(f'Saved dataset {name} to {path}')
+
+def load_datasets(path):
+    '''Loads datasets dictionaries from a given datasets.json file.'''
+    try:
+        datasets_data = sfutil.load_json(path)
+        datasets_names = list(datasets_data.keys())
+        datasets_names.sort()
+    except FileNotFoundError:
+        datasets_data = {}
+        datasets_names = []
+    return datasets_data, datasets_names
+
+def create_blank_annotations_file(filename):
+    '''Creates an example blank annotations file.'''
+    with open(filename, 'w') as csv_outfile:
+        csv_writer = csv.writer(csv_outfile, delimiter=',')
+        header = [TCGA.patient, 'dataset', 'category']
+        csv_writer.writerow(header)
+
+def create_blank_train_config(filename):
+    '''Creates a CSV file with the batch training hyperparameter structure.'''
+    from slideflow.model import HyperParameters
+    with open(filename, 'w') as csv_outfile:
+        writer = csv.writer(csv_outfile, delimiter='\t')
+        # Create headers and first row
+        header = ['model_name']
+        firstrow = ['model1']
+        default_hp = HyperParameters()
+        for arg in default_hp._get_args():
+            header += [arg]
+            firstrow += [getattr(default_hp, arg)]
+        writer.writerow(header)
+        writer.writerow(firstrow)
+
+def project_config(name, annotations, dataset_config, datasets, models_dir, mixed_precision, batch_train_config):
+    return {
+        'name': name,
+        'slideflow_version': sf.__version__,
+        'annotations': annotations,
+        'dataset_config': dataset_config,
+        'datasets': datasets,
+        'models_dir': models_dir,
+        'mixed_precision': mixed_precision,
+        'batch_train_config': batch_train_config
+    }
+
+def interactive_project_setup(project_folder):
+    '''Prompts user to provide all relevant project configuration
+        and saves configuration to "settings.json".'''
+    if not exists(project_folder): os.makedirs(project_folder)
+    project = {}
+    project['name'] = input('What is the project name? ')
+
+    # Ask for annotations file location; if one has not been made,
+    # offer to create a blank template and then exit
+    if not sfutil.yes_no_input('Has an annotations (CSV) file already been created? [y/N] ', default='no'):
+        if sfutil.yes_no_input('Create a blank annotations file? [Y/n] ', default='yes'):
+            project['annotations'] = sfutil.path_input('Annotations file location [./annotations.csv] ',
+                                                        root=project_folder,
+                                                        default='./annotations.csv',
+                                                        filetype='csv',
+                                                        verify=False)
+            create_blank_annotations_file(project['annotations'])
+        else:
+            project['annotations'] = './annotations.csv'
+    else:
+        project['annotations'] = sfutil.path_input('Annotations file location [./annotations.csv] ',
+                                                    root=project_folder,
+                                                    default='./annotations.csv',
+                                                    filetype='csv')
+
+    # Dataset configuration
+    project['dataset_config'] = sfutil.path_input('Dataset configuration file location [./datasets.json] ',
+                                                    root=project_folder,
+                                                    default='./datasets.json',
+                                                    filetype='json',
+                                                    verify=False)
+
+    project['datasets'] = []
+    while not project['datasets']:
+        datasets_data, datasets_names = load_datasets(project['dataset_config'])
+
+        print(sfutil.bold('Detected datasets:'))
+        if not len(datasets_names):
+            print(' [None]')
+        else:
+            for i, name in enumerate(datasets_names):
+                print(f' {i+1}. {name}')
+            print(f' {len(datasets_names)+1}. ADD NEW')
+            valid_dataset_choices = [str(l) for l in range(1, len(datasets_names)+2)]
+            dataset_selection = sfutil.choice_input(f'Which datasets should be used? ',
+                                                    valid_choices=valid_dataset_choices,
+                                                    multi_choice=True)
+
+        if not len(datasets_names) or str(len(datasets_names)+1) in dataset_selection:
+            # Create new dataset
+            print(f"{sfutil.bold('Creating new dataset')}")
+            dataset_name = input('What is the dataset name? ')
+            dataset_slides = sfutil.path_input('Where are the slides stored? [./slides] ',
+                                    root=project_folder, default='./slides', create_on_invalid=True)
+            dataset_roi = sfutil.path_input('Where are the ROI files (CSV) stored? [./slides] ',
+                                    root=project_folder, default='./slides', create_on_invalid=True)
+            dataset_tiles = sfutil.path_input('Image tile storage location [./tiles] ',
+                                    root=project_folder, default='./tiles', create_on_invalid=True)
+            dataset_tfrecords = sfutil.path_input('TFRecord storage location [./tfrecord] ',
+                                    root=project_folder, default='./tfrecord', create_on_invalid=True)
+
+            add_dataset(name=dataset_name,
+                        slides=dataset_slides,
+                        roi=dataset_roi,
+                        tiles=dataset_tiles,
+                        tfrecords=dataset_tfrecords,
+                        path=project['dataset_config'])
+
+            print('Updated dataset configuration file.')
+        else:
+            try:
+                project['datasets'] = [datasets_names[int(j)-1] for j in dataset_selection]
+            except TypeError:
+                print(f'Invalid selection: {dataset_selection}')
+                continue
+
+    # Training
+    project['models_dir'] = sfutil.path_input('Where should the saved models be stored? [./models] ',
+                                                root=project_folder,
+                                                default='./models',
+                                                create_on_invalid=True)
+
+    project['mixed_precision'] = sfutil.yes_no_input('Use mixed precision? [Y/n] ', default='yes')
+    project['batch_train_config'] = sfutil.path_input('Batch training TSV location [./batch_train.tsv] ',
+                                                        root=project_folder,
+                                                        default='./batch_train.tsv',
+                                                        filetype='tsv',
+                                                        verify=False)
+
+    if not exists(project['batch_train_config']):
+        print('Batch training file not found, creating blank')
+        create_blank_train_config(project['batch_train_config'])
+
+    # Save settings as relative paths
+    settings = project_config(**project)
+
+    sfutil.write_json(settings, join(project_folder, 'settings.json'))
+
+    # Write a sample actions.py file
+    with open(join(os.path.dirname(os.path.realpath(__file__)), 'sample_actions.py'), 'r') as sample_file:
+        sample_actions = sample_file.read()
+        with open(os.path.join(project_folder, 'actions.py'), 'w') as actions_file:
+            actions_file.write(sample_actions)
+    log.info('Project configuration saved.')
+    return settings
 
 def tile_extractor(slide_path, roi_dir, roi_method, skip_missing_roi, randomize_origin,
                     img_format, tma, full_core, shuffle, tile_px, tile_um, stride_div,
@@ -68,7 +241,7 @@ def tile_extractor(slide_path, roi_dir, roi_method, skip_missing_roi, randomize_
     from slideflow.slide import TMA, WSI, TileCorruptionError
     log.handlers[0].flush_line = True
     try:
-        log.info(f'Extracting tiles for slide {sfutil.path_to_name(slide_path)}')
+        log.debug(f'Extracting tiles for slide {sfutil.path_to_name(slide_path)}')
 
         if tma:
             whole_slide = TMA(slide_path,
@@ -90,8 +263,7 @@ def tile_extractor(slide_path, roi_dir, roi_method, skip_missing_roi, randomize_
                                     skip_missing_roi=skip_missing_roi,
                                     buffer=buffer,
                                     pb_counter=pb_counter,
-                                    counter_lock=counter_lock,
-                                    print_fn=print_fn)
+                                    counter_lock=counter_lock)
 
         if not whole_slide.loaded_correctly():
             return
@@ -161,7 +333,6 @@ def activations_generator(project, model, outcome_label_headers=None, layers=Non
 
     from slideflow.activations import ActivationsVisualizer
 
-    log.info('Generating layer activations...')
     layers = [layers] if not isinstance(layers, list) else layers
 
     # Setup directories
@@ -300,7 +471,6 @@ def evaluator(project, outcome_label_headers, model, results_dict, input_header=
 
     # Prepare additional slide-level input
     if input_header:
-        log.info('Preparing additional input')
         input_header = [input_header] if not isinstance(input_header, list) else input_header
         feature_len_dict = {}   # Dict mapping input_vars to total number of different labels for each input header
         input_labels_dict = {}  # Dict mapping input_vars to nested dictionaries,
@@ -316,7 +486,7 @@ def evaluator(project, outcome_label_headers, model, results_dict, input_header=
                 is_float = True
             except TypeError:
                 is_float = False
-            log.info(f"Adding input variable {sfutil.green(input_var)} as {'float' if is_float else 'categorical'}")
+            log.info(f"Adding input variable {sfutil.blue(input_var)} as {'float' if is_float else 'categorical'}")
 
             if is_float:
                 input_labels, _ = eval_dataset.get_labels_from_annotations(input_var, use_float=is_float)
@@ -447,8 +617,6 @@ def heatmap_generator(project, slide, model_path, save_folder, roi_list, show_ro
 
     heatmap = Heatmap(slide,
                       model_path,
-                      hp_data['tile_px'],
-                      hp_data['tile_um'],
                       stride_div=stride_div,
                       roi_list=roi_list,
                       roi_method=roi_method,
@@ -486,7 +654,8 @@ def trainer(project, outcome_label_headers, model_name, results_dict, hp, val_se
     # Log current model name and k-fold iteration, if applicable
     k_fold_msg = '' if not k_fold_i else f' ({val_settings.strategy} iteration {k_fold_i})'
     log.info(f'Training model {sfutil.bold(model_name)}{k_fold_msg}...')
-    log.info(hp)
+    log.info(f'Hyperparameters: {hp}')
+    log.info(f'Validation settings: {json.dumps(vars(val_settings), indent=2)}')
     full_model_name = model_name if not k_fold_i else model_name+f'-kfold{k_fold_i}'
 
     # Filter out slides that are blank in the outcome label, or blank in any of the input_header categories
@@ -607,7 +776,6 @@ def trainer(project, outcome_label_headers, model_name, results_dict, hp, val_se
         training_tfrecords, validation_tfrecords = tfr_split
     # Prepare additional slide-level input
     if input_header:
-        log.info('Preparing additional input')
         input_header = [input_header] if not isinstance(input_header, list) else input_header
         feature_len_dict = {} 	# Dict mapping input_vars to total number of different labels for each input header
         input_labels_dict = {}  # Dict mapping input_vars to nested dictionaries
@@ -626,7 +794,7 @@ def trainer(project, outcome_label_headers, model_name, results_dict, hp, val_se
                 inp_is_float = True
             except TypeError:
                 inp_is_float = False
-            log.info('Adding input variable ' + input_var + ' as ' + ('float' if inp_is_float else ' categorical'))
+            log.info(f"Adding input variable {sfutil.blue(input_var)} as {'float' if inp_is_float else 'categorical'}")
 
             # Next, if this is a categorical variable, harmonize categories in training and validation datasets
             if (not inp_is_float) and val_settings.dataset:

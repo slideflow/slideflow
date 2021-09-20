@@ -51,7 +51,7 @@ if __name__=='__main__':
         actions_name = actions_file.split('/')[-1].replace('.py', '')
         actions = __import__(actions_name)
         # Create project
-        SFP = sf.SlideflowProject(actions.project,
+        SFP = sf.Project(actions.project,
                                   gpu=args.gpu,
                                   gpu_pool=args.gpu_pool,
                                   default_threads=args.threads)

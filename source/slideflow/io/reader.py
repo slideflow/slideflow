@@ -126,7 +126,7 @@ def interleave_tfrecords(tfrecords,
         max_tiles:				Maximum number of tiles to use per slide.
         min_tiles:				Minimum number of tiles that each slide must have to be included.
     '''
-    log.info(f'Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min={min_tiles}')
+    log.debug(f'Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min={min_tiles}')
     datasets, datasets_categories, dataset_filenames, num_tiles = [], [], [], []
     global_num_tiles, num_tfrecords_empty, num_tfrecords_less_than_min = 0, 0, 0
     prob_weights, base_parser = None, None
@@ -222,10 +222,10 @@ def interleave_tfrecords(tfrecords,
 
         # Balancing
         if not balance or balance == NO_BALANCE:
-            log.info(f'Not balancing input')
+            log.debug(f'Not balancing input')
             prob_weights = [i/sum(num_tiles) for i in num_tiles]
         if balance == BALANCE_BY_PATIENT:
-            log.info(f'Balancing input across slides')
+            log.debug(f'Balancing input across patients')
             prob_weights = [1.0] * len(datasets)
             if finite:
                 # Only take as many tiles as the number of tiles in the smallest dataset
@@ -233,15 +233,15 @@ def interleave_tfrecords(tfrecords,
                 for i in range(len(datasets)):
                     num_tiles[i] = minimum_tiles
         if balance == BALANCE_BY_CATEGORY:
-            log.info(f'Balancing input across categories')
+            log.debug(f'Balancing input across categories')
             prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
             if finite:
                 # Only take as many tiles as the number of tiles in the smallest category
                 for i in range(len(datasets)):
                     num_tiles[i] = int(num_tiles[i] * categories_tile_fraction[datasets_categories[i]])
                     fraction = categories_tile_fraction[datasets_categories[i]]
-                    log.info(f'Tile fraction (dataset {i+1}/{len(datasets)}): {fraction}, taking {num_tiles[i]}')
-                log.info(f'Global num tiles: {global_num_tiles}')
+                    log.debug(f'Tile fraction (dataset {i+1}/{len(datasets)}): {fraction}, taking {num_tiles[i]}')
+                log.debug(f'Global num tiles: {global_num_tiles}')
 
         # Take the calculcated number of tiles from each dataset and calculate global number of tiles
         #for i in range(len(datasets)):

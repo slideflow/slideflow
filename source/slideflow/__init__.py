@@ -1,4 +1,4 @@
-from slideflow.project import SlideflowProject
+from slideflow.project import Project, SlideflowProject
 
 # Planned updates
 #TODO: unify slideflow model loading, even straight from directory,
@@ -7,7 +7,6 @@ from slideflow.project import SlideflowProject
 #TODO: put tfrecord report in tfrecord directories
 #TODO: improved interface
 #TODO: neptune integration
-#TODO: remove print_fn remnants from old progress bar / logging
 #TODO: multiprocessing logging
 
 __version__ = "1.11.2"

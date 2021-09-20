@@ -132,7 +132,7 @@ class TFRecordMap:
                 as provided via ActivationsVisualizer nodes.'''
 
         if len(self.x) and len(self.y) and not force_recalculate:
-            log.info("UMAP loaded from cache, will not recalculate")
+            log.debug("UMAP loaded from cache, will not recalculate")
 
             # First, filter out slides not included in provided activations
             self.x = np.array([self.x[i] for i in range(len(self.x)) if self.point_meta[i]['slide'] in self.AV.slides])
@@ -144,7 +144,7 @@ class TFRecordMap:
 
             # If UMAP already calculated, only update predictions if prediction filter is provided
             if prediction_filter:
-                log.info("Updating UMAP predictions according to filter restrictions")
+                log.debug("Updating UMAP predictions according to filter restrictions")
 
                 num_logits = len(self.AV.slide_logits_dict[self.slides[0]])
 
@@ -1154,7 +1154,7 @@ def metrics_from_predictions(y_true,
         log.warning("Manifest not provided, unable to filter tfrecords by min_tiles_per_slide")
     unique_slides = [us for us in unique_slides if us not in slides_to_filter]
     if verbose:
-        log.info(f"Filtered out {num_total_slides - len(unique_slides)} of {num_total_slides} slides " + \
+        log.debug(f"Filtered out {num_total_slides - len(unique_slides)} of {num_total_slides} slides " + \
                     f"in evaluation set (minimum tiles per slide: {min_tiles_per_slide})")
 
     # Set up annotations
@@ -1226,7 +1226,7 @@ def metrics_from_predictions(y_true,
                 metric_args.y_pred = y_pred
                 metric_args.y_true = y_true
 
-            log.info(f"Validation metrics for outcome {sfutil.green(outcome)}")
+            log.info(f"Validation metrics for outcome {sfutil.green(outcome)}:")
             _categorical_metrics(metric_args, outcome, starttime=start)
 
     elif model_type == 'linear':
@@ -1301,7 +1301,7 @@ def predict_from_model(model, dataset, num_tiles=0):
         y_true = np.concatenate(y_true)
 
     end = time.time()
-    log.info(f"Prediction complete. Time to completion: {int(end-start)} s")
+    log.debug(f"Prediction complete. Time to completion: {int(end-start)} s")
 
     return y_true, y_pred, tile_to_slides
 
@@ -1380,7 +1380,7 @@ def metrics_from_dataset(model,
                                         histogram=histogram,
                                         plot=True)
     after_metrics = time.time()
-    log.info(f'Validation metrics generated, time: {after_metrics-before_metrics:.2f} s')
+    log.debug(f'Validation metrics generated, time: {after_metrics-before_metrics:.2f} s')
     return metrics
 
 def permutation_feature_importance(model,

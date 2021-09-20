@@ -444,7 +444,7 @@ class Dataset:
                 except ValueError:
                     raise TypeError(f"Unable to convert label {header} into type 'float'.")
             else:
-                if verbose: log.info(f'Assigning label descriptors in column "{header}" to numerical values')
+                if verbose: log.debug(f'Assigning label descriptors in column "{header}" to numerical values')
                 unique_labels_for_this_header = list(set(filtered_labels))
                 unique_labels_for_this_header.sort()
                 for i, ul in enumerate(unique_labels_for_this_header):
@@ -550,8 +550,7 @@ class Dataset:
         try:
             slide_index = header.index(TCGA.slide)
         except:
-            log.info(f"Header column '{TCGA.slide}' not found.")
-            log.info("Attempting to automatically associate patients with slides...")
+            log.info(f"Header column '{TCGA.slide}' not found. Attempting to associate patients with slides...")
             self.update_annotations_with_slidenames(annotations_file)
             header, current_annotations = sfutil.read_annotations(annotations_file)
         self.ANNOTATIONS = current_annotations
@@ -577,7 +576,7 @@ class Dataset:
         if num_warned >= warn_threshold:
             log.warning(f"...{num_warned} total warnings, see project log for details")
         if not num_warned:
-            log.info(f"Slides successfully verified, no errors found.")
+            log.debug(f"Slides successfully verified, no errors found.")
 
     def update_manifest(self, force_update=False):
         # Import delayed until here in order to avoid importing tensorflow until necessary,
@@ -610,8 +609,8 @@ class Dataset:
             for row in csv_reader:
                 patients.extend([row[patient_index]])
         patients = list(set(patients))
-        log.info(f"Number of patients in annotations: {len(patients)}")
-        log.info(f"Slides found: {len(slide_list)}")
+        log.debug(f"Number of patients in annotations: {len(patients)}")
+        log.debug(f"Slides found: {len(slide_list)}")
 
         # Then, check for sets of slides that would match to the same patient; due to ambiguity, these will be skipped.
         num_occurrences = {}
@@ -687,11 +686,12 @@ class Dataset:
                         csv_writer.writerow(row)
         if num_updated_annotations:
             log.info(f"Successfully associated slides with {num_updated_annotations} annotation entries.")
-            log.info(f"Slides not found for {num_missing} annotations.")
+            if num_missing:
+                log.info(f"Slides not found for {num_missing} annotations.")
         elif num_missing:
-            log.info(f"No annotation updates performed. Slides not found for {num_missing} annotations.")
+            log.debug(f"No annotation updates performed. Slides not found for {num_missing} annotations.")
         else:
-            log.info(f"Annotations up-to-date, no changes made.")
+            log.debug(f"Annotations up-to-date, no changes made.")
 
         # Finally, backup the old annotation file and overwrite existing with the new data
         backup_file = f"{annotations_file}.backup"

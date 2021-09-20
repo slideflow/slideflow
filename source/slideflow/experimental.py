@@ -39,8 +39,7 @@ def extract_dual_tiles(project,
                           buffer=buffer,
                           pb_counter=pb.get_counter(),
                           counter_lock=pb.get_lock(),
-                          skip_missing_roi=True,
-                          print_fn=pb.print)
+                          skip_missing_roi=True)
 
         small_tile_generator = whole_slide.build_generator(dual_extract=True,
                                                            normalizer=normalizer,

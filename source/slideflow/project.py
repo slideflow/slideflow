@@ -27,71 +27,57 @@ import slideflow.io as sfio
 from slideflow import project_utils
 from slideflow.io import Dataset
 from slideflow.statistics import TFRecordMap, calculate_centroid
-from slideflow.util import TCGA, ProgressBar, log, StainNormalizer
+from slideflow.util import ProgressBar, log, StainNormalizer
 from slideflow.project_utils import get_validation_settings
 
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-class SlideflowProject:
-
+class Project:
     '''Class to assist with organizing datasets and executing pipeline functions.'''
 
-    def __init__(self, project_folder, gpu=None, gpu_pool=None, reverse_select_gpu=True,
-                 interactive=True, default_threads=4, verbosity=logging.DEBUG):
-
+    def __init__(self, project_folder, gpu=None, default_threads=4, **project_kwargs):
         """Initializes project by creating project folder, prompting user for project settings, and project
         settings to "settings.json" within the project directory.
 
         Args:
             project_folder (str):                 Path to project directory.
             gpu (str, optional):                  Manually assign GPU. Comma separated int. Defaults to None.
-            gpu_pool (int, optional):             List of ints indicating available GPUs. Defaults to None.
-            reverse_select_gpu (bool, optional):  Select from gpu_pool in reverse order. Defaults to True.
-            interactive (bool, optional):         Prompt user for settings if project not initialized. Defaults to True.
             default_threads (int, optional):      Default threads available for multithreaded functions. Defaults to 4.
-            verbosity (str, optional):            Default project-wide logging verbosity. Defaults to logging.DEBUG.
         """
-        log.setLevel(verbosity)
-        self.verbosity = verbosity
+        self.verbosity = logging.getLogger('slideflow').getEffectiveLevel()
         self.default_threads = default_threads
+        self.root = project_folder
 
-        if project_folder and not os.path.exists(project_folder):
-            if interactive:
-                print(f'Directory "{project_folder}" does not exist.')
-                if sfutil.yes_no_input('Create direcotry and set as project root? [Y/n] ', default='yes'):
-                    os.makedirs(project_folder)
-                else:
-                    project_folder = sfutil.dir_input('Where is the project root directory? ',
-                                                      None,
-                                                      create_on_invalid=True,
-                                                      absolute=True)
-            else:
-                log.info(f'Project directory {project_folder} not found; will create.')
-                os.makedirs(project_folder)
-        if not project_folder:
-            project_folder = sfutil.dir_input('Where is the project root directory? ',
-                                              None,
-                                              create_on_invalid=True,
-                                              absolute=True)
-
-        #log.configure(filename=join(project_folder, 'log.log'))
-
-        if exists(join(project_folder, 'settings.json')):
+        if exists(join(project_folder, 'settings.json')) and project_kwargs:
+            raise sfutil.UserError(f"Project already exists at {project_folder}. " + \
+                                   f"Unable to override user-provided settings: {', '.join(project_kwargs.keys())}")
+        elif exists(join(project_folder, 'settings.json')):
             self.load_project(project_folder)
-        elif interactive:
-            self.create_project(project_folder)
+        elif project_kwargs:
+            log.info(f"Creating project at {project_folder}...")
+            self._settings = project_utils.project_config(**project_kwargs)
+        else:
+            raise sfutil.UserError(f"Project folder {project_folder} does not exist.")
 
-        # Set up GPU
         if gpu is not None:
             self.select_gpu(gpu)
-        elif gpu_pool:
-            self.autoselect_gpu(gpu_pool, reverse=reverse_select_gpu)
 
-    @property
-    def root(self):
-        '''Path root directory.'''
-        return self._settings['root']
+    @classmethod
+    def from_prompt(cls, project_folder, gpu=None, default_threads=4):
+        """Initializes project by creating project folder, prompting user for project settings, and project
+        settings to "settings.json" within the project directory.
+
+        Args:
+            project_folder (str):                 Path to project directory.
+            gpu (str, optional):                  Manually assign GPU. Comma separated int. Defaults to None.
+            default_threads (int, optional):      Default threads available for multithreaded functions. Defaults to 4.
+        """
+        if not exists(join(project_folder, 'settings.json')):
+            log.info(f'Project at "{project_folder}" does not exist; will set up new project.')
+            project_utils.interactive_project_setup(project_folder)
+        obj = cls(project_folder, gpu=gpu, default_threads=default_threads)
+        return obj
 
     @property
     def annotations(self):
@@ -124,30 +110,14 @@ class SlideflowProject:
             return self._settings['use_fp16']
 
     def _read_relative_path(self, path):
-        if path[:6] == '$ROOT/':
+        if path[0] == '.':
+            return join(self.root, path[2:])
+        elif path[:5] == '$ROOT':
+            log.warn('Deprecation warning: invalid path prefix $ROOT, please update project settings ' + \
+                     '(use "." for relative paths)')
             return join(self.root, path[6:])
         else:
             return path
-
-    def autoselect_gpu(self, number_available, reverse=True):
-        '''Automatically claims a free GPU.
-
-        Args:
-            number_available:	Total number of GPUs available to select from
-            reverse:			Bool, if True, will select GPU from pool in reverse
-        '''
-        log.info('Selecting GPU...')
-
-        if not number_available:
-            os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-            log.warn(f'Disabling GPU access.')
-        else:
-            gpus = range(number_available) if not reverse else list(reversed(range(number_available)))
-            gpu_selected = -1
-            if len(gpus):
-                gpu_selected = gpus[0]
-                os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_selected)
-                log.info(f'Using GPU {gpu_selected}')
 
     def select_gpu(self, gpu):
         '''Sets environmental variables such that the indicated GPU is used by CUDA/Tensorflow.'''
@@ -157,8 +127,6 @@ class SlideflowProject:
         else:
             log.info(f'Using GPU #{gpu}')
             os.environ['CUDA_VISIBLE_DEVICES']=str(gpu)
-
-        import tensorflow as tf
 
     def add_dataset(self, name, slides, roi, tiles, tfrecords, path=None):
         '''Adds a dataset to the dataset configuration file.
@@ -171,21 +139,9 @@ class SlideflowProject:
             tfrecords:	Path to directory in which to store TFRecords of extracted tiles.
             path:		(optional) Path to dataset configuration file. If not provided, uses project default.
         '''
-
         if not path:
             path = self.dataset_config
-        try:
-            datasets_data = sfutil.load_json(path)
-        except FileNotFoundError:
-            datasets_data = {}
-        datasets_data.update({name: {
-            'slides': slides,
-            'roi': roi,
-            'tiles': tiles,
-            'tfrecords': tfrecords,
-        }})
-        sfutil.write_json(datasets_data, path)
-        log.info(f'Saved dataset {name} to {path}')
+        project_utils.add_dataset(name, slides, roi, tiles, tfrecords, path)
 
     def associate_slide_names(self):
         '''Funtion to automatically associate patient names with slide filenames in the annotations file.'''
@@ -193,37 +149,15 @@ class SlideflowProject:
         dataset = self.get_dataset(tile_px=0, tile_um=0, verification=None)
         dataset.update_annotations_with_slidenames(self.annotations)
 
-    def create_blank_annotations_file(self, filename=None):
-        '''Creates an example blank annotations file.'''
-        if not filename:
-            filename = self.annotations
-        with open(filename, 'w') as csv_outfile:
-            csv_writer = csv.writer(csv_outfile, delimiter=',')
-            header = [TCGA.patient, 'dataset', 'category']
-            csv_writer.writerow(header)
-
     def create_blank_train_config(self, filename=None):
         '''Creates a CSV file with the batch training hyperparameter structure.'''
-        from slideflow.model import HyperParameters
-
         if not filename:
             filename = self.batch_train_config
-        with open(filename, 'w') as csv_outfile:
-            writer = csv.writer(csv_outfile, delimiter='\t')
-            # Create headers and first row
-            header = ['model_name']
-            firstrow = ['model1']
-            default_hp = HyperParameters()
-            for arg in default_hp._get_args():
-                header += [arg]
-                firstrow += [getattr(default_hp, arg)]
-            writer.writerow(header)
-            writer.writerow(firstrow)
+        project_utils.create_blank_train_config(filename)
 
     def create_hyperparameter_sweep(self, tile_px, tile_um, finetune_epochs,
                                     label=None, filename=None, **kwargs):
         '''Prepares a hyperparameter sweep, saving to a batch train TSV file.'''
-        log.info('Preparing hyperparameter sweep...')
         pdict = kwargs
         pdict.update({'tile_px': tile_px, 'tile_um': tile_um})
 
@@ -255,119 +189,6 @@ class SlideflowProject:
                     row += [getattr(hp, arg)]
                 writer.writerow(row)
         log.info(f'Wrote {len(sweep)} combinations for sweep to {sfutil.green(filename)}')
-
-    def create_project(self, project_folder):
-        '''Prompts user to provide all relevant project configuration
-            and saves configuration to "settings.json".'''
-        # General setup and slide configuration
-        project = {
-            'root': project_folder,
-            'slideflow_version': sf.__version__
-        }
-        project['name'] = input('What is the project name? ')
-
-        # Ask for annotations file location; if one has not been made,
-        # offer to create a blank template and then exit
-        if not sfutil.yes_no_input('Has an annotations (CSV) file already been created? [y/N] ', default='no'):
-            if sfutil.yes_no_input('Create a blank annotations file? [Y/n] ', default='yes'):
-                project['annotations'] = sfutil.file_input('Annotations file location [./annotations.csv] ',
-                                                            root=project['root'],
-                                                            default='./annotations.csv',
-                                                            filetype='csv',
-                                                            verify=False)
-                self.create_blank_annotations_file(project['annotations'])
-        else:
-            project['annotations'] = sfutil.file_input('Annotations file location [./annotations.csv] ',
-                                                        root=project['root'],
-                                                        default='./annotations.csv',
-                                                        filetype='csv')
-
-        # Dataset configuration
-        project['dataset_config'] = sfutil.file_input('Dataset configuration file location [./datasets.json] ',
-                                                      root=project['root'],
-                                                      default='./datasets.json',
-                                                      filetype='json',
-                                                      verify=False)
-
-        project['datasets'] = []
-        while not project['datasets']:
-            datasets_data, datasets_names = self.load_datasets(project['dataset_config'])
-
-            print(sfutil.bold('Detected datasets:'))
-            if not len(datasets_names):
-                print(' [None]')
-            else:
-                for i, name in enumerate(datasets_names):
-                    print(f' {i+1}. {name}')
-                print(f' {len(datasets_names)+1}. ADD NEW')
-                valid_dataset_choices = [str(l) for l in range(1, len(datasets_names)+2)]
-                dataset_selection = sfutil.choice_input(f'Which datasets should be used? ',
-                                                        valid_choices=valid_dataset_choices,
-                                                        multi_choice=True)
-
-            if not len(datasets_names) or str(len(datasets_names)+1) in dataset_selection:
-                # Create new dataset
-                print(f"{sfutil.bold('Creating new dataset')}")
-                dataset_name = input('What is the dataset name? ')
-                dataset_slides = sfutil.dir_input('Where are the slides stored? [./slides] ',
-                                        root=project['root'], default='./slides', create_on_invalid=True)
-                dataset_roi = sfutil.dir_input('Where are the ROI files (CSV) stored? [./slides] ',
-                                        root=project['root'], default='./slides', create_on_invalid=True)
-                dataset_tiles = sfutil.dir_input('Image tile storage location [./tiles] ',
-                                        root=project['root'], default='./tiles', create_on_invalid=True)
-                dataset_tfrecords = sfutil.dir_input('TFRecord storage location [./tfrecord] ',
-                                        root=project['root'], default='./tfrecord', create_on_invalid=True)
-
-                self.add_dataset(name=dataset_name,
-                                 slides=dataset_slides,
-                                 roi=dataset_roi,
-                                 tiles=dataset_tiles,
-                                 tfrecords=dataset_tfrecords,
-                                 path=project['dataset_config'])
-
-                print('Updated dataset configuration file.')
-            else:
-                try:
-                    project['datasets'] = [datasets_names[int(j)-1] for j in dataset_selection]
-                except TypeError:
-                    print(f'Invalid selection: {dataset_selection}')
-                    continue
-
-        # Training
-        project['models_dir'] = sfutil.dir_input('Where should the saved models be stored? [./models] ',
-                                                  root=project['root'],
-                                                  default='./models',
-                                                  create_on_invalid=True)
-
-        project['mixed_precision'] = sfutil.yes_no_input('Use mixed precision? [Y/n] ', default='yes')
-        project['batch_train_config'] = sfutil.file_input('Batch training TSV location [./batch_train.tsv] ',
-                                                          root=project['root'],
-                                                          default='./batch_train.tsv',
-                                                          filetype='tsv',
-                                                          verify=False)
-
-        if not exists(project['batch_train_config']):
-            print('Batch training file not found, creating blank')
-            self.create_blank_train_config(project['batch_train_config'])
-
-
-        # Save settings as relative paths
-        project['annotations'] = project['annotations'].replace(project_folder, '$ROOT')
-        project['dataset_config'] = project['dataset_config'].replace(project_folder, '$ROOT')
-        project['models_dir'] = project['models_dir'].replace(project_folder, '$ROOT')
-        project['batch_train_config'] = project['batch_train_config'].replace(project_folder, '$ROOT')
-
-        sfutil.write_json(project, join(project_folder, 'settings.json'))
-        self._settings = project
-
-        # Write a sample actions.py file
-        with open(join(os.path.dirname(os.path.realpath(__file__)), 'sample_actions.py'), 'r') as sample_file:
-            sample_actions = sample_file.read()
-            with open(os.path.join(project_folder, 'actions.py'), 'w') as actions_file:
-                actions_file.write(sample_actions)
-
-        print('\nProject configuration saved.\n')
-        self.load_project(project_folder)
 
     def evaluate(self,
                  model,
@@ -440,7 +261,7 @@ class SlideflowProject:
                                                                     histogram,
                                                                     save_predictions))
         process.start()
-        log.info(f'Spawning evaluation process (PID: {process.pid})')
+        log.debug(f'Spawning evaluation process (PID: {process.pid})')
         process.join()
 
         return results_dict
@@ -628,8 +449,6 @@ class SlideflowProject:
 
         from slideflow.slide import WSI, TMA, ExtractionReport
 
-        log.info('Extracting image tiles...')
-
         if not save_tiles and not save_tfrecord:
             log.error('Either save_tiles or save_tfrecord must be true to extract tiles.')
             return
@@ -661,12 +480,13 @@ class SlideflowProject:
         if normalizer: log.info(f'Extracting tiles using {sfutil.bold(normalizer)} normalization')
         if whitespace_fraction < 1:
             log.info('Filtering tiles by whitespace fraction')
-            log.info(f'Whitespace defined as RGB avg > {whitespace_threshold})')
-            log.info(f'(exclude if >={whitespace_fraction*100:.0f}% whitespace')
+            log.debug(f'Whitespace defined as RGB avg > {whitespace_threshold} (exclude if >={whitespace_fraction*100:.0f}% whitespace')
+        if grayspace_fraction < 1:
+            log.info('Filtering tiles by grayspace fraction')
+            log.debug(f'Grayspace defined as HSV avg < {grayspace_threshold} (exclude if >={grayspace_fraction*100:.0f}% grayspace)')
 
         for dataset_name in datasets:
-            log.info(f'Working on dataset {sfutil.bold(dataset_name)}')
-
+            log.info(f'Working on dataset {sfutil.bold(dataset_name)}...')
             tiles_dir = join(extracting_dts.datasets[dataset_name]['tiles'],
                                 extracting_dts.datasets[dataset_name]['label'])
             roi_dir = extracting_dts.datasets[dataset_name]['roi']
@@ -712,10 +532,10 @@ class SlideflowProject:
                                 roi_method=roi_method,
                                 skip_missing_roi=False,
                                 silent=True)
-                log.info(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
+                log.debug(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
                 total_tiles += slide.estimated_num_tiles
                 del slide
-            log.info(f'Verification complete. Total estimated tiles to extract: {total_tiles}')
+            log.info(f'Total estimated tiles to extract: {total_tiles}')
 
             # Use multithreading if specified, extracting tiles from all slides in the filtered list
             if len(slide_list):
@@ -916,7 +736,7 @@ class SlideflowProject:
                                                                                     torch_export,
                                                                                     results_dict))
             process.start()
-            log.info(f'Spawning activations process (PID: {process.pid})')
+            log.debug(f'Spawning activations process (PID: {process.pid})')
             process.join()
             return results_dict
         else:
@@ -1069,8 +889,6 @@ class SlideflowProject:
                                     If False, will perform as single thread (GPU memory not be freed after completion).
                                     Allows use for functions being passed to logit_cmap (functions are not pickleable).
         '''
-        log.info('Generating heatmaps...')
-
         # Prepare dataset
         hp_data = sfutil.get_model_hyperparameters(model)
         heatmaps_dataset = self.get_dataset(filters=filters,
@@ -1113,7 +931,7 @@ class SlideflowProject:
                                                                                     batch_size,
                                                                                     num_threads))
                 process.start()
-                log.info(f'Spawning heatmaps process (PID: {process.pid})')
+                log.debug(f'Spawning heatmaps process (PID: {process.pid})')
                 process.join()
             else:
                 project_utils.heatmap_generator(self,
@@ -1219,8 +1037,6 @@ class SlideflowProject:
         from slideflow.activations import ActivationsVisualizer
         from slideflow.mosaic import Mosaic
 
-        log.info('Generating mosaic map...')
-
         # Set up paths
         stats_root = join(self.root, 'stats')
         mosaic_root = join(self.root, 'mosaic')
@@ -1244,7 +1060,9 @@ class SlideflowProject:
         else:
             focus_list = None
         num_focus = 0 if not focus_list else len(focus_list)
-        log.info(f'Generating mosaic from {len(tfrecords_list)} slides, focus on {num_focus} slides.')
+        log.info(f'Generating mosaic from {len(tfrecords_list)} slides')
+        if num_focus:
+            log.debug(f'Using focus on {num_focus} slides.')
 
         # If a header category is supplied and we are not showing predictions,
         # then assign slide labels from annotations
@@ -1729,24 +1547,13 @@ class SlideflowProject:
             log.warn('No datasets configured.')
 
         if verification in ('both', 'slides'):
-            log.info("Verifying slide annotations...")
+            log.debug("Verifying slide annotations...")
             dataset.verify_annotations_slides()
         if verification in ('both', 'tfrecords'):
-            log.info("Verifying tfrecords...")
+            log.debug("Verifying tfrecords...")
             dataset.update_manifest()
 
         return dataset
-
-    def load_datasets(self, path):
-        '''Loads datasets dictionaries from a given datasets.json file.'''
-        try:
-            datasets_data = sfutil.load_json(path)
-            datasets_names = list(datasets_data.keys())
-            datasets_names.sort()
-        except FileNotFoundError:
-            datasets_data = {}
-            datasets_names = []
-        return datasets_data, datasets_names
 
     def load_project(self, directory):
         '''Loads a saved and pre-configured project from the specified directory.'''
@@ -1777,8 +1584,7 @@ class SlideflowProject:
                     grayspace_fraction=0.6,
                     grayspace_threshold=0.05,
                     randomize_origin=False,
-                    buffer=None,
-                    num_threads=-1):
+                    buffer=None):
 
         '''Using a given model, generates a spatial map of tile-level predictions for a whole-slide image (WSI)
             and dumps prediction arrays into pkl files for later use.
@@ -1810,8 +1616,6 @@ class SlideflowProject:
             buffer:					Path to buffer directory in which to copy slides prior to extraction.
                                         Using a ramdisk buffer greatly improves tile extraction speed
                                         for slides stored on disks with slow random access.
-            num_threads:			Number of processes to use when generating predictions.
-                                        If 1, will not use multiprocessing.
 
         Returns:
             None'''
@@ -1857,44 +1661,26 @@ class SlideflowProject:
                             skip_missing_roi=False,
                             silent=True,
                             buffer=None)
-                log.info(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
+                log.debug(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
                 total_tiles += slide.estimated_num_tiles
                 del slide
-            log.info(f'Verification complete. Total estimated tiles to extract: {total_tiles}')
+            log.info(f'Verification complete. Total estimated tiles to predict: {total_tiles}')
 
-            if total_tiles:
-                pb = ProgressBar(total_tiles,
-                                counter_text='tiles',
-                                leadtext='Extracting tiles... ',
-                                show_counter=True,
-                                show_eta=True)
-                pb.auto_refresh()
-                pb_counter = pb.get_counter()
-                pb_lock = pb.get_lock()
-                print_fn = pb.print
-            else:
-                pb_counter = pb_lock = print_fn = None
-
-            # Function to extract tiles from a slide
-            def predict_wsi_from_slide(slide_path, downsample):
-                print_func = print if not pb else pb.print
+            for slide_path in slide_list:
                 log.info(f'Working on slide {sfutil.path_to_name(slide_path)}')
                 whole_slide = WSI(slide_path,
                                   tile_px,
                                   tile_um,
                                   stride_div,
-                                  enable_downsample=downsample,
+                                  enable_downsample=enable_downsample,
                                   roi_dir=roi_dir,
                                   roi_method=roi_method,
                                   randomize_origin=randomize_origin,
                                   skip_missing_roi=skip_missing_roi,
-                                  buffer=buffer,
-                                  pb_counter=pb_counter,
-                                  counter_lock=pb_lock,
-                                  print_fn=print_fn)
+                                  buffer=buffer)
 
                 if not whole_slide.loaded_correctly():
-                    return
+                    continue
 
                 try:
                     wsi_grid = whole_slide.predict(model=model_path,
@@ -1909,58 +1695,12 @@ class SlideflowProject:
                         pickle.dump(wsi_grid, pkl_file)
 
                 except TileCorruptionError:
-                    if downsample:
-                        log.warn(f'Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; will try ' + \
-                                    're-extraction with downsampling disabled')
-                        predict_wsi_from_slide(slide_path, downsample=False)
+                    formatted_slide = sfutil.green(sfutil.path_to_name(slide_path))
+                    if enable_downsample:
+                        log.warn(f'Corrupt tile in {formatted_slide}; consider disabling downsampling')
                     else:
-                        formatted_slide = sfutil.green(sfutil.path_to_name(slide_path))
                         log.error(f'Corrupt tile in {formatted_slide}; skipping slide')
-                        return None
-
-            # Use multithreading if specified, extracting tiles from all slides in the filtered list
-            if num_threads == -1: num_threads = self.default_threads
-            if num_threads > 1 and len(slide_list):
-                q = queue.Queue()
-                task_finished = False
-
-                def worker():
-                    while True:
-                        try:
-                            path = q.get()
-                            if buffer and buffer != 'vmtouch':
-                                buffered_path = join(buffer, os.path.basename(path))
-                                predict_wsi_from_slide(buffered_path, enable_downsample)
-                                os.remove(buffered_path)
-                            else:
-                                predict_wsi_from_slide(path, enable_downsample)
-                            q.task_done()
-                        except queue.Empty:
-                            if task_finished:
-                                return
-
-                threads = [threading.Thread(target=worker, daemon=True) for t in range(num_threads)]
-                for thread in threads:
-                    thread.start()
-
-                for slide_path in slide_list:
-                    if buffer and buffer != 'vmtouch':
-                        while True:
-                            try:
-                                shutil.copyfile(slide_path, join(buffer, os.path.basename(slide_path)))
-                                q.put(slide_path)
-                                break
-                            except OSError:
-                                time.sleep(5)
-                    else:
-                        q.put(slide_path)
-                q.join()
-                task_finished = True
-                if pb: pb.end()
-            else:
-                for slide_path in slide_list:
-                    predict_wsi_from_slide(slide_path, enable_downsample)
-                if pb: pb.end()
+                    continue
 
     def resize_tfrecords(self, source_tile_px, source_tile_um, dest_tile_px, filters=None):
         '''Resizes images in a set of TFRecords to a given pixel size.
@@ -2224,8 +1964,6 @@ class SlideflowProject:
         train_normalizer_source = normalizer_source if (normalizer and normalizer_strategy == 'realtime') else None
 
         # Prepare hyperparameters
-        log.info('Performing hyperparameter sweep...')
-
         hyperparameter_list = get_hyperparameter_combinations(hyperparameters, model_names, batch_train_file)
 
         if not isinstance(outcome_label_headers, list):
@@ -2233,10 +1971,7 @@ class SlideflowProject:
         if len(outcome_label_headers) > 1:
             num_h = len(hyperparameter_list)
             num_o = len(outcome_label_headers)
-            log.info(f'Training ({num_h} models) with {num_o} variables as simultaneous outcomes:')
-            for label in outcome_label_headers:
-                log.info(label)
-            if log.getEffectiveLevel() <= 20: print()
+            log.info(f'Training ({num_h} models) with {num_o} variables as simultaneous outcomes: {", ".join(outcome_label_headers)}')
 
         # Next, prepare the multiprocessing manager (needed to free VRAM after training and keep track of results)
         manager = multiprocessing.Manager()
@@ -2318,11 +2053,10 @@ class SlideflowProject:
                                                                           save_predictions,
                                                                           skip_metrics))
                 process.start()
-                log.info(f'Spawning training process (PID: {process.pid})')
+                log.debug(f'Spawning training process (PID: {process.pid})')
                 process.join()
 
             # Perform training
-            log.info('Training model...')
             if k_fold:
                 for k in valid_k:
                     start_training_process(k)
@@ -2588,3 +2322,8 @@ class SlideflowProject:
             for tile in tiles[:20]:
                 tile_loc = join(directory, tile)
                 TV.visualize_tile(image_jpg=tile_loc, export_folder=directory)
+
+class SlideflowProject(Project):
+    def __init__(self, args, **kwargs):
+        log.warn("sf.SlideflowProject is deprecated; please use sf.Project")
+        super().__init__(args, **kwargs)

@@ -33,7 +33,7 @@ LOGGING_PREFIXES = ['', ' + ', '    - ']
 LOGGING_PREFIXES_WARN = ['', ' ! ', '    ! ']
 LOGGING_PREFIXES_EMPTY = ['', '   ', '     ']
 
-def grey(text):       return '\033[38;21m' + str(text) + '\033[0m'
+def dim(text):        return '\033[2m' + str(text) + '\033[0m'
 def yellow(text):     return '\033[93m' + str(text) + '\033[0m'
 def blue(text):       return '\033[94m' + str(text) + '\033[0m'
 def green(text):      return '\033[92m' + str(text) + '\033[0m'
@@ -47,11 +47,14 @@ def purple(text):     return '\033[38;5;5m' + str(text) + '\033[0m'
 log = logging.getLogger('slideflow')
 log.setLevel(logging.INFO)
 
+class UserError(Exception):
+    pass
+
 class LogFormatter(logging.Formatter):
     MSG_FORMAT = "%(asctime)s [%(levelname)s] - %(message)s"
     LEVEL_FORMATS = {
-        logging.DEBUG: grey(MSG_FORMAT),
-        logging.INFO: grey(MSG_FORMAT),
+        logging.DEBUG: dim(MSG_FORMAT),
+        logging.INFO: MSG_FORMAT,
         logging.WARNING: yellow(MSG_FORMAT),
         logging.ERROR: red(MSG_FORMAT),
         logging.CRITICAL: bold(red(MSG_FORMAT))
@@ -382,40 +385,31 @@ def yes_no_input(prompt, default='no'):
             return False
         print(f"Invalid response.")
 
-def dir_input(prompt, root, default=None, create_on_invalid=False, absolute=False):
+def path_input(prompt, root, default=None, create_on_invalid=False, filetype=None, verify=True):
     '''Prompts user for directory input.'''
     while True:
-        if not absolute:
-            response = global_path(root, input(f"{prompt}"))
-        else:
-            response = input(f"{prompt}")
-        if not response and default:
-            response = global_path(root, default)
-        if not os.path.exists(response) and create_on_invalid:
-            if yes_no_input(f'Directory "{response}" does not exist. Create directory? [Y/n] ', default='yes'):
-                os.makedirs(response)
-                return response
-            else:
+        relative_response = input(f"{prompt}")
+        global_response = global_path(root, relative_response)
+        if not relative_response and default:
+            relative_response = default
+            global_response = global_path(root, relative_response)
+        if verify and not os.path.exists(global_response):
+            if not filetype and create_on_invalid:
+                if yes_no_input(f'Directory "{global_response}" does not exist. Create directory? [Y/n] ', default='yes'):
+                    os.makedirs(global_response)
+                    return relative_response
+                else:
+                    continue
+            elif filetype:
+                print(f'Unable to locate file "{global_response}"')
                 continue
-        elif not os.path.exists(response):
-            print(f'Unable to locate directory "{response}"')
+        elif not filetype and not os.path.exists(global_response):
+            print(f'Unable to locate directory "{global_response}"')
             continue
-        return response
-
-def file_input(prompt, root, default=None, filetype=None, verify=True):
-    '''Prompts user for file input.'''
-    while True:
-        response = global_path(root, input(f"{prompt}"))
-        if not response and default:
-            response = global_path(root, default)
-        if verify and not os.path.exists(response):
-            print(f'Unable to locate file "{response}"')
+        if filetype and (path_to_ext(global_response) != filetype):
+            print(f'Incorrect filetype; provided file of type "{path_to_ext(global_response)}", need type "{filetype}"')
             continue
-        extension = path_to_ext(response)
-        if filetype and (extension != filetype):
-            print(f'Incorrect filetype; provided file of type "{extension}", need type "{filetype}"')
-            continue
-        return response
+        return relative_response
 
 def int_input(prompt, default=None):
     '''Prompts user for int input.'''

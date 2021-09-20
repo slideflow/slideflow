@@ -20,7 +20,7 @@ import slideflow.util as sfutil
 import slideflow.io as sfio
 import shapely.geometry as sg
 
-from slideflow.util import log, ProgressBar, TCGA, StainNormalizer
+from slideflow.util import log, TCGA, StainNormalizer
 from slideflow.util.fastim import FastImshow
 from slideflow.model import ModelActivationsInterface
 from sklearn.linear_model import LogisticRegression
@@ -127,7 +127,7 @@ class ActivationsVisualizer:
         # Load from PKL (cache) if present
         if cache and exists(cache):
             # Load saved PKL cache
-            log.info(f'Loading pre-calculated predictions and activations from {cache}...')
+            log.info(f'Loading pre-calculated predictions and activations from {sfutil.green(cache)}...')
             with open(cache, 'rb') as pt_pkl_file:
 
                 self.slide_node_dict, self.slide_logits_dict, self.slide_loc_dict = pickle.load(pt_pkl_file)
@@ -185,13 +185,12 @@ class ActivationsVisualizer:
         if self.categories:
             self.used_categories = list(set([self.slide_category_dict[slide] for slide in self.slides]))
             self.used_categories.sort()
-        log.info(f'Observed categories (total: {len(self.used_categories)}):')
-        for c in self.used_categories:
-            log.info(f'\t{c}')
+        log.debug(f'Observed categories (total: {len(self.used_categories)}): {", ".join(self.used_categories)}')
+
         # Show total number of features
         if self.num_features is None:
             self.num_features = len(list(self.slide_node_dict[self.slides[0]].keys()))
-        log.info(f'Number of activation features: {self.num_features}')
+        log.debug(f'Number of activation features: {self.num_features}')
 
     def _save_node_statistics_to_csv(self, sorted_nodes, slide_node_dict, filename, tile_stats=None, slide_stats=None):
         '''Internal function to exports statistics (ANOVA p-values and slide-level averages) to CSV.
@@ -368,7 +367,6 @@ class ActivationsVisualizer:
             outcome_label_headers:		String, name of column header from which to read outcome variables.
         '''
         with open(annotations, 'r') as ann_file:
-            log.info('Reading annotations...')
             ann_reader = csv.reader(ann_file)
             header = next(ann_reader)
             slide_i = header.index(TCGA.slide)
@@ -391,9 +389,7 @@ class ActivationsVisualizer:
                 except KeyError:
                     # Skip unknown slide
                     pass
-            log.info(f'Observed categories (total: {len(self.used_categories)}):')
-            for c in self.used_categories:
-                log.info(f'\t{c}')
+            log.debug(f'Observed categories (total: {len(self.used_categories)}): {", ".join(self.used_categories)}')
 
     def get_tile_node_activations_by_category(self, node):
         '''For each outcome category, calculates activations of a given node across all tiles in the category.
@@ -683,8 +679,8 @@ class ActivationsVisualizer:
 
         fla_calc_time = time.time()
         print('\r\033[K', end='')
-        log.info(f'Activation calculation time: {fla_calc_time-fla_start_time:.0f} sec')
-        log.info(f'Number of activation features: {self.num_features}')
+        log.debug(f'Activation calculation time: {fla_calc_time-fla_start_time:.0f} sec')
+        log.debug(f'Number of activation features: {self.num_features}')
         if export:
             log.info(f'Activations saved to {sfutil.green(export)}')
 
@@ -1180,8 +1176,6 @@ class Heatmap:
     def __init__(self,
                  slide_path,
                  model_path,
-                 tile_px,
-                 tile_um,
                  stride_div=2,
                  roi_dir=None,
                  roi_list=None,
@@ -1214,8 +1208,12 @@ class Heatmap:
         from slideflow.slide import WSI
 
         self.logits = None
-        self.tile_px = tile_px
-        self.tile_um = tile_um
+        model_hyperparameters = sfutil.get_model_hyperparameters(model_path)
+        self.tile_px = model_hyperparameters['tile_px']
+        self.tile_um = model_hyperparameters['tile_um']
+        if (roi_dir is None and roi_list is None) and roi_method != 'ignore':
+            log.info("No ROIs provided; will generate whole-slide heatmap")
+            roi_method = 'ignore'
 
         # Setup normalization
         self.normalizer = normalizer
@@ -1235,8 +1233,8 @@ class Heatmap:
 
         # Load the slide
         self.slide = WSI(slide_path,
-                         tile_px,
-                         tile_um,
+                         self.tile_px,
+                         self.tile_um,
                          stride_div,
                          enable_downsample=False,
                          roi_dir=roi_dir,
@@ -1269,7 +1267,7 @@ class Heatmap:
 
         # Generate dataset from the generator
         with tf.name_scope('dataset_input'):
-            output_signature = {'image':tf.TensorSpec(shape=(tile_px,tile_px,3), dtype=tf.int32)}
+            output_signature = {'image':tf.TensorSpec(shape=(self.tile_px,self.tile_px,3), dtype=tf.int32)}
             tile_dataset = tf.data.Dataset.from_generator(gen_slice, output_signature=output_signature)
             tile_dataset = tile_dataset.map(self._parse_function, num_parallel_calls=8)
             tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
@@ -1286,8 +1284,10 @@ class Heatmap:
         postconv_arr = np.concatenate(postconv_arr)
         num_postconv_nodes = postconv_arr.shape[1]
 
-        log.info('Finished predictions. Waiting on thumbnail...')
+        print(f'\r\033[KWaiting on thumbnail...', end='')
         thumb_process.join()
+        print(f'\r\033[K', end='')
+        log.info(f"Heatmap complete for {sfutil.green(self.slide.name)}")
 
         if ((self.slide.tile_mask is not None) and
              (self.slide.extracted_x_size) and

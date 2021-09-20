@@ -13,6 +13,7 @@ import os
 import csv
 import warnings
 import shutil
+import json
 warnings.filterwarnings('ignore')
 
 import numpy as np
@@ -76,10 +77,10 @@ class ModelActivationsInterface:
             and concatenates into a single final output vector.'''
 
         if not layers:
-            log.info('Setting up interface to return activations from post-conv activations')
+            log.debug('Setting up interface to return activations from post-conv activations')
         else:
             msg_tail = 'and post-conv activations' if include_postconv else ''
-            log.info(f"Setting up interface to return activations from layers {', '.join(layers)} {msg_tail}")
+            log.debug(f"Setting up interface to return activations from layers {', '.join(layers)} {msg_tail}")
 
         assert layers or include_postconv
         if pooling:
@@ -139,7 +140,7 @@ class ModelActivationsInterface:
             if self.model_format != MODEL_FORMAT_LEGACY:
                 log.warning('Unable to read model using modern format, will try using legacy format')
                 self.model_format = MODEL_FORMAT_LEGACY
-                self._build(layers, include_postconv)
+                self._build(layers, include_postconv=include_postconv)
                 return
             else:
                 raise ModelError('Unable to read model.')
@@ -147,10 +148,10 @@ class ModelActivationsInterface:
         if include_logits:
             self.num_features = self.model.output_shape[0][1]
             self.num_classes = self.model.output_shape[1][1]
-            log.info(f'Number of logits: {self.num_classes}')
+            log.debug(f'Number of logits: {self.num_classes}')
         else:
             self.num_features = self.model.output_shape[1]
-        log.info(f'Number of activation features: {self.num_features}')
+        log.debug(f'Number of activation features: {self.num_features}')
 
     @tf.function
     def _predict(self, inp):
@@ -316,13 +317,9 @@ class HyperParameters:
                 log.error(f'Unrecognized hyperparameter {key}; unable to load')
 
     def __str__(self):
-        output = 'Hyperparameters:\n'
-
         args = sorted(self._get_args(), key=lambda arg: arg.lower())
-        for arg in args:
-            value = getattr(self, arg)
-            output += f'\t- {sfutil.purple(arg)} = {value}\n'
-        return output
+        arg_dict = {arg: getattr(self, arg) for arg in args}
+        return json.dumps(arg_dict, indent=2)
 
     def validate(self):
         '''Ensures that hyperparameter combinations are valid.'''
@@ -506,7 +503,7 @@ class SlideflowModel:
             checkpoint:	Path to checkpoint from which to resume model training
         '''
         if self.mixed_precision:
-            log.info('Training with mixed precision')
+            log.debug('Training with mixed precision')
             policy = tf.keras.mixed_precision.experimental.Policy('mixed_float16')
             tf.keras.mixed_precision.experimental.set_policy(policy)
 
@@ -629,7 +626,7 @@ class SlideflowModel:
             activation = 'linear'
         else:
             activation = 'softmax'
-        log.info(f'Using {activation} activation')
+        log.debug(f'Using {activation} activation')
 
         # Multi-categorical outcomes
         if type(self.NUM_CLASSES) == dict:
@@ -935,9 +932,7 @@ class SlideflowModel:
             strategy = None
 
         with strategy.scope() if strategy is not None else no_scope():
-            # Build inputs
             with tf.name_scope('input'):
-
                 train_data, _, num_tiles = interleave_tfrecords(self.TRAIN_TFRECORDS,
                                                                 image_size=self.IMAGE_SIZE,
                                                                 batch_size=hp.batch_size,
@@ -975,16 +970,16 @@ class SlideflowModel:
                     validation_data, validation_data_with_slidenames, num_val_tiles = interleave_results
 
                 val_log_msg = '' if not validate_on_batch else f'every {sfutil.bold(str(validate_on_batch))} steps and '
-                log.info(f'Validation during training: {val_log_msg}at epoch end')
+                log.debug(f'Validation during training: {val_log_msg}at epoch end')
                 if validation_steps:
                     validation_data_for_training = validation_data.repeat()
                     num_samples = validation_steps * hp.batch_size
-                    log.info(f'Using {validation_steps} batches ({num_samples} samples) each validation check')
+                    log.debug(f'Using {validation_steps} batches ({num_samples} samples) each validation check')
                 else:
                     validation_data_for_training = validation_data
-                    log.info(f'Using entire validation set each validation check')
+                    log.debug(f'Using entire validation set each validation check')
             else:
-                log.info('Validation during training: None')
+                log.debug('Validation during training: None')
                 validation_data_for_training = None
                 validation_steps = 0
 

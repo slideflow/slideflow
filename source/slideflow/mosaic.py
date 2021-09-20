@@ -20,6 +20,7 @@ from slideflow.util import log, StainNormalizer
 from slideflow.statistics import get_centroid_index
 from multiprocessing.dummy import Pool as DPool
 from functools import partial
+from tqdm import tqdm
 
 class MosaicError(Exception):
     pass
@@ -79,7 +80,6 @@ class Mosaic:
         self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
         # Initialize figure
-        log.info('Initializing figure...')
         if resolution not in ('high', 'low'):
             log.warning(f"Unknown resolution option '{resolution}', defaulting to low resolution")
         if resolution == 'high':
@@ -119,7 +119,7 @@ class Mosaic:
         min_x = min(x_points) - buffer
         max_y = max(y_points) + buffer
         min_y = min(y_points) - buffer
-        log.info(f'Loaded {len(self.points)} points.')
+        log.debug(f'Loaded {len(self.points)} points.')
 
         tile_size = (max_x - min_x) / self.num_tiles_x
         self.num_tiles_y = int((max_y - min_y) / tile_size)
@@ -152,7 +152,7 @@ class Mosaic:
                     points_added += 1
         for g in self.GRID:
             shuffle(g['points'])
-        log.info(f'{points_added} points added to grid')
+        log.debug(f'{points_added} points added to grid')
 
         # Next, prepare mosaic grid by placing tile outlines
         log.info('Placing tile outlines...')
@@ -180,12 +180,12 @@ class Mosaic:
         if mapping_method not in ('strict', 'expanded'):
             raise TypeError('Unknown mapping method; must be strict or expanded')
         else:
-            log.info(f'Mapping method: {mapping_method}')
+            log.debug(f'Mapping method: {mapping_method}')
 
         if tile_select not in ('nearest', 'centroid'):
             raise TypeError('Unknown tile selection method; must be nearest or centroid')
         else:
-            log.info(f'Tile selection method: {tile_select}')
+            log.debug(f'Tile selection method: {tile_select}')
 
         def calc_distance(tile, global_point_coords):
             if mapping_method == 'strict':
@@ -215,7 +215,7 @@ class Mosaic:
         global_point_coords = np.asarray([p['coord'] for p in self.points])
         pool = DPool(8)
         dist_fn = partial(calc_distance, global_point_coords=global_point_coords)
-        for i, _ in enumerate(pool.imap_unordered(dist_fn, self.GRID), 1):
+        for i, _ in tqdm(enumerate(pool.imap_unordered(dist_fn, self.GRID), 1), total=len(self.GRID), ncols=80):
             if log.getEffectiveLevel() <= 20: sys.stderr.write(f'\rCompleted {i/len(self.GRID):.2%}')
         pool.close()
         pool.join()
@@ -271,8 +271,7 @@ class Mosaic:
                 tile['image'] = image
                 num_placed += 1
         elif mapping_method == 'expanded':
-            for i, distance_pair in enumerate(tile_point_distances):
-                print(f'\rPlacing tile {i}/{len(tile_point_distances)}...', end='')
+            for i, distance_pair in tqdm(enumerate(tile_point_distances), total=len(tile_point_distances), ncols=80):
                 # Attempt to place pair, skipping if unable (due to other prior pair)
                 point = self.points[distance_pair['point_index']]
                 tile = self.GRID[distance_pair['grid_index']]
@@ -298,8 +297,7 @@ class Mosaic:
                                       zorder=99)
                     tile['image'] = image
                     num_placed += 1
-            if log.getEffectiveLevel() <= 20: print('\r\033[K', end='')
-        log.info(f'Num placed: {num_placed}')
+        log.debug(f'Num placed: {num_placed}')
 
         # Focus on a subset of TFRecords if desired
         if focus: self.focus(focus)

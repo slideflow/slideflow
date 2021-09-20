@@ -63,7 +63,7 @@ def download_from_tcga(uuid, dest, message=None):
     pb.end()
 
 def random_annotations(slides_path):
-    slides = [sfutil.path_to_name(f) for f in os.listdir(slides_path) 
+    slides = [sfutil.path_to_name(f) for f in os.listdir(slides_path)
                                         if sfutil.path_to_ext(f).lower() in sfutil.SUPPORTED_FORMATS][:10]
     annotations = [[sfutil.TCGA.patient, 'dataset', 'category1', 'category2', 'linear1', 'linear2']]
     for slide in slides:
@@ -77,7 +77,7 @@ def random_annotations(slides_path):
 class TestConfigurator:
     def __init__(self, path, slides=RANDOM_TCGA):
         '''Test Suite configuration.
-        
+
         Args:
             path        Path to directory for test projects and data.
             slides      Specifies source of test slides. Either RANDOM_TCGA (default), or path to directory.
@@ -98,27 +98,28 @@ class TestConfigurator:
         self.project_settings = {
             'root': join(path, 'project'),
             'name': 'TEST_PROJECT',
-            'annotations': '$ROOT/annotations.csv',
+            'annotations': './annotations.csv',
             'dataset_config': join(path, 'datasets.json'),
             'datasets': ['TEST'],
-            'models_dir': '$ROOT/models',
+            'models_dir': './models',
             'tile_um': 302,
             'tile_px': 299,
             'mixed_precision': True,
-            'batch_train_config': '$ROOT/batch_train.csv',
+            'batch_train_config': './batch_train.csv',
         }
         if slides == RANDOM_TCGA:
+            tcga_slides = get_random_tcga_slides()
             with TaskWrapper("Downloading slides..."):
                 existing_slides = [sfutil.path_to_name(f) for f in os.listdir(slides_path)
                                                             if sfutil.path_to_ext(f).lower() in sfutil.SUPPORTED_FORMATS]
-                for slide in [s for s in slides if s not in existing_slides]:
-                    download_from_tcga(uuid=slides[slide],
+                for slide in [s for s in tcga_slides if s not in existing_slides]:
+                    download_from_tcga(uuid=tcga_slides[slide],
                                        dest=slides_path,
                                        message=f"Downloading {sfutil.green(slide)} from TCGA...")
 
         self.annotations = random_annotations(slides_path)
-        self.SAVED_MODEL = join(path, 'project', 'models', 'category1-performance-kfold1', 'trained_model_epoch1')
-        self.REFERENCE_MODEL = None
+        self.saved_model = join(path, 'project', 'models', 'category1-performance-kfold1', 'trained_model_epoch1')
+        self.reference_model = None
 
 class TaskWrapper:
     '''Test wrapper to assist with logging.'''
@@ -135,6 +136,8 @@ class TaskWrapper:
     def __enter__(self):
         if self.VERBOSITY >= logging.WARNING:
             self.spinner.__enter__()
+        else:
+            print(self.message)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_traceback):
@@ -147,6 +150,8 @@ class TaskWrapper:
             self._end_msg("SKIPPED", sfutil.yellow, f' [{duration:.0f} s]')
         else:
             self._end_msg("DONE", sfutil.green, f' [{duration:.0f} s]')
+        if self.VERBOSITY < logging.WARNING:
+            print()
 
     def _end_msg(self, end_str, color_func, trail, width=80):
         right_msg = f' {color_func(end_str)}{trail}'
@@ -166,19 +171,14 @@ class TaskWrapper:
 
 class TestSuite:
     '''Class to supervise standardized testing of slideflow pipeline.'''
-    def __init__(self, root, slides=RANDOM_TCGA, reset=False, buffer=None, num_threads=8, debug=False, gpu=None):
+    def __init__(self, root, slides=RANDOM_TCGA, reset=False, buffer=None, num_threads=8, verbosity=logging.WARNING, gpu=None):
         '''Initialize testing models.'''
 
         # Set logging level
-        if debug:
-            os.environ['TF_CPP_MIN_LOG_LEVEL'] = "0"
-            self.verbosity = logging.DEBUG
-        else:
-            os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
-            logging.getLogger("tensorflow").setLevel(logging.ERROR)
-            self.verbosity = logging.WARNING
-
-        TaskWrapper.VERBOSITY = self.verbosity
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
+        logging.getLogger("tensorflow").setLevel(logging.ERROR)
+        logging.getLogger("slideflow").setLevel(verbosity)
+        TaskWrapper.VERBOSITY = verbosity
 
         # Configure testing environment
         self.config = TestConfigurator(root, slides=slides)
@@ -190,10 +190,8 @@ class TestSuite:
             else:
                 reset_test.skip()
 
-        self.SFP = sf.SlideflowProject(self.config.project_settings['root'],
-                                       interactive=False,
+        self.SFP = sf.Project(self.config.project_settings['root'],
                                        gpu=gpu,
-                                       verbosity=logging.DEBUG if debug else logging.ERROR,
                                        default_threads=num_threads)
         self.SFP._settings = self.config.project_settings
         self.SFP.save_project()
@@ -203,12 +201,6 @@ class TestSuite:
         with TaskWrapper("Checking GPU availability...") as gpu_test:
             if not tf.config.list_physical_devices('GPU'):
                 gpu_test.fail()
-
-        # Finish logging settings after importing tensorflow
-        if debug:
-            tf.get_logger().setLevel("INFO")
-        else:
-            tf.get_logger().setLevel("ERROR")
 
         # Configure datasets (input)
         self.configure_datasets()
@@ -245,7 +237,7 @@ class TestSuite:
                 csv_writer = csv.writer(csv_outfile, delimiter=',')
                 for an in self.config.annotations:
                     csv_writer.writerow(an)
-            project_dataset = Dataset(tile_px=299, 
+            project_dataset = Dataset(tile_px=299,
                                       tile_um=302,
                                       sources='TEST',
                                       config_file=self.SFP.dataset_config,
@@ -322,7 +314,7 @@ class TestSuite:
             self.SFP.extract_tiles(tile_px=299, tile_um=302, buffer=self.buffer, dataset=['TEST'], skip_missing_roi=False, **kwargs)
 
     def test_realtime_normalizer(self, **train_kwargs):
-        with TaskWrapper("Testing realtime normalization, using Macenko...") as test:
+        with TaskWrapper("Testing realtime normalization, using Reinhard...") as test:
             hp = self.setup_hp('categorical')
             self.SFP.train(outcome_label_headers='category1',
                            validation_settings=sf.project.get_validation_settings(k_fold_iter=1),
@@ -384,58 +376,74 @@ class TestSuite:
                                           hyperparameters=hp,
                                           validation_settings=sf.project.get_validation_settings(k_fold_iter=1),
                                           save_predictions=True,
+                                          steps_per_epoch_override=5,
                                           **train_kwargs)
 
     def test_evaluation(self, **eval_kwargs):
+        multi_cat_model = join(self.SFP.models_dir, 'category1-category2-TEST-HPSweep0-kfold1', 'trained_model_epoch1')
+        multi_lin_model = join(self.SFP.models_dir, 'linear1-linear2-TEST-HPSweep0-kfold1', 'trained_model_epoch1')
+        multi_inp_model = join(self.SFP.models_dir, 'category1-multi_input-kfold1', 'trained_model_epoch1')
+
+        assert os.path.exists(multi_cat_model)
+        assert os.path.exists(multi_lin_model)
+        assert os.path.exists(multi_inp_model)
+        assert os.path.exists(self.config.saved_model)
+
         with TaskWrapper("Testing evaluation of single categorical outcome model...") as test:
-            self.SFP.evaluate(model=self.config.SAVED_MODEL,
+            self.SFP.evaluate(model=self.config.saved_model,
                               outcome_label_headers='category1',
                               histogram=True,
                               save_predictions=True,
                               **eval_kwargs)
 
         with TaskWrapper("Testing evaluation of multi-categorical outcome model...") as test:
-            self.SFP.evaluate(model=join(self.SFP.models_dir, 'category1-category2-TEST-HPSweep0-kfold1', 'trained_model_epoch1'),
+            self.SFP.evaluate(model=multi_cat_model,
                               outcome_label_headers=['category1', 'category2'],
                               histogram=True,
                               save_predictions=True,
                               **eval_kwargs)
 
         with TaskWrapper("Testing evaluation of multi-linear outcome model...") as test:
-            self.SFP.evaluate(model=join(self.SFP.models_dir, 'linear1-linear2-TEST-HPSweep0-kfold1', 'trained_model_epoch1'),
+            self.SFP.evaluate(model=multi_lin_model,
                               outcome_label_headers=['linear1', 'linear2'],
                               histogram=True,
                               save_predictions=True,
                               **eval_kwargs)
 
         with TaskWrapper("Testing evaluation of multi-input (image + annotation feature) model...") as test:
-            self.SFP.evaluate(model=join(self.SFP.models_dir, 'category1-multi_input-kfold1', 'trained_model_epoch1'),
+            self.SFP.evaluate(model=multi_inp_model,
                               outcome_label_headers='category1',
                               input_header='category2',
                               **eval_kwargs)
 
         #print("Testing that evaluation matches known baseline...")
-        #self.SFP.evaluate(outcome_label_headers='category1', model=REFERENCE_MODEL, filters={'submitter_id': '234839'})
+        #self.SFP.evaluate(outcome_label_headers='category1', model=self.reference_model, filters={'submitter_id': '234839'})
         # Code to lookup excel sheet of predictions and verify they match known baseline
 
     def test_heatmap(self, slide='auto', **heatmap_kwargs):
+        assert os.path.exists(self.config.saved_model)
+
         with TaskWrapper("Testing heatmap generation...") as test:
             if slide.lower() == 'auto':
                 sfdataset = self.SFP.get_dataset()
                 slide_paths = sfdataset.get_slide_paths(dataset='TEST')
                 patient_name = sfutil.path_to_name(slide_paths[0])
-            self.SFP.generate_heatmaps(self.config.SAVED_MODEL, 
-                                       filters={sfutil.TCGA.patient: [patient_name]}, 
+            self.SFP.generate_heatmaps(self.config.saved_model,
+                                       filters={sfutil.TCGA.patient: [patient_name]},
                                        roi_method='ignore',
                                        **heatmap_kwargs)
 
     def test_mosaic(self, **mosaic_kwargs):
+        assert os.path.exists(self.config.saved_model)
+
         with TaskWrapper("Testing mosaic generation...") as test:
-            self.SFP.generate_mosaic(self.config.SAVED_MODEL, mosaic_filename="mosaic_test.png", **mosaic_kwargs)
+            self.SFP.generate_mosaic(self.config.saved_model, mosaic_filename="mosaic_test.png", **mosaic_kwargs)
 
     def test_activations(self, **act_kwargs):
+        assert os.path.exists(self.config.saved_model)
+
         with TaskWrapper("Testing activations analytics...") as test:
-            AV = self.SFP.generate_activations(model=self.config.SAVED_MODEL,
+            AV = self.SFP.generate_activations(model=self.config.saved_model,
                                                outcome_label_headers='category1',
                                                focus_nodes=[0],
                                                **act_kwargs)
@@ -447,11 +455,13 @@ class TestSuite:
                 umap.save_3d_plot(node=node, filename=join(self.SFP.root, 'stats', f'3d_node{node}.png'))
 
     def test_predict_wsi(self):
+        assert os.path.exists(self.config.saved_model)
+
         with TaskWrapper("Testing WSI prediction...") as test:
             sfdataset = self.SFP.get_dataset()
             slide_paths = sfdataset.get_slide_paths(dataset='TEST')
             patient_name = sfutil.path_to_name(slide_paths[0])
-            self.SFP.predict_wsi(self.config.SAVED_MODEL,
+            self.SFP.predict_wsi(self.config.saved_model,
                                  299,
                                  302,
                                  join(self.SFP.root, 'wsi'),
@@ -460,6 +470,7 @@ class TestSuite:
     def test(self, extract=True, train=True, normalizer=True, train_performance=True,
                 evaluate=True,heatmap=True, mosaic=True, activations=True, predict_wsi=True):
         '''Perform and report results of all available testing.'''
+
         if extract: 			self.test_extraction()
         if train:				self.test_training()
         if normalizer:			self.test_realtime_normalizer()
