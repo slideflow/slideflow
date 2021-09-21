@@ -1,10 +1,10 @@
 '''Utility functions for Project, primarily for use in the context of multiprocessing.'''
-
+import re
 import os
 import csv
 import types
 import json
-from os.path import join, exists, basename
+from os.path import join, exists, basename, isdir
 import slideflow.util as sfutil
 import slideflow.io as sfio
 import slideflow as sf
@@ -546,6 +546,7 @@ def evaluator(project, outcome_label_headers, model, results_dict, input_header=
     hp_file = join(model_dir, 'hyperparameters.json')
 
     hp_data = {
+        'slideflow_version': sf.__version__,
         'model_name': model_name,
         'model_path': model,
         'stage': 'evaluation',
@@ -656,7 +657,6 @@ def trainer(project, outcome_label_headers, model_name, results_dict, hp, val_se
     log.info(f'Training model {sfutil.bold(model_name)}{k_fold_msg}...')
     log.info(f'Hyperparameters: {hp}')
     log.info(f'Validation settings: {json.dumps(vars(val_settings), indent=2)}')
-    full_model_name = model_name if not k_fold_i else model_name+f'-kfold{k_fold_i}'
 
     # Filter out slides that are blank in the outcome label, or blank in any of the input_header categories
     if filter_blank: filter_blank += [o for o in outcome_label_headers]
@@ -830,7 +830,13 @@ def trainer(project, outcome_label_headers, model_name, results_dict, hp, val_se
     # Initialize model
     # Using the project annotation file, assemble list of slides for training,
     # as well as the slide annotations dictionary (output labels)
-    model_dir = join(project.models_dir, full_model_name)
+    full_model_name = model_name if not k_fold_i else model_name+f'-kfold{k_fold_i}'
+    prev_run_dirs = [x for x in os.listdir(project.models_dir) if isdir(join(project.models_dir, x))]
+    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
+    prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
+    cur_run_id = max(prev_run_ids, default=-1) + 1
+    model_dir = os.path.join(project.models_dir, f'{cur_run_id:05d}-{full_model_name}')
+    assert not os.path.exists(model_dir)
 
     # Build a model using the slide list as input and the annotations dictionary as output labels
     SFM = sfmodel.SlideflowModel(model_dir,
@@ -838,6 +844,7 @@ def trainer(project, outcome_label_headers, model_name, results_dict, hp, val_se
                                  slide_labels_dict,
                                  training_tfrecords,
                                  validation_tfrecords,
+                                 name=full_model_name,
                                  manifest=manifest,
                                  mixed_precision=project.mixed_precision,
                                  model_type=hp.model_type(),
@@ -851,6 +858,7 @@ def trainer(project, outcome_label_headers, model_name, results_dict, hp, val_se
     hp_file = join(project.models_dir, full_model_name, 'hyperparameters.json')
 
     hp_data = {
+        'slideflow_version': sf.__version__,
         'model_name': model_name,
         'stage': 'training',
         'tile_px': hp.tile_px,

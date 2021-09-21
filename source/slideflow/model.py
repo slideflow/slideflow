@@ -375,6 +375,7 @@ class SlideflowModel:
                  slide_annotations,
                  train_tfrecords,
                  validation_tfrecords,
+                 name=None,
                  manifest=None,
                  mixed_precision=True,
                  model_type='categorical',
@@ -392,6 +393,7 @@ class SlideflowModel:
             slide_annotations:      Dictionary mapping slide names to both patient names and outcome labels
             train_tfrecords:        List of tfrecord paths for training
             validation_tfrecords:   List of tfrecord paths for validation
+            name:                   Optional name describing the model, used for model saving.
             manifest:               Manifest dictionary mapping TFRecords to number of tiles
             mixed_precision:        Bool, if True, will use FP16 mixed precision (rather than FP32)
             model_type:             Type of model outcome label, either 'categorical' or 'linear'
@@ -1031,7 +1033,8 @@ class SlideflowModel:
                 if log.getEffectiveLevel() <= 20: print('\r\033[K', end='')
                 self.epoch_count += 1
                 if self.epoch_count in [e for e in hp.finetune_epochs]:
-                    model_path = os.path.join(parent.DATA_DIR, f'trained_model_epoch{self.epoch_count}')
+                    model_name = self.name if self.name else 'trained_model'
+                    model_path = os.path.join(parent.DATA_DIR, f'{model_name}_epoch{self.epoch_count}')
                     self.model.save(model_path)
 
                     # Try to copy model settings/hyperparameters file into the model folder
