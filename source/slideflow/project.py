@@ -63,8 +63,6 @@ class Project:
             sfutil.UserError: if the project folder does not exist, or the folder exists but
                 kwargs are provided.
         """
-
-        self.verbosity = logging.getLogger('slideflow').getEffectiveLevel()
         self.default_threads = default_threads
         self.root = project_folder
 
@@ -78,6 +76,12 @@ class Project:
             self._settings = project_utils.project_config(**project_kwargs)
         else:
             raise sfutil.UserError(f"Project folder {project_folder} does not exist.")
+
+        logger = logging.getLogger('slideflow')
+        self.verbosity = logger.getEffectiveLevel()
+        fh = logging.FileHandler(join(project_folder, 'log.txt'))
+        fh.setLevel(logging.DEBUG)
+        logger.addHandler(fh)
 
         if gpu is not None:
             self.select_gpu(gpu)
