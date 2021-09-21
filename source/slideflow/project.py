@@ -529,7 +529,7 @@ class Project:
                                 stride_div,
                                 roi_dir=roi_dir,
                                 roi_method=roi_method,
-                                skip_missing_roi=False,
+                                skip_missing_roi=skip_missing_roi,
                                 silent=True)
                 log.debug(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
                 total_tiles += slide.estimated_num_tiles
