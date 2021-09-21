@@ -34,26 +34,36 @@ logging.getLogger('tensorflow').setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 class Project:
-    '''Assists with project / dataset organization and execution of pipeline functions.'''
+    """Assists with project / dataset organization and execution of pipeline functions.
+
+    Standard instantiation with __init__ assumes a project already exists at a given directory,
+    or that project configuration will be supplied via kwargs. Alternatively, a project
+    may be instantiated using `from_prompt`, which interactively guides the user through configuration.
+    """
 
     def __init__(self, project_folder, gpu=None, default_threads=4, **project_kwargs):
         """Initializes project at the specified project folder, creating a new project using
         the specified kwargs if one does not already exist.
 
         Args:
-            project_folder (str):               Path to project directory.
-            gpu (str, optional):                Manually assign GPU. Comma separated int. Defaults to None.
-            default_threads (int, optional):    Default threads available for multithreaded functions. Defaults to 4.
+            project_folder (path): Path to project directory.
+            gpu (str, optional): Manually assign GPU. Comma separated int. Defaults to None.
+            default_threads (int, optional): Default threads available for multithreaded functions. Defaults to 4.
 
         Kwargs:
-            name (str):                         Project name.
-            annotations (str):                  Path to annotations CSV file.
-            dataset_config (str):               Path to dataset configuration JSON file.
-            datasets (list):                    List of dataset names to include in project.
-            models_dir (str):                   Path to directory in which to save models.
-            mixed_precision (bool):             Used mixed precision for training.
-            batch_train_config (str):           Path to batch train configuration CSV file.
+            name (str): Project name.
+            annotations (path): Path to annotations CSV file.
+            dataset_config (path): Path to dataset configuration JSON file.
+            datasets (list): List of dataset names to include in project.
+            models_dir (path): Path to directory in which to save models.
+            mixed_precision (bool): Used mixed precision for training.
+            batch_train_config (path): Path to batch train configuration CSV file.
+
+        Raises:
+            sfutil.UserError: if the project folder does not exist, or the folder exists but
+                kwargs are provided.
         """
+
         self.verbosity = logging.getLogger('slideflow').getEffectiveLevel()
         self.default_threads = default_threads
         self.root = project_folder
@@ -78,10 +88,11 @@ class Project:
         saves settings to "settings.json" within the project directory.
 
         Args:
-            project_folder (str):                 Path to project directory.
-            gpu (str, optional):                  Manually assign GPU. Comma separated int. Defaults to None.
-            default_threads (int, optional):      Default threads available for multithreaded functions. Defaults to 4.
+            project_folder (str): Path to project directory.
+            gpu (str, optional): Manually assign GPU. Comma separated int. Defaults to None.
+            default_threads (int, optional): Default threads available for multithreaded functions. Defaults to 4.
         """
+
         if not exists(join(project_folder, 'settings.json')):
             log.info(f'Project at "{project_folder}" does not exist; will set up new project.')
             project_utils.interactive_project_setup(project_folder)
@@ -90,28 +101,32 @@ class Project:
 
     @property
     def annotations(self):
-        '''Path to annotations file.'''
+        """Path to annotations file."""
         return self._read_relative_path(self._settings['annotations'])
 
     @property
     def dataset_config(self):
-        '''Path to dataset configuration JSON file.'''
+        """Path to dataset configuration JSON file."""
         return self._read_relative_path(self._settings['dataset_config'])
 
     @property
     def models_dir(self):
+        """Path to models directory."""
         return self._read_relative_path(self._settings['models_dir'])
 
     @property
     def batch_train_config(self):
+        """Path to batch training configuration file, for hyperparameters sweeps."""
         return self._read_relative_path(self._settings['batch_train_config'])
 
     @property
     def datasets(self):
+        """Returns list of datasets active in this project."""
         return self._settings['datasets']
 
     @property
     def mixed_precision(self):
+        """Returns bool indicating whether mixed precision should be used for this project."""
         if 'mixed_precision' in self._settings:
             return self._settings['mixed_precision']
         elif 'use_fp16' in self._settings:
@@ -119,6 +134,7 @@ class Project:
             return self._settings['use_fp16']
 
     def _read_relative_path(self, path):
+        """Converts relative path within project directory to global path."""
         if path[0] == '.':
             return join(self.root, path[2:])
         elif path[:5] == '$ROOT':
@@ -129,43 +145,68 @@ class Project:
             return path
 
     def select_gpu(self, gpu):
-        '''Sets environmental variables such that the indicated GPU is used by CUDA/Tensorflow.'''
-        if gpu == -1:
-            os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-            log.warn(f'Disabling GPU access.')
-        else:
-            log.info(f'Using GPU #{gpu}')
-            os.environ['CUDA_VISIBLE_DEVICES']=str(gpu)
-
-    def add_dataset(self, name, slides, roi, tiles, tfrecords, path=None):
-        '''Adds a dataset to the dataset configuration file.
+        """Sets CUDA_VISIBLE_DEVICES in order to restrict GPU access to the given devices.
 
         Args:
-            name:       Dataset name.
-            slides:     Path to directory containing slides.
-            roi:        Path to directory containing CSV ROIs.
-            tiles:      Path to directory in which to store extracted tiles.
-            tfrecords:  Path to directory in which to store TFRecords of extracted tiles.
-            path:       (optional) Path to dataset configuration file. If not provided, uses project default.
-        '''
+            gpu (str): String indicating what the CUDA_VISIBLE_DEVICES should be set to.
+
+        Raises:
+            ValueError: if gpu is not a string
+        """
+
+        if not isinstance(gpu, str):
+            raise ValueError(f'Invalid option {gpu}; must supply string (e.g. "0", "0,1", "-1")')
+        os.environ['CUDA_VISIBLE_DEVICES'] = gpu
+        if gpu == '-1':
+            log.warn(f'Disabling GPU access.')
+        else:
+            log.info(f'Using GPU: {gpu}')
+
+    def add_dataset(self, name, slides, roi, tiles, tfrecords, path=None):
+        """Adds a dataset to the dataset configuration file.
+
+        Args:
+            name (str): Dataset name.
+            slides (path): Path to directory containing slides.
+            roi (path): Path to directory containing CSV ROIs.
+            tiles (path): Path to directory in which to store extracted tiles.
+            tfrecords (path): Path to directory in which to store TFRecords of extracted tiles.
+            path (path, optional): Path to dataset configuration file. Defaults to None.
+                If not provided, uses project default.
+        """
+
         if not path:
             path = self.dataset_config
         project_utils.add_dataset(name, slides, roi, tiles, tfrecords, path)
 
     def associate_slide_names(self):
-        '''Funtion to automatically associate patient names with slide filenames in the annotations file.'''
+        """Automatically associate patient names with slide filenames in the annotations file."""
         dataset = self.get_dataset(tile_px=0, tile_um=0, verification=None)
         dataset.update_annotations_with_slidenames(self.annotations)
 
     def create_blank_train_config(self, filename=None):
-        '''Creates a CSV file with the batch training hyperparameter structure.'''
+        """Creates a CSV file with the batch training hyperparameter structure.
+
+        Args:
+            filename (path, optional): Path to where batch train configuration should be saved. Defaults to None.
+                If not provided, uses project default.
+        """
+
         if not filename:
             filename = self.batch_train_config
         project_utils.create_blank_train_config(filename)
 
-    def create_hyperparameter_sweep(self, tile_px, tile_um, finetune_epochs,
-                                    label=None, filename=None, **kwargs):
-        '''Prepares a hyperparameter sweep, saving to a batch train TSV file.'''
+    def create_hyperparameter_sweep(self, tile_px, tile_um, finetune_epochs, label=None, filename=None, **kwargs):
+        """Prepares a hyperparameter sweep, saving to a batch train TSV file.
+
+        Args:
+            tile_px (int): Tile width, in pixels.
+            tile_um (int): Tile width, in microns.
+            finetune_epochs (int): Number of epochs to train.
+            label (str, optional): Label to use when naming models in sweep. Defaults to None.
+            filename (path, optional): Path to save hyperparameter sweep. If None, uses project default.
+        """
+
         pdict = kwargs
         pdict.update({'tile_px': tile_px, 'tile_um': tile_um})
 
@@ -198,49 +239,43 @@ class Project:
                 writer.writerow(row)
         log.info(f'Wrote {len(sweep)} combinations for sweep to {sfutil.green(filename)}')
 
-    def evaluate(self,
-                 model,
-                 outcome_label_headers,
-                 hyperparameters=None,
-                 filters=None,
-                 checkpoint=None,
-                 eval_k_fold=None,
-                 max_tiles_per_slide=0,
-                 min_tiles_per_slide=0,
-                 normalizer=None,
-                 normalizer_source=None,
-                 batch_size=64,
-                 input_header=None,
-                 permutation_importance=False,
-                 histogram=False,
-                 save_predictions=False):
+    def evaluate(self, model, outcome_label_headers, filters=None, checkpoint=None, hyperparameters=None,
+                 eval_k_fold=None, max_tiles_per_slide=0, min_tiles_per_slide=0, normalizer=None,
+                 normalizer_source=None, batch_size=64, input_header=None, permutation_importance=False,
+                 histogram=False, save_predictions=False):
 
-        '''Evaluates a saved model on a given set of tfrecords.
+        """Evaluates a saved model on a given set of tfrecords.
 
         Args:
-            model:                  Path to Tensorflow model to evaluate.
-            outcome_label_headers:  Annotation column header that specifies the outcome label(s).
-            hyperparameters:        Path to model's hyperparameters.json file.
-                                        If None (default), searches in the model directory.
-            filters:                Filters to use when selecting tfrecords on which to perform evaluation.
-            checkpoint:             Path to cp.ckpt file to load, if evaluating a saved checkpoint.
-            eval_k_fold:            K-fold iteration number to evaluate.
-                                        If None, will evaluate all tfrecords irrespective of K-fold.
-            max_tiles_per_slide:    Will only use up to this many tiles from each slide for evaluation.
-                                        If zero, will include all tiles.
-            min_tiles_per_slide:    Minimum number of tiles a slide must have to be included in evaluation.
-                                        Default is 0, but a minimum of at least 10 tiles per slide is recommended.
-            normalizer:             Normalization strategy to use on image tiles.
-            normalizer_source:      Path to normalizer source image.
-            input_header:           Annotation column header to use as additional input to the model.
-            permutation_importance: Bool. True if you want to calculate the permutation feature importance
-                                        Used to determine relative importance when using multiple model inputs.
-            histogram:              Bool. If true, will create tile-level histograms to show
-                                        prediction distributions for each class.
-            save_predictions:       Either True, False, or any combination of 'tile', 'patient', or 'slide'.
-                                        Will save tile-level, patient-level, and/or slide-level predictions.
-                                        If True, will save all.
-        '''
+            model (path): Path to Tensorflow model to evaluate.
+            outcome_label_headers (str): Annotation column header that specifies the outcome label(s).
+            filters (dict, optional): Filters dict to use when selecting tfrecords. Defaults to None.
+                See `get_dataset` documentation for more information on filtering.
+            checkpoint (path, optional): Path to cp.ckpt file, if evaluating a saved checkpoint. Defaults to None.
+            hyperparameters (path, optional): Path to model's hyperparameters.json file. Defaults to None.
+                If None (default), searches in the model directory.
+            eval_k_fold (int, optional): K-fold iteration number to evaluate. Defaults to None.
+                If None, will evaluate all tfrecords irrespective of K-fold.
+            max_tiles_per_slide (int, optional): Maximum number of tiles from each slide to evaluate. Defaults to 0.
+                If zero, will include all tiles.
+            min_tiles_per_slide (int, optional): Minimum number of tiles a slide must have to be included in evaluation.
+                Defaults to 0. Recommend considering a minimum of at least 10 tiles per slide.
+            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer_source (path, optional): Path to normalizer source image. Defaults to None.
+                If None but using a normalizer, will use an internal tile for normalization.
+                Internal default tile can be found at slideflow.util.norm_tile.jpg
+            input_header (str, optional): Annotation column header to use as additional input. Defaults to None.
+            permutation_importance (bool, optional): Calculate the permutation feature importance. Defaults to False.
+                Used to determine relative importance when using multiple model inputs.
+            histogram (bool, optional): Create tile-level histograms for each class. Defaults to False.
+            save_predictions (bool or str, optional): Either True, False, or any combination of 'tile', 'patient',
+                or 'slide', either as string or list of strings. Save tile-level, patient-level, and/or
+                slide-level predictions. If True, will save all.
+
+        Returns:
+            Dict: Dictionary of keras training results, nested by epoch.
+        """
+
         log.info(f'Evaluating model {sfutil.green(model)}...')
 
         if (input_header is None) and permutation_importance:
@@ -276,25 +311,23 @@ class Project:
 
     def evaluate_clam(self, exp_name, pt_files, outcome_label_headers, tile_px, tile_um, eval_tag=None,
                         filters=None, filter_blank=None, attention_heatmaps=True):
-        '''Evaluate CLAM model on saved feature activations.
+        """Evaluate CLAM model on saved feature activations.
 
         Args:
-            exp_name:               Name of experiemnt to evaluate (directory in clam/ subfolder)
-            pt_files:               Path to pt_files containing tile-level features.
-            outcome_label_headers:  Name in annotation column which specifies the outcome label.
-            tile_px:                Tile width in pixels.
-            tile_um:                Tile width in microns.
-            eval_tag:               Unique identifier for this evaluation.
-            filters:                Dictionary of column names mapping to column values
-                                        by which to filter slides using the annotation file.
-                                        Used if train_slides and validation_slides are 'auto'.
-            filter_blank:           List of annotations headers; slides blank in this column will be excluded.
-                                        Used if train_slides and validation_slides are 'auto'.
-            attention_heatmaps:     Bool. If true, will save attention heatmaps of validation dataset.
+            exp_name (str): Name of experiment to evaluate (directory in clam/ subfolder)
+            pt_files (path): Path to pt_files containing tile-level features.
+            outcome_label_headers (str or list): Name in annotation column which specifies the outcome label.
+            tile_px (int): Tile width in pixels.
+            tile_um (int): Tile width in microns.
+            eval_tag (str, optional): Unique identifier for this evaluation. Defaults to None
+            filters (dict, optional): Filters dict to use when selecting tfrecords. Defaults to None.
+                See `get_dataset` documentation for more information on filtering.
+            filter_blank (list, optional): Slides blank in these columns will be excluded. Defaults to None.
+            attention_heatmaps (bool, optional): Save attention heatmaps of validation dataset. Defaults to True.
 
         Returns:
             None
-        '''
+        """
 
         import slideflow.clam as clam
         from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
@@ -397,62 +430,63 @@ class Project:
                     continue
                 self.generate_tfrecord_heatmap(tfr, attention_dict, heatmaps_dir, tile_px=tile_px, tile_um=tile_um)
 
-    def extract_tiles(self, tile_px, tile_um, filters=None, filter_blank=None, stride_div=1,
-                        tma=False, full_core=False, save_tiles=False, save_tfrecord=True,
-                        enable_downsample=False, roi_method='inside', skip_missing_roi=True,
-                        skip_extracted=True, dataset=None, validation_settings=None,
-                        normalizer=None, normalizer_source=None, whitespace_fraction=1.0,
-                        whitespace_threshold=230, grayspace_fraction=0.6,
-                        grayspace_threshold=0.05, img_format='png', randomize_origin=False,
-                        buffer=None, shuffle=True, num_workers=4, threads_per_worker=4):
+    def extract_tiles(self, tile_px, tile_um, filters=None, filter_blank=None, stride_div=1, tma=False,
+                      full_core=False, save_tiles=False, save_tfrecord=True, enable_downsample=False,
+                      roi_method='inside', skip_missing_roi=True, skip_extracted=True, dataset=None,
+                      validation_settings=None, normalizer=None, normalizer_source=None, whitespace_fraction=1.0,
+                      whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05, img_format='png',
+                      randomize_origin=False, buffer=None, shuffle=True, num_workers=4, threads_per_worker=4):
 
         '''Extract tiles from a group of slides; save a percentage of tiles for validation testing if the
         validation target is 'per-patient'; and generate TFRecord files from the raw images.
 
         Args:
-            tile_px:                Tile size in pixels.
-            tile_um:                Tile size in microns.
-            filters:                Dataset filters to use when selecting slides for tile extraction.
-            stride_div:             Stride divisor to use when extracting tiles.
-                                        A stride of 1 will extract non-overlapping tiles.
-                                        A stride_div of 2 will extract overlapping tiles,
-                                        with a stride equal to 50% of the tile width.
-            tma:                    Bool. If True, reads slides as Tumor Micro-Arrays (TMAs),
-                                        detecting and extracting tumor cores.
-            full_core:              Bool. Only used if extracting from TMA. If True, will save entire TMA core as image.
-                                        Otherwise, will extract sub-images from each core
-                                        using the given tile micron size.
-            save_tiles:             Bool. If True, will save images of extracted tiles to a tile directory.
-            save_tfrecord:          Bool. If True, will save compressed image data from extracted tiles
-                                        into TFRecords in the corresponding TFRecord directory.
-            enable_downsample:      Bool. If True, enables the use of downsampling while reading slide images.
-                                        This may result in corrupted image tiles if downsampled slide layers
-                                        are corrupted or incomplete. Recommend manual confirmation of tile integrity.
-            roi_method:             Either 'inside', 'outside', or 'ignore'.
-                                        Whether to extract tiles inside or outside the ROIs.
-            skip_missing_roi:       Bool. If True, will skip slides that are missing ROIs
-            skip_extracted:            Bool. If True, will skip slides that have already been fully extracted
-            dataset:                Name of dataset from which to select slides for extraction.
-                                        If not provided, will default to all datasets in project
-            validation_settings:    Namespace of validation settings, provided by sf.project.get_validation_settings().
-                                        Necessary if performing per-tile validation. If not provided, will ignore.
-            normalizer:             Normalization strategy to use on image tiles
-            normalizer_source:      Path to normalizer source image
-            whitespace_fraction:    Float 0-1. Fraction of whitespace which causes a tile to be discarded.
-                                        If 1, will not perform whitespace filtering.
-            whitespace_threshold:   Int 0-255. Threshold above which a pixel (RGB average) is considered whitespace.
-            grayspace_fraction:     Float 0-1. Fraction of grayspace which causes a tile to be discarded.
-                                        If 1, will not perform grayspace filtering.
-            grayspace_threshold:    Int 0-1. HSV (hue, saturation, value) is calculated for each pixel.
-                                        If a pixel's saturation is below this threshold, it is considered grayspace.
-            img_format:             'png' or 'jpg'. Format of images for internal storage in tfrecords.
-                                        PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
-            randomize_origin:       Bool. If true, will randomize the pixel starting position during extraction.
-            buffer:                    Path to directory. Slides will be copied to the here before extraction.
-                                        Using an SSD or ramdisk buffer vastly improves tile extraction speed.
-            shuffle:                Bool. If true (default), will shuffle tiles in tfrecords.
-            num_workers:            Number of slides from which to be extracting tiles simultaneously.
-            threads_per_worker:     Number of processes to allocate to each slide for tile extraction.
+            tile_px (int): Tile size in pixels.
+            tile_um (int): Tile size in microns.
+            filters (dict, optional): Filters dict to use when selecting tfrecords. Defaults to None.
+                See `get_dataset` documentation for more information on filtering.
+            filter_blank (list, optional): Slides blank in these columns will be excluded. Defaults to None.
+            stride_div (int, optional): Stride divisor to use when extracting tiles. Defaults to 1.
+                A stride of 1 will extract non-overlapping tiles.
+                A stride_div of 2 will extract overlapping tiles, with a stride equal to 50% of the tile width.
+            tma (bool, optional): Reads slides as Tumor Micro-Arrays (TMAs), detecting and extracting tumor cores.
+                Defaults to False. Experimental function with limited testing.
+            full_core (bool, optional): Only used if extracting from TMA. If True, will save entire TMA core as image.
+                Otherwise, will extract sub-images from each core using the given tile micron size. Defaults to False.
+            save_tiles (bool, optional): Save images of extracted tiles to project tile directory. Defaults to False.
+            save_tfrecord (bool, optional): Save compressed image data from extracted tiles into TFRecords
+                in the corresponding TFRecord directory. Defaults to True.
+            enable_downsample (bool, optional): Enable downsampling when reading slide images. Defaults to False.
+                This may result in corrupted image tiles if downsampled slide layers are corrupted or incomplete.
+                Recommend manual confirmation of tile integrity.
+            roi_method (str, optional): Either 'inside', 'outside', or 'ignore'. Defaults to 'inside'.
+                Indicates whether tiles are extracted inside or outside ROIs, or if ROIs are ignored entirely.
+            skip_missing_roi (bool, optional): Skip slides that are missing ROIs. Defaults to True.
+            skip_extracted (bool, optional): Skip slides that have already been extracted. Defaults to True.
+            dataset (str, optional): Name of dataset from which to select slides for extraction. Defaults to None.
+                If not provided, will default to all datasets in project.
+            ***validation_settings:    Namespace of validation settings, provided by sf.project.get_validation_settings().
+                Necessary if performing per-tile validation. If not provided, will ignore.
+            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer_source (path, optional): Path to normalizer source image. Defaults to None.
+                If None but using a normalizer, will use an internal tile for normalization.
+                Internal default tile can be found at slideflow.util.norm_tile.jpg
+            whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
+                Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.
+            whitespace_threshold (int, optional): Range 0-255. Defaults to 230.
+                Threshold above which a pixel (RGB average) is considered whitespace.
+            grayspace_fraction (float, optional): Range 0-1. Defaults to 0.6.
+                Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.
+            grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
+                Pixels in HSV format with saturation below this threshold are considered grayspace.
+            img_format (str, optional): 'png' or 'jpg'. Defaults to 'png'. Image format to use in tfrecords.
+                PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
+            randomize_origin (bool, optional): Randomize pixel starting position during extraction. Defaults to False.
+            buffer (path, optional): Slides will be copied to this directory before extraction. Defaults to None.
+                Using an SSD or ramdisk buffer vastly improves tile extraction speed.
+            shuffle (bool, optional): Shuffle tiles prior to storage in tfrecords. Defaults to True.
+            num_workers (int, optional): Extract tiles from this many slides simultaneously. Defaults to 4.
+            threads_per_worker (int, optional): Number of workers threads for each tile extractor. Defaults to 4.
         '''
 
         from slideflow.slide import WSI, TMA, ExtractionReport
