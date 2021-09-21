@@ -26,7 +26,7 @@ def update_project_models(project_folder):
                 model_path = join(full_model_folder, model)
                 new_model_path = join(full_model_folder, sfutil.path_to_name(model))
 
-                print(f"Upgrading {sfutil.info(folder)} > {sfutil.warn(model_folder)} > {sfutil.green(model)} ... ", end="")
+                print(f"Upgrading {sfutil.blue(folder)} > {sfutil.yellow(model_folder)} > {sfutil.green(model)} ... ", end="")
                 try:
                     if hyperparameters['model_type'] == 'cph':
                         loaded_model = tf.keras.models.load_model(model_path,custom_objects = {
@@ -40,17 +40,17 @@ def update_project_models(project_folder):
                     print(sfutil.green('DONE'))
                 except ValueError:
 
-                    print(sfutil.fail('FAIL'))
+                    print(sfutil.red('FAIL'))
                     print(" - Unable to load model, incorrect python version")
 
 
 def update_models(root):
     '''Updates models from Keras H5 to Tensorflow SavedModel format'''
-    print(f"{sfutil.warn('WARNING!!! ')} Although tested, this conversion function does not guarantee model integrity post-conversion.")
+    print(f"{sfutil.yellow('WARNING!!! ')} Although tested, this conversion function does not guarantee model integrity post-conversion.")
     print("Please backup your models before continuing!")
     input("Acknowledge (press enter) > ")
     print("Updating legacy models...")
-    print(f"{sfutil.info('PROJECT')} > {sfutil.warn('MODEL_FOLDER')} > {sfutil.green('MODEL')}")
+    print(f"{sfutil.blue('PROJECT')} > {sfutil.yellow('MODEL_FOLDER')} > {sfutil.green('MODEL')}")
 
     project_folders = [f for f in os.listdir(root) if isdir(join(root, f)) and exists(join(root, f, 'settings.json'))]
     for folder in project_folders:

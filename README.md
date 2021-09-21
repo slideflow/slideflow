@@ -5,7 +5,7 @@
 # Slideflow README
 
 Slideflow is a Python package which aims to provide an easy and intuitive way of building and testing neural network models for use in histology image analysis. It is built using Keras (with Tensorflow backend) and supports many standard network architectures - e.g. InceptionV3, Resnet, and VGG16 - as well as custom architectures.
- 
+
 The overarching goal of the package is to provide tools to train and test models on histology slides, apply these models to new slides, and analyze performance by generating predictive heatmaps, ROCs, and mosaic maps.
 
 Slideflow requires Python 3.7+ and [libvips](https://libvips.github.io/libvips/).
@@ -25,11 +25,11 @@ pip3 install -r requirements.txt
 Import the module in python and initialize a new project:
 
 ```python
-import slideflow
-SFP = slideflow.SlideflowProject("/path/to/project/directory")
+import slideflow as sf
+SFP = sf.Project.from_prompt("/path/to/project/directory")
 ```
 
-You will be taken through a set of questions to configure your new project. Slideflow projects require an annotations file (CSV) associating patient names to outcome categories and slide names. If desired, a blank file will be created for you when you first setup a new project. Once the project is created, add rows to the annotations file with patient names and outcome categories. 
+You will be taken through a set of questions to configure your new project. Slideflow projects require an annotations file (CSV) associating patient names to outcome categories and slide names. If desired, a blank file will be created for you when you first setup a new project. Once the project is created, add rows to the annotations file with patient names and outcome categories.
 
 Next, you will be taken through a set of questions to configure your first dataset. Alternatively, you may manually add a dataset by calling:
 

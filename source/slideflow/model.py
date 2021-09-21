@@ -13,6 +13,7 @@ import os
 import csv
 import warnings
 import shutil
+import json
 warnings.filterwarnings('ignore')
 
 import numpy as np
@@ -76,10 +77,10 @@ class ModelActivationsInterface:
             and concatenates into a single final output vector.'''
 
         if not layers:
-            log.info('Setting up interface to return activations from post-conv activations', 1)
+            log.debug('Setting up interface to return activations from post-conv activations')
         else:
             msg_tail = 'and post-conv activations' if include_postconv else ''
-            log.info(f"Setting up interface to return activations from layers {', '.join(layers)} {msg_tail}", 1)
+            log.debug(f"Setting up interface to return activations from layers {', '.join(layers)} {msg_tail}")
 
         assert layers or include_postconv
         if pooling:
@@ -100,7 +101,7 @@ class ModelActivationsInterface:
                 elif layer_name in [l.name for l in model_core.layers]:
                     layer_sources[layer_name] = model_core
                 elif self.model_format != MODEL_FORMAT_LEGACY:
-                    log.warn('Unable to read model using modern format, will try using legacy format', 1)
+                    log.warning('Unable to read model using modern format, will try using legacy format')
                     self.model_format = MODEL_FORMAT_LEGACY
                     self._build(layers, include_postconv)
                     return
@@ -137,9 +138,9 @@ class ModelActivationsInterface:
                                                outputs=outputs)
         except AttributeError:
             if self.model_format != MODEL_FORMAT_LEGACY:
-                log.warn('Unable to read model using modern format, will try using legacy format', 1)
+                log.warning('Unable to read model using modern format, will try using legacy format')
                 self.model_format = MODEL_FORMAT_LEGACY
-                self._build(layers, include_postconv)
+                self._build(layers, include_postconv=include_postconv)
                 return
             else:
                 raise ModelError('Unable to read model.')
@@ -147,10 +148,10 @@ class ModelActivationsInterface:
         if include_logits:
             self.num_features = self.model.output_shape[0][1]
             self.num_classes = self.model.output_shape[1][1]
-            log.info(f'Number of logits: {self.num_classes}', 2)
+            log.debug(f'Number of logits: {self.num_classes}')
         else:
             self.num_features = self.model.output_shape[1]
-        log.info(f'Number of activation features: {self.num_features}', 2)
+        log.debug(f'Number of activation features: {self.num_features}')
 
     @tf.function
     def _predict(self, inp):
@@ -316,13 +317,9 @@ class HyperParameters:
                 log.error(f'Unrecognized hyperparameter {key}; unable to load')
 
     def __str__(self):
-        output = 'Hyperparameters:\n'
-
         args = sorted(self._get_args(), key=lambda arg: arg.lower())
-        for arg in args:
-            value = getattr(self, arg)
-            output += log.empty(f'{sfutil.header(arg)} = {value}\n', 2, None)
-        return output
+        arg_dict = {arg: getattr(self, arg) for arg in args}
+        return json.dumps(arg_dict, indent=2)
 
     def validate(self):
         '''Ensures that hyperparameter combinations are valid.'''
@@ -345,10 +342,14 @@ class HyperParameters:
         else:
             return self._OptDict[self.optimizer](lr=self.learning_rate)
 
-    def get_model(self, image_shape=None, input_tensor=None, weights=None):
+    def get_model(self, input_tensor=None, weights=None):
         '''Returns a Keras model of the appropriate architecture, input shape, pooling, and initial weights.'''
+        if self.model == 'NASNetLarge':
+            input_shape = (self.tile_px, self.tile_px, 3)
+        else:
+            input_shape = None
         return self._ModelDict[self.model](
-            input_shape=image_shape,
+            input_shape=input_shape,
             input_tensor=input_tensor,
             include_top=False,
             pooling=self.pooling,
@@ -436,11 +437,11 @@ class SlideflowModel:
                 self.SLIDE_FEATURE_TABLE = {slide: slide_annotations[slide]['input'] for slide in self.SLIDES}
                 num_features = self.NUM_SLIDE_FEATURES if model_type != 'cph' else self.NUM_SLIDE_FEATURES - 1
                 if num_features:
-                    log.info(f'Training with both images and {num_features} categories of slide-level input', 1)
+                    log.info(f'Training with both images and {num_features} categories of slide-level input')
                     if model_type == 'cph':
-                        log.info('Interpreting first feature as event for CPH model', 1)
+                        log.info('Interpreting first feature as event for CPH model')
                 elif model_type == 'cph':
-                    log.info(f'Training with images alone. Interpreting first feature as event for CPH model', 1)
+                    log.info(f'Training with images alone. Interpreting first feature as event for CPH model')
 
             except KeyError:
                 raise ModelError("Unable to find slide-level input at 'input' key in slide_annotations")
@@ -452,7 +453,7 @@ class SlideflowModel:
                     raise ModelError(f'{err_msg};  expected {num_features}, got {num_in_feature_table}')
 
         # Normalization setup
-        if normalizer: log.info(f'Using realtime {normalizer} normalization', 1)
+        if normalizer: log.info(f'Using realtime {normalizer} normalization')
         self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
         if model_type in ['linear', 'cph']:
@@ -502,7 +503,7 @@ class SlideflowModel:
             checkpoint:	Path to checkpoint from which to resume model training
         '''
         if self.mixed_precision:
-            log.info('Training with mixed precision', 1)
+            log.debug('Training with mixed precision')
             policy = tf.keras.mixed_precision.experimental.Policy('mixed_float16')
             tf.keras.mixed_precision.experimental.set_policy(policy)
 
@@ -524,7 +525,7 @@ class SlideflowModel:
             raise ModelError('Model error - CPH models must include event input')
 
         # Load pretrained model if applicable
-        if pretrain: log.info(f'Using pretraining from {sfutil.green(pretrain)}', 1)
+        if pretrain: log.info(f'Using pretraining from {sfutil.green(pretrain)}')
         if pretrain and pretrain!='imagenet':
             pretrained_model = tf.keras.models.load_model(pretrain)
             try:
@@ -538,7 +539,7 @@ class SlideflowModel:
                                             outputs=pretrained_output,
                                             name=f'pretrained_{pretrained_name}').layers[1]
             except ValueError:
-                log.warn('Unable to automatically read pretrained model, will try legacy format', 1)
+                log.warning('Unable to automatically read pretrained model, will try legacy format')
                 base_model = pretrained_model.get_layer(index=0)
         else:
             # Create core model
@@ -554,7 +555,7 @@ class SlideflowModel:
         # Allow only a subset of layers in the base model to be trainable
         if hp.trainable_layers != 0:
             freezeIndex = int(len(base_model.layers) - (hp.trainable_layers - 1 ))# - hp.hidden_layers - 1))
-            log.info(f'Only training on last {hp.trainable_layers} layers (of {len(base_model.layers)} total)', 2)
+            log.info(f'Only training on last {hp.trainable_layers} layers (of {len(base_model.layers)} total)')
             for layer in base_model.layers[:freezeIndex]:
                 layer.trainable = False
 
@@ -577,7 +578,7 @@ class SlideflowModel:
         if self.NUM_SLIDE_FEATURES:
             # Add images
             if (hp.tile_px == 0) or hp.drop_images:
-                log.info('Generating model with just clinical variables and no images', 1)
+                log.info('Generating model with just clinical variables and no images')
                 merged_model = slide_feature_input_tensor
                 model_inputs += [slide_feature_input_tensor]
             elif not ((self.NUM_SLIDE_FEATURES == 1) and (self.MODEL_TYPE == 'cph')):
@@ -625,7 +626,7 @@ class SlideflowModel:
             activation = 'linear'
         else:
             activation = 'softmax'
-        log.info(f'Using {activation} activation', 1)
+        log.debug(f'Using {activation} activation')
 
         # Multi-categorical outcomes
         if type(self.NUM_CLASSES) == dict:
@@ -653,11 +654,11 @@ class SlideflowModel:
         model = tf.keras.Model(inputs=model_inputs, outputs=outputs)
 
         if checkpoint:
-            log.info(f'Loading checkpoint weights from {sfutil.green(checkpoint)}', 1)
+            log.info(f'Loading checkpoint weights from {sfutil.green(checkpoint)}')
             model.load_weights(checkpoint)
 
         # Print model summary
-        if log.INFO_LEVEL > 0:
+        if log.getEffectiveLevel() <= 20:
             print()
             model.summary()
 
@@ -734,7 +735,7 @@ class SlideflowModel:
 
     def _retrain_top_layers(self, hp, train_data, validation_data, steps_per_epoch, callbacks=None, epochs=1):
         '''Retrains only the top layer of this object's model, while leaving all other layers frozen.'''
-        log.info('Retraining top layer', 1)
+        log.info('Retraining top layer')
         # Freeze the base layer
         self.model.layers[0].trainable = False
         val_steps = 200 if validation_data else None
@@ -743,7 +744,7 @@ class SlideflowModel:
 
         toplayer_model = self.model.fit(train_data,
                                         epochs=epochs,
-                                        verbose=(log.INFO_LEVEL > 0),
+                                        verbose=(log.getEffectiveLevel() <= 20),
                                         steps_per_epoch=steps_per_epoch,
                                         validation_data=validation_data,
                                         validation_steps=val_steps,
@@ -809,7 +810,7 @@ class SlideflowModel:
             self.model.load_weights(checkpoint)
 
         # Generate performance metrics
-        log.info('Calculating performance metrics...', 1)
+        log.info('Calculating performance metrics...')
         if permutation_importance:
             drop_images = ((hp.tile_px==0) or hp.drop_images)
             auc, r_squared, c_index = sfstats.permutation_feature_importance(self.model,
@@ -839,24 +840,24 @@ class SlideflowModel:
                                                                    save_predictions=save_predictions)
 
         if model_type == 'categorical':
-            log.info(f"Tile AUC: {auc['tile']}", 1)
-            log.info(f"Slide AUC: {auc['slide']}", 1)
-            log.info(f"Patient AUC: {auc['patient']}", 1)
+            log.info(f"Tile AUC: {auc['tile']}")
+            log.info(f"Slide AUC: {auc['slide']}")
+            log.info(f"Patient AUC: {auc['patient']}")
         if model_type == 'linear':
-            log.info(f"Tile R-squared: {r_squared['tile']}", 1)
-            log.info(f"Slide R-squared: {r_squared['slide']}", 1)
-            log.info(f"Patient R-squared: {r_squared['patient']}", 1)
+            log.info(f"Tile R-squared: {r_squared['tile']}")
+            log.info(f"Slide R-squared: {r_squared['slide']}")
+            log.info(f"Patient R-squared: {r_squared['patient']}")
         if model_type == 'cph':
-            log.info(f"Tile c-index: {c_index['tile']}", 1)
-            log.info(f"Slide c-index: {c_index['slide']}", 1)
-            log.info(f"Patient c-index: {c_index['patient']}", 1)
+            log.info(f"Tile c-index: {c_index['tile']}")
+            log.info(f"Slide c-index: {c_index['slide']}")
+            log.info(f"Patient c-index: {c_index['patient']}")
 
-        val_metrics = self.model.evaluate(dataset, verbose=(log.INFO_LEVEL > 0), return_dict=True)
+        val_metrics = self.model.evaluate(dataset, verbose=(log.getEffectiveLevel() <= 20), return_dict=True)
 
         results_log = os.path.join(self.DATA_DIR, 'results_log.csv')
-        log.info(f'Evaluation metrics:', 1)
+        log.info(f'Evaluation metrics:')
         for m in val_metrics:
-            log.info(f'{m}: {val_metrics[m]:.4f}', 2)
+            log.info(f'{m}: {val_metrics[m]:.4f}')
 
         results_dict = 	{ 'eval': val_metrics }
 
@@ -926,14 +927,12 @@ class SlideflowModel:
 
         if multi_gpu:
             strategy = tf.distribute.MirroredStrategy()
-            log.info(f'Multi-GPU training with {strategy.num_replicas_in_sync} devices', 1)
+            log.info(f'Multi-GPU training with {strategy.num_replicas_in_sync} devices')
         else:
             strategy = None
 
         with strategy.scope() if strategy is not None else no_scope():
-            # Build inputs
             with tf.name_scope('input'):
-
                 train_data, _, num_tiles = interleave_tfrecords(self.TRAIN_TFRECORDS,
                                                                 image_size=self.IMAGE_SIZE,
                                                                 batch_size=hp.batch_size,
@@ -965,22 +964,22 @@ class SlideflowModel:
                                                               min_tiles=min_tiles_per_slide,
                                                               include_slidenames=True,
                                                               augment=False,
-                                                              normalizer=self.noramlizer,
+                                                              normalizer=self.normalizer,
                                                               manifest=self.MANIFEST,
                                                               slides=self.SLIDES)
                     validation_data, validation_data_with_slidenames, num_val_tiles = interleave_results
 
                 val_log_msg = '' if not validate_on_batch else f'every {sfutil.bold(str(validate_on_batch))} steps and '
-                log.info(f'Validation during training: {val_log_msg}at epoch end', 1)
+                log.debug(f'Validation during training: {val_log_msg}at epoch end')
                 if validation_steps:
                     validation_data_for_training = validation_data.repeat()
                     num_samples = validation_steps * hp.batch_size
-                    log.empty(f'Using {validation_steps} batches ({num_samples} samples) each validation check', 2)
+                    log.debug(f'Using {validation_steps} batches ({num_samples} samples) each validation check')
                 else:
                     validation_data_for_training = validation_data
-                    log.empty(f'Using entire validation set each validation check', 2)
+                    log.debug(f'Using entire validation set each validation check')
             else:
-                log.info('Validation during training: None', 1)
+                log.debug('Validation during training: None')
                 validation_data_for_training = None
                 validation_steps = 0
 
@@ -990,12 +989,12 @@ class SlideflowModel:
         # Calculate parameters
         if max(hp.finetune_epochs) <= starting_epoch:
             max_epoch = max(hp.finetune_epochs)
-            log.error(f'Starting epoch ({starting_epoch}) cannot be greater than the max target epoch ({max_epoch})', 1)
+            log.error(f'Starting epoch ({starting_epoch}) cannot be greater than the max target epoch ({max_epoch})')
             return None, None
         if hp.early_stop and hp.early_stop_method == 'accuracy' and hp.model_type() != 'categorical':
             log.error(f"Unable to use 'accuracy' early stopping with model type '{hp.model_type()}'")
         if starting_epoch != 0:
-            log.info(f'Starting training at epoch {starting_epoch}', 1)
+            log.info(f'Starting training at epoch {starting_epoch}')
         total_epochs = hp.toplayer_epochs + (max(hp.finetune_epochs) - starting_epoch)
         if steps_per_epoch_override:
             steps_per_epoch = steps_per_epoch_override
@@ -1008,7 +1007,7 @@ class SlideflowModel:
         checkpoint_path = os.path.join(self.DATA_DIR, 'cp.ckpt')
         cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
                                                          save_weights_only=True,
-                                                         verbose=(log.INFO_LEVEL > 0))
+                                                         verbose=(log.getEffectiveLevel() <= 20))
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.DATA_DIR,
                                                               histogram_freq=0,
                                                               write_graph=False,
@@ -1029,7 +1028,7 @@ class SlideflowModel:
                 self.model_type = hp.model_type()
 
             def on_epoch_end(self, epoch, logs={}):
-                if log.INFO_LEVEL > 0: print('\r\033[K', end='')
+                if log.getEffectiveLevel() <= 20: print('\r\033[K', end='')
                 self.epoch_count += 1
                 if self.epoch_count in [e for e in hp.finetune_epochs]:
                     model_path = os.path.join(parent.DATA_DIR, f'trained_model_epoch{self.epoch_count}')
@@ -1042,9 +1041,9 @@ class SlideflowModel:
                         shutil.copy(os.path.join(os.path.dirname(model_path), 'slide_manifest.log'),
                                     os.path.join(model_path, 'slide_manifest.log'), )
                     except:
-                        log.warn('Unable to copy hyperparameters.json/slide_manifest.log files into model folder.', 1)
+                        log.warning('Unable to copy hyperparameters.json/slide_manifest.log files into model folder.')
 
-                    log.complete(f'Trained model saved to {sfutil.green(model_path)}', 1)
+                    log.info(f'Trained model saved to {sfutil.green(model_path)}')
                     if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
                         self.evaluate_model(logs)
                 elif self.early_stop:
@@ -1069,11 +1068,11 @@ class SlideflowModel:
                         train_acc = f"{logs['accuracy']:.3f}"
                     else:
                         train_acc = ', '.join([f'{logs[v]:.3f}' for v in logs if 'accuracy' in v])
-                    if log.INFO_LEVEL > 0: print('\r\033[K', end='')
+                    if log.getEffectiveLevel() <= 20: print('\r\033[K', end='')
                     self.moving_average += [early_stop_value]
 
                     # Base logging message
-                    batch_msg = sfutil.info(f'Batch {batch:<5}')
+                    batch_msg = sfutil.blue(f'Batch {batch:<5}')
                     loss_msg = f"{sfutil.green('loss')}: {logs['loss']:.3f}"
                     val_loss_msg = f"{sfutil.purple('val_loss')}: {val_loss:.3f}"
                     if self.model_type == 'categorical':
@@ -1085,23 +1084,23 @@ class SlideflowModel:
 
                     # First, skip moving average calculations if using an invalid metric
                     if self.model_type != 'categorical' and hp.early_stop_method == 'accuracy':
-                        log.empty(log_message)
+                        log.info(log_message)
                     else:
                         # Calculate exponential moving average of validation accuracy
                         if len(self.moving_average) <= ema_observations:
-                            log.empty(log_message)
+                            log.info(log_message)
                         else:
                             # Only keep track of the last [ema_observations] validation accuracies
                             self.moving_average.pop(0)
                             if self.last_ema == -1:
                                 # Calculate simple moving average
                                 self.last_ema = sum(self.moving_average) / len(self.moving_average)
-                                log.empty(log_message +  f' (SMA: {self.last_ema:.3f})')
+                                log.info(log_message +  f' (SMA: {self.last_ema:.3f})')
                             else:
                                 # Update exponential moving average
                                 self.last_ema = (early_stop_value * (ema_smoothing/(1+ema_observations))) + \
                                                 (self.last_ema * (1-(ema_smoothing/(1+ema_observations))))
-                                log.empty(log_message + f' (EMA: {self.last_ema:.3f})')
+                                log.info(log_message + f' (EMA: {self.last_ema:.3f})')
 
                         # If early stopping and our patience criteria has been met,
                         #   check if validation accuracy is still improving
@@ -1113,7 +1112,7 @@ class SlideflowModel:
                                 ((hp.early_stop_method == 'accuracy' and self.last_ema <= self.ema_two_checks_prior) or
                                  (hp.early_stop_method == 'loss' and self.last_ema >= self.ema_two_checks_prior))):
 
-                                log.info(f'Early stop triggered: epoch {self.epoch_count+1}, batch {batch}', 1)
+                                log.info(f'Early stop triggered: epoch {self.epoch_count+1}, batch {batch}')
                                 self.model.stop_training = True
                                 self.early_stop = True
                             else:
@@ -1121,7 +1120,7 @@ class SlideflowModel:
                                 self.ema_one_check_prior = self.last_ema
 
             def on_train_end(self, logs={}):
-                if log.INFO_LEVEL > 0: print('\r\033[K')
+                if log.getEffectiveLevel() <= 20: print('\r\033[K')
 
             def evaluate_model(self, logs={}):
                 epoch = self.epoch_count
@@ -1141,9 +1140,9 @@ class SlideflowModel:
                                                                            save_predictions=save_predictions)
 
                 val_metrics = self.model.evaluate(validation_data, verbose=0, return_dict=True)
-                log.info(f'Validation metrics:', 1)
+                log.info(f'Validation metrics:')
                 for m in val_metrics:
-                    log.info(f'{m}: {val_metrics[m]:.4f}', 2)
+                    log.info(f'{m}: {val_metrics[m]:.4f}')
                 results['epochs'][f'epoch{epoch}'] = {'train_metrics': logs,
                                                         'val_metrics': val_metrics }
                 if not skip_metrics:
@@ -1166,7 +1165,7 @@ class SlideflowModel:
         with strategy.scope() if strategy is not None else no_scope():
             # Build or load model
             if resume_training:
-                log.info(f'Resuming training from {sfutil.green(resume_training)}', 1)
+                log.info(f'Resuming training from {sfutil.green(resume_training)}')
                 self.model = tf.keras.models.load_model(resume_training)
             else:
                 self.model = self._build_model(hp,
@@ -1179,7 +1178,7 @@ class SlideflowModel:
                                         callbacks=None, epochs=hp.toplayer_epochs)
 
             # Fine-tune the model
-            log.info('Beginning fine-tuning', 1)
+            log.info('Beginning fine-tuning')
             self._compile_model(hp)
 
             #tf.debugging.enable_check_numerics()
@@ -1187,7 +1186,7 @@ class SlideflowModel:
             history = self.model.fit(train_data,
                                  steps_per_epoch=steps_per_epoch,
                                  epochs=total_epochs,
-                                 verbose=(log.INFO_LEVEL > 0),
+                                 verbose=(log.getEffectiveLevel() <= 20),
                                  initial_epoch=hp.toplayer_epochs,
                                  validation_data=validation_data_for_training,
                                  validation_steps=validation_steps,

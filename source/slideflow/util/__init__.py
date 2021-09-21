@@ -5,8 +5,8 @@ import time
 import os
 import io
 import shutil
-import datetime
 import threading
+import logging
 import cv2
 
 from glob import glob
@@ -14,6 +14,7 @@ from os.path import join, isdir, exists, dirname
 from PIL import Image
 import multiprocessing as mp
 import numpy as np
+from tqdm import tqdm
 
 # TODO: re-enable logging with maximum log file size
 
@@ -27,22 +28,70 @@ except:
 # ------
 
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif', 'jpg']
-SLIDE_ANNOTATIONS_TO_IGNORE = ['', 'na', 'n/a', 'none', 'missing']
-
-HEADER = '\033[95m'
-BLUE = '\033[94m'
-GREEN = '\033[92m'
-WARNING = '\033[93m'
-FAIL = '\033[91m'
-ENDC = '\033[0m'
-BOLD = '\033[1m'
-PURPLE = '\033[38;5;5m'
-UNDERLINE = '\033[4m'
-
-FORMATTING_OPTIONS = [HEADER, BLUE, GREEN, WARNING, FAIL, ENDC, BOLD, UNDERLINE]
+SLIDE_ANNOTATIONS_TO_IGNORE = ['', ' ']
 LOGGING_PREFIXES = ['', ' + ', '    - ']
 LOGGING_PREFIXES_WARN = ['', ' ! ', '    ! ']
 LOGGING_PREFIXES_EMPTY = ['', '   ', '     ']
+
+def dim(text):        return '\033[2m' + str(text) + '\033[0m'
+def yellow(text):     return '\033[93m' + str(text) + '\033[0m'
+def blue(text):       return '\033[94m' + str(text) + '\033[0m'
+def green(text):      return '\033[92m' + str(text) + '\033[0m'
+def red(text):        return '\033[91m' + str(text) + '\033[0m'
+def bold(text):       return '\033[1m' + str(text) + '\033[0m'
+def underline(text):  return '\033[4m' + str(text) + '\033[0m'
+def purple(text):     return '\033[38;5;5m' + str(text) + '\033[0m'
+
+# ---------------------------------------------------------
+
+log = logging.getLogger('slideflow')
+log.setLevel(logging.INFO)
+
+class UserError(Exception):
+    pass
+
+class LogFormatter(logging.Formatter):
+    MSG_FORMAT = "%(asctime)s [%(levelname)s] - %(message)s"
+    LEVEL_FORMATS = {
+        logging.DEBUG: dim(MSG_FORMAT),
+        logging.INFO: MSG_FORMAT,
+        logging.WARNING: yellow(MSG_FORMAT),
+        logging.ERROR: red(MSG_FORMAT),
+        logging.CRITICAL: bold(red(MSG_FORMAT))
+    }
+
+    def format(self, record):
+        log_fmt = self.LEVEL_FORMATS[record.levelno]
+        formatter = logging.Formatter(log_fmt, '%Y-%m-%d %H:%M:%S')
+        return formatter.format(record)
+
+class TqdmLoggingHandler(logging.StreamHandler):
+    """Avoid tqdm progress bar interruption by logger's output to console"""
+    # see logging.StreamHandler.eval method:
+    # https://github.com/python/cpython/blob/d2e2534751fd675c4d5d3adc208bf4fc984da7bf/Lib/logging/__init__.py#L1082-L1091
+    # and tqdm.write method:
+    # https://github.com/tqdm/tqdm/blob/f86104a1f30c38e6f80bfd8fb16d5fcde1e7749f/tqdm/std.py#L614-L620
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.flush_line = False
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            if self.flush_line:
+                msg = '\r\033[K' + msg
+            tqdm.write(msg, end=self.terminator)
+        except RecursionError:
+            raise
+        except:
+            print(f"problems with msg {record}")
+            self.handleError(record)
+
+ch = TqdmLoggingHandler()
+ch.setFormatter(LogFormatter())
+log.addHandler(ch)
+# ------------------------------------------------------------
 
 class StainNormalizer:
     '''Object to supervise stain normalization for images and
@@ -109,6 +158,10 @@ class DummyLock:
     def __enter__(self, *args): pass
     def __exit__(self, *args): pass
 
+class DummyCounter:
+    def __init__(self, value):
+        self.value = value
+
 class Bar:
     def __init__(self, ending_value, starting_value=0, bar_length=20, label='',
                     show_eta=False, show_counter=False, counter_text='', update_interval=1,
@@ -118,9 +171,13 @@ class Bar:
             self.counter = mp_counter
             self.mp_lock = mp_lock
         else:
-            manager = mp.Manager()
-            self.counter = manager.Value('i', 0)
-            self.mp_lock = manager.Lock()
+            try:
+                manager = mp.Manager()
+                self.counter = manager.Value('i', 0)
+                self.mp_lock = manager.Lock()
+            except AssertionError:
+                self.counter = DummyCounter(0)
+                self.mp_lock = DummyLock()
 
         # Setup timing
         self.starttime = None
@@ -228,7 +285,7 @@ class ProgressBar:
         self.BARS[id].text = text
         self.refresh()
 
-    def auto_refresh(self, freq=0.2):
+    def auto_refresh(self, freq=0.1):
         def auto_refresh_worker():
             while self.live:
                 self.refresh()
@@ -267,125 +324,6 @@ class ProgressBar:
         sys.stdout.flush()
         sys.stdout.write(self.text)
         sys.stdout.flush()
-
-def warn(text):
-    return WARNING + str(text) + ENDC
-
-def header(text):
-    return HEADER + str(text) + ENDC
-
-def info(text):
-    return BLUE + str(text) + ENDC
-
-def green(text):
-    return GREEN + str(text) + ENDC
-
-def fail(text):
-    return FAIL + str(text) + ENDC
-
-def bold(text):
-    return BOLD + str(text) + ENDC
-
-def underline(text):
-    return UNDERLINE + str(text) + ENDC
-
-def purple(text):
-    return PURPLE + str(text) + ENDC
-
-class Logger:
-    '''Logging class to handle console and file logging output.'''
-
-    def __init__(self):
-        self.logfile = None
-        self.INFO_LEVEL = 3
-        self.WARN_LEVEL = 3
-        self.ERROR_LEVEL = 3
-        self.COMPLETE_LEVEL = 3
-        self.SILENT = False
-
-    def configure(self, **kwargs):
-        '''Configures logger to record the designated logging levels, overriding defaults.'''
-
-        for arg in kwargs:
-            if arg not in ('filename', 'levels'):
-                raise TypeError(f"Unknown argument '{arg}'")
-
-        if 'filename' in kwargs: self.logfile = kwargs['filename']
-
-        if 'levels' in kwargs:
-            levels = kwargs['levels']
-            if 'info' in levels: self.INFO_LEVEL = levels['info']
-            if 'warn' in levels: self.WARN_LEVEL = levels['warn']
-            if 'error' in levels: self.ERROR_LEVEL = levels['error']
-            if 'complete' in levels: self.COMPLETE_LEVEL = levels['complete']
-            if 'silent' in levels: self.SILENT = levels['silent']
-
-    def info(self, text, l=0, print_func=print):
-        l = min(l, len(LOGGING_PREFIXES)-1)
-        message = f"{LOGGING_PREFIXES[l]}[{info('INFO')}] {text}"
-        if print_func and l <= self.INFO_LEVEL and not self.SILENT:
-            print_func(message)
-        self.log(message)
-        return message
-
-    def warn(self, text, l=0, print_func=print):
-        l = min(l, len(LOGGING_PREFIXES)-1)
-        message = f"{LOGGING_PREFIXES_WARN[l]}[{warn('WARN')}] {text}"
-        if print_func and l <= self.WARN_LEVEL:
-            print_func(message)
-        self.log(message)
-        return message
-
-    def error(self, text, l=0, print_func=print):
-        l = min(l, len(LOGGING_PREFIXES)-1)
-        message = f"{LOGGING_PREFIXES_WARN[l]}[{fail('ERROR')}] {text}"
-        if print_func and l <= self.ERROR_LEVEL:
-            print_func(message)
-        self.log(message)
-        return message
-
-    def complete(self, text, l=0, print_func=print):
-        l = min(l, len(LOGGING_PREFIXES)-1)
-        message = f"{LOGGING_PREFIXES[l]}[{header('Complete')}] {text}"
-        if print_func and l <= self.COMPLETE_LEVEL and not self.SILENT:
-            print_func(message)
-        self.log(message)
-        return message
-
-    def label(self, label, text, l=0, print_func=print):
-        l = min(l, len(LOGGING_PREFIXES)-1)
-        message = f"{LOGGING_PREFIXES[l]}[{green(label)}] {text}"
-        if print_func and l <= self.INFO_LEVEL and not self.SILENT:
-            print_func(message)
-        self.log(message)
-        return message
-
-    def empty(self, text, l=0, print_func=print):
-        l = min(l, len(LOGGING_PREFIXES)-1)
-        message = f"{LOGGING_PREFIXES[l]}{text}"
-        if print_func and l <= self.INFO_LEVEL and not self.SILENT:
-            print_func(message)
-        self.log(message)
-        return message
-
-    def header(self, text, l=0, print_func=print):
-        l = min(l, len(LOGGING_PREFIXES)-1)
-        message = f"\n{LOGGING_PREFIXES_EMPTY[l]}{bold(text)}"
-        if print_func and not self.SILENT:
-            print_func(message)
-        self.log(message)
-        return message
-
-    def log(self, text):
-        st = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-        if self.logfile:
-            for s in FORMATTING_OPTIONS:
-                text = text.replace(s, "")
-            outfile = open(self.logfile, 'a')
-            outfile.write(f"[{st}] {text.strip()}\n")
-            outfile.close()
-
-log = Logger()
 
 class TCGA:
     patient = 'submitter_id'
@@ -447,40 +385,31 @@ def yes_no_input(prompt, default='no'):
             return False
         print(f"Invalid response.")
 
-def dir_input(prompt, root, default=None, create_on_invalid=False, absolute=False):
+def path_input(prompt, root, default=None, create_on_invalid=False, filetype=None, verify=True):
     '''Prompts user for directory input.'''
     while True:
-        if not absolute:
-            response = global_path(root, input(f"{prompt}"))
-        else:
-            response = input(f"{prompt}")
-        if not response and default:
-            response = global_path(root, default)
-        if not os.path.exists(response) and create_on_invalid:
-            if yes_no_input(f'Directory "{response}" does not exist. Create directory? [Y/n] ', default='yes'):
-                os.makedirs(response)
-                return response
-            else:
+        relative_response = input(f"{prompt}")
+        global_response = global_path(root, relative_response)
+        if not relative_response and default:
+            relative_response = default
+            global_response = global_path(root, relative_response)
+        if verify and not os.path.exists(global_response):
+            if not filetype and create_on_invalid:
+                if yes_no_input(f'Directory "{global_response}" does not exist. Create directory? [Y/n] ', default='yes'):
+                    os.makedirs(global_response)
+                    return relative_response
+                else:
+                    continue
+            elif filetype:
+                print(f'Unable to locate file "{global_response}"')
                 continue
-        elif not os.path.exists(response):
-            print(f'Unable to locate directory "{response}"')
+        elif not filetype and not os.path.exists(global_response):
+            print(f'Unable to locate directory "{global_response}"')
             continue
-        return response
-
-def file_input(prompt, root, default=None, filetype=None, verify=True):
-    '''Prompts user for file input.'''
-    while True:
-        response = global_path(root, input(f"{prompt}"))
-        if not response and default:
-            response = global_path(root, default)
-        if verify and not os.path.exists(response):
-            print(f'Unable to locate file "{response}"')
+        if filetype and (path_to_ext(global_response) != filetype):
+            print(f'Incorrect filetype; provided file of type "{path_to_ext(global_response)}", need type "{filetype}"')
             continue
-        extension = path_to_ext(response)
-        if filetype and (extension != filetype):
-            print(f'Incorrect filetype; provided file of type "{extension}", need type "{filetype}"')
-            continue
-        return response
+        return relative_response
 
 def int_input(prompt, default=None):
     '''Prompts user for int input.'''
@@ -546,8 +475,8 @@ def get_slides_from_model_manifest(model_path, dataset=None):
     if exists(join(model_path, 'slide_manifest.log')):
         manifest = join(model_path, 'slide_manifest.log')
     elif exists(join(dirname(model_path), 'slide_manifest.log')):
-        log.warn("Slide manifest file not found in model directory; loading from parent directory. \
-                    Please move slide_manifest.log into model folder.")
+        log.warning("Slide manifest file not found in model directory; loading from parent directory. " + \
+                    "Please move slide_manifest.log into model folder.")
         manifest = join(dirname(model_path), 'slide_manifest.log')
     else:
         log.error("Slide manifest file not found.")
@@ -568,11 +497,11 @@ def get_model_hyperparameters(model_path):
     if exists(join(model_path, 'hyperparameters.json')):
         return load_json(join(model_path, 'hyperparameters.json'))
     elif exists(join(dirname(model_path), 'hyperparameters.json')):
-        log.warn("Hyperparameters file not found in model directory; loading from parent directory. \
-                    Please move hyperparameters.json into model folder.")
+        log.warning("Hyperparameters file not found in model directory; loading from parent directory. " + \
+                    "Please move hyperparameters.json into model folder.")
         return load_json(join(dirname(model_path), 'hyperparameters.json'))
     else:
-        log.warn("Hyperparameters file not found.")
+        log.warning("Hyperparameters file not found.")
         return None
 
 def get_slide_paths(slides_dir):

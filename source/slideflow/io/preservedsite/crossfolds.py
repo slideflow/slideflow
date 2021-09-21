@@ -53,7 +53,7 @@ def generate(data, category, values, crossfolds = 3, target_column = 'CV3', pati
         #    str1 = str1 + str(values[j]) + " - " + str(int(np.dot(gList[i].value, s))) + " "
         #    j = j + 1
         str1 = str1 + str(gSites[i])
-        log.empty(str1)
+        log.info(str1)
     bins = pd.DataFrame()
     for i in range(crossfolds):
         data.loc[data[site_column].isin(gSites[i]), target_column] = str(i+1)

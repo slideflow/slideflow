@@ -18,6 +18,7 @@ from os.path import join, exists, isdir, dirname
 from glob import glob
 from datetime import datetime
 from statistics import mean, median
+from tqdm import tqdm
 
 import slideflow as sf
 import slideflow.util as sfutil
@@ -26,82 +27,57 @@ import slideflow.io as sfio
 from slideflow import project_utils
 from slideflow.io import Dataset
 from slideflow.statistics import TFRecordMap, calculate_centroid
-from slideflow.util import TCGA, ProgressBar, log, StainNormalizer
+from slideflow.util import ProgressBar, log, StainNormalizer
 from slideflow.project_utils import get_validation_settings
 
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-class SlideflowProject:
-
+class Project:
     '''Class to assist with organizing datasets and executing pipeline functions.'''
 
-    def __init__(self,
-                 project_folder,
-                 gpu=None,
-                 gpu_pool=None,
-                 reverse_select_gpu=True,
-                 interactive=True,
-                 default_threads=4,
-                 verbosity='default'):
-
-        '''Initializes project by creating project folder, prompting user for project settings, and project
+    def __init__(self, project_folder, gpu=None, default_threads=4, **project_kwargs):
+        """Initializes project by creating project folder, prompting user for project settings, and project
         settings to "settings.json" within the project directory.
 
         Args:
-            project_folder:		Project folder
-            gpu_pool:			Number of available GPUs. Will try to autoselect GPU if provided
-            reverse_select_gpu:	Will try to select GPU from available pool in reverse
-            gpu:				Int, forces GPU selection to the indicated GPU number.
-            interactive:		Bool, if true, will solicit project information from the user
-                                    via text prompts if if the project has not yet been initialized
-        '''
-        self.log_levels = {
-            'complete': 0 if verbosity in ('warn', 'error', 'silent') else 3,
-            'info': 0 if verbosity in ('warn', 'error', 'silent') else 3,
-            'warn': 0 if verbosity in ('error', 'silent') else 3,
-            'error': 0 if verbosity in ('error', 'silent') else 3,
-            'silent': True if verbosity in ('error', 'silent') else False
-        }
-        log.configure(levels=self.log_levels)
+            project_folder (str):                 Path to project directory.
+            gpu (str, optional):                  Manually assign GPU. Comma separated int. Defaults to None.
+            default_threads (int, optional):      Default threads available for multithreaded functions. Defaults to 4.
+        """
+        self.verbosity = logging.getLogger('slideflow').getEffectiveLevel()
         self.default_threads = default_threads
+        self.root = project_folder
 
-        if project_folder and not os.path.exists(project_folder):
-            if interactive:
-                print(f'Directory "{project_folder}" does not exist.')
-                if sfutil.yes_no_input('Create direcotry and set as project root? [Y/n] ', default='yes'):
-                    os.makedirs(project_folder)
-                else:
-                    project_folder = sfutil.dir_input('Where is the project root directory? ',
-                                                      None,
-                                                      create_on_invalid=True,
-                                                      absolute=True)
-            else:
-                log.info(f'Project directory {project_folder} not found; will create.')
-                os.makedirs(project_folder)
-        if not project_folder:
-            project_folder = sfutil.dir_input('Where is the project root directory? ',
-                                              None,
-                                              create_on_invalid=True,
-                                              absolute=True)
-
-        log.configure(filename=join(project_folder, 'log.log'))
-
-        if exists(join(project_folder, 'settings.json')):
+        if exists(join(project_folder, 'settings.json')) and project_kwargs:
+            raise sfutil.UserError(f"Project already exists at {project_folder}. " + \
+                                   f"Unable to override user-provided settings: {', '.join(project_kwargs.keys())}")
+        elif exists(join(project_folder, 'settings.json')):
             self.load_project(project_folder)
-        elif interactive:
-            self.create_project(project_folder)
+        elif project_kwargs:
+            log.info(f"Creating project at {project_folder}...")
+            self._settings = project_utils.project_config(**project_kwargs)
+        else:
+            raise sfutil.UserError(f"Project folder {project_folder} does not exist.")
 
-        # Set up GPU
         if gpu is not None:
             self.select_gpu(gpu)
-        elif gpu_pool:
-            self.autoselect_gpu(gpu_pool, reverse=reverse_select_gpu)
 
-    @property
-    def root(self):
-        '''Path root directory.'''
-        return self._settings['root']
+    @classmethod
+    def from_prompt(cls, project_folder, gpu=None, default_threads=4):
+        """Initializes project by creating project folder, prompting user for project settings, and project
+        settings to "settings.json" within the project directory.
+
+        Args:
+            project_folder (str):                 Path to project directory.
+            gpu (str, optional):                  Manually assign GPU. Comma separated int. Defaults to None.
+            default_threads (int, optional):      Default threads available for multithreaded functions. Defaults to 4.
+        """
+        if not exists(join(project_folder, 'settings.json')):
+            log.info(f'Project at "{project_folder}" does not exist; will set up new project.')
+            project_utils.interactive_project_setup(project_folder)
+        obj = cls(project_folder, gpu=gpu, default_threads=default_threads)
+        return obj
 
     @property
     def annotations(self):
@@ -134,30 +110,14 @@ class SlideflowProject:
             return self._settings['use_fp16']
 
     def _read_relative_path(self, path):
-        if path[:6] == '$ROOT/':
+        if path[0] == '.':
+            return join(self.root, path[2:])
+        elif path[:5] == '$ROOT':
+            log.warn('Deprecation warning: invalid path prefix $ROOT, please update project settings ' + \
+                     '(use "." for relative paths)')
             return join(self.root, path[6:])
         else:
             return path
-
-    def autoselect_gpu(self, number_available, reverse=True):
-        '''Automatically claims a free GPU.
-
-        Args:
-            number_available:	Total number of GPUs available to select from
-            reverse:			Bool, if True, will select GPU from pool in reverse
-        '''
-        log.header('Selecting GPU...')
-
-        if not number_available:
-            os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-            log.warn(f'Disabling GPU access.')
-        else:
-            gpus = range(number_available) if not reverse else list(reversed(range(number_available)))
-            gpu_selected = -1
-            if len(gpus):
-                gpu_selected = gpus[0]
-                os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_selected)
-                log.info(f'Using GPU {gpu_selected}')
 
     def select_gpu(self, gpu):
         '''Sets environmental variables such that the indicated GPU is used by CUDA/Tensorflow.'''
@@ -165,10 +125,8 @@ class SlideflowProject:
             os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
             log.warn(f'Disabling GPU access.')
         else:
-            log.empty(f'Using GPU #{gpu}', 1)
+            log.info(f'Using GPU #{gpu}')
             os.environ['CUDA_VISIBLE_DEVICES']=str(gpu)
-
-        import tensorflow as tf
 
     def add_dataset(self, name, slides, roi, tiles, tfrecords, path=None):
         '''Adds a dataset to the dataset configuration file.
@@ -181,59 +139,24 @@ class SlideflowProject:
             tfrecords:	Path to directory in which to store TFRecords of extracted tiles.
             path:		(optional) Path to dataset configuration file. If not provided, uses project default.
         '''
-
         if not path:
             path = self.dataset_config
-        try:
-            datasets_data = sfutil.load_json(path)
-        except FileNotFoundError:
-            datasets_data = {}
-        datasets_data.update({name: {
-            'slides': slides,
-            'roi': roi,
-            'tiles': tiles,
-            'tfrecords': tfrecords,
-        }})
-        sfutil.write_json(datasets_data, path)
-        log.info(f'Saved dataset {name} to {path}')
+        project_utils.add_dataset(name, slides, roi, tiles, tfrecords, path)
 
     def associate_slide_names(self):
         '''Funtion to automatically associate patient names with slide filenames in the annotations file.'''
-        log.header('Associating slide names...')
         dataset = self.get_dataset(tile_px=0, tile_um=0, verification=None)
         dataset.update_annotations_with_slidenames(self.annotations)
 
-    def create_blank_annotations_file(self, filename=None):
-        '''Creates an example blank annotations file.'''
-        if not filename:
-            filename = self.annotations
-        with open(filename, 'w') as csv_outfile:
-            csv_writer = csv.writer(csv_outfile, delimiter=',')
-            header = [TCGA.patient, 'dataset', 'category']
-            csv_writer.writerow(header)
-
     def create_blank_train_config(self, filename=None):
         '''Creates a CSV file with the batch training hyperparameter structure.'''
-        from slideflow.model import HyperParameters
-
         if not filename:
             filename = self.batch_train_config
-        with open(filename, 'w') as csv_outfile:
-            writer = csv.writer(csv_outfile, delimiter='\t')
-            # Create headers and first row
-            header = ['model_name']
-            firstrow = ['model1']
-            default_hp = HyperParameters()
-            for arg in default_hp._get_args():
-                header += [arg]
-                firstrow += [getattr(default_hp, arg)]
-            writer.writerow(header)
-            writer.writerow(firstrow)
+        project_utils.create_blank_train_config(filename)
 
     def create_hyperparameter_sweep(self, tile_px, tile_um, finetune_epochs,
                                     label=None, filename=None, **kwargs):
         '''Prepares a hyperparameter sweep, saving to a batch train TSV file.'''
-        log.header('Preparing hyperparameter sweep...')
         pdict = kwargs
         pdict.update({'tile_px': tile_px, 'tile_um': tile_um})
 
@@ -264,120 +187,7 @@ class SlideflowProject:
                 for arg in args:
                     row += [getattr(hp, arg)]
                 writer.writerow(row)
-        log.complete(f'Wrote {len(sweep)} combinations for sweep to {sfutil.green(filename)}')
-
-    def create_project(self, project_folder):
-        '''Prompts user to provide all relevant project configuration
-            and saves configuration to "settings.json".'''
-        # General setup and slide configuration
-        project = {
-            'root': project_folder,
-            'slideflow_version': sf.__version__
-        }
-        project['name'] = input('What is the project name? ')
-
-        # Ask for annotations file location; if one has not been made,
-        # offer to create a blank template and then exit
-        if not sfutil.yes_no_input('Has an annotations (CSV) file already been created? [y/N] ', default='no'):
-            if sfutil.yes_no_input('Create a blank annotations file? [Y/n] ', default='yes'):
-                project['annotations'] = sfutil.file_input('Annotations file location [./annotations.csv] ',
-                                                            root=project['root'],
-                                                            default='./annotations.csv',
-                                                            filetype='csv',
-                                                            verify=False)
-                self.create_blank_annotations_file(project['annotations'])
-        else:
-            project['annotations'] = sfutil.file_input('Annotations file location [./annotations.csv] ',
-                                                        root=project['root'],
-                                                        default='./annotations.csv',
-                                                        filetype='csv')
-
-        # Dataset configuration
-        project['dataset_config'] = sfutil.file_input('Dataset configuration file location [./datasets.json] ',
-                                                      root=project['root'],
-                                                      default='./datasets.json',
-                                                      filetype='json',
-                                                      verify=False)
-
-        project['datasets'] = []
-        while not project['datasets']:
-            datasets_data, datasets_names = self.load_datasets(project['dataset_config'])
-
-            print(sfutil.bold('Detected datasets:'))
-            if not len(datasets_names):
-                print(' [None]')
-            else:
-                for i, name in enumerate(datasets_names):
-                    print(f' {i+1}. {name}')
-                print(f' {len(datasets_names)+1}. ADD NEW')
-                valid_dataset_choices = [str(l) for l in range(1, len(datasets_names)+2)]
-                dataset_selection = sfutil.choice_input(f'Which datasets should be used? ',
-                                                        valid_choices=valid_dataset_choices,
-                                                        multi_choice=True)
-
-            if not len(datasets_names) or str(len(datasets_names)+1) in dataset_selection:
-                # Create new dataset
-                print(f"{sfutil.bold('Creating new dataset')}")
-                dataset_name = input('What is the dataset name? ')
-                dataset_slides = sfutil.dir_input('Where are the slides stored? [./slides] ',
-                                        root=project['root'], default='./slides', create_on_invalid=True)
-                dataset_roi = sfutil.dir_input('Where are the ROI files (CSV) stored? [./slides] ',
-                                        root=project['root'], default='./slides', create_on_invalid=True)
-                dataset_tiles = sfutil.dir_input('Image tile storage location [./tiles] ',
-                                        root=project['root'], default='./tiles', create_on_invalid=True)
-                dataset_tfrecords = sfutil.dir_input('TFRecord storage location [./tfrecord] ',
-                                        root=project['root'], default='./tfrecord', create_on_invalid=True)
-
-                self.add_dataset(name=dataset_name,
-                                 slides=dataset_slides,
-                                 roi=dataset_roi,
-                                 tiles=dataset_tiles,
-                                 tfrecords=dataset_tfrecords,
-                                 path=project['dataset_config'])
-
-                print('Updated dataset configuration file.')
-            else:
-                try:
-                    project['datasets'] = [datasets_names[int(j)-1] for j in dataset_selection]
-                except TypeError:
-                    print(f'Invalid selection: {dataset_selection}')
-                    continue
-
-        # Training
-        project['models_dir'] = sfutil.dir_input('Where should the saved models be stored? [./models] ',
-                                                  root=project['root'],
-                                                  default='./models',
-                                                  create_on_invalid=True)
-
-        project['mixed_precision'] = sfutil.yes_no_input('Use mixed precision? [Y/n] ', default='yes')
-        project['batch_train_config'] = sfutil.file_input('Batch training TSV location [./batch_train.tsv] ',
-                                                          root=project['root'],
-                                                          default='./batch_train.tsv',
-                                                          filetype='tsv',
-                                                          verify=False)
-
-        if not exists(project['batch_train_config']):
-            print('Batch training file not found, creating blank')
-            self.create_blank_train_config(project['batch_train_config'])
-
-
-        # Save settings as relative paths
-        project['annotations'] = project['annotations'].replace(project_folder, '$ROOT')
-        project['dataset_config'] = project['dataset_config'].replace(project_folder, '$ROOT')
-        project['models_dir'] = project['models_dir'].replace(project_folder, '$ROOT')
-        project['batch_train_config'] = project['batch_train_config'].replace(project_folder, '$ROOT')
-
-        sfutil.write_json(project, join(project_folder, 'settings.json'))
-        self._settings = project
-
-        # Write a sample actions.py file
-        with open(join(os.path.dirname(os.path.realpath(__file__)), 'sample_actions.py'), 'r') as sample_file:
-            sample_actions = sample_file.read()
-            with open(os.path.join(project_folder, 'actions.py'), 'w') as actions_file:
-                actions_file.write(sample_actions)
-
-        print('\nProject configuration saved.\n')
-        self.load_project(project_folder)
+        log.info(f'Wrote {len(sweep)} combinations for sweep to {sfutil.green(filename)}')
 
     def evaluate(self,
                  model,
@@ -422,10 +232,10 @@ class SlideflowProject:
                                         Will save tile-level, patient-level, and/or slide-level predictions.
                                         If True, will save all.
         '''
-        log.header(f'Evaluating model {sfutil.green(model)}...')
+        log.info(f'Evaluating model {sfutil.green(model)}...')
 
         if (input_header is None) and permutation_importance:
-            log.warn('Permutation feature importance is designed to be used with multimodal models. Turning off.', 1)
+            log.warn('Permutation feature importance is designed to be used with multimodal models. Turning off.')
             permutation_importance = False
 
         manager = multiprocessing.Manager()
@@ -450,7 +260,7 @@ class SlideflowProject:
                                                                     histogram,
                                                                     save_predictions))
         process.start()
-        log.empty(f'Spawning evaluation process (PID: {process.pid})')
+        log.debug(f'Spawning evaluation process (PID: {process.pid})')
         process.join()
 
         return results_dict
@@ -490,7 +300,7 @@ class SlideflowProject:
         else:
             raise Exception(f"Unable to find the experiment '{exp_name}'")
 
-        log.info(f'Loading trained experiment from {sfutil.green(exp_name)}', 1)
+        log.info(f'Loading trained experiment from {sfutil.green(exp_name)}')
         eval_dir = join(exp_name, 'eval')
         if not exists(eval_dir): os.makedirs(eval_dir)
 
@@ -636,12 +446,10 @@ class SlideflowProject:
             threads_per_worker:		Number of processes to allocate to each slide for tile extraction.
         '''
 
-        import slideflow.slide as sfslide
-
-        log.header('Extracting image tiles...')
+        from slideflow.slide import WSI, TMA, ExtractionReport
 
         if not save_tiles and not save_tfrecord:
-            log.error('Either save_tiles or save_tfrecord must be true to extract tiles.', 1)
+            log.error('Either save_tiles or save_tfrecord must be true to extract tiles.')
             return
 
         if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
@@ -668,15 +476,16 @@ class SlideflowProject:
         else:
             split_fraction, split_names = None, None
 
-        if normalizer: log.info(f'Extracting tiles using {sfutil.bold(normalizer)} normalization', 1)
+        if normalizer: log.info(f'Extracting tiles using {sfutil.bold(normalizer)} normalization')
         if whitespace_fraction < 1:
-            log.info('Filtering tiles by whitespace fraction', 1)
-            log.info(f'Whitespace defined as RGB avg > {whitespace_threshold})', 2)
-            log.info(f'(exclude if >={whitespace_fraction*100:.0f}% whitespace', 2)
+            log.info('Filtering tiles by whitespace fraction')
+            log.debug(f'Whitespace defined as RGB avg > {whitespace_threshold} (exclude if >={whitespace_fraction*100:.0f}% whitespace')
+        if grayspace_fraction < 1:
+            log.info('Filtering tiles by grayspace fraction')
+            log.debug(f'Grayspace defined as HSV avg < {grayspace_threshold} (exclude if >={grayspace_fraction*100:.0f}% grayspace)')
 
         for dataset_name in datasets:
-            log.empty(f'Working on dataset {sfutil.bold(dataset_name)}', 1)
-
+            log.info(f'Working on dataset {sfutil.bold(dataset_name)}...')
             tiles_dir = join(extracting_dts.datasets[dataset_name]['tiles'],
                                 extracting_dts.datasets[dataset_name]['label'])
             roi_dir = extracting_dts.datasets[dataset_name]['roi']
@@ -696,37 +505,36 @@ class SlideflowProject:
                 interrupted = [sfutil.path_to_name(marker) for marker in glob(join((tfrecord_dir
                                                            if tfrecord_dir else tiles_dir), '*.unfinished'))]
                 if len(interrupted):
-                    log.info(f'Interrupted tile extraction in {len(interrupted)} tfrecords, will re-extract slides', 1)
+                    log.info(f'Interrupted tile extraction in {len(interrupted)} tfrecords, will re-extract slides')
                     for interrupted_slide in interrupted:
-                        log.empty(interrupted_slide, 2)
+                        log.info(interrupted_slide)
                         if interrupted_slide in already_done:
                             del already_done[already_done.index(interrupted_slide)]
 
                 slide_list = [slide for slide in slide_list if sfutil.path_to_name(slide) not in already_done]
                 if len(already_done):
-                    log.info(f'Skipping {len(already_done)} slides; TFRecords already generated.', 1)
-            log.info(f'Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)', 1)
+                    log.info(f'Skipping {len(already_done)} slides; TFRecords already generated.')
+            log.info(f'Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)')
 
             # Verify slides and estimate total number of tiles
-            log.empty('Verifying slides...', 1)
+            log.info('Verifying slides...')
             total_tiles = 0
-            for slide_path in slide_list:
+            for slide_path in tqdm(slide_list, leave=False):
                 if tma:
-                    slide = sfslide.TMAReader(slide_path, tile_px, tile_um, stride_div, silent=True)
+                    slide = TMA(slide_path, tile_px, tile_um, stride_div, silent=True)
                 else:
-                    slide = sfslide.SlideReader(slide_path,
-                                                tile_px,
-                                                tile_um,
-                                                stride_div,
-                                                roi_dir=roi_dir,
-                                                roi_method=roi_method,
-                                                skip_missing_roi=False,
-                                                silent=True)
-                print(f'\r\033[KVerified {sfutil.green(slide.name)} (~ {slide.estimated_num_tiles} tiles)', end='')
+                    slide = WSI(slide_path,
+                                tile_px,
+                                tile_um,
+                                stride_div,
+                                roi_dir=roi_dir,
+                                roi_method=roi_method,
+                                skip_missing_roi=False,
+                                silent=True)
+                log.debug(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
                 total_tiles += slide.estimated_num_tiles
                 del slide
-            if log.INFO_LEVEL > 0: print('\r\033[K', end='')
-            log.complete(f'Verification complete. Total estimated tiles to extract: {total_tiles}', 1)
+            log.info(f'Total estimated tiles to extract: {total_tiles}')
 
             # Use multithreading if specified, extracting tiles from all slides in the filtered list
             if len(slide_list):
@@ -746,7 +554,7 @@ class SlideflowProject:
                                      show_eta=True,
                                      mp_counter=counter,
                                      mp_lock=counter_lock)
-                    pb.auto_refresh()
+                    pb.auto_refresh(0.1)
                 else:
                     pb = None
 
@@ -825,8 +633,8 @@ class SlideflowProject:
                 q.join()
                 task_finished = True
                 if pb: pb.end()
-                log.empty('Generating PDF (this may take some time)...', )
-                pdf_report = sfslide.ExtractionReport(reports.values(), tile_px=tile_px, tile_um=tile_um)
+                log.info('Generating PDF (this may take some time)...', )
+                pdf_report = ExtractionReport(reports.values(), tile_px=tile_px, tile_um=tile_um)
                 timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
                 pdf_report.save(join(self.root, f'tile_extraction_report-{timestring}.pdf'))
 
@@ -842,7 +650,7 @@ class SlideflowProject:
             destination:	Destination folder in which to save tile images
             filters:		Dataset filters to use when selecting TFRecords
         '''
-        log.header(f'Extracting tiles from TFRecords')
+        log.info(f'Extracting tiles from TFRecords')
         to_extract_dataset = self.get_dataset(filters=filters,
                                               tile_px=tile_px,
                                               tile_um=tile_um)
@@ -927,7 +735,7 @@ class SlideflowProject:
                                                                                     torch_export,
                                                                                     results_dict))
             process.start()
-            log.empty(f'Spawning activations process (PID: {process.pid})')
+            log.debug(f'Spawning activations process (PID: {process.pid})')
             process.join()
             return results_dict
         else:
@@ -1006,8 +814,8 @@ class SlideflowProject:
             activation_filters['slide'] = slides_to_generate
             filtered_dataset = self.get_dataset(tile_px, tile_um, filters=activation_filters, filter_blank=filter_blank)
             filtered_slides_to_generate = filtered_dataset.get_slides()
-            log.info(f'Activations already generated for {len(already_generated)} files, will not regenerate.', 1)
-            log.info(f'Attempting to generate for {len(filtered_slides_to_generate)} slides', 1)
+            log.info(f'Activations already generated for {len(already_generated)} files, will not regenerate.')
+            log.info(f'Attempting to generate for {len(filtered_slides_to_generate)} slides')
 
         # Set up activations interface
         self.generate_activations(model,
@@ -1039,7 +847,7 @@ class SlideflowProject:
                           batch_size=64,
                           buffer=True,
                           isolated_process=True,
-                          num_threads='auto'):
+                          num_threads=8):
 
         '''Creates predictive heatmap overlays on a set of slides.
 
@@ -1080,8 +888,6 @@ class SlideflowProject:
                                     If False, will perform as single thread (GPU memory not be freed after completion).
                                     Allows use for functions being passed to logit_cmap (functions are not pickleable).
         '''
-        log.header('Generating heatmaps...')
-
         # Prepare dataset
         hp_data = sfutil.get_model_hyperparameters(model)
         heatmaps_dataset = self.get_dataset(filters=filters,
@@ -1124,7 +930,7 @@ class SlideflowProject:
                                                                                     batch_size,
                                                                                     num_threads))
                 process.start()
-                log.empty(f'Spawning heatmaps process (PID: {process.pid})')
+                log.debug(f'Spawning heatmaps process (PID: {process.pid})')
                 process.join()
             else:
                 project_utils.heatmap_generator(self,
@@ -1230,8 +1036,6 @@ class SlideflowProject:
         from slideflow.activations import ActivationsVisualizer
         from slideflow.mosaic import Mosaic
 
-        log.header('Generating mosaic map...')
-
         # Set up paths
         stats_root = join(self.root, 'stats')
         mosaic_root = join(self.root, 'mosaic')
@@ -1255,7 +1059,9 @@ class SlideflowProject:
         else:
             focus_list = None
         num_focus = 0 if not focus_list else len(focus_list)
-        log.info(f'Generating mosaic from {len(tfrecords_list)} slides, focus on {num_focus} slides.', 1)
+        log.info(f'Generating mosaic from {len(tfrecords_list)} slides')
+        if num_focus:
+            log.debug(f'Using focus on {num_focus} slides.')
 
         # If a header category is supplied and we are not showing predictions,
         # then assign slide labels from annotations
@@ -1271,9 +1077,9 @@ class SlideflowProject:
             if model_hp:
                 outcome_labels = model_hp['outcome_labels']
                 model_type = model_type if model_type else model_hp['model_type']
-                log.info(f'Automatically loaded prediction labels found at {sfutil.green(model)}', 1)
+                log.info(f'Automatically loaded prediction labels found at {sfutil.green(model)}')
             else:
-                log.info(f'Unable to auto-detect prediction labels from model hyperparameters file', 1)
+                log.info(f'Unable to auto-detect prediction labels from model hyperparameters file')
 
         # Initialize mosaic, umap, and ActivationsVisualizer
         mosaic, umap = None, None
@@ -1313,7 +1119,7 @@ class SlideflowProject:
 
         # If displaying centroid AND predictions, then show slide-level predictions rather than tile-level predictions
         if (map_slide=='centroid') and show_prediction is not None:
-            log.info('Showing slide-level predictions at point of centroid', 1)
+            log.info('Showing slide-level predictions at point of centroid')
 
             # If not model has not been assigned, assume categorical model
             model_type = model_type if model_type else 'categorical'
@@ -1327,12 +1133,12 @@ class SlideflowProject:
             # If show_prediction is provided (either a number or string),
             # then display ONLY the prediction for the provided category, as a colormap
             if type(show_prediction) == int:
-                log.info(f'Showing prediction for label {show_prediction} as colormap', 1)
+                log.info(f'Showing prediction for label {show_prediction} as colormap')
                 slide_labels = {k:v[show_prediction] for k, v in slide_percent.items()}
                 show_prediction = None
                 use_float = True
             elif type(show_prediction) == str:
-                log.info(f'Showing prediction for label {show_prediction} as colormap', 1)
+                log.info(f'Showing prediction for label {show_prediction} as colormap')
                 reversed_labels = {v:k for k, v in outcome_labels.items()}
                 if show_prediction not in reversed_labels:
                     raise ValueError(f"Unknown label category '{show_prediction}'")
@@ -1341,8 +1147,8 @@ class SlideflowProject:
                 use_float = True
             elif use_float:
                 # Displaying linear predictions needs to be implemented here
-                raise TypeError("If showing predictions & use_float=True, set 'show_prediction' \
-                                    to category to be predicted.")
+                raise TypeError("If showing predictions & use_float=True, set 'show_prediction' " + \
+                                    "to category to be predicted.")
             # Otherwise, show_prediction is assumed to be just "True", in which case show categorical predictions
             else:
                 try:
@@ -1463,10 +1269,10 @@ class SlideflowProject:
             for slide in slides:
                 print_func = print if num_warned < warn_threshold else None
                 if slide not in successful_slides:
-                    log.warn(f'Unable to calculate optimal tile for {sfutil.green(slide)}; will skip', 1, print_func)
+                    log.warn(f'Unable to calculate optimal tile for {sfutil.green(slide)}; will skip')
                     num_warned += 1
             if num_warned >= warn_threshold:
-                log.warn(f'...{num_warned} total warnings, see {sfutil.green(log.logfile)} for details', 1)
+                log.warn(f'...{num_warned} total warnings, see project log for details')
 
             umap_x = np.array([slide_labels_dict[slide]['label'][0] for slide in successful_slides])
             umap_y = np.array([slide_labels_dict[slide]['label'][1] for slide in successful_slides])
@@ -1509,27 +1315,27 @@ class SlideflowProject:
             enable_downsample:	Bool. If True and a thumbnail is not embedded in the slide file,
                                     downsampling is permitted in order to accelerate thumbnail calculation.
         '''
-        import slideflow.slide as sfslide
-        log.header('Generating thumbnails...')
+        from slideflow.slide import WSI
+        log.info('Generating thumbnails...')
 
         thumb_folder = join(self.root, 'thumbs')
         if not exists(thumb_folder): os.makedirs(thumb_folder)
         dataset = self.get_dataset(filters=filters, filter_blank=filter_blank, tile_px=0, tile_um=0)
         slide_list = dataset.get_slide_paths()
         roi_list = dataset.get_rois()
-        log.info(f'Saving thumbnails to {sfutil.green(thumb_folder)}', 1)
+        log.info(f'Saving thumbnails to {sfutil.green(thumb_folder)}')
 
         for slide_path in slide_list:
             print(f'\r\033[KWorking on {sfutil.green(sfutil.path_to_name(slide_path))}...', end='')
-            whole_slide = sfslide.SlideReader(slide_path,
-                                              tile_px=1000,
-                                              tile_um=1000,
-                                              stride_div=1,
-                                              enable_downsample=enable_downsample,
-                                              roi_list=roi_list,
-                                              skip_missing_roi=roi,
-                                              buffer=None,
-                                              silent=True)
+            whole_slide = WSI(slide_path,
+                              tile_px=1000,
+                              tile_um=1000,
+                              stride_div=1,
+                              enable_downsample=enable_downsample,
+                              roi_list=roi_list,
+                              skip_missing_roi=roi,
+                              buffer=None,
+                              silent=True)
             if roi:
                 thumb = whole_slide.annotated_thumb()
             else:
@@ -1539,7 +1345,7 @@ class SlideflowProject:
 
     def generate_tfrecords_from_tiles(self, tile_px, tile_um, delete_tiles=True):
         '''Create tfrecord files from a collection of raw images, as stored in project tiles directory'''
-        log.header('Writing TFRecord files...')
+        log.info('Writing TFRecord files...')
 
         # Load dataset for evaluation
         working_dataset = Dataset(config_file=self.dataset_config,
@@ -1548,17 +1354,17 @@ class SlideflowProject:
                                   tile_um=tile_um)
 
         for d in working_dataset.datasets:
-            log.empty(f'Working on dataset {d}', 1)
+            log.info(f'Working on dataset {d}')
             config = working_dataset.datasets[d]
             tfrecord_dir = join(config['tfrecords'], config['label'])
             tiles_dir = join(config['tiles'], config['label'])
             if not exists(tiles_dir):
-                log.warn(f'No tiles found for dataset {sfutil.bold(d)}', 1)
+                log.warn(f'No tiles found for dataset {sfutil.bold(d)}')
                 continue
 
             # Check to see if subdirectories in the target folders are slide directories (contain images)
             #  or are further subdirectories (e.g. validation and training)
-            log.info('Scanning tile directory structure...', 2)
+            log.info('Scanning tile directory structure...')
             if sfutil.contains_nested_subdirs(tiles_dir):
                 subdirs = [_dir for _dir in os.listdir(tiles_dir) if isdir(join(tiles_dir, _dir))]
                 for subdir in subdirs:
@@ -1586,7 +1392,7 @@ class SlideflowProject:
             Dictionary mapping slide names to dict of statistics (mean, median, above_0, and above_1)'''
 
         from slideflow.io.tfrecords import get_locations_from_tfrecord
-        from slideflow.slide import SlideReader
+        from slideflow.slide import WSI
 
         slide_name = sfutil.path_to_name(tfrecord)
         loc_dict = get_locations_from_tfrecord(tfrecord)
@@ -1599,11 +1405,11 @@ class SlideflowProject:
             raise Exception(f'Unable to locate slide {slide_name}')
 
         if tile_dict.keys() != loc_dict.keys():
-            raise Exception(f'Length of provided tile_dict ({len(list(tile_dict.keys()))}) does not match \
-                                number of tiles stored in the TFRecord ({len(list(loc_dict.keys()))}).')
+            raise Exception(f'Length of provided tile_dict ({len(list(tile_dict.keys()))}) does not match ' + \
+                                f'number of tiles stored in the TFRecord ({len(list(loc_dict.keys()))}).')
 
         print(f'Generating TFRecord heatmap for {sfutil.green(tfrecord)}...')
-        slide = SlideReader(slide_path, tile_px, tile_um, skip_missing_roi=False)
+        slide = WSI(slide_path, tile_px, tile_um, skip_missing_roi=False)
 
         stats = {}
 
@@ -1740,24 +1546,13 @@ class SlideflowProject:
             log.warn('No datasets configured.')
 
         if verification in ('both', 'slides'):
-            log.empty("Verifying slide annotations...")
+            log.debug("Verifying slide annotations...")
             dataset.verify_annotations_slides()
         if verification in ('both', 'tfrecords'):
-            log.empty("Verifying tfrecords...")
+            log.debug("Verifying tfrecords...")
             dataset.update_manifest()
 
         return dataset
-
-    def load_datasets(self, path):
-        '''Loads datasets dictionaries from a given datasets.json file.'''
-        try:
-            datasets_data = sfutil.load_json(path)
-            datasets_names = list(datasets_data.keys())
-            datasets_names.sort()
-        except FileNotFoundError:
-            datasets_data = {}
-            datasets_names = []
-        return datasets_data, datasets_names
 
     def load_project(self, directory):
         '''Loads a saved and pre-configured project from the specified directory.'''
@@ -1767,7 +1562,7 @@ class SlideflowProject:
             raise OSError(f'Unable to locate settings.json at location "{directory}".')
 
         # Enable logging
-        log.logfile = join(self.root, 'log.log')
+        #log.logfile = join(self.root, 'log.log')
 
     def predict_wsi(self,
                     model_path,
@@ -1788,8 +1583,7 @@ class SlideflowProject:
                     grayspace_fraction=0.6,
                     grayspace_threshold=0.05,
                     randomize_origin=False,
-                    buffer=None,
-                    num_threads=-1):
+                    buffer=None):
 
         '''Using a given model, generates a spatial map of tile-level predictions for a whole-slide image (WSI)
             and dumps prediction arrays into pkl files for later use.
@@ -1821,14 +1615,12 @@ class SlideflowProject:
             buffer:					Path to buffer directory in which to copy slides prior to extraction.
                                         Using a ramdisk buffer greatly improves tile extraction speed
                                         for slides stored on disks with slow random access.
-            num_threads:			Number of processes to use when generating predictions.
-                                        If 1, will not use multiprocessing.
 
         Returns:
             None'''
-        import slideflow.slide as sfslide
+        from slideflow.slide import WSI, TileCorruptionError
 
-        log.header('Generating WSI prediction / activation maps...')
+        log.info('Generating WSI prediction / activation maps...')
         if not exists(export_dir):
             os.makedirs(export_dir)
         if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
@@ -1841,72 +1633,53 @@ class SlideflowProject:
                                               tile_um=tile_um,
                                               verification='slides')
         # Info logging
-        if normalizer: log.info(f'Using {sfutil.bold(normalizer)} normalization', 1)
+        if normalizer: log.info(f'Using {sfutil.bold(normalizer)} normalization')
         if whitespace_fraction < 1:
-            log.info('Filtering tiles by whitespace fraction', 1)
-            log.info(f'Whitespace defined as RGB avg > {whitespace_threshold})', 2)
-            log.info(f'(exclude if >={whitespace_fraction*100:.0f}% whitespace', 2)
+            log.info('Filtering tiles by whitespace fraction')
+            log.info(f'Whitespace defined as RGB avg > {whitespace_threshold})')
+            log.info(f'(exclude if >={whitespace_fraction*100:.0f}% whitespace')
 
         for dataset_name in datasets:
-            log.empty(f'Working on dataset {sfutil.bold(dataset_name)}', 1)
+            log.info(f'Working on dataset {sfutil.bold(dataset_name)}')
             roi_dir = extracting_dataset.datasets[dataset_name]['roi']
 
             # Prepare list of slides for extraction
             slide_list = extracting_dataset.get_slide_paths(dataset=dataset_name)
-            log.info(f'Generating predictions for {len(slide_list)} slides ({tile_um} um, {tile_px} px)', 1)
+            log.info(f'Generating predictions for {len(slide_list)} slides ({tile_um} um, {tile_px} px)')
 
             # Verify slides and estimate total number of tiles
-            log.empty('Verifying slides...', 1)
+            log.info('Verifying slides...')
             total_tiles = 0
-            for slide_path in slide_list:
-                slide = sfslide.SlideReader(slide_path,
-                                            tile_px,
-                                            tile_um,
-                                            stride_div,
-                                            roi_dir=roi_dir,
-                                            roi_method=roi_method,
-                                            skip_missing_roi=False,
-                                            silent=True,
-                                            buffer=None)
-                print(f'\r\033[KVerified {sfutil.green(slide.name)} (~ {slide.estimated_num_tiles} tiles)', end='')
+            for slide_path in tqdm(slide_list, leave=False):
+                slide = WSI(slide_path,
+                            tile_px,
+                            tile_um,
+                            stride_div,
+                            roi_dir=roi_dir,
+                            roi_method=roi_method,
+                            skip_missing_roi=False,
+                            silent=True,
+                            buffer=None)
+                log.debug(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
                 total_tiles += slide.estimated_num_tiles
                 del slide
-            if log.INFO_LEVEL > 0: print('\r\033[K', end='')
-            log.complete(f'Verification complete. Total estimated tiles to extract: {total_tiles}', 1)
+            log.info(f'Verification complete. Total estimated tiles to predict: {total_tiles}')
 
-            if total_tiles:
-                pb = ProgressBar(total_tiles,
-                                counter_text='tiles',
-                                leadtext='Extracting tiles... ',
-                                show_counter=True,
-                                show_eta=True)
-                pb.auto_refresh()
-                pb_counter = pb.get_counter()
-                pb_lock = pb.get_lock()
-                print_fn = pb.print
-            else:
-                pb_counter = pb_lock = print_fn = None
-
-            # Function to extract tiles from a slide
-            def predict_wsi_from_slide(slide_path, downsample):
-                print_func = print if not pb else pb.print
-                log.empty(f'Working on slide {sfutil.path_to_name(slide_path)}', 1, print_func)
-                whole_slide = sfslide.SlideReader(slide_path,
-                                                  tile_px,
-                                                  tile_um,
-                                                  stride_div,
-                                                  enable_downsample=downsample,
-                                                  roi_dir=roi_dir,
-                                                  roi_method=roi_method,
-                                                  randomize_origin=randomize_origin,
-                                                  skip_missing_roi=skip_missing_roi,
-                                                  buffer=buffer,
-                                                  pb_counter=pb_counter,
-                                                  counter_lock=pb_lock,
-                                                  print_fn=print_fn)
+            for slide_path in slide_list:
+                log.info(f'Working on slide {sfutil.path_to_name(slide_path)}')
+                whole_slide = WSI(slide_path,
+                                  tile_px,
+                                  tile_um,
+                                  stride_div,
+                                  enable_downsample=enable_downsample,
+                                  roi_dir=roi_dir,
+                                  roi_method=roi_method,
+                                  randomize_origin=randomize_origin,
+                                  skip_missing_roi=skip_missing_roi,
+                                  buffer=buffer)
 
                 if not whole_slide.loaded_correctly():
-                    return
+                    continue
 
                 try:
                     wsi_grid = whole_slide.predict(model=model_path,
@@ -1920,59 +1693,13 @@ class SlideflowProject:
                     with open (join(export_dir, whole_slide.name+'.pkl'), 'wb') as pkl_file:
                         pickle.dump(wsi_grid, pkl_file)
 
-                except sfslide.TileCorruptionError:
-                    if downsample:
-                        log.warn(f'Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; will try \
-                                    re-extraction with downsampling disabled', 1, print_func)
-                        predict_wsi_from_slide(slide_path, downsample=False)
+                except TileCorruptionError:
+                    formatted_slide = sfutil.green(sfutil.path_to_name(slide_path))
+                    if enable_downsample:
+                        log.warn(f'Corrupt tile in {formatted_slide}; consider disabling downsampling')
                     else:
-                        formatted_slide = sfutil.green(sfutil.path_to_name(slide_path))
-                        log.error(f'Corrupt tile in {formatted_slide}; skipping slide', 1, print_func)
-                        return None
-
-            # Use multithreading if specified, extracting tiles from all slides in the filtered list
-            if num_threads == -1: num_threads = self.default_threads
-            if num_threads > 1 and len(slide_list):
-                q = queue.Queue()
-                task_finished = False
-
-                def worker():
-                    while True:
-                        try:
-                            path = q.get()
-                            if buffer and buffer != 'vmtouch':
-                                buffered_path = join(buffer, os.path.basename(path))
-                                predict_wsi_from_slide(buffered_path, enable_downsample)
-                                os.remove(buffered_path)
-                            else:
-                                predict_wsi_from_slide(path, enable_downsample)
-                            q.task_done()
-                        except queue.Empty:
-                            if task_finished:
-                                return
-
-                threads = [threading.Thread(target=worker, daemon=True) for t in range(num_threads)]
-                for thread in threads:
-                    thread.start()
-
-                for slide_path in slide_list:
-                    if buffer and buffer != 'vmtouch':
-                        while True:
-                            try:
-                                shutil.copyfile(slide_path, join(buffer, os.path.basename(slide_path)))
-                                q.put(slide_path)
-                                break
-                            except OSError:
-                                time.sleep(5)
-                    else:
-                        q.put(slide_path)
-                q.join()
-                task_finished = True
-                if pb: pb.end()
-            else:
-                for slide_path in slide_list:
-                    predict_wsi_from_slide(slide_path, enable_downsample)
-                if pb: pb.end()
+                        log.error(f'Corrupt tile in {formatted_slide}; skipping slide')
+                    continue
 
     def resize_tfrecords(self, source_tile_px, source_tile_um, dest_tile_px, filters=None):
         '''Resizes images in a set of TFRecords to a given pixel size.
@@ -1983,12 +1710,12 @@ class SlideflowProject:
             dest_tile_px:		Pixel size of resized images.
             filters:			Dictionary of dataset filters to use for selecting TFRecords for resizing.
         '''
-        log.header(f'Resizing TFRecord tiles to ({dest_tile_px}, {dest_tile_px})')
+        log.info(f'Resizing TFRecord tiles to ({dest_tile_px}, {dest_tile_px})')
         resize_dataset = self.get_dataset(filters=filters,
                                           tile_px=source_tile_px,
                                           tile_um=source_tile_um)
         tfrecords_list = resize_dataset.get_tfrecords()
-        log.info(f'Resizing {len(tfrecords_list)} tfrecords', 1)
+        log.info(f'Resizing {len(tfrecords_list)} tfrecords')
 
         for tfr in tfrecords_list:
             sfio.tfrecords.transform_tfrecord(tfr, tfr+'.transformed', resize=dest_tile_px)
@@ -1999,7 +1726,7 @@ class SlideflowProject:
 
     def slide_report(self, tile_px, tile_um, filters=None, filter_blank=None, dataset=None,
                         stride_div=1, destination='auto', tma=False, enable_downsample=False,
-                        roi_method='inside', skip_missing_roi=True, normalizer=None, normalizer_source=None):
+                        roi_method='inside', skip_missing_roi=False, normalizer=None, normalizer_source=None):
         '''Creates a PDF report of slides, including images of 10 example extracted tiles.
 
         Args:
@@ -2020,7 +1747,7 @@ class SlideflowProject:
             normalizer:				Normalization strategy to use on image tiles
             normalizer_source:		Path to normalizer source image
         '''
-        import slideflow.slide as sfslide
+        from slideflow.slide import TMA, WSI, ExtractionReport
 
         if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
         else:		datasets = self.datasets
@@ -2030,7 +1757,7 @@ class SlideflowProject:
                                               tile_px=tile_px,
                                               tile_um=tile_um)
 
-        log.header('Generating slide report...')
+        log.info('Generating slide report...')
         reports = []
         for dataset_name in datasets:
             roi_dir = extracting_dataset.datasets[dataset_name]['roi']
@@ -2041,22 +1768,22 @@ class SlideflowProject:
                 print(f'\r\033[KGenerating report for slide {sfutil.green(sfutil.path_to_name(slide_path))}...', end='')
 
                 if tma:
-                    whole_slide = sfslide.TMAReader(slide_path,
-                                                    tile_px,
-                                                    tile_um,
-                                                    stride_div,
-                                                    enable_downsample=enable_downsample,
-                                                    silent=True)
+                    whole_slide = TMA(slide_path,
+                                      tile_px,
+                                      tile_um,
+                                      stride_div,
+                                      enable_downsample=enable_downsample,
+                                      silent=True)
                 else:
-                    whole_slide = sfslide.SlideReader(slide_path,
-                                                      tile_px,
-                                                      tile_um,
-                                                      stride_div,
-                                                      enable_downsample=enable_downsample,
-                                                      roi_dir=roi_dir,
-                                                      roi_method=roi_method,
-                                                      silent=True,
-                                                      skip_missing_roi=skip_missing_roi)
+                    whole_slide = WSI(slide_path,
+                                      tile_px,
+                                      tile_um,
+                                      stride_div,
+                                      enable_downsample=enable_downsample,
+                                      roi_dir=roi_dir,
+                                      roi_method=roi_method,
+                                      silent=True,
+                                      skip_missing_roi=skip_missing_roi)
 
                 if not whole_slide.loaded_correctly():
                     return
@@ -2068,12 +1795,12 @@ class SlideflowProject:
                 report = get_slide_report(slide_path)
                 reports += [report]
         print('\r\033[K', end='')
-        log.empty('Generating PDF (this may take some time)...', )
-        pdf_report = sfslide.ExtractionReport(reports, tile_px=tile_px, tile_um=tile_um)
+        log.info('Generating PDF (this may take some time)...', )
+        pdf_report = ExtractionReport(reports, tile_px=tile_px, tile_um=tile_um)
         timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
         filename = destination if destination != 'auto' else join(self.root, f'tile_extraction_report-{timestring}.pdf')
         pdf_report.save(filename)
-        log.complete(f'Slide report saved to {sfutil.green(filename)}', 1)
+        log.info(f'Slide report saved to {sfutil.green(filename)}')
 
     def tfrecord_report(self, tile_px, tile_um, source_directory=None, filters=None, filter_blank=None, dataset=None,
                          destination='auto', normalizer=None, normalizer_source=None):
@@ -2097,7 +1824,7 @@ class SlideflowProject:
         if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
         else:		datasets = self.datasets
 
-        if normalizer: log.info(f'Using realtime {normalizer} normalization', 1)
+        if normalizer: log.info(f'Using realtime {normalizer} normalization')
         normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
 
         if source_directory:
@@ -2112,7 +1839,7 @@ class SlideflowProject:
             for dataset_name in datasets:
                 tfrecord_list += tfrecord_dataset.get_tfrecords(dataset=dataset_name)
         reports = []
-        log.header('Generating TFRecords report...')
+        log.info('Generating TFRecords report...')
         for tfr in tfrecord_list:
             print(f'\r\033[KGenerating report for tfrecord {sfutil.green(sfutil.path_to_name(tfr))}...', end='')
             dataset = tf.data.TFRecordDataset(tfr)
@@ -2128,12 +1855,12 @@ class SlideflowProject:
             reports += [SlideReport(sample_tiles, tfr)]
 
         print('\r\033[K', end='')
-        log.empty('Generating PDF (this may take some time)...', 1)
+        log.info('Generating PDF (this may take some time)...')
         pdf_report = ExtractionReport(reports, tile_px=tile_px, tile_um=tile_um)
         timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
         filename = destination if destination != 'auto' else join(self.root, f'tfrecord_report-{timestring}.pdf')
         pdf_report.save(filename)
-        log.complete(f'TFRecord report saved to {sfutil.green(filename)}', 1)
+        log.info(f'TFRecord report saved to {sfutil.green(filename)}')
 
     def train(self,
               outcome_label_headers,
@@ -2216,17 +1943,17 @@ class SlideflowProject:
 
         # Quickly scan for errors (duplicate model names in batch training file) and prepare models to train
         if hyperparameters and not model_names:
-            log.error("If specifying hyperparameters, 'model_names' must be supplied. ", 1)
+            log.error("If specifying hyperparameters, 'model_names' must be supplied. ")
             return
 
         if normalizer and normalizer_strategy not in ('tfrecord', 'realtime'):
-            log.error(f"Unknown normalizer strategy {normalizer_strategy}, must be either 'tfrecord' or 'realtime'", 1)
+            log.error(f"Unknown normalizer strategy {normalizer_strategy}, must be either 'tfrecord' or 'realtime'")
             return
 
         if (val_settings.strategy in ('k-fold-manual', 'k-fold-preserved-site', 'k-fold', 'bootstrap')
             and val_settings.dataset):
 
-            log.error(f'Unable to use {val_settings.strategy} if validation_dataset has been provided.', 1)
+            log.error(f'Unable to use {val_settings.strategy} if validation_dataset has been provided.')
             return
 
         # Setup normalization
@@ -2236,8 +1963,6 @@ class SlideflowProject:
         train_normalizer_source = normalizer_source if (normalizer and normalizer_strategy == 'realtime') else None
 
         # Prepare hyperparameters
-        log.header('Performing hyperparameter sweep...')
-
         hyperparameter_list = get_hyperparameter_combinations(hyperparameters, model_names, batch_train_file)
 
         if not isinstance(outcome_label_headers, list):
@@ -2245,10 +1970,7 @@ class SlideflowProject:
         if len(outcome_label_headers) > 1:
             num_h = len(hyperparameter_list)
             num_o = len(outcome_label_headers)
-            log.info(f'Training ({num_h} models) with {num_o} variables as simultaneous outcomes:', 1)
-            for label in outcome_label_headers:
-                log.empty(label, 2)
-            if log.INFO_LEVEL > 0: print()
+            log.info(f'Training ({num_h} models) with {num_o} variables as simultaneous outcomes: {", ".join(outcome_label_headers)}')
 
         # Next, prepare the multiprocessing manager (needed to free VRAM after training and keep track of results)
         manager = multiprocessing.Manager()
@@ -2330,11 +2052,10 @@ class SlideflowProject:
                                                                           save_predictions,
                                                                           skip_metrics))
                 process.start()
-                log.empty(f'Spawning training process (PID: {process.pid})')
+                log.debug(f'Spawning training process (PID: {process.pid})')
                 process.join()
 
             # Perform training
-            log.header('Training model...')
             if k_fold:
                 for k in valid_k:
                     start_training_process(k)
@@ -2348,22 +2069,22 @@ class SlideflowProject:
                     log.error(f'Training failed for model {model_name}')
                 else:
                     sfutil.update_results_log(results_log_path, mi, results_dict[mi]['epochs'])
-            log.complete(f'Training complete for model {model_name}, results saved to {sfutil.green(results_log_path)}')
+            log.info(f'Training complete for model {model_name}, results saved to {sfutil.green(results_log_path)}')
 
         # Print summary of all models
-        log.complete('Training complete; validation accuracies:', 0)
+        log.info('Training complete; validation accuracies:')
         for model in results_dict:
             try:
                 last_epoch = max([int(e.split('epoch')[-1]) for e in results_dict[model]['epochs'].keys()
                                                             if 'epoch' in e ])
                 final_train_metrics = results_dict[model]['epochs'][f'epoch{last_epoch}']['train_metrics']
                 final_val_metrics = results_dict[model]['epochs'][f'epoch{last_epoch}']['val_metrics']
-                log.empty(f'{sfutil.green(model)} training metrics:', 1)
+                log.info(f'{sfutil.green(model)} training metrics:')
                 for m in final_train_metrics:
-                    log.empty(f'{m}: {final_train_metrics[m]}', 2)
-                log.empty(f'{sfutil.green(model)} validation metrics:', 1)
+                    log.info(f'{m}: {final_train_metrics[m]}')
+                log.info(f'{sfutil.green(model)} validation metrics:')
                 for m in final_val_metrics:
-                    log.empty(f'{m}: {final_val_metrics[m]}', 2)
+                    log.info(f'{m}: {final_val_metrics[m]}')
             except ValueError:
                 pass
 
@@ -2449,7 +2170,7 @@ class SlideflowProject:
         validation_slides = [s for s in validation_slides if exists(join(pt_files, s+'.pt'))]
         if len(train_slides) + len(validation_slides) != num_supplied_slides:
             num_skipped = num_supplied_slides - (len(train_slides) + len(validation_slides))
-            log.warn(f'Skipping {num_skipped} slides missing associated .pt files.', 1)
+            log.warn(f'Skipping {num_skipped} slides missing associated .pt files.')
 
         # Set up training/validation splits (mirror base model)
         split_dir = join(clam_dir, 'splits')
@@ -2526,10 +2247,9 @@ class SlideflowProject:
                     self.generate_tfrecord_heatmap(tfr, attention_dict, heatmaps_dir, tile_px=tile_px, tile_um=tile_um)
 
     def split_tfrecords_by_roi(self, tile_px, tile_um, destination, filters=None, filter_blank=None):
-        from slideflow.slide import SlideReader
+        from slideflow.slide import WSI
         import slideflow.io.tfrecords
         import tensorflow as tf
-        from tqdm import tqdm
 
         dataset = self.get_dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank)
         tfrecords = dataset.get_tfrecords()
@@ -2541,7 +2261,7 @@ class SlideflowProject:
             slidename = sfutil.path_to_name(tfr)
             if slidename not in slides:
                 continue
-            slide = SlideReader(slides[slidename], tile_px, tile_um, roi_list=rois)
+            slide = WSI(slides[slidename], tile_px, tile_um, roi_list=rois, skip_missing_roi=True)
             if slide.load_error:
                 continue
             feature_description, _ = sf.io.tfrecords.detect_tfrecord_format(tfr)
@@ -2601,3 +2321,8 @@ class SlideflowProject:
             for tile in tiles[:20]:
                 tile_loc = join(directory, tile)
                 TV.visualize_tile(image_jpg=tile_loc, export_folder=directory)
+
+class SlideflowProject(Project):
+    def __init__(self, args, **kwargs):
+        log.warn("sf.SlideflowProject is deprecated; please use sf.Project")
+        super().__init__(args, **kwargs)

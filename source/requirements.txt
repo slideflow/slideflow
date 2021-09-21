@@ -2,7 +2,7 @@ gast>=0.3.3
 tensorflow>=2.5
 scipy
 sklearn
-matplotlib
+matplotlib>=3.2
 imageio
 opencv-python
 shapely
@@ -18,3 +18,5 @@ cvxpy
 lifelines
 torch
 torch-vision
+dareblopy
+pyspng

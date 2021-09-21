@@ -4,10 +4,9 @@
 # Written by James Dolezal <jamesmdolezal@gmail.com>, March 2019
 # ==========================================================================
 
-'''This module includes tools to convolutionally section whole slide images into tiles
-using python Generators. These tessellated tiles can be exported as JPGs, with or without
-data augmentation, or used as input for a trained Tensorflow model. Model predictions
-can then be visualized as a heatmap overlay.
+'''This module includes tools to convolutionally section whole slide images into tiles.
+These tessellated tiles can be exported as PNG or JPG as raw images or stored in the binary
+format TFRecords, with or without data augmentation.
 
 Requires: libvips (https://libvips.github.io/libvips/).'''
 
@@ -17,6 +16,7 @@ from __future__ import print_function
 
 import os
 import io
+import types
 import tensorflow as tf
 import numpy as np
 import csv
@@ -30,18 +30,18 @@ import warnings
 
 import matplotlib.colors as mcol
 import slideflow.util as sfutil
+import multiprocessing as mp
 
 from os.path import join, exists
 from PIL import Image, ImageDraw, UnidentifiedImageError
-from slideflow.util import log, StainNormalizer
+from slideflow.util import log, StainNormalizer, SUPPORTED_FORMATS, UserError
 from slideflow.io.tfrecords import tfrecord_example
-from fpdf import FPDF
 from datetime import datetime
-import types
 from functools import partial
-import multiprocessing as mp
+from tqdm import tqdm
+from fpdf import FPDF
 
-#TODO: implement randomization of center of tile extraction
+#TODO: optionally randomize center of individual tile extraction
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -85,8 +85,8 @@ def vips2numpy(vi):
                       shape=[vi.height, vi.width, vi.bands])
 
 def slide_extraction_worker(c, args):
-    '''Multiprocessing working for SlideReader. Extracts a tile at the given coordinates'''
-    slide = OpenslideToVIPS(args.path)
+    '''Multiprocessing working for WSI. Extracts a tile at the given coordinates'''
+    slide = VIPSWrapper(args.path)
     normalizer = None if not args.normalizer else StainNormalizer(method=args.normalizer, source=args.normalizer_source)
 
     index = c[2]
@@ -158,7 +158,7 @@ def slide_extraction_worker(c, args):
             return {'image': np_image}, index
 
 class InvalidTileSplitException(Exception):
-    '''Raised when invalid tile splitting parameters are given to SlideReader.'''
+    '''Raised when invalid tile splitting parameters are given to WSI.'''
     pass
 
 class TileCorruptionError(Exception):
@@ -253,7 +253,7 @@ class ExtractionReport:
     def save(self, filename):
         self.pdf.output(filename)
 
-class OpenslideToVIPS:
+class VIPSWrapper:
     '''Wrapper for VIPS to preserve openslide-like functions.'''
     def __init__(self, path, buffer=None):
         self.path = path
@@ -272,11 +272,11 @@ class OpenslideToVIPS:
 
         # If Openslide MPP is not available, try reading from metadata
         if OPS_MPP_X not in self.properties.keys():
-            log.warn(f"Unable to detect openslide Microns-Per-Pixel (MPP) property, will search EXIF data", 1)
+            log.warning(f"Unable to detect openslide Microns-Per-Pixel (MPP) property, will search EXIF data")
             try:
                 with Image.open(path) as img:
                     if TIF_EXIF_KEY_MPP in img.tag.keys():
-                        log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}", 1)
+                        log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}")
                         self.properties[OPS_MPP_X] = img.tag[TIF_EXIF_KEY_MPP][0]
             except UnidentifiedImageError:
                 log.error(f"PIL image reading error; slide {sfutil.path_to_name(path)} is corrupt.")
@@ -356,7 +356,7 @@ class OpenslideToVIPS:
         if self.buffer == 'vmtouch':
             os.system(f'vmtouch -e "{self.path}"')
 
-class JPGslideToVIPS(OpenslideToVIPS):
+class JPGslideToVIPS(VIPSWrapper):
     '''Wrapper for JPG files, which do not possess separate levels, to preserve openslide-like functions.'''
     def __init__(self, path, buffer=None):
         self.buffer = buffer
@@ -388,10 +388,10 @@ class JPGslideToVIPS(OpenslideToVIPS):
         # MPP data
         with Image.open(path) as img:
             if TIF_EXIF_KEY_MPP in img.tag.keys():
-                log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}", 1)
+                log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}")
                 self.properties[OPS_MPP_X] = img.tag[TIF_EXIF_KEY_MPP][0]
             else:
-                log.info(f"Setting MPP to default {DEFAULT_JPG_MPP}", 1)
+                log.info(f"Setting MPP to default {DEFAULT_JPG_MPP}")
                 self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
 
 class ROIObject:
@@ -409,11 +409,11 @@ class ROIObject:
         for point in shape:
             self.add_coord(point)
 
-class SlideLoader:
+class BaseLoader:
     '''Object that loads an SVS slide and makes preparations for tile extraction.
     Should not be used directly; this class must be inherited and extended by a child class'''
     def __init__(self, path, tile_px, tile_um, stride_div, enable_downsample=False,
-                    silent=False, buffer=None, pb=None, pb_counter=None, counter_lock=None, print_fn=None):
+                    silent=False, buffer=None, pb=None, pb_counter=None, counter_lock=None):
         self.load_error = False
         self.silent = silent
 
@@ -426,11 +426,6 @@ class SlideLoader:
         else:
             self.pb_counter = pb.get_counter()
             self.counter_lock = pb.get_lock()
-            print_fn = pb.print if not print_fn else print_fn
-
-        self.print = None if silent else (print if not print_fn else print_fn)
-        self.error_print = print if not print_fn else print_fn
-
 
         self.name = sfutil.path_to_name(path)
         self.shortname = sfutil._shortname(self.name)
@@ -448,9 +443,9 @@ class SlideLoader:
             if filetype.lower() == 'jpg':
                 self.slide = JPGslideToVIPS(path)
             else:
-                self.slide = OpenslideToVIPS(path, buffer=buffer)
+                self.slide = VIPSWrapper(path, buffer=buffer)
         else:
-            log.error(f"Unsupported file type '{filetype}' for slide {self.name}.", 1, self.error_print)
+            log.error(f"Unsupported file type '{filetype}' for slide {self.name}.")
             self.load_error = True
             return
 
@@ -458,7 +453,7 @@ class SlideLoader:
         try:
             self.MPP = float(self.slide.properties[OPS_MPP_X])
         except KeyError:
-            log.error(f"Slide {sfutil.green(self.name)} missing MPP property ({OPS_MPP_X})", 1, self.error_print)
+            log.error(f"Slide {sfutil.green(self.name)} missing MPP property ({OPS_MPP_X})")
             self.load_error = True
             return
         self.full_shape = self.slide.dimensions
@@ -550,14 +545,14 @@ class SlideLoader:
         return self.thumb_image
 
     def build_generator(self, **kwargs):
-        lead_msg = f'Extracting {sfutil.bold(self.tile_um)}um tiles'
-        resize_msg = f'(resizing {sfutil.bold(self.extract_px)}px -> {sfutil.bold(self.tile_px)}px)'
-        stride_msg = f'stride: {sfutil.bold(int(self.stride))}px'
-        log.label(self.shortname, f"{lead_msg} {resize_msg}; {stride_msg}", 2, self.print)
+        lead_msg = f'Extracting {self.tile_um}um tiles'
+        resize_msg = f'(resizing {self.extract_px}px -> {self.tile_px}px)'
+        stride_msg = f'stride: {int(self.stride)}px'
+        log.debug(f"{self.shortname}: {lead_msg} {resize_msg}; {stride_msg}")
         if self.tile_px > self.extract_px:
             upscale_msg = 'Tiles will be up-scaled with bilinear interpolation'
             upscale_amount = f'({self.extract_px}px -> {self.tile_px}px)'
-            log.label(self.shortname, f"[{sfutil.fail('!WARN!')}] {upscale_msg} {upscale_amount}", 2, self.print)
+            log.warn(f"{self.shortname}: [{sfutil.red('!WARN!')}] {upscale_msg} {upscale_amount}")
 
         def empty_generator():
             yield None
@@ -575,9 +570,7 @@ class SlideLoader:
         return loaded_correctly
 
     def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None,
-                        whitespace_fraction=1.0, whitespace_threshold=230, grayspace_fraction=0.6,
-                        grayspace_threshold=0.05, normalizer=None, normalizer_source=None, img_format='png',
-                        shuffle=True, num_threads=4,  **kwargs):
+                      img_format='png', shuffle=True, num_threads=4, **kwargs):
         '''Extractes tiles from slide and saves into a TFRecord file or as loose JPG tiles in a directory.
         Args:
             tfrecord_dir:			If provided, saves tiles into a TFRecord file (named according to slide name) here.
@@ -587,15 +580,27 @@ class SlideLoader:
                                         Should add up to 1 (except for fractions of -1).
                                         Remaining tiles are split between fractions of "-1".
             split_names:			List of names to label the split fractions
-            whitespace_fraction:	Int from 0-100 (percent). Tiles with this percent of pixels classified as
-                                        "whitespace" will be skipped during extraction.
-            whitespace_threshold:	Int from 0-255, pixel brightness above which a pixel is considered whitespace
+            img_format:				'png' or 'jpg'. Format of images for internal storage in tfrecords.
+                                        PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
+            shuffle:                Bool. If true, will shuffle tiles prior to storage. (default = True)
+            num_threads:            Number of threads to allocate to tile extraction workers.
+
+        Kwargs:
             normalizer:				Normalization strategy to use on image tiles
             normalizer_source:		Path to normalizer source image
-            full_core:				Bool. Only used for TMAReader. If true, will extract full image cores
+            whitespace_fraction:	Float 0-1. Fraction of whitespace which causes a tile to be discarded.
+                                        If 1, will not perform whitespace filtering.
+            whitespace_threshold:	Int 0-255. Threshold above which a pixel (RGB average) is considered whitespace.
+            grayspace_fraction:		Float 0-1. Fraction of grayspace which causes a tile to be discarded.
+                                        If 1, will not perform grayspace filtering.
+            grayspace_threshold:	Int 0-1. HSV (hue, saturation, value) is calculated for each pixel.
+                                        If a pixel's saturation is below this threshold, it is considered grayspace.
+            full_core:				Bool. Only used for TMA. If true, will extract full image cores
                                         regardless of supplied tile micron size.
         '''
         assert img_format in ('png', 'jpg', 'jpeg')
+        if tfrecord_dir is None and tiles_dir is None:
+            raise UserError("Must supply either tfrecord_dir or tiles_dir as destination for tile extraction.")
 
         # Make base directories
         if tfrecord_dir:
@@ -613,8 +618,8 @@ class SlideLoader:
             if split_fraction and split_names:
                 # Tile splitting error checking
                 if len(split_fraction) != len(split_names):
-                    raise InvalidTileSplitException(f'When splitting tiles, length of "fraction" ({len(split_fraction)}) \
-                                                        should equal length of "names" ({len(split_names)})')
+                    raise InvalidTileSplitException(f'When splitting tiles, "fraction" length ({len(split_fraction)})' + \
+                                                        f' should equal length of "names" ({len(split_names)})')
                 if sum([i for i in split_fraction if i != -1]) > 1:
                     raise InvalidTileSplitException("Unable to split tiles; sum of split_fraction is greater than 1")
                 # Calculate dynamic splitting
@@ -636,27 +641,29 @@ class SlideLoader:
             elif tfrecord_dir:
                 tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
 
-        generator = self.build_generator(shuffle=shuffle,
-                                         normalizer=normalizer,
-                                         normalizer_source=normalizer_source,
-                                         whitespace_fraction=whitespace_fraction,
-                                         whitespace_threshold=whitespace_threshold,
-                                         grayspace_fraction=grayspace_fraction,
-                                         grayspace_threshold=grayspace_threshold,
-                                         num_threads=num_threads,
-                                         **kwargs)
+        generator = self.build_generator(shuffle=shuffle, num_threads=num_threads, **kwargs)
         slidename_bytes = bytes(self.name, 'utf-8')
 
         if not generator:
-            log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1, self.print)
+            log.error(f"No tiles extracted from slide {sfutil.green(self.name)}")
             return
 
         sample_tiles = []
-        for index, tile_dict in enumerate(generator()):
-            # Convert numpy array (in RGB) to jpeg string using CV2 (which first requires BGR format)
+        generator_iterator = generator()
+
+        # If not using a multiprocessing progress bar, use tqdm
+        if self.counter_lock is None:
+            generator_iterator = tqdm(generator_iterator, total=self.estimated_num_tiles, ncols=80)
+
+        for index, tile_dict in enumerate(generator_iterator):
+            # Increase multiprocessing progress bar, if provided
+            if self.counter_lock is not None:
+                with self.counter_lock:
+                    self.pb_counter.value += 1
+
             tile = tile_dict['image']
             location = tile_dict['loc']
-
+            # Convert numpy array (in RGB) to jpeg string using CV2 (which first requires BGR format)
             if img_format.lower() == 'png':
                 image_string = cv2.imencode('.png', cv2.cvtColor(tile, cv2.COLOR_RGB2BGR))[1].tobytes()
             elif img_format.lower() in ('jpg', 'jpeg'):
@@ -674,7 +681,7 @@ class SlideLoader:
                     save_dir = join(tiles_dir, random.choices(split_names, weights=split_fraction))
                 else:
                     save_dir = tiles_dir
-                with open(join(tiles_dir, f'{self.shortname}_{index}.{img_format}'), 'wb') as outfile:
+                with open(join(save_dir, f'{self.shortname}_{index}.{img_format}'), 'wb') as outfile:
                     outfile.write(image_string)
             if tfrecord_dir:
                 if split_fraction and split_names:
@@ -683,26 +690,24 @@ class SlideLoader:
                     writer = tfrecord_writer
                 tf_example = tfrecord_example(slidename_bytes, image_string, location[0], location[1])
                 writer.write(tf_example.SerializeToString())
+        if self.counter_lock is None:
+            generator_iterator.close()
 
         if tfrecord_dir or tiles_dir:
-            # Mark extraction of current slide as finished
             try:
                 os.remove(unfinished_marker)
             except:
-                log.error(f"Unable to mark slide {self.name} as tile extraction complete", 1)
+                log.error(f"Unable to mark slide {self.name} as tile extraction complete")
 
         # Unbuffer slide
         self.slide.unbuffer()
 
         # Generate extraction report
         report = SlideReport(sample_tiles, self.slide.path)
-
-        log.complete(f"Finished tile extraction for slide {sfutil.green(self.shortname)}", 1, self.print)
-
         return report
 
-class SlideReader(SlideLoader):
-    '''Extension of slideflow.slide.SlideLoader. Loads a slide and its ROI annotations and sets up a tile generator.'''
+class WSI(BaseLoader):
+    '''Extension of slideflow.slide.BaseLoader. Loads a slide and its annotated region of interest (ROI).'''
 
     def __init__(self,
                  path,
@@ -713,14 +718,13 @@ class SlideReader(SlideLoader):
                  roi_dir=None,
                  roi_list=None,
                  roi_method=EXTRACT_INSIDE,
-                 skip_missing_roi=True,
+                 skip_missing_roi=False,
                  randomize_origin=False,
                  silent=False,
                  buffer=None,
                  pb=None,
                  pb_counter=None,
-                 counter_lock=None,
-                 print_fn=None):
+                 counter_lock=None):
 
         '''Initializer.
 
@@ -750,8 +754,7 @@ class SlideReader(SlideLoader):
                          buffer,
                          pb,
                          pb_counter,
-                         counter_lock,
-                         print_fn)
+                         counter_lock)
 
         # Initialize calculated variables
         self.extracted_x_size = 0
@@ -759,18 +762,15 @@ class SlideReader(SlideLoader):
         self.estimated_num_tiles = 0
         self.coord = []
         self.annPolys = []
-        #self.pb_id = pb_id
         self.ROI_SCALE = 10
+        self.rois = []
+        self.roi_method = roi_method
 
         if not self.loaded_correctly():
             return
 
         # Build coordinate grid
         self._build_coord(randomize_origin=randomize_origin)
-
-        # Establish ROIs
-        self.rois = []
-        self.roi_method = roi_method
 
         # Look in ROI directory if available
         if roi_dir and exists(join(roi_dir, self.name + ".csv")):
@@ -786,26 +786,28 @@ class SlideReader(SlideLoader):
                 if rn == self.name:
                     matching_rois += [rp]
             if len(matching_rois) > 1:
-                log.warn(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}", 1, self.print)
+                log.warning(f" Multiple matching ROIs found for {self.name}; using {matching_rois[0]}")
             self.load_csv_roi(matching_rois[0])
 
         # Handle missing ROIs
         if not len(self.rois) and skip_missing_roi and roi_method != 'ignore':
-            log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide", 1, self.error_print)
+            log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide")
             self.shape = None
             self.load_error = True
             return None
         elif not len(self.rois):
             self.estimated_num_tiles = int(len(self.coord))
-            log.warn(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.", 2, self.print)
+            log.warning(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.")
+            self.roi_method = 'ignore'
 
         mpp_roi_msg = f'{self.MPP} um/px | {len(self.rois)} ROI(s)'
         size_msg = f'Size: {self.full_shape[0]} x {self.full_shape[1]}'
-        log.label(self.shortname, f"Slide info: {mpp_roi_msg} | {size_msg}", 2, self.print)
+        log.debug(f"{self.shortname}: Slide info: {mpp_roi_msg} | {size_msg}")
+        log.debug(f"{self.shortname}: Grid shape: {self.grid.shape} | Tiles to extract: {self.estimated_num_tiles}")
 
         # Abort if errors were raised during ROI loading
         if self.load_error:
-            log.error(f'Skipping slide {sfutil.green(self.name)} due to loading error', 1, self.error_print)
+            log.error(f'Skipping slide {sfutil.green(self.name)} due to loading error')
             return None
 
     def _build_coord(self, randomize_origin):
@@ -817,7 +819,7 @@ class SlideReader(SlideLoader):
         if randomize_origin:
             start_x = random.randint(0, self.full_stride-1)
             start_y = random.randint(0, self.full_stride-1)
-            log.info(f"Random origin: X: {start_x}, Y: {start_y}", 2, self.print)
+            log.info(f"Random origin: X: {start_x}, Y: {start_y}")
         else:
             start_x = start_y = 0
 
@@ -834,11 +836,11 @@ class SlideReader(SlideLoader):
                 index += 1
 
         self.grid = np.zeros((len(x_range), len(y_range)))
-        log.info(f"Grid shape: {self.grid.shape}", 2, self.print)
 
     def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=1.0,
                             whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05,
-                            normalizer=None, normalizer_source=None, include_loc=True, num_threads=4, **kwargs):
+                            normalizer=None, normalizer_source=None, include_loc=True, num_threads=4,
+                            show_progress=False, full_core=None):
 
         '''Builds generator to supervise extraction of tiles across the slide.
 
@@ -854,11 +856,8 @@ class SlideReader(SlideLoader):
         super().build_generator()
 
         if self.estimated_num_tiles == 0:
-            log.warn(f"No tiles extracted at the given micron size for slide {sfutil.green(self.name)}", 1, self.print)
+            log.warning(f"No tiles extracted at the given micron size for slide {sfutil.green(self.name)}")
             return None
-
-        if num_threads == 'auto':
-            num_threads = None
 
         # Shuffle coordinates to randomize extraction order
         if shuffle:
@@ -887,26 +886,29 @@ class SlideReader(SlideLoader):
         worker_args = types.SimpleNamespace(**worker_args)
 
         def generator():
+            log.debug(f"Building tile extraction generator with {num_threads} thread workers")
             self.tile_mask = np.asarray([False for i in range(len(self.coord))], dtype=np.bool)
 
             with mp.Pool(processes=num_threads) as p:
+                if show_progress:
+                    pbar = tqdm(total=self.estimated_num_tiles, ncols=80)
                 for res in p.imap(partial(slide_extraction_worker, args=worker_args), self.coord):
                     if res == 'skip':
                         continue
-                    #if self.pb:
-                    #	self.pb.increase_bar_value(id=self.pb_id)
-                    with self.counter_lock:
-                        self.pb_counter.value += 1
+                    if show_progress:
+                        pbar.update(1)
                     if res is None:
                         continue
                     else:
                         tile, idx = res
                         self.tile_mask[idx] = True
                         yield tile
+                if show_progress:
+                    pbar.close()
 
             name_msg = sfutil.green(self.shortname)
             num_msg = f'({np.sum(self.tile_mask)} tiles of {len(self.coord)} possible)'
-            log.label(self.shortname, f"Finished tile extraction for {name_msg} {num_msg}", 2, self.print)
+            log.info(f"Finished tile extraction for {name_msg} {num_msg}")
 
         return generator
 
@@ -944,8 +946,8 @@ class SlideReader(SlideLoader):
                 index_x = headers.index("x_base")
                 index_y = headers.index("y_base")
             except:
-                log.error(f'Unable to read CSV ROI file {sfutil.green(path)}, please check file integrity and \
-                                ensure headers contain "ROI_name", "X_base", and "Y_base".', 1, self.error_print)
+                log.error(f'Unable to read CSV ROI file {sfutil.green(path)}, please check file integrity and ' + \
+                                'ensure headers contain "ROI_name", "X_base", and "Y_base".')
                 self.load_error = True
                 return
             for row in reader:
@@ -967,8 +969,8 @@ class SlideReader(SlideLoader):
                 try:
                     self.annPolys += [sg.Polygon(annotation.scaled_area(self.ROI_SCALE))]
                 except ValueError:
-                    log.warn(f"Unable to use ROI {i} in slide {sfutil.green(self.name)}, at least 3 points required \
-                                to create a geometric shape.", 1, self.print)
+                    log.warning(f"Unable to use ROI {i} in slide {sfutil.green(self.name)}, at least 3 points required " + \
+                                "to create a geometric shape.")
             roi_area = sum([poly.area for poly in self.annPolys])
         else:
             roi_area = 1
@@ -1011,7 +1013,7 @@ class SlideReader(SlideLoader):
                                         **kwargs)
 
         if not generator:
-            log.error(f"No tiles extracted from slide {sfutil.green(self.name)}", 1, self.print)
+            log.error(f"No tiles extracted from slide {sfutil.green(self.name)}")
             return
 
         def _parse_function(record):
@@ -1023,7 +1025,6 @@ class SlideReader(SlideLoader):
             return parsed_image, loc
 
         # Generate dataset from the generator
-        log.info("Setting up tile generator", 1, self.print)
         with tf.name_scope('dataset_input'):
             output_signature={'image':tf.TensorSpec(shape=(self.tile_px,self.tile_px,3), dtype=tf.uint8),
                               'loc':tf.TensorSpec(shape=(2), dtype=tf.uint32)}
@@ -1034,10 +1035,11 @@ class SlideReader(SlideLoader):
 
         act_arr = []
         loc_arr = []
-        for i, (batch_images, batch_loc) in enumerate(tile_dataset):
+        for i, (batch_images, batch_loc) in tqdm(enumerate(tile_dataset), total=self.estimated_num_tiles // batch_size, ncols=80):
             act, logits = model_interface.predict(batch_images)
             act_arr += [act]
             loc_arr += [batch_loc.numpy()]
+
         act_arr = np.concatenate(act_arr)
         loc_arr = np.concatenate(loc_arr)
 
@@ -1048,9 +1050,8 @@ class SlideReader(SlideLoader):
 
         return prediction_grid
 
-class TMAReader(SlideLoader):
-    '''Extension of slideflow.slide.SlideLoader. Loads a TMA-formatted slide,
-            detects tissue cores, and sets up a tile generator.'''
+class TMA(BaseLoader):
+    '''Extension of slideflow.slide.BaseLoader. Loads a TMA-formatted slide and detects tissue cores.'''
 
     QUEUE_SIZE = 8
     NUM_EXTRACTION_WORKERS = 8
@@ -1095,7 +1096,7 @@ class TMAReader(SlideLoader):
         self.pb_id = pb_id
         num_cores, self.estimated_num_tiles = self._detect_cores(report_dir=report_dir)
         size_msg = f'Size: {self.full_shape[0]} x {self.full_shape[1]}'
-        log.label(self.shortname, f"Slide info: {self.MPP} um/px | {size_msg}", 2, self.print)
+        log.info(f"{self.shortname}: Slide info: {self.MPP} um/px | {size_msg}")
 
     def _get_sub_image(self, rect):
         '''Gets a sub-image from the slide using the specified rectangle as a guide.'''
@@ -1216,7 +1217,7 @@ class TMAReader(SlideLoader):
                 box = np.int0(box)
                 cv2.drawContours(img_annotated, [box], 0, self.RED, 2)
 
-        log.info(f"Number of detected cores: {num_filtered}", 2, self.print)
+        log.info(f"Number of detected cores: {num_filtered}")
 
         # Write annotated image to ExtractionReport
         if report_dir:
@@ -1224,10 +1225,9 @@ class TMAReader(SlideLoader):
 
         return num_filtered, num_filtered
 
-
     def build_generator(self, shuffle=True, whitespace_fraction=1.0, whitespace_threshold=230,
                             grayspace_fraction=0.6, grayspace_threshold=0.05,
-                            normalizer=None, normalizer_source=None, **kwargs):
+                            normalizer=None, normalizer_source=None, full_core=None):
 
         '''Builds generator to supervise extraction of tiles across the slide.
 
@@ -1241,9 +1241,6 @@ class TMAReader(SlideLoader):
             export_full_core:	If true, will also save a thumbnail of each fully extracted core.'''
 
         super().build_generator()
-
-        # Process kwargs
-        full_core = None if 'full_core' not in kwargs else kwargs['full_core']
 
         # Setup normalization
         normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)

@@ -6,6 +6,7 @@ from random import shuffle
 from functools import partial
 from multiprocessing.dummy import Pool as DPool
 from slideflow.util import log, ProgressBar
+from tqdm import tqdm
 import slideflow.io as sfio
 import slideflow.util as sfutil
 
@@ -19,10 +20,10 @@ def extract_dual_tiles(project,
                        normalizer_source=None):
 
     '''Experimental function to extract dual tiles at two different px/um sizes, saving both in the same TFRecord.'''
-    import slideflow.slide as sfslide
+    from slideflow.slide import WSI
     import tensorflow as tf
 
-    log.header('Extracting dual-image tiles...')
+    log.info('Extracting dual-image tiles...')
     extracting_dataset = project.get_dataset(filters=filters, tile_px=tile_px, tile_um=tile_um)
 
     def extract_tiles_from_slide(slide_path, roi_list, dataset_config, pb):
@@ -30,15 +31,15 @@ def extract_dual_tiles(project,
         if not exists(root_path):
             os.makedirs(root_path)
 
-        whole_slide = sfslide.SlideReader(slide_path,
-                                          tile_px,
-                                          tile_um,
-                                          stride_div,
-                                          roi_list=roi_list,
-                                          buffer=buffer,
-                                          pb_counter=pb.get_counter(),
-                                          counter_lock=pb.get_lock(),
-                                          print_fn=pb.print)
+        whole_slide = WSI(slide_path,
+                          tile_px,
+                          tile_um,
+                          stride_div,
+                          roi_list=roi_list,
+                          buffer=buffer,
+                          pb_counter=pb.get_counter(),
+                          counter_lock=pb.get_lock(),
+                          skip_missing_roi=True)
 
         small_tile_generator = whole_slide.build_generator(dual_extract=True,
                                                            normalizer=normalizer,
@@ -48,7 +49,7 @@ def extract_dual_tiles(project,
         tfrecord_path = join(root_path, f'{tfrecord_name}.tfrecords')
         records = []
 
-        for image_dict in small_tile_generator():
+        for image_dict in tqdm(small_tile_generator(), total=whole_slide.estimated_num_tiles):
             label = bytes(tfrecord_name, 'utf-8')
             image_string_dict = {}
             for image_label in image_dict:
@@ -70,11 +71,11 @@ def extract_dual_tiles(project,
                 writer.write(tf_example.SerializeToString())
 
     for dataset_name in project.datasets:
-        log.empty(f'Working on dataset {sfutil.bold(dataset_name)}', 1)
+        log.info(f'Working on dataset {sfutil.bold(dataset_name)}')
         slide_list = extracting_dataset.get_slide_paths(dataset=dataset_name)
         roi_list = extracting_dataset.get_rois()
         dataset_config = extracting_dataset.datasets[dataset_name]
-        log.info(f'Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)', 2)
+        log.info(f'Extracting tiles from {len(slide_list)} slides ({tile_um} um, {tile_px} px)')
         #TODO: ending_val needs to be calculated from total number of tiles
         pb = ProgressBar(ending_val=0, bar_length=5, counter_text='tiles')
         pb.auto_refresh()
