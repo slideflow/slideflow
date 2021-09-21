@@ -46,26 +46,26 @@ class Mosaic:
         '''Generate a mosaic map.
 
         Args:
-            tfrecord_map:		TFRecordMap object
-            focus:				List of tfrecords (paths) to highlight on the mosaic
-            leniency:			UMAP leniency
-            expanded:			If true, will try to fill in blank spots on the UMAP with nearby tiles.
+            tfrecord_map:       TFRecordMap object
+            focus:              List of tfrecords (paths) to highlight on the mosaic
+            leniency:           UMAP leniency
+            expanded:           If true, will try to fill in blank spots on the UMAP with nearby tiles.
                                     Takes exponentially longer to generate.
-            tile_zoom:			Zoom level
-            num_tiles_x:		Mosaic map grid size
-            resolution:			Resolution of exported figure; either 'high', 'medium', or 'low'.
-            relative_size:		If True, will physically size grid images in proportion to the
+            tile_zoom:          Zoom level
+            num_tiles_x:        Mosaic map grid size
+            resolution:         Resolution of exported figure; either 'high', 'medium', or 'low'.
+            relative_size:      If True, will physically size grid images in proportion to the
                                     number of tiles within the grid space.
-            tile_select:		Determines how to choose a tile for display on each grid space.
+            tile_select:        Determines how to choose a tile for display on each grid space.
                                     Either 'nearest' or 'centroid'.
                                     If nearest, will display tile nearest to center of grid.
                                     If centroid, for each grid, will calculate which tile is nearest
                                     to centroid using data in tile_meta
-            tile_meta:			Dictionary. Metadata for tiles, used if tile_select.
+            tile_meta:          Dictionary. Metadata for tiles, used if tile_select.
                                     Dictionary should have slide names as keys, mapped to
                                     List of metadata (length of list = number of tiles in slide)
-            normalizer:			String. Normalizer to apply to images taken from TFRecords.
-            normalizer_source:	String, path. Path to image to use as normalizer source.'''
+            normalizer:         String. Normalizer to apply to images taken from TFRecords.
+            normalizer_source:  String, path. Path to image to use as normalizer source.'''
 
         tile_point_distances = []
         max_distance_factor = leniency
@@ -131,7 +131,7 @@ class Mosaic:
             for i in range(self.num_tiles_x):
                 x = ((tile_size/2) + min_x) + (tile_size * i)
                 y = ((tile_size/2) + min_y) + (tile_size * j)
-                self.GRID.append({	'coord': np.array((x, y)),
+                self.GRID.append({    'coord': np.array((x, y)),
                                     'x_index': i,
                                     'y_index': j,
                                     'grid_index': len(self.GRID),

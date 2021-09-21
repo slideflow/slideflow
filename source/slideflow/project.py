@@ -34,16 +34,25 @@ logging.getLogger('tensorflow').setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 class Project:
-    '''Class to assist with organizing datasets and executing pipeline functions.'''
+    '''Assists with project / dataset organization and execution of pipeline functions.'''
 
     def __init__(self, project_folder, gpu=None, default_threads=4, **project_kwargs):
-        """Initializes project by creating project folder, prompting user for project settings, and project
-        settings to "settings.json" within the project directory.
+        """Initializes project at the specified project folder, creating a new project using
+        the specified kwargs if one does not already exist.
 
         Args:
-            project_folder (str):                 Path to project directory.
-            gpu (str, optional):                  Manually assign GPU. Comma separated int. Defaults to None.
-            default_threads (int, optional):      Default threads available for multithreaded functions. Defaults to 4.
+            project_folder (str):               Path to project directory.
+            gpu (str, optional):                Manually assign GPU. Comma separated int. Defaults to None.
+            default_threads (int, optional):    Default threads available for multithreaded functions. Defaults to 4.
+
+        Kwargs:
+            name (str):                         Project name.
+            annotations (str):                  Path to annotations CSV file.
+            dataset_config (str):               Path to dataset configuration JSON file.
+            datasets (list):                    List of dataset names to include in project.
+            models_dir (str):                   Path to directory in which to save models.
+            mixed_precision (bool):             Used mixed precision for training.
+            batch_train_config (str):           Path to batch train configuration CSV file.
         """
         self.verbosity = logging.getLogger('slideflow').getEffectiveLevel()
         self.default_threads = default_threads
@@ -65,8 +74,8 @@ class Project:
 
     @classmethod
     def from_prompt(cls, project_folder, gpu=None, default_threads=4):
-        """Initializes project by creating project folder, prompting user for project settings, and project
-        settings to "settings.json" within the project directory.
+        """Initializes project by creating project folder, prompting user for project settings, and
+        saves settings to "settings.json" within the project directory.
 
         Args:
             project_folder (str):                 Path to project directory.
@@ -132,12 +141,12 @@ class Project:
         '''Adds a dataset to the dataset configuration file.
 
         Args:
-            name:		Dataset name.
-            slides:		Path to directory containing slides.
-            roi:		Path to directory containing CSV ROIs.
-            tiles:		Path to directory in which to store extracted tiles.
-            tfrecords:	Path to directory in which to store TFRecords of extracted tiles.
-            path:		(optional) Path to dataset configuration file. If not provided, uses project default.
+            name:       Dataset name.
+            slides:     Path to directory containing slides.
+            roi:        Path to directory containing CSV ROIs.
+            tiles:      Path to directory in which to store extracted tiles.
+            tfrecords:  Path to directory in which to store TFRecords of extracted tiles.
+            path:       (optional) Path to dataset configuration file. If not provided, uses project default.
         '''
         if not path:
             path = self.dataset_config
@@ -209,26 +218,26 @@ class Project:
         '''Evaluates a saved model on a given set of tfrecords.
 
         Args:
-            model:					Path to Tensorflow model to evaluate.
-            outcome_label_headers:	Annotation column header that specifies the outcome label(s).
-            hyperparameters:		Path to model's hyperparameters.json file.
+            model:                  Path to Tensorflow model to evaluate.
+            outcome_label_headers:  Annotation column header that specifies the outcome label(s).
+            hyperparameters:        Path to model's hyperparameters.json file.
                                         If None (default), searches in the model directory.
-            filters:				Filters to use when selecting tfrecords on which to perform evaluation.
-            checkpoint:				Path to cp.ckpt file to load, if evaluating a saved checkpoint.
-            eval_k_fold:			K-fold iteration number to evaluate.
+            filters:                Filters to use when selecting tfrecords on which to perform evaluation.
+            checkpoint:             Path to cp.ckpt file to load, if evaluating a saved checkpoint.
+            eval_k_fold:            K-fold iteration number to evaluate.
                                         If None, will evaluate all tfrecords irrespective of K-fold.
-            max_tiles_per_slide:	Will only use up to this many tiles from each slide for evaluation.
+            max_tiles_per_slide:    Will only use up to this many tiles from each slide for evaluation.
                                         If zero, will include all tiles.
-            min_tiles_per_slide:	Minimum number of tiles a slide must have to be included in evaluation.
+            min_tiles_per_slide:    Minimum number of tiles a slide must have to be included in evaluation.
                                         Default is 0, but a minimum of at least 10 tiles per slide is recommended.
-            normalizer:				Normalization strategy to use on image tiles.
-            normalizer_source:		Path to normalizer source image.
-            input_header:			Annotation column header to use as additional input to the model.
-            permutation_importance:	Bool. True if you want to calculate the permutation feature importance
+            normalizer:             Normalization strategy to use on image tiles.
+            normalizer_source:      Path to normalizer source image.
+            input_header:           Annotation column header to use as additional input to the model.
+            permutation_importance: Bool. True if you want to calculate the permutation feature importance
                                         Used to determine relative importance when using multiple model inputs.
-            histogram:				Bool. If true, will create tile-level histograms to show
+            histogram:              Bool. If true, will create tile-level histograms to show
                                         prediction distributions for each class.
-            save_predictions:		Either True, False, or any combination of 'tile', 'patient', or 'slide'.
+            save_predictions:       Either True, False, or any combination of 'tile', 'patient', or 'slide'.
                                         Will save tile-level, patient-level, and/or slide-level predictions.
                                         If True, will save all.
         '''
@@ -270,18 +279,18 @@ class Project:
         '''Evaluate CLAM model on saved feature activations.
 
         Args:
-            exp_name:			Name of experiemnt to evaluate (directory in clam/ subfolder)
-            pt_files:				Path to pt_files containing tile-level features.
-            outcome_label_headers:	Name in annotation column which specifies the outcome label.
-            tile_px:				Tile width in pixels.
-            tile_um:				Tile width in microns.
-            eval_tag:				Unique identifier for this evaluation.
-            filters:				Dictionary of column names mapping to column values
+            exp_name:               Name of experiemnt to evaluate (directory in clam/ subfolder)
+            pt_files:               Path to pt_files containing tile-level features.
+            outcome_label_headers:  Name in annotation column which specifies the outcome label.
+            tile_px:                Tile width in pixels.
+            tile_um:                Tile width in microns.
+            eval_tag:               Unique identifier for this evaluation.
+            filters:                Dictionary of column names mapping to column values
                                         by which to filter slides using the annotation file.
                                         Used if train_slides and validation_slides are 'auto'.
-            filter_blank:			List of annotations headers; slides blank in this column will be excluded.
+            filter_blank:           List of annotations headers; slides blank in this column will be excluded.
                                         Used if train_slides and validation_slides are 'auto'.
-            attention_heatmaps:		Bool. If true, will save attention heatmaps of validation dataset.
+            attention_heatmaps:     Bool. If true, will save attention heatmaps of validation dataset.
 
         Returns:
             None
@@ -401,49 +410,49 @@ class Project:
         validation target is 'per-patient'; and generate TFRecord files from the raw images.
 
         Args:
-            tile_px:				Tile size in pixels.
-            tile_um:				Tile size in microns.
-            filters:				Dataset filters to use when selecting slides for tile extraction.
-            stride_div:				Stride divisor to use when extracting tiles.
+            tile_px:                Tile size in pixels.
+            tile_um:                Tile size in microns.
+            filters:                Dataset filters to use when selecting slides for tile extraction.
+            stride_div:             Stride divisor to use when extracting tiles.
                                         A stride of 1 will extract non-overlapping tiles.
                                         A stride_div of 2 will extract overlapping tiles,
                                         with a stride equal to 50% of the tile width.
-            tma:					Bool. If True, reads slides as Tumor Micro-Arrays (TMAs),
+            tma:                    Bool. If True, reads slides as Tumor Micro-Arrays (TMAs),
                                         detecting and extracting tumor cores.
-            full_core:				Bool. Only used if extracting from TMA. If True, will save entire TMA core as image.
+            full_core:              Bool. Only used if extracting from TMA. If True, will save entire TMA core as image.
                                         Otherwise, will extract sub-images from each core
                                         using the given tile micron size.
-            save_tiles:				Bool. If True, will save images of extracted tiles to a tile directory.
-            save_tfrecord:			Bool. If True, will save compressed image data from extracted tiles
+            save_tiles:             Bool. If True, will save images of extracted tiles to a tile directory.
+            save_tfrecord:          Bool. If True, will save compressed image data from extracted tiles
                                         into TFRecords in the corresponding TFRecord directory.
-            enable_downsample:		Bool. If True, enables the use of downsampling while reading slide images.
+            enable_downsample:      Bool. If True, enables the use of downsampling while reading slide images.
                                         This may result in corrupted image tiles if downsampled slide layers
                                         are corrupted or incomplete. Recommend manual confirmation of tile integrity.
-            roi_method:				Either 'inside', 'outside', or 'ignore'.
+            roi_method:             Either 'inside', 'outside', or 'ignore'.
                                         Whether to extract tiles inside or outside the ROIs.
-            skip_missing_roi:		Bool. If True, will skip slides that are missing ROIs
-            skip_extracted:			Bool. If True, will skip slides that have already been fully extracted
-            dataset:				Name of dataset from which to select slides for extraction.
+            skip_missing_roi:       Bool. If True, will skip slides that are missing ROIs
+            skip_extracted:            Bool. If True, will skip slides that have already been fully extracted
+            dataset:                Name of dataset from which to select slides for extraction.
                                         If not provided, will default to all datasets in project
-            validation_settings:	Namespace of validation settings, provided by sf.project.get_validation_settings().
+            validation_settings:    Namespace of validation settings, provided by sf.project.get_validation_settings().
                                         Necessary if performing per-tile validation. If not provided, will ignore.
-            normalizer:				Normalization strategy to use on image tiles
-            normalizer_source:		Path to normalizer source image
-            whitespace_fraction:	Float 0-1. Fraction of whitespace which causes a tile to be discarded.
+            normalizer:             Normalization strategy to use on image tiles
+            normalizer_source:      Path to normalizer source image
+            whitespace_fraction:    Float 0-1. Fraction of whitespace which causes a tile to be discarded.
                                         If 1, will not perform whitespace filtering.
-            whitespace_threshold:	Int 0-255. Threshold above which a pixel (RGB average) is considered whitespace.
-            grayspace_fraction:		Float 0-1. Fraction of grayspace which causes a tile to be discarded.
+            whitespace_threshold:   Int 0-255. Threshold above which a pixel (RGB average) is considered whitespace.
+            grayspace_fraction:     Float 0-1. Fraction of grayspace which causes a tile to be discarded.
                                         If 1, will not perform grayspace filtering.
-            grayspace_threshold:	Int 0-1. HSV (hue, saturation, value) is calculated for each pixel.
+            grayspace_threshold:    Int 0-1. HSV (hue, saturation, value) is calculated for each pixel.
                                         If a pixel's saturation is below this threshold, it is considered grayspace.
-            img_format:				'png' or 'jpg'. Format of images for internal storage in tfrecords.
+            img_format:             'png' or 'jpg'. Format of images for internal storage in tfrecords.
                                         PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
-            randomize_origin:		Bool. If true, will randomize the pixel starting position during extraction.
-            buffer:					Path to directory. Slides will be copied to the here before extraction.
+            randomize_origin:       Bool. If true, will randomize the pixel starting position during extraction.
+            buffer:                    Path to directory. Slides will be copied to the here before extraction.
                                         Using an SSD or ramdisk buffer vastly improves tile extraction speed.
-            shuffle:				Bool. If true (default), will shuffle tiles in tfrecords.
-            num_workers:			Number of slides from which to be extracting tiles simultaneously.
-            threads_per_worker:		Number of processes to allocate to each slide for tile extraction.
+            shuffle:                Bool. If true (default), will shuffle tiles in tfrecords.
+            num_workers:            Number of slides from which to be extracting tiles simultaneously.
+            threads_per_worker:     Number of processes to allocate to each slide for tile extraction.
         '''
 
         from slideflow.slide import WSI, TMA, ExtractionReport
@@ -453,7 +462,7 @@ class Project:
             return
 
         if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
-        else:		datasets = self.datasets
+        else:        datasets = self.datasets
 
         # Load dataset for evaluation
         extracting_dts = self.get_dataset(filters=filters,
@@ -645,10 +654,10 @@ class Project:
         '''Extracts all tiles from a set of TFRecords.
 
         Args:
-            tile_px:		Tile size in pixels
-            tile_um:		Tile size in microns
-            destination:	Destination folder in which to save tile images
-            filters:		Dataset filters to use when selecting TFRecords
+            tile_px:        Tile size in pixels
+            tile_um:        Tile size in microns
+            destination:    Destination folder in which to save tile images
+            filters:        Dataset filters to use when selecting TFRecords
         '''
         log.info(f'Extracting tiles from TFRecords')
         to_extract_dataset = self.get_dataset(filters=filters,
@@ -690,26 +699,26 @@ class Project:
         as the Keras model associated with the visualizer is active.
 
         Args:
-            model:						Path to Tensorflow model
-            outcome_label_headers:		(optional) Column header in annotations file.
-                                            Used for category-level comparisons
-            layers:						Layers from which to generate activations.
-            filters:					Dataset filters for selecting TFRecords
-            filter_blank:				List of label headers; slides that have blank entries in this label header
-                                            in the annotations file will be excluded
-            focus_nodes:				List of int, indicates which nodes are of interest for subsequent analysis
-            activations_export:			Path to CSV file, if provided, will save activations in CSV format to this file
-            activations_cache:			Either 'default' or path to 'PKL' file; will cache activations to this file.
-            normalizer:					Normalization strategy to use on image tiles
-            normalizer_source:			Path to normalizer source image
-            max_tiles_per_slide:		Int. If > 0, will only take this many tiles per slide.
-            min_tiles_per_slide:		Int. If > 0, will skip slides with fewer than this many tiles.
-            include_logits:				If true, will also generate logit predictions along with layer activations.
-            batch_size:					Batch size to use when calculating activations.
-            torch_export:				Path. If true, exports activations to torch-compatible file in this location.
-            isolated_process:			Bool. If true, will run in an isolated process (multiprocessing),
-                                            allowing GPU memory to be freed after completion, and return None.
-                                            If false, will return the ActivationsVisualizer object after completion.
+            model:                  Path to Tensorflow model
+            outcome_label_headers:  (optional) Column header in annotations file.
+                                        Used for category-level comparisons
+            layers:                 Layers from which to generate activations.
+            filters:                Dataset filters for selecting TFRecords
+            filter_blank:           List of label headers; slides that have blank entries in this label header
+                                        in the annotations file will be excluded
+            focus_nodes:            List of int, indicates which nodes are of interest for subsequent analysis
+            activations_export:     Path to CSV file, if provided, will save activations in CSV format to this file
+            activations_cache:      Either 'default' or path to 'PKL' file; will cache activations to this file.
+            normalizer:             Normalization strategy to use on image tiles
+            normalizer_source:      Path to normalizer source image
+            max_tiles_per_slide:    Int. If > 0, will only take this many tiles per slide.
+            min_tiles_per_slide:    Int. If > 0, will skip slides with fewer than this many tiles.
+            include_logits:         Bool. If true, will also generate logit predictions along with layer activations.
+            batch_size:             Batch size to use when calculating activations.
+            torch_export:           Path. If true, exports activations to torch-compatible file in this location.
+            isolated_process:       Bool. If true, will run in an isolated process (multiprocessing),
+                                        allowing GPU memory to be freed after completion, and return None.
+                                        If false, will return the ActivationsVisualizer object after completion.
         '''
 
         if isolated_process:
@@ -771,16 +780,16 @@ class Project:
         '''Using the specified model, generates tile-level features for slides for use with CLAM.
 
         Args:
-            model:					Path to model from which to generate activations.
+            model:                  Path to model from which to generate activations.
                                         May provide either this or "pt_files"
-            export_dir:				Path in which to save exported activations in .pt format.
+            export_dir:             Path in which to save exported activations in .pt format.
                                         If 'auto', will save in project directory.
-            activation_layers:		Which model layer(s) from which to generate activations.
-            max_tiles_per_slide:	Maximum number of tiles to take per slide
-            min_tiles_per_slide:	Minimum number of tiles per slide. Will skip slides not meeting this threshold.
-            filters:				Dictionary mapping annotation column names to values by which to filter slides.
-            filter_blank:			List of annotations headers; slides blank in this column will be excluded.
-            force_regenerate:		If true, will generate activations for all slides. If false, will skip slides that
+            activation_layers:      Which model layer(s) from which to generate activations.
+            max_tiles_per_slide:    Maximum number of tiles to take per slide
+            min_tiles_per_slide:    Minimum number of tiles per slide. Will skip slides not meeting this threshold.
+            filters:                Dictionary mapping annotation column names to values by which to filter slides.
+            filter_blank:           List of annotations headers; slides blank in this column will be excluded.
+            force_regenerate:       If true, will generate activations for all slides. If false, will skip slides that
                                         already have a .pt file in the export directory.
         Returns:
             Path to directory containing exported .pt files
@@ -852,21 +861,21 @@ class Project:
         '''Creates predictive heatmap overlays on a set of slides.
 
         Args:
-            model:				Path to Tensorflow model with which predictions will be generated.
-            filters:			Dataset filters to use when selecting slides for which to generate heatmaps.
-            filter_blank:		List of label headers; slides that have blank entries in this label header
+            model:              Path to Tensorflow model with which predictions will be generated.
+            filters:            Dataset filters to use when selecting slides for which to generate heatmaps.
+            filter_blank:       List of label headers; slides that have blank entries in this label header
                                      in the annotations file will be excluded
-            directory:			Directory in which to save heatmap images.
-            resolution:			Heatmap resolution (determines stride of tile predictions).
+            directory:          Directory in which to save heatmap images.
+            resolution:         Heatmap resolution (determines stride of tile predictions).
                                     "low" uses a stride equal to tile width.
                                     "medium" uses a stride equal 1/2 tile width.
                                     "high" uses a stride equal to 1/4 tile width.
-            interpolation:		Interpolation strategy for smoothing heatmap predictions
+            interpolation:      Interpolation strategy for smoothing heatmap predictions
                                     (matplotlib imshow interpolation options).
-            show_roi:			Bool. If True, will show ROI on heatmaps.
-            roi_method:			'inside', 'outside', or 'none'. Determines where heatmap should be made
+            show_roi:           Bool. If True, will show ROI on heatmaps.
+            roi_method:            'inside', 'outside', or 'none'. Determines where heatmap should be made
                                     with respect to annotated ROI.
-            logit_cmap:			Either a function or a dictionary used to create heatmap colormap.
+            logit_cmap:         Either a function or a dictionary used to create heatmap colormap.
                                     If None (default), separate heatmaps will be generated for each label category,
                                     with color representing likelihood of category prediction.
                                     Each image tile will generate a list of predictions of length O,
@@ -879,11 +888,11 @@ class Project:
                                     Thus, the corresponding color will only reflect predictions of up to three labels.
                                         Example (this would map predictions for label 0 to red, 3 to green, etc):
                                         {'r': 0, 'g': 3, 'b': 1 }
-            normalizer:			Normalization strategy to use on image tiles
-            normalizer_source:	Path to normalizer source image
-            buffer:				Path to directory. Slides will be copied to the directory as a buffer before extraction.
+            normalizer:         Normalization strategy to use on image tiles
+            normalizer_source:  Path to normalizer source image
+            buffer:             Path to directory. Slides will be copied to the directory as a buffer before extraction.
                                     This vastly improves extraction speed when using SSD or ramdisk buffer.
-            isolated_process:	Bool. If True, will wrap function in separate process,
+            isolated_process:   Bool. If True, will wrap function in separate process,
                                     allowing GPU memory to be freed after completion.
                                     If False, will perform as single thread (GPU memory not be freed after completion).
                                     Allows use for functions being passed to logit_cmap (functions are not pickleable).
@@ -990,47 +999,47 @@ class Project:
             for two categories, mapped to X- and Y-axis (via predict_on_axes).
 
         Args:
-            model:					Path to Tensorflow model to use when generating layer activations.
-            mosaic_filename:		Filename for mosaic image. If not provided, mosaic will not be calculated or saved.
+            model:                  Path to Tensorflow model to use when generating layer activations.
+            mosaic_filename:        Filename for mosaic image. If not provided, mosaic will not be calculated or saved.
                                         Will be saved in project mosaic directory.
-            umap_filename:			Filename for UMAP plot image. If not provided, plot will not be saved.
+            umap_filename:          Filename for UMAP plot image. If not provided, plot will not be saved.
                                         Will be saved in project stats directory.
-            outcome_label_headers:	Column name in annotations file from which to read category labels.
-            filters:				Dataset filters to use when selecting slides to include the mosaic.
-            filter_blank:			List of label headers; slides that have blank entries in this label header
+            outcome_label_headers:  Column name in annotations file from which to read category labels.
+            filters:                Dataset filters to use when selecting slides to include the mosaic.
+            filter_blank:           List of label headers; slides that have blank entries in this label header
                                          in the annotations file will be excluded
-            focus_filters:			Dataset filters to use when selecting slides to highlight on the mosaic.
-            resolution:				Resolution of the mosaic map. Low, medium, or high.
-            num_tiles_x:			Specifies the size of the mosaic map grid.
-            max_tiles_per_slide:	Limits the number of tiles taken from each slide.
+            focus_filters:          Dataset filters to use when selecting slides to highlight on the mosaic.
+            resolution:             Resolution of the mosaic map. Low, medium, or high.
+            num_tiles_x:            Specifies the size of the mosaic map grid.
+            max_tiles_per_slide:    Limits the number of tiles taken from each slide.
                                         Too high of a number may introduce memory issues.
-            expanded:				Bool. If False, will limit tile assignment to the each grid space (strict display).
+            expanded:               Bool. If False, will limit tile assignment to the each grid space (strict display).
                                         If True, allows for display of nearby tiles if a given grid is empty.
-            map_slide:				None (default), 'centroid', or 'average'.
+            map_slide:              None (default), 'centroid', or 'average'.
                                         If provided, will map slides using slide-level calculations, either mapping
                                         centroid tiles if 'centroid', or calculating node averages across all tiles
                                         in a slide and mapping slide-level node averages, if 'average'
-            show_prediction:		May be either int or string, corresponding to label category.
-                                        Predictions for this category will be displayed on the exported UMAP plot.
-            restrict_pred:	List of int, if provided, will restrict predictions to only these categories
+            show_prediction:        May be either int or string, corresponding to label category.
+                                    Predictions for this category will be displayed on the exported UMAP plot.
+            restrict_pred:          List of int, if provided, will restrict predictions to only these categories
                                         (final tile-level prediction is made by choosing category with highest logit)
-            predict_on_axes:		(int, int). Each int corresponds to an label category id.
+            predict_on_axes:        (int, int). Each int corresponds to an label category id.
                                         If provided, predictions are generated for these two labels categories;
                                         tiles are then mapped with these predictions with the pattern (x, y)
                                         and the mosaic is generated from this map. This replaces the default
                                         dimensionality reduction mapping.
-            label_names:			Dict mapping label id (int) to string names.
+            label_names:            Dict mapping label id (int) to string names.
                                         Saved in the hyperparameters file as 'outcome_labels'
-            cmap:					Colormap mapping labels to colors for display on UMAP plot
-            model_type:				Indicates label type. 'categorical', 'linear', or 'cph' (Cox Proportional Hazards)
-            umap_cache:				Either 'default' or path to PKL file in which to save/cache UMAP coordinates
-            activations_cache:		Either 'default' or path to PKL file in which to save/cache nodal activations
-            activations_export:		Filename for CSV export of activations. Will be saved in project stats directory.
-            umap_export:			Filename for CSV export of UMAP coordinates, saved in project stats directory.
-            use_float:				Bool, if True, assumes labels are float / linear (as opposed to categorical)
-            normalizer:				Normalization strategy to use on image tiles
-            normalizer_source:		Path to normalizer source image
-            low_memory:				Bool, if True, will attempt to limit memory during UMAP calculations
+            cmap:                   Colormap mapping labels to colors for display on UMAP plot
+            model_type:             Indicates label type. 'categorical', 'linear', or 'cph' (Cox Proportional Hazards)
+            umap_cache:             Either 'default' or path to PKL file in which to save/cache UMAP coordinates
+            activations_cache:      Either 'default' or path to PKL file in which to save/cache nodal activations
+            activations_export:     Filename for CSV export of activations. Will be saved in project stats directory.
+            umap_export:            Filename for CSV export of UMAP coordinates, saved in project stats directory.
+            use_float:              Bool, if True, assumes labels are float / linear (as opposed to categorical)
+            normalizer:             Normalization strategy to use on image tiles
+            normalizer_source:      Path to normalizer source image
+            low_memory:             Bool, if True, will attempt to limit memory during UMAP calculations
                                         at the cost of increased computational complexity
         '''
         from slideflow.activations import ActivationsVisualizer
@@ -1194,30 +1203,30 @@ class Project:
             calculated using the provided model, and the tile nearest to centroid is used for display.
 
         Args:
-            header_x:				Column name in annotations file from which to read X-axis coordinates.
-            header_y:				Column name in annotations file from which to read Y-axis coordinates.
-            tile_px:				Tile size in pixels.
-            tile_um:				Tile size in microns.
-            model:					Path to Tensorflow model to use when generating layer activations.
-            mosaic_filename:		Filename for mosaic image. If not provided, mosaic will not be calculated or saved.
+            header_x:               Column name in annotations file from which to read X-axis coordinates.
+            header_y:               Column name in annotations file from which to read Y-axis coordinates.
+            tile_px:                Tile size in pixels.
+            tile_um:                Tile size in microns.
+            model:                  Path to Tensorflow model to use when generating layer activations.
+            mosaic_filename:        Filename for mosaic image. If not provided, mosaic will not be calculated or saved.
                                         Will be saved in project mosaic directory.
-            umap_filename:			Filename for UMAP plot image. If not provided, plot will not be saved.
+            umap_filename:          Filename for UMAP plot image. If not provided, plot will not be saved.
                                         Will be saved in project stats directory.
-            outcome_label_headers:	Column name in annotations file from which to read category labels.
-            filters:				Dataset filters to use when selecting slides to include the mosaic.
-            focus_filters:			Dataset filters to use when selecting slides to highlight on the mosaic.
-            resolution:				Resolution of the mosaic map. Impacts size of the final figure.
+            outcome_label_headers:  Column name in annotations file from which to read category labels.
+            filters:                Dataset filters to use when selecting slides to include the mosaic.
+            focus_filters:          Dataset filters to use when selecting slides to highlight on the mosaic.
+            resolution:             Resolution of the mosaic map. Impacts size of the final figure.
                                         Either low, medium, or high.
-            num_tiles_x:			Specifies the size of the mosaic map grid.
-            max_tiles_per_slide:	Limits the number of tiles taken from each slide.
+            num_tiles_x:            Specifies the size of the mosaic map grid.
+            max_tiles_per_slide:    Limits the number of tiles taken from each slide.
                                         Too high of a number may introduce memory issues.
-            expanded:				Bool. If False, will limit tile to the corresponding grid space (strict display).
+            expanded:               Bool. If False, will limit tile to the corresponding grid space (strict display).
                                         If True, allows for display of nearby tiles if a given grid is empty.
-            use_optimal_tile:		Bool. If True, will use model to create layer activations for all tiles in
+            use_optimal_tile:       Bool. If True, will use model to create layer activations for all tiles in
                                         each slide, and choosing tile nearest centroid for each slide for display.
-            activations_cache:		Either 'default' or path to PKL file in which to save/cache nodal activations
-            normalizer:				Normalization strategy to use on image tiles
-            normalizer_source:		Path to normalizer source image
+            activations_cache:      Either 'default' or path to PKL file in which to save/cache nodal activations
+            normalizer:             Normalization strategy to use on image tiles
+            normalizer_source:      Path to normalizer source image
         '''
         from slideflow.activations import ActivationsVisualizer
         from slideflow.mosaic import Mosaic
@@ -1307,12 +1316,12 @@ class Project:
         '''Generates square slide thumbnails with black box borders of a fixed size, and saves to project folder.
 
         Args:
-            size:				Int. Width/height of thumbnail in pixels.
-            filters:			Dataset filters.
-            filter_blank:		Header columns in annotations by which to filter slides,
+            size:               Int. Width/height of thumbnail in pixels.
+            filters:            Dataset filters.
+            filter_blank:       Header columns in annotations by which to filter slides,
                                     if the slides are blank in this column.
-            roi:				Bool. If True, will include ROI in the thumbnail images.
-            enable_downsample:	Bool. If True and a thumbnail is not embedded in the slide file,
+            roi:                Bool. If True, will include ROI in the thumbnail images.
+            enable_downsample:  Bool. If True and a thumbnail is not embedded in the slide file,
                                     downsampling is permitted in order to accelerate thumbnail calculation.
         '''
         from slideflow.slide import WSI
@@ -1382,11 +1391,11 @@ class Project:
         '''Creates a tfrecord-based WSI heatmap using a dictionary of tile values for heatmap display.
 
         Args:
-            tfrecord:		Path to tfrecord
-            tile_dict:		Dictionary mapping tfrecord indices to a tile-level value for display in heatmap format
-            export_dir:		Path to directory in which to save images
-            tile_px:		Tile width in pixels
-            tile_um:		Tile width in microns
+            tfrecord:       Path to tfrecord
+            tile_dict:      Dictionary mapping tfrecord indices to a tile-level value for display in heatmap format
+            export_dir:     Path to directory in which to save images
+            tile_px:        Tile width in pixels
+            tile_um:        Tile width in microns
 
         Returns:
             Dictionary mapping slide names to dict of statistics (mean, median, above_0, and above_1)'''
@@ -1525,11 +1534,11 @@ class Project:
         '''Returns slideflow.io.Dataset object using project settings.
 
         Args:
-            tile_px:		Tile size in pixels
-            tile_um:		Tile size in microns
-            filters:		Dictionary of annotations filters to use when selecting slides to include in dataset
-            filter_blank:	List of label headers; will only include slides that are not blank in these headers
-            verification:	'tfrecords', 'slides', or 'both'.
+            tile_px:        Tile size in pixels
+            tile_um:        Tile size in microns
+            filters:        Dictionary of annotations filters to use when selecting slides to include in dataset
+            filter_blank:   List of label headers; will only include slides that are not blank in these headers
+            verification:   'tfrecords', 'slides', or 'both'.
                                 If 'slides', will verify all annotations are mapped to slides.
                                 If 'tfrecords', will check that TFRecords exist and update manifest
         '''
@@ -1589,30 +1598,30 @@ class Project:
             and dumps prediction arrays into pkl files for later use.
 
         Args:
-            model_path:				Path to model from which to generate predictions.
-            tile_px:				Tile size in pixels.
-            tile_um:				Tile size in microns.
-            export_dir:				Path to export directory in which to save .pkl files.
-            filters:				Annotations filters to use when selecting slides.
-            filter_blank:			Filter out slides blank in this annotations column.
-            stride_div:				Stride divisor when extracting tiles from a whole slide image.
-            enable_downsample:		Bool. If true, enables tile extraction from downsampled pyramids in slide images.
+            model_path:             Path to model from which to generate predictions.
+            tile_px:                Tile size in pixels.
+            tile_um:                Tile size in microns.
+            export_dir:             Path to export directory in which to save .pkl files.
+            filters:                Annotations filters to use when selecting slides.
+            filter_blank:           Filter out slides blank in this annotations column.
+            stride_div:             Stride divisor when extracting tiles from a whole slide image.
+            enable_downsample:      Bool. If true, enables tile extraction from downsampled pyramids in slide images.
                                         May result in corrupted images for some slides.
-            roi_method:				None, 'inside', or 'outside'. How to extract tiles wrt. annoted ROIs.
-            skip_missing_roi:		Bool. If true, will skip slides with missing ROIs.
-            dataset:				Name of dataset from which to get slides. If None, will use project default.
-            normalizer:				Name of normalizer to use for tiles.
-            normalizer_source:		Path to image tile to use as reference for normalizer.
+            roi_method:             None, 'inside', or 'outside'. How to extract tiles wrt. annoted ROIs.
+            skip_missing_roi:       Bool. If true, will skip slides with missing ROIs.
+            dataset:                Name of dataset from which to get slides. If None, will use project default.
+            normalizer:             Name of normalizer to use for tiles.
+            normalizer_source:      ath to image tile to use as reference for normalizer.
                                         If None, will use internal default reference tile.
-            whitespace_fraction:	Float 0-1. Fraction of whitespace which causes a tile to be discarded.
+            whitespace_fraction:    Float 0-1. Fraction of whitespace which causes a tile to be discarded.
                                         If 1, will not perform whitespace filtering.
-            whitespace_threshold:	Int 0-255. Threshold above which a pixel (RGB average) is considered whitespace.
-            grayspace_fraction:		Float 0-1. Fraction of grayspace which causes a tile to be discarded.
+            whitespace_threshold:   Int 0-255. Threshold above which a pixel (RGB average) is considered whitespace.
+            grayspace_fraction:        Float 0-1. Fraction of grayspace which causes a tile to be discarded.
                                         If 1, will not perform grayspace filtering.
-            grayspace_threshold:	Int 0-1. HSV (hue, saturation, value) is calculated for each pixel.
+            grayspace_threshold:    Int 0-1. HSV (hue, saturation, value) is calculated for each pixel.
                                         If a pixel's saturation is below this threshold, it is considered grayspace.
-            randomize_origin:		Bool. If true, will randomize the origin for the extraction grid on each slide.
-            buffer:					Path to buffer directory in which to copy slides prior to extraction.
+            randomize_origin:       Bool. If true, will randomize the origin for the extraction grid on each slide.
+            buffer:                 Path to buffer directory in which to copy slides prior to extraction.
                                         Using a ramdisk buffer greatly improves tile extraction speed
                                         for slides stored on disks with slow random access.
 
@@ -1624,7 +1633,7 @@ class Project:
         if not exists(export_dir):
             os.makedirs(export_dir)
         if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
-        else:		datasets = self.datasets
+        else:        datasets = self.datasets
 
         # Load dataset for evaluation
         extracting_dataset = self.get_dataset(filters=filters,
@@ -1705,10 +1714,10 @@ class Project:
         '''Resizes images in a set of TFRecords to a given pixel size.
 
         Args:
-            source_tile_px:		Pixel size of source images. Used to select source TFRecords.
-            source_tile_um:		Micron size of source images. Used to select source TFRecords.
-            dest_tile_px:		Pixel size of resized images.
-            filters:			Dictionary of dataset filters to use for selecting TFRecords for resizing.
+            source_tile_px:         Pixel size of source images. Used to select source TFRecords.
+            source_tile_um:         Micron size of source images. Used to select source TFRecords.
+            dest_tile_px:           Pixel size of resized images.
+            filters:                Dictionary of dataset filters to use for selecting TFRecords for resizing.
         '''
         log.info(f'Resizing TFRecord tiles to ({dest_tile_px}, {dest_tile_px})')
         resize_dataset = self.get_dataset(filters=filters,
@@ -1730,27 +1739,27 @@ class Project:
         '''Creates a PDF report of slides, including images of 10 example extracted tiles.
 
         Args:
-            tile_px:				Tile width in pixels
-            tile_um:				Tile width in microns
-            filters:				Dataset filters to use for selecting TFRecords
-            filter_blank:			List of label headers; slides that have blank entries in this label header
+            tile_px:                Tile width in pixels
+            tile_um:                Tile width in microns
+            filters:                Dataset filters to use for selecting TFRecords
+            filter_blank:           List of label headers; slides that have blank entries in this label header
                                          in the annotations file will be excluded
-            dataset:				Name of dataset from which to select TFRecords.
+            dataset:                Name of dataset from which to select TFRecords.
                                         If not provided, will use all project datasets
-            stride_div:				Stride divisor for tile extraction
-            destination:			Either 'auto' or explicit filename at which to save the PDF report
-            tma:					Bool, if True, interprets slides to be TMA (tumor microarrays)
-            enable_downsample:		Bool, if True, enables downsampling during tile extraction
-            roi_method:				Either 'inside', 'outside', or 'ignore'.
+            stride_div:             Stride divisor for tile extraction
+            destination:            Either 'auto' or explicit filename at which to save the PDF report
+            tma:                    Bool, if True, interprets slides to be TMA (tumor microarrays)
+            enable_downsample:      Bool, if True, enables downsampling during tile extraction
+            roi_method:             Either 'inside', 'outside', or 'ignore'.
                                         Determines how ROIs will guide tile extraction
-            skip_missing_roi:		Bool, if True, will skip tiles that are missing ROIs
-            normalizer:				Normalization strategy to use on image tiles
-            normalizer_source:		Path to normalizer source image
+            skip_missing_roi:       Bool, if True, will skip tiles that are missing ROIs
+            normalizer:             Normalization strategy to use on image tiles
+            normalizer_source:      Path to normalizer source image
         '''
         from slideflow.slide import TMA, WSI, ExtractionReport
 
         if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
-        else:		datasets = self.datasets
+        else:        datasets = self.datasets
 
         extracting_dataset = self.get_dataset(filters=filters,
                                               filter_blank=filter_blank,
@@ -1807,22 +1816,22 @@ class Project:
         '''Creates a PDF report of TFRecords, including 10 example tiles per TFRecord.
 
         Args:
-            tile_px:				Tile width in pixels
-            tile_um:				Tile width in microns
-            filters:				Dataset filters to use for selecting TFRecords
-            filter_blank:			List of label headers; slides that have blank entries in this label header
+            tile_px:                Tile width in pixels
+            tile_um:                Tile width in microns
+            filters:                Dataset filters to use for selecting TFRecords
+            filter_blank:           List of label headers; slides that have blank entries in this label header
                                          in the annotations file will be excluded
-            dataset:				Optional. Name of dataset from which to generate reports.
+            dataset:                Optional. Name of dataset from which to generate reports.
                                         Defaults to all project datasets.
-            destination:			Either 'auto' or explicit filename at which to save the PDF report
-            normalizer:				Normalization strategy to use on image tiles
-            normalizer_source:		Path to normalizer source image
+            destination:            Either 'auto' or explicit filename at which to save the PDF report
+            normalizer:             Normalization strategy to use on image tiles
+            normalizer_source:      Path to normalizer source image
         '''
         from slideflow.slide import ExtractionReport, SlideReport
         import tensorflow as tf
 
         if dataset: datasets = [dataset] if not isinstance(dataset, list) else dataset
-        else:		datasets = self.datasets
+        else:        datasets = self.datasets
 
         if normalizer: log.info(f'Using realtime {normalizer} normalization')
         normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
@@ -1890,44 +1899,44 @@ class Project:
         '''Train model(s).
 
         Args:
-            model_names:			Either a string model name, or an array of strings with multiple names.
-                                        Required if training to a single hyperparameter combination
-                                        with the "hyperparameters" argument. If performing a hyperparameter sweep,
-                                        will only train models with these names in the batch_train.tsv config file.
-                                        May supply None if performing a hyperparameter sweep, in which case
-                                        all models in the batch_train.tsv config file will be trained.
-            outcome_label_headers:	String or list. Specifies which header(s) in the annotation file to use
-                                        for the output category. If a list is provided, will loop through all outcomes
-                                        and perform HP sweep on each.
-            filters:				Dictionary of column names mapping to column values by which to filter slides.
-            resume_training:		Path to Tensorflow model to continue training
-            checkpoint:				Path to cp.ckpt from which to load weights
-            pretrain:				Pretrained weights to load. Default is imagenet.
-                                        May supply a compatible Tensorflow model from which to load weights.
-            batch_file:				Manually specify batch file to use for a hyperparameter sweep.
-                                        If not specified, will use project default.
-            hyperparameters:		Manually specify hyperparameter combination to use for training.
+            model_names:                Either a string model name, or an array of strings with multiple names.
+                                            Required if training to a single hyperparameter combination
+                                            with the "hyperparameters" argument. If performing a hyperparameter sweep,
+                                            will only train models with these names in the batch_train.tsv config file.
+                                            May supply None if performing a hyperparameter sweep, in which case
+                                            all models in the batch_train.tsv config file will be trained.
+            outcome_label_headers:      String or list. Specifies which header(s) in the annotation file to use
+                                            for the output category. If list is provided, will loop through all outcomes
+                                            and perform HP sweep on each.
+            filters:                    Dictionary of column names mapping to column values by which to filter slides.
+            resume_training:            Path to Tensorflow model to continue training
+            checkpoint:                 Path to cp.ckpt from which to load weights
+            pretrain:                   Pretrained weights to load. Default is imagenet.
+                                            May supply a compatible Tensorflow model from which to load weights.
+            batch_file:                 Manually specify batch file to use for a hyperparameter sweep.
+                                            If not specified, will use project default.
+            hyperparameters:            Manually specify hyperparameter combination to use for training.
                                         If specified, will ignore batch training file.
-            validation_settings:	Namespace of validation settings, provided by sf.project.get_validation_settings()
-            max_tiles_per_slide:	Will only use up to this many tiles from each slide for training.
-                                        If zero, will include all tiles.
-            min_tiles_per_slide:	Minimum number of tiles a slide must have to be included in training.
-            starting_epoch:			Starts training at the specified epoch
-            steps_per_epoch_override:	If provided, will manually set the number of steps in an epoch
-                                        (default epoch length is the number of total tiles)
-            auto_extract:			Bool. If True, will automatically extract tiles as needed for training,
-                                        without needing to explicitly call extract_tiles()
-            normalizer:				Normalization strategy to use on image tiles
-            normalizer_source:		Path to normalizer source image
-            normalizer_strategy:	Either 'tfrecord' or 'realtime'.
-                                        If 'tfrecord' & auto_extract = True, will extract tiles to TFRecords normalized.
-                                        If 'realtime', normalization is performed during training.
-            use_tensorboard:		Bool. If True, will add tensorboard callback for realtime training monitoring.
-            multi_gpu:				Bool. If True, will train using multiple GPUs using Keras MirroredStrategy.
-            save_predicitons:		Bool. If True, will save predictions with each validation.
-                                        May increase validation time for large projects.
-            skip_metrics:			Bool. If True, will skip metrics (ROC, AP, F1) during validation,
-                                        which may improve training time for large projects.
+            validation_settings:        Namespace of validation settings, from sf.project.get_validation_settings()
+            max_tiles_per_slide:        Will only use up to this many tiles from each slide for training.
+                                            If zero, will include all tiles.
+            min_tiles_per_slide:        Minimum number of tiles a slide must have to be included in training.
+            starting_epoch:             Starts training at the specified epoch
+            steps_per_epoch_override:   If provided, will manually set the number of steps in an epoch
+                                            (default epoch length is the number of total tiles)
+            auto_extract:               Bool. If True, will automatically extract tiles as needed for training,
+                                            without needing to explicitly call extract_tiles()
+            normalizer:                 Normalization strategy to use on image tiles
+            normalizer_source:          Path to normalizer source image
+            normalizer_strategy:        Either 'tfrecord' or 'realtime'.
+                                            If 'tfrecord' & auto_extract = True, extract tiles to TFRecords normalized.
+                                            If 'realtime', normalization is performed during training.
+            use_tensorboard:            Bool. If True, will add tensorboard callback for realtime training monitoring.
+            multi_gpu:                  Bool. If True, will train using multiple GPUs using Keras MirroredStrategy.
+            save_predicitons:           Bool. If True, will save predictions with each validation.
+                                            May increase validation time for large projects.
+            skip_metrics:               Bool. If True, will skip metrics (ROC, AP, F1) during validation,
+                                            which may improve training time for large projects.
 
         Returns:
             A dictionary containing model names mapped to train_acc, val_loss, and val_acc
@@ -2106,21 +2115,21 @@ class Project:
         '''Using a trained model, generate feature activations and train a CLAM model.
 
         Args:
-            exp_name:				Name of experiment. Will make clam/{exp_name} subfolder.
-            pt_files:				Path to pt_files containing tile-level features.
-            outcome_label_headers:	Name in annotation column which specifies the outcome label.
-            tile_px:				Tile width in pixels.
-            tile_um:				Tile width in microns.
-            train_slides:			List of slide names for training.
+            exp_name:               Name of experiment. Will make clam/{exp_name} subfolder.
+            pt_files:               Path to pt_files containing tile-level features.
+            outcome_label_headers:  Name in annotation column which specifies the outcome label.
+            tile_px:                Tile width in pixels.
+            tile_um:                Tile width in microns.
+            train_slides:           List of slide names for training.
                                         If 'auto' (default), will auto-generate training/validation split.
-            validation_slides:		List of slide names for training. If 'auto' (default),
+            validation_slides:      List of slide names for training. If 'auto' (default),
                                         will auto-generate training/validation split.
-            filters:				Dictionary of column names mapping to column values by which to filter slides.
+            filters:                Dictionary of column names mapping to column values by which to filter slides.
                                         Used if train_slides and validation_slides are 'auto'.
-            filter_blank:			List of annotations headers; slides blank in this column will be excluded.
+            filter_blank:           List of annotations headers; slides blank in this column will be excluded.
                                         Used if train_slides and validation_slides are 'auto'.
-            clam_args:				Dictionary with clam arguments, as provided by sf.clam.get_args()
-            attention_heatmaps:		Bool. If true, will save attention heatmaps of validation dataset.
+            clam_args:              Dictionary with clam arguments, as provided by sf.clam.get_args()
+            attention_heatmaps:      Bool. If true, will save attention heatmaps of validation dataset.
 
         Returns:
             None
@@ -2183,10 +2192,10 @@ class Project:
             # Currently, the below sets the validation & test sets to be the same
             for i in range(max(len(train_slides), len(validation_slides))):
                 row = [i]
-                if i < len(train_slides): 		row += [train_slides[i]]
-                else: 							row += ['']
-                if i < len(validation_slides):	row += [validation_slides[i], validation_slides[i]]
-                else:							row += ['', '']
+                if i < len(train_slides):         row += [train_slides[i]]
+                else:                             row += ['']
+                if i < len(validation_slides):    row += [validation_slides[i], validation_slides[i]]
+                else:                            row += ['', '']
                 writer.writerow(row)
 
         # Set up CLAM args/settings
@@ -2289,14 +2298,14 @@ class Project:
         '''Visualizes node activations across a set of image tiles through progressive convolutional masking.
 
         Args:
-            model:				Path to Tensorflow model
-            node:				Int, node to analyze
-            tfrecord_dict:		Dictionary mapping tfrecord paths to tile indices.
+            model:              Path to Tensorflow model
+            node:               Int, node to analyze
+            tfrecord_dict:      Dictionary mapping tfrecord paths to tile indices.
                                     Visualization will be performed on these tiles.
-            directory:			Directory in which to save images.
-            mask_width:			Width of mask to convolutionally apply. Defaults to 1/6 of tile_px
-            normalizer:				Normalization strategy to use on image tiles.
-            normalizer_source:		Path to normalizer source image.
+            directory:          Directory in which to save images.
+            mask_width:         Width of mask to convolutionally apply. Defaults to 1/6 of tile_px
+            normalizer:         Normalization strategy to use on image tiles.
+            normalizer_source:  Path to normalizer source image.
         '''
         from slideflow.activations import TileVisualizer
 

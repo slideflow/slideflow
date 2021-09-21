@@ -101,8 +101,8 @@ class StainNormalizer:
         '''Initializer. Establishes normalization method.
 
         Args:
-            method:		Either 'macenko', 'reinhard', or 'vahadane'.
-            source:		Path to source image for normalizer.
+            method:        Either 'macenko', 'reinhard', or 'vahadane'.
+            source:        Path to source image for normalizer.
                             If not provided, defaults to an internal example image.
         '''
         import slideflow.slide.normalizers as normalizers

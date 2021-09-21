@@ -173,10 +173,10 @@ class SlideReport:
         '''Initializer.
 
         Args:
-            images:		List of JPEG image strings (example tiles)
-            path:		Path to slide
-            data:		Dictionary of slide extraction report metadata
-            compress:	Bool, if True, compresses images to reduce image sizes
+            images:      List of JPEG image strings (example tiles)
+            path:        Path to slide
+            data:        Dictionary of slide extraction report metadata
+            compress:    Bool, if True, compresses images to reduce image sizes
         '''
         self.data = data
         self.path = path
@@ -219,9 +219,9 @@ class ExtractionReport:
         '''Initializer.
 
         Args:
-            reports:	List of SlideReport objects
-            tile_px:	Tile size in pixels.
-            tile_um:	Tile size in microns.
+            reports:    List of SlideReport objects
+            tile_px:    Tile size in pixels.
+            tile_um:    Tile size in microns.
         '''
         pdf = ExtractionPDF()
         pdf.alias_nb_pages()
@@ -418,7 +418,7 @@ class BaseLoader:
         self.silent = silent
 
         # if a progress bar is not directly provided, use the provided multiprocess-friendly progress bar counter and lock
-        # 	(for multiprocessing, as ProgressBar cannot be pickled)
+        #     (for multiprocessing, as ProgressBar cannot be pickled)
         if not pb:
             self.pb_counter = pb_counter
             self.counter_lock = counter_lock
@@ -490,7 +490,7 @@ class BaseLoader:
         '''Returns a square thumbnail of the slide, with black bar borders.
 
         Args:
-            width:		Width/height of thumbnail in pixels.
+            width:        Width/height of thumbnail in pixels.
 
         Returns:
             PIL image
@@ -515,7 +515,7 @@ class BaseLoader:
         '''Returns PIL thumbnail of the slide.
 
         Args:
-            mpp:	Microns-per-pixel of thumbnail (determines size of thumbnail to return)
+            mpp:    Microns-per-pixel of thumbnail (determines size of thumbnail to return)
 
         Returns:
             PIL image
@@ -573,29 +573,29 @@ class BaseLoader:
                       img_format='png', shuffle=True, num_threads=4, **kwargs):
         '''Extractes tiles from slide and saves into a TFRecord file or as loose JPG tiles in a directory.
         Args:
-            tfrecord_dir:			If provided, saves tiles into a TFRecord file (named according to slide name) here.
-            tiles_dir:				If provided, saves loose images into a subdirectory (per slide name) here.
-            split_fraction:			List of float. If provided, splits the extracted tiles into subsets
+            tfrecord_dir:           If provided, saves tiles into a TFRecord file (named according to slide name) here.
+            tiles_dir:              If provided, saves loose images into a subdirectory (per slide name) here.
+            split_fraction:         List of float. If provided, splits the extracted tiles into subsets
                                         (e.g. for validation set) using these fractions.
                                         Should add up to 1 (except for fractions of -1).
                                         Remaining tiles are split between fractions of "-1".
-            split_names:			List of names to label the split fractions
-            img_format:				'png' or 'jpg'. Format of images for internal storage in tfrecords.
+            split_names:            List of names to label the split fractions
+            img_format:                'png' or 'jpg'. Format of images for internal storage in tfrecords.
                                         PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
             shuffle:                Bool. If true, will shuffle tiles prior to storage. (default = True)
             num_threads:            Number of threads to allocate to tile extraction workers.
 
         Kwargs:
-            normalizer:				Normalization strategy to use on image tiles
-            normalizer_source:		Path to normalizer source image
-            whitespace_fraction:	Float 0-1. Fraction of whitespace which causes a tile to be discarded.
+            normalizer:             Normalization strategy to use on image tiles
+            normalizer_source:      Path to normalizer source image
+            whitespace_fraction:    Float 0-1. Fraction of whitespace which causes a tile to be discarded.
                                         If 1, will not perform whitespace filtering.
-            whitespace_threshold:	Int 0-255. Threshold above which a pixel (RGB average) is considered whitespace.
-            grayspace_fraction:		Float 0-1. Fraction of grayspace which causes a tile to be discarded.
-                                        If 1, will not perform grayspace filtering.
-            grayspace_threshold:	Int 0-1. HSV (hue, saturation, value) is calculated for each pixel.
+            whitespace_threshold:   Int 0-255. Threshold above which a pixel (RGB average) is considered whitespace.
+            grayspace_fraction:        Float 0-1. Fraction of grayspace which causes a tile to be discarded.
+                                       If 1, will not perform grayspace filtering.
+            grayspace_threshold:    Int 0-1. HSV (hue, saturation, value) is calculated for each pixel.
                                         If a pixel's saturation is below this threshold, it is considered grayspace.
-            full_core:				Bool. Only used for TMA. If true, will extract full image cores
+            full_core:              Bool. Only used for TMA. If true, will extract full image cores
                                         regardless of supplied tile micron size.
         '''
         assert img_format in ('png', 'jpg', 'jpeg')
@@ -729,21 +729,21 @@ class WSI(BaseLoader):
         '''Initializer.
 
         Args:
-            path:				Path to slide
-            tile_px:			Size of tiles to extract, in pixels
-            tile_um:			Size of tiles to extract, in microns
-            stride_div:			Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc)
-            enable_downsample:	Bool, if True, allows use of downsampled intermediate layers in the slide image pyramid,
+            path:               Path to slide
+            tile_px:            Size of tiles to extract, in pixels
+            tile_um:            Size of tiles to extract, in microns
+            stride_div:         Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc)
+            enable_downsample:  Bool, if True, allows use of downsampled intermediate layers in the slide image pyramid,
                                     which greatly improves tile extraction speed.
-            roi_dir:			Directory in which to search for ROI CSV files
-            roi_list:			Alternatively, a list of ROI paths can be explicitly provided
-            roi_method:			Either inside, outside, or ignore. Determines how ROIs are used to extract tiles
-            skip_missing_roi:	Bool, if True, will skip tiles that are missing a ROI file
-            silent:				Bool, if True, will hide logging output
-            buffer:				Path to directory. Slides will be copied to the directory as a buffer before extraction.
+            roi_dir:            Directory in which to search for ROI CSV files
+            roi_list:           Alternatively, a list of ROI paths can be explicitly provided
+            roi_method:            Either inside, outside, or ignore. Determines how ROIs are used to extract tiles
+            skip_missing_roi:   Bool, if True, will skip tiles that are missing a ROI file
+            silent:             Bool, if True, will hide logging output
+            buffer:             Path to directory. Slides will be copied to the directory as a buffer before extraction.
                                     Vastly improves extraction speed if an SSD or ramdisk buffer is used.
-            pb:					ProgressBar instance; will update progress bar during tile extraction if provided
-            pb_id:				ID of bar in ProgressBar, defaults to 0
+            pb:                 ProgressBar instance; will update progress bar during tile extraction if provided
+            pb_id:              ID of bar in ProgressBar, defaults to 0
         '''
         super().__init__(path,
                          tile_px,
@@ -845,13 +845,13 @@ class WSI(BaseLoader):
         '''Builds generator to supervise extraction of tiles across the slide.
 
         Args:
-            dual_extract:			If true, will extract base image and the surrounding region.
-            shuffle:				If true, will shuffle images during extraction
-            whitespace_fraction:	Float from 0-1, representing a percent. Tiles with this percent of pixels
+            dual_extract:           If true, will extract base image and the surrounding region.
+            shuffle:                If true, will shuffle images during extraction
+            whitespace_fraction:    Float from 0-1, representing a percent. Tiles with this percent of pixels
                                         (or more) classified as "whitespace" and will be skipped during extraction.
-            whitespace_threshold:	Int from 0-255, pixel brightness above which a pixel is considered whitespace
-            normalizer:				Normalization strategy to use on image tiles
-            normalizer_source:		Path to normalizer source image
+            whitespace_threshold:   Int from 0-255, pixel brightness above which a pixel is considered whitespace
+            normalizer:             Normalization strategy to use on image tiles
+            normalizer_source:      Path to normalizer source image
         '''
         super().build_generator()
 
@@ -916,7 +916,7 @@ class WSI(BaseLoader):
         '''Returns PIL Image of thumbnail with ROI overlay.
 
         Args:
-            mpp:	Microns-per-pixel, used to determine thumbnail size
+            mpp:    Microns-per-pixel, used to determine thumbnail size
 
         Returns:
             PIL image
@@ -1069,16 +1069,16 @@ class TMA(BaseLoader):
         '''Initializer.
 
         Args:
-            path:				Path to slide
-            tile_px:			Size of tiles to extract, in pixels
-            tile_um:			Size of tiles to extract, in microns
-            stride_div:			Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc)
-            enable_downsample:	Bool, if True, allows use of downsampled intermediate layers in the slide image pyramid,
+            path:               Path to slide
+            tile_px:            Size of tiles to extract, in pixels
+            tile_um:            Size of tiles to extract, in microns
+            stride_div:         Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc)
+            enable_downsample:  Bool, if True, allows use of downsampled intermediate layers in the slide image pyramid,
                                     which greatly improves tile extraction speed.
-            silent:				Bool, if True, will hide logging output
-            buffer:				Path to directory. Slides will be copied here prior to extraction.
-            pb:					ProgressBar instance; will update progress bar during tile extraction if provided
-            pb_id:				ID of bar in ProgressBar, defaults to 0
+            silent:             Bool, if True, will hide logging output
+            buffer:             Path to directory. Slides will be copied here prior to extraction.
+            pb:                 ProgressBar instance; will update progress bar during tile extraction if provided
+            pb_id:              ID of bar in ProgressBar, defaults to 0
         '''
         super().__init__(path, tile_px, tile_um, stride_div, enable_downsample, silent, buffer, pb)
 
@@ -1232,13 +1232,13 @@ class TMA(BaseLoader):
         '''Builds generator to supervise extraction of tiles across the slide.
 
         Args:
-            shuffle:				If true, will shuffle images during extraction
-            whitespace_fraction:	Float from 0-1, representing a percent. Tiles with this percent of pixels
+            shuffle:                If true, will shuffle images during extraction
+            whitespace_fraction:    Float from 0-1, representing a percent. Tiles with this percent of pixels
                                         (or more) classified as "whitespace" and will be skipped during extraction.
-            whitespace_threshold:	Int from 0-255, pixel brightness above which a pixel is considered whitespace
-            normalizer:				Normalization strategy to use on image tiles
-            normalizer_source:		Path to normalizer source image
-            export_full_core:	If true, will also save a thumbnail of each fully extracted core.'''
+            whitespace_threshold:   Int from 0-255, pixel brightness above which a pixel is considered whitespace
+            normalizer:             Normalization strategy to use on image tiles
+            normalizer_source:      Path to normalizer source image
+            export_full_core:       If true, will also save a thumbnail of each fully extracted core.'''
 
         super().build_generator()
 

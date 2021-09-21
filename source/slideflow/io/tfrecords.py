@@ -26,10 +26,10 @@ FEATURE_TYPES = (tf.int64, tf.string, tf.string)
 FEATURE_DESCRIPTION_LEGACY =  {'slide':    tf.io.FixedLenFeature([], tf.string),
                                'image_raw':tf.io.FixedLenFeature([], tf.string)}
 
-FEATURE_DESCRIPTION = {'slide':    	tf.io.FixedLenFeature([], tf.string),
-                       'image_raw':	tf.io.FixedLenFeature([], tf.string),
-                       'loc_x':		tf.io.FixedLenFeature([], tf.int64),
-                       'loc_y':		tf.io.FixedLenFeature([], tf.int64)}
+FEATURE_DESCRIPTION = {'slide':        tf.io.FixedLenFeature([], tf.string),
+                       'image_raw':    tf.io.FixedLenFeature([], tf.string),
+                       'loc_x':        tf.io.FixedLenFeature([], tf.int64),
+                       'loc_y':        tf.io.FixedLenFeature([], tf.int64)}
 
 FEATURE_DESCRIPTION_MULTI =  {'slide':    tf.io.FixedLenFeature([], tf.string),
                               'input_1':  tf.io.FixedLenFeature([], tf.string),
@@ -176,7 +176,7 @@ def get_locations_from_tfrecord(filename):
     parser = get_tfrecord_parser(filename, ('loc_x', 'loc_y'), to_numpy=True)
     for i, record in enumerate(dataset):
         loc_x, loc_y = parser(record)
-        loc_dict.update({ i: (loc_x, loc_y)	})
+        loc_dict.update({ i: (loc_x, loc_y)    })
     return loc_dict
 
 def interleave_tfrecords(tfrecords,
@@ -205,16 +205,16 @@ def interleave_tfrecords(tfrecords,
     Requires manifest for balancing. Assumes TFRecord files are named by slide.
 
     Args:
-        tfrecords:				Array of paths to TFRecord files
-        batch_size:				Batch size
-        balance:				Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,
-                                    BALANCE_BY_PATIENT, and NO_BALANCE. If finite option is used, will drop
-                                    tiles in order to maintain proportions across the interleaved dataset.
-        augment:					Whether to use data augmentation (random flip/rotate)
-        finite:					Whether create finite or infinite datasets. WARNING: If finite option is
-                                    used with balancing, some tiles will be skipped.
-        max_tiles:				Maximum number of tiles to use per slide.
-        min_tiles:				Minimum number of tiles that each slide must have to be included.
+        tfrecords:      Array of paths to TFRecord files
+        batch_size:     Batch size
+        balance:        Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,
+                            BALANCE_BY_PATIENT, and NO_BALANCE. If finite option is used, will drop
+                            tiles in order to maintain proportions across the interleaved dataset.
+        augment:        Whether to use data augmentation (random flip/rotate)
+        finite:         Whether create finite or infinite datasets. WARNING: If finite option is
+                            used with balancing, some tiles will be skipped.
+        max_tiles:      Maximum number of tiles to use per slide.
+        min_tiles:      Minimum number of tiles that each slide must have to be included.
     '''
     log.debug(f'Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min={min_tiles}')
     with tf.device('cpu'):
@@ -277,7 +277,7 @@ def interleave_tfrecords(tfrecords,
                             augment=augment)
 
                 # Assign category by outcome if this is a categorical model,
-                #	Merging category names if there are multiple outcomes
+                #    Merging category names if there are multiple outcomes
                 #   (balancing across all combinations of outcome categories equally)
                 # Otherwise, consider all slides from the same category (effectively skipping balancing).
                 #   Appropriate for linear models.
@@ -446,7 +446,7 @@ def tfrecord_example(slide, image_raw, loc_x=0, loc_y=0):
 def multi_image_example(slide, image_dict):
     '''Returns a Tensorflow Data example for TFRecord storage with multiple images.'''
     feature = {
-        'slide':	_bytes_feature(slide)
+        'slide':    _bytes_feature(slide)
     }
     for image_label in image_dict:
         feature.update({
@@ -693,27 +693,27 @@ def get_train_and_val_tfrecords(dataset,
         TFRecord directory so future models may use the same plan for consistency.
 
     Args:
-        dataset:				A slideflow.datasets.Dataset object
-        validation_log:			Path to .log file containing validation plans
-        slide_labels_dict:		Dictionary mapping slides to labels
-                                    (used for balancing outcome labels in training and validation cohorts).
-                                    Example dictionary:
-                                        {
-                                            'slide1': {
-                                                outcome_key: 'Outcome1',
-                                                sfutil.TCGA.patient: 'patient_id'
-                                            }
+        dataset:            A slideflow.datasets.Dataset object
+        validation_log:     Path to .log file containing validation plans
+        slide_labels_dict:  Dictionary mapping slides to labels
+                                (used for balancing outcome labels in training and validation cohorts).
+                                Example dictionary:
+                                    {
+                                        'slide1': {
+                                        outcome_key: 'Outcome1',
+                                            sfutil.TCGA.patient: 'patient_id'
                                         }
-        outcome_key:			Key indicating outcome variable in slide_labels_dict
-        model_type:				Either 'categorical' or 'linear'
-        val_target:		Either 'per-patient' or 'per-tile'
-        val_strategy:	Either 'k-fold', 'k-fold-preserved-site', 'bootstrap', or 'fixed'.
-        val_fraction:	Float, proportion of data for validation. Not used if strategy is k-fold.
-        val_k_fold:		K, if using K-fold validation.
-        k_fold_iter:			Which K-fold iteration, if using K-fold validation.
+                                    }
+        outcome_key:         Key indicating outcome variable in slide_labels_dict
+        model_type:          Either 'categorical' or 'linear'
+        val_target:          Either 'per-patient' or 'per-tile'
+        val_strategy:        Either 'k-fold', 'k-fold-preserved-site', 'bootstrap', or 'fixed'.
+        val_fraction:        Float, proportion of data for validation. Not used if strategy is k-fold.
+        val_k_fold:          K, if using K-fold validation.
+        k_fold_iter:         Which K-fold iteration, if using K-fold validation.
 
     Returns:
-        Two arrays: 	an array of full paths to training tfrecords, and an array of paths to validation tfrecords.'''
+        Two arrays:     an array of full paths to training tfrecords, and an array of paths to validation tfrecords.'''
 
     # Prepare dataset
     tfr_folders = dataset.get_tfrecords_folders()
@@ -783,13 +783,11 @@ def get_train_and_val_tfrecords(dataset,
         tfrecord_dir_list_names = [tfr.split('/')[-1][:-10] for tfr in tfrecord_dir_list]
         patients_dict = {}
         num_warned = 0
-        warn_threshold = 3
         for slide in slide_list:
             patient = slide_labels_dict[slide][sfutil.TCGA.patient]
-            print_func = print if num_warned < warn_threshold else None
             # Skip slides not found in directory
             if slide not in tfrecord_dir_list_names:
-                log.warning(f"Slide {slide} not found in tfrecord directory, skipping")
+                log.debug(f"Slide {slide} not found in tfrecord directory, skipping")
                 num_warned += 1
                 continue
             if patient not in patients_dict:
@@ -805,8 +803,8 @@ def get_train_and_val_tfrecords(dataset,
                 raise TFRecordsError(err_msg)
             else:
                 patients_dict[patient]['slides'] += [slide]
-        if num_warned >= warn_threshold:
-            log.warning(f"...{num_warned} total warnings, see project log for details")
+        if num_warned:
+            log.warning(f"Total of {num_warned} slides not found in tfrecord directory, skipping")
         patients = list(patients_dict.keys())
         sorted_patients = [p for p in patients]
         sorted_patients.sort()
@@ -865,9 +863,9 @@ def get_train_and_val_tfrecords(dataset,
             if not accepted_plan:
                 log.info(f"No suitable validation plan found; will log plan at {sfutil.green(validation_log)}")
                 new_plan = {
-                    'strategy':		val_strategy,
-                    'patients':		patients_dict,
-                    'tfrecords':	{}
+                    'strategy':        val_strategy,
+                    'patients':        patients_dict,
+                    'tfrecords':    {}
                 }
                 if val_strategy == 'fixed':
                     num_val = int(val_fraction * len(patients))

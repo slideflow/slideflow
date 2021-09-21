@@ -34,11 +34,11 @@ def _negative_log_likelihood(y_true, y_pred):
     Looks like it was adapted from here: https://github.com/havakv/pycox/blob/master/pycox/models/loss.py'''
     events = tf.reshape(y_pred[:, -1], [-1]) # E
     pred_hr = tf.reshape(y_pred[:, 0], [-1]) # y_pred
-    time = tf.reshape(y_true, [-1])		   # y_true
+    time = tf.reshape(y_true, [-1])           # y_true
 
     order = tf.argsort(time) #direction='DESCENDING'
-    sorted_events = tf.gather(events, order) 		# E
-    sorted_predictions = tf.gather(pred_hr, order) 	# y_pred
+    sorted_events = tf.gather(events, order)         # E
+    sorted_predictions = tf.gather(pred_hr, order)     # y_pred
 
     # Finds maximum HR in predictions
     gamma = tf.math.reduce_max(sorted_predictions)
@@ -177,9 +177,9 @@ def get_hyperparameter_combinations(hyperparameters, models, batch_train_file):
     '''Organizes a list of hyperparameters ojects and associated models names.
 
     Args:
-        hyperparameters:		List of Hyperparameters objects
-        models:					List of model names
-        batch_train_file:		Path to train train TSV file
+        hyperparameters:        List of Hyperparameters objects
+        models:                 List of model names
+        batch_train_file:       Path to train train TSV file
 
     Returns:
         List of (Hyperparameter, model_name) for each HP combination
@@ -287,10 +287,10 @@ def make_riskset(time):
     '''Compute mask that represents a sample's risk set.
 
     Args:
-        time:		np array, shape=(n_samples,). Observed event time ?in descending order?.
+        time:       np array, shape=(n_samples,). Observed event time ?in descending order?.
 
     Returns:
-        risk_set:	np array, shape=(n_samples, n_samples). Boolean matrix where the `i`-th row
+        risk_set:   np array, shape=(n_samples, n_samples). Boolean matrix where the `i`-th row
                         denotes the risk set of the `i`-th instance, i.e. the indices `j`
                         for which the observer time `y_j >= y_i`
     '''

@@ -89,9 +89,9 @@ class TestConfigurator:
         if not os.path.exists(slides_path): os.makedirs(slides_path)
         self.datasets = {
             'TEST': {
-                'slides': 	slides_path,
-                'roi': 		join(path, 'roi'),
-                'tiles': 	join(path, 'project', 'tiles', 'TEST'),
+                'slides':     slides_path,
+                'roi':         join(path, 'roi'),
+                'tiles':     join(path, 'project', 'tiles', 'TEST'),
                 'tfrecords':join(path, 'project', 'tfrecords', 'TEST')
             }
         }
@@ -471,12 +471,12 @@ class TestSuite:
                 evaluate=True,heatmap=True, mosaic=True, activations=True, predict_wsi=True):
         '''Perform and report results of all available testing.'''
 
-        if extract: 			self.test_extraction()
-        if train:				self.test_training()
-        if normalizer:			self.test_realtime_normalizer()
-        if train_performance: 	self.test_training_performance()
-        if evaluate:			self.test_evaluation()
-        if heatmap:				self.test_heatmap()
-        if mosaic:				self.test_mosaic()
-        if activations:			self.test_activations()
-        if predict_wsi:			self.test_predict_wsi()
+        if extract:             self.test_extraction()
+        if train:                self.test_training()
+        if normalizer:            self.test_realtime_normalizer()
+        if train_performance:     self.test_training_performance()
+        if evaluate:            self.test_evaluation()
+        if heatmap:                self.test_heatmap()
+        if mosaic:                self.test_mosaic()
+        if activations:            self.test_activations()
+        if predict_wsi:            self.test_predict_wsi()

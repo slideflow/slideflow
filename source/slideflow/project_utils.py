@@ -17,20 +17,20 @@ def get_validation_settings(**kwargs):
     Returns a namespace of validation settings.
 
     Args:
-        target: 			(default: 'per-patient') Whether to select validation data
+        target:             (default: 'per-patient') Whether to select validation data
                                 on a 'per-patient' (default) or 'per-tile' basis.
-        strategy: 			(default: 'k-fold') Validation dataset selection strategy
+        strategy:           (default: 'k-fold') Validation dataset selection strategy
                                 (bootstrap, k-fold, k-fold-manual, k-fold-preserved-site, fixed, none).
-        k_fold: 			(default: 3) Number of k-folds, if strategy is 'k-fold'
-        k_fold_iter: 		K iteration, if using k-folds. Starts at 1.
-        k_fold_header: 		Annotations file header column for manually specifying k-fold.
+        k_fold:             (default: 3) Number of k-folds, if strategy is 'k-fold'
+        k_fold_iter:        K iteration, if using k-folds. Starts at 1.
+        k_fold_header:      Annotations file header column for manually specifying k-fold.
                                 Only used if validation_strategy is 'k-fold-manual'
-        fraction: 			Fraction of data to use for validation testing, if strategy is "fixed"
-        dataset: 			If specified, will use this dataset for validation
-        annotations: 		If specified, will use this annotations file for validation
-        filters:			If specified, will use these filters for validation
-        validate_on_batch:	Validation will be performed every N batches.
-        validation_steps:	Number of steps of validation to perform each time doing a validation check.
+        fraction:           Fraction of data to use for validation testing, if strategy is "fixed"
+        dataset:            If specified, will use this dataset for validation
+        annotations:        If specified, will use this annotations file for validation
+        filters:            If specified, will use these filters for validation
+        validate_on_batch:  Validation will be performed every N batches.
+        validation_steps:   Number of steps of validation to perform each time doing a validation check.
     '''
 
     args_dict = {
@@ -60,12 +60,12 @@ def add_dataset(name, slides, roi, tiles, tfrecords, path):
     '''Adds a dataset to the dataset configuration file.
 
     Args:
-        name:		Dataset name.
-        slides:		Path to directory containing slides.
-        roi:		Path to directory containing CSV ROIs.
-        tiles:		Path to directory in which to store extracted tiles.
-        tfrecords:	Path to directory in which to store TFRecords of extracted tiles.
-        path:		(optional) Path to dataset configuration file. If not provided, uses project default.
+        name:       Dataset name.
+        slides:     Path to directory containing slides.
+        roi:        Path to directory containing CSV ROIs.
+        tiles:      Path to directory in which to store extracted tiles.
+        tfrecords:  Path to directory in which to store TFRecords of extracted tiles.
+        path:       (optional) Path to dataset configuration file. If not provided, uses project default.
     '''
     try:
         datasets_data = sfutil.load_json(path)
@@ -475,7 +475,7 @@ def evaluator(project, outcome_label_headers, model, results_dict, input_header=
         feature_len_dict = {}   # Dict mapping input_vars to total number of different labels for each input header
         input_labels_dict = {}  # Dict mapping input_vars to nested dictionaries,
                                 #    which map category ID to category label names (for categorical variables)
-                                # 	or mapping to 'float' for float variables
+                                #     or mapping to 'float' for float variables
         for slide in slide_labels_dict:
             slide_labels_dict[slide]['input'] = []
 
@@ -777,10 +777,10 @@ def trainer(project, outcome_label_headers, model_name, results_dict, hp, val_se
     # Prepare additional slide-level input
     if input_header:
         input_header = [input_header] if not isinstance(input_header, list) else input_header
-        feature_len_dict = {} 	# Dict mapping input_vars to total number of different labels for each input header
+        feature_len_dict = {}     # Dict mapping input_vars to total number of different labels for each input header
         input_labels_dict = {}  # Dict mapping input_vars to nested dictionaries
                                 #   which map category ID to category label names (for categorical variables)
-                                # 	or mapping to 'float' for float variables
+                                #     or mapping to 'float' for float variables
         for slide in slide_labels_dict:
             slide_labels_dict[slide]['input'] = []
 

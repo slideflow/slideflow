@@ -16,10 +16,10 @@ def split_tiles(folder, fraction, names):
     '''Split a directory of .jpg files into subdirectories.
 
     Args:
-        folder 		folder to search for tiles
-        fraction	array containing fraction of tiles to include in each subdirectory;
+        folder      Folder to search for tiles
+        fraction    Array containing fraction of tiles to include in each subdirectory;
                         remaining tiles will be split among subdirectories with fraction of -1
-        names		names of subfolder to split tiles. Must be same length as fraction
+        names       Names of subfolder to split tiles. Must be same length as fraction
     '''
 
     # Initial error checking
@@ -163,7 +163,7 @@ class Dataset:
         '''Generates a manifest of all tfrecords.
 
         Args:
-            key:	Either 'path' (default) or 'name'. Determines key format in the manifest dictionary.
+            key:    Either 'path' (default) or 'name'. Determines key format in the manifest dictionary.
 
         Returns:
             Dictionary mapping key (path or slide name) to number of total tiles.
@@ -383,16 +383,16 @@ class Dataset:
         '''Returns a dictionary of slide names mapping to patient id and [an] label(s).
 
         Args:
-            headers			annotation header(s) that specifies label variable. May be a list.
-            use_float		Either bool, dict, or 'auto'.
+            headers         Annotation header(s) that specifies label variable. May be a list.
+            use_float       Either bool, dict, or 'auto'.
                                 If true, will try to convert all data into float. If unable, will raise TypeError.
                                 If false, will interpret all data as categorical.
                                 If a dict is provided, will look up each header to determine whether float is used.
                                 If 'auto', will try to convert all data into float. For each header in which this fails,
                                     will interpret as categorical instead.
-            assigned_labels	Dictionary mapping label ids to label names. If not provided, will map
+            assigned_labels Dictionary mapping label ids to label names. If not provided, will map
                                 ids to names by sorting alphabetically.
-            key				Key name to use for the returned dictionary. Defaults to 'label'
+            key             Key name to use for the returned dictionary. Defaults to 'label'
 
         Returns:
             1) Dictionary with slides as keys and dictionaries as values.

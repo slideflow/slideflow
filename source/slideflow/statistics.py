@@ -41,9 +41,9 @@ class TFRecordMap:
         to map TFRecords according to UMAP of activations, or map according to pre-specified coordinates.
 
         Args:
-            slides:		List of slide names
-            tfrecords:	List of paths to tfrecords
-            cache:		(optional) String, path name. If provided, will cache activations to this PKL file.'''
+            slides:       List of slide names
+            tfrecords:    List of paths to tfrecords
+            cache:        (optional) String, path name. If provided, will cache activations to this PKL file.'''
 
         self.slides = slides
         self.tfrecords = tfrecords
@@ -65,14 +65,14 @@ class TFRecordMap:
         ''' Initializes map from precalculated coordinates.
 
         Args:
-            slides:		List of slide names
-            x:			X coordinates for tfrecords
-            y:			Y coordinates for tfrecords
-            meta:		List of dicts. Metadata for each point on the map (representing a single tfrecord).
-            values:		Values used to overlay colors during plotting.
-            tfrecords:	(optional) List of paths to tfrecords. Not required, used to store for use by other objects.
-                        *** TODO: REMOVE ***
-            cache:		(optional) String, path name. If provided, will cache umap coordinates to this PKL file. '''
+            slides:       List of slide names
+            x:            X coordinates for tfrecords
+            y:            Y coordinates for tfrecords
+            meta:         List of dicts. Metadata for each point on the map (representing a single tfrecord).
+            values:       Values used to overlay colors during plotting.
+            tfrecords:    (optional) List of paths to tfrecords. Not required, used to store for use by other objects.
+                          *** TODO: REMOVE ***
+            cache:        (optional) String, path name. If provided, will cache umap coordinates to this PKL file. '''
 
         obj = cls(slides, tfrecords)
         obj.x = np.array(x) if type(x) == list else x
@@ -91,14 +91,14 @@ class TFRecordMap:
         '''Initializes map from an activations visualizer.
 
         Args:
-            activations:		ActivationsVisualizer class
-            exclude_slides:		(optional) List of names of slides to exclude from map.
-            prediction_filter:	(optional) List. Will restrict predictions to only these provided categories.
-            force_recalculate:	(optional) Will force recalculation of umap despite presence of cache.
-            use_centroid:		(optional) Will calculate and map centroid activations.
-            map_slide:			Either None (default), 'centroid', or 'average'.
+            activations:        ActivationsVisualizer class
+            exclude_slides:     (optional) List of names of slides to exclude from map.
+            prediction_filter:  (optional) List. Will restrict predictions to only these provided categories.
+            force_recalculate:  (optional) Will force recalculation of umap despite presence of cache.
+            use_centroid:       (optional) Will calculate and map centroid activations.
+            map_slide:          Either None (default), 'centroid', or 'average'.
                                     If none, will map all tiles from each slide.
-            cache:				(optional) String, path name. If provided, will cache umap coordinates to this file. '''
+            cache:              (optional) String, path name. If provided, will cache umap coordinates to this file. '''
 
         if map_slide is not None and map_slide not in ('centroid', 'average'):
             raise StatisticsError(f"map_slide must be None (default), 'centroid', or 'average', not '{map_slide}'")
@@ -224,13 +224,13 @@ class TFRecordMap:
             as provided via ActivationsVisualizer nodes, and then map only the centroid tile for each slide.
 
         Args:
-            method:					Either 'centroid' or 'average'. If centroid, will calculate UMAP only
+            method:                 Either 'centroid' or 'average'. If centroid, will calculate UMAP only
                                         from centroid tiles for each slide. If average, will calculate UMAP
                                         based on average node activations across all tiles within the slide,
                                         then display the centroid tile for each slide.
-            prediction_filter:		(optional) List of int. If provided, will restrict predictions to these categories.
-            force_recalculate:		Bool, default=False. If true, will recalculate of UMAP despite loading from cache.
-            low_memory:				Bool, if True, will calculate UMAP in low-memory mode
+            prediction_filter:      (optional) List of int. If provided, will restrict predictions to these categories.
+            force_recalculate:      Bool, default=False. If true, will recalculate of UMAP despite loading from cache.
+            low_memory:             Bool, if True, will calculate UMAP in low-memory mode
         '''
 
         if method not in ('centroid', 'average'):
@@ -330,9 +330,9 @@ class TFRecordMap:
             to tile metadata 'num_unique_neighbors' and 'percent_matching_categories'.
 
         Args:
-            slide_categories:	Optional, dict mapping slides to categories. If provided, will be used to
+            slide_categories:   Optional, dict mapping slides to categories. If provided, will be used to
                                     calculate 'percent_matching_categories' statistic.
-            algorithm:			NearestNeighbor algorithm, either 'kd_tree', 'ball_tree', or 'brute'
+            algorithm:          NearestNeighbor algorithm, either 'kd_tree', 'ball_tree', or 'brute'
         '''
         from sklearn.neighbors import NearestNeighbors
         log.info("Initializing neighbor search...")
@@ -369,8 +369,8 @@ class TFRecordMap:
         '''Filters map to only show neighbors with a corresponding neighbor ActivationsVisualizer and neighbor slide.
 
         Args:
-            neighbor_AV:		ActivationsVisualizer containing activations for neighboring slide
-            slide:				Name of neighboring slide
+            neighbor_AV:        ActivationsVisualizer containing activations for neighboring slide
+            slide:                Name of neighboring slide
         '''
         if slide not in neighbor_AV.slide_node_dict:
             raise StatisticsError(f"Slide {slide} not found in ActivationsVisualizer, unable to find neighbors")
@@ -400,7 +400,7 @@ class TFRecordMap:
         '''Displays each point with label equal to the logits (linear from 0-1)
 
         Args:
-            index:				Logit index
+            index:                Logit index
         '''
         self.values = np.array([m['logits'][index] for m in self.point_meta])
 
@@ -409,7 +409,7 @@ class TFRecordMap:
             If slide_labels is provided, will use this dictionary to label slides.
 
         Args:
-            slide_labels:		(Optional) Dict mapping slide names to labels.
+            slide_labels:        (Optional) Dict mapping slide names to labels.
         '''
         if slide_labels:
             self.values = np.array([slide_labels[m['slide']] for m in self.point_meta])
@@ -420,8 +420,8 @@ class TFRecordMap:
         '''Displays each point with label equal a value in tile metadata (e.g. 'prediction')
 
         Args:
-            tile_meta:			String, key to metadata from which to read
-            translation_dict:	Optional, if provided, will translate the read metadata through this dictionary
+            tile_meta:          String, key to metadata from which to read
+            translation_dict:   Optional, if provided, will translate the read metadata through this dictionary
         '''
         if translation_dict:
             try:
@@ -438,18 +438,18 @@ class TFRecordMap:
         '''Saves plot of data to a provided filename.
 
         Args:
-            filename:		Saves image of plot to this file.
-            slide_labels:	(optional) Dictionary mapping slide names to labels.
-            slide_filter:	(optional) List, restricts map to the provided slides.
-            show_tile_meta:	(optional) String (key), if provided, will label tiles
+            filename:        Saves image of plot to this file.
+            slide_labels:    (optional) Dictionary mapping slide names to labels.
+            slide_filter:    (optional) List, restricts map to the provided slides.
+            show_tile_meta:  (optional) String (key), if provided, will label tiles
                                 according to this key as provided in the tile-level meta (self.point_meta)
-            outcome_labels:	(optional) Dictionary to translate outcomes (provided
+            outcome_labels:  (optional) Dictionary to translate outcomes (provided
                                 via show_tile_meta and point_meta) to human readable label.
-            subsample:		(optional) Int, if provided, will only
+            subsample:       (optional) Int, if provided, will only
                                 include this number of tiles on plot (randomly selected)
-            title:			(optional) String, title for plot
-            cmap:			(optional) Dicionary mapping labels to colors
-            use_float:		(optional) Interpret labels as float for linear coloring'''
+            title:           (optional) String, title for plot
+            cmap:            (optional) Dicionary mapping labels to colors
+            use_float:       (optional) Interpret labels as float for linear coloring'''
 
         # Subsampling
         if subsample:
@@ -502,10 +502,10 @@ class TFRecordMap:
         '''Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument "z"
 
         Args:
-            z: 			Values for z axis (optional).
-            node:		Int, node to plot on 3rd axis (optional). Ignored if z is supplied.
-            filename:	Filename to save image of plot
-            subsample:	(optionanl) int, if provided will subsample data to include only this number of tiles as max'''
+            z:           Values for z axis (optional).
+            node:        Int, node to plot on 3rd axis (optional). Ignored if z is supplied.
+            filename:    Filename to save image of plot
+            subsample:   (optionanl) int, if provided will subsample data to include only this number of tiles as max'''
 
         title = f"UMAP with node {node} focus"
 
@@ -704,8 +704,8 @@ def to_onehot(val, num_cat):
     '''Converts value to one-hot encoding
 
     Args:
-        val:		Value to encode
-        num_cat:	Maximum value (length of onehot encoding)'''
+        val:        Value to encode
+        num_cat:    Maximum value (length of onehot encoding)'''
 
     onehot = [0] * num_cat
     onehot[val] = 1
@@ -1148,7 +1148,7 @@ def metrics_from_predictions(y_true,
             tfrecord_name = sfutil.path_to_name(tfrecord)
             num_tiles_tfrecord = manifest[tfrecord]['total']
             if num_tiles_tfrecord < min_tiles_per_slide:
-                if verbose:	log.info(f"Filtering out {tfrecord_name}: {num_tiles_tfrecord} tiles")
+                if verbose:    log.info(f"Filtering out {tfrecord_name}: {num_tiles_tfrecord} tiles")
                 slides_to_filter += [tfrecord_name]
     else:
         log.warning("Manifest not provided, unable to filter tfrecords by min_tiles_per_slide")
@@ -1315,7 +1315,7 @@ def predict_from_layer(model, layer_input, input_layer_name='hidden_0', ouput_la
 
     # create the new nodes for each layer in the path
     # For CPH models, include hidden layers excluding the final concatenation
-    # 	(softmax + event tensor) layer
+    #     (softmax + event tensor) layer
     if ouput_layer_index is not None:
         for layer in model.layers[first_hidden_layer_index:ouput_layer_index]:
             x = layer(x)
@@ -1346,17 +1346,17 @@ def metrics_from_dataset(model,
     generating a variety of statistical outcomes and graphs.
 
     Args:
-        model						Keras model to evaluate
-        dataset		TFRecord dataset which include three items: raw image data, labels, and slide names.
-        annotations					dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
-        model_type					'linear' or 'categorical'
-        data_dir					directory in which to save performance metrics and graphs
-        label						(optional) label with which to annotation saved files and graphs
-        manifest					(optional) manifest as provided by Dataset, used to filter slides
-                                        that do not have minimum number of tiles
-        min_tiles_per_slide			(optional) if provided, will only perform calculations on slides
-                                        that have a given minimum number of tiles
-        num_tiles					(optional) total number of tiles across dataset, used for progress bar.
+        model               Keras model to evaluate
+        dataset             TFRecord dataset which include three items: raw image data, labels, and slide names.
+        annotations         Dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
+        model_type          'linear' or 'categorical'
+        data_dir            Directory in which to save performance metrics and graphs
+        label               (optional) label with which to annotation saved files and graphs
+        manifest            (optional) manifest as provided by Dataset, used to filter slides
+                                that do not have minimum number of tiles
+        min_tiles_per_slide (optional) if provided, will only perform calculations on slides
+                                that have a given minimum number of tiles
+        num_tiles           (optional) total number of tiles across dataset, used for progress bar.
 
     Returns:
         auc, r_squared, c_index
@@ -1401,20 +1401,20 @@ def permutation_feature_importance(model,
         inputs, and permute to find relative feature performance.
 
     Args:
-        model						Keras model to evaluate
-        dataset_with_slidenames		TFRecord dataset which include three items: raw image data, labels, and slide names.
-        annotations					dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
-        model_type					'linear' or 'categorical'
-        data_dir					directory in which to save performance metrics and graphs
-        label						(optional) label with which to annotate saved files and graphs
-        manifest					(optional) manifest as provided by Dataset, used to filter slides
+        model                       Keras model to evaluate
+        dataset_with_slidenames     TFRecord dataset which include three items: raw image data, labels, and slide names.
+        annotations                 Dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
+        model_type                  'linear' or 'categorical'
+        data_dir                    Directory in which to save performance metrics and graphs
+        label                       (optional) label with which to annotate saved files and graphs
+        manifest                    (optional) manifest as provided by Dataset, used to filter slides
                                         that do not have minimum number of tiles
-        min_tiles_per_slide			(optional) if provided, will only perform calculations on slides
+        min_tiles_per_slide         (optional) if provided, will only perform calculations on slides
                                         that have a given minimum number of tiles
-        num_tiles					(optional) total number of tiles across dataset, used for progress bar.
-        feature_names				Names for each of the clinical input features.
-        feature_sizes				Sizes for each of the clinical input features.
-        drop_images					Bool. If True, will exclude images from model (making predictions from clinical features alone)
+        num_tiles                   (optional) total number of tiles across dataset, used for progress bar.
+        feature_names               Names for each of the clinical input features.
+        feature_sizes               Sizes for each of the clinical input features.
+        drop_images                 Bool. If True, will exclude images from model (making predictions from clinical features alone)
 
     Returns:
         Dictiory of AUCs with keys 'tile', 'slide', and 'patient'
@@ -1453,7 +1453,7 @@ def permutation_feature_importance(model,
         events = []
 
     # For all tiles, calculate the intermediate layer (pre-hidden layer) activations,
-    # 	and if a CPH model is being used, include time-to-event data
+    #     and if a CPH model is being used, include time-to-event data
     for i, batch in enumerate(dataset_with_slidenames):
         if pb: pb.increase_bar_value(detected_batch_size)
         elif log.getEffectiveLevel() <= 20:
@@ -1479,9 +1479,9 @@ def permutation_feature_importance(model,
         sys.stdout.flush()
 
     # Generate baseline model predictions from hidden layers,
-    # 	Using the pre-hidden layer activations generated just above.
-    #	These baseline predictions should be identical to running
-    # 	the complete model all at once.
+    #     Using the pre-hidden layer activations generated just above.
+    #    These baseline predictions should be identical to running
+    #     the complete model all at once.
     if model_type == 'cph':
         y_pred = predict_from_layer(model, pre_hl, input_layer_name='hidden_0', ouput_layer_index=-1)
         y_pred = np.concatenate((y_pred, events), axis = 1)
@@ -1489,7 +1489,7 @@ def permutation_feature_importance(model,
         y_pred = predict_from_layer(model, pre_hl, input_layer_name='hidden_0')
 
     # Generate the AUC, R-squared, and C-index metrics
-    # 	From the generated baseline predictions.
+    #     From the generated baseline predictions.
     base_auc, base_r_squared, base_c_index = metrics_from_predictions(y_true=y_true,
                                                                         y_pred=y_pred,
                                                                       tile_to_slides=tile_to_slides,

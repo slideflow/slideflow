@@ -47,12 +47,12 @@ class ModelActivationsInterface:
         '''Initializer.
 
         Args:
-            path:			Path to saved Slideflow Keras model
-            model_format:	Either slideflow.model.MODEL_FORMAT_CURRENT or _LEGACY.
+            path:           Path to saved Slideflow Keras model
+            model_format:   Either slideflow.model.MODEL_FORMAT_CURRENT or _LEGACY.
                                 Indicates how the saved model should be processed,
                                 as older versions of Slideflow had models constructed differently,
                                 with differing naming of Keras layers.
-            layers:			Layers from which to generate activations.
+            layers:         Layers from which to generate activations.
                                 The post-convolution activation layer is accessed via 'postconv'
         '''
         if not model_format: model_format = MODEL_FORMAT_CURRENT
@@ -168,7 +168,7 @@ class ModelActivationsInterface:
 class HyperParameters:
     '''Object to supervise construction of a set of hyperparameters for Slideflow models.'''
     _OptDict = {
-        'Adam':	tf.keras.optimizers.Adam,
+        'Adam':    tf.keras.optimizers.Adam,
         'SGD': tf.keras.optimizers.SGD,
         'RMSprop': tf.keras.optimizers.RMSprop,
         'Adagrad': tf.keras.optimizers.Adagrad,
@@ -387,16 +387,16 @@ class SlideflowModel:
         '''Model initializer.
 
         Args:
-            data_directory:			Location where event logs and checkpoints will be written
-            image_size:				Int, width/height of input image in pixels.
-            slide_annotations:		Dictionary mapping slide names to both patient names and outcome labels
-            train_tfrecords:		List of tfrecord paths for training
-            validation_tfrecords:	List of tfrecord paths for validation
-            manifest:				Manifest dictionary mapping TFRecords to number of tiles
-            mixed_precision:		Bool, if True, will use FP16 mixed precision (rather than FP32)
-            model_type:				Type of model outcome label, either 'categorical' or 'linear'
-            normalizer:				Tile image normalization to perform in real-time during training
-            normalizer_source:		Source image for normalization if being performed in real-time
+            data_directory:         Location where event logs and checkpoints will be written
+            image_size:             Int, width/height of input image in pixels.
+            slide_annotations:      Dictionary mapping slide names to both patient names and outcome labels
+            train_tfrecords:        List of tfrecord paths for training
+            validation_tfrecords:   List of tfrecord paths for validation
+            manifest:               Manifest dictionary mapping TFRecords to number of tiles
+            mixed_precision:        Bool, if True, will use FP16 mixed precision (rather than FP32)
+            model_type:             Type of model outcome label, either 'categorical' or 'linear'
+            normalizer:             Tile image normalization to perform in real-time during training
+            normalizer_source:      Source image for normalization if being performed in real-time
         '''
         self.DATA_DIR = data_directory
         self.MANIFEST = manifest
@@ -498,9 +498,9 @@ class SlideflowModel:
         ''' Assembles base model, using pretraining (imagenet) or the base layers of a supplied model.
 
         Args:
-            hp:			HyperParameters object
-            pretrain:	Either 'imagenet' or path to model to use as pretraining
-            checkpoint:	Path to checkpoint from which to resume model training
+            hp:            HyperParameters object
+            pretrain:    Either 'imagenet' or path to model to use as pretraining
+            checkpoint:    Path to checkpoint from which to resume model training
         '''
         if self.mixed_precision:
             log.debug('Training with mixed precision')
@@ -560,7 +560,7 @@ class SlideflowModel:
                 layer.trainable = False
 
         # Create sequential tile model:
-        # 	tile image --> convolutions --> pooling/flattening --> hidden layers ---> prelogits --> softmax/logits
+        #     tile image --> convolutions --> pooling/flattening --> hidden layers ---> prelogits --> softmax/logits
         #                             additional slide input --/
 
         # This is an identity layer that simply returns the last layer, allowing us to name and access this layer later
@@ -668,7 +668,7 @@ class SlideflowModel:
         '''Compiles keras model.
 
         Args:
-            hp		Hyperparameter object.
+            hp        Hyperparameter object.
         '''
 
         if self.MODEL_TYPE == 'cph':
@@ -703,12 +703,12 @@ class SlideflowModel:
         #def rna_seq_lookup(s): return self.RNA_SEQ_TABLE[s.numpy().decode('utf-8')]
 
         #label = tf.py_function(func=rna_seq_lookup,
-        #						inp=[slide],
-        #						Tout=tf.float32)
+        #                        inp=[slide],
+        #                        Tout=tf.float32)
         # ====================
 
         # Add additional non-image feature inputs if indicated,
-        # 	excluding the event feature used for CPH models
+        #     excluding the event feature used for CPH models
         if self.NUM_SLIDE_FEATURES:
             # If CPH model is used, time-to-event data must be added as a separate feature
             if self.MODEL_TYPE == 'cph':
@@ -760,16 +760,16 @@ class SlideflowModel:
         '''Evaluate model.
 
         Args:
-            tfrecords:				List of TFrecords paths to load for evaluation.
-            hp:						HyperParameters object
-            model:					Optional; Tensorflow model to load for evaluation.
-                                        If None, will build using hyperparameters.
-            model_type:				Either linear or categorical.
-            checkpoint:				Path to cp.cpkt checkpoint. If provided, will update model with checkpoint weights.
-            batch_size:				Evaluation batch size.
-            max_tiles_per_slide:	If provided, will select only up to this maximum number of tiles from each slide.
-            min_tiles_per_slide:	If provided, will only evaluate slides with a given minimum number of tiles.
-            permutation_importance:	If true, will run permutation feature importance to define relative benefit
+            tfrecords:              List of TFrecords paths to load for evaluation.
+            hp:                     HyperParameters object
+            model:                  Optional; Tensorflow model to load for evaluation.
+                                    If None, will build using hyperparameters.
+            model_type:             Either linear or categorical.
+            checkpoint:             Path to cp.cpkt checkpoint. If provided, will update model with checkpoint weights.
+            batch_size:             Evaluation batch size.
+            max_tiles_per_slide:    If provided, will select only up to this maximum number of tiles from each slide.
+            min_tiles_per_slide:    If provided, will only evaluate slides with a given minimum number of tiles.
+            permutation_importance: If true, will run permutation feature importance to define relative benefit
                                         of histology and each clinical slide-level feature input, if provided.
 
         Returns:
@@ -859,7 +859,7 @@ class SlideflowModel:
         for m in val_metrics:
             log.info(f'{m}: {val_metrics[m]:.4f}')
 
-        results_dict = 	{ 'eval': val_metrics }
+        results_dict =     { 'eval': val_metrics }
 
         if model_type == 'categorical':
             results_dict['eval'].update({
@@ -907,20 +907,20 @@ class SlideflowModel:
         '''Train the model.
 
         Args:
-            hp:						HyperParameters object
-            pretrain:				Either None, 'imagenet' or path to Tensorflow model for pretrained weights
-            resume_training:		If True, will attempt to resume previously aborted training
-            checkpoint:				Path to cp.cpkt checkpoint file. If provided, will load checkpoint weights
-            log_frequency:			How frequent to update Tensorboard logs
-            validate_on_batch:		Validation will be performed every X batches
-            val_batch_size:			Batch size to use during validation
-            validation_steps:		Number of batches to use for each instance of validation
-            max_tiles_per_slide:	If provided, will select only up to this maximum number of tiles from each slide
-            min_tiles_per_slide:	If provided, will only evaluate slides with a given minimum number of tiles
-            starting_epoch:			Starts training at the specified epoch
-            ema_observations:		Number of observations over which to perform exponential moving average smoothing
-            ema_smoothing:			Exponential average smoothing value
-            steps_per_epoch_override:	If provided, will manually set the number of steps per epoch.
+            hp:                         HyperParameters object
+            pretrain:                   Either None, 'imagenet' or path to Tensorflow model for pretrained weights
+            resume_training:            If True, will attempt to resume previously aborted training
+            checkpoint:                 Path to cp.cpkt checkpoint file. If provided, will load checkpoint weights
+            log_frequency:              How frequent to update Tensorboard logs
+            validate_on_batch:          Validation will be performed every X batches
+            val_batch_size:             Batch size to use during validation
+            validation_steps:           Number of batches to use for each instance of validation
+            max_tiles_per_slide:        If provided, will select only up to this maximum number of tiles from each slide
+            min_tiles_per_slide:        If provided, will only evaluate slides with a given minimum number of tiles
+            starting_epoch:             Starts training at the specified epoch
+            ema_observations:           Number of observations over which to perform exponential moving average smoothing
+            ema_smoothing:              Exponential average smoothing value
+            steps_per_epoch_override:   If provided, will manually set the number of steps per epoch.
 
         Returns:
             Results dictionary, Keras history object'''

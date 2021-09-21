@@ -16,10 +16,10 @@ BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
 NO_BALANCE = 'NO_BALANCE'
 
-FEATURE_DESCRIPTION = {'slide':    	db.FixedLenFeature([], db.string),
-                       'image_raw':	db.FixedLenFeature([], db.string),
-                       'loc_x':		db.FixedLenFeature([], db.int64),
-                       'loc_y':		db.FixedLenFeature([], db.int64)}
+FEATURE_DESCRIPTION = {'slide':        db.FixedLenFeature([], db.string),
+                       'image_raw':    db.FixedLenFeature([], db.string),
+                       'loc_x':        db.FixedLenFeature([], db.int64),
+                       'loc_y':        db.FixedLenFeature([], db.int64)}
 
 class TFRecordsError(Exception):
     pass
@@ -115,16 +115,16 @@ def interleave_tfrecords(tfrecords,
     Requires manifest for balancing. Assumes TFRecord files are named by slide.
 
     Args:
-        tfrecords:				Array of paths to TFRecord files
-        batch_size:				Batch size
-        balance:				Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,
-                                    BALANCE_BY_PATIENT, and NO_BALANCE. If finite option is used, will drop
-                                    tiles in order to maintain proportions across the interleaved dataset.
-        augment:					Whether to use data augmentation (random flip/rotate)
-        finite:					Whether create finite or infinite datasets. WARNING: If finite option is
-                                    used with balancing, some tiles will be skipped.
-        max_tiles:				Maximum number of tiles to use per slide.
-        min_tiles:				Minimum number of tiles that each slide must have to be included.
+        tfrecords:      Array of paths to TFRecord files
+        batch_size:     Batch size
+        balance:        Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,
+                            BALANCE_BY_PATIENT, and NO_BALANCE. If finite option is used, will drop
+                            tiles in order to maintain proportions across the interleaved dataset.
+        augment:        Whether to use data augmentation (random flip/rotate)
+        finite:         Whether create finite or infinite datasets. WARNING: If finite option is
+                            used with balancing, some tiles will be skipped.
+        max_tiles:      Maximum number of tiles to use per slide.
+        min_tiles:      Minimum number of tiles that each slide must have to be included.
     '''
     log.debug(f'Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min={min_tiles}')
     datasets, datasets_categories, dataset_filenames, num_tiles = [], [], [], []
@@ -177,7 +177,7 @@ def interleave_tfrecords(tfrecords,
                 continue
 
             # Assign category by outcome if this is a categorical model,
-            #	Merging category names if there are multiple outcomes
+            #    Merging category names if there are multiple outcomes
             #   (balancing across all combinations of outcome categories equally)
             # Otherwise, consider all slides from the same category (effectively skipping balancing).
             #   Appropriate for linear models.

@@ -67,22 +67,22 @@ class ActivationsVisualizer:
         '''Calculates activations from model.
 
         Args:
-            model:					Path to model from which to calculate activations
-            tfrecords:				List of tfrecords paths
-            export_dir:				Export directory in which to save cache files and output files
-            image_size:				Int, width/height of input images in pixels
-            annotations:			Path to CSV file containing slide annotations
-            outcome_label_headers:	String, name of outcome header in annotations file,
+            model:                  Path to model from which to calculate activations
+            tfrecords:              List of tfrecords paths
+            export_dir:             Export directory in which to save cache files and output files
+            image_size:             Int, width/height of input images in pixels
+            annotations:            Path to CSV file containing slide annotations
+            outcome_label_headers:  String, name of outcome header in annotations file,
                                         used to compare activations between categories
-            focus_nodes:			List of int, nodes on which to focus when generating cross-category statistics
-            normalizer:				String, which real-time normalization to use on images taken from TFRecords
-            normalizer_source:		String, path to image to use as source for real-time normalization
-            cache:		            File in which to store activations PKL cache
-            batch_size:				Batch size to use during activations calculations
-            activations_export:		Filename for CSV export of activations
-            max_tiles_per_slide:	Maximum number of tiles from which to generate activations for each slide
-            min_tiles_per_slide:	If provided, will only evaluate slides with a given minimum number of tiles.
-            manifest:				Optional, dict mapping tfrecords to number of tiles contained.
+            focus_nodes:            List of int, nodes on which to focus when generating cross-category statistics
+            normalizer:             String, which real-time normalization to use on images taken from TFRecords
+            normalizer_source:      String, path to image to use as source for real-time normalization
+            cache:                  File in which to store activations PKL cache
+            batch_size:             Batch size to use during activations calculations
+            activations_export:     Filename for CSV export of activations
+            max_tiles_per_slide:    Maximum number of tiles from which to generate activations for each slide
+            min_tiles_per_slide:    If provided, will only evaluate slides with a given minimum number of tiles.
+            manifest:               Optional, dict mapping tfrecords to number of tiles contained.
                                         Used for progress bars and min_tiles_per_slide.
             layers:                 Names of layers from the model from which to calculate activations.
             include_logits:         Bool. If true, will also calculate and store logits.
@@ -132,7 +132,7 @@ class ActivationsVisualizer:
 
                 self.slide_node_dict, self.slide_logits_dict, self.slide_loc_dict = pickle.load(pt_pkl_file)
                 first_slide = list(self.slide_node_dict.keys())[0]
-                logits = 	  list(self.slide_logits_dict[first_slide].keys())
+                logits =      list(self.slide_logits_dict[first_slide].keys())
                 self.nodes =  list(self.slide_node_dict[first_slide].keys())
                 if max_tiles_per_slide:
                     log.info(f'Filtering activations to maximum {max_tiles_per_slide} tiles per slide')
@@ -196,14 +196,14 @@ class ActivationsVisualizer:
         '''Internal function to exports statistics (ANOVA p-values and slide-level averages) to CSV.
 
         Args:
-            sorted_nodes:		List of node IDs (int) sorted in order of significance.
-            slide_node_dict:	Dict mapping slides to dict of nodes mapping to slide-level values.
+            sorted_nodes:       List of node IDs (int) sorted in order of significance.
+            slide_node_dict:    Dict mapping slides to dict of nodes mapping to slide-level values.
                                     Slide-level node values could be mean, median, thresholded, or other.
-            filename:			Filename
-            tile_stats:			Dictionary mapping nodes to a dict of tile-level stats
+            filename:           Filename
+            tile_stats:         Dictionary mapping nodes to a dict of tile-level stats
                                     containing 'p' (ANOVA P-value) and 'f' (ANOVA F-value) for each node
                                     As calculated elsewhere by comparing node activations between categories
-            slide_stats:		Dictionary mapping nodes to a dict of slide-level stats
+            slide_stats:        Dictionary mapping nodes to a dict of slide-level stats
                                     containing 'p' (ANOVA P-value), 'f' (ANOVA F-value),
                                     and 'num_above_threshold' for each node,
                                     as calculated elsewhere by comparing node activations between categories
@@ -261,13 +261,13 @@ class ActivationsVisualizer:
         which can be used to create a TFRecordMap.
 
         Args:
-            x:			Int, identifies the outcome category id for which predictions will be mapped to the X-axis
-            y:			Int, identifies the outcome category id for which predictions will be mapped to the Y-axis
+            x:          Int, identifies the outcome category id for which predictions will be mapped to the X-axis
+            y:          Int, identifies the outcome category id for which predictions will be mapped to the Y-axis
 
         Returns:
-            mapped_x:	List of x-axis coordinates (predictions for the category 'x')
-            mapped_y:	List of y-axis coordinates (predictions for the category 'y')
-            umap_meta:	List of dictionaries containing tile-level metadata (used for TFRecordMap)
+            mapped_x:   List of x-axis coordinates (predictions for the category 'x')
+            mapped_y:   List of y-axis coordinates (predictions for the category 'y')
+            umap_meta:  List of dictionaries containing tile-level metadata (used for TFRecordMap)
         '''
         umap_x, umap_y, umap_meta = [], [], []
         for slide in self.slides:
@@ -305,14 +305,14 @@ class ActivationsVisualizer:
         '''Returns slide-level predictions assuming the model is predicting a linear outcome.
 
         Returns:
-            dict:		Dictionary mapping slide names to final slide-level predictions
+            dict:       Dictionary mapping slide names to final slide-level predictions
                             for each outcome cateogry, calculated as the average predicted value
                             in the outcome category for all tiles in the slide.
                             Example:
                                 { 'slide1': {
-                                    0: 0.24,	# Outcome category 0
-                                    1: 0.15,	# Outcome category 1
-                                    2: 0.61 }}	# Outcome category 2
+                                    0: 0.24,    # Outcome category 0
+                                    1: 0.15,    # Outcome category 1
+                                    2: 0.61 }}    # Outcome category 2
         '''
         first_slide = list(self.slide_logits_dict.keys())[0]
         outcome_labels = sorted(list(self.slide_logits_dict[first_slide].keys()))
@@ -324,13 +324,13 @@ class ActivationsVisualizer:
         '''Returns slide-level predictions assuming the model is predicting a categorical outcome.
 
         Args:
-            prediction_filter:	(optional) List of int. If provided, will restrict predictions to only these
+            prediction_filter:  (optional) List of int. If provided, will restrict predictions to only these
                                     categories, with final prediction being based based on highest logit
                                     among these categories.
 
         Returns:
-            slide_predictions:	Dictionary mapping slide names to final slide-level predictions.
-            slide_percentages:	This is a dictionary mapping slide names to a dictionary for each category,
+            slide_predictions:  Dictionary mapping slide names to final slide-level predictions.
+            slide_percentages:  This is a dictionary mapping slide names to a dictionary for each category,
                                     which maps the category id to the percent of tiles in the slide
                                     predicted to be this category.
                                     Example:
@@ -363,8 +363,8 @@ class ActivationsVisualizer:
         '''Loads annotations from a given file with the specified outcome header.
 
         Args:
-            annotations:				Path to CSV annotations file.
-            outcome_label_headers:		String, name of column header from which to read outcome variables.
+            annotations:                Path to CSV annotations file.
+            outcome_label_headers:      String, name of column header from which to read outcome variables.
         '''
         with open(annotations, 'r') as ann_file:
             ann_reader = csv.reader(ann_file)
@@ -396,13 +396,13 @@ class ActivationsVisualizer:
         Requires annotations to have been loaded with load_annotations()
 
         Args:
-            node:		Int, id of node.
+            node:                   Int, id of node.
 
         Returns:
             List of node activations separated by category.
                 Example:
                 [[0.1, 0.2, 0.7, 0.1, 0.0], # Activations for node 'N' across all tiles from slides in category 1
-                 [0.8, 0.2, 0.1]] 			# Activations for node 'N' across all tiles from slides in category 2
+                 [0.8, 0.2, 0.1]]             # Activations for node 'N' across all tiles from slides in category 2
         '''
         if not self.categories:
             log.warning('Unable to calculate activations by category. Please load annotations with load_annotations()')
@@ -441,12 +441,12 @@ class ActivationsVisualizer:
         '''Finds neighboring tiles for a given ActivationsVisualizer and list of slides.
 
         Args:
-            neighbor_AV:		ActivationsVisualizer, will be used to look for neighbors
-            neighbor_slides:	Either a single slide name or a list of slide names.
+            neighbor_AV:        ActivationsVisualizer, will be used to look for neighbors
+            neighbor_slides:    Either a single slide name or a list of slide names.
                                     Corresponds to slides in the provided neighboring AV.
                                     Will look for neighbors to all tiles in these slides.
-            n_neighbors:		Number of neighbors to find for each tile
-            algorithm:			NearestNeighbors algorithm, either 'kd_tree', 'ball_tree', or 'brute'
+            n_neighbors:        Number of neighbors to find for each tile
+            algorithm:          NearestNeighbors algorithm, either 'kd_tree', 'ball_tree', or 'brute'
 
         Returns:
             Dict mapping slide names (from self.slides) to tile indices for tiles
@@ -505,9 +505,9 @@ class ActivationsVisualizer:
         '''Calculates activations from a given model.
 
         Args:
-            model:		Path to Tensorflow model from which to calculate final layer activations.
-            batch_size:	Batch size for model predictions.
-            export:		String (default: None). If provided, will export CSV of activations with this filename.'''
+            model:              Path to Tensorflow model from which to calculate final layer activations.
+            batch_size:         Batch size for model predictions.
+            export:             String (default: None). If provided, will export CSV of activations with this filename.'''
 
         # Rename tfrecord_array to tfrecords
         log.info(f'Calculating activations from {sfutil.green(model)}, max {max_tiles_per_slide} tiles per slide.')
@@ -706,8 +706,8 @@ class ActivationsVisualizer:
         '''Exports calculated activations to csv.
 
         Args:
-            filename:	Path to CSV file for export.
-            nodes:		(optional) List of int. Activations of these nodes will be exported.
+            filename:   Path to CSV file for export.
+            nodes:      (optional) List of int. Activations of these nodes will be exported.
                             If None, activations for all nodes will be exported.
         '''
         with open(filename, 'w') as outfile:
@@ -757,8 +757,8 @@ class ActivationsVisualizer:
             exporting to CSV if desired.
 
         Args:
-            filename:		Path to CSV file for export.
-            node_method:	Either 'avg' (default) or 'threshold'. If avg, slide-level node data is calculated
+            filename:       Path to CSV file for export.
+            node_method:    Either 'avg' (default) or 'threshold'. If avg, slide-level node data is calculated
                                 by averaging node activations across all tiles. If threshold, slide-level node data
                                 is calculated by counting the number of tiles with node activations > threshold
                                 and dividing by the total number of tiles.
@@ -863,7 +863,7 @@ class ActivationsVisualizer:
         '''Generates box plots comparing nodal activations at the slide-level and tile-level.
 
         Args:
-            export_folder:	(optional) Path to directory in which to save box plots.
+            export_folder:    (optional) Path to directory in which to save box plots.
                                 If None, will save boxplots to STATS_ROOT directory.
         '''
 
@@ -911,9 +911,9 @@ class ActivationsVisualizer:
             Duplicate image tiles will be saved for each node, organized into subfolders named according to node id.
 
         Args:
-            nodes:			List of int, nodes to evaluate
-            export_folder:	Path to folder in which to save examples tiles
-            tile_filter:	(optional) Dict mapping slide names to tile indices.
+            nodes:          List of int, nodes to evaluate
+            export_folder:  Path to folder in which to save examples tiles
+            tile_filter:    (optional) Dict mapping slide names to tile indices.
                                 If provided, will only save image tiles from this list.
                                 Example:
                                 {'slide1': [0, 16, 200]}
@@ -955,9 +955,9 @@ class ActivationsVisualizer:
         activations in these nodes, restricted to the set of slides designated.
 
         Args:
-            nodes:			List of int. Nodes with which to perform this function.
-            slides:			List of slide names. Will load tile images from these slides.
-            export_folder:	Path to directory in which to save image tiles.
+            nodes:              List of int. Nodes with which to perform this function.
+            slides:             List of slide names. Will load tile images from these slides.
+            export_folder:      Path to directory in which to save image tiles.
         '''
         if not export_folder: export_folder = join(self.export_dir, 'example_tiles')
         for node in nodes:
@@ -1005,12 +1005,12 @@ class TileVisualizer:
         '''Object initializer.
 
         Args:
-            model:				Path to Tensorflow model
-            node:				Int, activation node to analyze
-            tile_px:			Int, width/height of image tiles
-            mask_width:			Width of mask to convolutionally apply. Defaults to 1/6 of tile_px
-            normalizer:			String, normalizer to apply to tiles in real-time.
-            normalizer_source:	Path to normalizer source image.
+            model:              Path to Tensorflow model
+            node:               Int, activation node to analyze
+            tile_px:            Int, width/height of image tiles
+            mask_width:         Width of mask to convolutionally apply. Defaults to 1/6 of tile_px
+            normalizer:         String, normalizer to apply to tiles in real-time.
+            normalizer_source:  Path to normalizer source image.
         '''
         self.NODE = node
         self.IMAGE_SHAPE = (tile_px, tile_px, 3)
@@ -1079,14 +1079,14 @@ class TileVisualizer:
         '''Visualizes tiles, either interactively or saving to directory.
 
         Args:
-            tfrecord:			If provided, will visualize tile from the designated tfrecord.
+            tfrecord:           If provided, will visualize tile from the designated tfrecord.
                                     Must supply either a tfrecord and index or image_jpg
-            index:				Index of tile to visualize within tfrecord, if provided
-            image_jpeg:			JPG image to perform analysis on
-            export_folder:		Folder in which to save heatmap visualization
-            zoomed:				Bool. If true, will crop image to space containing heatmap
+            index:              Index of tile to visualize within tfrecord, if provided
+            image_jpeg:         JPG image to perform analysis on
+            export_folder:      Folder in which to save heatmap visualization
+            zoomed:             Bool. If true, will crop image to space containing heatmap
                                     (otherwise a small border will be seen)
-            interactive:		If true, will display as interactive map using matplotlib
+            interactive:        If true, will display as interactive map using matplotlib
         '''
         if not (image_jpg or tfrecord):
             raise ActivationsError('Must supply either tfrecord or image_jpg')
@@ -1189,21 +1189,21 @@ class Heatmap:
         '''Convolutes across a whole slide, calculating logits and saving predictions internally for later use.
 
         Args:
-            slide_path:			Path to slide
-            model_path:			Path to Tensorflow model
-            tile_px:			Size of image tiles, in pixels
-            tile_um:			Size of image tiles, in microns
-            stride_div:			Divisor for stride when convoluting across slide
-            roi_dir:			Directory in which slide ROI is contained
-            roi_list:			If a roi_dir is not supplied, a list of paths to ROI CSVs can be provided
-            roi_method:			Either 'inside', 'outside', or 'ignore'.
+            slide_path:         Path to slide
+            model_path:         Path to Tensorflow model
+            tile_px:            Size of image tiles, in pixels
+            tile_um:            Size of image tiles, in microns
+            stride_div:         Divisor for stride when convoluting across slide
+            roi_dir:            Directory in which slide ROI is contained
+            roi_list:           If a roi_dir is not supplied, a list of paths to ROI CSVs can be provided
+            roi_method:         Either 'inside', 'outside', or 'ignore'.
                                     If inside, tiles will be extracted inside ROI region
                                     If outside, tiles will be extracted outside ROI region
-            buffer:				Either 'vmtouch' or path to directory to use for buffering slides
+            buffer:             Either 'vmtouch' or path to directory to use for buffering slides
                                     Significantly improves performance for slides on HDDs
-            normalizer:			Normalization strategy to use on image tiles
-            normalizer_source:	Path to normalizer source image
-            batch_size:			Batch size when calculating predictions
+            normalizer:         Normalization strategy to use on image tiles
+            normalizer_source:  Path to normalizer source image
+            batch_size:         Batch size when calculating predictions
         '''
         from slideflow.slide import WSI
 
@@ -1274,8 +1274,8 @@ class Heatmap:
             tile_dataset = tile_dataset.prefetch(8)
 
         # Iterate through generator to calculate logits +/- final layer activations for all tiles
-        logits_arr = []		# Logits (predictions)
-        postconv_arr = []	# Post-convolutional layer (post-convolutional activations)
+        logits_arr = []        # Logits (predictions)
+        postconv_arr = []    # Post-convolutional layer (post-convolutional activations)
         for batch_images in tile_dataset:
             postconv, logits = self.model.predict(batch_images)
             logits_arr += [logits]
@@ -1350,9 +1350,9 @@ class Heatmap:
         '''Interactively displays calculated logits as a heatmap.
 
         Args:
-            show_roi:			Bool, whether to overlay ROIs onto heatmap image
-            interpolation:		Interpolation strategy to use for smoothing heatmap
-            logit_cmap:			Either function or a dictionary use to create heatmap colormap.
+            show_roi:           Bool, whether to overlay ROIs onto heatmap image
+            interpolation:      Interpolation strategy to use for smoothing heatmap
+            logit_cmap:         Either function or a dictionary use to create heatmap colormap.
                                     Each image tile will generate a list of predictions of length O,
                                     where O is the number of outcome categories.
                                     If logit_cmap is a function, then the logit prediction list will be passed
@@ -1414,9 +1414,9 @@ class Heatmap:
         '''Saves calculated logits as heatmap overlays.
 
         Args:
-            show_roi:			Bool, whether to overlay ROIs onto heatmap image
-            interpolation:		Interpolation strategy to use for smoothing heatmap
-            logit_cmap:			Either function or a dictionary use to create heatmap colormap.
+            show_roi:           Bool, whether to overlay ROIs onto heatmap image
+            interpolation:      Interpolation strategy to use for smoothing heatmap
+            logit_cmap:         Either function or a dictionary use to create heatmap colormap.
                                     Each image tile will generate a list of predictions of length O,
                                     where O is the number of outcome categories.
                                     If logit_cmap is a function, then the logit prediction list will be passed
