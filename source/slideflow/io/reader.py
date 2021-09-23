@@ -3,14 +3,13 @@ import imghdr
 import numpy as np
 import random
 import pyspng
+import slideflow as sf
+import dareblopy as db
 
 from os import listdir
 from os.path import isfile, join
 from slideflow.util import log
 from PIL import Image
-
-import dareblopy as db
-import slideflow.util as sfutil
 
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
@@ -26,7 +25,7 @@ class TFRecordsError(Exception):
 
 def _get_images_by_dir(directory):
     files = [f for f in listdir(directory) if (isfile(join(directory, f))) and
-                (sfutil.path_to_ext(f) in ("jpg", "png"))]
+                (sf.util.path_to_ext(f) in ("jpg", "png"))]
     return files
 
 def _decode_image(img_string, img_type, standardize=False, normalizer=None, augment=False):
@@ -139,7 +138,7 @@ def interleave_tfrecords(tfrecords,
         label_parser = default_label_parser
 
     if slides is None:
-        slides = [sfutil.path_to_name(t) for t in tfrecords]
+        slides = [sf.util.path_to_name(t) for t in tfrecords]
 
     if tfrecords == []:
         raise TFRecordsError('No TFRecords found.')
@@ -154,9 +153,9 @@ def interleave_tfrecords(tfrecords,
     #  -------  Get Dataset Readers & Prepare Balancing -----------------------
 
     if manifest:
-        pb = sfutil.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
+        pb = sf.util.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
         for filename in tfrecords:
-            slide_name = sfutil.path_to_name(filename)
+            slide_name = sf.util.path_to_name(filename)
 
             if slide_name not in slides:
                 continue
@@ -165,7 +164,7 @@ def interleave_tfrecords(tfrecords,
             try:
                 tiles = manifest[filename]['total']
             except KeyError:
-                log.error(f'Manifest not finished, unable to find {sfutil.green(filename)}')
+                log.error(f'Manifest not finished, unable to find {sf.util.green(filename)}')
                 raise TFRecordsError(f'Manifest not finished, unable to find {filename}')
 
             # Ensure TFRecord has minimum number of tiles; otherwise, skip
@@ -196,7 +195,7 @@ def interleave_tfrecords(tfrecords,
 
             # Cap number of tiles to take from TFRecord at maximum specified
             if max_tiles and tiles > max_tiles:
-                log.info(f'Only taking maximum of {max_tiles} (of {tiles}) tiles from {sfutil.green(filename)}')
+                log.info(f'Only taking maximum of {max_tiles} (of {tiles}) tiles from {sf.util.green(filename)}')
                 tiles = max_tiles
 
             if category not in categories.keys():
@@ -256,9 +255,9 @@ def interleave_tfrecords(tfrecords,
             log.error(manifest_msg)
         else:
             log.warning(manifest_msg)
-        pb = sfutil.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
+        pb = sf.util.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
         for filename in tfrecords:
-            slide_name = sfutil.path_to_name(filename)
+            slide_name = sf.util.path_to_name(filename)
 
             if slide_name not in slides:
                 continue

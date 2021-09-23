@@ -18,13 +18,12 @@ warnings.filterwarnings('ignore')
 
 import numpy as np
 import tensorflow as tf
+import slideflow as sf
 
-from functools import partial
 from slideflow.util import log
 from slideflow.io.tfrecords import interleave_tfrecords
 from slideflow.model_utils import *
 
-import slideflow.util as sfutil
 from slideflow.util import StainNormalizer
 import slideflow.statistics as sfstats
 
@@ -59,6 +58,7 @@ class ModelActivationsInterface:
         if not isinstance(layers, list): layers = [layers]
         self.model_format = model_format
         self.path = path
+        self.hp = sf.util.get_model_hyperparameters(path)
         self.num_classes = 0
         self.num_features = 0
         self.duplicate_input = (model_format == MODEL_FORMAT_LEGACY)
@@ -413,6 +413,9 @@ class SlideflowModel:
         self.FEATURE_NAMES = feature_names
         self.OUTCOME_NAMES = outcome_names
         self.mixed_precision = mixed_precision
+        self.name = name
+
+        if not os.path.exists(data_directory): os.makedirs(data_directory)
 
         # Format outcome labels (ensures compatibility with single and multi-outcome models)
         outcome_labels = np.array([slide_annotations[slide]['outcome_label'] for slide in self.SLIDES])
@@ -449,10 +452,9 @@ class SlideflowModel:
                 raise ModelError("Unable to find slide-level input at 'input' key in slide_annotations")
             for slide in self.SLIDES:
                 if len(self.SLIDE_FEATURE_TABLE[slide]) != self.NUM_SLIDE_FEATURES:
-                    err_msg = 'Length of input for slide {slide} does not match feature_sizes'
-                    num_features = self.NUM_SLIDE_FEATURES
+                    err_msg = f'Length of input for slide {slide} does not match feature_sizes'
                     num_in_feature_table = len(self.SLIDE_FEATURE_TABLE[slide])
-                    raise ModelError(f'{err_msg};  expected {num_features}, got {num_in_feature_table}')
+                    raise ModelError(f'{err_msg};  expected {self.NUM_SLIDE_FEATURES}, got {num_in_feature_table}')
 
         # Normalization setup
         if normalizer: log.info(f'Using realtime {normalizer} normalization')
@@ -527,7 +529,7 @@ class SlideflowModel:
             raise ModelError('Model error - CPH models must include event input')
 
         # Load pretrained model if applicable
-        if pretrain: log.info(f'Using pretraining from {sfutil.green(pretrain)}')
+        if pretrain: log.info(f'Using pretraining from {sf.util.green(pretrain)}')
         if pretrain and pretrain!='imagenet':
             pretrained_model = tf.keras.models.load_model(pretrain)
             try:
@@ -656,7 +658,7 @@ class SlideflowModel:
         model = tf.keras.Model(inputs=model_inputs, outputs=outputs)
 
         if checkpoint:
-            log.info(f'Loading checkpoint weights from {sfutil.green(checkpoint)}')
+            log.info(f'Loading checkpoint weights from {sf.util.green(checkpoint)}')
             model.load_weights(checkpoint)
 
         # Print model summary
@@ -882,7 +884,7 @@ class SlideflowModel:
                 'patient_r_squared': c_index['patient']
             })
 
-        sfutil.update_results_log(results_log, 'eval_model', results_dict)
+        sf.util.update_results_log(results_log, 'eval_model', results_dict)
 
         return val_metrics
 
@@ -893,7 +895,7 @@ class SlideflowModel:
               checkpoint=None,
               log_frequency=100,
               validate_on_batch=512,
-              val_batch_size=32,
+              validation_batch_size=32,
               validation_steps=200,
               max_tiles_per_slide=0,
               min_tiles_per_slide=0,
@@ -902,7 +904,7 @@ class SlideflowModel:
               ema_smoothing=2,
               steps_per_epoch_override=None,
               use_tensorboard=False,
-              multi_gpu=False,
+              multi_gpu=True,
               save_predictions=False,
               skip_metrics=False):
 
@@ -915,7 +917,7 @@ class SlideflowModel:
             checkpoint:                 Path to cp.cpkt checkpoint file. If provided, will load checkpoint weights
             log_frequency:              How frequent to update Tensorboard logs
             validate_on_batch:          Validation will be performed every X batches
-            val_batch_size:             Batch size to use during validation
+            validation_batch_size:      Batch size to use during validation
             validation_steps:           Number of batches to use for each instance of validation
             max_tiles_per_slide:        If provided, will select only up to this maximum number of tiles from each slide
             min_tiles_per_slide:        If provided, will only evaluate slides with a given minimum number of tiles
@@ -956,7 +958,7 @@ class SlideflowModel:
                 with tf.name_scope('input'):
                     interleave_results = interleave_tfrecords(self.VALIDATION_TFRECORDS,
                                                               image_size=self.IMAGE_SIZE,
-                                                              batch_size=val_batch_size,
+                                                              batch_size=validation_batch_size,
                                                               balance=hp.balanced_validation,
                                                               finite=True,
                                                               model_type=self.MODEL_TYPE,
@@ -971,7 +973,7 @@ class SlideflowModel:
                                                               slides=self.SLIDES)
                     validation_data, validation_data_with_slidenames, num_val_tiles = interleave_results
 
-                val_log_msg = '' if not validate_on_batch else f'every {sfutil.bold(str(validate_on_batch))} steps and '
+                val_log_msg = '' if not validate_on_batch else f'every {str(validate_on_batch)} steps and '
                 log.debug(f'Validation during training: {val_log_msg}at epoch end')
                 if validation_steps:
                     validation_data_for_training = validation_data.repeat()
@@ -1033,7 +1035,7 @@ class SlideflowModel:
                 if log.getEffectiveLevel() <= 20: print('\r\033[K', end='')
                 self.epoch_count += 1
                 if self.epoch_count in [e for e in hp.finetune_epochs]:
-                    model_name = self.name if self.name else 'trained_model'
+                    model_name = parent.name if parent.name else 'trained_model'
                     model_path = os.path.join(parent.DATA_DIR, f'{model_name}_epoch{self.epoch_count}')
                     self.model.save(model_path)
 
@@ -1046,7 +1048,7 @@ class SlideflowModel:
                     except:
                         log.warning('Unable to copy hyperparameters.json/slide_manifest.log files into model folder.')
 
-                    log.info(f'Trained model saved to {sfutil.green(model_path)}')
+                    log.info(f'Trained model saved to {sf.util.green(model_path)}')
                     if parent.VALIDATION_TFRECORDS and len(parent.VALIDATION_TFRECORDS):
                         self.evaluate_model(logs)
                 elif self.early_stop:
@@ -1075,12 +1077,12 @@ class SlideflowModel:
                     self.moving_average += [early_stop_value]
 
                     # Base logging message
-                    batch_msg = sfutil.blue(f'Batch {batch:<5}')
-                    loss_msg = f"{sfutil.green('loss')}: {logs['loss']:.3f}"
-                    val_loss_msg = f"{sfutil.purple('val_loss')}: {val_loss:.3f}"
+                    batch_msg = sf.util.blue(f'Batch {batch:<5}')
+                    loss_msg = f"{sf.util.green('loss')}: {logs['loss']:.3f}"
+                    val_loss_msg = f"{sf.util.purple('val_loss')}: {val_loss:.3f}"
                     if self.model_type == 'categorical':
-                        acc_msg = f"{sfutil.green('acc')}: {train_acc}"
-                        val_acc_msg = f"{sfutil.purple('val_acc')}: {val_acc}"
+                        acc_msg = f"{sf.util.green('acc')}: {train_acc}"
+                        val_acc_msg = f"{sf.util.purple('val_acc')}: {val_acc}"
                         log_message = f"{batch_msg} {loss_msg}, {acc_msg} | {val_loss_msg}, {val_acc_msg}"
                     else:
                         log_message = f"{batch_msg} {loss_msg} | {val_loss_msg}"
@@ -1159,7 +1161,7 @@ class SlideflowModel:
                     results['epochs'][f'epoch{epoch}']['c_index'] = c_index
 
                 epoch_results = results['epochs'][f'epoch{epoch}']
-                sfutil.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
+                sf.util.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
 
         callbacks = [history_callback, PredictionAndEvaluationCallback(), cp_callback]
         if use_tensorboard:
@@ -1168,7 +1170,7 @@ class SlideflowModel:
         with strategy.scope() if strategy is not None else no_scope():
             # Build or load model
             if resume_training:
-                log.info(f'Resuming training from {sfutil.green(resume_training)}')
+                log.info(f'Resuming training from {sf.util.green(resume_training)}')
                 self.model = tf.keras.models.load_model(resume_training)
             else:
                 self.model = self._build_model(hp,

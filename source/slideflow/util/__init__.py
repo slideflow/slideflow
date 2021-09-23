@@ -27,6 +27,9 @@ except:
     pass
 # ------
 
+# Set the backend
+os.environ['SF_BACKEND'] = 'tensorflow'
+
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif', 'jpg']
 SLIDE_ANNOTATIONS_TO_IGNORE = ['', ' ']
 LOGGING_PREFIXES = ['', ' + ', '    - ']
@@ -42,12 +45,13 @@ def bold(text):       return '\033[1m' + str(text) + '\033[0m'
 def underline(text):  return '\033[4m' + str(text) + '\033[0m'
 def purple(text):     return '\033[38;5;5m' + str(text) + '\033[0m'
 
-# ---------------------------------------------------------
-
 log = logging.getLogger('slideflow')
 log.setLevel(logging.INFO)
 
 class UserError(Exception):
+    pass
+
+class CPLEXError(Exception):
     pass
 
 class LogFormatter(logging.Formatter):
@@ -64,6 +68,16 @@ class LogFormatter(logging.Formatter):
         log_fmt = self.LEVEL_FORMATS[record.levelno]
         formatter = logging.Formatter(log_fmt, '%Y-%m-%d %H:%M:%S')
         return formatter.format(record)
+
+class FileFormatter(logging.Formatter):
+    MSG_FORMAT = "%(asctime)s [%(levelname)s] - %(message)s"
+    FORMAT_CHARS = ['\033[1m', '\033[2m', '\033[4m', '\033[91m', '\033[92m', '\033[93m', '\033[94m', '\033[38;5;5m', '\033[0m']
+    def format(self, record):
+        formatter = logging.Formatter(fmt=self.MSG_FORMAT, datefmt='%Y-%m-%d %H:%M:%S')
+        formatted = formatter.format(record)
+        for char in self.FORMAT_CHARS:
+            formatted = formatted.replace(char, '')
+        return formatted
 
 class TqdmLoggingHandler(logging.StreamHandler):
     """Avoid tqdm progress bar interruption by logger's output to console"""
@@ -145,6 +159,10 @@ class StainNormalizer:
         cv_image = self.n.transform(cv_image)
         cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
         return cv_image
+
+    def png_to_rgb(self, png_string):
+        '''Non-normalized compressed PNG string data -> normalized RGB numpy array'''
+        return self.jpeg_to_rgb(png_string) # It should auto-detect format
 
     def jpeg_to_jpeg(self, jpeg_string):
         '''Non-normalized compressed JPG string data -> normalized compressed JPG string data'''

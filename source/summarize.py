@@ -6,13 +6,12 @@ import pprint
 import hashlib
 import argparse
 
-import slideflow.util as sfutil
 import slideflow.statistics as sfstats
 
 from statistics import mean
 from os.path import join, exists, isdir, getmtime
 from slideflow.util import log, TCGA
-from slideflow.io import Dataset
+from slideflow.dataset import Dataset
 from tabulate import tabulate
 
 # Organization heirarchy:
@@ -56,7 +55,7 @@ class DatasetGroup:
                     log.error(f'Unable to load dataset "{dataset_name}" configuration')
                     return
                 description = "" if 'description' not in config[dataset_name] else f" ({config[dataset_name]['description']})"
-                datasets_string += [f"{sfutil.bold(dataset_name)}{description}"]
+                datasets_string += [f"{sf.util.bold(dataset_name)}{description}"]
         if len(self.outcomes):
             print(' and '.join(datasets_string))
         for outcome in self.outcomes:
@@ -205,7 +204,7 @@ class Subset:
 
                 models_by_kfold = group.get_models_by_kfold()
                 for e in group.epochs:
-                    used_k_str = [sfutil.purple('-')] * group.k_fold
+                    used_k_str = [sf.util.purple('-')] * group.k_fold
 
                     metrics_results = {}
                     for metric in metrics:
@@ -213,13 +212,13 @@ class Subset:
                             for label in self.outcome_labels.values():
                                 metric_label = f'{metric} ({label})'
                                 metrics_results.update({metric_label: {
-                                                                    'str': [sfutil.purple(' -  ')] * group.k_fold,
+                                                                    'str': [sf.util.purple(' -  ')] * group.k_fold,
                                                                     'val': []
                                                                 }
                                                     })
                         else:
                             metrics_results.update({metric: {
-                                                                    'str': [sfutil.purple(' -  ')] * group.k_fold,
+                                                                    'str': [sf.util.purple(' -  ')] * group.k_fold,
                                                                     'val': []
                                                                 }
                                                     })
@@ -255,13 +254,13 @@ class Subset:
                                     mean_metric = f'{mean(metrics_results[metric_label]["val"]):.2f}'
                                 else:
                                     mean_metric = '-'
-                                tabbed_results[metric_label] += [" / ".join(metrics_results[metric_label]['str']) + ' (' + sfutil.green(sfutil.bold(mean_metric)) + ')']
+                                tabbed_results[metric_label] += [" / ".join(metrics_results[metric_label]['str']) + ' (' + sf.util.green(sf.util.bold(mean_metric)) + ')']
                         else:
                             if len(metrics_results[metric]['val']):
                                 mean_metric = f'{mean(metrics_results[metric]["val"]):.2f}'
                             else:
                                 mean_metric = '-'
-                            tabbed_results[metric] += [" / ".join(metrics_results[metric]['str']) + ' (' + sfutil.green(sfutil.bold(mean_metric)) + ')']
+                            tabbed_results[metric] += [" / ".join(metrics_results[metric]['str']) + ' (' + sf.util.green(sf.util.bold(mean_metric)) + ')']
             else:
                 epochs = []
                 for model in group.models:
@@ -376,7 +375,7 @@ class ModelGroup:
                 #print(" | ".join([m.name for m in self.models]) + f" : [{label}] : {len(y_true_all[label])}")
                 outcome_str = "" if not self.subset else self.subset.outcome.string
                 sfstats.generate_combined_roc(y_true_all[label], y_pred_all[label], save_dir, labels=[f'K-fold {m.k_fold_i}' for m in self.models], name=f"Combined ROC [{outcome_str}-Group{self.id}-{label}-{epoch}]")
-                #print(f"Saved combined ROCs to {sfutil.green(save_dir)}")
+                #print(f"Saved combined ROCs to {sf.util.green(save_dir)}")
 
 class Model:
     def __init__(self, models_dir, name, project, interactive=True):
@@ -395,8 +394,8 @@ class Model:
                 self.hyperparameters = json.load(hp_file)
             if "model_type" not in self.hyperparameters:
                 self.hyperparameters.update({'model_type': 'categorical'})
-                sfutil.write_json(self.hyperparameters, join(self.dir, 'hyperparameters.json'))
-                log.info(f"Updated {sfutil.green(join(self.dir, 'hyperparameters.json'))} to specify model_type='categorical'")
+                sf.util.write_json(self.hyperparameters, join(self.dir, 'hyperparameters.json'))
+                log.info(f"Updated {sf.util.green(join(self.dir, 'hyperparameters.json'))} to specify model_type='categorical'")
             if "outcome_label_headers" not in self.hyperparameters:
                 if not interactive or not self.get_outcome_label_headers():
                     self.hyperparameters = None
@@ -458,34 +457,35 @@ class Model:
             outcome_label_headers += ["<skip>"]
         for i, outcome_label_header in enumerate(outcome_label_headers):
             print(f"{i+1}. {outcome_label_header}")
-        ohi = sfutil.choice_input(f"What are the outcome header(s) for model {self.name} in project {self.project.name}?\n  (respond with number(s), separated by commas if multiple) ", list(range(1, len(outcome_label_headers)+1)), multi_choice=True, input_type=int)
+        ohi = sf.util.choice_input(f"What are the outcome header(s) for model {self.name} in project {self.project.name}?\n  (respond with number(s), separated by commas if multiple) ", list(range(1, len(outcome_label_headers)+1)), multi_choice=True, input_type=int)
         oh = [outcome_label_headers[i-1] for i in ohi]
         if "<skip>" in oh:
             return False
         self.hyperparameters.update({'outcome_label_headers': oh})
-        sfutil.write_json(self.hyperparameters, join(self.dir, "hyperparameters.json"))
-        log.info(f"Updated {sfutil.green(join(self.dir, 'hyperparameters.json'))} with 'outcome_label_headers'={oh}")
+        sf.util.write_json(self.hyperparameters, join(self.dir, "hyperparameters.json"))
+        log.info(f"Updated {sf.util.green(join(self.dir, 'hyperparameters.json'))} with 'outcome_label_headers'={oh}")
         return True
 
     def get_outcomes(self):
-        log.info(f"Outcomes not found in model hyperparameter log ({sfutil.green(self.dir)}), attempting to automatically detect...")
+        log.info(f"Outcomes not found in model hyperparameter log ({sf.util.green(self.dir)}), attempting to automatically detect...")
         dataset = Dataset(config_file=self.project.settings['dataset_config'], sources=self.project.settings['datasets'])
         dataset.load_annotations(self.project.settings['annotations'])
-        dataset.apply_filters(filters=self.hyperparameters['filters'], filter_blank=self.hyperparameters['outcome_label_headers'])
+        dataset.filters=self.hyperparameters['filters']
+        dataset.filter_blank=self.hyperparameters['outcome_label_headers']
         try:
             _, unique_outcomes = dataset.get_labels_from_annotations(self.hyperparameters['outcome_label_headers'],
                                                                      use_float=(self.hyperparameters['model_type'] == 'linear'))
         except TypeError:
-            log.error(f"Unable to load results for model {sfutil.green(self.dir)}; model_type is {self.hyperparameters['model_type']} but outcomes in annotations file cannot be converted into float")
+            log.error(f"Unable to load results for model {sf.util.green(self.dir)}; model_type is {self.hyperparameters['model_type']} but outcomes in annotations file cannot be converted into float")
             return False
         except IndexError:
             filters = self.hyperparameters['filters']
             annotations = self.project.settings['annotations']
-            log.error(f'Unable to load results for model {sfutil.green(self.dir)}; could not find all filters "{filters}" in the annotations file {annotations})')
+            log.error(f'Unable to load results for model {sf.util.green(self.dir)}; could not find all filters "{filters}" in the annotations file {annotations})')
             return False
         self.hyperparameters.update({"outcome_labels": None if self.hyperparameters['model_type'] != 'categorical' else dict(zip(range(len(unique_outcomes)), unique_outcomes))})
-        sfutil.write_json(self.hyperparameters, join(self.dir, "hyperparameters.json"))
-        log.info(f"Updated {sfutil.green(join(self.dir, 'hyperparameters.json'))} with 'outcome_labels'={self.hyperparameters['outcome_labels']}")
+        sf.util.write_json(self.hyperparameters, join(self.dir, "hyperparameters.json"))
+        log.info(f"Updated {sf.util.green(join(self.dir, 'hyperparameters.json'))} with 'outcome_labels'={self.hyperparameters['outcome_labels']}")
         return True
 
     def get_predictions(self, epoch, level='patient'):
@@ -495,7 +495,7 @@ class Model:
 
         predictions = join(self.dir, f'{level}_predictions_val_epoch{epoch}.csv')
         if not exists(predictions):
-            log.error(f"Unable to find predictions file {sfutil.bold(predictions)} in {sfutil.green(self.dir)}")
+            log.error(f"Unable to find predictions file {sf.util.bold(predictions)} in {sf.util.green(self.dir)}")
             return None
 
         predictions = sfstats.read_predictions(predictions, level)

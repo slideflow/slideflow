@@ -1,7 +1,7 @@
 import os
 import argparse
 import shutil
-import slideflow.util as sfutil
+import slideflow as sf
 
 from os.path import join, isdir, exists
 
@@ -16,17 +16,17 @@ def update_project_models(project_folder):
         model_folders = [mf for mf in os.listdir(join(project_folder, 'models')) if isdir(join(project_folder, 'models', mf))]
         for model_folder in model_folders:
             full_model_folder = join(project_folder, 'models', model_folder)
-            hyperparameters = sfutil.get_model_hyperparameters(full_model_folder)
+            hyperparameters = sf.util.get_model_hyperparameters(full_model_folder)
             if hyperparameters is None:
                 print(f"Unable to find hyperparameters file for model {folder} > {model_folder}, skipping")
                 continue
 
-            models = [m for m in os.listdir(full_model_folder) if sfutil.path_to_ext(m) == 'h5']
+            models = [m for m in os.listdir(full_model_folder) if sf.util.path_to_ext(m) == 'h5']
             for model in models:
                 model_path = join(full_model_folder, model)
-                new_model_path = join(full_model_folder, sfutil.path_to_name(model))
+                new_model_path = join(full_model_folder, sf.util.path_to_name(model))
 
-                print(f"Upgrading {sfutil.blue(folder)} > {sfutil.yellow(model_folder)} > {sfutil.green(model)} ... ", end="")
+                print(f"Upgrading {sf.util.blue(folder)} > {sf.util.yellow(model_folder)} > {sf.util.green(model)} ... ", end="")
                 try:
                     if hyperparameters['model_type'] == 'cph':
                         loaded_model = tf.keras.models.load_model(model_path,custom_objects = {
@@ -37,20 +37,20 @@ def update_project_models(project_folder):
                         loaded_model = tf.keras.models.load_model(model_path)
                     loaded_model.save(new_model_path)
                     os.remove(model_path)
-                    print(sfutil.green('DONE'))
+                    print(sf.util.green('DONE'))
                 except ValueError:
 
-                    print(sfutil.red('FAIL'))
+                    print(sf.util.red('FAIL'))
                     print(" - Unable to load model, incorrect python version")
 
 
 def update_models(root):
     '''Updates models from Keras H5 to Tensorflow SavedModel format'''
-    print(f"{sfutil.yellow('WARNING!!! ')} Although tested, this conversion function does not guarantee model integrity post-conversion.")
+    print(f"{sf.util.yellow('WARNING!!! ')} Although tested, this conversion function does not guarantee model integrity post-conversion.")
     print("Please backup your models before continuing!")
     input("Acknowledge (press enter) > ")
     print("Updating legacy models...")
-    print(f"{sfutil.blue('PROJECT')} > {sfutil.yellow('MODEL_FOLDER')} > {sfutil.green('MODEL')}")
+    print(f"{sf.util.blue('PROJECT')} > {sf.util.yellow('MODEL_FOLDER')} > {sf.util.green('MODEL')}")
 
     project_folders = [f for f in os.listdir(root) if isdir(join(root, f)) and exists(join(root, f, 'settings.json'))]
     for folder in project_folders:
@@ -63,7 +63,7 @@ def update_version(root):
     project_folders = [f for f in os.listdir(root) if isdir(join(root, f)) and exists(join(root, f, 'settings.json'))]
     for folder in project_folders:
         project_folder = join(root, folder)
-        project_settings = sfutil.load_json(join(project_folder, 'settings.json'))
+        project_settings = sf.util.load_json(join(project_folder, 'settings.json'))
         # Look for projects built with 1.8 or earlier
         if 'tile_px' in project_settings:
             # Move tile_px and tile_um from project settings.json into model hyperparameters files
@@ -75,11 +75,11 @@ def update_version(root):
                     model_folder = join(project_folder, 'models', model)
                     hp_file = join(model_folder, 'hyperparameters.json')
                     if exists(hp_file):
-                        hp = sfutil.load_json(hp_file)
+                        hp = sf.util.load_json(hp_file)
                         if 'tile_px' not in hp['hp']:
                             hp['hp']['tile_px'] = tile_px
                             hp['hp']['tile_um'] = tile_um
-                            sfutil.write_json(hp, hp_file)
+                            sf.util.write_json(hp, hp_file)
                             print(f"Updated model {model} in project {folder}")
             # Scan datasets to ensure dataset organization follows 1.9 labeling conventions, renaming accordingly
             if 'dataset_config' not in project_settings:
@@ -88,7 +88,7 @@ def update_version(root):
             dataset_config_file = project_settings['dataset_config']
             if not exists(dataset_config_file): continue
             shutil.copy(dataset_config_file, dataset_config_file+'.backup')
-            dataset_config = sfutil.load_json(dataset_config_file)
+            dataset_config = sf.util.load_json(dataset_config_file)
             project_datasets = project_settings['datasets']
             for dataset in project_datasets:
                 if dataset in dataset_config:
@@ -108,8 +108,8 @@ def update_version(root):
                             shutil.move(join(dataset_config[dataset]['tiles'], label), join(dataset_config[dataset]['tiles'], new_label))
                             print(f"Moved tiles in dataset {dataset} into new label directory, {new_label}")
                     dataset_config[dataset]['label'] = new_label
-            sfutil.write_json(dataset_config, dataset_config_file)
-            print(f"Completed update of project {sfutil.bold(project_settings['name'])} using dataset configuration JSON at {sfutil.green(dataset_config_file)}")
+            sf.util.write_json(dataset_config, dataset_config_file)
+            print(f"Completed update of project {sf.util.bold(project_settings['name'])} using dataset configuration JSON at {sf.util.green(dataset_config_file)}")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = "Slideflow update utility")

@@ -3,7 +3,7 @@ import os
 import csv
 import tempfile
 import numpy as np
-import slideflow.util as sfutil
+import slideflow as sf
 from slideflow.util import log
 
 class HyperParameterError(Exception):
@@ -173,81 +173,66 @@ def add_regularization(model, regularizer):
     model.load_weights(tmp_weights_path, by_name=True)
     return model
 
-def get_hyperparameter_combinations(hyperparameters, models, batch_train_file):
+def get_hp_from_batch_file(batch_train_file, models=None):
     '''Organizes a list of hyperparameters ojects and associated models names.
 
     Args:
-        hyperparameters:        List of Hyperparameters objects
-        models:                 List of model names
         batch_train_file:       Path to train train TSV file
+        models:                 List of model names
 
     Returns:
         List of (Hyperparameter, model_name) for each HP combination
     '''
-    if not hyperparameters:
-        hp_models_to_train = get_valid_models_from_batch_file(batch_train_file, models)
-    else:
-        hp_models_to_train = [models]
 
-    hyperparameter_list = []
-    if not hyperparameters:
-        # Assembling list of models and hyperparameters from batch_train.tsv file
-        batch_train_rows = []
+    if models is not None and not isinstance(models, list):
+        raise sf.util.UserError("If supplying models, must be a list of strings containing model names.")
+    if isinstance(models, list) and not list(set(models)) == models:
+        raise sf.util.UserError("Duplicate model names provided.")
+
+    # First, ensure all indicated models are in the batch train file
+    if models:
+        valid_models = []
         with open(batch_train_file) as csv_file:
             reader = csv.reader(csv_file, delimiter='\t')
             header = next(reader)
-            for row in reader:
-                batch_train_rows += [row]
-
-        for row in batch_train_rows:
-            # Read hyperparameters
             try:
-                hp, hp_model_name = get_hp_from_row(row, header)
-            except HyperParameterError as e:
-                log.error('Invalid Hyperparameter combination: ' + str(e))
-                return
+                model_name_i = header.index('model_name')
+            except:
+                err_msg = "Unable to find column 'model_name' in the batch training config file."
+                log.error(err_msg)
+                raise ValueError(err_msg)
+            for row in reader:
+                model_name = row[model_name_i]
+                # First check if this row is a valid model
+                if (not models) or (isinstance(models, str) and model_name==models) or model_name in models:
+                    # Now verify there are no duplicate model names
+                    if model_name in valid_models:
+                        err_msg = f'Duplicate model names found in {sf.util.green(batch_train_file)}.'
+                        log.error(err_msg)
+                        raise ValueError(err_msg)
+                    valid_models += [model_name]
+        missing_models = [m for m in models if m not in valid_models]
+        if missing_models:
+            raise ValueError(f"Unable to find the following models in the batch train file: {', '.join(missing_models)}")
 
-            if hp_model_name not in hp_models_to_train: continue
-
-            hyperparameter_list += [[hp, hp_model_name]]
-    elif isinstance(hyperparameters, list) and isinstance(models, list):
-        if len(models) != len(hyperparameters):
-            log.error('Unable to iterate through hyperparameters provided; number of hyperparameters ' + \
-                        f'({len(hyperparameters)}) must match number of models ({len(models)})')
-            return
-        for i in range(len(models)):
-            if not hyperparameters[i].validate():
-                return
-            hyperparameter_list += [[hyperparameters[i], models[i]]]
-    else:
-        if not hyperparameters.validate():
-            return
-        hyperparameter_list = [[hyperparameters, models]]
-    return hyperparameter_list
-
-def get_valid_models_from_batch_file(batch_train_file, models):
-    '''Scans a batch_train file for valid, trainable models.'''
-    models_to_train = []
+    # Read the batch train file and generate HyperParameter objects from the given configurations
+    hyperparameters = {}
+    batch_train_rows = []
     with open(batch_train_file) as csv_file:
         reader = csv.reader(csv_file, delimiter='\t')
         header = next(reader)
-        try:
-            model_name_i = header.index('model_name')
-        except:
-            err_msg = "Unable to find column 'model_name' in the batch training config file."
-            log.error(err_msg)
-            raise ValueError(err_msg)
         for row in reader:
-            model_name = row[model_name_i]
-            # First check if this row is a valid model
-            if (not models) or (isinstance(models, str) and model_name==models) or model_name in models:
-                # Now verify there are no duplicate model names
-                if model_name in models_to_train:
-                    err_msg = f'Duplicate model names found in {sfutil.green(batch_train_file)}.'
-                    log.error(err_msg)
-                    raise ValueError(err_msg)
-                models_to_train += [model_name]
-    return models_to_train
+            batch_train_rows += [row]
+
+    for row in batch_train_rows:
+        try:
+            hp, hp_model_name = get_hp_from_row(row, header)
+        except HyperParameterError as e:
+            log.error('Invalid Hyperparameter combination: ' + str(e))
+            return
+        if models and hp_model_name not in models: continue
+        hyperparameters[hp_model_name] = hp
+    return hyperparameters
 
 def get_hp_from_row(row, header):
     '''Converts a row in the batch_train CSV file into a HyperParameters object.'''

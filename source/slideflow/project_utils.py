@@ -1,51 +1,105 @@
-'''Utility functions for Project, primarily for use in the context of multiprocessing.'''
+"""Utility functions for Project, including functions for use in isolated processes."""
 import re
 import os
 import csv
 import types
 import json
-from os.path import join, exists, basename, isdir
-import slideflow.util as sfutil
-import slideflow.io as sfio
 import slideflow as sf
-
-from slideflow.io import Dataset
+import slideflow.io
+import importlib.util
+from os.path import join, exists, isdir
 from slideflow.util import log, TCGA
+from slideflow.dataset import Dataset
+
+CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
+
+def _project_config(name='MyProject', annotations='./annotations.csv', dataset_config='./datasets.json',
+                    sources='source1', models_dir='./models', eval_dir='./eval', mixed_precision=True,
+                    batch_train_config='batch_train.tsv'):
+    args = locals()
+    args['slideflow_version'] = sf.__version__
+    return args
+
+def _heatmap_worker(slide, heatmap_args, kwargs):
+    """Heatmap worker for :meth:`slideflow.Project.generate_heatmaps.`
+
+    Any function loading a slide must be kept in an isolated process, as loading more than one slide
+    in a single process causes instability / hangs. I suspect this is a libvips or openslide issue but
+    I haven't been able to identify the root cause. Isolating processes when multiple slides are to be processed
+    sequentially is a functional workaround, hence the process-isolated worker.
+    """
+
+    from slideflow.activations import Heatmap
+    heatmap = Heatmap(slide,
+                      model_path=heatmap_args.model,
+                      stride_div=heatmap_args.stride_div,
+                      roi_list=heatmap_args.roi_list,
+                      roi_method=heatmap_args.roi_method,
+                      buffer=heatmap_args.buffer,
+                      normalizer=heatmap_args.normalizer,
+                      normalizer_source=heatmap_args.normalizer_source,
+                      batch_size=heatmap_args.batch_size,
+                      num_threads=heatmap_args.num_threads)
+    heatmap.save(heatmap_args.outdir, **kwargs)
+
+def _trainer(training_args, model_kwargs, training_kwargs, results_dict):
+    """Internal function to execute model training in an isolated process."""
+
+    import slideflow.model
+    import tensorflow as tf
+
+    log.setLevel(training_args.verbosity)
+    tf.keras.backend.clear_session() # Clear prior Tensorflow graph to free memory
+
+    # Build a model using the slide list as input and the annotations dictionary as output labels
+    SFM = sf.model.SlideflowModel(training_args.model_dir,
+                                  training_args.hp.tile_px,
+                                  training_args.slide_labels_dict,
+                                  training_args.training_tfrecords,
+                                  training_args.validation_tfrecords,
+                                  **model_kwargs)
+    try:
+        results, history = SFM.train(training_args.hp,
+                                     pretrain=training_args.pretrain,
+                                     resume_training=training_args.resume_training,
+                                     checkpoint=training_args.checkpoint,
+                                     **training_kwargs)
+        results['history'] = history
+        results_dict.update({model_kwargs['name']: results})
+    except tf.errors.ResourceExhaustedError as e:
+        log.info('\n')
+        print(e)
+        log.error(f"Training failed for {sf.util.bold(model_kwargs['name'])}, GPU memory exceeded.")
+        history = None
+    del SFM
+    return history
 
 def get_validation_settings(**kwargs):
-    '''
-    Returns a namespace of validation settings.
+    """Returns a namespace of validation settings.
 
     Args:
-        target:             (default: 'per-patient') Whether to select validation data
-                                on a 'per-patient' (default) or 'per-tile' basis.
-        strategy:           (default: 'k-fold') Validation dataset selection strategy
-                                (bootstrap, k-fold, k-fold-manual, k-fold-preserved-site, fixed, none).
-        k_fold:             (default: 3) Number of k-folds, if strategy is 'k-fold'
-        k_fold_iter:        K iteration, if using k-folds. Starts at 1.
-        k_fold_header:      Annotations file header column for manually specifying k-fold.
-                                Only used if validation_strategy is 'k-fold-manual'
-        fraction:           Fraction of data to use for validation testing, if strategy is "fixed"
-        dataset:            If specified, will use this dataset for validation
-        annotations:        If specified, will use this annotations file for validation
-        filters:            If specified, will use these filters for validation
-        validate_on_batch:  Validation will be performed every N batches.
-        validation_steps:   Number of steps of validation to perform each time doing a validation check.
-    '''
+        strategy (str): Validation dataset selection strategy. Defaults to 'k-fold'.
+            Options include bootstrap, k-fold, k-fold-manual, k-fold-preserved-site, fixed, and none.
+        k_fold (int): Total number of K if using K-fold validation. Defaults to 3.
+        k (int): Iteration of K-fold to train, starting at 1. Defaults to None (training all k-folds).
+        k_fold_header (str): Annotations file header column for manually specifying k-fold.
+            Only used if validation strategy is 'k-fold-manual'. Defaults to None.
+        fraction (float): Fraction of dataset to use for validation testing, if strategy is 'fixed'.
+        source (str): Dataset source to use for validation. Defaults to None (same as training).
+        annotations (str): Path to annotations file for validation dataset. Defaults to None (same as training).
+        filters (dict): Filters dictionary to use for validation dataset. Defaults to None (same as training).
+
+    """
 
     args_dict = {
-        'target': 'per-patient',
         'strategy': 'k-fold',
         'k_fold': 3,
-        'k_fold_iter': None,
+        'k': None,
         'k_fold_header': None,
         'fraction': None,
-        'dataset': None,
+        'source': None,
         'annotations': None,
         'filters': None,
-        'validate_on_batch': 512,
-        'validation_steps': 200,
-        'batch_size': 64
     }
     for k in kwargs:
         args_dict[k] = kwargs[k]
@@ -56,19 +110,20 @@ def get_validation_settings(**kwargs):
 
     return args
 
-def add_dataset(name, slides, roi, tiles, tfrecords, path):
-    '''Adds a dataset to the dataset configuration file.
+def add_source(name, slides, roi, tiles, tfrecords, path):
+    """Adds a dataset source to a dataset configuration file.
 
     Args:
-        name:       Dataset name.
-        slides:     Path to directory containing slides.
-        roi:        Path to directory containing CSV ROIs.
-        tiles:      Path to directory in which to store extracted tiles.
-        tfrecords:  Path to directory in which to store TFRecords of extracted tiles.
-        path:       (optional) Path to dataset configuration file. If not provided, uses project default.
-    '''
+        name (str): Source name.
+        slides (str): Path to directory containing slides.
+        roi (str): Path to directory containing CSV ROIs.
+        tiles (str): Path to directory in which to store extracted tiles.
+        tfrecords (str): Path to directory in which to store TFRecords of extracted tiles.
+        path (str): Path to dataset configuration file.
+    """
+
     try:
-        datasets_data = sfutil.load_json(path)
+        datasets_data = sf.util.load_json(path)
     except FileNotFoundError:
         datasets_data = {}
     datasets_data.update({name: {
@@ -77,29 +132,29 @@ def add_dataset(name, slides, roi, tiles, tfrecords, path):
         'tiles': tiles,
         'tfrecords': tfrecords,
     }})
-    sfutil.write_json(datasets_data, path)
-    log.info(f'Saved dataset {name} to {path}')
+    sf.util.write_json(datasets_data, path)
+    log.info(f'Saved dataset source {name} to {path}')
 
-def load_datasets(path):
-    '''Loads datasets dictionaries from a given datasets.json file.'''
+def load_sources(path):
+    """Loads datasets source configuration dictionaries from a given datasets.json file."""
     try:
-        datasets_data = sfutil.load_json(path)
-        datasets_names = list(datasets_data.keys())
-        datasets_names.sort()
+        sources_data = sf.util.load_json(path)
+        sources = list(sources_data.keys())
+        sources.sort()
     except FileNotFoundError:
-        datasets_data = {}
-        datasets_names = []
-    return datasets_data, datasets_names
+        sources_data = {}
+        sources = []
+    return sources_data, sources
 
 def create_blank_annotations_file(filename):
-    '''Creates an example blank annotations file.'''
+    """Creates an example blank annotations file."""
     with open(filename, 'w') as csv_outfile:
         csv_writer = csv.writer(csv_outfile, delimiter=',')
         header = [TCGA.patient, 'dataset', 'category']
         csv_writer.writerow(header)
 
 def create_blank_train_config(filename):
-    '''Creates a CSV file with the batch training hyperparameter structure.'''
+    """Creates a TSV file with the batch training hyperparameter structure."""
     from slideflow.model import HyperParameters
     with open(filename, 'w') as csv_outfile:
         writer = csv.writer(csv_outfile, delimiter='\t')
@@ -113,30 +168,18 @@ def create_blank_train_config(filename):
         writer.writerow(header)
         writer.writerow(firstrow)
 
-def project_config(name, annotations, dataset_config, datasets, models_dir, mixed_precision, batch_train_config):
-    return {
-        'name': name,
-        'slideflow_version': sf.__version__,
-        'annotations': annotations,
-        'dataset_config': dataset_config,
-        'datasets': datasets,
-        'models_dir': models_dir,
-        'mixed_precision': mixed_precision,
-        'batch_train_config': batch_train_config
-    }
-
 def interactive_project_setup(project_folder):
-    '''Prompts user to provide all relevant project configuration
-        and saves configuration to "settings.json".'''
+    """Guides user through project creation at the given folder, saving configuration to "settings.json"."""
+
     if not exists(project_folder): os.makedirs(project_folder)
     project = {}
     project['name'] = input('What is the project name? ')
 
     # Ask for annotations file location; if one has not been made,
     # offer to create a blank template and then exit
-    if not sfutil.yes_no_input('Has an annotations (CSV) file already been created? [y/N] ', default='no'):
-        if sfutil.yes_no_input('Create a blank annotations file? [Y/n] ', default='yes'):
-            project['annotations'] = sfutil.path_input('Annotations file location [./annotations.csv] ',
+    if not sf.util.yes_no_input('Has an annotations (CSV) file already been created? [y/N] ', default='no'):
+        if sf.util.yes_no_input('Create a blank annotations file? [Y/n] ', default='yes'):
+            project['annotations'] = sf.util.path_input('Annotations file location [./annotations.csv] ',
                                                         root=project_folder,
                                                         default='./annotations.csv',
                                                         filetype='csv',
@@ -145,70 +188,74 @@ def interactive_project_setup(project_folder):
         else:
             project['annotations'] = './annotations.csv'
     else:
-        project['annotations'] = sfutil.path_input('Annotations file location [./annotations.csv] ',
+        project['annotations'] = sf.util.path_input('Annotations file location [./annotations.csv] ',
                                                     root=project_folder,
                                                     default='./annotations.csv',
                                                     filetype='csv')
 
     # Dataset configuration
-    project['dataset_config'] = sfutil.path_input('Dataset configuration file location [./datasets.json] ',
+    project['dataset_config'] = sf.util.path_input('Dataset configuration file location [./datasets.json] ',
                                                     root=project_folder,
                                                     default='./datasets.json',
                                                     filetype='json',
                                                     verify=False)
 
-    project['datasets'] = []
-    while not project['datasets']:
-        datasets_data, datasets_names = load_datasets(project['dataset_config'])
+    project['sources'] = []
+    while not project['sources']:
+        datasets_data, sources = load_sources(project['dataset_config'])
 
-        print(sfutil.bold('Detected datasets:'))
-        if not len(datasets_names):
+        print(sf.util.bold('Detected dataset sources:'))
+        if not len(sources):
             print(' [None]')
         else:
-            for i, name in enumerate(datasets_names):
+            for i, name in enumerate(sources):
                 print(f' {i+1}. {name}')
-            print(f' {len(datasets_names)+1}. ADD NEW')
-            valid_dataset_choices = [str(l) for l in range(1, len(datasets_names)+2)]
-            dataset_selection = sfutil.choice_input(f'Which datasets should be used? ',
-                                                    valid_choices=valid_dataset_choices,
+            print(f' {len(sources)+1}. ADD NEW')
+            valid_source_choices = [str(l) for l in range(1, len(sources)+2)]
+            selection = sf.util.choice_input(f'Which datasets should be used? ',
+                                                    valid_choices=valid_source_choices,
                                                     multi_choice=True)
 
-        if not len(datasets_names) or str(len(datasets_names)+1) in dataset_selection:
+        if not len(sources) or str(len(sources)+1) in selection:
             # Create new dataset
-            print(f"{sfutil.bold('Creating new dataset')}")
-            dataset_name = input('What is the dataset name? ')
-            dataset_slides = sfutil.path_input('Where are the slides stored? [./slides] ',
+            print(f"{sf.util.bold('Creating new dataset source')}")
+            source_name = input('What is the dataset source name? ')
+            source_slides = sf.util.path_input('Where are the slides stored? [./slides] ',
                                     root=project_folder, default='./slides', create_on_invalid=True)
-            dataset_roi = sfutil.path_input('Where are the ROI files (CSV) stored? [./slides] ',
+            source_roi = sf.util.path_input('Where are the ROI files (CSV) stored? [./slides] ',
                                     root=project_folder, default='./slides', create_on_invalid=True)
-            dataset_tiles = sfutil.path_input('Image tile storage location [./tiles] ',
+            source_tiles = sf.util.path_input('Image tile storage location [./tiles] ',
                                     root=project_folder, default='./tiles', create_on_invalid=True)
-            dataset_tfrecords = sfutil.path_input('TFRecord storage location [./tfrecord] ',
+            source_tfrecords = sf.util.path_input('TFRecord storage location [./tfrecord] ',
                                     root=project_folder, default='./tfrecord', create_on_invalid=True)
 
-            add_dataset(name=dataset_name,
-                        slides=dataset_slides,
-                        roi=dataset_roi,
-                        tiles=dataset_tiles,
-                        tfrecords=dataset_tfrecords,
+            add_source(name=source_name,
+                        slides=source_slides,
+                        roi=source_roi,
+                        tiles=source_tiles,
+                        tfrecords=source_tfrecords,
                         path=project['dataset_config'])
 
             print('Updated dataset configuration file.')
         else:
             try:
-                project['datasets'] = [datasets_names[int(j)-1] for j in dataset_selection]
+                project['sources'] = [sources[int(j)-1] for j in selection]
             except TypeError:
-                print(f'Invalid selection: {dataset_selection}')
+                print(f'Invalid selection: {selection}')
                 continue
 
-    # Training
-    project['models_dir'] = sfutil.path_input('Where should the saved models be stored? [./models] ',
+    project['models_dir'] = sf.util.path_input('Where should the saved models be stored? [./models] ',
                                                 root=project_folder,
                                                 default='./models',
                                                 create_on_invalid=True)
 
-    project['mixed_precision'] = sfutil.yes_no_input('Use mixed precision? [Y/n] ', default='yes')
-    project['batch_train_config'] = sfutil.path_input('Batch training TSV location [./batch_train.tsv] ',
+    project['eval_dir'] = sf.util.path_input('Where should model evaluations be stored? [./eval] ',
+                                                root=project_folder,
+                                                default='./eval',
+                                                create_on_invalid=True)
+
+    project['mixed_precision'] = sf.util.yes_no_input('Use mixed precision? [Y/n] ', default='yes')
+    project['batch_train_config'] = sf.util.path_input('Batch training TSV location [./batch_train.tsv] ',
                                                         root=project_folder,
                                                         default='./batch_train.tsv',
                                                         filetype='tsv',
@@ -221,7 +268,7 @@ def interactive_project_setup(project_folder):
     # Save settings as relative paths
     settings = project_config(**project)
 
-    sfutil.write_json(settings, join(project_folder, 'settings.json'))
+    sf.util.write_json(settings, join(project_folder, 'settings.json'))
 
     # Write a sample actions.py file
     with open(join(os.path.dirname(os.path.realpath(__file__)), 'sample_actions.py'), 'r') as sample_file:
@@ -230,685 +277,3 @@ def interactive_project_setup(project_folder):
             actions_file.write(sample_actions)
     log.info('Project configuration saved.')
     return settings
-
-def tile_extractor(slide_path, roi_dir, roi_method, skip_missing_roi, randomize_origin,
-                    img_format, tma, full_core, shuffle, tile_px, tile_um, stride_div,
-                    downsample, whitespace_fraction, whitespace_threshold, grayspace_fraction,
-                    grayspace_threshold, normalizer, normalizer_source, split_fraction,
-                    split_names, report_dir, tfrecord_dir, tiles_dir, save_tiles, save_tfrecord,
-                    buffer, threads_per_worker, pb_counter, counter_lock):
-
-    from slideflow.slide import TMA, WSI, TileCorruptionError
-    log.handlers[0].flush_line = True
-    try:
-        log.debug(f'Extracting tiles for slide {sfutil.path_to_name(slide_path)}')
-
-        if tma:
-            whole_slide = TMA(slide_path,
-                                    tile_px,
-                                    tile_um,
-                                    stride_div,
-                                    enable_downsample=downsample,
-                                    report_dir=report_dir,
-                                    buffer=buffer)
-        else:
-            whole_slide = WSI(slide_path,
-                                    tile_px,
-                                    tile_um,
-                                    stride_div,
-                                    enable_downsample=downsample,
-                                    roi_dir=roi_dir,
-                                    roi_method=roi_method,
-                                    randomize_origin=randomize_origin,
-                                    skip_missing_roi=skip_missing_roi,
-                                    buffer=buffer,
-                                    pb_counter=pb_counter,
-                                    counter_lock=counter_lock)
-
-        if not whole_slide.loaded_correctly():
-            return
-
-        try:
-            report = whole_slide.extract_tiles(tfrecord_dir=tfrecord_dir if save_tfrecord else None,
-                                                tiles_dir=tiles_dir if save_tiles else None,
-                                                split_fraction=split_fraction,
-                                                split_names=split_names,
-                                                whitespace_fraction=whitespace_fraction,
-                                                whitespace_threshold=whitespace_threshold,
-                                                grayspace_fraction=grayspace_fraction,
-                                                grayspace_threshold=grayspace_threshold,
-                                                normalizer=normalizer,
-                                                normalizer_source=normalizer_source,
-                                                img_format=img_format,
-                                                full_core=full_core,
-                                                shuffle=shuffle)
-        except TileCorruptionError:
-            if downsample:
-                formatted_path = sfutil.green(sfutil.path_to_name(slide_path))
-                log.warning(f'Corrupt tile in {formatted_path}; will try disabling downsampling')
-                report = tile_extractor(
-                    slide_path,
-                    roi_dir,
-                    roi_method,
-                    skip_missing_roi,
-                    randomize_origin,
-                    img_format,
-                    tma,
-                    full_core,
-                    shuffle,
-                    tile_px,
-                    tile_um,
-                    stride_div,
-                    False, #downsample = False
-                    whitespace_fraction,
-                    whitespace_threshold,
-                    grayspace_fraction,
-                    grayspace_threshold,
-                    normalizer,
-                    normalizer_source,
-                    split_fraction,
-                    split_names,
-                    report_dir,
-                    tfrecord_dir,
-                    tiles_dir,
-                    save_tiles,
-                    save_tfrecord,
-                    buffer,
-                    threads_per_worker,
-                    pb_counter,
-                    counter_lock)
-            else:
-                log.error(f'Corrupt tile in {sfutil.green(sfutil.path_to_name(slide_path))}; skipping slide')
-                return
-        del whole_slide
-        return report
-    except (KeyboardInterrupt, SystemExit):
-        print('Exiting...')
-        return
-
-def activations_generator(project, model, outcome_label_headers=None, layers=None, filters=None, filter_blank=None,
-                          focus_nodes=None, activations_export=None, activations_cache='default', normalizer=None,
-                          normalizer_source=None, max_tiles_per_slide=100, min_tiles_per_slide=None,
-                          include_logits=True, batch_size=None, torch_export=None, results_dict=None):
-
-    from slideflow.activations import ActivationsVisualizer
-
-    layers = [layers] if not isinstance(layers, list) else layers
-
-    # Setup directories
-    stats_root = join(project.root, 'stats')
-    if not exists(stats_root): os.makedirs(stats_root)
-
-    # Load dataset for evaluation
-    hp_data = sfutil.get_model_hyperparameters(model)
-    activations_dataset = Dataset(config_file=project.dataset_config,
-                                    sources=project.datasets,
-                                    tile_px=hp_data['hp']['tile_px'],
-                                    tile_um=hp_data['hp']['tile_um'],
-                                    annotations=project.annotations,
-                                    filters=filters,
-                                    filter_blank=filter_blank)
-
-    tfrecords_list = activations_dataset.get_tfrecords(ask_to_merge_subdirs=True)
-
-    log.info(f'Visualizing activations from {len(tfrecords_list)} slides')
-
-    if activations_export:
-        activations_export = join(stats_root, activations_export)
-
-    AV = ActivationsVisualizer(model=model,
-                                tfrecords=tfrecords_list,
-                                export_dir=join(project.root, 'stats'),
-                                image_size=hp_data['hp']['tile_px'],
-                                annotations=project.annotations,
-                                outcome_label_headers=outcome_label_headers,
-                                focus_nodes=focus_nodes,
-                                normalizer=normalizer,
-                                normalizer_source=normalizer_source,
-                                activations_export=activations_export,
-                                cache=activations_cache,
-                                max_tiles_per_slide=max_tiles_per_slide,
-                                min_tiles_per_slide=min_tiles_per_slide,
-                                manifest=activations_dataset.get_manifest(),
-                                layers=layers,
-                                include_logits=include_logits,
-                                batch_size=(batch_size if batch_size else hp_data['hp']['batch_size']))
-
-    if torch_export:
-        AV.export_to_torch(torch_export)
-
-    if results_dict is not None:
-        results_dict.update({'num_features': AV.num_features})
-
-    return AV
-
-def evaluator(project, outcome_label_headers, model, results_dict, input_header=None, filters=None,
-              hyperparameters=None, checkpoint=None, eval_k_fold=None, max_tiles_per_slide=0, min_tiles_per_slide=0,
-              normalizer=None, normalizer_source=None, batch_size=64, permutation_importance=False, histogram=False,
-              save_predictions=False):
-
-    '''Internal function to execute model evaluation process.'''
-
-    import slideflow.model as sfmodel
-    from slideflow.statistics import to_onehot
-
-    if not isinstance(outcome_label_headers, list):
-        outcome_label_headers = [outcome_label_headers]
-
-    #log.configure(filename=join(project.root, 'log.log'), verbosity=project.verbosity)
-    log.setLevel(project.verbosity)
-
-    # Load hyperparameters from saved model
-    if hyperparameters:
-        hp_data = sfutil.load_json(hyperparameters)
-    else:
-        hp_data = sfutil.get_model_hyperparameters(model)
-    hp = sfmodel.HyperParameters()
-    hp.load_dict(hp_data['hp'])
-    model_name = f"eval-{hp_data['model_name']}-{basename(model)}"
-
-    # Filter out slides that are blank in the outcome label, or blank in any of the input_header categories
-    filter_blank = [o for o in outcome_label_headers]
-    if input_header:
-        input_header = [input_header] if not isinstance(input_header, list) else input_header
-        filter_blank += input_header
-
-    # Load dataset and annotations for evaluation
-    eval_dataset = Dataset(config_file=project.dataset_config,
-                           sources=project.datasets,
-                           tile_px=hp.tile_px,
-                           tile_um=hp.tile_um,
-                           annotations=project.annotations,
-                           filters=filters,
-                           filter_blank=filter_blank)
-
-    if hp.model_type() == 'categorical':
-        if len(outcome_label_headers) == 1 and outcome_label_headers[0] not in hp_data['outcome_labels']:
-            outcome_label_to_int = {outcome_label_headers[0]: {v: int(k) for k, v in hp_data['outcome_labels'].items()}}
-        else:
-            outcome_label_to_int = {o:
-                                        { v: int(k) for k, v in hp_data['outcome_labels'][o].items() }
-                                    for o in hp_data['outcome_labels']}
-    else:
-        outcome_label_to_int = None
-
-    use_float = (hp.model_type() in ['linear', 'cph'])
-    slide_labels_dict, unique_labels = eval_dataset.get_labels_from_annotations(outcome_label_headers,
-                                                                                use_float=use_float,
-                                                                                key='outcome_label',
-                                                                                assigned_labels=outcome_label_to_int)
-
-    if hp.model_type() == 'categorical' and len(outcome_label_headers) > 1:
-
-        def process_outcome_label(v):
-            return '-'.join(map(str, v)) if isinstance(v, list) else v
-
-        labels_for_splitting = {k:{
-                                    'outcome_label': process_outcome_label(v['outcome_label']),
-                                    sfutil.TCGA.patient : v[sfutil.TCGA.patient]
-                                  }
-                                for k,v in slide_labels_dict.items()}
-    else:
-        labels_for_splitting = slide_labels_dict
-
-    # If using a specific k-fold, load validation plan
-    if eval_k_fold:
-        log.info(f"Using {sfutil.bold('k-fold iteration ' + str(eval_k_fold))}")
-        validation_log = join(project.root, 'validation_plans.json')
-        _, eval_tfrecords = sfio.tfrecords.get_train_and_val_tfrecords(eval_dataset,
-                                                                       validation_log,
-                                                                       hp.model_type(),
-                                                                       labels_for_splitting,
-                                                                       outcome_key='outcome_label',
-                                                                       val_target=hp_data['validation_target'],
-                                                                       val_strategy=hp_data['validation_strategy'],
-                                                                       val_fraction=hp_data['validation_fraction'],
-                                                                       val_k_fold=hp_data['validation_k_fold'],
-                                                                       k_fold_iter=eval_k_fold)
-    # Otherwise use all TFRecords
-    else:
-        eval_tfrecords = eval_dataset.get_tfrecords(merge_subdirs=True)
-
-    # Prepare additional slide-level input
-    if input_header:
-        input_header = [input_header] if not isinstance(input_header, list) else input_header
-        feature_len_dict = {}   # Dict mapping input_vars to total number of different labels for each input header
-        input_labels_dict = {}  # Dict mapping input_vars to nested dictionaries,
-                                #    which map category ID to category label names (for categorical variables)
-                                #     or mapping to 'float' for float variables
-        for slide in slide_labels_dict:
-            slide_labels_dict[slide]['input'] = []
-
-        for input_var in input_header:
-            # Check if variable can be converted to float (default). If not, will assume categorical.
-            try:
-                eval_dataset.get_labels_from_annotations(input_var, use_float=True)
-                is_float = True
-            except TypeError:
-                is_float = False
-            log.info(f"Adding input variable {sfutil.blue(input_var)} as {'float' if is_float else 'categorical'}")
-
-            if is_float:
-                input_labels, _ = eval_dataset.get_labels_from_annotations(input_var, use_float=is_float)
-                for slide in slide_labels_dict:
-                    slide_labels_dict[slide]['input'] += input_labels[slide]['label']
-                input_labels_dict[input_var] = 'float'
-                feature_len_dict[input_var] = 1
-            else:
-                # Read categorical variable assignments from hyperparameter file
-                input_label_to_int = {v: int(k) for k, v in hp_data['input_feature_labels'][input_var].items()}
-                input_labels, _ = eval_dataset.get_labels_from_annotations(input_var,
-                                                                           use_float=is_float,
-                                                                           assigned_labels=input_label_to_int)
-                feature_len_dict[input_var] = len(input_label_to_int)
-                input_labels_dict[input_var] = hp_data['input_feature_labels'][input_var]
-
-                for slide in slide_labels_dict:
-                    slide_labels_dict[slide]['input'] += to_onehot(input_labels[slide]['label'],
-                                                                   feature_len_dict[input_var])
-
-        feature_sizes = [feature_len_dict[i] for i in input_header]
-
-    else:
-        input_labels_dict = None
-        feature_sizes = None
-
-    if feature_sizes and (sum(feature_sizes) != sum(hp_data['input_feature_sizes'])):
-        #TODO: consider using training matrix
-        raise Exception('Patient-level feature matrix not equal to what was used for model training.')
-        #feature_sizes = hp_data['feature_sizes']
-        #feature_names = hp_data['feature_names']
-        #num_slide_features = sum(hp_data['feature_sizes'])
-
-    # Set up model for evaluation
-    # Using the project annotation file, assemble list of slides for training,
-    # as well as the slide annotations dictionary (output labels)
-    model_dir = join(project.models_dir, model_name)
-
-    # Build a model using the slide list as input and the annotations dictionary as output labels
-    SFM = sfmodel.SlideflowModel(model_dir,
-                                 hp.tile_px,
-                                 slide_labels_dict,
-                                 train_tfrecords=None,
-                                 validation_tfrecords=eval_tfrecords,
-                                 manifest=eval_dataset.get_manifest(),
-                                 mixed_precision=project.mixed_precision,
-                                 model_type=hp.model_type(),
-                                 normalizer=normalizer,
-                                 normalizer_source=normalizer_source,
-                                 feature_names=input_header,
-                                 feature_sizes=feature_sizes,
-                                 outcome_names=outcome_label_headers)
-
-    # Log model settings and hyperparameters
-    outcome_labels = None if hp.model_type() != 'categorical' else dict(zip(range(len(unique_labels)), unique_labels))
-
-    hp_file = join(model_dir, 'hyperparameters.json')
-
-    hp_data = {
-        'slideflow_version': sf.__version__,
-        'model_name': model_name,
-        'model_path': model,
-        'stage': 'evaluation',
-        'tile_px': hp.tile_px,
-        'tile_um': hp.tile_um,
-        'model_type': hp.model_type(),
-        'outcome_label_headers': outcome_label_headers,
-        'input_features': input_header,
-        'input_feature_sizes': feature_sizes,
-        'input_feature_labels': input_labels_dict,
-        'outcome_labels': outcome_labels,
-        'dataset_config': project.dataset_config,
-        'datasets': project.datasets,
-        'annotations': project.annotations,
-        'validation_target': hp_data['validation_target'],
-        'validation_strategy': hp_data['validation_strategy'],
-        'validation_fraction': hp_data['validation_fraction'],
-        'validation_k_fold': hp_data['validation_k_fold'],
-        'k_fold_i': eval_k_fold,
-        'filters': filters,
-        'pretrain': None,
-        'resume_training': None,
-        'checkpoint': checkpoint,
-        'hp': hp.get_dict()
-    }
-    sfutil.write_json(hp_data, hp_file)
-
-    # Perform evaluation
-    log.info(f'Evaluating {sfutil.bold(len(eval_tfrecords))} tfrecords')
-
-    results = SFM.evaluate(tfrecords=eval_tfrecords,
-                           hp=hp,
-                           model=model,
-                           model_type=hp.model_type(),
-                           checkpoint=checkpoint,
-                           batch_size=batch_size,
-                           max_tiles_per_slide=max_tiles_per_slide,
-                           min_tiles_per_slide=min_tiles_per_slide,
-                           permutation_importance=permutation_importance,
-                           histogram=histogram,
-                           save_predictions=save_predictions)
-
-    # Load results into multiprocessing dictionary
-    results_dict['results'] = results
-    return results_dict
-
-def heatmap_generator(project, slide, model_path, save_folder, roi_list, show_roi, roi_method,
-                        resolution, interpolation, logit_cmap=None, vmin=0, vcenter=0.5, vmax=1,
-                        buffer=True, normalizer=None, normalizer_source=None, batch_size=64, num_threads=4):
-
-    '''Internal function to execute heatmap generator process.'''
-    from slideflow.activations import Heatmap
-
-    #log.configure(filename=join(project.root, 'log.log'), verbosity=project.verbosity)
-    log.setLevel(project.verbosity)
-
-    resolutions = {'low': 1, 'medium': 2, 'high': 4}
-    try:
-        stride_div = resolutions[resolution]
-    except KeyError:
-        log.error(f"Invalid resolution '{resolution}': must be either 'low', 'medium', or 'high'.")
-        return
-
-    if exists(join(save_folder, f'{sfutil.path_to_name(slide)}-custom.png')):
-        log.info(f'Skipping already-completed heatmap for slide {sfutil.path_to_name(slide)}')
-        return
-
-    hp_data = sfutil.get_model_hyperparameters(model_path)
-
-    heatmap = Heatmap(slide,
-                      model_path,
-                      stride_div=stride_div,
-                      roi_list=roi_list,
-                      roi_method=roi_method,
-                      buffer=buffer,
-                      normalizer=normalizer,
-                      normalizer_source=normalizer_source,
-                      batch_size=batch_size,
-                      num_threads=num_threads)
-
-    heatmap.save(save_folder,
-                 show_roi=show_roi,
-                 interpolation=interpolation,
-                 logit_cmap=logit_cmap,
-                 vmin=vmin,
-                 vcenter=vcenter,
-                 vmax=vmax)
-
-def trainer(project, outcome_label_headers, model_name, results_dict, hp, val_settings, validation_log,
-            k_fold_i=None, k_fold_slide_labels=None, input_header=None, filters=None, filter_blank=None,
-            pretrain=None, resume_training=None, checkpoint=None, max_tiles_per_slide=0, min_tiles_per_slide=0,
-            starting_epoch=0, steps_per_epoch_override=None, normalizer=None, normalizer_source=None,
-            use_tensorboard=False, multi_gpu=False, save_predictions=False, skip_metrics=False):
-
-    '''Internal function to execute model training process.'''
-    import slideflow.model as sfmodel
-    import tensorflow as tf
-    from slideflow.statistics import to_onehot
-
-    #log.configure(filename=join(project.root, 'log.log'), verbosity=project.verbosity)
-    log.setLevel(project.verbosity)
-
-    # First, clear prior Tensorflow graph to free memory
-    tf.keras.backend.clear_session()
-
-    # Log current model name and k-fold iteration, if applicable
-    k_fold_msg = '' if not k_fold_i else f' ({val_settings.strategy} iteration {k_fold_i})'
-    log.info(f'Training model {sfutil.bold(model_name)}{k_fold_msg}...')
-    log.info(f'Hyperparameters: {hp}')
-    log.info(f'Validation settings: {json.dumps(vars(val_settings), indent=2)}')
-
-    # Filter out slides that are blank in the outcome label, or blank in any of the input_header categories
-    if filter_blank: filter_blank += [o for o in outcome_label_headers]
-    else: filter_blank = [o for o in outcome_label_headers]
-
-    if input_header:
-        input_header = [input_header] if not isinstance(input_header, list) else input_header
-        filter_blank += input_header
-
-    # Load dataset and annotations for training
-    train_dts = Dataset(config_file=project.dataset_config,
-                        sources=project.datasets,
-                        tile_px=hp.tile_px,
-                        tile_um=hp.tile_um,
-                        annotations=project.annotations,
-                        filters=filters,
-                        filter_blank=filter_blank)
-
-    # Load labels
-    use_float = (hp.model_type() in ['linear', 'cph'])
-    slide_labels_dict, unique_labels = train_dts.get_labels_from_annotations(outcome_label_headers,
-                                                                             use_float=use_float,
-                                                                             key='outcome_label')
-
-
-    '''# ===== RNA-SEQ ===================================
-    patient_to_slide = {}
-    for s in slide_labels_dict:
-        slide_labels_dict[s]['outcome_label'] = []
-        patient = sfutil._shortname(s)
-        if patient not in patient_to_slide:
-            patient_to_slide[patient] = [s]
-        else:
-            patient_to_slide[patient] += [s]
-
-    rna_seq_csv = '/mnt/data/TCGA_HNSC/hnsc_tcga_pan_can_atlas_2018/data_RNA_Seq_v2_mRNA_median_all_sample_Zscores.txt'
-    print ('Importing csv data...')
-    num_genes = 0
-    with open(rna_seq_csv, 'r') as csv_file:
-        reader = csv.reader(csv_file, delimiter='\t')
-        header = next(reader)
-        pt_with_rna_seq = [h[:12] for h in header[2:]]
-        slide_labels_dict = {s:v for s,v in slide_labels_dict.items() if sfutil._shortname(s) in pt_with_rna_seq}
-        for row in reader:
-            exp_data = row[2:]
-            if 'NA' in exp_data:
-                continue
-            num_genes += 1
-            for p, exp in enumerate(exp_data):
-                if pt_with_rna_seq[p] in patient_to_slide:
-                    for s in patient_to_slide[pt_with_rna_seq[p]]:
-                        slide_labels_dict[s]['outcome_label'] += [float(exp)]
-    print(f'Loaded {num_genes} genes for {len(slide_labels_dict)} patients.')
-    outcome_label_headers = None
-
-    if True:
-        outcome_labels=None
-
-    # ========================================='''
-
-    if hp.model_type() == 'categorical' and len(outcome_label_headers) == 1:
-        outcome_labels = dict(zip(range(len(unique_labels)), unique_labels))
-    elif hp.model_type() == 'categorical':
-        outcome_labels = {k:dict(zip(range(len(ul)), ul)) for k, ul in unique_labels.items()}
-    else:
-        outcome_labels = dict(zip(range(len(outcome_label_headers)), outcome_label_headers))
-
-    # SKIP THE BELOW IF DOING RNA-SEQ
-
-    # If multiple categorical outcomes are used, create a merged variable for k-fold splitting
-    if hp.model_type() == 'categorical' and len(outcome_label_headers) > 1:
-        labels_for_splitting = {k:{
-                                    'outcome_label':'-'.join(map(str, v['outcome_label'])),
-                                    sfutil.TCGA.patient:v[sfutil.TCGA.patient]
-                                } for k,v in slide_labels_dict.items()}
-    else:
-        labels_for_splitting = slide_labels_dict
-
-    # Get TFRecords for training and validation
-    manifest = train_dts.get_manifest()
-
-    # Use external validation dataset if specified
-    if val_settings.dataset:
-        training_tfrecords = train_dts.get_tfrecords()
-        val_dts = Dataset(tile_px=hp.tile_px,
-                          tile_um=hp.tile_um,
-                          config_file=project.dataset_config,
-                          sources=val_settings.dataset,
-                          annotations=val_settings.annotations,
-                          filters=val_settings.filters,
-                          filter_blank=val_settings.filter_blank)
-
-        validation_tfrecords = val_dts.get_tfrecords()
-        manifest.update(val_dts.get_manifest())
-        validation_labels, _ = val_dts.get_labels_from_annotations(outcome_label_headers,
-                                                                   use_float=use_float,
-                                                                   key='outcome_label')
-        slide_labels_dict.update(validation_labels)
-    elif val_settings.strategy == 'k-fold-manual':
-        all_tfrecords = train_dts.get_tfrecords()
-        training_tfrecords = [tfr for tfr in all_tfrecords if k_fold_slide_labels[sfutil.path_to_name(tfr)] != k_fold_i]
-        validation_tfrecords = [tfr for tfr in all_tfrecords if k_fold_slide_labels[sfutil.path_to_name(tfr)] == k_fold_i]
-        num_train_str = sfutil.bold(len(training_tfrecords))
-        num_val_str = sfutil.bold(len(validation_tfrecords))
-        log.info(f'Using {num_train_str} TFRecords for training, {num_val_str} for validation')
-    else:
-        tfr_split = sfio.tfrecords.get_train_and_val_tfrecords(train_dts,
-                                                               validation_log,
-                                                               hp.model_type(),
-                                                               labels_for_splitting,
-                                                               outcome_key='outcome_label',
-                                                               val_target=val_settings.target,
-                                                               val_strategy=val_settings.strategy,
-                                                               val_fraction=val_settings.fraction,
-                                                               val_k_fold=val_settings.k_fold,
-                                                               k_fold_iter=k_fold_i)
-        training_tfrecords, validation_tfrecords = tfr_split
-    # Prepare additional slide-level input
-    if input_header:
-        input_header = [input_header] if not isinstance(input_header, list) else input_header
-        feature_len_dict = {}     # Dict mapping input_vars to total number of different labels for each input header
-        input_labels_dict = {}  # Dict mapping input_vars to nested dictionaries
-                                #   which map category ID to category label names (for categorical variables)
-                                #     or mapping to 'float' for float variables
-        for slide in slide_labels_dict:
-            slide_labels_dict[slide]['input'] = []
-
-        for input_var in input_header:
-
-            # Check if variable can be converted to float (default). If not, will assume categorical.
-            try:
-                train_dts.get_labels_from_annotations(input_var, use_float=True)
-                if val_settings.dataset:
-                    val_dts.get_labels_from_annotations(input_var, use_float=True)
-                inp_is_float = True
-            except TypeError:
-                inp_is_float = False
-            log.info(f"Adding input variable {sfutil.blue(input_var)} as {'float' if inp_is_float else 'categorical'}")
-
-            # Next, if this is a categorical variable, harmonize categories in training and validation datasets
-            if (not inp_is_float) and val_settings.dataset:
-                _, unique_train_input_labels = train_dts.get_labels_from_annotations(input_var, use_float=inp_is_float)
-                _, unique_val_input_labels = val_dts.get_labels_from_annotations(input_var, use_float=inp_is_float)
-
-                unique_inp_labels = sorted(list(set(unique_train_input_labels + unique_val_input_labels)))
-                input_label_to_int = dict(zip(unique_inp_labels, range(len(unique_inp_labels))))
-                inp_labels_dict, _ = train_dts.get_labels_from_annotations(input_var, assigned_labels=input_label_to_int)
-                val_input_labels, _ = val_dts.get_labels_from_annotations(input_var, assigned_labels=input_label_to_int)
-                inp_labels_dict.update(val_input_labels)
-            else:
-                inp_labels_dict, unique_inp_labels = train_dts.get_labels_from_annotations(input_var, use_float=inp_is_float)
-
-            # Assign features to 'input' key of the slide-level annotations dict
-            if inp_is_float:
-                feature_len_dict[input_var] = num_features = 1
-                for slide in slide_labels_dict:
-                    slide_labels_dict[slide]['input'] += inp_labels_dict[slide]['label']
-                input_labels_dict[input_var] = 'float'
-            else:
-                feature_len_dict[input_var] = num_features = len(unique_inp_labels)
-                for slide in slide_labels_dict:
-                    slide_labels_dict[slide]['input'] += to_onehot(inp_labels_dict[slide]['label'], num_features)
-                input_labels_dict[input_var] = dict(zip(range(len(unique_inp_labels)), unique_inp_labels))
-
-        feature_sizes = [feature_len_dict[i] for i in input_header]
-
-    else:
-        input_labels_dict = None
-        feature_sizes = None
-
-    # Initialize model
-    # Using the project annotation file, assemble list of slides for training,
-    # as well as the slide annotations dictionary (output labels)
-    full_model_name = model_name if not k_fold_i else model_name+f'-kfold{k_fold_i}'
-    prev_run_dirs = [x for x in os.listdir(project.models_dir) if isdir(join(project.models_dir, x))]
-    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
-    prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
-    cur_run_id = max(prev_run_ids, default=-1) + 1
-    model_dir = os.path.join(project.models_dir, f'{cur_run_id:05d}-{full_model_name}')
-    assert not os.path.exists(model_dir)
-
-    # Build a model using the slide list as input and the annotations dictionary as output labels
-    SFM = sfmodel.SlideflowModel(model_dir,
-                                 hp.tile_px,
-                                 slide_labels_dict,
-                                 training_tfrecords,
-                                 validation_tfrecords,
-                                 name=full_model_name,
-                                 manifest=manifest,
-                                 mixed_precision=project.mixed_precision,
-                                 model_type=hp.model_type(),
-                                 normalizer=normalizer,
-                                 normalizer_source=normalizer_source,
-                                 feature_names=input_header,
-                                 feature_sizes=feature_sizes,
-                                 outcome_names=outcome_label_headers)
-
-    # Log model settings and hyperparameters
-    hp_file = join(project.models_dir, full_model_name, 'hyperparameters.json')
-
-    hp_data = {
-        'slideflow_version': sf.__version__,
-        'model_name': model_name,
-        'stage': 'training',
-        'tile_px': hp.tile_px,
-        'tile_um': hp.tile_um,
-        'model_type': hp.model_type(),
-        'outcome_label_headers': outcome_label_headers,
-        'input_features': input_header,
-        'input_feature_sizes': feature_sizes,
-        'input_feature_labels': input_labels_dict,
-        'outcome_labels': outcome_labels,
-        'dataset_config': project.dataset_config,
-        'datasets': project.datasets,
-        'annotations': project.annotations,
-        'validation_target': val_settings.target,
-        'validation_strategy': val_settings.strategy,
-        'validation_fraction': val_settings.fraction,
-        'validation_k_fold': val_settings.k_fold,
-        'k_fold_i': k_fold_i,
-        'filters': filters,
-        'pretrain': pretrain,
-        'resume_training': resume_training,
-        'checkpoint': checkpoint,
-        'hp': hp.get_dict(),
-    }
-    sfutil.write_json(hp_data, hp_file)
-
-    # Execute training
-    try:
-        results, history = SFM.train(hp,
-                                     pretrain=pretrain,
-                                     resume_training=resume_training,
-                                     checkpoint=checkpoint,
-                                     validate_on_batch=val_settings.validate_on_batch,
-                                     val_batch_size=val_settings.batch_size,
-                                     validation_steps=val_settings.validation_steps,
-                                     max_tiles_per_slide=max_tiles_per_slide,
-                                     min_tiles_per_slide=min_tiles_per_slide,
-                                     starting_epoch=starting_epoch,
-                                     steps_per_epoch_override=steps_per_epoch_override,
-                                     use_tensorboard=use_tensorboard,
-                                     multi_gpu=multi_gpu,
-                                     save_predictions=save_predictions,
-                                     skip_metrics=skip_metrics)
-        results['history'] = history
-        results_dict.update({full_model_name: results})
-    except tf.errors.ResourceExhaustedError as e:
-        log.info('\n')
-        print(e)
-        log.error(f'Training failed for {sfutil.bold(model_name)}, GPU memory exceeded.')
-        history = None
-
-    del SFM
-    return history

@@ -10,22 +10,22 @@ logging.getLogger('tensorflow').setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import tensorflow as tf
+import slideflow as sf
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.colors as mcol
 import seaborn as sns
 import scipy.stats as stats
-import slideflow.util as sfutil
-import slideflow.io as sfio
+
 import shapely.geometry as sg
 
-from slideflow.util import log, TCGA, StainNormalizer
+from slideflow.util import log
 from slideflow.util.fastim import FastImshow
 from slideflow.model import ModelActivationsInterface
 from sklearn.linear_model import LogisticRegression
 from os.path import join, exists
-from statistics import mean
+from statistics import mean, median
 from math import isnan
 from copy import deepcopy
 from matplotlib.widgets import Slider
@@ -38,58 +38,52 @@ from tqdm import tqdm
 # TODO: change slide_node_dict and slide_logits_dict to be multidimensional arrays
 #       rather than this nested dictionary garbage
 
+# TODO: assess TileVisualizer
+
 class ActivationsError(Exception):
     pass
 
 class ActivationsVisualizer:
-    '''Loads annotations, saved layer activations, and prepares output saving directories.
-        Will also read/write processed activations to a PKL cache file to save time in future iterations.'''
 
-    def __init__(self,
-                 model,
-                 tfrecords,
-                 export_dir,
-                 image_size,
-                 annotations=None,
-                 outcome_label_headers=None,
-                 focus_nodes=None,
-                 normalizer=None,
-                 normalizer_source=None,
-                 cache=None,
-                 batch_size=32,
-                 activations_export=None,
-                 max_tiles_per_slide=0,
-                 min_tiles_per_slide=0,
-                 manifest=None,
-                 layers='postconv',
-                 include_logits=True):
+    """Loads annotations, saved layer activations, and prepares output saving directories.
+    Will also read/write processed activations to a PKL cache file to save time in future iterations."""
 
-        '''Calculates activations from model.
+    # Change: outcome_label_headers is gone. Annotations is a dict mapping slides to an outcome
+    # Change: remove image_size
+    # include_logits ?
+    # generate_activations_from_model -> duplicate arguments?
+    # calculate_activation_averages_and_stats: threshold is redundant
+    # export_folder: remove from __init__ function
+    # focus_nodes: remove from __init__ function
+
+    def __init__(self, model, tfrecords, export_dir, annotations=None, focus_nodes=None, normalizer=None,
+                 normalizer_source=None, cache=None, export=None, max_tiles_per_slide=0, min_tiles_per_slide=0,
+                 manifest=None, layers='postconv', batch_size=32, include_logits=True):
+
+        """Calculates activations from model.
 
         Args:
-            model:                  Path to model from which to calculate activations
-            tfrecords:              List of tfrecords paths
-            export_dir:             Export directory in which to save cache files and output files
-            image_size:             Int, width/height of input images in pixels
-            annotations:            Path to CSV file containing slide annotations
-            outcome_label_headers:  String, name of outcome header in annotations file,
-                                        used to compare activations between categories
-            focus_nodes:            List of int, nodes on which to focus when generating cross-category statistics
-            normalizer:             String, which real-time normalization to use on images taken from TFRecords
-            normalizer_source:      String, path to image to use as source for real-time normalization
-            cache:                  File in which to store activations PKL cache
-            batch_size:             Batch size to use during activations calculations
-            activations_export:     Filename for CSV export of activations
-            max_tiles_per_slide:    Maximum number of tiles from which to generate activations for each slide
-            min_tiles_per_slide:    If provided, will only evaluate slides with a given minimum number of tiles.
-            manifest:               Optional, dict mapping tfrecords to number of tiles contained.
-                                        Used for progress bars and min_tiles_per_slide.
-            layers:                 Names of layers from the model from which to calculate activations.
-            include_logits:         Bool. If true, will also calculate and store logits.
-        '''
-        self.categories = []
-        self.used_categories = []
-        self.slide_category_dict = {}
+            model (str): Path to model from which to calculate activations.
+            tfrecords (list): List of tfrecords paths.
+            export_dir (str): Export directory in which to save cache files and output files.
+            annotations (dict, optional): Dict mapping slide names to outcome categories.
+            focus_nodes (list, optional): List of int, nodes on which to focus when generating cross-category statistics
+            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
+                If None but using a normalizer, will use an internal tile for normalization.
+                Internal default tile can be found at slideflow.util.norm_tile.jpg
+            cache (str, optional): File in which to store activations PKL cache.
+            export (str, optional): Filename for CSV export of activations.
+            max_tiles_per_slide (int, optional): Maximum number of tiles per slide to generate activations.
+                If 0, will generate all activations for tiles in each slide. Defaults to 0.
+            min_tiles_per_slide (int, optional): Only evaluate slides with this minimum number of tiles. Defaults to 0.
+            manifest (dict, optional): Dict mapping tfrecords to number of tiles contained.
+                Used for progress bars and min_tiles_per_slide.
+            layers (str, optional): Model layer(s) from which to calculate activations. Defaults to 'postconv'.
+            batch_size (int, optional): Batch size to use during activations calculations. Defaults to 32.
+            include_logits (bool, optional): Calculate and store logits. Defaults to True.
+        """
+
         self.slide_node_dict = {}
         self.slide_logits_dict = {}
         self.slide_loc_dict = {}
@@ -98,11 +92,12 @@ class ActivationsVisualizer:
         self.focus_nodes = focus_nodes
         self.sorted_nodes = None
         self.manifest = manifest
+        self.annotations = annotations
         self.model = model
         self.tfrecords = np.array(tfrecords)
-        self.slides = sorted([sfutil.path_to_name(tfr) for tfr in self.tfrecords])
+        self.slides = sorted([sf.util.path_to_name(tfr) for tfr in self.tfrecords])
         self.export_dir = export_dir
-        self.image_size = image_size
+        self.tile_px = sf.util.get_model_hyperparameters(model)['tile_px']
 
         if not isinstance(layers, list): layers = [layers]
 
@@ -119,15 +114,26 @@ class ActivationsVisualizer:
         if not exists(export_dir):
             os.makedirs(export_dir)
 
-        # Load annotations if provided
-        if annotations and outcome_label_headers:
-            self.load_annotations(annotations, outcome_label_headers)
+        if annotations:
+            self.categories = list(set(self.annotations.values()))
+            if self.slide_node_dict:
+                for slide in self.slides:
+                    try:
+                        if self.slide_node_dict[slide][0] != []:
+                            self.used_categories = list(set(self.used_categories + [self.annotations[slide]]))
+                            self.used_categories.sort()
+                    except KeyError:
+                        raise KeyError(f"Slide {slide} not found in provided annotations.")
+                log.debug(f'Observed categories (total: {len(self.used_categories)}): {", ".join(self.used_categories)}')
+        else:
+            self.categories = []
+            self.used_categories = []
 
         # Load activations
         # Load from PKL (cache) if present
         if cache and exists(cache):
             # Load saved PKL cache
-            log.info(f'Loading pre-calculated predictions and activations from {sfutil.green(cache)}...')
+            log.info(f'Loading pre-calculated predictions and activations from {sf.util.green(cache)}...')
             with open(cache, 'rb') as pt_pkl_file:
 
                 self.slide_node_dict, self.slide_logits_dict, self.slide_loc_dict = pickle.load(pt_pkl_file)
@@ -150,7 +156,7 @@ class ActivationsVisualizer:
         else:
             self.generate_activations_from_model(model,
                                                  batch_size=batch_size,
-                                                 export=activations_export,
+                                                 export=export,
                                                  normalizer=normalizer,
                                                  normalizer_source=normalizer_source,
                                                  layers=layers,
@@ -183,7 +189,7 @@ class ActivationsVisualizer:
 
         # Record which categories have been included in the specified tfrecords
         if self.categories:
-            self.used_categories = list(set([self.slide_category_dict[slide] for slide in self.slides]))
+            self.used_categories = list(set([self.annotations[slide] for slide in self.slides]))
             self.used_categories.sort()
         log.debug(f'Observed categories (total: {len(self.used_categories)}): {", ".join(self.used_categories)}')
 
@@ -193,29 +199,29 @@ class ActivationsVisualizer:
         log.debug(f'Number of activation features: {self.num_features}')
 
     def _save_node_statistics_to_csv(self, sorted_nodes, slide_node_dict, filename, tile_stats=None, slide_stats=None):
-        '''Internal function to exports statistics (ANOVA p-values and slide-level averages) to CSV.
+        """Internal function to export statistics (ANOVA p-values and slide-level averages) to CSV.
 
         Args:
-            sorted_nodes:       List of node IDs (int) sorted in order of significance.
-            slide_node_dict:    Dict mapping slides to dict of nodes mapping to slide-level values.
-                                    Slide-level node values could be mean, median, thresholded, or other.
-            filename:           Filename
-            tile_stats:         Dictionary mapping nodes to a dict of tile-level stats
-                                    containing 'p' (ANOVA P-value) and 'f' (ANOVA F-value) for each node
-                                    As calculated elsewhere by comparing node activations between categories
-            slide_stats:        Dictionary mapping nodes to a dict of slide-level stats
-                                    containing 'p' (ANOVA P-value), 'f' (ANOVA F-value),
-                                    and 'num_above_threshold' for each node,
-                                    as calculated elsewhere by comparing node activations between categories
-        '''
+            sorted_nodes (list): List of node IDs (int) sorted in order of significance.
+            slide_node_dict (dict): Dict mapping slides to dict of nodes mapping to slide-level values.
+                Slide-level node values could be mean, median, thresholded, or other.
+            filename (str): Filename target for CSV to save.
+            tile_stats (dict, optional): Dictionary mapping nodes to a dict of tile-level stats containing 'p'
+                (ANOVA P-value) and 'f' (ANOVA F-value) for each node, as calculated elsewhere by comparing
+                node activations between categories
+            slide_stats (dict, optional): Dictionary mapping nodes to a dict of slide-level stats containing 'p'
+                (ANOVA P-value), 'f' (ANOVA F-value), and 'num_above_threshold' for each node, as calculated elsewhere
+                by comparing node activations between categories
+        """
+
         # Save results to CSV
-        log.info(f'Writing results to {sfutil.green(filename)}...')
+        log.info(f'Writing results to {sf.util.green(filename)}...')
         with open(filename, 'w') as outfile:
             csv_writer = csv.writer(outfile)
             header = ['slide', 'category'] + [f'FLNode{n}' for n in sorted_nodes]
             csv_writer.writerow(header)
             for slide in self.slides:
-                category = self.slide_category_dict[slide]
+                category = self.annotations[slide]
                 row = [slide, category] + [slide_node_dict[slide][n] for n in sorted_nodes]
                 csv_writer.writerow(row)
             if tile_stats:
@@ -231,9 +237,9 @@ class ActivationsVisualizer:
         for tfr in self.tfrecords:
             num_tiles = self.manifest[tfr]['total']
             if num_tiles < min_tiles:
-                log.info(f'Skipped {sfutil.green(sfutil.path_to_name(tfr))} (has {num_tiles} tiles, min {min_tiles})')
+                log.info(f'Skipped {sf.util.green(sf.util.path_to_name(tfr))} (has {num_tiles} tiles, min {min_tiles})')
             else:
-                unique_slides += [sfutil.path_to_name(tfr)]
+                unique_slides += [sf.util.path_to_name(tfr)]
                 included_tfrecords += [tfr]
         unique_slides = list(set(unique_slides))
         self.tfrecords = included_tfrecords
@@ -241,14 +247,14 @@ class ActivationsVisualizer:
         log.info(f'Total slides after filtering by minimum number of tiles: {len(self.slides)}')
 
     def slide_tile_dict(self):
-        '''Generates dictionary mapping slides to list of node activations for each tile.
+        """Generates dictionary mapping slides to list of node activations for each tile.
 
         Example (3 nodes):
             { 'Slide1': [[0.1, 0.2, 0.4], # Slide1, node activations for tile1
                          [0.5, 0.1, 0.7], # Slide1, node activations for tile2
                          [0.6, 0.9, 0.1]] # Slide1, node activations for tile3
             }
-        '''
+        """
         result = {}
         for slide in self.slides:
             num_tiles = len(self.slide_node_dict[slide][0])
@@ -257,18 +263,19 @@ class ActivationsVisualizer:
         return result
 
     def map_to_predictions(self, x=0, y=0):
-        '''Returns coordinates and metadata for tile-level predictions for all tiles,
-        which can be used to create a TFRecordMap.
+        """Returns coordinates and metadata for tile-level predictions for all tiles,
+        which can be used to create a SlideMap.
 
         Args:
-            x:          Int, identifies the outcome category id for which predictions will be mapped to the X-axis
-            y:          Int, identifies the outcome category id for which predictions will be mapped to the Y-axis
+            x (int, optional): Outcome category id for which predictions will be mapped to the X-axis. Defaults to 0.
+            y (int, optional): Outcome category id for which predictions will be mapped to the Y-axis. Defaults to 0.
 
         Returns:
-            mapped_x:   List of x-axis coordinates (predictions for the category 'x')
-            mapped_y:   List of y-axis coordinates (predictions for the category 'y')
-            umap_meta:  List of dictionaries containing tile-level metadata (used for TFRecordMap)
-        '''
+            list:   List of x-axis coordinates (predictions for the category 'x')
+            list:   List of y-axis coordinates (predictions for the category 'y')
+            list:   List of dictionaries containing tile-level metadata (used for SlideMap)
+        """
+
         umap_x, umap_y, umap_meta = [], [], []
         for slide in self.slides:
             for tile_index in range(len(self.slide_logits_dict[slide][0])):
@@ -281,14 +288,14 @@ class ActivationsVisualizer:
         return np.array(umap_x), np.array(umap_y), umap_meta
 
     def get_activations(self):
-        '''Returns dictionary mapping slides to tile-level node activations.
+        """Returns dictionary mapping slides to tile-level node activations.
 
         Example (3 nodes):
             { 'Slide1': [[0.1, 0.5, 0.6], # Slide1, node1 activations for all tiles
                          [0.2, 0.1, 0.7], # Slide1, node2 activations for all tiles
                          [0.4, 0.7, 0.1]] # Slide1, node3 activations for all tiles
             }
-        '''
+        """
         return self.slide_node_dict
 
     def get_predictions(self):
@@ -359,38 +366,6 @@ class ActivationsVisualizer:
             slide_predictions.update({slide: max(slide_prediction_values, key=lambda l: slide_prediction_values[l])})
         return slide_predictions, slide_percentages
 
-    def load_annotations(self, annotations, outcome_label_headers):
-        '''Loads annotations from a given file with the specified outcome header.
-
-        Args:
-            annotations:                Path to CSV annotations file.
-            outcome_label_headers:      String, name of column header from which to read outcome variables.
-        '''
-        with open(annotations, 'r') as ann_file:
-            ann_reader = csv.reader(ann_file)
-            header = next(ann_reader)
-            slide_i = header.index(TCGA.slide)
-            category_i = header.index(outcome_label_headers)
-            for row in ann_reader:
-                slide = row[slide_i]
-                category = row[category_i]
-                if slide not in self.slides: continue
-                self.slide_category_dict.update({slide:category})
-
-        self.categories = list(set(self.slide_category_dict.values()))
-
-        if self.slide_node_dict:
-            # If initial loading has been completed already, make note of observed categories in given header
-            for slide in self.slides:
-                try:
-                    if self.slide_node_dict[slide][0] != []:
-                        self.used_categories = list(set(self.used_categories + [self.slide_category_dict[slide]]))
-                        self.used_categories.sort()
-                except KeyError:
-                    # Skip unknown slide
-                    pass
-            log.debug(f'Observed categories (total: {len(self.used_categories)}): {", ".join(self.used_categories)}')
-
     def get_tile_node_activations_by_category(self, node):
         '''For each outcome category, calculates activations of a given node across all tiles in the category.
         Requires annotations to have been loaded with load_annotations()
@@ -409,7 +384,7 @@ class ActivationsVisualizer:
             return
         tile_node_activations_by_category = []
         for c in self.used_categories:
-            nodelist = [self.slide_node_dict[pt][node] for pt in self.slides if self.slide_category_dict[pt] == c]
+            nodelist = [self.slide_node_dict[pt][node] for pt in self.slides if self.annotations[pt] == c]
             tile_node_activations_by_category += [[nodeval for nl in nodelist for nodeval in nl]]
         return tile_node_activations_by_category
 
@@ -491,36 +466,39 @@ class ActivationsVisualizer:
                     neighbors.update({neighboring_slide: [tile_index]})
         return neighbors
 
-    def generate_activations_from_model(self,
-                                        model,
-                                        batch_size=16,
-                                        export=None,
-                                        normalizer=None,
-                                        normalizer_source=None,
-                                        layers='postconv',
-                                        include_logits=True,
-                                        max_tiles_per_slide=0,
-                                        cache=None):
+    def generate_activations_from_model(self, model, layers='postconv', export=None, normalizer=None,
+                                        normalizer_source=None,  include_logits=True, max_tiles_per_slide=0,
+                                        batch_size=32, cache=None):
 
-        '''Calculates activations from a given model.
+        """Calculates activations from a given model, saving to self.slide_node_dict
 
         Args:
-            model:              Path to Tensorflow model from which to calculate final layer activations.
-            batch_size:         Batch size for model predictions.
-            export:             String (default: None). If provided, will export CSV of activations with this filename.'''
+            model (str): Path to Tensorflow model from which to calculate final layer activations.
+            layers (str, optional): Layers from which to generate activations. Defaults to 'postconv'.
+            export (str, optional): Path to CSV file in which to save activations. Defaults to None.
+            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
+                If None but using a normalizer, will use an internal tile for normalization.
+                Internal default tile can be found at slideflow.util.norm_tile.jpg
+            include_logits (bool, optional): Include logit predictions. Defaults to True.
+            max_tiles_per_slide (int, optional): Maximum number of tiles per slide to generate activations.
+                If 0, will generate all activations for tiles in each slide. Defaults to 0.
+            batch_size (int, optional): Batch size to use during activations calculations. Defaults to 32.
+            cache (str, optional): File in which to store activations PKL cache.
+        """
 
         # Rename tfrecord_array to tfrecords
-        log.info(f'Calculating activations from {sfutil.green(model)}, max {max_tiles_per_slide} tiles per slide.')
+        log.info(f'Calculating activations from {sf.util.green(model)}, max {max_tiles_per_slide} tiles per slide.')
         if not isinstance(layers, list): layers = [layers]
 
         # Load model
         combined_model = ModelActivationsInterface(model, layers=layers, include_logits=include_logits)
-        unique_slides = list(set([sfutil.path_to_name(tfr) for tfr in self.tfrecords]))
+        unique_slides = list(set([sf.util.path_to_name(tfr) for tfr in self.tfrecords]))
         self.num_features = combined_model.num_features
 
         # Prepare normalizer
         if normalizer: log.info(f'Using realtime {normalizer} normalization')
-        normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
+        normalizer = None if not normalizer else sf.util.StainNormalizer(method=normalizer, source=normalizer_source)
 
         # Prepare PKL export dictionary
         for slide in unique_slides:
@@ -543,19 +521,19 @@ class ActivationsVisualizer:
 
         for t, tfrecord in enumerate(self.tfrecords):
             dataset = tf.data.TFRecordDataset(tfrecord)
-            tfr_features, tfr_img_type = sfio.tfrecords.detect_tfrecord_format(tfrecord)
+            tfr_features, tfr_img_type = sf.io.tfrecords.detect_tfrecord_format(tfrecord)
             if tfr_features is None:
                 log.warning(f"Unable to read tfrecord at {tfrecord} - is it empty?")
-                slides_to_remove += [sfutil.path_to_name(tfrecord)]
+                slides_to_remove += [sf.util.path_to_name(tfrecord)]
                 continue
             if 'loc_x' not in tfr_features:
                 include_tfrecord_loc = False
 
-            parser = sfio.tfrecords.get_tfrecord_parser(tfrecord,
+            parser = sf.io.tfrecords.get_tfrecord_parser(tfrecord,
                                                         ('image_raw', 'slide', 'loc_x', 'loc_y'),
                                                         normalizer=normalizer,
                                                         standardize=True,
-                                                        img_size=self.image_size,
+                                                        img_size=self.tile_px,
                                                         error_if_invalid=False) # Returns None for loc_x/loc_y if not in tfrecords
 
             dataset = dataset.map(parser, num_parallel_calls=8)
@@ -588,7 +566,7 @@ class ActivationsVisualizer:
                     name_str = f'\r(TFRecord {t+1:>3}/{len(self.tfrecords):>3})'
                     batch_str = f'(Batch {i+1:>3})'
                     img_str = f'({(i+1)*batch_size:>5} images)'
-                    sys.stdout.write(f'{name_str} {batch_str} {img_str}: {sfutil.green(sfutil.path_to_name(tfrecord))}')
+                    sys.stdout.write(f'{name_str} {batch_str} {img_str}: {sf.util.green(sf.util.path_to_name(tfrecord))}')
                     sys.stdout.flush()
 
                 if max_tiles_per_slide and (i+1)*batch_size >= max_tiles_per_slide:
@@ -608,7 +586,7 @@ class ActivationsVisualizer:
 
             # Check if TFRecord was empty
             if fl_activations_combined == []:
-                formatted_name = sfutil.green(sfutil.path_to_name(tfrecord))
+                formatted_name = sf.util.green(sf.util.path_to_name(tfrecord))
                 log.warning(f'Unable to calculate activations from {formatted_name}; is the TFRecord empty?')
                 continue
 
@@ -682,34 +660,37 @@ class ActivationsVisualizer:
         log.debug(f'Activation calculation time: {fla_calc_time-fla_start_time:.0f} sec')
         log.debug(f'Number of activation features: {self.num_features}')
         if export:
-            log.info(f'Activations saved to {sfutil.green(export)}')
+            log.info(f'Activations saved to {sf.util.green(export)}')
 
         # Dump PKL dictionary to file
         if cache:
             with open(cache, 'wb') as pt_pkl_file:
                 pickle.dump([self.slide_node_dict, self.slide_logits_dict, self.slide_loc_dict], pt_pkl_file)
-            log.info(f'Predictions and activations cached to {sfutil.green(cache)}')
+            log.info(f'Predictions and activations cached to {sf.util.green(cache)}')
 
         return self.slide_node_dict, self.slide_logits_dict
 
     def remove_slide(self, slide):
+        """Removes slide from internally cached activations."""
         del self.slide_node_dict[slide]
         del self.slide_logits_dict[slide]
         del self.slide_loc_dict[slide]
-        self.tfrecords = [t for t in self.tfrecords if sfutil.path_to_name(t) != slide]
+        self.tfrecords = [t for t in self.tfrecords if sf.util.path_to_name(t) != slide]
         try:
             self.slides.remove(slide)
         except ValueError:
             pass
 
     def export_to_csv(self, filename, method='mean', nodes=None):
-        '''Exports calculated activations to csv.
+        """Exports calculated activations to csv.
 
         Args:
-            filename:   Path to CSV file for export.
+            filename (str):   Path to CSV file for export.
+            method (str): Method for summarizing slide-level results. Either 'mean' or 'median'. Defaults to 'mean'.
             nodes:      (optional) List of int. Activations of these nodes will be exported.
                             If None, activations for all nodes will be exported.
-        '''
+        """
+
         with open(filename, 'w') as outfile:
             csvwriter = csv.writer(outfile)
             nodes = self.nodes if not nodes else nodes
@@ -720,15 +701,25 @@ class ActivationsVisualizer:
                 for n in nodes:
                     if method in ('mean', 'average', 'avg'):
                         row += [mean(self.slide_node_dict[slide][n])]
+                    elif method == 'median':
+                        row += [median(self.slide_node_dict[slide][n])]
                     else:
-                        row += [self.slide_node_dict[slide][n]]
+                        raise ActivationsError(f'Unknown summary method {method}.')
                 csvwriter.writerow(row)
 
     def export_to_torch(self, output_directory):
+        """Export activations in torch format to .pt files in the given directory.
+
+        Used for training CLAM models.
+
+        Args:
+            output_directory (str): Path to directory in which to save .pt files.
+        """
+
         import torch
 
         for slide in self.slide_node_dict:
-            sys.stdout.write(f'\rWorking on {sfutil.green(slide)}...\033[K')
+            sys.stdout.write(f'\rWorking on {sf.util.green(slide)}...\033[K')
             sys.stdout.flush()
             slide_activations = []
             number_tiles = len(self.slide_node_dict[slide][self.nodes[0]])
@@ -740,34 +731,36 @@ class ActivationsVisualizer:
                 torch.save(slide_activations, join(output_directory, f'{slide}.pt'))
             else:
                 print('\r\033[K', end='')
-                log.info(f'Skipping empty slide {sfutil.green(slide)}')
+                log.info(f'Skipping empty slide {sf.util.green(slide)}')
         print('\r\033[K', end='')
 
         args = {
             'model': self.model,
             'num_features': self.num_features
         }
-        sfutil.write_json(args, join(output_directory, 'settings.json'))
+        sf.util.write_json(args, join(output_directory, 'settings.json'))
 
         log.info('Activations exported in Torch format.')
 
     def calculate_activation_averages_and_stats(self, filename=None, node_method='avg', threshold=0.5):
-        '''Calculates activation averages across categories,
-            as well as tile-level and patient-level statistics using ANOVA,
-            exporting to CSV if desired.
+        """Calculates activation averages across categories, as well as tile-level and patient-level statistics,
+            using ANOVA, exporting to CSV if desired.
 
         Args:
-            filename:       Path to CSV file for export.
-            node_method:    Either 'avg' (default) or 'threshold'. If avg, slide-level node data is calculated
-                                by averaging node activations across all tiles. If threshold, slide-level node data
-                                is calculated by counting the number of tiles with node activations > threshold
-                                and dividing by the total number of tiles.
+            filename (str, optional): Path to CSV file for export. Defaults to None.
+            node_method (str, optional): Indicates method of aggregating tile-level data into slide-level data.
+                Either 'avg' (default) or 'threshold'. If avg, slide-level node data is calculated by averaging
+                node activations across all tiles. If threshold, slide-level node data is calculated by counting
+                the number of tiles with node activations > threshold and dividing by the total number of tiles.
+                Defaults to 'avg'.
+            threshold (float, optional): Threshold if using 'threshold' node_method.
 
         Returns:
-            Dict mapping slides to dict of nodes mapping to slide-level node values;
-            Dict mapping nodes to tile-level dict of statistics ('p', 'f');
-            Dict mapping nodes to slide-level dict of statistics ('p', 'f');
-        '''
+            dict: Dict mapping slides to dict of nodes mapping to slide-level node values;
+            dict: Dict mapping nodes to tile-level dict of statistics ('p', 'f');
+            dict: Dict mapping nodes to slide-level dict of statistics ('p', 'f');
+        """
+
         if not self.categories:
             log.warning('Unable to calculate activations statistics; Please load annotations with load_annotations().')
             return
@@ -793,7 +786,7 @@ class ActivationsVisualizer:
             # For each node, calculate average across tiles found in a slide
             for slide in self.slides:
                 if slide not in slide_node_dict: slide_node_dict.update({slide: {}})
-                pt_cat = self.slide_category_dict[slide]
+                pt_cat = self.annotations[slide]
                 if node_method == 'avg':
                     node_val = mean(self.slide_node_dict[slide][node])
                 elif node_method == 'threshold':
@@ -846,26 +839,13 @@ class ActivationsVisualizer:
                                           slide_stats=slide_node_stats)
         return slide_node_dict, tile_node_stats, slide_node_stats
 
-    def logistic_regression(self, slide_method='avg', node_threshold=0.5):
-        '''Experimental function, creates a logistic regression model
-            to generate slide-level predictions from slide-level statistics.'''
-        slide_node_dict, _, _ = self.calculate_activation_averages_and_stats(None, slide_method, node_threshold)
-
-        log.info('Working on logistic regression...')
-        x = np.array([[slide_node_dict[slide][n] for n in self.nodes] for slide in self.slides])
-        y = np.array([self.categories.index(self.slide_category_dict[slide]) for slide in self.slides])
-
-        model = LogisticRegression(solver='lbfgs', max_iter=100, multi_class='ovr').fit(x, y)
-        log.info(f'Regression complete, accuracy: {model.score(x, y):.3f}')
-        return model
-
     def generate_box_plots(self, export_folder=None):
-        '''Generates box plots comparing nodal activations at the slide-level and tile-level.
+        """Generates box plots comparing nodal activations at the slide-level and tile-level.
 
         Args:
-            export_folder:    (optional) Path to directory in which to save box plots.
-                                If None, will save boxplots to STATS_ROOT directory.
-        '''
+            export_folder (str, optional): Path to directory in which to save box plots.
+                If None, will save boxplots to self.export_dir.
+        """
 
         if not self.categories:
             log.warning('Unable to generate box plots; annotations not loaded. Please load with load_annotations().')
@@ -906,18 +886,17 @@ class ActivationsVisualizer:
             if (not self.focus_nodes) and i>4: break
 
     def save_example_tiles_gradient(self, nodes=None, export_folder=None, tile_filter=None):
-        '''For a given set of activation nodes, saves image tiles named according
-            to their corresponding node activations, for easy sorting and visualization.
-            Duplicate image tiles will be saved for each node, organized into subfolders named according to node id.
+        """For a set of activation nodes, saves image tiles named according to their corresponding activations.
+
+        Duplicate image tiles will be saved for each node, organized into subfolders named according to node id.
 
         Args:
-            nodes:          List of int, nodes to evaluate
-            export_folder:  Path to folder in which to save examples tiles
-            tile_filter:    (optional) Dict mapping slide names to tile indices.
-                                If provided, will only save image tiles from this list.
-                                Example:
-                                {'slide1': [0, 16, 200]}
-        '''
+            nodes (list, optional): List of int, nodes to evaluate. If None (default), will use self.focus_nodes.
+            export_folder (str, optional):  Path to folder in which to save examples tiles.
+            tile_filter (dict, optional):  Dict mapping slide names to tile indices. Only save tiles from this list.
+                Example: {'slide1': [0, 16, 200]}
+        """
+
         if not export_folder: export_folder = join(self.export_dir, 'sorted_tiles')
         if not nodes: nodes = self.focus_nodes
 
@@ -939,11 +918,11 @@ class ActivationsVisualizer:
             for i, g in enumerate(gradient):
                 print(f'Extracting tile {i} of {len(gradient)} for node {node}...', end='\r')
                 for tfr in self.tfrecords:
-                    if sfutil.path_to_name(tfr) == g['slide']:
+                    if sf.util.path_to_name(tfr) == g['slide']:
                         tfr_dir = tfr
                 if not tfr_dir:
                     log.warning(f"TFRecord location not found for slide {g['slide']}")
-                slide, image = sfio.tfrecords.get_tfrecord_by_index(tfr_dir, g['index'], decode=False)
+                slide, image = sf.io.tfrecords.get_tfrecord_by_index(tfr_dir, g['index'], decode=False)
                 tile_filename = f"{i}-tfrecord{g['slide']}-{g['index']}-{g['val']:.2f}.jpg"
                 image_string = open(join(export_folder, node, tile_filename), 'wb')
                 image_string.write(image.numpy())
@@ -951,14 +930,15 @@ class ActivationsVisualizer:
             print()
 
     def save_example_tiles_high_low(self, nodes, slides, export_folder=None):
-        '''For a given set of activation nodes, saves images of tiles with the highest and lowest
-        activations in these nodes, restricted to the set of slides designated.
+        """For a given set of activation nodes, saves images of tiles with the highest and lowest activations
+        in these nodes, restricted to the set of slides designated.
 
         Args:
-            nodes:              List of int. Nodes with which to perform this function.
-            slides:             List of slide names. Will load tile images from these slides.
-            export_folder:      Path to directory in which to save image tiles.
-        '''
+            nodes (list): List of int. Nodes with which to perform this function.
+            slides (list): List of slide names. Will load tile images from these slides.
+            export_folder (str, optional): Path to directory in which to save image tiles. Defaults to self.export_dir
+        """
+
         if not export_folder: export_folder = join(self.export_dir, 'example_tiles')
         for node in nodes:
             for slide in slides:
@@ -971,14 +951,14 @@ class ActivationsVisualizer:
                 if not exists(highest_dir): os.makedirs(highest_dir)
 
                 for tfr in self.tfrecords:
-                    if sfutil.path_to_name(tfr) == slide:
+                    if sf.util.path_to_name(tfr) == slide:
                         tfr_dir = tfr
                 if not tfr_dir:
                     log.warning(f'TFRecord location not found for slide {slide}')
 
                 def extract_by_index(indices, directory):
                     for index in indices:
-                        slide, image = sfio.tfrecords.get_tfrecord_by_index(tfr_dir, index, decode=False)
+                        slide, image = sf.io.tfrecords.get_tfrecord_by_index(tfr_dir, index, decode=False)
                         tile_filename = f'tfrecord{slide.numpy()}-tile{index}.jpg'
                         image_string = open(join(directory, tile_filename), 'wb')
                         image_string.write(image.numpy())
@@ -1015,11 +995,11 @@ class TileVisualizer:
         self.NODE = node
         self.IMAGE_SHAPE = (tile_px, tile_px, 3)
         self.MASK_WIDTH = mask_width if mask_width else int(self.IMAGE_SHAPE[0]/6)
-        self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
+        self.normalizer = None if not normalizer else sf.util.StainNormalizer(method=normalizer, source=normalizer_source)
 
         log.info('Initializing tile visualizer')
-        log.info(f'Node: {sfutil.bold(str(node))} | Shape: ({self.IMAGE_SHAPE}) | Window size: {self.MASK_WIDTH}')
-        log.info(f'Loading Tensorflow model at {sfutil.green(model)}...')
+        log.info(f'Node: {sf.util.bold(str(node))} | Shape: ({self.IMAGE_SHAPE}) | Window size: {self.MASK_WIDTH}')
+        log.info(f'Loading Tensorflow model at {sf.util.green(model)}...')
 
         self.loaded_model = ModelActivationsInterface(model)
 
@@ -1092,13 +1072,13 @@ class TileVisualizer:
             raise ActivationsError('Must supply either tfrecord or image_jpg')
 
         if image_jpg:
-            log.info(f'Processing tile at {sfutil.green(image_jpg)}...')
-            tilename = sfutil.path_to_name(image_jpg)
+            log.info(f'Processing tile at {sf.util.green(image_jpg)}...')
+            tilename = sf.util.path_to_name(image_jpg)
             self.tile_image = Image.open(image_jpg)
             image_file = open(image_jpg, 'rb')
             tf_decoded_image = tf.image.decode_png(image_file.read(), channels=3)
         else:
-            slide, tf_decoded_image = sfio.tfrecords.get_tfrecord_by_index(tfrecord, index, decode=True)
+            slide, tf_decoded_image = sf.io.tfrecords.get_tfrecord_by_index(tfrecord, index, decode=True)
             tilename = f"{slide.numpy().decode('utf-8')}-{index}"
             self.tile_image = Image.fromarray(tf_decoded_image.numpy())
 
@@ -1180,7 +1160,7 @@ class Heatmap:
                  roi_dir=None,
                  roi_list=None,
                  roi_method='inside',
-                 buffer=True,
+                 buffer=None,
                  normalizer=None,
                  normalizer_source=None,
                  batch_size=16,
@@ -1191,8 +1171,6 @@ class Heatmap:
         Args:
             slide_path:         Path to slide
             model_path:         Path to Tensorflow model
-            tile_px:            Size of image tiles, in pixels
-            tile_um:            Size of image tiles, in microns
             stride_div:         Divisor for stride when convoluting across slide
             roi_dir:            Directory in which slide ROI is contained
             roi_list:           If a roi_dir is not supplied, a list of paths to ROI CSVs can be provided
@@ -1208,19 +1186,18 @@ class Heatmap:
         from slideflow.slide import WSI
 
         self.logits = None
-        model_hyperparameters = sfutil.get_model_hyperparameters(model_path)
-        self.tile_px = model_hyperparameters['tile_px']
-        self.tile_um = model_hyperparameters['tile_um']
         if (roi_dir is None and roi_list is None) and roi_method != 'ignore':
             log.info("No ROIs provided; will generate whole-slide heatmap")
             roi_method = 'ignore'
 
+        self.model = ModelActivationsInterface(model_path)
+        model_hyperparameters = sf.util.get_model_hyperparameters(model_path)
+        self.tile_px = model_hyperparameters['tile_px']
+        self.tile_um = model_hyperparameters['tile_um']
+
         # Setup normalization
         self.normalizer = normalizer
         self.normalizer_source = normalizer_source
-
-        # Load the designated model
-        self.model = ModelActivationsInterface(model_path)
 
         # Create slide buffer
         if buffer and os.path.isdir(buffer):
@@ -1263,7 +1240,7 @@ class Heatmap:
                                                show_progress=True)
 
         if not gen_slice:
-            log.error(f'No tiles extracted from slide {sfutil.green(self.slide.name)}')
+            log.error(f'No tiles extracted from slide {sf.util.green(self.slide.name)}')
 
         # Generate dataset from the generator
         with tf.name_scope('dataset_input'):
@@ -1287,7 +1264,7 @@ class Heatmap:
         print(f'\r\033[KWaiting on thumbnail...', end='')
         thumb_process.join()
         print(f'\r\033[K', end='')
-        log.info(f"Heatmap complete for {sfutil.green(self.slide.name)}")
+        log.info(f"Heatmap complete for {sf.util.green(self.slide.name)}")
 
         if ((self.slide.tile_mask is not None) and
              (self.slide.extracted_x_size) and
@@ -1318,7 +1295,7 @@ class Heatmap:
             self.postconv = postconv_arr
 
         if (type(self.logits) == bool) and (not self.logits):
-            log.error(f'Unable to create heatmap for slide {sfutil.green(self.slide.name)}')
+            log.error(f'Unable to create heatmap for slide {sf.util.green(self.slide.name)}')
 
         # Unbuffer slide
         if buffered_slide:
@@ -1486,4 +1463,4 @@ class Heatmap:
 
         plt.close()
         print('\r\033[K', end='')
-        log.info(f'Saved heatmaps for {sfutil.green(self.slide.name)}')
+        log.info(f'Saved heatmaps for {sf.util.green(self.slide.name)}')

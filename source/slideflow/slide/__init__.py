@@ -28,8 +28,8 @@ import random
 import tempfile
 import warnings
 
+import slideflow as sf
 import matplotlib.colors as mcol
-import slideflow.util as sfutil
 import multiprocessing as mp
 
 from os.path import join, exists
@@ -54,6 +54,10 @@ OPS_HEIGHT = 'height'
 EXTRACT_INSIDE = 'inside'
 EXTRACT_OUTSIDE = 'outside'
 IGNORE_ROI = 'ignore'
+DEFAULT_WHITESPACE_THRESHOLD = 230
+DEFAULT_WHITESPACE_FRACTION = 1.0
+DEFAULT_GRAYSPACE_THRESHOLD = 0.05
+DEFAULT_GRAYSPACE_FRACTION = 0.6
 
 def OPS_LEVEL_HEIGHT(l):
     return f'openslide.level[{l}].height'
@@ -83,6 +87,21 @@ def vips2numpy(vi):
     return np.ndarray(buffer=vi.write_to_memory(),
                       dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
                       shape=[vi.height, vi.width, vi.bands])
+
+def log_extraction_params(**kwargs):
+    ws_f = DEFAULT_WHITESPACE_FRACTION if 'whitespace_fraction' not in kwargs else kwargs['whitespace_fraction']
+    ws_t = DEFAULT_WHITESPACE_THRESHOLD if 'whitespace_threshold' not in kwargs else kwargs['whitespace_threshold']
+    gs_f = DEFAULT_GRAYSPACE_FRACTION if 'grayspace_fraction' not in kwargs else kwargs['grayspace_fraction']
+    gs_t = DEFAULT_GRAYSPACE_THRESHOLD if 'grayspace_threshold' not in kwargs else kwargs['grayspace_threshold']
+
+    if 'normalizer' in kwargs:
+        log.info(f'Extracting tiles using {sf.util.bold(kwargs["normalizer"])} normalization')
+    if ws_f < 1:
+        log.info('Filtering tiles by whitespace fraction')
+        log.debug(f'Whitespace defined as RGB avg > {ws_t} (exclude if >={ws_f*100:.0f}% whitespace')
+    if gs_f < 1:
+        log.info('Filtering tiles by grayspace fraction')
+        log.debug(f'Grayspace defined as HSV avg < {gs_t} (exclude if >={gs_f*100:.0f}% grayspace)')
 
 def slide_extraction_worker(c, args):
     '''Multiprocessing working for WSI. Extracts a tile at the given coordinates'''
@@ -279,7 +298,7 @@ class VIPSWrapper:
                         log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}")
                         self.properties[OPS_MPP_X] = img.tag[TIF_EXIF_KEY_MPP][0]
             except UnidentifiedImageError:
-                log.error(f"PIL image reading error; slide {sfutil.path_to_name(path)} is corrupt.")
+                log.error(f"PIL image reading error; slide {sf.util.path_to_name(path)} is corrupt.")
 
         # Prepare downsample levels
         self.loaded_downsample_levels = {
@@ -427,8 +446,8 @@ class BaseLoader:
             self.pb_counter = pb.get_counter()
             self.counter_lock = pb.get_lock()
 
-        self.name = sfutil.path_to_name(path)
-        self.shortname = sfutil._shortname(self.name)
+        self.name = sf.util.path_to_name(path)
+        self.shortname = sf.util._shortname(self.name)
         self.tile_px = tile_px
         self.tile_um = tile_um
         self.tile_mask = None
@@ -436,10 +455,10 @@ class BaseLoader:
         self.thumb_image = None
         self.stride_div = stride_div
         self.path = path
-        filetype = sfutil.path_to_ext(path)
+        filetype = sf.util.path_to_ext(path)
 
         # Initiate supported slide reader
-        if filetype.lower() in sfutil.SUPPORTED_FORMATS:
+        if filetype.lower() in sf.util.SUPPORTED_FORMATS:
             if filetype.lower() == 'jpg':
                 self.slide = JPGslideToVIPS(path)
             else:
@@ -453,7 +472,7 @@ class BaseLoader:
         try:
             self.MPP = float(self.slide.properties[OPS_MPP_X])
         except KeyError:
-            log.error(f"Slide {sfutil.green(self.name)} missing MPP property ({OPS_MPP_X})")
+            log.error(f"Slide {sf.util.green(self.name)} missing MPP property ({OPS_MPP_X})")
             self.load_error = True
             return
         self.full_shape = self.slide.dimensions
@@ -552,7 +571,7 @@ class BaseLoader:
         if self.tile_px > self.extract_px:
             upscale_msg = 'Tiles will be up-scaled with bilinear interpolation'
             upscale_amount = f'({self.extract_px}px -> {self.tile_px}px)'
-            log.warn(f"{self.shortname}: [{sfutil.red('!WARN!')}] {upscale_msg} {upscale_amount}")
+            log.warn(f"{self.shortname}: [{sf.util.red('!WARN!')}] {upscale_msg} {upscale_amount}")
 
         def empty_generator():
             yield None
@@ -569,22 +588,13 @@ class BaseLoader:
             return False
         return loaded_correctly
 
-    def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None,
-                      img_format='png', shuffle=True, num_threads=4, **kwargs):
+    def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, img_format='png', **kwargs):
         '''Extractes tiles from slide and saves into a TFRecord file or as loose JPG tiles in a directory.
         Args:
             tfrecord_dir:           If provided, saves tiles into a TFRecord file (named according to slide name) here.
             tiles_dir:              If provided, saves loose images into a subdirectory (per slide name) here.
-            split_fraction:         List of float. If provided, splits the extracted tiles into subsets
-                                        (e.g. for validation set) using these fractions.
-                                        Should add up to 1 (except for fractions of -1).
-                                        Remaining tiles are split between fractions of "-1".
-            split_names:            List of names to label the split fractions
             img_format:                'png' or 'jpg'. Format of images for internal storage in tfrecords.
                                         PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
-            shuffle:                Bool. If true, will shuffle tiles prior to storage. (default = True)
-            num_threads:            Number of threads to allocate to tile extraction workers.
-
         Kwargs:
             normalizer:             Normalization strategy to use on image tiles
             normalizer_source:      Path to normalizer source image
@@ -597,6 +607,8 @@ class BaseLoader:
                                         If a pixel's saturation is below this threshold, it is considered grayspace.
             full_core:              Bool. Only used for TMA. If true, will extract full image cores
                                         regardless of supplied tile micron size.
+            shuffle:                Bool. If true, will shuffle tiles prior to storage. (default = True)
+            num_threads:            Number of threads to allocate to tile extraction workers.
         '''
         assert img_format in ('png', 'jpg', 'jpeg')
         if tfrecord_dir is None and tiles_dir is None:
@@ -608,44 +620,19 @@ class BaseLoader:
         if tiles_dir:
             if not os.path.exists(tiles_dir): os.makedirs(tiles_dir)
 
-        if tfrecord_dir or tiles_dir:
-            # Log to keep track of when tiles have finished extracting
-            # To be used in case tile extraction is interrupted, so the slide can be flagged for re-extraction
-            unfinished_marker = join((tfrecord_dir if tfrecord_dir else tiles_dir), f'{self.name}.unfinished')
-            with open(unfinished_marker, 'w') as marker_file:
-                marker_file.write(' ')
+        # Log to keep track of when tiles have finished extracting
+        # To be used in case tile extraction is interrupted, so the slide can be flagged for re-extraction
+        unfinished_marker = join((tfrecord_dir if tfrecord_dir else tiles_dir), f'{self.name}.unfinished')
+        with open(unfinished_marker, 'w') as marker_file:
+            marker_file.write(' ')
+        if tfrecord_dir:
+            tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
 
-            if split_fraction and split_names:
-                # Tile splitting error checking
-                if len(split_fraction) != len(split_names):
-                    raise InvalidTileSplitException(f'When splitting tiles, "fraction" length ({len(split_fraction)})' + \
-                                                        f' should equal length of "names" ({len(split_names)})')
-                if sum([i for i in split_fraction if i != -1]) > 1:
-                    raise InvalidTileSplitException("Unable to split tiles; sum of split_fraction is greater than 1")
-                # Calculate dynamic splitting
-                if -1 in split_fraction:
-                    num_to_dynamic_split = sum([i for i in split_fraction if i == -1])
-                    dynamic_fraction = (1 - sum([i for i in split_fraction if i != -1])) / num_to_dynamic_split
-                    split_fraction = [s if s != -1 else dynamic_fraction for s in split_fraction]
-                # Prepare subfolders for splitting
-                if tfrecord_dir:
-                    tfrecord_writers = []
-                    for name in split_names:
-                        if not exists(join(tfrecord_dir, name)):
-                            os.makedirs(join(tfrecord_dir, name))
-                            tfrecord_writers += [tf.io.TFRecordWriter(join(tfrecord_dir, name, self.name+".tfrecords"))]
-                if tiles_dir:
-                    for name in split_names:
-                        if not exists(join(tiles_dir, name)):
-                            os.makedirs(join(tiles_dir, name))
-            elif tfrecord_dir:
-                tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
-
-        generator = self.build_generator(shuffle=shuffle, num_threads=num_threads, **kwargs)
+        generator = self.build_generator(**kwargs)
         slidename_bytes = bytes(self.name, 'utf-8')
 
         if not generator:
-            log.error(f"No tiles extracted from slide {sfutil.green(self.name)}")
+            log.error(f"No tiles extracted from slide {sf.util.green(self.name)}")
             return
 
         sample_tiles = []
@@ -677,17 +664,10 @@ class BaseLoader:
             elif not tiles_dir and not tfrecord_dir:
                 break
             if tiles_dir:
-                if split_fraction and split_names:
-                    save_dir = join(tiles_dir, random.choices(split_names, weights=split_fraction))
-                else:
-                    save_dir = tiles_dir
-                with open(join(save_dir, f'{self.shortname}_{index}.{img_format}'), 'wb') as outfile:
+                with open(join(tiles_dir, f'{self.shortname}_{index}.{img_format}'), 'wb') as outfile:
                     outfile.write(image_string)
             if tfrecord_dir:
-                if split_fraction and split_names:
-                    writer = random.choices(tfrecord_writers, weights=split_fraction)
-                else:
-                    writer = tfrecord_writer
+                writer = tfrecord_writer
                 tf_example = tfrecord_example(slidename_bytes, image_string, location[0], location[1])
                 writer.write(tf_example.SerializeToString())
         if self.counter_lock is None:
@@ -778,11 +758,11 @@ class WSI(BaseLoader):
 
         # Else try loading ROI from same folder as slide
         elif exists(self.name + ".csv"):
-            self.load_csv_roi(sfutil.path_to_name(path) + ".csv")
-        elif roi_list and self.name in [sfutil.path_to_name(r) for r in roi_list]:
+            self.load_csv_roi(sf.util.path_to_name(path) + ".csv")
+        elif roi_list and self.name in [sf.util.path_to_name(r) for r in roi_list]:
             matching_rois = []
             for rp in roi_list:
-                rn = sfutil.path_to_name(rp)
+                rn = sf.util.path_to_name(rp)
                 if rn == self.name:
                     matching_rois += [rp]
             if len(matching_rois) > 1:
@@ -791,13 +771,13 @@ class WSI(BaseLoader):
 
         # Handle missing ROIs
         if not len(self.rois) and skip_missing_roi and roi_method != 'ignore':
-            log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide")
+            log.error(f"No ROI found for {sf.util.green(self.name)}, skipping slide")
             self.shape = None
             self.load_error = True
             return None
         elif not len(self.rois):
             self.estimated_num_tiles = int(len(self.coord))
-            log.warning(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.")
+            log.info(f"[{sf.util.green(self.shortname)}] No ROI found in {roi_dir}, using whole slide.")
             self.roi_method = 'ignore'
 
         mpp_roi_msg = f'{self.MPP} um/px | {len(self.rois)} ROI(s)'
@@ -807,7 +787,7 @@ class WSI(BaseLoader):
 
         # Abort if errors were raised during ROI loading
         if self.load_error:
-            log.error(f'Skipping slide {sfutil.green(self.name)} due to loading error')
+            log.error(f'Skipping slide {sf.util.green(self.name)} due to loading error')
             return None
 
     def _build_coord(self, randomize_origin):
@@ -837,10 +817,9 @@ class WSI(BaseLoader):
 
         self.grid = np.zeros((len(x_range), len(y_range)))
 
-    def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=1.0,
-                            whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05,
-                            normalizer=None, normalizer_source=None, include_loc=True, num_threads=4,
-                            show_progress=False, full_core=None):
+    def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=None, whitespace_threshold=None,
+                        grayspace_fraction=None, grayspace_threshold=None, normalizer=None, normalizer_source=None,
+                        include_loc=True, num_threads=4, show_progress=False, full_core=None):
 
         '''Builds generator to supervise extraction of tiles across the slide.
 
@@ -856,12 +835,18 @@ class WSI(BaseLoader):
         super().build_generator()
 
         if self.estimated_num_tiles == 0:
-            log.warning(f"No tiles extracted at the given micron size for slide {sfutil.green(self.name)}")
+            log.warning(f"No tiles extracted at the given micron size for slide {sf.util.green(self.name)}")
             return None
 
         # Shuffle coordinates to randomize extraction order
         if shuffle:
             random.shuffle(self.coord)
+
+        # Set whitespace / grayspace fraction to global defaults if not provided
+        if whitespace_fraction is None:     whitespace_fraction  = DEFAULT_WHITESPACE_FRACTION
+        if whitespace_threshold is None:    whitespace_threshold = DEFAULT_WHITESPACE_THRESHOLD
+        if grayspace_fraction is None:      grayspace_fraction   = DEFAULT_GRAYSPACE_FRACTION
+        if grayspace_threshold is None:     grayspace_threshold  = DEFAULT_GRAYSPACE_THRESHOLD
 
         worker_args = {
             'full_extract_px': self.full_extract_px,
@@ -906,7 +891,7 @@ class WSI(BaseLoader):
                 if show_progress:
                     pbar.close()
 
-            name_msg = sfutil.green(self.shortname)
+            name_msg = sf.util.green(self.shortname)
             num_msg = f'({np.sum(self.tile_mask)} tiles of {len(self.coord)} possible)'
             log.info(f"Finished tile extraction for {name_msg} {num_msg}")
 
@@ -946,7 +931,7 @@ class WSI(BaseLoader):
                 index_x = headers.index("x_base")
                 index_y = headers.index("y_base")
             except:
-                log.error(f'Unable to read CSV ROI file {sfutil.green(path)}, please check file integrity and ' + \
+                log.error(f'Unable to read CSV ROI file {sf.util.green(path)}, please check file integrity and ' + \
                                 'ensure headers contain "ROI_name", "X_base", and "Y_base".')
                 self.load_error = True
                 return
@@ -969,7 +954,7 @@ class WSI(BaseLoader):
                 try:
                     self.annPolys += [sg.Polygon(annotation.scaled_area(self.ROI_SCALE))]
                 except ValueError:
-                    log.warning(f"Unable to use ROI {i} in slide {sfutil.green(self.name)}, at least 3 points required " + \
+                    log.warning(f"Unable to use ROI {i} in slide {sf.util.green(self.name)}, at least 3 points required " + \
                                 "to create a geometric shape.")
             roi_area = sum([poly.area for poly in self.annPolys])
         else:
@@ -1013,7 +998,7 @@ class WSI(BaseLoader):
                                         **kwargs)
 
         if not generator:
-            log.error(f"No tiles extracted from slide {sfutil.green(self.name)}")
+            log.error(f"No tiles extracted from slide {sf.util.green(self.name)}")
             return
 
         def _parse_function(record):

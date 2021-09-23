@@ -30,7 +30,7 @@ if __name__=='__main__':
 
     print()
     print(f'=================================')
-    print(f'|      Slideflow v{sf.__version__:<8}      |')
+    print(f'|      Slideflow v{sf.__version__:<13} |')
     print(f'|       by James Dolezal        |')
     print(f'| james.dolezal@uchospitals.edu |')
     print(f'=================================')
@@ -53,7 +53,7 @@ if __name__=='__main__':
             break
         # Get first file and move to in_process_dir
         actions_file = actions_queue[0]
-        print(f"Loading actions file at {sf.sfutil.green(actions_file)}")
+        print(f"Loading actions file at {sf.util.green(actions_file)}")
         shutil.move(actions_file, in_process_dir)
         actions_file = os.path.join(in_process_dir, actions_file.split('/')[-1])
         # Import file

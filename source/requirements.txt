@@ -14,9 +14,10 @@ pyvips==2.1.11
 fpdf
 spams
 cplex
-cvxpy
+cvxpy>=1.1.15
 lifelines
-torch
+torch>=1.9.1
 torch-vision
 dareblopy
 pyspng
+-e git+https://github.com/pytorch/pytorch_sphinx_theme.git#egg=pytorch_sphinx_theme

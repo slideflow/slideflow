@@ -20,7 +20,7 @@ import numpy as np
 def get_args(**kwargs):
     args_dict = {
         'num_splits': 1,
-        'k': 1,
+        'k': 3,
         'k_start': -1,
         'k_end': -1,
         'max_epochs': 20,

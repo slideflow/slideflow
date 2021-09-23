@@ -1,16 +1,22 @@
 Source
 ======
 
-SlideflowProject
-****************
+Project
+*******
 
-.. autoclass:: slideflow.project.SlideflowProject
+.. autoclass:: slideflow.project.Project
 	:members:
 
 activations
 ***********
 
 .. automodule:: slideflow.activations
+	:members:
+
+dataset
+*******
+
+.. automodule:: slideflow.dataset
 	:members:
 
 io

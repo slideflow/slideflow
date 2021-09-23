@@ -96,8 +96,8 @@ def export_attention(model_args, ckpt_path, export_dir, pt_files, slides, revers
     print(f"Working on {len(slides)} slides.")
 
     for slide in slides:
-        csv_save_loc = os.path.join(export_dir, slide+'.csv')
-        features_path = os.path.join(pt_files, slide+'.pt')
+        csv_save_loc = os.path.join(export_dir, f'{slide}.csv')
+        features_path = os.path.join(pt_files, f'{slide}.pt')
         features = torch.load(features_path)
 
 
