@@ -188,7 +188,7 @@ class TaskWrapper:
 class TestSuite:
     '''Class to supervise standardized testing of slideflow pipeline.'''
     def __init__(self, root, slides=RANDOM_TCGA, buffer=None, num_threads=8,
-                 verbosity=logging.WARNING, reset=True, gpu=None):
+                 verbosity=logging.WARNING, reset=False, gpu=None):
         '''Initialize testing models.'''
 
         # Set logging level
@@ -455,16 +455,36 @@ class TestSuite:
         assert os.path.exists(perf_model)
 
         with TaskWrapper("Testing activations analytics...") as test:
-            AV = self.SFP.generate_activations(model=perf_model,
-                                               outcome_label_headers='category1',
-                                               focus_nodes=[0],
-                                               **act_kwargs)
-            AV.generate_box_plots()
+            dataset = self.SFP.get_dataset(299, 302)
+            test_slide = dataset.get_slides()[0]
+
+            AV = self.SFP.generate_activations(model=perf_model, outcome_label_headers='category1', **act_kwargs)
+
+            assert AV.num_features == 2048
+            assert AV.num_logits == 2
+            assert len(AV.activations) == len(dataset.get_tfrecords())
+            assert len(AV.locations) == len(AV.activations) == len(AV.logits)
+            assert all([len(AV.activations[slide]) == len(AV.logits[slide]) == len(AV.locations[slide]) for slide in AV.activations])
+            assert len(AV.activations_by_category(0)) == 2
+            assert sum([len(a) for a in AV.activations_by_category(0)]) == sum([len(AV.activations[s]) for s in AV.slides])
+            lm = AV.logits_mean()
+            l_perc = AV.logits_percent()
+            l_pred = AV.logits_predict()
+            assert len(lm) == len(AV.activations)
+            assert len(lm[test_slide]) == AV.num_logits
+            assert len(l_perc) == len(AV.activations)
+            assert len(l_perc[test_slide]) == AV.num_logits
+            assert len(l_pred) == len(AV.activations)
+            assert len(l_pred[test_slide]) == AV.num_logits
+
+
             umap = SlideMap.from_activations(AV)
             umap.save(join(self.SFP.root, 'stats', '2d_umap.png'))
-            top_nodes = AV.get_top_nodes_by_slide()
-            for node in top_nodes[:5]:
-                umap.save_3d_plot(join(self.SFP.root, 'stats', f'3d_node{node}.png'), node=node)
+            tile_stats, pt_stats, cat_stats = AV.feature_stats()
+            top_features_by_tile = sorted(range(self.num_features), key=lambda f: tile_stats[f]['p'])
+            for feature in top_features_by_tile[:5]:
+                umap.save_3d_plot(join(self.SFP.root, 'stats', f'3d_feature{feature}.png'), feature=feature)
+            AV.box_plots(top_features_by_tile[:5], join(self.SFP.root, 'box_plots'))
 
         with TaskWrapper("Testing mosaic generation...") as test:
             mosaic = self.SFP.generate_mosaic(AV)

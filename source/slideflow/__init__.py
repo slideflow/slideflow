@@ -26,7 +26,7 @@ __version__ = "1.12.0-dev1"
 # Planned updates
 # ===============
 #TODO: unify slideflow model loading, even straight from directory,
-#         into a SlideflowModel file, which
+#         into a Model file, which
 #         will auto-handle finding the hyperparameters.json file, etc
 #         Should also be abstract to support torch or slideflow backend
 #TODO: put tfrecord report in tfrecord directories & include information
@@ -37,3 +37,7 @@ __version__ = "1.12.0-dev1"
 #TODO: auto-create annotations file from slides
 #TODO: fix return_unique in dataset.slide_to_label()
 #TODO: add predict() option in addition to evaluate()
+#TODO: consistency with path / export_folder / export_dir / outdir
+#TODO: naming consistency, num_logits vs num_classes (MAI)
+#TODO: fix slide.loaded_correctly()
+#TODO: are AV & SlideMap method neighbors() redundant?

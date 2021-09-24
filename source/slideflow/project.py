@@ -567,19 +567,19 @@ class Project:
         log.info(f'Evaluating {sf.util.bold(len(eval_tfrecords))} tfrecords')
 
         # Build a model using the slide list as input and the annotations dictionary as output labels
-        SFM = sf.model.SlideflowModel(model_dir,
-                                      hp.tile_px,
-                                      slide_labels_dict,
-                                      train_tfrecords=None,
-                                      validation_tfrecords=eval_tfrecords,
-                                      manifest=dataset.get_manifest(),
-                                      mixed_precision=self.mixed_precision,
-                                      model_type=hp.model_type(),
-                                      normalizer=normalizer,
-                                      normalizer_source=normalizer_source,
-                                      feature_names=input_header,
-                                      feature_sizes=feature_sizes,
-                                      outcome_names=outcome_label_headers)
+        SFM = sf.model.Model(model_dir,
+                             hp.tile_px,
+                             slide_labels_dict,
+                             train_tfrecords=None,
+                             val_tfrecords=eval_tfrecords,
+                             manifest=dataset.get_manifest(),
+                             mixed_precision=self.mixed_precision,
+                             model_type=hp.model_type(),
+                             normalizer=normalizer,
+                             normalizer_source=normalizer_source,
+                             feature_names=input_header,
+                             feature_sizes=feature_sizes,
+                             outcome_names=outcome_label_headers)
 
         results = SFM.evaluate(tfrecords=eval_tfrecords,
                                hp=hp,
@@ -769,8 +769,6 @@ class Project:
 
         Keyword Args:
             layers (list): Layers from which to generate activations. Defaults to 'postconv'.
-            focus_nodes (list): List of int, indicates which nodes are of interest for subsequent analysis.
-                Defaults to None.
             export (str): Path to CSV file. Save activations in CSV format to this file. Defaults to None.
             cache (str): Path to PKL file. Cache activations at this location. Defaults to None.
             normalizer (str): Normalization strategy to use on image tiles. Defaults to None.
@@ -815,7 +813,6 @@ class Project:
 
         AV = ActivationsVisualizer(model=model,
                                    tfrecords=tfrecords_list,
-                                   export_dir=join(self.root, 'stats'),
                                    annotations=outcome_annotations,
                                    manifest=dataset.get_manifest(),
                                    **kwargs)
@@ -1001,7 +998,7 @@ class Project:
 
     def generate_mosaic(self, AV, dataset=None, filters=None, filter_blank=None, outcome_label_headers=None,
                         normalizer=None, normalizer_source=None, map_slide=None, show_prediction=None,
-                        restrict_pred=None, predict_on_axes=None, max_tiles_per_slide=0, umap_cache='default',
+                        restrict_pred=None, predict_on_axes=None, max_tiles_per_slide=0, umap_cache=None,
                         use_float=False, low_memory=False, **kwargs):
 
         """Generates a mosaic map by overlaying images onto a set of mapped tiles.
@@ -1038,8 +1035,7 @@ class Project:
                 with these predictions with the pattern (x, y) and the mosaic is generated from this map.
                 This replaces the default dimensionality reduction mapping.
             max_tiles_per_slide (int, optional): Limits the number of tiles taken from each slide. Defaults to 0.
-            umap_cache (str, optional): Either 'default' or path to PKL file in which to save/cache UMAP coordinates.
-                Defaults to None.
+            umap_cache (str, optional): Path to PKL file in which to save/cache UMAP coordinates. Defaults to None.
             use_float (bool, optional): Assume labels are float / linear (as opposed to categorical). Defaults to False.
             low_memory (bool, optional): Limit memory during UMAP calculations. Defaults to False.
 
@@ -1063,10 +1059,6 @@ class Project:
         mosaic_root = join(self.root, 'mosaic')
         if not exists(stats_root): os.makedirs(stats_root)
         if not exists(mosaic_root): os.makedirs(mosaic_root)
-        if umap_cache and umap_cache == 'default':
-            umap_cache = join(stats_root, 'umap_cache.pkl')
-        elif umap_cache:
-            umap_cache = join(stats_root, umap_cache)
 
         # Prepare dataset & model
         hp_data = sf.util.get_model_hyperparameters(AV.model)
@@ -1136,9 +1128,10 @@ class Project:
 
             # Get predictions
             if model_type == 'categorical':
-                slide_pred, slide_percent = AV.get_slide_level_categorical_predictions(prediction_filter=restrict_pred)
+                slide_pred = AV.logits_predict(restrict_pred)
+                slide_percent = AV.logits_percent(restrict_pred)
             else:
-                slide_pred = slide_percent = AV.get_slide_level_linear_predictions()
+                slide_pred = slide_percent = AV.logits_mean()
 
             # If show_prediction is provided (either a number or string),
             # then display ONLY the prediction for the provided category, as a colormap
@@ -1176,7 +1169,7 @@ class Project:
 
     def generate_mosaic_from_annotations(self, header_x, header_y, dataset, model=None, mosaic_filename=None,
                                          umap_filename=None, outcome_label_headers=None, max_tiles_per_slide=100,
-                                         use_optimal_tile=False, activations_cache='default', normalizer=None,
+                                         use_optimal_tile=False, activations_cache=None, normalizer=None,
                                          normalizer_source=None, batch_size=64, **kwargs):
 
         """Generates a mosaic map by overlaying images onto a set of mapped tiles.
@@ -1201,7 +1194,7 @@ class Project:
             max_tiles_per_slide (int, optional): Limits the number of tiles taken from each slide. Defaults to 0.
             use_optimal_tile (bool, optional): Use model to create layer activations for all tiles in
                 each slide, and choosing tile nearest centroid for each slide for display.
-            activations_cache (str, optional): Either 'default' or path to PKL file in which to cache nodal activations
+            activations_cache (str, optional): Path to PKL file in which to cache nodal activations. Defaults to None.
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
@@ -1247,14 +1240,13 @@ class Project:
                 # Calculate most representative tile in each slide/TFRecord for display
                 AV = ActivationsVisualizer(model=model,
                                            tfrecords=dataset.get_tfrecords(),
-                                           export_dir=join(self.root, 'stats'),
                                            normalizer=normalizer,
                                            normalizer_source=normalizer_source,
                                            batch_size=batch_size,
                                            max_tiles_per_slide=max_tiles_per_slide,
                                            cache=activations_cache)
 
-                optimal_slide_indices, _ = sf.statistics.calculate_centroid(AV.slide_node_dict)
+                optimal_slide_indices, _ = sf.statistics.calculate_centroid(AV.activations)
 
                 # Restrict mosaic to only slides that had enough tiles to calculate an optimal index from centroid
                 successful_slides = list(optimal_slide_indices.keys())
@@ -1901,7 +1893,7 @@ class Project:
                                       filters=val_settings.filters,
                                       filter_blank=val_settings.filter_blank)
 
-                    validation_tfrecords = val_dts.get_tfrecords()
+                    val_tfrecords = val_dts.get_tfrecords()
                     manifest.update(val_dts.get_manifest())
                     validation_labels, _ = val_dts.get_labels_from_annotations(outcome_label_headers,
                                                                             use_float=use_float,
@@ -1912,13 +1904,13 @@ class Project:
                 elif val_settings.strategy == 'k-fold-manual':
                     all_tfrecords = dataset.get_tfrecords()
                     training_tfrecords = [tfr for tfr in all_tfrecords if k_fold_slide_labels[sf.util.path_to_name(tfr)] != k]
-                    validation_tfrecords = [tfr for tfr in all_tfrecords if k_fold_slide_labels[sf.util.path_to_name(tfr)] == k]
+                    val_tfrecords = [tfr for tfr in all_tfrecords if k_fold_slide_labels[sf.util.path_to_name(tfr)] == k]
                     num_train_str = sf.util.bold(len(training_tfrecords))
-                    num_val_str = sf.util.bold(len(validation_tfrecords))
+                    num_val_str = sf.util.bold(len(val_tfrecords))
                     log.info(f'Using {num_train_str} TFRecords for training, {num_val_str} for validation')
 
                 elif val_settings.strategy == 'none':
-                    validation_tfrecords = []
+                    val_tfrecords = []
                     training_tfrecords = dataset.get_tfrecords()
                 # Otherwise, calculate k-fold splits
                 else:
@@ -1931,7 +1923,7 @@ class Project:
                                                                             val_fraction=val_settings.fraction,
                                                                             val_k_fold=val_settings.k_fold,
                                                                             k_fold_iter=k)
-                    training_tfrecords, validation_tfrecords = tfr_split
+                    training_tfrecords, val_tfrecords = tfr_split
 
                 # --- Prepare additional slide-level input -----------------------------------------------------------
                 if input_header:
@@ -2031,7 +2023,7 @@ class Project:
                     hp=hp,
                     slide_labels_dict=slide_labels_dict,
                     training_tfrecords=training_tfrecords,
-                    validation_tfrecords=validation_tfrecords,
+                    val_tfrecords=val_tfrecords,
                     verbosity=self.verbosity,
                     pretrain=pretrain,
                     resume_training=resume_training,

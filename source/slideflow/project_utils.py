@@ -52,12 +52,12 @@ def _trainer(training_args, model_kwargs, training_kwargs, results_dict):
     tf.keras.backend.clear_session() # Clear prior Tensorflow graph to free memory
 
     # Build a model using the slide list as input and the annotations dictionary as output labels
-    SFM = sf.model.SlideflowModel(training_args.model_dir,
-                                  training_args.hp.tile_px,
-                                  training_args.slide_labels_dict,
-                                  training_args.training_tfrecords,
-                                  training_args.validation_tfrecords,
-                                  **model_kwargs)
+    SFM = sf.model.Model(training_args.model_dir,
+                         training_args.hp.tile_px,
+                         training_args.slide_labels_dict,
+                         training_args.training_tfrecords,
+                         training_args.val_tfrecords,
+                         **model_kwargs)
     try:
         results, history = SFM.train(training_args.hp,
                                      pretrain=training_args.pretrain,

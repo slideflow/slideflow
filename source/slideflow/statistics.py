@@ -11,6 +11,7 @@ import pandas as pd
 import multiprocessing as mp
 import slideflow as sf
 
+from collections import defaultdict
 from functools import partial
 from slideflow.util import ProgressBar
 from os.path import join
@@ -53,12 +54,12 @@ class SlideMap:
         self.x = []
         self.y = []
         self.point_meta = []
-        self.values = []
+        self.labels = []
         self.map_meta = {}
         if self.cache: self.load_cache() # Try to load from cache
 
     @classmethod
-    def from_precalculated(cls, slides, x, y, meta, values=None, cache=None):
+    def from_precalculated(cls, slides, x, y, meta, labels=None, cache=None):
         """ Initializes map from precalculated coordinates.
 
         Args:
@@ -66,7 +67,7 @@ class SlideMap:
             x (list): List of X coordinates for tfrecords.
             y (list): List of Y coordinates for tfrecords.
             meta (list): List of dicts containing metadata for each point on the map (representing a single tfrecord).
-            values (list): Label values assigned to each tfrecord, used for coloring TFRecords according to labels.
+            labels (list): Label labels assigned to each tfrecord, used for coloring TFRecords according to labels.
             cache (str, optional): Path to PKL file to cache coordinates. Defaults to None (caching disabled).
         """
 
@@ -75,14 +76,14 @@ class SlideMap:
         obj.y = np.array(y) if type(y) == list else y
         obj.point_meta = np.array(meta) if type(meta) == list else meta
         obj.cache = cache
-        obj.values = np.array(values) if type(values) == list else values
-        if obj.values == []:
-            obj.values = np.array(['None' for i in range(len(obj.point_meta))])
+        obj.labels = np.array(labels) if type(labels) == list else labels
+        if obj.labels == []:
+            obj.labels = np.array(['None' for i in range(len(obj.point_meta))])
         obj.save_cache()
         return obj
 
     @classmethod
-    def from_activations(cls, AV, exclude_slides=None, prediction_filter=None, force_recalculate=False,
+    def from_activations(cls, AV, exclude_slides=None, prediction_filter=None, recalculate=False,
                          map_slide=None, cache=None, low_memory=False, max_tiles_per_slide=0, umap_dim=2):
         """Initializes map from an activations visualizer.
 
@@ -90,7 +91,7 @@ class SlideMap:
             AV (:class:`slideflow.activations.ActivationsVisualizer): ActivationsVisualizer object.
             exclude_slides (list, optional): List of slides to exclude from map.
             prediction_filter (list, optional) Restrict outcome predictions to only these provided categories.
-            force_recalculate (bool, optional):  Force recalculation of umap despite presence of cache.
+            recalculate (bool, optional):  Force recalculation of umap despite presence of cache.
             use_centroid (bool, optional): Calculate and map centroid activations.
             map_slide (str, optional): Either None (default), 'centroid', or 'average'.
                 If None, will map all tiles from each slide.
@@ -110,110 +111,103 @@ class SlideMap:
         if map_slide:
             obj._calculate_from_slides(method=map_slide,
                                        prediction_filter=prediction_filter,
-                                       force_recalculate=force_recalculate,
+                                       recalculate=recalculate,
                                        low_memory=low_memory)
         else:
             obj._calculate_from_tiles(prediction_filter=prediction_filter,
-                                      force_recalculate=force_recalculate,
+                                      recalculate=recalculate,
                                       low_memory=low_memory,
                                       max_tiles_per_slide=max_tiles_per_slide,
                                       dim=umap_dim)
         return obj
 
-    def _calculate_from_tiles(self, prediction_filter=None, force_recalculate=False,
-                              low_memory=False, max_tiles_per_slide=0, dim=2):
+    def _calculate_from_tiles(self, prediction_filter=None, recalculate=False, max_tiles_per_slide=0, **umap_kwargs):
 
         """Internal function to guide calculation of UMAP from final layer activations,
-                as provided via ActivationsVisualizer nodes."""
+        as provided by ActivationsVisualizer.
 
-        if len(self.x) and len(self.y) and not force_recalculate:
+        Args:
+            prediction_filter (list, optional): Restrict predictions to this list of logits. Default is None.
+            recalculate (bool, optional): Recalculate of UMAP despite loading from cache. Defaults to False.
+            max_tiles_per_slide (int, optional): Only include a maximum of this many tiles per slide. Defaults to 0.
+                If 0, includes all tiles.
+
+        Keyword Args:
+            dim (int): Number of dimensions for UMAP. Defaults to 2.
+            n_neighbors (int): Number of neighbors for UMAP. Defaults to 50.
+            min_dist (float): Minimum distance for UMAP. Defaults to 0.1.
+            metric (str): UMAP metric. Defaults to 'cosine'.
+            low_memory (bool). Operate UMAP in low memory mode. Defaults to False.
+        """
+
+        if prediction_filter:
+            log.info("UMAP logit predictions are masked through a provided prediction filter.")
+        else:
+            prediction_filter = range(self.AV.num_logits)
+
+        if len(self.x) and len(self.y) and not recalculate:
             log.debug("UMAP loaded from cache, will not recalculate")
 
             # First, filter out slides not included in provided activations
-            self.x = np.array([self.x[i] for i in range(len(self.x)) if self.point_meta[i]['slide'] in self.AV.slides])
-            self.y = np.array([self.y[i] for i in range(len(self.y)) if self.point_meta[i]['slide'] in self.AV.slides])
-            self.point_meta = np.array([self.point_meta[i] for i in range(len(self.point_meta))
-                                                           if self.point_meta[i]['slide'] in self.AV.slides])
-            self.values = np.array(['None' for i in range(len(self.point_meta))
-                                           if self.point_meta[i]['slide'] in self.AV.slides])
+            filtered_idx = list(filter(lambda x: x['slide'] in self.AV.slides, range(len(self.point_meta))))
+            self.x = self.x[filtered_idx]
+            self.y = self.y[filtered_idx]
+            self.point_meta = self.point_meta[filtered_idx]
 
-            # If UMAP already calculated, only update predictions if prediction filter is provided
-            if prediction_filter:
-                log.debug("Updating UMAP predictions according to filter restrictions")
-
-                num_logits = len(self.AV.slide_logits_dict[self.slides[0]])
-
-                for i in range(len(self.point_meta)):
-                    slide = self.point_meta[i]['slide']
-                    tile_index = self.point_meta[i]['index']
-                    logits = [self.AV.slide_logits_dict[slide][l][tile_index] for l in range(num_logits)]
-                    filtered_logits = [logits[l] for l in prediction_filter]
-                    prediction = logits.index(max(filtered_logits))
-                    self.point_meta[i]['logits'] = logits
-                    self.point_meta[i]['prediction'] = prediction
+            # If UMAP already calculated, update predictions if prediction filter is provided
+            for i in range(len(self.point_meta)):
+                slide = self.point_meta[i]['slide']
+                tile_index = self.point_meta[i]['index']
+                logits = self.AV.logits[slide][tile_index]
+                prediction = filtered_prediction(logits, prediction_filter)
+                self.point_meta[i]['logits'] = logits
+                self.point_meta[i]['prediction'] = prediction
 
             if max_tiles_per_slide:
                 log.info(f"Restricting map to maximum of {max_tiles_per_slide} tiles per slide")
                 new_x, new_y, new_meta = [], [], []
-                slide_tile_count = {}
+                slide_tile_count = defaultdict(int)
                 for i, pm in enumerate(self.point_meta):
                     slide = pm['slide']
-                    if slide not in slide_tile_count:
-                        slide_tile_count.update({slide: 1})
-                    elif slide_tile_count[slide] < max_tiles_per_slide:
+                    slide_tile_count[slide] += 1
+                    if slide_tile_count[slide] < max_tiles_per_slide:
                         new_x += [self.x[i]]
                         new_y += [self.y[i]]
                         new_meta += [pm]
                         slide_tile_count[slide] += 1
                 self.x, self.y, self.point_meta = np.array(new_x), np.array(new_y), np.array(new_meta)
-                self.values = np.array(['None' for i in range(len(self.point_meta))])
             return
 
         # Calculate UMAP
-        node_activations = []
-        self.map_meta['nodes'] = self.AV.nodes
+        node_activations = np.concatenate([self.AV.activations[slide] for slide in self.slides])
+        self.map_meta['num_features'] = self.AV.num_features
         log.info("Calculating UMAP...")
         for slide in self.slides:
-            first_node = list(self.AV.slide_node_dict[slide].keys())[0]
-            num_vals = len(self.AV.slide_node_dict[slide][first_node])
-            num_logits = len(self.AV.slide_logits_dict[slide])
-            for i in range(num_vals):
-                node_activations += [[self.AV.slide_node_dict[slide][n][i] for n in self.AV.nodes]]
-                logits = [self.AV.slide_logits_dict[slide][l][i] for l in range(num_logits)]
-                location = self.AV.slide_loc_dict[slide][i]
-                # if prediction_filter is supplied, calculate prediction based on maximum value of allowed outcomes
-                if prediction_filter:
-                    filtered_logits = [logits[l] for l in prediction_filter]
-                    prediction = logits.index(max(filtered_logits))
-                elif logits:
-                    prediction = logits.index(max(logits))
+            for i in range(self.AV.activations[slide].shape[0]):
+                location = self.AV.locations[slide][i]
+                logits = self.AV.logits[slide][i]
+                if self.AV.logits[slide] != []:
+                    pred = filtered_prediction(logits, prediction_filter)
                 else:
-                    prediction = None
-
+                    pred = None
                 self.point_meta += [{
                     'slide': slide,
                     'index': i,
-                    'prediction': prediction,
+                    'prediction': pred,
                     'logits': logits,
                     'loc': location
                 }]
 
-        coordinates = gen_umap(np.array(node_activations),
-                               n_components=dim,
-                               n_neighbors=100,
-                               min_dist=0.1,
-                               low_memory=low_memory)
+        coordinates = gen_umap(node_activations, **umap_kwargs)
 
         self.x = np.array([c[0] for c in coordinates])
-        if dim > 1:
+        if umap_kwargs['dim'] > 1:
             self.y = np.array([c[1] for c in coordinates])
         else:
             self.y = np.array([0 for i in range(len(self.x))])
-        self.values = np.array(['None' for i in range(len(self.point_meta))])
         self.save_cache()
 
-    def _calculate_from_slides(self, method='centroid', prediction_filter=None,
-                               force_recalculate=False, low_memory=False):
+    def _calculate_from_slides(self, method='centroid', prediction_filter=None, recalculate=False, **umap_kwargs):
 
         """ Internal function to guide calculation of UMAP from final layer activations for each tile,
             as provided via ActivationsVisualizer nodes, and then map only the centroid tile for each slide.
@@ -223,29 +217,33 @@ class SlideMap:
                 from centroid tiles for each slide. If average, will calculate UMAP based on average node
                 activations across all tiles within the slide, then display the centroid tile for each slide.
             prediction_filter (list, optional): List of int. If provided, will restrict predictions to these categories.
-            force_recalculate (bool, optional): Recalculate of UMAP despite loading from cache. Defaults to False.
+            recalculate (bool, optional): Recalculate of UMAP despite loading from cache. Defaults to False.
             low_memory (bool, optional): Calculate UMAP in low-memory mode. Defaults to False.
+
+        Keyword Args:
+            dim (int): Number of dimensions for UMAP. Defaults to 2.
+            n_neighbors (int): Number of neighbors for UMAP. Defaults to 50.
+            min_dist (float): Minimum distance for UMAP. Defaults to 0.1.
+            metric (str): UMAP metric. Defaults to 'cosine'.
+            low_memory (bool). Operate UMAP in low memory mode. Defaults to False.
         """
 
         if method not in ('centroid', 'average'):
             raise StatisticsError(f'Method must be either "centroid" or "average", not {method}')
 
         log.info("Calculating centroid indices...")
-        optimal_slide_indices, centroid_activations = calculate_centroid(self.AV.slide_node_dict)
+        optimal_slide_indices, centroid_activations = calculate_centroid(self.AV.activations)
 
         # Restrict mosaic to only slides that had enough tiles to calculate an optimal index from centroid
         successful_slides = list(optimal_slide_indices.keys())
         num_warned = 0
-        warn_threshold = 3
         for slide in self.AV.slides:
-            print_func = print if num_warned < warn_threshold else None
             if slide not in successful_slides:
-                log.warning(f"Unable to calculate centroid for {sf.util.green(slide)}; will not include")
-                num_warned += 1
-        if num_warned >= warn_threshold:
-            log.warning(f"...{num_warned} total warnings, see project log for details")
+                log.debug(f"Unable to calculate centroid for {sf.util.green(slide)}; will not include")
+        if num_warned:
+            log.warning(f"Unable to calculate centroid for {num_warned} slides.")
 
-        if len(self.x) and len(self.y) and not force_recalculate:
+        if len(self.x) and len(self.y) and not recalculate:
             log.info("UMAP loaded from cache, will filter to include only provided tiles")
             new_x, new_y, new_meta = [], [], []
             for i in range(len(self.point_meta)):
@@ -254,11 +252,9 @@ class SlideMap:
                     new_x += [self.x[i]]
                     new_y += [self.y[i]]
                     if prediction_filter:
-                        num_logits = len(self.AV.slide_logits_dict[slide])
                         tile_index = self.point_meta[i]['index']
-                        logits = [self.AV.slide_logits_dict[slide][l][tile_index] for l in range(num_logits)]
-                        filtered_logits = [logits[l] for l in prediction_filter]
-                        prediction = logits.index(max(filtered_logits))
+                        logits = self.AV.logits[slide][tile_index]
+                        prediction = filtered_prediction(logits, prediction_filter)
                         meta = {
                             'slide': slide,
                             'index': tile_index,
@@ -271,7 +267,6 @@ class SlideMap:
             self.x = np.array(new_x)
             self.y = np.array(new_y)
             self.point_meta = np.array(new_meta)
-            self.values = np.array(['None' for i in range(len(self.point_meta))])
         else:
             log.info(f"Calculating UMAP from slide-level {method}...")
             umap_input = []
@@ -279,7 +274,7 @@ class SlideMap:
                 if method == 'centroid':
                     umap_input += [centroid_activations[slide]]
                 elif method == 'average':
-                    activation_averages = [np.mean(self.AV.slide_node_dict[slide][n]) for n in self.AV.nodes]
+                    activation_averages = np.mean(self.AV.activations[slide])
                     umap_input += [activation_averages]
                 self.point_meta += [{
                     'slide': slide,
@@ -288,10 +283,9 @@ class SlideMap:
                     'prediction': 0
                 }]
 
-            coordinates = gen_umap(np.array(umap_input), n_neighbors=50, min_dist=0.1, low_memory=low_memory)
+            coordinates = gen_umap(np.array(umap_input), **umap_kwargs)
             self.x = np.array([c[0] for c in coordinates])
             self.y = np.array([c[1] for c in coordinates])
-            self.values = np.array(['None' for i in range(len(self.point_meta))])
             self.save_cache()
 
     def cluster(self, n_clusters):
@@ -303,11 +297,10 @@ class SlideMap:
             n_clusters (int): Number of clusters for K means clustering.
 
         Returns:
-            numpy.Array: Array with cluster labels corresponding to tiles in self.point_meta.
+            ndarray: Array with cluster labels corresponding to tiles in self.point_meta.
         """
 
-        activations = [[self.AV.slide_node_dict[pm['slide']][n][pm['index']] for n in self.AV.nodes]
-                        for pm in self.point_meta]
+        activations = [self.AV.activations[pm['slide']][pm['index']] for pm in self.point_meta]
         log.info(f"Calculating K-means clustering (n={n_clusters})")
         kmeans = KMeans(n_clusters=n_clusters).fit(activations)
         labels = kmeans.labels_
@@ -336,7 +329,7 @@ class SlideMap:
                 row = [slide, index, x, y]
                 csvwriter.writerow(row)
 
-    def calculate_neighbors(self, slide_categories=None, algorithm='kd_tree'):
+    def neighbors(self, slide_categories=None, algorithm='kd_tree'):
         """Calculates neighbors among tiles in this map, assigning neighboring statistics
             to tile metadata 'num_unique_neighbors' and 'percent_matching_categories'.
 
@@ -349,13 +342,10 @@ class SlideMap:
 
         from sklearn.neighbors import NearestNeighbors
         log.info("Initializing neighbor search...")
-        X = np.array([ [self.AV.slide_node_dict[self.point_meta[i]['slide']][n][self.point_meta[i]['index']]
-                        for n in self.AV.nodes]
-                      for i in range(len(self.x))])
-
+        X = np.array([self.AV.activations[pm['slide']][pm['index']] for pm in self.point_meta])
         nbrs = NearestNeighbors(n_neighbors=100, algorithm=algorithm, n_jobs=-1).fit(X)
         log.info("Calculating nearest neighbors...")
-        distances, indices = nbrs.kneighbors(X)
+        _, indices = nbrs.kneighbors(X)
         for i, ind in enumerate(indices):
             num_unique_slides = len(list(set([self.point_meta[_i]['slide'] for _i in ind])))
             self.point_meta[i]['num_unique_neighbors'] = num_unique_slides
@@ -392,12 +382,12 @@ class SlideMap:
             slide (str): Name of neighboring slide.
         """
 
-        if slide not in neighbor_AV.slide_node_dict:
+        if slide not in neighbor_AV.activations:
             raise StatisticsError(f"Slide {slide} not found in ActivationsVisualizer, unable to find neighbors")
         if not hasattr(self, 'AV'):
             raise StatisticsError(f"SlideMap does not have an ActivationsVisualizer, unable to calculate neighbors")
 
-        tile_neighbors = self.AV.find_neighbors(neighbor_AV, slide, n_neighbors=5)
+        tile_neighbors = self.AV.neighbors(neighbor_AV, slide, n_neighbors=5)
 
         if not hasattr(self, 'full_x'):
             # Backup full coordinates
@@ -423,7 +413,7 @@ class SlideMap:
             index (int): Logit index.
         """
 
-        self.values = np.array([m['logits'][index] for m in self.point_meta])
+        self.labels = np.array([m['logits'][index] for m in self.point_meta])
 
     def label_by_slide(self, slide_labels=None):
         """Displays each point as the name of the corresponding slide.
@@ -434,9 +424,9 @@ class SlideMap:
         """
 
         if slide_labels:
-            self.values = np.array([slide_labels[m['slide']] for m in self.point_meta])
+            self.labels = np.array([slide_labels[m['slide']] for m in self.point_meta])
         else:
-            self.values = np.array([m['slide'] for m in self.point_meta])
+            self.labels = np.array([m['slide'] for m in self.point_meta])
 
     def label_by_tile_meta(self, tile_meta, translation_dict=None):
         """Displays each point with label equal a value in tile metadata (e.g. 'prediction')
@@ -448,12 +438,12 @@ class SlideMap:
 
         if translation_dict:
             try:
-                self.values = np.array([translation_dict[m[tile_meta]] for m in self.point_meta])
+                self.labels = np.array([translation_dict[m[tile_meta]] for m in self.point_meta])
             except KeyError:
                 # Try by converting metadata to string
-                self.values = np.array([translation_dict[str(m[tile_meta])] for m in self.point_meta])
+                self.labels = np.array([translation_dict[str(m[tile_meta])] for m in self.point_meta])
         else:
-            self.values = np.array([m[tile_meta] for m in self.point_meta])
+            self.labels = np.array([m[tile_meta] for m in self.point_meta])
 
     def save_2d_plot(self, *args, **kwargs):
         """Deprecated function; please use `save`."""
@@ -485,22 +475,26 @@ class SlideMap:
             ri = sample(range(len(self.x)), min(len(self.x), subsample))
         else:
             ri = list(range(len(self.x)))
+
+        df = pd.DataFrame()
         x = self.x[ri]
         y = self.y[ri]
-        values = self.values[ri]
-
-        # Prepare pandas dataframe
-        df = pd.DataFrame()
         df['umap_x'] = x
         df['umap_y'] = y
-        df['category'] = values if use_float else pd.Series(values, dtype='category')
+
+        if self.labels:
+            labels = self.labels[ri]
+            df['category'] = labels if use_float else pd.Series(labels, dtype='category')
+        else:
+            labels = ['NA']
+            df['category'] = 'NA'
 
         # Prepare color palette
         if use_float:
             cmap = None
             palette = None
         else:
-            unique_categories = list(set(values))
+            unique_categories = list(set(labels))
             unique_categories.sort()
             if len(unique_categories) <= 12:
                 seaborn_palette = sns.color_palette("Paired", len(unique_categories))
@@ -525,7 +519,7 @@ class SlideMap:
             print(verts)
         lasso = LassoSelector(plt.gca(), onselect)
 
-    def save_3d_plot(self, filename, z=None, node=None, subsample=None):
+    def save_3d_plot(self, filename, z=None, feature=None, subsample=None):
         """Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument "z".
 
         Args:
@@ -535,17 +529,17 @@ class SlideMap:
             subsample (int, optional): Subsample to only include this many tiles on plot. Defaults to None.
         """
 
-        title = f"UMAP with node {node} focus"
+        title = f"UMAP with feature {feature} focus"
 
         if not filename:
             filename = "3d_plot.png"
 
-        if (z is None) and (node is None):
-            raise StatisticsError("Must supply either 'z' or 'node'.")
+        if (z is None) and (feature is None):
+            raise StatisticsError("Must supply either 'z' or 'feature'.")
 
-        # Get node activations for 3rd dimension
+        # Get feature activations for 3rd dimension
         if z is None:
-            z = np.array([self.AV.slide_node_dict[m['slide']][node][m['index']] for m in self.point_meta])
+            z = np.array([self.AV.activations[m['slide']][m['index']][feature] for m in self.point_meta])
 
         # Subsampling
         if subsample:
@@ -557,7 +551,7 @@ class SlideMap:
         y = self.y[ri]
         z = z[ri]
 
-        # Plot tiles on a 3D coordinate space with 2 coordinates from UMAP & 3rd from the value of the excluded node
+        # Plot tiles on a 3D coordinate space with 2 coordinates from UMAP & 3rd from the value of the excluded feature
         fig = plt.figure()
         ax = Axes3D(fig)
         ax.scatter(x, y, z, c=z,
@@ -848,28 +842,47 @@ def _categorical_metrics(args, outcome_name, starttime=None):
             except IndexError:
                 log.warning(f"Unable to generate patient-level stats for outcome {i}")
 
+def filtered_prediction(logits, filter):
+    """Generates a prediction from a logits vector masked by a given filter.
+
+    Args:
+        filter (list): List of logit indices to include when generating a prediction. All other logits will be masked.
+
+    Returns:
+        int: index of prediction.
+    """
+
+    prediction_mask = np.zeros(AV.num_logits, dtype=np.int)
+    prediction_mask[filter] = 1
+    masked_logits = np.ma.masked_array(logits, mask=prediction_mask)
+    return np.argmax(masked_logits)
+
 def get_centroid_index(input_array):
     """Calculate index nearest to centroid from a given two-dimensional input array."""
     km = KMeans(n_clusters=1).fit(input_array)
     closest, _ = pairwise_distances_argmin_min(km.cluster_centers_, input_array)
     return closest[0]
 
-def calculate_centroid(slide_node_dict):
-    """Calcultes slide-level centroid indices for a provided slide-node dict."""
+def calculate_centroid(activations):
+    """Calcultes slide-level centroid indices for a provided slide-node dict.
+
+    Args:
+        activations (dict): Dict mapping slide names to ndarray of activations across tiles,
+            of shape (n_tiles, n_features)
+
+    Returns:
+        dict: Dict mapping slides to index of tile nearest to centroid
+        dict: Dict mapping slides to activations of tile nearest to centroid
+    """
+
     optimal_indices = {}
     centroid_activations = {}
-    nodes = list(slide_node_dict[list(slide_node_dict.keys())[0]].keys())
-    for slide in slide_node_dict:
-        slide_nodes = slide_node_dict[slide]
-        # Reorganize "slide_nodes" into an array of node activations for each tile
-        # Final size of array should be (num_nodes, num_tiles_in_slide)
-        activations = [[slide_nodes[n][i] for n in nodes] for i in range(len(slide_nodes[0]))]
-        if not len(activations): continue
-        km = KMeans(n_clusters=1).fit(activations)
-        closest, _ = pairwise_distances_argmin_min(km.cluster_centers_, activations)
+    for slide in activations:
+        if not len(activations[slide]): continue
+        km = KMeans(n_clusters=1).fit(activations[slide])
+        closest, _ = pairwise_distances_argmin_min(km.cluster_centers_, activations[slide])
         closest_index = closest[0]
         closest_activations = activations[closest_index]
-
         optimal_indices.update({slide: closest_index})
         centroid_activations.update({slide: closest_activations})
     return optimal_indices, centroid_activations
@@ -894,11 +907,11 @@ def normalize_layout(layout, min_percentile=1, max_percentile=99, relative_margi
 
     return clipped
 
-def gen_umap(array, n_components=2, n_neighbors=20, min_dist=0.01, metric='cosine', low_memory=False):
+def gen_umap(array, dim=2, n_neighbors=50, min_dist=0.1, metric='cosine', low_memory=False):
     """Generates and returns a umap from a given array, using umap.UMAP"""
     import umap # Imported in this function due to long import times
     try:
-        layout = umap.UMAP(n_components=n_components,
+        layout = umap.UMAP(n_components=dim,
                            verbose=(log.getEffectiveLevel() <= 20),
                            n_neighbors=n_neighbors,
                            min_dist=min_dist,
@@ -1167,8 +1180,8 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, annotations, model_
     (each numpy array corresponding to whole-dataset predictions for a single outcome)
 
     Args:
-        y_true (numpy.Array): True labels for the dataset.
-        y_pred (numpy.Array): Predicted labels for the dataset.
+        y_true (ndarray): True labels for the dataset.
+        y_pred (ndarray): Predicted labels for the dataset.
         tile_to_slides (list): List of length y_true of slide names.
         annotations (dict): Dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
         model_type (str): Either 'linear', 'categorical', or 'cph'.
@@ -1375,13 +1388,13 @@ def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_l
 
     Args:
         model (str): Path to Tensorflow model
-        layer_input (numpy.Array): Dataset to use as input for the given layer, to generate predictions.
+        layer_input (ndarray): Dataset to use as input for the given layer, to generate predictions.
         input_layer_name (str, optional): Name of intermediate layer, to which input is provided. Defaults to 'hidden_0'.
         output_layer_index (int, optional): Excludes layers beyond this index. CPH models include a final
             concatenation layer (softmax + event tensor) that should be excluded. Defaults to None.
 
     Returns:
-        numpy.Array: Model predictions.
+        ndarray: Model predictions.
     """
     import tensorflow as tf
     from slideflow.model_utils import get_layer_index_by_name
@@ -1552,7 +1565,7 @@ def permutation_feature_importance(model, dataset_with_slidenames, annotations, 
     # Generate the AUC, R-squared, and C-index metrics
     #     From the generated baseline predictions.
     base_auc, base_r_squared, base_c_index = metrics_from_predictions(y_true=y_true,
-                                                                        y_pred=y_pred,
+                                                                      y_pred=y_pred,
                                                                       tile_to_slides=tile_to_slides,
                                                                       annotations=annotations,
                                                                       model_type=model_type,

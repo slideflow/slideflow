@@ -41,8 +41,6 @@ from functools import partial
 from tqdm import tqdm
 from fpdf import FPDF
 
-#TODO: optionally randomize center of individual tile extraction
-
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
 DEFAULT_JPG_MPP = 1
@@ -413,7 +411,7 @@ class JPGslideToVIPS(VIPSWrapper):
                 log.info(f"Setting MPP to default {DEFAULT_JPG_MPP}")
                 self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
 
-class ROIObject:
+class ROI:
     '''Object container for ROI annotations.'''
     def __init__(self, name):
         self.name = name
@@ -941,7 +939,7 @@ class WSI(BaseLoader):
                 y_coord = int(float(row[index_y]))
 
                 if roi_name not in roi_dict:
-                    roi_dict.update({roi_name: ROIObject(roi_name)})
+                    roi_dict.update({roi_name: ROI(roi_name)})
                 roi_dict[roi_name].add_coord((x_coord, y_coord))
 
             for roi_object in roi_dict.values():
@@ -975,7 +973,7 @@ class WSI(BaseLoader):
             json_data = json.load(json_file)['shapes']
         for shape in json_data:
             area_reduced = np.multiply(shape['points'], scale)
-            self.rois.append(ROIObject(f"Object{len(self.rois)}"))
+            self.rois.append(ROI(f"Object{len(self.rois)}"))
             self.rois[-1].add_shape(area_reduced)
         return len(self.rois)
 

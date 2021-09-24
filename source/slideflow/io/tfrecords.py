@@ -145,6 +145,9 @@ def get_tfrecord_parser(tfrecord_path,
                         error_if_invalid=True):
 
     feature_description, img_type = detect_tfrecord_format(tfrecord_path)
+    if feature_description is None:
+        log.warning(f"Unable to read tfrecord at {self.tfrecords[0]} - is it empty?")
+        return None
     if features_to_return is None:
         features_to_return = list(feature_description.keys())
 
@@ -180,7 +183,7 @@ def get_locations_from_tfrecord(filename):
     return loc_dict
 
 def interleave_tfrecords(tfrecords,
-                         image_size,
+                         img_size,
                          batch_size,
                          label_parser=None,
                          model_type='categorical',
@@ -270,11 +273,11 @@ def interleave_tfrecords(tfrecords,
                     raise TFRecordsError('Inconsistent TFRecord internal formatting; all must be formatted the same.')
                 if base_parser is None:
                     base_parser = get_tfrecord_parser(filename,
-                            ('slide', 'image_raw'),
-                            standardize=standardize,
-                            img_size=image_size,
-                            normalizer=normalizer,
-                            augment=augment)
+                                                      ('slide', 'image_raw'),
+                                                      standardize=standardize,
+                                                      img_size=img_size,
+                                                      normalizer=normalizer,
+                                                      augment=augment)
 
                 # Assign category by outcome if this is a categorical model,
                 #    Merging category names if there are multiple outcomes
@@ -372,11 +375,11 @@ def interleave_tfrecords(tfrecords,
 
                 if base_parser is None:
                     base_parser = get_tfrecord_parser(filename,
-                            ('slide', 'image_raw'),
-                            standardize=standardize,
-                            img_size=image_size,
-                            normalizer=normalizer,
-                            augment=augment)
+                                                      ('slide', 'image_raw'),
+                                                      standardize=standardize,
+                                                      img_size=img_size,
+                                                      normalizer=normalizer,
+                                                      augment=augment)
 
                 datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=num_parallel_reads)]
                 pb.increase_bar_value()
@@ -415,11 +418,11 @@ def get_parsed_datasets(tfrecord_dataset, label_parser, base_parser, include_sli
                                                     base_parser=base_parser,
                                                     include_slidenames=True)
 
-        dataset_with_slidenames = tfrecord_dataset.map(training_parser_with_slidenames, num_parallel_calls=8)
+        dataset_with_slidenames = tfrecord_dataset.map(training_parser_with_slidenames, num_parallel_calls=32)
         return dataset_with_slidenames
     else:
         training_parser = partial(label_parser, base_parser=base_parser, include_slidenames=False)
-        dataset = tfrecord_dataset.map(training_parser, num_parallel_calls=8)
+        dataset = tfrecord_dataset.map(training_parser, num_parallel_calls=32)
         return dataset
 
 def default_label_parser(record, base_parser, include_slidenames=True):
@@ -738,7 +741,7 @@ def get_train_and_val_tfrecords(dataset,
 
     k_fold = val_k_fold
     training_tfrecords = []
-    validation_tfrecords = []
+    val_tfrecords = []
     accepted_plan = None
     slide_list = list(slide_labels_dict.keys())
 
@@ -897,12 +900,12 @@ def get_train_and_val_tfrecords(dataset,
             raise TFRecordsError(err_msg)
 
         # Return list of tfrecords
-        validation_tfrecords = [tfr for tfr in tfrecord_dir_list if sf.util.path_to_name(tfr) in validation_slides]
+        val_tfrecords = [tfr for tfr in tfrecord_dir_list if sf.util.path_to_name(tfr) in validation_slides]
         training_tfrecords = [tfr for tfr in tfrecord_dir_list if sf.util.path_to_name(tfr) in training_slides]
     train_msg = sf.util.bold(len(training_tfrecords))
-    val_msg = sf.util.bold(len(validation_tfrecords))
+    val_msg = sf.util.bold(len(val_tfrecords))
     log.info(f"Using {train_msg} TFRecords for training, {val_msg} for validation")
-    return training_tfrecords, validation_tfrecords
+    return training_tfrecords, val_tfrecords
 
 def update_tfrecord_dir(directory,
                         old_feature_description=FEATURE_DESCRIPTION,
