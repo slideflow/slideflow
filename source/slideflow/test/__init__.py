@@ -91,6 +91,24 @@ def evaluation_tester(project, **kwargs):
     process = ctx.Process(target=_evaluation_tester, args=(project,), kwargs=kwargs)
     process.start()
     process.join()
+
+# -----------------------------------------
+
+def _wsi_prediction_tester(project, model):
+    with TaskWrapper("Testing WSI prediction...") as test:
+        dataset = project.get_dataset()
+        slide_paths = dataset.get_slide_paths(source='TEST')
+        patient_name = sf.util.path_to_name(slide_paths[0])
+        project.predict_wsi(model,
+                                join(project.root, 'wsi'),
+                                filters={sf.util.TCGA.patient: [patient_name]})
+
+def wsi_prediction_tester(project, model):
+    ctx = multiprocessing.get_context('spawn')
+    process = ctx.Process(target=_wsi_prediction_tester, args=(project,model))
+    process.start()
+    process.join()
+
 # -----------------------------------------
 
 class TestConfigurator:
@@ -355,7 +373,7 @@ class TestSuite:
                                               steps_per_epoch_override=5,
                                               **train_kwargs)
 
-                if not results_dict or 'history' not in results_dict[results_dict.keys()[0]]:
+                if not results_dict:
                     print("\tKeras results object not received from training")
                     test.fail()
 
@@ -459,7 +477,6 @@ class TestSuite:
             test_slide = dataset.get_slides()[0]
 
             AV = self.SFP.generate_activations(model=perf_model, outcome_label_headers='category1', **act_kwargs)
-
             assert AV.num_features == 2048
             assert AV.num_logits == 2
             assert len(AV.activations) == len(dataset.get_tfrecords())
@@ -475,13 +492,11 @@ class TestSuite:
             assert len(l_perc) == len(AV.activations)
             assert len(l_perc[test_slide]) == AV.num_logits
             assert len(l_pred) == len(AV.activations)
-            assert len(l_pred[test_slide]) == AV.num_logits
-
 
             umap = SlideMap.from_activations(AV)
             umap.save(join(self.SFP.root, 'stats', '2d_umap.png'))
             tile_stats, pt_stats, cat_stats = AV.feature_stats()
-            top_features_by_tile = sorted(range(self.num_features), key=lambda f: tile_stats[f]['p'])
+            top_features_by_tile = sorted(range(AV.num_features), key=lambda f: tile_stats[f]['p'])
             for feature in top_features_by_tile[:5]:
                 umap.save_3d_plot(join(self.SFP.root, 'stats', f'3d_feature{feature}.png'), feature=feature)
             AV.box_plots(top_features_by_tile[:5], join(self.SFP.root, 'box_plots'))
@@ -493,14 +508,7 @@ class TestSuite:
     def test_predict_wsi(self):
         perf_model = self._get_model('category1-manual_hp-HP0-kfold1')
         assert os.path.exists(perf_model)
-
-        with TaskWrapper("Testing WSI prediction...") as test:
-            dataset = self.SFP.get_dataset()
-            slide_paths = dataset.get_slide_paths(source='TEST')
-            patient_name = sf.util.path_to_name(slide_paths[0])
-            self.SFP.predict_wsi(perf_model,
-                                 join(self.SFP.root, 'wsi'),
-                                 filters={sf.util.TCGA.patient: [patient_name]})
+        wsi_prediction_tester(self.SFP, perf_model)
 
     def test_clam(self):
         perf_model = self._get_model('category1-manual_hp-HP0-kfold1')

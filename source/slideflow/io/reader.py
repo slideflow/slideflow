@@ -93,7 +93,7 @@ def get_tfrecord_parser(tfrecord_path,
 
     return parser
 
-def interleave_tfrecords(tfrecords,
+def interleave(tfrecords,
                          label_parser=None,
                          model_type='categorical',
                          balance=None,

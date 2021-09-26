@@ -225,13 +225,10 @@ class Dataset:
             roi_dir = self.sources[source]['roi']
             source_config = self.sources[source]
             tfrecord_dir = join(source_config['tfrecords'], source_config['label'])
+            tiles_dir = join(source_config['tiles'], source_config['label'])
             if save_tfrecord and not exists(tfrecord_dir):
-                tfrecord_dir = join(source_config['tfrecords'], source_config['label'])
-                tiles_dir = None
                 os.makedirs(tfrecord_dir)
             if save_tiles and not os.path.exists(tiles_dir):
-                tiles_dir = join(source_config['tiles'], source_config['label'])
-                tfrecord_dir = None
                 os.makedirs(tiles_dir)
 
             # Prepare list of slides for extraction

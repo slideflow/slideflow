@@ -977,62 +977,6 @@ class WSI(BaseLoader):
             self.rois[-1].add_shape(area_reduced)
         return len(self.rois)
 
-    def predict(self, model, layers=['postconv'], normalizer=None, normalizer_source=None, whitespace_fraction=1.0,
-                    whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05,
-                    batch_size=128, dtype=np.float16, **kwargs):
-
-        from slideflow.model import ModelActivationsInterface
-        model_interface = ModelActivationsInterface(model, layers=layers)
-        prediction_grid = np.zeros((self.grid.shape[0], self.grid.shape[1], model_interface.num_features), dtype=dtype)
-
-        generator = self.build_generator(shuffle=False,
-                                        normalizer=normalizer,
-                                        normalizer_source=normalizer_source,
-                                        whitespace_fraction=whitespace_fraction,
-                                        whitespace_threshold=whitespace_threshold,
-                                        grayspace_fraction=grayspace_fraction,
-                                        grayspace_threshold=grayspace_threshold,
-                                        include_loc='grid',
-                                        **kwargs)
-
-        if not generator:
-            log.error(f"No tiles extracted from slide {sf.util.green(self.name)}")
-            return
-
-        def _parse_function(record):
-            image = record['image']
-            loc = record['loc']
-            parsed_image = tf.image.per_image_standardization(image)
-            parsed_image = tf.image.convert_image_dtype(parsed_image, tf.float32)
-            parsed_image.set_shape([self.tile_px, self.tile_px, 3])
-            return parsed_image, loc
-
-        # Generate dataset from the generator
-        with tf.name_scope('dataset_input'):
-            output_signature={'image':tf.TensorSpec(shape=(self.tile_px,self.tile_px,3), dtype=tf.uint8),
-                              'loc':tf.TensorSpec(shape=(2), dtype=tf.uint32)}
-            tile_dataset = tf.data.Dataset.from_generator(generator, output_signature=output_signature)
-            tile_dataset = tile_dataset.map(_parse_function, num_parallel_calls=8)
-            tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
-            tile_dataset = tile_dataset.prefetch(8)
-
-        act_arr = []
-        loc_arr = []
-        for i, (batch_images, batch_loc) in tqdm(enumerate(tile_dataset), total=self.estimated_num_tiles // batch_size, ncols=80):
-            act, logits = model_interface.predict(batch_images)
-            act_arr += [act]
-            loc_arr += [batch_loc.numpy()]
-
-        act_arr = np.concatenate(act_arr)
-        loc_arr = np.concatenate(loc_arr)
-
-        for i, act in enumerate(act_arr):
-            xi = loc_arr[i][0]
-            yi = loc_arr[i][1]
-            prediction_grid[xi][yi] = act
-
-        return prediction_grid
-
 class TMA(BaseLoader):
     '''Extension of slideflow.slide.BaseLoader. Loads a TMA-formatted slide and detects tissue cores.'''
 

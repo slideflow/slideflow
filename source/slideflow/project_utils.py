@@ -31,7 +31,7 @@ def _heatmap_worker(slide, heatmap_args, kwargs):
 
     from slideflow.activations import Heatmap
     heatmap = Heatmap(slide,
-                      model_path=heatmap_args.model,
+                      model=heatmap_args.model,
                       stride_div=heatmap_args.stride_div,
                       roi_list=heatmap_args.roi_list,
                       roi_method=heatmap_args.roi_method,
@@ -47,32 +47,26 @@ def _trainer(training_args, model_kwargs, training_kwargs, results_dict):
 
     import slideflow.model
     import tensorflow as tf
-
     log.setLevel(training_args.verbosity)
     tf.keras.backend.clear_session() # Clear prior Tensorflow graph to free memory
 
     # Build a model using the slide list as input and the annotations dictionary as output labels
-    SFM = sf.model.Model(training_args.model_dir,
-                         training_args.hp.tile_px,
-                         training_args.slide_labels_dict,
-                         training_args.training_tfrecords,
-                         training_args.val_tfrecords,
-                         **model_kwargs)
+    SFM = sf.model.model_from_hp(training_args.hp,
+                                 outdir=training_args.model_dir,
+                                 annotations=training_args.slide_labels_dict,
+                                 **model_kwargs)
     try:
-        results, history = SFM.train(training_args.hp,
-                                     pretrain=training_args.pretrain,
-                                     resume_training=training_args.resume_training,
-                                     checkpoint=training_args.checkpoint,
-                                     **training_kwargs)
-        results['history'] = history
+        results = SFM.train(training_args.training_tfrecords,
+                            training_args.val_tfrecords,
+                            pretrain=training_args.pretrain,
+                            resume_training=training_args.resume_training,
+                            checkpoint=training_args.checkpoint,
+                            **training_kwargs)
         results_dict.update({model_kwargs['name']: results})
     except tf.errors.ResourceExhaustedError as e:
-        log.info('\n')
+        print()
         print(e)
         log.error(f"Training failed for {sf.util.bold(model_kwargs['name'])}, GPU memory exceeded.")
-        history = None
-    del SFM
-    return history
 
 def get_validation_settings(**kwargs):
     """Returns a namespace of validation settings.

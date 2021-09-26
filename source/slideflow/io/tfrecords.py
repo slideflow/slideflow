@@ -182,7 +182,7 @@ def get_locations_from_tfrecord(filename):
         loc_dict.update({ i: (loc_x, loc_y)    })
     return loc_dict
 
-def interleave_tfrecords(tfrecords,
+def interleave(tfrecords,
                          img_size,
                          batch_size,
                          label_parser=None,

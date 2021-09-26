@@ -851,8 +851,7 @@ def filtered_prediction(logits, filter):
     Returns:
         int: index of prediction.
     """
-
-    prediction_mask = np.zeros(AV.num_logits, dtype=np.int)
+    prediction_mask = np.zeros(logits.shape, dtype=np.int)
     prediction_mask[filter] = 1
     masked_logits = np.ma.masked_array(logits, mask=prediction_mask)
     return np.argmax(masked_logits)
@@ -1311,7 +1310,13 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, annotations, model_
         except:
             log.error("Unable to save predictions to CSV - not yet implemented for multiple outcomes")
 
-    return metric_args.auc, metric_args.r_squared, metric_args.c_index
+    combined_metrics = {
+        'auc': metric_args.auc,
+        'r_squared': metric_args.r_squared,
+        'c_index': metric_args.c_index
+    }
+
+    return combined_metrics
 
 def predict_from_model(model, dataset, num_tiles=0):
 
@@ -1642,4 +1647,10 @@ def permutation_feature_importance(model, dataset_with_slidenames, annotations, 
             feature_text += feature + ": " + str(metrics[feature][0]) + ", "
     log.info("Feature importance, tile level: " + feature_text)
 
-    return base_auc, base_r_squared, base_c_index
+    combined_metrics = {
+        'auc': base_auc,
+        'r_squared': base_auc,
+        'c_index': base_c_index
+    }
+
+    return combined_metrics

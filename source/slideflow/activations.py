@@ -19,12 +19,11 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcol
 import seaborn as sns
 import scipy.stats as stats
-
 import shapely.geometry as sg
+import slideflow.slide
 
 from slideflow.util import log
 from slideflow.util.fastim import FastImshow
-from slideflow.model import ModelActivationsInterface
 from os.path import join, exists
 from math import isnan
 from matplotlib.widgets import Slider
@@ -34,6 +33,122 @@ from tqdm import tqdm
 
 class ActivationsError(Exception):
     pass
+
+class ActivationsInterface:
+    """Provides an interface to obtain logits and intermediate layer activations from saved Slideflow models.
+
+    Use by calling on either a batch of images (returning outputs for a single batch), or by calling on a
+    :class:`slideflow.slide.WSI` object, which will generate an array of spatially-mapped activations matching
+    the slide.
+    """
+
+    def __init__(self, path, layers='postconv', include_logits=True):
+        '''Initializer.
+
+        Args:
+            path:           Path to saved Slideflow Keras model
+            model_format:   Either slideflow.model.MODEL_FORMAT_CURRENT or _LEGACY.
+                                Indicates how the saved model should be processed,
+                                as older versions of Slideflow had models constructed differently,
+                                with differing naming of Keras layers.
+            layers:         Layers from which to generate activations.
+                                The post-convolution activation layer is accessed via 'postconv'
+        '''
+        if not isinstance(layers, list): layers = [layers]
+        self.path = path
+        self.hp = sf.util.get_model_hyperparameters(path)
+        self.num_classes = 0
+        self.num_features = 0
+        self._model = tf.keras.models.load_model(self.path)
+        self._build(layers=[l for l in layers], include_logits=include_logits)
+
+    def __call__(self, inp, **kwargs):
+        '''Given a batch of images, will return a batch of post-convolutional activations and a batch of logits.'''
+        if isinstance(inp, sf.slide.WSI):
+            return self._predict_slide(inp, **kwargs)
+        else:
+            return self._predict(inp)
+
+    def _predict_slide(self, slide, batch_size=128, dtype=np.float16, **kwargs):
+        '''Generate activations from slide => activation grid array.'''
+        prediction_grid = np.zeros((slide.grid.shape[0], slide.grid.shape[1], self.num_features), dtype=dtype)
+        generator = slide.build_generator(shuffle=False, include_loc='grid', **kwargs)
+
+        if not generator:
+            log.error(f"No tiles extracted from slide {sf.util.green(slide.name)}")
+            return
+
+        def _parse_function(record):
+            image = record['image']
+            loc = record['loc']
+            parsed_image = tf.image.per_image_standardization(image)
+            parsed_image = tf.image.convert_image_dtype(parsed_image, tf.float32)
+            parsed_image.set_shape([slide.tile_px, slide.tile_px, 3])
+            return parsed_image, loc
+
+        # Generate dataset from the generator
+        with tf.name_scope('dataset_input'):
+            output_signature={'image':tf.TensorSpec(shape=(slide.tile_px,slide.tile_px,3), dtype=tf.uint8),
+                              'loc':tf.TensorSpec(shape=(2), dtype=tf.uint32)}
+            tile_dataset = tf.data.Dataset.from_generator(generator, output_signature=output_signature)
+            tile_dataset = tile_dataset.map(_parse_function, num_parallel_calls=8)
+            tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
+            tile_dataset = tile_dataset.prefetch(8)
+
+        act_arr = []
+        loc_arr = []
+        for i, (batch_images, batch_loc) in tqdm(enumerate(tile_dataset), total=slide.estimated_num_tiles // batch_size, ncols=80):
+            model_out = self._predict(batch_images)
+            if not isinstance(model_out, list): model_out = [model_out]
+            concatenated_arr = np.concatenate([m.numpy() for m in model_out])
+            act_arr += [concatenated_arr]
+            loc_arr += [batch_loc.numpy()]
+
+        act_arr = np.concatenate(act_arr)
+        loc_arr = np.concatenate(loc_arr)
+
+        for i, act in enumerate(act_arr):
+            xi = loc_arr[i][0]
+            yi = loc_arr[i][1]
+            prediction_grid[xi][yi] = act
+
+        return prediction_grid
+
+    @tf.function
+    def _predict(self, inp):
+        return self.model(inp, training=False)
+
+    def _build(self, layers, pooling=None, include_logits=True):
+
+        '''Builds a model that outputs feature activations at the designated layers
+            and concatenates into a single final output vector.
+            Intermediate layers are returned in the order of layers. Logits are returned last.
+        '''
+
+        log.debug(f"Setting up interface to return activations from layers {', '.join(layers)}")
+        other_layers = [l for l in layers if l != 'postconv']
+        outputs = {}
+        if layers:
+            intermediate_core = tf.keras.models.Model(inputs=self._model.layers[1].input,
+                                                      outputs=[self._model.layers[1].get_layer(l).output for l in other_layers])
+            if len(other_layers) > 1:
+                int_out = intermediate_core(self._model.input)
+                for l, layer in enumerate(other_layers):
+                    outputs[layer] = int_out[l]
+            elif len(other_layers):
+                outputs[other_layers[0]] = intermediate_core(self._model.input)
+        if 'postconv' in layers:
+            outputs['postconv'] = self._model.layers[1].get_output_at(0)
+        outputs_list = [outputs[l] for l in layers]
+        if include_logits:
+            outputs_list += [self._model.output]
+        self.model = tf.keras.models.Model(inputs=self._model.input, outputs=outputs_list)
+
+        self.num_features = sum([outputs[o].shape[1] for o in outputs])
+        self.num_classes = 0 if not include_logits else self._model.output.shape[1]
+        if include_logits:
+            log.debug(f'Number of logits: {self.num_classes}')
+        log.debug(f'Number of activation features: {self.num_features}')
 
 class ActivationsVisualizer:
 
@@ -176,7 +291,7 @@ class ActivationsVisualizer:
         if not isinstance(layers, list): layers = [layers]
 
         # Load model
-        combined_model = ModelActivationsInterface(model, layers=layers, include_logits=include_logits)
+        combined_model = ActivationsInterface(model, layers=layers, include_logits=include_logits)
         unique_slides = list(set([sf.util.path_to_name(tfr) for tfr in self.tfrecords]))
         self.num_features = combined_model.num_features
         self.num_logits = 0 if not include_logits else combined_model.num_classes
@@ -234,12 +349,22 @@ class ActivationsVisualizer:
                 if model_out == None:
                     return
                 decoded_slides = [bs.decode('utf-8') for bs in batch_slides.numpy()]
-                batch_activations = model_out[0].numpy() if include_logits else model_out.numpy()
-                logits = model_out[1].numpy() if include_logits else None
+                if not isinstance(model_out, list):
+                    model_out = [model_out]
+                model_out = [m.numpy() for m in model_out]
+
+                if include_logits:
+                    logits = model_out[-1]
+                    activations = model_out[:-1]
+                else:
+                    activations = model_out
+                # Concatenate activations if we have activations from more than one layer
+                batch_act = np.concatenate(activations)
+
                 if include_tfrecord_loc:
                     batch_loc = np.stack([batch_loc[0].numpy(), batch_loc[1].numpy()], axis=1)
                 for d, slide in enumerate(decoded_slides):
-                    self.activations[slide].append(batch_activations[d])
+                    self.activations[slide].append(batch_act[d])
                     if include_logits:
                         self.logits[slide].append(logits[d])
                     if include_tfrecord_loc:
@@ -250,7 +375,7 @@ class ActivationsVisualizer:
 
         pb = tqdm(total=estimated_tiles, ncols=80, leave=False)
         for i, (batch_img, batch_slides, batch_loc_x, batch_loc_y) in enumerate(dataset):
-            model_output = combined_model.predict(batch_img)
+            model_output = combined_model(batch_img)
             q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
             pb.update(batch_size)
         pb.close()
@@ -688,7 +813,7 @@ class Heatmap:
             log.info("No ROIs provided; will generate whole-slide heatmap")
             roi_method = 'ignore'
 
-        self.model = ModelActivationsInterface(model)
+        self.model = ActivationsInterface(model)
         model_hyperparameters = sf.util.get_model_hyperparameters(model)
         self.tile_px = model_hyperparameters['tile_px']
         self.tile_um = model_hyperparameters['tile_um']
@@ -746,7 +871,7 @@ class Heatmap:
         logits_arr = []        # Logits (predictions)
         postconv_arr = []      # Post-convolutional layer (post-convolutional activations)
         for batch_images in tile_dataset:
-            postconv, logits = self.model.predict(batch_images)
+            postconv, logits = self.model(batch_images)
             logits_arr += [logits]
             postconv_arr += [postconv]
         logits_arr = np.concatenate(logits_arr)

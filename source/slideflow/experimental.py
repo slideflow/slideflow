@@ -81,7 +81,7 @@ class TileVisualizer:
         log.info(f'Node: {sf.util.bold(str(node))} | Shape: ({self.IMAGE_SHAPE}) | Window size: {self.MASK_WIDTH}')
         log.info(f'Loading Tensorflow model at {sf.util.green(model)}...')
 
-        self.loaded_model = ModelActivationsInterface(model)
+        self.interface = ActivationsInterface(model)
 
     def _calculate_activation_map(self, stride_div=4):
         '''Creates map of importance through convolutional masking and
@@ -100,7 +100,7 @@ class TileVisualizer:
             for xi in range(min_x, max_x, stride):
                 mask = self._create_bool_mask(xi, yi, w, sx, sy)
                 masked = self.tf_processed_image.numpy() * mask
-                act, _ = self.loaded_model.predict(np.array([masked]))
+                act, _ = self.interface(np.array([masked]))
                 act_array += [act[0][self.NODE]]
                 print(f'Calculating activations at x:{xi}, y:{yi}; act={act[0][self.NODE]}', end='\033[K\r')
         max_center_x = max(range(min_x, max_x, stride))

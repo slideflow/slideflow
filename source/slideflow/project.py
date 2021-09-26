@@ -567,25 +567,22 @@ class Project:
         log.info(f'Evaluating {sf.util.bold(len(eval_tfrecords))} tfrecords')
 
         # Build a model using the slide list as input and the annotations dictionary as output labels
-        SFM = sf.model.Model(model_dir,
-                             hp.tile_px,
-                             slide_labels_dict,
-                             train_tfrecords=None,
-                             val_tfrecords=eval_tfrecords,
-                             manifest=dataset.get_manifest(),
-                             mixed_precision=self.mixed_precision,
-                             model_type=hp.model_type(),
-                             normalizer=normalizer,
-                             normalizer_source=normalizer_source,
-                             feature_names=input_header,
-                             feature_sizes=feature_sizes,
-                             outcome_names=outcome_label_headers)
+        SFM = sf.model.model_from_hp(hp,
+                                     outdir=model_dir,
+                                     annotations=slide_labels_dict,
+                                     manifest=dataset.get_manifest(),
+                                     mixed_precision=self.mixed_precision,
+                                     normalizer=normalizer,
+                                     normalizer_source=normalizer_source,
+                                     feature_names=input_header,
+                                     feature_sizes=feature_sizes,
+                                     outcome_names=outcome_label_headers)
+        if model:
+            SFM.load_model(model)
+        elif checkpoint:
+            SFM.load_checkpoint(checkpoint)
 
         results = SFM.evaluate(tfrecords=eval_tfrecords,
-                               hp=hp,
-                               model=model,
-                               model_type=hp.model_type(),
-                               checkpoint=checkpoint,
                                batch_size=batch_size,
                                max_tiles_per_slide=max_tiles_per_slide,
                                min_tiles_per_slide=min_tiles_per_slide,
@@ -1570,6 +1567,7 @@ class Project:
         """
 
         from slideflow.slide import WSI, TileCorruptionError
+        from slideflow.activations import ActivationsInterface
 
         log.info('Generating WSI prediction / activation maps...')
         if not exists(outdir):
@@ -1641,7 +1639,7 @@ class Project:
                     continue
 
                 try:
-                    wsi_grid = whole_slide.predict(model=model, **kwargs)
+                    wsi_grid = ActivationsInterface(model, include_logits=False)(whole_slide, num_threads=12)
 
                     with open (join(outdir, whole_slide.name+'.pkl'), 'wb') as pkl_file:
                         pickle.dump(wsi_grid, pkl_file)
@@ -2034,7 +2032,6 @@ class Project:
                     'name': full_model_name,
                     'manifest': manifest,
                     'mixed_precision': self.mixed_precision,
-                    'model_type': hp.model_type(),
                     'normalizer': normalizer,
                     'normalizer_source': normalizer_source,
                     'feature_names': input_header,
