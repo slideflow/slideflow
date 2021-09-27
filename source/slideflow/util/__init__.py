@@ -8,6 +8,7 @@ import shutil
 import threading
 import logging
 import cv2
+import multiprocessing_logging
 
 from glob import glob
 from os.path import join, isdir, exists, dirname
@@ -105,6 +106,7 @@ class TqdmLoggingHandler(logging.StreamHandler):
 ch = TqdmLoggingHandler()
 ch.setFormatter(LogFormatter())
 log.addHandler(ch)
+multiprocessing_logging.install_mp_handler()
 # ------------------------------------------------------------
 import tensorflow as tf
 

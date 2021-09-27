@@ -428,25 +428,25 @@ class TestSuite:
             with TaskWrapper("Training a CPH model...") as test:
                 hp = self.setup_hp('cph')
                 self.SFP.train(exp_label='cph',
-                    outcome_label_headers='time',
-                    input_header='event',
-                    hyperparameters=hp,
-                    val_k=1,
-                    validate_on_batch=50,
-                    steps_per_epoch_override=5,
-                    **train_kwargs)
+                                outcome_label_headers='time',
+                                input_header='event',
+                                hyperparameters=hp,
+                                val_k=1,
+                                validate_on_batch=50,
+                                steps_per_epoch_override=5,
+                                **train_kwargs)
 
         if multi_cph:
             with TaskWrapper("Training a multi-input CPH model...") as test:
                 hp = self.setup_hp('cph')
-                self.SFP.train(exp_label='cph',
-                    outcome_label_headers='time',
-                    input_header=['event', 'category1'],
-                    hyperparameters=hp,
-                    val_k=1,
-                    validate_on_batch=50,
-                    steps_per_epoch_override=5,
-                    **train_kwargs)
+                self.SFP.train(exp_label='multi_cph',
+                                outcome_label_headers='time',
+                                input_header=['event', 'category1'],
+                                hyperparameters=hp,
+                                val_k=1,
+                                validate_on_batch=50,
+                                steps_per_epoch_override=5,
+                                **train_kwargs)
 
     def test_evaluation(self, **eval_kwargs):
         multi_cat_model = self._get_model('category1-category2-TEST-HPSweep0-kfold1')

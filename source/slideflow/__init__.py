@@ -22,8 +22,6 @@ __version__ = "1.12.0-dev1"
 # DONE - Refactoring entire codebase
 # IN PROGRESS - Updated documentation with more details in pytorch style
 # DONE - Remove per-tile validation options, as it should never be used
-#TODO: multiprocessing logging
-#TODO: test TMA
 
 # Future updates
 # ===============

@@ -77,7 +77,7 @@ VIPS_FORMAT_TO_DTYPE = {
 def _polyArea(x, y):
     return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
 
-def _slide_extraction_worker(c, args):
+def _wsi_extraction_worker(c, args):
     '''Multiprocessing working for WSI. Extracts a tile at the given coordinates.'''
     slide = VIPSWrapper(args.path)
     normalizer = None if not args.normalizer else StainNormalizer(method=args.normalizer, source=args.normalizer_source)
@@ -863,7 +863,7 @@ class WSI(_BaseLoader):
             with mp.Pool(processes=num_threads) as p:
                 if show_progress:
                     pbar = tqdm(total=self.estimated_num_tiles, ncols=80)
-                for res in p.imap(partial(_slide_extraction_worker, args=worker_args), self.coord):
+                for res in p.imap(partial(_wsi_extraction_worker, args=worker_args), self.coord):
                     if res == 'skip':
                         continue
                     if show_progress:
@@ -973,7 +973,6 @@ class TMA(_BaseLoader):
     '''Loads a TMA-formatted slide and detects tissue cores.'''
 
     QUEUE_SIZE = 8
-    NUM_EXTRACTION_WORKERS = 8
     HEIGHT_MIN = 20
     WIDTH_MIN = 20
     BLACK = (0,0,0)
@@ -983,7 +982,7 @@ class TMA(_BaseLoader):
     RED = (100, 100, 200)
     WHITE = (255,255,255)
 
-    def __init__(self, path, tile_px, tile_um, stride_div, annotations_dir=None,
+    def __init__(self, path, tile_px, tile_um, stride_div=1, annotations_dir=None,
                     enable_downsample=False, report_dir=None, buffer=None, pb=None, pb_id=0):
         '''Initializer.
 
@@ -1143,22 +1142,34 @@ class TMA(_BaseLoader):
 
         return num_filtered, num_filtered
 
-    def build_generator(self, shuffle=True, whitespace_fraction=1.0, whitespace_threshold=230,
-                            grayspace_fraction=0.6, grayspace_threshold=0.05,
-                            normalizer=None, normalizer_source=None, full_core=None):
+    def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None, grayspace_fraction=None,
+                        grayspace_threshold=None, normalizer=None, normalizer_source=None, include_loc=True,
+                        num_threads=8, full_core=False):
 
-        '''Builds generator to supervise extraction of tiles across the slide.
+        """Builds tile generator to extract of tiles across the slide.
 
         Args:
-            shuffle:                If true, will shuffle images during extraction
-            whitespace_fraction:    Float from 0-1, representing a percent. Tiles with this percent of pixels
-                                        (or more) classified as "whitespace" and will be skipped during extraction.
-            whitespace_threshold:   Int from 0-255, pixel brightness above which a pixel is considered whitespace
-            normalizer:             Normalization strategy to use on image tiles
-            normalizer_source:      Path to normalizer source image
-            export_full_core:       If true, will also save a thumbnail of each fully extracted core.'''
+            shuffle (bool): Shuffle images during extraction.
+            whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
+                Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.
+            whitespace_threshold (int, optional): Range 0-255. Defaults to 230.
+                Threshold above which a pixel (RGB average) is considered whitespace.
+            grayspace_fraction (float, optional): Range 0-1. Defaults to 0.6.
+                Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.
+            grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
+                Pixels in HSV format with saturation below this threshold are considered grayspace.
+                normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
+                If None but using a normalizer, will use an internal tile for normalization.
+                Internal default tile can be found at slideflow.util.norm_tile.jpg
+            full_core (bool, optional): Extract an entire detected core, rather than subdividing into image tiles.
+                Defaults to False.
+        """
 
         super().build_generator()
+
+        if include_loc:
+            log.warning("Tile location logging for TMA slides is not yet complete; recording all locations as (0, 0).")
 
         # Setup normalization
         normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
@@ -1166,6 +1177,12 @@ class TMA(_BaseLoader):
         # Shuffle TMAs
         if shuffle:
             random.shuffle(self.object_rects)
+
+        # Set whitespace / grayspace fraction to global defaults if not provided
+        if whitespace_fraction is None:     whitespace_fraction  = DEFAULT_WHITESPACE_FRACTION
+        if whitespace_threshold is None:    whitespace_threshold = DEFAULT_WHITESPACE_THRESHOLD
+        if grayspace_fraction is None:      grayspace_fraction   = DEFAULT_GRAYSPACE_FRACTION
+        if grayspace_threshold is None:     grayspace_threshold  = DEFAULT_GRAYSPACE_THRESHOLD
 
         # Establish extraction queues
         rectangle_queue = mp.Queue()
@@ -1183,7 +1200,7 @@ class TMA(_BaseLoader):
 
         def generator():
             unique_tile = True
-            extraction_pool = mp.Pool(self.NUM_EXTRACTION_WORKERS, section_extraction_worker,(rectangle_queue, extraction_queue,))
+            extraction_pool = mp.Pool(num_threads, section_extraction_worker,(rectangle_queue, extraction_queue,))
 
             for rect in self.object_rects:
                 rectangle_queue.put(rect)
@@ -1202,7 +1219,11 @@ class TMA(_BaseLoader):
                     resized_core = self._resize_to_target(image_core)
 
                     if full_core:
-                        yield cv2.resize(image_core, (self.tile_px, self.tile_px))
+                        resized = cv2.resize(image_core, (self.tile_px, self.tile_px))
+                        if include_loc:
+                            yield {'image': resized, 'loc': [0, 0]}
+                        else:
+                            yield {'image': resized}
                     else:
                         subtiles = self._split_core(resized_core)
                         for subtile in subtiles:
@@ -1225,8 +1246,10 @@ class TMA(_BaseLoader):
                                     # The image could not be normalized, which happens when
                                     # a tile is primarily one solid color (background)
                                     continue
-
-                            yield subtile
+                            if include_loc:
+                                yield {'image': subtile, 'loc': [0, 0]}
+                            else:
+                                yield {'image': subtile}
 
             extraction_pool.close()
 

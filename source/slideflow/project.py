@@ -540,7 +540,8 @@ class Project:
 
         if feature_sizes and (sum(feature_sizes) != sum(hp_data['input_feature_sizes'])):
             #TODO: consider using training matrix
-            raise Exception('Patient-level feature matrix not equal to what was used for model training.')
+            raise Exception(f'Patient-level feature matrix (size {sum(feature_sizes)}) not equal to what was used ' + \
+                            f'for model training (size {sum(hp_data["input_feature_sizes"])}).')
             #feature_sizes = hp_data['feature_sizes']
             #feature_names = hp_data['feature_names']
             #num_slide_features = sum(hp_data['feature_sizes'])
