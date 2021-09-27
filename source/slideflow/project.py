@@ -33,7 +33,7 @@ class Project:
     or that project configuration will be supplied via kwargs. Alternatively, a project may be instantiated
     using :meth:`from_prompt`, which interactively guides users through configuration.
 
-    **Interactive instantiation:**
+    *Interactive instantiation:*
 
     .. code-block:: python
 
@@ -41,7 +41,7 @@ class Project:
         >>> SFP = sf.Project.from_prompt('/project/path')
         What is the project name?
 
-    **Manual configuration:**
+    *Manual configuration:*
 
     .. code-block:: python
 
@@ -52,7 +52,8 @@ class Project:
 
     def __init__(self, project_folder, gpu=None, default_threads=4, **project_kwargs):
         """Initializes project at the specified project folder, creating a new project using
-        the specified kwargs if one does not already exist.
+        the specified kwargs if one does not already exist. Will create a blank annotations file with
+        dataset slide names if one does not exist.
 
         Args:
             project_folder (str): Path to project directory.
@@ -63,7 +64,7 @@ class Project:
             name (str): Project name. Defaults to 'MyProject'.
             annotations (str): Path to annotations CSV file. Defaults to './annotations.csv'
             dataset_config (str): Path to dataset configuration JSON file. Defaults to './datasets.json'.
-            sources (list): List of dataset sources to include in project. Defaults to 'source1'.
+            sources (list(str)): List of dataset sources to include in project. Defaults to 'source1'.
             models_dir (str): Path to directory in which to save models. Defaults to './models'.
             eval_dir (str): Path to directory in which to save evaluations. Defaults to './eval'.
             mixed_precision (bool): Use mixed precision for training. Defaults to True.
@@ -94,6 +95,10 @@ class Project:
             os.makedirs(self.models_dir)
         if not exists(self.eval_dir):
             os.makedirs(self.eval_dir)
+
+        # Create blank annotations file if one does not exist
+        if not exists(self.annotations):
+            self.create_blank_annotations()
 
         # Set up logging
         logger = logging.getLogger('slideflow')
@@ -286,6 +291,28 @@ class Project:
         dataset = self.get_dataset(tile_px=0, tile_um=0, verification=None)
         dataset.update_annotations_with_slidenames(self.annotations)
 
+    def create_blank_annotations(self, filename=None):
+        """Creates an empty annotations file with slide names from project settings, assuming one slide per patient.
+
+        Args:
+            filename (str): Annotations file destination. If not provided, will use project default.
+        """
+
+        if filename is None:
+            filename = self.annotations
+        if exists(filename):
+            raise sf.util.UserError(f"Unable to create blank annotations file at {filename}; file already exists.")
+
+        dataset = self.get_dataset(verification=None)
+        slides = [sf.util.path_to_name(s) for s in dataset.get_slide_paths(apply_filters=False)]
+        with open(filename, 'w') as csv_outfile:
+            csv_writer = csv.writer(csv_outfile, delimiter=',')
+            header = [sf.util.TCGA.patient, 'dataset', 'category']
+            csv_writer.writerow(header)
+            for slide in slides:
+                csv_writer.writerow([slide, '', ''])
+        log.info(f"Wrote blank annotations file to {sf.util.green(filename)}")
+
     def create_blank_train_config(self, filename=None):
         """Creates a CSV file with the batch training hyperparameter structure.
 
@@ -455,15 +482,14 @@ class Project:
         if eval_k_fold:
             log.info(f"Using {sf.util.bold('k-fold iteration ' + str(eval_k_fold))}")
             validation_log = join(self.root, 'validation_plans.json')
-            _, eval_tfrecords = sf.io.tfrecords.get_train_and_val_tfrecords(dataset,
-                                                                            validation_log,
-                                                                            hp.model_type(),
-                                                                            labels_for_splitting,
-                                                                            outcome_key='outcome_label',
-                                                                            val_strategy=hp_data['validation_strategy'],
-                                                                            val_fraction=hp_data['validation_fraction'],
-                                                                            val_k_fold=hp_data['validation_k_fold'],
-                                                                            k_fold_iter=eval_k_fold)
+            _, eval_tfrecords = dataset.training_validation_split(validation_log,
+                                                                  hp.model_type(),
+                                                                  labels_for_splitting,
+                                                                  outcome_key='outcome_label',
+                                                                  val_strategy=hp_data['validation_strategy'],
+                                                                  val_fraction=hp_data['validation_fraction'],
+                                                                  val_k_fold=hp_data['validation_k_fold'],
+                                                                   k_fold_iter=eval_k_fold)
         # Otherwise use all TFRecords
         else:
             eval_tfrecords = dataset.get_tfrecords()
@@ -578,7 +604,7 @@ class Project:
                                      feature_sizes=feature_sizes,
                                      outcome_names=outcome_label_headers)
         if model:
-            SFM.load_model(model)
+            SFM.load(model)
         elif checkpoint:
             SFM.load_checkpoint(checkpoint)
 
@@ -692,7 +718,7 @@ class Project:
         if not exists(attention_dir): os.makedirs(attention_dir)
         export_attention(args_dict,
                          ckpt_path=ckpt_path,
-                         export_dir=attention_dir,
+                         outdir=attention_dir,
                          pt_files=pt_files,
                          slides=dataset.get_slides(),
                          reverse_label_dict = dict(zip(range(len(unique_labels)), unique_labels)),
@@ -765,7 +791,7 @@ class Project:
                 Defaults to None.
 
         Keyword Args:
-            layers (list): Layers from which to generate activations. Defaults to 'postconv'.
+            layers (list(str)): Layers from which to generate activations. Defaults to 'postconv'.
             export (str): Path to CSV file. Save activations in CSV format to this file. Defaults to None.
             cache (str): Path to PKL file. Cache activations at this location. Defaults to None.
             normalizer (str): Normalization strategy to use on image tiles. Defaults to None.
@@ -805,7 +831,7 @@ class Project:
             tile_px = dataset.tile_px
 
         tfrecords_list = dataset.get_tfrecords()
-        outcome_annotations = dataset.slide_to_label(outcome_label_headers)
+        outcome_annotations = dataset.slide_to_label(outcome_label_headers) if outcome_label_headers else None
         log.info(f'Visualizing activations from {len(tfrecords_list)} slides')
 
         AV = ActivationsVisualizer(model=model,
@@ -818,7 +844,7 @@ class Project:
 
         return AV
 
-    def generate_features_for_clam(self, model, export_dir='auto', layers=['postconv'], max_tiles_per_slide=0,
+    def generate_features_for_clam(self, model, outdir='auto', layers=['postconv'], max_tiles_per_slide=0,
                                    min_tiles_per_slide=8, filters=None, filter_blank=None, force_regenerate=False):
 
         """Using the specified model, generates tile-level features for slides for use with CLAM.
@@ -826,7 +852,7 @@ class Project:
         Args:
             model (str): Path to model from which to generate activations.
                 May provide either this or "pt_files"
-            export_dir (str, optional): Path in which to save exported activations in .pt format. Defaults to 'auto'.
+            outdir (str, optional): Path in which to save exported activations in .pt format. Defaults to 'auto'.
                 If 'auto', will save in project directory.
             layers (list, optional): Which model layer(s) generate activations. Defaults to 'postconv'.
             max_tiles_per_slide (int, optional): Maximum number of tiles to take per slide. Defaults to 0.
@@ -854,15 +880,15 @@ class Project:
         tile_um = hp_data['tile_um']
 
         # Set up the pt_files directory for storing model activations
-        if export_dir.lower() == 'auto':
+        if outdir.lower() == 'auto':
             model_name_end = '' if 'k_fold_i' not in hp_data else f"_kfold{hp_data['k_fold_i']}"
-            export_dir = join(self.root, 'pt_files', hp_data['model_name']+model_name_end)
-        if not exists(export_dir):
-            os.makedirs(export_dir)
+            outdir = join(self.root, 'pt_files', hp_data['model_name']+model_name_end)
+        if not exists(outdir):
+            os.makedirs(outdir)
 
         # Detect already generated pt files
-        already_generated = [sf.util.path_to_name(f) for f in os.listdir(export_dir)
-                                                    if sf.util.path_to_ext(join(export_dir, f)) == 'pt']
+        already_generated = [sf.util.path_to_name(f) for f in os.listdir(outdir)
+                                                    if sf.util.path_to_ext(join(outdir, f)) == 'pt']
         if force_regenerate or not len(already_generated):
             activation_filters = filters
         else:
@@ -875,7 +901,7 @@ class Project:
                          "To override, pass force_regenerate=True.")
             if not slides_to_generate:
                 log.warn("No slides to generate CLAM features.")
-                return export_dir
+                return outdir
             activation_filters = {} if filters is None else filters.copy()
             activation_filters['slide'] = slides_to_generate
             filtered_dataset = self.get_dataset(tile_px, tile_um, filters=activation_filters, filter_blank=filter_blank)
@@ -890,9 +916,9 @@ class Project:
                                   layers=layers,
                                   max_tiles_per_slide=max_tiles_per_slide,
                                   min_tiles_per_slide=min_tiles_per_slide,
-                                  torch_export=export_dir,
+                                  torch_export=outdir,
                                   cache=None)
-        return export_dir
+        return outdir
 
     def generate_heatmaps(self, model, filters=None, filter_blank=None, outdir=None, resolution='low', batch_size=64,
                           roi_method='inside', normalizer=None, normalizer_source=None, buffer=None, num_threads=8,
@@ -937,8 +963,7 @@ class Project:
                 If the logit_cmap is a dictionary, it should map 'r', 'g', and 'b' to label indices;
                 The prediction for these label categories will be mapped to corresponding colors.
                 Thus, the corresponding color will only reflect predictions of up to three labels.
-                    Example (this would map predictions for label 0 to red, 3 to green, etc):
-                    {'r': 0, 'g': 3, 'b': 1 }
+                Example (this would map predictions for label 0 to red, 3 to green, etc): {'r': 0, 'g': 3, 'b': 1 }
             vmin (float): Minimimum value to display on heatmap. Defaults to 0.
             vcenter (float): Center value for color display on heatmap. Defaults to 0.5.
             vmax (float): Maximum value to display on heatmap. Defaults to 1.
@@ -1184,7 +1209,7 @@ class Project:
                 If not provided, mosaic will not be calculated or saved. If provided, saved in project mosaic directory.
             umap_filename (str, optional): Filename for UMAP plot image. Defaults to None.
                 If not provided, plot will not be saved. Will be saved in project stats directory.
-            outcome_label_headers (list): Column name(s) in annotations file from which to read category labels.
+            outcome_label_headers (list(str)): Column name(s) in annotations file from which to read category labels.
             filters (dict, optional): Filters dict to use when selecting tfrecords. Defaults to None.
                 Ignored if dataset is supplied.
                 See :meth:`get_dataset` documentation for more information on filtering.
@@ -1322,8 +1347,7 @@ class Project:
                               enable_downsample=enable_downsample,
                               roi_list=roi_list,
                               skip_missing_roi=roi,
-                              buffer=None,
-                              silent=True)
+                              buffer=None)
             if roi:
                 thumb = whole_slide.annotated_thumb()
             else:
@@ -1331,13 +1355,13 @@ class Project:
             thumb.save(join(thumb_folder, f'{whole_slide.name}.png'))
         print('\r\033[KThumbnail generation complete.')
 
-    def generate_tfrecord_heatmap(self, tfrecord, tile_dict, export_dir, tile_px, tile_um):
+    def generate_tfrecord_heatmap(self, tfrecord, tile_dict, outdir, tile_px, tile_um):
         """Creates a tfrecord-based WSI heatmap using a dictionary of tile values for heatmap display.
 
         Args:
             tfrecord (str): Path to tfrecord
             tile_dict (dict): Dictionary mapping tfrecord indices to a tile-level value for display in heatmap format
-            export_dir (str): Path to directory in which to save images
+            outdir (str): Path to directory in which to save images
             tile_px (int): Tile width in pixels
             tile_um (int): Tile width in microns
 
@@ -1441,7 +1465,7 @@ class Project:
         print('Generating thumbnail...')
         thumb = slide.thumb(mpp=5)
         print('Saving thumbnail....')
-        thumb.save(join(export_dir, f'{slide_name}' + '.png'))
+        thumb.save(join(outdir, f'{slide_name}' + '.png'))
         print('Generating figure...')
         implot = ax.imshow(thumb, zorder=0)
 
@@ -1465,7 +1489,7 @@ class Project:
                             norm=divnorm)
 
         print('Saving figure...')
-        plt.savefig(join(export_dir, f'{slide_name}_attn.png'), bbox_inches='tight')
+        plt.savefig(join(outdir, f'{slide_name}_attn.png'), bbox_inches='tight')
 
         # Clean up
         print('Cleaning up...')
@@ -1615,7 +1639,6 @@ class Project:
                             roi_dir=roi_dir,
                             roi_method=roi_method,
                             skip_missing_roi=False,
-                            silent=True,
                             buffer=None)
                 log.debug(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
                 total_tiles += slide.estimated_num_tiles
@@ -1912,15 +1935,14 @@ class Project:
                     training_tfrecords = dataset.get_tfrecords()
                 # Otherwise, calculate k-fold splits
                 else:
-                    tfr_split = sf.io.tfrecords.get_train_and_val_tfrecords(dataset,
-                                                                            validation_log,
-                                                                            hp.model_type(),
-                                                                            labels_for_splitting,
-                                                                            outcome_key='outcome_label',
-                                                                            val_strategy=val_settings.strategy,
-                                                                            val_fraction=val_settings.fraction,
-                                                                            val_k_fold=val_settings.k_fold,
-                                                                            k_fold_iter=k)
+                    tfr_split = dataset.training_validation_split(validation_log,
+                                                                  hp.model_type(),
+                                                                  labels_for_splitting,
+                                                                  outcome_key='outcome_label',
+                                                                  val_strategy=val_settings.strategy,
+                                                                  val_fraction=val_settings.fraction,
+                                                                  val_k_fold=val_settings.k_fold,
+                                                                  k_fold_iter=k)
                     training_tfrecords, val_tfrecords = tfr_split
 
                 # --- Prepare additional slide-level input -----------------------------------------------------------
@@ -2098,7 +2120,7 @@ class Project:
             Train with basic settings:
 
                 >>> dataset = SFP.get_dataset(tile_px=299, tile_um=302)
-                >>> SFP.generate_features_for_clam('/model/', export_dir='/pt_files/')
+                >>> SFP.generate_features_for_clam('/model/', outdir='/pt_files/')
                 >>> SFP.train_clam('NAME', '/pt_files', 'category1', dataset)
 
             Specify a specific layer from which to generate activations:
@@ -2140,8 +2162,7 @@ class Project:
             train_slides, validation_slides = {}, {}
             for k in range(clam_args.k):
                 validation_log = join(self.root, 'validation_plans.json')
-                train_tfrecords, eval_tfrecords = sf.io.tfrecords.get_train_and_val_tfrecords(dataset,
-                                                                                    validation_log,
+                train_tfrecords, eval_tfrecords = dataset.training_validation_split(validation_log,
                                                                                     'categorical',
                                                                                     slide_labels,
                                                                                     outcome_key='outcome_label',
@@ -2212,7 +2233,7 @@ class Project:
             if not exists(attention_dir): os.makedirs(attention_dir)
             export_attention(vars(clam_args),
                             ckpt_path=join(results_dir, f's_{k}_checkpoint.pt'),
-                            export_dir=attention_dir,
+                            outdir=attention_dir,
                             pt_files=pt_files,
                             slides=validation_slides[k],
                             reverse_label_dict = dict(zip(range(len(unique_labels)), unique_labels)),

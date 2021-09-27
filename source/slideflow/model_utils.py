@@ -28,10 +28,9 @@ def get_layer_index_by_name(model, name):
         if layer.name == name:
             return i
 
-def _negative_log_likelihood(y_true, y_pred):
-    '''
-    First implementation, mostly by Fred.
-    Looks like it was adapted from here: https://github.com/havakv/pycox/blob/master/pycox/models/loss.py'''
+def negative_log_likelihood(y_true, y_pred):
+    '''Implemented by Fred Howard, adapted from: https://github.com/havakv/pycox/blob/master/pycox/models/loss.py'''
+
     events = tf.reshape(y_pred[:, -1], [-1]) # E
     pred_hr = tf.reshape(y_pred[:, 0], [-1]) # y_pred
     time = tf.reshape(y_true, [-1])           # y_true
@@ -64,8 +63,8 @@ def _negative_log_likelihood(y_true, y_pred):
 
     return neg_likelihood
 
-def negative_log_likelihood(y_true, y_pred):
-    '''Third attempt - Breslow approximation'''
+def negative_log_likelihood_breslow(y_true, y_pred):
+    '''Breslow approximation'''
     events = tf.reshape(y_pred[:, -1], [-1])
     pred = tf.reshape(y_pred[:, 0], [-1])
     time = tf.reshape(y_true, [-1])
@@ -97,40 +96,6 @@ def negative_log_likelihood(y_true, y_pred):
 
     return loss_breslow
 
-def _new_negative_log_likelihood(y_true, y_pred):
-    '''Second attempt at implementation, by James.'''
-    events = tf.reshape(y_pred[:, -1], [-1])
-    pred_hr = tf.reshape(y_pred[:, 0], [-1])
-    time = tf.reshape(y_true, [-1])
-
-    order = tf.argsort(time)
-    sorted_events = tf.gather(events, order)
-    sorted_hr = tf.math.log(tf.gather(pred_hr, order))
-
-    neg_likelihood = - tf.reduce_sum(
-                        tf.math.divide(
-                            tf.math.multiply(
-                                sorted_hr,
-                                sorted_events),
-                            tf.math.cumsum(sorted_hr, reverse=True)))
-
-    return neg_likelihood
-
-'''def _n_l_l(y_true, y_pred):
-    E = y_pred[:, -1]
-    y_pred = y_pred[:, :-1]
-    E = tf.reshape(E, [-1])
-    y_pred = tf.reshape(y_pred, [-1])
-    y_true = tf.reshape(y_true, [-1])
-    order = tf.argsort(y_true)
-    E = tf.gather(E, order)
-    y_pred = tf.gather(y_pred, order)
-    gamma = tf.math.reduce_max(y_pred)
-    eps = tf.constant(1e-7, dtype=tf.float16)
-    log_cumsum_h = tf.math.add(tf.math.log(tf.math.add(tf.math.cumsum(tf.math.exp(tf.math.subtract(y_pred, gamma))), eps)), gamma)
-    neg_likelihood = -tf.math.divide(tf.reduce_sum(tf.math.multiply(tf.subtract(y_pred, log_cumsum_h), E)),tf.reduce_sum(E))
-    return neg_likelihood'''
-
 def concordance_index(y_true, y_pred):
     E = y_pred[:, -1]
     y_pred = y_pred[:, :-1]
@@ -150,6 +115,7 @@ def concordance_index(y_true, y_pred):
 def add_regularization(model, regularizer):
     '''Adds regularization (e.g. L2) to all eligible layers of a model.
     This function is from "https://sthalles.github.io/keras-regularizer/" '''
+
     if not isinstance(regularizer, tf.keras.regularizers.Regularizer):
         print('Regularizer must be a subclass of tf.keras.regularizers.Regularizer')
         return model
@@ -174,15 +140,16 @@ def add_regularization(model, regularizer):
     return model
 
 def get_hp_from_batch_file(batch_train_file, models=None):
-    '''Organizes a list of hyperparameters ojects and associated models names.
+    """Organizes a list of hyperparameters ojects and associated models names.
 
     Args:
-        batch_train_file:       Path to train train TSV file
-        models:                 List of model names
+        batch_train_file (str): Path to train train TSV file.
+        models (list(str)): List of model names. Defaults to None.
+            If not supplied, returns all valid models from batch file.
 
     Returns:
         List of (Hyperparameter, model_name) for each HP combination
-    '''
+    """
 
     if models is not None and not isinstance(models, list):
         raise sf.util.UserError("If supplying models, must be a list of strings containing model names.")
@@ -235,7 +202,8 @@ def get_hp_from_batch_file(batch_train_file, models=None):
     return hyperparameters
 
 def get_hp_from_row(row, header):
-    '''Converts a row in the batch_train CSV file into a HyperParameters object.'''
+    """Converts a row in the batch_train CSV file into a HyperParameters object."""
+
     from slideflow.model import HyperParameters
 
     model_name_i = header.index('model_name')
@@ -265,27 +233,3 @@ def get_hp_from_row(row, header):
         else:
             log.error(f"Unknown argument '{arg}' found in training config file.", 0)
     return hp, model_name
-
-# ====== Scratch code for new CPH models
-
-def make_riskset(time):
-    '''Compute mask that represents a sample's risk set.
-
-    Args:
-        time:       np array, shape=(n_samples,). Observed event time ?in descending order?.
-
-    Returns:
-        risk_set:   np array, shape=(n_samples, n_samples). Boolean matrix where the `i`-th row
-                        denotes the risk set of the `i`-th instance, i.e. the indices `j`
-                        for which the observer time `y_j >= y_i`
-    '''
-    o = np.argsort(-time, kind='mergesort')
-    n_samples = len(time)
-
-    risk_set = np.zeros((n_samples, n_samples), dtype=np.bool_)
-    for i_org, i_sort in enumerate(o):
-        k = i_org
-        while k < n_samples and time[i_sort] == time[o[k]]:
-            k += 1
-        risk_set[i_sort, o[:k]] = True
-    return risk_set

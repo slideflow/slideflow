@@ -74,7 +74,7 @@ def parse_config_dict(args, config_dict):
         config_dict['patching_arguments']['overlap'] = args.overlap
     return config_dict
 
-def export_attention(model_args, ckpt_path, export_dir, pt_files, slides, reverse_label_dict, slide_to_label): #Should include n_classes, model_size):
+def export_attention(model_args, ckpt_path, outdir, pt_files, slides, reverse_label_dict, slide_to_label): #Should include n_classes, model_size):
 
     '''
     reverse_label_dict = {
@@ -96,7 +96,7 @@ def export_attention(model_args, ckpt_path, export_dir, pt_files, slides, revers
     print(f"Working on {len(slides)} slides.")
 
     for slide in slides:
-        csv_save_loc = os.path.join(export_dir, f'{slide}.csv')
+        csv_save_loc = os.path.join(outdir, f'{slide}.csv')
         features_path = os.path.join(pt_files, f'{slide}.pt')
         features = torch.load(features_path)
 
@@ -117,10 +117,10 @@ def export_attention(model_args, ckpt_path, export_dir, pt_files, slides, revers
     for slide in slides:
         print(f"{slide}\t{logits[slide]['pred']}\t{logits[slide]['prob']}")
 
-    with open(os.path.join(export_dir, 'pred_summary.csv'), 'w') as csv_file:
+    with open(os.path.join(outdir, 'pred_summary.csv'), 'w') as csv_file:
         writer = csv.writer(csv_file)
         header = ['slide', 'prediction', 'probability']
         writer.writerow(header)
         for slide in slides:
             writer.writerow([slide, logits[slide]['pred'], logits[slide]['prob']])
-    print(f'Exported prediction summary to {os.path.join(export_dir, "pred_summary.csv")}')
+    print(f'Exported prediction summary to {os.path.join(outdir, "pred_summary.csv")}')

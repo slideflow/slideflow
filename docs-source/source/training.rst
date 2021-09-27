@@ -25,7 +25,7 @@ Alternatively, if you intend to perform a sweep across multiple hyperparameter c
 		toplayer_epochs=0,
 		model=['Xception'],
 		pooling=['avg'],
-		loss='sparse_categorical_crossentropy', 
+		loss='sparse_categorical_crossentropy',
 		learning_rate=[0.01, 0.001],
 		batch_size=64,
 		hidden_layers=[1],
@@ -69,12 +69,12 @@ Begin training
 
 Once your hyperparameter settings have been chosen you may begin training using the ``train`` function. Documentation of the function is given below:
 
-.. autofunction:: slideflow.SlideflowProject.train
+.. autofunction:: slideflow.project.Project.train
    :noindex:
 
 If you used the ``HyperParameters`` class to configure a single combination of parameters, pass this object via the ``hyperparameters`` argument. If you configured a hyperparameter sweep, set the ``batch_file`` argument to the name of your hyperparameter sweep file (saved by default to 'batch_train.tsv').
 
-Your outcome variable(s) are specified with the ``outcome_label_headers`` argument. You may filter slides for training using the ``filter`` argument, as previously described. 
+Your outcome variable(s) are specified with the ``outcome_label_headers`` argument. You may filter slides for training using the ``filter`` argument, as previously described.
 
 For example, to train using only slides labeled as "train" in the "dataset" column, with the outcome variable defined by the column "category", use the following syntax:
 

@@ -29,6 +29,7 @@ def _get_images_by_dir(directory):
     return files
 
 def _decode_image(img_string, img_type, standardize=False, normalizer=None, augment=False):
+    '''Decodes image. Torch implementation; different than sf.io.tfrecords'''
     tf_decoders = {
         'png': pyspng.load,
         'jpeg': lambda x: np.array(Image.open(io.BytesIO(x))),
@@ -57,16 +58,30 @@ def _decode_image(img_string, img_type, standardize=False, normalizer=None, augm
     return image
 
 def detect_tfrecord_format(tfr):
+    '''Detects tfrecord format. Torch implementation; different than sf.io.tfrecords'''
     it = db.ParsedTFRecordsDatasetIterator(filenames=[tfr], batch_size=1, features=FEATURE_DESCRIPTION)
     slide, img, loc_x, loc_y = next(it)
     return imghdr.what('', img[0])
 
-def get_tfrecord_parser(tfrecord_path,
-                        features_to_return=None,
-                        decode_images=True,
-                        standardize=False,
-                        normalizer=None,
+def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=True, standardize=False, normalizer=None,
                         augment=False):
+
+    '''Gets tfrecord parser using dareblopy reader. Torch implementation; different than sf.io.tfrecords
+
+    Args:
+        tfrecord_path (str): Path to tfrecord to parse.
+        features_to_return (list or dict, optional): Designates format for how features should be returned from parser.
+            If a list of feature names is provided, the parsing function will return tfrecord features as a list
+            in the order provided. If a dictionary of labels (keys) mapping to feature names (values) is provided,
+            features will be returned from the parser as a dictionary matching the same format. If None, will
+            return all features as a list.
+        decode_images (bool, optional): Decode raw image strings into image arrays. Defaults to True.
+        standardize (bool, optional): Standardize images into the range (0,1). Defaults to False.
+        normalizer (:class:`slideflow.util.StainNormalizer`): Stain normalizer to use on images. Defaults to None.
+        augment (str): Image augmentations to perform. String containing characters designating augmentations.
+            'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
+            at random quality levels. Passing either 'xyrj' or True will use all augmentations.
+    '''
 
     img_type = detect_tfrecord_format(tfrecord_path)
     if features_to_return is None:
@@ -93,38 +108,38 @@ def get_tfrecord_parser(tfrecord_path,
 
     return parser
 
-def interleave(tfrecords,
-                         label_parser=None,
-                         model_type='categorical',
-                         balance=None,
-                         finite=False,
-                         annotations=None,  # Maps slide to outcome category directly
-                         max_tiles=0,
-                         min_tiles=0,
-                         augment=True,
-                         standardize=True,
-                         normalizer=None,
-                         manifest=None,
-                         slides=None,
-                         buffer_size=8,
-                         seed=None):
+def interleave(tfrecords, label_parser=None, model_type='categorical', balance=None, finite=False, annotations=None,
+               max_tiles=0, min_tiles=0, augment=True, standardize=True, normalizer=None, manifest=None,
+               slides=None, buffer_size=8, seed=None):
 
-    '''Generates an interleaved dataset from a collection of tfrecord files,
-    sampling from tfrecord files randomly according to balancing if provided.
-    Requires manifest for balancing. Assumes TFRecord files are named by slide.
+    """Generates an interleaved dataset from a collection of tfrecord files, sampling from tfrecord files randomly
+    according to balancing if provided. Requires manifest for balancing. Assumes TFRecord files are named by slide.
+
+    Uses dareblopy tfrecord reading. Different than sf.io.tfrecords. Supports Pytorch.
 
     Args:
-        tfrecords:      Array of paths to TFRecord files
-        batch_size:     Batch size
-        balance:        Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,
-                            BALANCE_BY_PATIENT, and NO_BALANCE. If finite option is used, will drop
-                            tiles in order to maintain proportions across the interleaved dataset.
-        augment:        Whether to use data augmentation (random flip/rotate)
-        finite:         Whether create finite or infinite datasets. WARNING: If finite option is
-                            used with balancing, some tiles will be skipped.
-        max_tiles:      Maximum number of tiles to use per slide.
-        min_tiles:      Minimum number of tiles that each slide must have to be included.
-    '''
+        tfrecords (list(str)): List of paths to TFRecord files.
+        label_parser (:obj:, optional): Base function to use for parsing labels. Function must accept an image (tensor)
+            and slide name (str), and return an image (tensor) and label. If None is provided, all labels will be None.
+        model_type (str, optional): Model type. 'categorical' enables category-level balancing. Defaults to 'categorical'.
+        balance (str, optional): Batch-level balancing. Options: BALANCE_BY_CATEGORY, BALANCE_BY_PATIENT, and NO_BALANCE.
+            If finite option is used, will drop tiles in order to maintain proportions across the interleaved dataset.
+        finite (bool, optional): Create a finite dataset iterating through tiles only once. WARNING: If finite option is
+            used with balancing, some tiles will be skipped. Defaults to False (infinite dataset).
+        annotations (dict, optional): Dict mapping slide names to outcome labels, used for balancing. Defaults to None.
+        max_tiles (int, optional): Maximum number of tiles to use per slide. Defaults to 0 (use all tiles).
+        min_tiles (int, optional): Minimum number of tiles that each slide must have to be included. Defaults to 0.
+        augment (str, optional): Image augmentations to perform. String containing characters designating augmentations.
+                'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
+                at random quality levels. Passing either 'xyrj' or True will use all augmentations.
+        standardize (bool, optional): Standardize images to (0,1). Defaults to True.
+        normalizer (:class:`slideflow.util.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
+        manfest (dict, optional): Dataset manifest containing number of tiles per tfrecord.
+        slides (list(str), optional): Only interleaves tfrecords with these slide names. If None, uses all tfrecords.
+        seed (int, optional): Use the following seed when randomly interleaving. Necessary for synchronized
+            multiprocessing distributed reading.
+    """
+
     log.debug(f'Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min={min_tiles}')
     datasets, datasets_categories, dataset_filenames, num_tiles = [], [], [], []
     global_num_tiles, num_tfrecords_empty, num_tfrecords_less_than_min = 0, 0, 0
@@ -310,5 +325,5 @@ def interleave(tfrecords,
     return dataset, dataset_with_slidenames, global_num_tiles
 
 def default_label_parser(image, slide):
-        '''Parses raw entry read from TFRecord.'''
-        return image, None
+    '''same as sf.io.tfrecords'''
+    return image, None

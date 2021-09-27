@@ -49,9 +49,6 @@ OPS_MPP_X = 'openslide.mpp-x'
 TIF_EXIF_KEY_MPP = 65326
 OPS_WIDTH = 'width'
 OPS_HEIGHT = 'height'
-EXTRACT_INSIDE = 'inside'
-EXTRACT_OUTSIDE = 'outside'
-IGNORE_ROI = 'ignore'
 DEFAULT_WHITESPACE_THRESHOLD = 230
 DEFAULT_WHITESPACE_FRACTION = 1.0
 DEFAULT_GRAYSPACE_THRESHOLD = 0.05
@@ -77,8 +74,63 @@ VIPS_FORMAT_TO_DTYPE = {
     'dpcomplex': np.complex128,
 }
 
-def polyArea(x, y):
+def _polyArea(x, y):
     return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
+
+def _slide_extraction_worker(c, args):
+    '''Multiprocessing working for WSI. Extracts a tile at the given coordinates.'''
+    slide = VIPSWrapper(args.path)
+    normalizer = None if not args.normalizer else StainNormalizer(method=args.normalizer, source=args.normalizer_source)
+
+    index = c[2]
+    grid_xi = c[4]
+    grid_yi = c[5]
+
+    # Check if the center of the current window lies within any annotation; if not, skip
+    x_coord = int((c[0]+args.full_extract_px/2)/args.ROI_SCALE)
+    y_coord = int((c[1]+args.full_extract_px/2)/args.ROI_SCALE)
+
+    if args.roi_method != 'ignore' and bool(args.annPolys):
+        point_in_roi = any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in args.annPolys])
+        # If the extraction method is 'inside', skip the tile if it's not in an ROI
+        if (args.roi_method == 'inside') and not point_in_roi:
+            return 'skip'
+        # If the extraction method is 'outside', skip the tile if it's in an ROI
+        elif (args.roi_method == 'outside') and point_in_roi:
+            return 'skip'
+
+    # Read the region and resize to target size
+    region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
+    region = region.thumbnail_image(args.tile_px)
+
+    # Read regions into memory and convert to numpy arrays
+    np_image = vips2numpy(region)[:,:,:-1]
+
+    # Perform whitespace filtering
+    if args.whitespace_fraction < 1:
+        fraction = (np.mean(np_image, axis=2) > args.whitespace_threshold).sum() / (args.tile_px**2)
+        if fraction > args.whitespace_fraction: return
+
+    # Perform grayspace filtering
+    if args.grayspace_fraction < 1:
+        hsv_image = mcol.rgb_to_hsv(np_image)
+        fraction = (hsv_image[:,:,1] < args.grayspace_threshold).sum() / (args.tile_px**2)
+        if fraction > args.grayspace_fraction: return
+
+    # Apply normalization
+    if normalizer:
+        try:
+            np_image = normalizer.rgb_to_rgb(np_image)
+        except:
+            # The image could not be normalized, which happens when a tile is primarily one solid color (background)
+            return
+
+    if args.include_loc == 'grid':
+        return {'image': np_image, 'loc': [grid_xi, grid_yi]}, index
+    elif args.include_loc:
+        return {'image': np_image, 'loc': [x_coord, y_coord]}, index
+    else:
+        return {'image': np_image}, index
 
 def vips2numpy(vi):
     '''Converts a VIPS image into a numpy array'''
@@ -87,6 +139,8 @@ def vips2numpy(vi):
                       shape=[vi.height, vi.width, vi.bands])
 
 def log_extraction_params(**kwargs):
+    '''Logs tile extraction parameters.'''
+
     ws_f = DEFAULT_WHITESPACE_FRACTION if 'whitespace_fraction' not in kwargs else kwargs['whitespace_fraction']
     ws_t = DEFAULT_WHITESPACE_THRESHOLD if 'whitespace_threshold' not in kwargs else kwargs['whitespace_threshold']
     gs_f = DEFAULT_GRAYSPACE_FRACTION if 'grayspace_fraction' not in kwargs else kwargs['grayspace_fraction']
@@ -101,79 +155,6 @@ def log_extraction_params(**kwargs):
         log.info('Filtering tiles by grayspace fraction')
         log.debug(f'Grayspace defined as HSV avg < {gs_t} (exclude if >={gs_f*100:.0f}% grayspace)')
 
-def slide_extraction_worker(c, args):
-    '''Multiprocessing working for WSI. Extracts a tile at the given coordinates'''
-    slide = VIPSWrapper(args.path)
-    normalizer = None if not args.normalizer else StainNormalizer(method=args.normalizer, source=args.normalizer_source)
-
-    index = c[2]
-    grid_xi = c[4]
-    grid_yi = c[5]
-
-    # Check if the center of the current window lies within any annotation; if not, skip
-    x_coord = int((c[0]+args.full_extract_px/2)/args.ROI_SCALE)
-    y_coord = int((c[1]+args.full_extract_px/2)/args.ROI_SCALE)
-
-    if args.roi_method != IGNORE_ROI and bool(args.annPolys):
-        point_in_roi = any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in args.annPolys])
-        # If the extraction method is EXTRACT_INSIDE, skip the tile if it's not in an ROI
-        if (args.roi_method == EXTRACT_INSIDE) and not point_in_roi:
-            return 'skip'
-        # If the extraction method is EXTRACT_OUTSIDE, skip the tile if it's in an ROI
-        elif (args.roi_method == EXTRACT_OUTSIDE) and point_in_roi:
-            return 'skip'
-
-    # Read the region and resize to target size
-    region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
-    region = region.thumbnail_image(args.tile_px)
-
-    # Read regions into memory and convert to numpy arrays
-    np_image = vips2numpy(region)[:,:,:-1]
-
-    if args.dual_extract:
-        try:
-            surrounding_region = slide.read_region((c[0]-args.full_stride,
-                                                            c[1]-args.full_stride),
-                                                            args.downsample_level,
-                                                            [args.extract_px*3, args.extract_px*3])
-            surrounding_region = surrounding_region.thumbnail_image(args.tile_px)
-            outer_region = vips2numpy(surrounding_region)[:,:,:-1]
-        except:
-            return
-
-        # Apply normalization
-        if normalizer:
-            np_image = normalizer.rgb_to_rgb(np_image)
-            outer_region = normalizer.rgb_to_rgb(outer_region)
-
-        return {"input_1": np_image, "input_2": outer_region}, index
-    else:
-        # Perform whitespace filtering
-        if args.whitespace_fraction < 1:
-            fraction = (np.mean(np_image, axis=2) > args.whitespace_threshold).sum() / (args.tile_px**2)
-            if fraction > args.whitespace_fraction: return
-
-        # Perform grayspace filtering
-        if args.grayspace_fraction < 1:
-            hsv_image = mcol.rgb_to_hsv(np_image)
-            fraction = (hsv_image[:,:,1] < args.grayspace_threshold).sum() / (args.tile_px**2)
-            if fraction > args.grayspace_fraction: return
-
-        # Apply normalization
-        if normalizer:
-            try:
-                np_image = normalizer.rgb_to_rgb(np_image)
-            except:
-                # The image could not be normalized, which happens when a tile is primarily one solid color (background)
-                return
-
-        if args.include_loc == 'grid':
-            return {'image': np_image, 'loc': [grid_xi, grid_yi]}, index
-        elif args.include_loc:
-            return {'image': np_image, 'loc': [x_coord, y_coord]}, index
-        else:
-            return {'image': np_image}, index
-
 class InvalidTileSplitException(Exception):
     '''Raised when invalid tile splitting parameters are given to WSI.'''
     pass
@@ -183,18 +164,18 @@ class TileCorruptionError(Exception):
     pass
 
 class SlideReport:
-    '''Report to summarize tile extraction from a slide,
-    including example images of extracted tiles.'''
+    '''Report to summarize tile extraction from a slide, including example images of extracted tiles.'''
 
     def __init__(self, images, path, data=None, compress=True):
-        '''Initializer.
+        """Initializer.
 
         Args:
-            images:      List of JPEG image strings (example tiles)
-            path:        Path to slide
-            data:        Dictionary of slide extraction report metadata
-            compress:    Bool, if True, compresses images to reduce image sizes
-        '''
+            images (list(str)): List of JPEG image strings (example tiles).
+            path (str): Path to slide.
+            data (dict, optional): Dictionary of slide extraction report metadata. Defaults to None.
+            compress (bool, optional): Compresses images to reduce image sizes. Defaults to True.
+        """
+
         self.data = data
         self.path = path
         if not compress:
@@ -230,16 +211,17 @@ class ExtractionPDF(FPDF):
         self.cell(0, 10, 'Page ' + str(self.page_no()) + '/{nb}', 0, 0, 'C')
 
 class ExtractionReport:
-    '''Creates a PDF report summarizing extracted tiles,
-        from a collection of tile extraction reports.'''
+    """Creates a PDF report summarizing extracted tiles, from a collection of tile extraction reports."""
+
     def __init__(self, reports, tile_px=None, tile_um=None):
-        '''Initializer.
+        """Initializer.
 
         Args:
-            reports:    List of SlideReport objects
-            tile_px:    Tile size in pixels.
-            tile_um:    Tile size in microns.
-        '''
+            reports (list(:class:`SlideReport`)): List of SlideReport objects.
+            tile_px (int): Tile size in pixels.
+            tile_um (int): Tile size in microns.
+        """
+
         pdf = ExtractionPDF()
         pdf.alias_nb_pages()
         pdf.add_page()
@@ -272,6 +254,7 @@ class ExtractionReport:
 
 class VIPSWrapper:
     '''Wrapper for VIPS to preserve openslide-like functions.'''
+
     def __init__(self, path, buffer=None):
         self.path = path
         self.buffer = buffer
@@ -375,6 +358,7 @@ class VIPSWrapper:
 
 class JPGslideToVIPS(VIPSWrapper):
     '''Wrapper for JPG files, which do not possess separate levels, to preserve openslide-like functions.'''
+
     def __init__(self, path, buffer=None):
         self.buffer = buffer
         self.path = path
@@ -413,6 +397,7 @@ class JPGslideToVIPS(VIPSWrapper):
 
 class ROI:
     '''Object container for ROI annotations.'''
+
     def __init__(self, name):
         self.name = name
         self.coordinates = []
@@ -426,13 +411,13 @@ class ROI:
         for point in shape:
             self.add_coord(point)
 
-class BaseLoader:
+class _BaseLoader:
     '''Object that loads an SVS slide and makes preparations for tile extraction.
-    Should not be used directly; this class must be inherited and extended by a child class'''
+    Should not be used directly; this class must be inherited and extended by a child class.'''
+
     def __init__(self, path, tile_px, tile_um, stride_div, enable_downsample=False,
-                    silent=False, buffer=None, pb=None, pb_counter=None, counter_lock=None):
+                    buffer=None, pb=None, pb_counter=None, counter_lock=None):
         self.load_error = False
-        self.silent = silent
 
         # if a progress bar is not directly provided, use the provided multiprocess-friendly progress bar counter and lock
         #     (for multiprocessing, as ProgressBar cannot be pickled)
@@ -684,51 +669,44 @@ class BaseLoader:
         report = SlideReport(sample_tiles, self.slide.path)
         return report
 
-class WSI(BaseLoader):
-    '''Extension of slideflow.slide.BaseLoader. Loads a slide and its annotated region of interest (ROI).'''
+class WSI(_BaseLoader):
+    '''Loads a slide and its annotated region of interest (ROI).'''
 
-    def __init__(self,
-                 path,
-                 tile_px,
-                 tile_um,
-                 stride_div=1,
-                 enable_downsample=False,
-                 roi_dir=None,
-                 roi_list=None,
-                 roi_method=EXTRACT_INSIDE,
-                 skip_missing_roi=False,
-                 randomize_origin=False,
-                 silent=False,
-                 buffer=None,
-                 pb=None,
-                 pb_counter=None,
-                 counter_lock=None):
+    def __init__(self, path, tile_px, tile_um, stride_div=1, enable_downsample=False, roi_dir=None, roi_list=None,
+                 roi_method='ignore', skip_missing_roi=False, randomize_origin=False, buffer=None, pb=None,
+                 pb_counter=None, counter_lock=None):
 
-        '''Initializer.
+        """Loads slide and ROI(s).
 
         Args:
-            path:               Path to slide
-            tile_px:            Size of tiles to extract, in pixels
-            tile_um:            Size of tiles to extract, in microns
-            stride_div:         Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc)
-            enable_downsample:  Bool, if True, allows use of downsampled intermediate layers in the slide image pyramid,
-                                    which greatly improves tile extraction speed.
-            roi_dir:            Directory in which to search for ROI CSV files
-            roi_list:           Alternatively, a list of ROI paths can be explicitly provided
-            roi_method:            Either inside, outside, or ignore. Determines how ROIs are used to extract tiles
-            skip_missing_roi:   Bool, if True, will skip tiles that are missing a ROI file
-            silent:             Bool, if True, will hide logging output
-            buffer:             Path to directory. Slides will be copied to the directory as a buffer before extraction.
-                                    Vastly improves extraction speed if an SSD or ramdisk buffer is used.
-            pb:                 ProgressBar instance; will update progress bar during tile extraction if provided
-            pb_id:              ID of bar in ProgressBar, defaults to 0
-        '''
+            path (str): Path to slide.
+            tile_px (int): Size of tiles to extract, in pixels.
+            tile_um (int): Size of tiles to extract, in microns.
+            stride_div (int, optional): Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc).
+                Defaults to 1.
+            enable_downsample (bool, optional): Allow use of downsampled intermediate layers in the slide image pyramid,
+                which greatly improves tile extraction speed. May result in artifacts for slides with incompletely
+                generated intermediates pyramid layers. Defaults to False.
+            roi_dir (str, optional): Directory in which to search for ROI CSV files. Defaults to None.
+            roi_list (list(str)): Alternatively, a list of ROI paths can be explicitly provided. Defaults to None.
+            roi_method (str): Either 'inside', 'outside', or 'ignore'. Determines how ROIs are used to extract tiles.
+                Defaults to 'inside'.
+            skip_missing_roi (bool, optional): Skip tiles that are missing a ROI file. Defaults to False.
+            randomize_origin (bool, optional): Offset the starting grid by a random amount. Defaults to False.
+            buffer (str): Path to directory. Slides will be copied to the directory as a buffer before extraction.
+                Vastly improves extraction speed if an SSD or ramdisk buffer is used. Defaults to None
+            pb (:class:`slideflow.util.ProgressBar`, optional): Multiprocessing-capable ProgressBar instance; will
+                update progress bar during tile extraction if provided. Used for multiprocessing tile extraction.
+            pb_counter (:obj:): Multiprocessing counter (a multiprocessing Value, from Progress Bar) used to follow
+                tile extraction progress. Defaults to None.
+            counter_lock (:obj:): Lock object for updating pb_counter, if provided. Defaults to None.
+        """
+
         super().__init__(path,
                          tile_px,
                          tile_um,
                          stride_div,
                          enable_downsample,
-                         silent,
                          buffer,
                          pb,
                          pb_counter,
@@ -789,6 +767,8 @@ class WSI(BaseLoader):
             return None
 
     def _build_coord(self, randomize_origin):
+        '''Set up coordinate grid.'''
+
         # Calculate window sizes, strides, and coordinates for windows
         self.extracted_x_size = self.full_shape[0] - self.full_extract_px
         self.extracted_y_size = self.full_shape[1] - self.full_extract_px
@@ -815,21 +795,30 @@ class WSI(BaseLoader):
 
         self.grid = np.zeros((len(x_range), len(y_range)))
 
-    def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=None, whitespace_threshold=None,
+    def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None,
                         grayspace_fraction=None, grayspace_threshold=None, normalizer=None, normalizer_source=None,
-                        include_loc=True, num_threads=4, show_progress=False, full_core=None):
+                        include_loc=True, num_threads=8, show_progress=False, full_core=None):
 
-        '''Builds generator to supervise extraction of tiles across the slide.
+        """Builds tile generator to extract of tiles across the slide.
 
         Args:
-            dual_extract:           If true, will extract base image and the surrounding region.
-            shuffle:                If true, will shuffle images during extraction
-            whitespace_fraction:    Float from 0-1, representing a percent. Tiles with this percent of pixels
-                                        (or more) classified as "whitespace" and will be skipped during extraction.
-            whitespace_threshold:   Int from 0-255, pixel brightness above which a pixel is considered whitespace
-            normalizer:             Normalization strategy to use on image tiles
-            normalizer_source:      Path to normalizer source image
-        '''
+            shuffle (bool): Shuffle images during extraction.
+            whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
+                Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.
+            whitespace_threshold (int, optional): Range 0-255. Defaults to 230.
+                Threshold above which a pixel (RGB average) is considered whitespace.
+            grayspace_fraction (float, optional): Range 0-1. Defaults to 0.6.
+                Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.
+            grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
+                Pixels in HSV format with saturation below this threshold are considered grayspace.
+                normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
+                If None but using a normalizer, will use an internal tile for normalization.
+                Internal default tile can be found at slideflow.util.norm_tile.jpg
+            include_loc (bool, optional): Return (x,y) origin coordinates for each tile along with tile images.
+            show_progress (bool, optional): Show a progress bar for tile extraction.
+        """
+
         super().build_generator()
 
         if self.estimated_num_tiles == 0:
@@ -856,7 +845,6 @@ class WSI(BaseLoader):
             'path': self.path,
             'extract_px': self.extract_px,
             'tile_px': self.tile_px,
-            'dual_extract': dual_extract,
             'full_stride': self.full_stride,
             'normalizer': normalizer,
             'normalizer_source': normalizer_source,
@@ -875,7 +863,7 @@ class WSI(BaseLoader):
             with mp.Pool(processes=num_threads) as p:
                 if show_progress:
                     pbar = tqdm(total=self.estimated_num_tiles, ncols=80)
-                for res in p.imap(partial(slide_extraction_worker, args=worker_args), self.coord):
+                for res in p.imap(partial(_slide_extraction_worker, args=worker_args), self.coord):
                     if res == 'skip':
                         continue
                     if show_progress:
@@ -896,14 +884,16 @@ class WSI(BaseLoader):
         return generator
 
     def annotated_thumb(self, mpp=None, width=None):
-        '''Returns PIL Image of thumbnail with ROI overlay.
+        """Returns PIL Image of thumbnail with ROI overlay.
 
         Args:
-            mpp:    Microns-per-pixel, used to determine thumbnail size
+            mpp (float, optional): Microns-per-pixel, used to determine thumbnail size.
+            width (int, optional): Alternatively, goal thumbnail width may be supplied.
 
         Returns:
             PIL image
-        '''
+        """
+
         if mpp is not None:
             ROI_SCALE = self.full_shape[0] / (int((self.MPP * self.full_shape[0]) / mpp))
         else:
@@ -919,6 +909,7 @@ class WSI(BaseLoader):
 
     def load_csv_roi(self, path):
         '''Loads CSV ROI from a given path.'''
+
         roi_dict = {}
         with open(path, "r") as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
@@ -946,7 +937,7 @@ class WSI(BaseLoader):
                 self.rois.append(roi_object)
 
         # Load annotations as shapely.geometry objects
-        if self.roi_method != IGNORE_ROI:
+        if self.roi_method != 'ignore':
             self.annPolys = []
             for i, annotation in enumerate(self.rois):
                 try:
@@ -960,7 +951,7 @@ class WSI(BaseLoader):
         total_area = (self.full_shape[0]/self.ROI_SCALE) * (self.full_shape[1]/self.ROI_SCALE)
         roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
 
-        if self.roi_method == EXTRACT_INSIDE:
+        if self.roi_method == 'inside':
             self.estimated_num_tiles = int(len(self.coord) * roi_area_fraction)
         else:
             self.estimated_num_tiles = int(len(self.coord) * (1-roi_area_fraction))
@@ -969,6 +960,7 @@ class WSI(BaseLoader):
 
     def load_json_roi(self, path, scale=10):
         '''Loads ROI from a JSON file.'''
+
         with open(path, "r") as json_file:
             json_data = json.load(json_file)['shapes']
         for shape in json_data:
@@ -977,8 +969,8 @@ class WSI(BaseLoader):
             self.rois[-1].add_shape(area_reduced)
         return len(self.rois)
 
-class TMA(BaseLoader):
-    '''Extension of slideflow.slide.BaseLoader. Loads a TMA-formatted slide and detects tissue cores.'''
+class TMA(_BaseLoader):
+    '''Loads a TMA-formatted slide and detects tissue cores.'''
 
     QUEUE_SIZE = 8
     NUM_EXTRACTION_WORKERS = 8
@@ -992,7 +984,7 @@ class TMA(BaseLoader):
     WHITE = (255,255,255)
 
     def __init__(self, path, tile_px, tile_um, stride_div, annotations_dir=None,
-                    enable_downsample=False, silent=False, report_dir=None, buffer=None, pb=None, pb_id=0):
+                    enable_downsample=False, report_dir=None, buffer=None, pb=None, pb_id=0):
         '''Initializer.
 
         Args:
@@ -1002,12 +994,11 @@ class TMA(BaseLoader):
             stride_div:         Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc)
             enable_downsample:  Bool, if True, allows use of downsampled intermediate layers in the slide image pyramid,
                                     which greatly improves tile extraction speed.
-            silent:             Bool, if True, will hide logging output
             buffer:             Path to directory. Slides will be copied here prior to extraction.
             pb:                 ProgressBar instance; will update progress bar during tile extraction if provided
             pb_id:              ID of bar in ProgressBar, defaults to 0
         '''
-        super().__init__(path, tile_px, tile_um, stride_div, enable_downsample, silent, buffer, pb)
+        super().__init__(path, tile_px, tile_um, stride_div, enable_downsample, buffer, pb)
 
         if not self.loaded_correctly():
             return
@@ -1134,7 +1125,7 @@ class TMA(BaseLoader):
                 cv2.circle(img_annotated, (cX, cY), 4, self.GREEN, -1)
                 box = cv2.boxPoints(rect)
                 box = np.int0(box)
-                area = polyArea([b[0] for b in box], [b[1] for b in box])
+                area = _polyArea([b[0] for b in box], [b[1] for b in box])
                 self.box_areas += [area]
                 cv2.drawContours(img_annotated, [box], 0, self.BLUE, 2)
                 num_filtered += 1

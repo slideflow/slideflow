@@ -16,28 +16,18 @@ __version__ = "1.12.0-dev1"
 # A pylintrc file is included is the root directory to assist with formatting.
 
 # Version planning (v1.12)
-# - Moving toward unified use of Datasets as input to various project functions
-# - Calling extract_tiles directly on a dataset
-# - Docstring updates to Google format
-# - Updated documentation with more details in pytorch style
-# - Model saving changes - number format, description in model files
-# - Remove per-tile validation options, as it should never be used
+# DONE - Moving toward unified use of Datasets as input to various project functions
+# DONE - Calling extract_tiles directly on a dataset
+# DONE - Docstring updates to Google format
+# DONE - Refactoring entire codebase
+# IN PROGRESS - Updated documentation with more details in pytorch style
+# DONE - Remove per-tile validation options, as it should never be used
+#TODO: multiprocessing logging
+#TODO: test TMA
 
-# Planned updates
+# Future updates
 # ===============
-#TODO: unify slideflow model loading, even straight from directory,
-#         into a Model file, which
-#         will auto-handle finding the hyperparameters.json file, etc
-#         Should also be abstract to support torch or slideflow backend
+#TODO: implement native TF normalizers to improve realtime normalization speed
 #TODO: put tfrecord report in tfrecord directories & include information
 #         on normalization, filtering, slideflow version, etc
 #TODO: neptune integration
-#TODO: multiprocessing logging
-#TODO: improve realtime normalization speed
-#TODO: auto-create annotations file from slides
-#TODO: fix return_unique in dataset.slide_to_label()
-#TODO: add predict() option in addition to evaluate()
-#TODO: consistency with path / export_folder / export_dir / outdir
-#TODO: naming consistency, num_logits vs num_classes (MAI)
-#TODO: fix slide.loaded_correctly()
-#TODO: are AV & SlideMap method neighbors() redundant?

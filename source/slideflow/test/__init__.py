@@ -69,13 +69,15 @@ def random_annotations(slides_path):
                                         if sf.util.path_to_ext(f).lower() in sf.util.SUPPORTED_FORMATS][:10]
     if not slides:
         raise OSError(f'No slides found at {slides_path}')
-    annotations = [[sf.util.TCGA.patient, 'dataset', 'category1', 'category2', 'linear1', 'linear2']]
+    annotations = [[sf.util.TCGA.patient, 'dataset', 'category1', 'category2', 'linear1', 'linear2', 'time', 'event']]
     for s, slide in enumerate(slides):
         cat1 = ['A', 'B'][s % 2]
         cat2 = ['A', 'B'][s % 2]
         lin1 = random.random()
         lin2 = random.random()
-        annotations += [[slide, 'TEST', cat1, cat2, lin1, lin2]]
+        time = random.randint(0, 100)
+        event = random.choice([0, 1])
+        annotations += [[slide, 'TEST', cat1, cat2, lin1, lin2, time, event]]
     return annotations
 
 # ---------------------------------------
@@ -110,6 +112,18 @@ def wsi_prediction_tester(project, model):
     process.join()
 
 # -----------------------------------------
+
+def _clam_feature_generator(project, model):
+    outdir = join(project.root, 'clam')
+    project.generate_features_for_clam(model, outdir=outdir)
+
+def clam_feature_generator(project, model):
+    ctx = multiprocessing.get_context('spawn')
+    process = ctx.Process(target=_clam_feature_generator, args=(project, model))
+    process.start()
+    process.join()
+
+# ----------------------------------------
 
 class TestConfigurator:
     def __init__(self, path, slides=RANDOM_TCGA):
@@ -295,6 +309,8 @@ class TestSuite:
             loss = 'sparse_categorical_crossentropy'
         elif model_type == 'linear':
             loss = 'mean_squared_error'
+        elif model_type == 'cph':
+            loss = 'negative_log_likelihood'
 
         # Create batch train file
         self.SFP.create_hyperparameter_sweep(tile_px=299, tile_um=302,
@@ -339,7 +355,7 @@ class TestSuite:
                                       augment=True)
         return hp
 
-    def test_extraction(self, **kwargs):
+    def test_extraction(self, enable_downsample=True, **kwargs):
         # Test tile extraction, default parameters, for regular slides
         with TaskWrapper("Testing slide extraction...") as test:
             self.SFP.extract_tiles(tile_px=299,
@@ -348,6 +364,7 @@ class TestSuite:
                                    source=['TEST'],
                                    skip_missing_roi=False,
                                    skip_extracted=False,
+                                   enable_downsample=enable_downsample,
                                    **kwargs)
 
     def test_realtime_normalizer(self, **train_kwargs):
@@ -359,7 +376,7 @@ class TestSuite:
                            steps_per_epoch_override=5,
                            **train_kwargs)
 
-    def test_training(self, categorical=True, linear=True, multi_input=True, **train_kwargs):
+    def test_training(self, categorical=True, linear=True, multi_input=True, cph=True, multi_cph=True, **train_kwargs):
         if categorical:
             # Test categorical outcome
             with TaskWrapper("Training to single categorical outcome from hyperparameters...") as test:
@@ -407,11 +424,36 @@ class TestSuite:
                                steps_per_epoch_override=5,
                                **train_kwargs)
 
+        if cph:
+            with TaskWrapper("Training a CPH model...") as test:
+                hp = self.setup_hp('cph')
+                self.SFP.train(exp_label='cph',
+                    outcome_label_headers='time',
+                    input_header='event',
+                    hyperparameters=hp,
+                    val_k=1,
+                    validate_on_batch=50,
+                    steps_per_epoch_override=5,
+                    **train_kwargs)
+
+        if multi_cph:
+            with TaskWrapper("Training a multi-input CPH model...") as test:
+                hp = self.setup_hp('cph')
+                self.SFP.train(exp_label='cph',
+                    outcome_label_headers='time',
+                    input_header=['event', 'category1'],
+                    hyperparameters=hp,
+                    val_k=1,
+                    validate_on_batch=50,
+                    steps_per_epoch_override=5,
+                    **train_kwargs)
+
     def test_evaluation(self, **eval_kwargs):
         multi_cat_model = self._get_model('category1-category2-TEST-HPSweep0-kfold1')
         multi_lin_model = self._get_model('linear1-linear2-TEST-HPSweep0-kfold1')
         multi_inp_model = self._get_model('category1-multi_input-HP0-kfold1')
         perf_model = self._get_model('category1-manual_hp-HP0-kfold1')
+        cph_model = self._get_model('time-cph-HP0-kfold1')
 
         assert os.path.exists(multi_cat_model)
         assert os.path.exists(multi_lin_model)
@@ -450,6 +492,13 @@ class TestSuite:
                               input_header='category2',
                               **eval_kwargs)
 
+        with TaskWrapper("Testing evaluation of CPH model...") as test:
+            evaluation_tester(project=self.SFP,
+                              model=cph_model,
+                              outcome_label_headers='time',
+                              input_header='event',
+                              **eval_kwargs)
+
         #print("Testing that evaluation matches known baseline...")
         #self.SFP.evaluate(outcome_label_headers='category1', model=self.reference_model, filters={'submitter_id': '234839'})
         # Code to lookup excel sheet of predictions and verify they match known baseline
@@ -483,7 +532,7 @@ class TestSuite:
             assert len(AV.locations) == len(AV.activations) == len(AV.logits)
             assert all([len(AV.activations[slide]) == len(AV.logits[slide]) == len(AV.locations[slide]) for slide in AV.activations])
             assert len(AV.activations_by_category(0)) == 2
-            assert sum([len(a) for a in AV.activations_by_category(0)]) == sum([len(AV.activations[s]) for s in AV.slides])
+            assert sum([len(a) for a in AV.activations_by_category(0).values()]) == sum([len(AV.activations[s]) for s in AV.slides])
             lm = AV.logits_mean()
             l_perc = AV.logits_percent()
             l_pred = AV.logits_predict()
@@ -515,8 +564,7 @@ class TestSuite:
         assert os.path.exists(perf_model)
 
         with TaskWrapper("Testing CLAM feature export...") as test:
-            export_dir = join(self.SFP.root, 'clam')
-            self.SFP.generate_features_for_clam(perf_model, export_dir=export_dir)
+            clam_feature_generator(self.SFP, perf_model)
 
         with TaskWrapper("Testing CLAM training...") as test:
             dataset = self.SFP.get_dataset(299, 302)

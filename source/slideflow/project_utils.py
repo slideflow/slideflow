@@ -1,15 +1,12 @@
 """Utility functions for Project, including functions for use in isolated processes."""
-import re
 import os
 import csv
 import types
-import json
 import slideflow as sf
 import slideflow.io
 import importlib.util
-from os.path import join, exists, isdir
-from slideflow.util import log, TCGA
-from slideflow.dataset import Dataset
+from os.path import join, exists
+from slideflow.util import log
 
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
 
@@ -140,13 +137,6 @@ def load_sources(path):
         sources = []
     return sources_data, sources
 
-def create_blank_annotations_file(filename):
-    """Creates an example blank annotations file."""
-    with open(filename, 'w') as csv_outfile:
-        csv_writer = csv.writer(csv_outfile, delimiter=',')
-        header = [TCGA.patient, 'dataset', 'category']
-        csv_writer.writerow(header)
-
 def create_blank_train_config(filename):
     """Creates a TSV file with the batch training hyperparameter structure."""
     from slideflow.model import HyperParameters
@@ -169,23 +159,11 @@ def interactive_project_setup(project_folder):
     project = {}
     project['name'] = input('What is the project name? ')
 
-    # Ask for annotations file location; if one has not been made,
-    # offer to create a blank template and then exit
-    if not sf.util.yes_no_input('Has an annotations (CSV) file already been created? [y/N] ', default='no'):
-        if sf.util.yes_no_input('Create a blank annotations file? [Y/n] ', default='yes'):
-            project['annotations'] = sf.util.path_input('Annotations file location [./annotations.csv] ',
-                                                        root=project_folder,
-                                                        default='./annotations.csv',
-                                                        filetype='csv',
-                                                        verify=False)
-            create_blank_annotations_file(project['annotations'])
-        else:
-            project['annotations'] = './annotations.csv'
-    else:
-        project['annotations'] = sf.util.path_input('Annotations file location [./annotations.csv] ',
-                                                    root=project_folder,
-                                                    default='./annotations.csv',
-                                                    filetype='csv')
+    project['annotations'] = sf.util.path_input('Annotations file location [./annotations.csv] ',
+                                                root=project_folder,
+                                                default='./annotations.csv',
+                                                filetype='csv',
+                                                verify=False)
 
     # Dataset configuration
     project['dataset_config'] = sf.util.path_input('Dataset configuration file location [./datasets.json] ',

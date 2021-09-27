@@ -1,7 +1,7 @@
 Setting up a Project
 ====================
 
-The easiest way to use ``slideflow`` is the bundled project management class, ``SlideflowProject``.
+The easiest way to use ``slideflow`` is the bundled project management class, ``Project``.
 
 Before we start, make sure you have each of the following:
 
@@ -9,16 +9,16 @@ Before we start, make sure you have each of the following:
 2.    A collection of ROIs in CSV format, generated using QuPath.
 3.    A CSV annotations file assigning each slide a patient ID and outcome(s).
 
-There are two ways to interact with the pipeline. To work with slideflow in a custom script, initialize a SlideflowProject using a path to a project directory:
+There are two ways to interact with the pipeline. To work with slideflow in a custom script, initialize a Project using a path to a project directory:
 
 .. code-block:: python
 
 	import slideflow as sf
-	SFP = sf.SlideflowProject('/path/to/project/directory')
+	SFP = sf.Project('/path/to/project/directory')
 
 You could then call pipeline functions on the ``SFP`` object.
 
-Alternatively, you can use the bundled ``run_project.py`` script to execute project functions. This script, which we will be using in this tutorial, helps by setting some useful environmental variables and can be used to easily manage GPU allocations. It initializes a ``SlideflowProject`` object for a given directory, then looks for and loads an ``actions.py`` file in this directory, executing functions contained therein.
+Alternatively, you can use the bundled ``run_project.py`` script to execute project functions. This script, which we will be using in this tutorial, helps by setting some useful environmental variables and can be used to easily manage GPU allocations. It initializes a ``Project`` object for a given directory, then looks for and loads an ``actions.py`` file in this directory, executing functions contained therein.
 
 To create a new project with this script, or execute functions on an existing project, use the following syntax:
 
@@ -94,21 +94,21 @@ Configuring Datasets
 
 Once initial project settings are established, you will then need to either create or load a dataset configuration, which will specify directory locations for slides, ROIs, tiles, and TFRecords for each group of slides.
 
-Dataset configurations are saved in a JSON file with the below syntax. Dataset configuration files can be shared and used across multiple projects, or saved locally within a project directory. 
+Dataset configurations are saved in a JSON file with the below syntax. Dataset configuration files can be shared and used across multiple projects, or saved locally within a project directory.
 
 .. code-block:: json
 
-    { 
-        "DATASET_NAME": 
+    {
+        "DATASET_NAME":
         {
             "slides": "./directory",
             "roi": "./directory",
             "tiles": "./directory",
             "tfrecords": "./directory",
-        } 
+        }
     }
 
-Datasets are configured either interactively at the time of project initialization, or may be added by calling ``SlideflowProject.add_dataset()``:
+Datasets are configured either interactively at the time of project initialization, or may be added by calling ``Project.add_dataset()``:
 
 .. code-block:: python
 
@@ -118,7 +118,7 @@ Datasets are configured either interactively at the time of project initializati
                      tiles="/tiles/directory",
                      tfrecords="/tfrecords/directory")
 
-.. autofunction:: slideflow.SlideflowProject.add_dataset
+.. autofunction:: slideflow.project.Project.add_dataset
    :noindex:
 
 Setting up annotations

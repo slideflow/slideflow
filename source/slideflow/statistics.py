@@ -45,7 +45,7 @@ class SlideMap:
         to map slides according to UMAP of activations, or map according to pre-specified coordinates.
 
         Args:
-            slides (list): List of slide names
+            slides (list(str)): List of slide names
             cache (str, optional): Path to PKL file to cache activations. Defaults to None (caching disabled).
         """
 
@@ -63,11 +63,11 @@ class SlideMap:
         """ Initializes map from precalculated coordinates.
 
         Args:
-            slides (list): List of slide names.
-            x (list): List of X coordinates for tfrecords.
-            y (list): List of Y coordinates for tfrecords.
-            meta (list): List of dicts containing metadata for each point on the map (representing a single tfrecord).
-            labels (list): Label labels assigned to each tfrecord, used for coloring TFRecords according to labels.
+            slides (list(str)): List of slide names.
+            x (list(int)): List of X coordinates for tfrecords.
+            y (list(int)): List of Y coordinates for tfrecords.
+            meta (list(dict)): List of dicts containing metadata for each point on the map (representing a single tfrecord).
+            labels (list(str)): Labels assigned to each tfrecord, used for coloring TFRecords according to labels.
             cache (str, optional): Path to PKL file to cache coordinates. Defaults to None (caching disabled).
         """
 
@@ -359,7 +359,7 @@ class SlideMap:
         """Filters map to only show tiles from the given slides.
 
         Args:
-            slides (list): List of slide names.
+            slides (list(str)): List of slide names.
         """
 
         if not hasattr(self, 'full_x'):
@@ -846,7 +846,7 @@ def filtered_prediction(logits, filter):
     """Generates a prediction from a logits vector masked by a given filter.
 
     Args:
-        filter (list): List of logit indices to include when generating a prediction. All other logits will be masked.
+        filter (list(int)): List of logit indices to include when generating a prediction. All other logits will be masked.
 
     Returns:
         int: index of prediction.
@@ -1181,7 +1181,7 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, annotations, model_
     Args:
         y_true (ndarray): True labels for the dataset.
         y_pred (ndarray): Predicted labels for the dataset.
-        tile_to_slides (list): List of length y_true of slide names.
+        tile_to_slides (list(str)): List of length y_true of slide names.
         annotations (dict): Dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
         model_type (str): Either 'linear', 'categorical', or 'cph'.
         manifest (dict): Number of tiles per tfrecord, as provided by :meth:`slideflow.dataset.Datset.get_manifest`
@@ -1472,7 +1472,7 @@ def metrics_from_dataset(model, model_type, annotations, manifest, dataset, outc
     log.debug(f'Validation metrics generated, time: {after_metrics-before_metrics:.2f} s')
     return metrics
 
-def permutation_feature_importance(model, dataset_with_slidenames, annotations, model_type, data_dir,
+def permutation_feature_importance(model, dataset, annotations, model_type, data_dir,
                                    outcome_names=None, label=None, manifest=None, min_tiles_per_slide=0, num_tiles=0,
                                    feature_names=None, feature_sizes=None, drop_images=False):
 
@@ -1481,7 +1481,7 @@ def permutation_feature_importance(model, dataset_with_slidenames, annotations, 
 
     Args:
         model (str): Path to Tensorflow model.
-        dataset_with_slidenames (tf.data.Dataset): TFRecord dataset which include three items:
+        dataset (tf.data.Dataset): TFRecord dataset which include three items:
             raw image data, labels, and slide names.
         annotations (dict): Dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
         model_type (str): 'categorical', 'linear', or 'cph'.
@@ -1533,7 +1533,7 @@ def permutation_feature_importance(model, dataset_with_slidenames, annotations, 
 
     # For all tiles, calculate the intermediate layer (pre-hidden layer) activations,
     #     and if a CPH model is being used, include time-to-event data
-    for i, batch in enumerate(dataset_with_slidenames):
+    for i, batch in enumerate(dataset):
         if pb: pb.increase_bar_value(detected_batch_size)
         elif log.getEffectiveLevel() <= 20:
             sys.stdout.write(f"\rGenerating predictions (batch {i})...")

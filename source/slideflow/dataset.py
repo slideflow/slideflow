@@ -8,16 +8,16 @@ import shutil
 import multiprocessing
 import shapely.geometry as sg
 import slideflow as sf
+import numpy as np
+import pandas as pd
 
+from random import shuffle
 from glob import glob
 from os import listdir
 from datetime import datetime
 from tqdm import tqdm
 from os.path import isdir, join, exists, dirname
 from slideflow.util import log, TCGA, _shortname, ProgressBar
-
-class DatasetError(Exception):
-    pass
 
 def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, skip_missing_roi, randomize_origin,
                     tma, tile_px, tile_um, stride_div, downsample, buffer, pb_counter, counter_lock, generator_kwargs):
@@ -71,6 +71,73 @@ def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, sk
     except (KeyboardInterrupt, SystemExit):
         print('Exiting...')
         return
+
+def split_patients_list(patients_dict, n, balance=None, randomize=True, preserved_site=False):
+    '''Splits a dictionary of patients into n groups, balancing according to key "balance" if provided.'''
+
+    if preserved_site and not sf.util.CPLEX_AVAILABLE:
+        log.error("CPLEX not detected; unable to perform preserved-site validation.")
+        raise sf.util.CPLEXError("CPLEX not detected; unable to perform preserved-site validation.")
+
+    patient_list = list(patients_dict.keys())
+    shuffle(patient_list)
+
+    def flatten(l):
+        '''Flattens a list'''
+        return [y for x in l for y in x]
+
+    def split(a, n):
+        '''Function to split a list into n components'''
+        k, m = divmod(len(a), n)
+        return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
+
+    if balance:
+        # Get patient outcome labels
+        patient_outcome_labels = [patients_dict[p][balance] for p in patients_dict]
+
+        # Get unique outcomes
+        unique_labels = list(set(patient_outcome_labels))
+        if preserved_site:
+            import slideflow.io.preservedsite.crossfolds as cv
+
+            site_list = [p[5:7] for p in patients_dict]
+            df = pd.DataFrame(list(zip(patient_list, patient_outcome_labels, site_list)),
+                              columns = ['patient', 'outcome_label', 'site'])
+            df = cv.generate(df,
+                             'outcome_label',
+                             unique_labels,
+                             crossfolds = n,
+                             target_column = 'CV',
+                             patient_column = 'patient',
+                             site_column = 'site')
+
+            log.info(sf.util.bold("Generating Split with Preserved Site Cross Validation"))
+            log.info(sf.util.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_labels)))])))
+            for k in range(n):
+                log.info(f"K-fold-{k}\t" + "\t".join([str(len(df[(df.CV == str(k+1)) & (df.outcome_label == o)].index))
+                                                       for o in unique_labels]))
+
+            return [df.loc[df.CV == str(ni+1), "patient"].tolist() for ni in range(n)]
+
+        else:
+            # Now, split patient_list according to outcomes
+            patients_split_by_outcomes = [[p for p in patient_list if patients_dict[p][balance] == uo] for uo in unique_labels]
+
+            # Then, for each sublist, split into n components
+            patients_split_by_outcomes_split_by_n = [list(split(sub_l, n)) for sub_l in patients_split_by_outcomes]
+
+            # Print splitting as a table
+            log.info(sf.util.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_labels)))])))
+            for k in range(n):
+                log.info(f"K-fold-{k}\t" + "\t".join([str(len(clist[k])) for clist in patients_split_by_outcomes_split_by_n]))
+
+            # Join sublists
+            return [flatten([item[ni] for item in patients_split_by_outcomes_split_by_n]) for ni in range(n)]
+    else:
+        return list(split(patient_list, n))
+
+class DatasetError(Exception):
+    pass
 
 class Dataset:
     """Object to supervise organization of slides, tfrecords, and tiles
@@ -264,8 +331,7 @@ class Dataset:
                                          stride_div,
                                          roi_dir=roi_dir,
                                          roi_method=roi_method,
-                                         skip_missing_roi=skip_missing_roi,
-                                         silent=True)
+                                         skip_missing_roi=skip_missing_roi)
                 log.debug(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
                 total_tiles += slide.estimated_num_tiles
                 del slide
@@ -528,7 +594,7 @@ class Dataset:
             slides += [ann[TCGA.slide]]
         return slides
 
-    def get_slide_paths(self, source=None, filter=True):
+    def get_slide_paths(self, source=None, apply_filters=True):
         """Returns a list of paths to either all slides, or slides matching dataset filters.
 
         Args:
@@ -553,7 +619,7 @@ class Dataset:
         paths = list(set(paths))
 
         # Filter paths
-        if filter:
+        if apply_filters:
             filtered_slides = self.get_slides()
             filtered_paths = [path for path in paths if sf.util.path_to_name(path) in filtered_slides]
             return filtered_paths
@@ -623,7 +689,7 @@ class Dataset:
         """Returns a dictionary of slide names mapping to patient id and [an] label(s).
 
         Args:
-            headers (list) Annotation header(s) that specifies label variable. May be a list or string.
+            headers (list(str)) Annotation header(s) that specifies label variable. May be a list or string.
             use_float (bool, optional) Either bool, dict, or 'auto'.
                 If true, will try to convert all data into float. If unable, will raise TypeError.
                 If false, will interpret all data as categorical.
@@ -801,8 +867,7 @@ class Dataset:
                                       self.tile_px,
                                       self.tile_um,
                                       stride_div,
-                                      enable_downsample=enable_downsample,
-                                      silent=True)
+                                      enable_downsample=enable_downsample)
                 else:
                     whole_slide = WSI(slide_path,
                                       self.tile_px,
@@ -811,7 +876,6 @@ class Dataset:
                                       enable_downsample=enable_downsample,
                                       roi_dir=roi_dir,
                                       roi_method=roi_method,
-                                      silent=True,
                                       skip_missing_roi=skip_missing_roi)
 
                 if not whole_slide.loaded_correctly():
@@ -945,6 +1009,220 @@ class Dataset:
         pdf_report.save(filename)
         log.info(f'TFRecord report saved to {sf.util.green(filename)}')
 
+    def training_validation_split(self, validation_log, model_type, slide_labels_dict, val_strategy,
+                                  outcome_key='outcome_label', val_fraction=None, val_k_fold=None, k_fold_iter=None,
+                                  read_only=False):
+
+        """From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
+            If a validation plan has already been prepared (e.g. K-fold iterations were already determined),
+            the previously generated plan will be used. Otherwise, create a new plan and log the result in the
+            TFRecord directory so future models may use the same plan for consistency.
+
+        Args:
+            validation_log (str): Path to .log file containing validation plans.
+            model_type (str): Either 'categorical' or 'linear'.
+            slide_labels_dict (dict):  Dictionary mapping slides to labels. Used for balancing outcome labels in
+                training and validation cohorts. Eg: { 'slide1': { outcome_key: 'Outcome1',
+                sf.util.TCGA.patient: 'patient_id' } }
+            val_strategy (str): Either 'k-fold', 'k-fold-preserved-site', 'bootstrap', or 'fixed'.
+            outcome_key (str, optional): Key indicating outcome label in slide_labels_dict. Defaults to 'outcome_label'.
+            val_fraction (float, optional): Proportion of data for validation. Not used if strategy is k-fold.
+                Defaults to None
+            val_k_fold (int): K, required if using K-fold validation. Defaults to None.
+            k_fold_iter (int, optional): Which K-fold iteration to generate, required if using K-fold validation.
+                Defaults to None.
+            read_only (bool): Prevents writing validation plans to log. Defaults to False.
+
+        Returns:
+            Two lists:     a list of full paths to training tfrecords, and a list of paths to validation tfrecords.
+        """
+
+        if (not k_fold_iter and val_strategy=='k-fold'):
+            raise DatasetError("If strategy is 'k-fold', must supply k_fold_iter (int starting at 1)")
+
+        # Prepare dataset
+        tfr_folders = self.get_tfrecords_folders()
+        subdirs = []
+        for folder in tfr_folders:
+            try:
+                detected_subdirs = [sd for sd in os.listdir(folder) if isdir(join(folder, sd))]
+            except:
+                err_msg = f"Unable to find TFRecord location {sf.util.green(folder)}"
+                log.error(err_msg)
+                raise DatasetError(err_msg)
+            subdirs = detected_subdirs if not subdirs else subdirs
+            if detected_subdirs != subdirs:
+                log.error("Unable to combine TFRecords from datasets; subdirectory structures do not match.")
+                raise DatasetError("Unable to combine TFRecords from datasets; subdirectory structures do not match.")
+
+        k_fold = val_k_fold
+        training_tfrecords = []
+        val_tfrecords = []
+        accepted_plan = None
+        slide_list = list(slide_labels_dict.keys())
+
+        # Assemble dictionary of patients linking to list of slides and outcome labels
+        # slideflow.util.get_labels_from_annotations() ensures no duplicate outcome labels are found in a single patient
+        tfrecord_dir_list = self.get_tfrecords()
+        tfrecord_dir_list_names = [tfr.split('/')[-1][:-10] for tfr in tfrecord_dir_list]
+        patients_dict = {}
+        num_warned = 0
+        for slide in slide_list:
+            patient = slide_labels_dict[slide][sf.util.TCGA.patient]
+            # Skip slides not found in directory
+            if slide not in tfrecord_dir_list_names:
+                log.debug(f"Slide {slide} not found in tfrecord directory, skipping")
+                num_warned += 1
+                continue
+            if patient not in patients_dict:
+                patients_dict[patient] = {
+                    'outcome_label': slide_labels_dict[slide][outcome_key],
+                    'slides': [slide]
+                }
+            elif patients_dict[patient]['outcome_label'] != slide_labels_dict[slide][outcome_key]:
+                ol = patients_dict[patient]['outcome_label']
+                ok = slide_labels_dict[slide][outcome_key]
+                err_msg = f"Multiple outcome labels found for patient {patient} ({ol}, {ok})"
+                log.error(err_msg)
+                raise DatasetError(err_msg)
+            else:
+                patients_dict[patient]['slides'] += [slide]
+        if num_warned:
+            log.warning(f"Total of {num_warned} slides not found in tfrecord directory, skipping")
+        patients = list(patients_dict.keys())
+        sorted_patients = [p for p in patients]
+        sorted_patients.sort()
+        shuffle(patients)
+
+        # Create and log a validation subset
+        if val_strategy == 'none':
+            log.info(f"Validation strategy set to 'none'; selecting no tfrecords for validation.")
+            training_slides = np.concatenate([patients_dict[patient]['slides']
+                                                for patient in patients_dict.keys()]).tolist()
+            validation_slides = []
+        elif val_strategy == 'bootstrap':
+            num_val = int(val_fraction * len(patients))
+            log.info(f"Boostrap validation: selecting {sf.util.bold(num_val)} pts at random for validation testing")
+            validation_patients = patients[0:num_val]
+            training_patients = patients[num_val:]
+            if not len(validation_patients) or not len(training_patients):
+                err_msg = "Insufficient number of patients to generate validation dataset."
+                log.error(err_msg)
+                raise DatasetError(err_msg)
+            validation_slides = np.concatenate([patients_dict[patient]['slides']
+                                                for patient in validation_patients]).tolist()
+            training_slides = np.concatenate([patients_dict[patient]['slides']
+                                                for patient in training_patients]).tolist()
+        else:
+            # Try to load validation plan
+            validation_plans = [] if not exists(validation_log) else sf.util.load_json(validation_log)
+            for plan in validation_plans:
+                # First, see if plan type is the same
+                if plan['strategy'] != val_strategy:
+                    continue
+                # If k-fold, check that k-fold length is the same
+                if (val_strategy == 'k-fold' or val_strategy == 'k-fold-preserved-site') \
+                    and len(list(plan['tfrecords'].keys())) != k_fold:
+
+                    continue
+
+                # Then, check if patient lists are the same
+                plan_patients = list(plan['patients'].keys())
+                plan_patients.sort()
+                if plan_patients == sorted_patients:
+                    # Finally, check if outcome variables are the same
+                    if [patients_dict[p]['outcome_label'] for p in plan_patients] == \
+                        [plan['patients'][p]['outcome_label']for p in plan_patients]:
+
+                        log.info(f"Using {val_strategy} validation plan detected at {sf.util.green(validation_log)}")
+                        accepted_plan = plan
+                        break
+
+            # If no plan found, create a new one
+            if not accepted_plan:
+                log.info(f"No suitable validation plan found; will log plan at {sf.util.green(validation_log)}")
+                new_plan = {
+                    'strategy':        val_strategy,
+                    'patients':        patients_dict,
+                    'tfrecords':    {}
+                }
+                if val_strategy == 'fixed':
+                    num_val = int(val_fraction * len(patients))
+                    validation_patients = patients[0:num_val]
+                    training_patients = patients[num_val:]
+                    if not len(validation_patients) or not len(training_patients):
+                        err_msg = "Insufficient number of patients to generate validation dataset."
+                        log.error(err_msg)
+                        raise DatasetError(err_msg)
+                    validation_slides = np.concatenate([patients_dict[patient]['slides']
+                                                        for patient in validation_patients]).tolist()
+                    training_slides = np.concatenate([patients_dict[patient]['slides']
+                                                        for patient in training_patients]).tolist()
+                    new_plan['tfrecords']['validation'] = validation_slides
+                    new_plan['tfrecords']['training'] = training_slides
+                elif val_strategy == 'k-fold' or val_strategy == 'k-fold-preserved-site':
+                    balance = 'outcome_label' if model_type == 'categorical' else None
+                    k_fold_patients = split_patients_list(patients_dict,
+                                                        k_fold,
+                                                        balance=balance,
+                                                        randomize=True,
+                                                        preserved_site=(val_strategy == 'k-fold-preserved-site'))
+                    # Verify at least one patient is in each k_fold group
+                    if len(k_fold_patients) != k_fold or not min([len(patients) for patients in k_fold_patients]):
+                        err_msg = "Insufficient number of patients to generate validation dataset."
+                        log.error(err_msg)
+                        raise DatasetError(err_msg)
+                    training_patients = []
+                    for k in range(1, k_fold+1):
+                        new_plan['tfrecords'][f'k-fold-{k}'] = np.concatenate([patients_dict[patient]['slides']
+                                                                                    for patient in k_fold_patients[k-1]]).tolist()
+                        if k == k_fold_iter:
+                            validation_patients = k_fold_patients[k-1]
+                        else:
+                            training_patients += k_fold_patients[k-1]
+                    validation_slides = np.concatenate([patients_dict[patient]['slides']
+                                                        for patient in validation_patients]).tolist()
+                    training_slides = np.concatenate([patients_dict[patient]['slides']
+                                                        for patient in training_patients]).tolist()
+                else:
+                    err_msg = f"Unknown validation strategy {val_strategy} requested."
+                    log.error(err_msg)
+                    raise DatasetError(err_msg)
+                # Write the new plan to log
+                validation_plans += [new_plan]
+                if not read_only:
+                    sf.util.write_json(validation_plans, validation_log)
+            else:
+                # Use existing plan
+                if val_strategy == 'fixed':
+                    validation_slides = accepted_plan['tfrecords']['validation']
+                    training_slides = accepted_plan['tfrecords']['training']
+                elif val_strategy == 'k-fold' or val_strategy == 'k-fold-preserved-site':
+                    validation_slides = accepted_plan['tfrecords'][f'k-fold-{k_fold_iter}']
+                    training_slides = np.concatenate([accepted_plan['tfrecords'][f'k-fold-{ki}']
+                                                        for ki in range(1, k_fold+1)
+                                                        if ki != k_fold_iter]).tolist()
+                else:
+                    err_msg = f"Unknown validation strategy {val_strategy} requested."
+                    log.error(err_msg)
+                    raise DatasetError(err_msg)
+
+            # Perform final integrity check to ensure no patients are in both training and validation slides
+            validation_pt = list(set([slide_labels_dict[slide][sf.util.TCGA.patient] for slide in validation_slides]))
+            training_pt = list(set([slide_labels_dict[slide][sf.util.TCGA.patient] for slide in training_slides]))
+            if sum([pt in training_pt for pt in validation_pt]):
+                err_msg = "At least one patient is in both validation and training sets."
+                log.error(err_msg)
+                raise DatasetError(err_msg)
+
+            # Return list of tfrecords
+            val_tfrecords = [tfr for tfr in tfrecord_dir_list if sf.util.path_to_name(tfr) in validation_slides]
+            training_tfrecords = [tfr for tfr in tfrecord_dir_list if sf.util.path_to_name(tfr) in training_slides]
+        train_msg = sf.util.bold(len(training_tfrecords))
+        val_msg = sf.util.bold(len(val_tfrecords))
+        log.info(f"Using {train_msg} TFRecords for training, {val_msg} for validation")
+        return training_tfrecords, val_tfrecords
+
     def load_annotations(self, annotations_file):
         """Load annotations from a given CSV file."""
         # Verify annotations file exists
@@ -1019,7 +1297,7 @@ class Dataset:
         """Attempts to automatically associate slide names from a directory with patients in a given annotations file,
             skipping any slide names that are already present in the annotations file."""
         header, _ = sf.util.read_annotations(annotations_file)
-        slide_list = self.get_slide_paths(filter=False)
+        slide_list = self.get_slide_paths(apply_filters=False)
 
         # First, load all patient names from the annotations file
         try:

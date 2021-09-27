@@ -41,7 +41,7 @@ class Mosaic:
 
         Args:
             tfrecord_map (:class:`slideflow.statistics.SlideMap`): SlideMap object.
-            tfrecords (list): List of tfrecords paths.
+            tfrecords (list(str)): List of tfrecords paths.
             focus (list, optional): List of tfrecords (paths) to highlight on the mosaic.
             leniency (float, optional): UMAP leniency.
             expanded (bool, optional):If true, will try to fill in blank spots on the UMAP with nearby tiles.

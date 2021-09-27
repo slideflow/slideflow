@@ -35,44 +35,96 @@ class ActivationsError(Exception):
     pass
 
 class ActivationsInterface:
-    """Provides an interface to obtain logits and intermediate layer activations from saved Slideflow models.
+    """Interface for obtaining logits and intermediate layer activations from Slideflow models.
 
     Use by calling on either a batch of images (returning outputs for a single batch), or by calling on a
     :class:`slideflow.slide.WSI` object, which will generate an array of spatially-mapped activations matching
     the slide.
+
+    Examples
+        *Calling on batch of images:*
+
+        .. code-block:: python
+
+            interface = ActivationsInterface('/model/path', layers='postconv')
+            for image_batch in train_data:
+                # Return shape: (batch_size, num_features)
+                batch_activations = interface(image_batch)
+
+        *Calling on a slide:*
+
+        .. code-block:: python
+
+            slide = sf.slide.WSI(...)
+            interface = ActivationsInterface('/model/path', layers='postconv')
+            # Return shape: (slide.grid.shape[0], slide.grid.shape[1], num_features):
+            activations_grid = interface(slide)
+
     """
 
-    def __init__(self, path, layers='postconv', include_logits=True):
-        '''Initializer.
+    def __init__(self, path, layers='postconv', include_logits=False):
+        """Creates an activations interface from a saved slideflow model which outputs feature activations
+        at the designated layers.
+
+        Intermediate layers are returned in the order of layers. Logits are returned last.
 
         Args:
-            path:           Path to saved Slideflow Keras model
-            model_format:   Either slideflow.model.MODEL_FORMAT_CURRENT or _LEGACY.
-                                Indicates how the saved model should be processed,
-                                as older versions of Slideflow had models constructed differently,
-                                with differing naming of Keras layers.
-            layers:         Layers from which to generate activations.
-                                The post-convolution activation layer is accessed via 'postconv'
-        '''
-        if not isinstance(layers, list): layers = [layers]
+            path (str): Path to saved Slideflow model.
+            layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation layer
+                is accessed via 'postconv'. Defaults to 'postconv'.
+            include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
+        """
+
+        if layers and not isinstance(layers, list): layers = [layers]
         self.path = path
-        self.hp = sf.util.get_model_hyperparameters(path)
-        self.num_classes = 0
+        try:
+            self.hp = sf.util.get_model_hyperparameters(path)
+        except:
+            self.hp = None
+        self.num_logits = 0
         self.num_features = 0
         self._model = tf.keras.models.load_model(self.path)
-        self._build(layers=[l for l in layers], include_logits=include_logits)
+        self._build(layers=layers, include_logits=include_logits)
+
+    def from_model(self, model, layers='postconv', include_logits=False):
+        """Creates an activations interface from a loaded slideflow model which outputs feature activations
+        at the designated layers.
+
+        Intermediate layers are returned in the order of layers. Logits are returned last.
+
+        Args:
+            model (:class:`tensorflow.keras.models.Model` or :class:`slideflow.model.Model`): Loaded model.
+            layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation layer
+                is accessed via 'postconv'. Defaults to 'postconv'.
+            include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
+        """
+        if isinstance(model, tf.keras.models.Model):
+            self._model = model
+        elif isinstance(model, sf.model.Model):
+            if not model.model:
+                raise sf.util.UserError("Provided model has not yet been built or loaded.")
+            self._model = model.model
+        else:
+            raise TypeError("Provided model is not a valid Tensorflow model.")
+        self.hp = None
+        self.num_logits = 0
+        self.num_features = 0
+        self._build(layers=layers, include_logits=include_logits)
 
     def __call__(self, inp, **kwargs):
-        '''Given a batch of images, will return a batch of post-convolutional activations and a batch of logits.'''
+        """Process a given input and return activations and/or logits. Expects either a batch of images or
+        a :class:`slideflow.slide.WSI` object."""
+
         if isinstance(inp, sf.slide.WSI):
             return self._predict_slide(inp, **kwargs)
         else:
             return self._predict(inp)
 
     def _predict_slide(self, slide, batch_size=128, dtype=np.float16, **kwargs):
-        '''Generate activations from slide => activation grid array.'''
-        prediction_grid = np.zeros((slide.grid.shape[0], slide.grid.shape[1], self.num_features), dtype=dtype)
-        generator = slide.build_generator(shuffle=False, include_loc='grid', **kwargs)
+        """Generate activations from slide => activation grid array."""
+        total_out = self.num_features + self.num_logits
+        activations_grid = np.zeros((slide.grid.shape[1], slide.grid.shape[0], total_out), dtype=dtype)
+        generator = slide.build_generator(shuffle=False, include_loc='grid', show_progress=True, **kwargs)
 
         if not generator:
             log.error(f"No tiles extracted from slide {sf.util.green(slide.name)}")
@@ -82,7 +134,6 @@ class ActivationsInterface:
             image = record['image']
             loc = record['loc']
             parsed_image = tf.image.per_image_standardization(image)
-            parsed_image = tf.image.convert_image_dtype(parsed_image, tf.float32)
             parsed_image.set_shape([slide.tile_px, slide.tile_px, 3])
             return parsed_image, loc
 
@@ -97,7 +148,7 @@ class ActivationsInterface:
 
         act_arr = []
         loc_arr = []
-        for i, (batch_images, batch_loc) in tqdm(enumerate(tile_dataset), total=slide.estimated_num_tiles // batch_size, ncols=80):
+        for i, (batch_images, batch_loc) in enumerate(tile_dataset):
             model_out = self._predict(batch_images)
             if not isinstance(model_out, list): model_out = [model_out]
             concatenated_arr = np.concatenate([m.numpy() for m in model_out])
@@ -110,23 +161,24 @@ class ActivationsInterface:
         for i, act in enumerate(act_arr):
             xi = loc_arr[i][0]
             yi = loc_arr[i][1]
-            prediction_grid[xi][yi] = act
+            activations_grid[yi][xi] = act
 
-        return prediction_grid
+        return activations_grid
 
     @tf.function
     def _predict(self, inp):
+        """Return activations for a single batch of images."""
         return self.model(inp, training=False)
 
-    def _build(self, layers, pooling=None, include_logits=True):
+    def _build(self, layers, include_logits=True):
+        """Builds the interface model that outputs feature activations at the designated layers and/or logits.
+            Intermediate layers are returned in the order of layers. Logits are returned last."""
 
-        '''Builds a model that outputs feature activations at the designated layers
-            and concatenates into a single final output vector.
-            Intermediate layers are returned in the order of layers. Logits are returned last.
-        '''
-
-        log.debug(f"Setting up interface to return activations from layers {', '.join(layers)}")
-        other_layers = [l for l in layers if l != 'postconv']
+        if layers:
+            log.debug(f"Setting up interface to return activations from layers {', '.join(layers)}")
+            other_layers = [l for l in layers if l != 'postconv']
+        else:
+            other_layers = []
         outputs = {}
         if layers:
             intermediate_core = tf.keras.models.Model(inputs=self._model.layers[1].input,
@@ -137,36 +189,40 @@ class ActivationsInterface:
                     outputs[layer] = int_out[l]
             elif len(other_layers):
                 outputs[other_layers[0]] = intermediate_core(self._model.input)
-        if 'postconv' in layers:
-            outputs['postconv'] = self._model.layers[1].get_output_at(0)
-        outputs_list = [outputs[l] for l in layers]
+            if 'postconv' in layers:
+                outputs['postconv'] = self._model.layers[1].get_output_at(0)
+        outputs_list = [] if not layers else [outputs[l] for l in layers]
         if include_logits:
             outputs_list += [self._model.output]
         self.model = tf.keras.models.Model(inputs=self._model.input, outputs=outputs_list)
-
         self.num_features = sum([outputs[o].shape[1] for o in outputs])
-        self.num_classes = 0 if not include_logits else self._model.output.shape[1]
+        self.num_logits = 0 if not include_logits else self._model.output.shape[1]
         if include_logits:
-            log.debug(f'Number of logits: {self.num_classes}')
+            log.debug(f'Number of logits: {self.num_logits}')
         log.debug(f'Number of activation features: {self.num_features}')
 
 class ActivationsVisualizer:
 
     """Loads annotations, saved layer activations, and prepares output saving directories.
-    Will also read/write processed activations to a PKL cache file to save time in future iterations."""
+    Will also read/write processed activations to a PKL cache file to save time in future iterations.
 
-    # Note: storing logits is optional in order to offer the user reduced memory footprint. For example, generating
-    # logits for a 10,000 slide dataset with 1000 categorical outcomes would generate:
-    #   4 bytes/float32-logit * 1000 logits/slide * 3000 tiles/slide * 10000 slides ~= 112 GB
+    Note:
+        Storing logits is optional in order to offer the user reduced memory footprint. For example, generating
+        logits for a 10,000 slide dataset with 1000 categorical outcomes would generate:
+        4 bytes/float32-logit * 1000 logits/slide * 3000 tiles/slide * 10000 slides ~= 112 GB
+
+    """
 
     def __init__(self, model, tfrecords, annotations=None, cache=None, max_tiles_per_slide=0, min_tiles_per_slide=0,
                  manifest=None, **kwargs):
 
-        """Calculates activations from model.
+        """Calculates activations from model, storing to internal parameters `self.activations`, and `self.logits`,
+        `self.locations`, dictionaries mapping slides to arrays of activations, logits, and locations for each tiles'
+        constituent tiles.
 
         Args:
             model (str): Path to model from which to calculate activations.
-            tfrecords (list): List of tfrecords paths.
+            tfrecords (list(str)): List of tfrecords paths.
             annotations (dict, optional): Dict mapping slide names to outcome categories.
             cache (str, optional): File in which to store activations PKL cache.
             max_tiles_per_slide (int, optional): Maximum number of tiles per slide to generate activations.
@@ -294,7 +350,7 @@ class ActivationsVisualizer:
         combined_model = ActivationsInterface(model, layers=layers, include_logits=include_logits)
         unique_slides = list(set([sf.util.path_to_name(tfr) for tfr in self.tfrecords]))
         self.num_features = combined_model.num_features
-        self.num_logits = 0 if not include_logits else combined_model.num_classes
+        self.num_logits = 0 if not include_logits else combined_model.num_logits
 
         # Prepare normalizer
         if normalizer:
@@ -422,14 +478,10 @@ class ActivationsVisualizer:
         Requires annotations to have been provided.
 
         Args:
-            idx: Int, index of activations layer to return, stratified by outcome category.
+            idx (int): Index of activations layer to return, stratified by outcome category.
 
         Returns:
-            list: List of feature activations separated by category.
-
-        Example
-            [[0.1, 0.2, 0.7, 0.1, 0.0], # Activations for feature 'f' across all tiles from slides in category 1
-            [0.8, 0.2, 0.1]]            # Activations for feature 'f' across all tiles from slides in category 2
+            dict: Dict mapping categories to feature activations for all tiles in the category.
         """
 
         if not self.categories:
@@ -438,13 +490,13 @@ class ActivationsVisualizer:
         def activations_by_single_category(c):
             return np.concatenate([self.activations[pt][:,idx] for pt in self.slides if self.annotations[pt] == c])
 
-        return [activations_by_single_category(c) for c in self.used_categories]
+        return {c: activations_by_single_category(c) for c in self.used_categories}
 
     def box_plots(self, features, outdir):
         """Generates box plots comparing nodal activations at the slide-level and tile-level.
 
         Args:
-            features (list): List of feature indices for which to generate box plots.
+            features (list(int)): List of feature indices for which to generate box plots.
             outdir (str): Path to directory in which to save box plots.
         """
         if not isinstance(features, list): raise sf.util.UserError("'features' must be a list of int.")
@@ -460,7 +512,7 @@ class ActivationsVisualizer:
         for f in features:
             # Display tile-level box plots & stats
             plt.clf()
-            snsbox = sns.boxplot(data=self.activations_by_category(f))
+            snsbox = sns.boxplot(data=list(self.activations_by_category(f).values()))
             title = f'{f} (tile-level)'
             snsbox.set_title(title)
             snsbox.set(xlabel='Category', ylabel='Activation')
@@ -488,7 +540,7 @@ class ActivationsVisualizer:
             level (str): 'tile' or 'slide'. Indicates whether tile or slide-level activations are saved.
                 Defaults to 'tile'.
             method (str): Method of summarizing slide-level results. Either 'mean' or 'median'. Defaults to 'mean'.
-            slides (list): Slides to export. If None, exports all slides. Defaults to None.
+            slides (list(str)): Slides to export. If None, exports all slides. Defaults to None.
         """
         if level not in ('tile', 'slide'):
             raise sf.util.UserError(f"Unknown level {level}, must be either 'tile' or 'slide'.")
@@ -586,7 +638,7 @@ class ActivationsVisualizer:
 
         for f in range(self.num_features):
             # Tile-level ANOVA
-            fvalue, pvalue = stats.f_oneway(*self.activations_by_category(f))
+            fvalue, pvalue = stats.f_oneway(*list(self.activations_by_category(f).values()))
             if not isnan(fvalue) and not isnan(pvalue):
                 tile_feature_stats.update({f: {'f': fvalue,
                                                'p': pvalue} })
@@ -609,8 +661,8 @@ class ActivationsVisualizer:
 
         for f in range(self.num_features):
             try:
-                log.info(f"Tile-level P-value ({f}): {tile_feature_stats[f]['p']}")
-                log.info(f"Patient-level P-value: ({f}): {pt_feature_stats[f]['p']}")
+                log.debug(f"Tile-level P-value ({f}): {tile_feature_stats[f]['p']}")
+                log.debug(f"Patient-level P-value: ({f}): {pt_feature_stats[f]['p']}")
             except:
                 log.warning(f'No stats calculated for feature {f}')
 
@@ -741,7 +793,7 @@ class ActivationsVisualizer:
         Duplicate image tiles will be saved for each feature, organized into subfolders named according to feature.
 
         Args:
-            features (list): List of int, features to evaluate.
+            features (list(int)): Features to evaluate.
             outdir (str):  Path to folder in which to save examples tiles.
             slides (list, optional): List of slide names. If provided, will only include tiles from these slides.
                 Defaults to None.
@@ -780,7 +832,7 @@ class ActivationsVisualizer:
                 image_string.close()
 
 class Heatmap:
-    '''Generates heatmap by calculating predictions from a sliding scale window across a slide.'''
+    """Generates heatmap by calculating predictions from a sliding scale window across a slide."""
 
     def __init__(self, slide, model, stride_div=2, roi_dir=None, roi_list=None, roi_method='inside',
                  normalizer=None, normalizer_source=None, batch_size=32, num_threads=8, buffer=None):
@@ -813,12 +865,12 @@ class Heatmap:
             log.info("No ROIs provided; will generate whole-slide heatmap")
             roi_method = 'ignore'
 
-        self.model = ActivationsInterface(model)
+        interface = ActivationsInterface(model, layers=None, include_logits=True)
         model_hyperparameters = sf.util.get_model_hyperparameters(model)
         self.tile_px = model_hyperparameters['tile_px']
         self.tile_um = model_hyperparameters['tile_um']
-        self.num_classes = self.model.num_classes
-        self.num_features = self.model.num_features
+        self.num_classes = interface.num_logits
+        self.num_features = interface.num_features
 
         # Create slide buffer
         if buffer and os.path.isdir(buffer):
@@ -838,89 +890,22 @@ class Heatmap:
                          roi_dir=roi_dir,
                          roi_list=roi_list,
                          roi_method=roi_method,
-                         silent=True,
                          buffer=buffer,
                          skip_missing_roi=(roi_method == 'inside'))
 
         if not self.slide.loaded_correctly():
             raise ActivationsError(f'Unable to load slide {self.slide.name} for heatmap generation')
 
-        # Pre-load thumbnail in separate thread
-        thumb_process = DProcess(target=partial(self.slide.thumb, width=2048))
-        thumb_process.start()
+        self.logits = interface(self.slide,
+                                normalizer=normalizer,
+                                normalizer_source=normalizer_source,
+                                num_threads=num_threads,
+                                dtype=np.float32)
 
-        # Create tile coordinate generator
-        tile_generator = self.slide.build_generator(normalizer=normalizer,
-                                                    normalizer_source=normalizer_source,
-                                                    include_loc=False,
-                                                    shuffle=False,
-                                                    num_threads=num_threads,
-                                                    show_progress=True)
-        if not tile_generator:
-            log.error(f'No tiles extracted from slide {sf.util.green(self.slide.name)}')
-
-        # Generate dataset from the generator
-        with tf.name_scope('dataset_input'):
-            output_signature = {'image':tf.TensorSpec(shape=(self.tile_px,self.tile_px,3), dtype=tf.int32)}
-            tile_dataset = tf.data.Dataset.from_generator(tile_generator, output_signature=output_signature)
-            tile_dataset = tile_dataset.map(self._parse_function, num_parallel_calls=8)
-            tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
-            tile_dataset = tile_dataset.prefetch(8)
-
-        # Iterate through generator to calculate logits +/- final layer activations for all tiles
-        logits_arr = []        # Logits (predictions)
-        postconv_arr = []      # Post-convolutional layer (post-convolutional activations)
-        for batch_images in tile_dataset:
-            postconv, logits = self.model(batch_images)
-            logits_arr += [logits]
-            postconv_arr += [postconv]
-        logits_arr = np.concatenate(logits_arr)
-        postconv_arr = np.concatenate(postconv_arr)
-
-        print(f'\r\033[KWaiting on thumbnail...', end='')
-        thumb_process.join()
-        print(f'\r\033[K', end='')
         log.info(f"Heatmap complete for {sf.util.green(self.slide.name)}")
-
-        if ((self.slide.tile_mask is not None) and
-             (self.slide.extracted_x_size) and
-             (self.slide.extracted_y_size) and
-             (self.slide.full_stride)):
-
-            # Expand logits back to a full 2D map spanning the whole slide,
-            #  supplying values of '0' where tiles were skipped by the tile generator
-            x_logits_len = int(self.slide.extracted_x_size / self.slide.full_stride) + 1
-            y_logits_len = int(self.slide.extracted_y_size / self.slide.full_stride) + 1
-            expanded_logits = [[-1] * self.num_classes] * len(self.slide.tile_mask)
-            expanded_postconv = [[-1] * self.num_features] * len(self.slide.tile_mask)
-            li = 0
-            for i in range(len(expanded_logits)):
-                if self.slide.tile_mask[i] == 1:
-                    expanded_logits[i] = logits_arr[li]
-                    expanded_postconv[i] = postconv_arr[li]
-                    li += 1
-
-            expanded_logits = np.asarray(expanded_logits, dtype=float)
-            expanded_postconv = np.asarray(expanded_postconv, dtype=float)
-
-            # Resize logits array into a two-dimensional array for heatmap display
-            self.logits = np.resize(expanded_logits, [y_logits_len, x_logits_len, self.num_classes])
-            self.postconv = np.resize(expanded_postconv, [y_logits_len, x_logits_len, self.num_features])
-        else:
-            self.logits = logits_arr
-            self.postconv = postconv_arr
-
-        if (type(self.logits) == bool) and (not self.logits):
-            log.error(f'Unable to create heatmap for slide {sf.util.green(self.slide.name)}')
 
         if buffered_slide:
             os.remove(new_path)
-
-    def _parse_function(self, record):
-        image = record['image']
-        parsed_image = tf.image.per_image_standardization(image)
-        parsed_image.set_shape([self.tile_px, self.tile_px, 3])
-        return parsed_image
 
     def _prepare_figure(self, show_roi=True):
         self.fig = plt.figure(figsize=(18, 16))
@@ -1057,8 +1042,6 @@ class Heatmap:
                                          extent=implot.get_extent(),
                                          cmap='coolwarm',
                                          norm=divnorm,
-                                         vmin=vmin,
-                                         vmax=vmax,
                                          alpha=0.6,
                                          interpolation=interpolation, #bicubic
                                          zorder=10)
