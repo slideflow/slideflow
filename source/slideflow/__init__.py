@@ -5,7 +5,7 @@ from slideflow.project import Project, SlideflowProject # SlideflowProject is de
 # | james.dolezal@uchospitals.edu           |
 # +-----------------------------------------+
 
-__version__ = "1.12.0-dev1"
+__version__ = "1.12.0"
 
 # Style information
 # =================
@@ -22,6 +22,7 @@ __version__ = "1.12.0-dev1"
 # DONE - Refactoring entire codebase
 # IN PROGRESS - Updated documentation with more details in pytorch style
 # DONE - Remove per-tile validation options, as it should never be used
+#TODO: pytorch backend
 
 # Future updates
 # ===============

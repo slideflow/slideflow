@@ -119,7 +119,7 @@ def interleave(tfrecords, label_parser=None, model_type='categorical', balance=N
 
     Args:
         tfrecords (list(str)): List of paths to TFRecord files.
-        label_parser (:obj:, optional): Base function to use for parsing labels. Function must accept an image (tensor)
+        label_parser (func, optional): Base function to use for parsing labels. Function must accept an image (tensor)
             and slide name (str), and return an image (tensor) and label. If None is provided, all labels will be None.
         model_type (str, optional): Model type. 'categorical' enables category-level balancing. Defaults to 'categorical'.
         balance (str, optional): Batch-level balancing. Options: BALANCE_BY_CATEGORY, BALANCE_BY_PATIENT, and NO_BALANCE.

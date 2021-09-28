@@ -20,14 +20,7 @@ There are several ways you can plan to validate your data. The validation settin
 - **fraction**:  (float between 0-1)
 - **k_fold**:  int
 
-The default strategy is 'k-fold', with K=3. If a different validation strategy is required, create a custom validation plan using :func:`slideflow.project.get_validation_settings` and passing the arguments to customize.
-
-Validation target
-^^^^^^^^^^^^^^^^^
-
-The first consideration is whether you will be separating validation data on a **tile-level** (setting aside a certain % of tiles from every slide for validation) or **patient-level** (splitting patients, and their constituent slides, into training/validation datasets). Patient-level validation is highly recommended and used by default, due to risk of bias and overfitting when using tile-level validation.
-
-*Note: if using tile-level validation, this must be configured at the time of tile extraction due to the way TFRecord tile data is stored. If you change validation_target mid-project, you may need to re-extract tiles.*
+The default strategy is 'k-fold', with k=3.
 
 Validation strategy
 ^^^^^^^^^^^^^^^^^^^

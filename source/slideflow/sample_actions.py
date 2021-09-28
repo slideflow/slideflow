@@ -59,5 +59,5 @@ def main(SFP):
     # ----------------------------------------------------
     #mosaic = SFP.generate_mosaic(AV, resolution='high')
     #mosaic.save('/path.png')
-    #mosaic.tfrecord_map.save('/path.png')
+    #mosaic.slide_map.save('/path.png')
     pass

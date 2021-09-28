@@ -60,7 +60,7 @@ class SlideMap:
 
     @classmethod
     def from_precalculated(cls, slides, x, y, meta, labels=None, cache=None):
-        """ Initializes map from precalculated coordinates.
+        """Initializes map from precalculated coordinates.
 
         Args:
             slides (list(str)): List of slide names.
@@ -88,7 +88,7 @@ class SlideMap:
         """Initializes map from an activations visualizer.
 
         Args:
-            AV (:class:`slideflow.activations.ActivationsVisualizer): ActivationsVisualizer object.
+            AV (:class:`slideflow.activations.ActivationsVisualizer`): ActivationsVisualizer object.
             exclude_slides (list, optional): List of slides to exclude from map.
             prediction_filter (list, optional) Restrict outcome predictions to only these provided categories.
             recalculate (bool, optional):  Force recalculation of umap despite presence of cache.
@@ -1105,6 +1105,7 @@ def basic_metrics(y_true, y_pred):
     return accuracy, sensitivity, specificity, precision, recall, f1_score, kappa
 
 def concordance_index(y_true, y_pred):
+    '''Calculates concordance index from a given y_true and y_pred.'''
     E = y_pred[:, -1]  # HERE
     y_pred = y_pred[:, :-1]  # HERE
     y_pred = y_pred.flatten()

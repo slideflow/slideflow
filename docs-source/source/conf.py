@@ -47,7 +47,7 @@ templates_path = ['_templates']
 source_suffix = '.rst'
 
 # The master toctree document.
-master_doc = 'root'
+master_doc = 'index'
 
 # General information about the project.
 project = 'slideflow'
@@ -87,6 +87,7 @@ todo_include_todos = True
 # a list of builtin themes.
 #
 html_theme = 'pytorch_sphinx_theme'
+html_theme_path = ['../pytorch_sphinx_theme']
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

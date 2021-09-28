@@ -7,12 +7,7 @@ Once a validation plan has been established, our next step is tile extraction, w
 
 .. code-block:: python
 
-	SFP.extract_tiles(tile_px=299, tile_um=302)
-
-The documentation for the ``extract_tiles`` function is given below:
-
-.. autofunction:: slideflow.project.Project.extract_tiles
-   :noindex:
+    SFP.extract_tiles(tile_px=299, tile_um=302)
 
 To filter according to a columns in your annotations file, pass a dictionary to ``filters``, with keys equal to column names and values equal to a list of all acceptable values you want to include. If this argument is not supplied, all valid slides will be extracted.
 
@@ -20,19 +15,23 @@ For example, to extract tiles only for slides that are labeled as "train" in the
 
 .. code-block:: python
 
-	SFP.extract_tiles(tile_px=299, tile_um=302, filters={"dataset": ["train"]})
+    SFP.extract_tiles(tile_px=299, tile_um=302, filters={"dataset": ["train"]})
 
 To further filter by the annotation header "mutation_status", including only slides with the category "braf" or "ras", do:
 
 .. code-block:: python
 
-	SFP.extract_tiles(tile_px=299, tile_um=302, filters={"dataset": ["train"], "mutation_status": ["braf", "ras"]})
+    SFP.extract_tiles(tile_px=299, tile_um=302, filters={"dataset": ["train"], "mutation_status": ["braf", "ras"]})
 
-*Note: the "filters" argument can be also used for filtering input slides in many slideflow functions, including train(), evaluate(), generate_heatmaps(), and generate_mosaic().*
+.. note::
+    The "filters" argument can be also used for filtering input slides in many slideflow functions, including train(), evaluate(), generate_heatmaps(), and generate_mosaic().*
 
-To begin tile extraction, save the ``actions.py`` file and run your project as described in :ref:`execute`.
+Tiles will be extracted at the specified pixel and micron size. Tiles will be automatically stored in TFRecord format, although loose tiles can also be saved by passing a destination path to the argument ``tiles_dir``.
 
-Tiles will be extracted at the specified pixel and micron size. Tiles will be automatically stored in TFRecord format and separated into training and validation steps if required (necessary when validation data is generated on per-tile basis; see :ref:`validation_planning`).
+The full documentation for the ``extract_tiles`` function is given below:
+
+.. autofunction:: slideflow.project.Project.extract_tiles
+   :noindex:
 
 ROIs
 ****
@@ -50,15 +49,13 @@ Normalization can be done on-the-fly or at the time of tile extraction prior to 
 
 .. code-block:: python
 
-	SFP.extract_tiles(tile_px=299, tile_um=302, normalizer='macenko')
+    SFP.extract_tiles(tile_px=299, tile_um=302, normalizer='reinhard')
 
 Alternatively, real-time normalization can be performed with nearly any pipeline function that accepts TFRecord inputs. For example, to normalize tiles during training:
 
 .. code-block:: python
 
-	SFP.train(...,
-		normalizer='macenko',
-		normalizer_source='/path/to/reference.png')
+    SFP.train(..., normalizer='reinhard', normalizer_source='/path/to/reference.png')
 
 Whitespace/grayspace filtering
 ******************************

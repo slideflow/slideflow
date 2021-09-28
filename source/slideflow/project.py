@@ -746,11 +746,47 @@ class Project:
         :func:`slideflow.dataset.Dataset.extract_tiles` on a :class:`slideflow.dataset.Dataset` directly.
 
         Args:
-            tile_px (int): Tile width in pixels.
-            tile_um (int): Tile width in microns.
-            filters (dict, optional): Filters dict to use when selecting tfrecords. Defaults to None.
-                See :meth:`get_dataset` documentation for more information on filtering.
-            filter_blank (list, optional): Slides blank in these columns will be excluded. Defaults to None.
+            save_tiles (bool, optional): Save images of extracted tiles to project tile directory. Defaults to False.
+            save_tfrecord (bool, optional): Save compressed image data from extracted tiles into TFRecords
+                in the corresponding TFRecord directory. Defaults to True.
+            source (str, optional): Name of dataset source from which to select slides for extraction. Defaults to None.
+                If not provided, will default to all sources in project.
+            stride_div (int, optional): Stride divisor to use when extracting tiles. Defaults to 1.
+                A stride of 1 will extract non-overlapping tiles.
+                A stride_div of 2 will extract overlapping tiles, with a stride equal to 50% of the tile width.
+            enable_downsample (bool, optional): Enable downsampling when reading slide images. Defaults to False.
+                This may result in corrupted image tiles if downsampled slide layers are corrupted or incomplete.
+                Recommend manual confirmation of tile integrity.
+            roi_method (str, optional): Either 'inside', 'outside', or 'ignore'. Defaults to 'inside'.
+                Indicates whether tiles are extracted inside or outside ROIs, or if ROIs are ignored entirely.
+            skip_missing_roi (bool, optional): Skip slides that are missing ROIs. Defaults to True.
+            skip_extracted (bool, optional): Skip slides that have already been extracted. Defaults to True.
+            tma (bool, optional): Reads slides as Tumor Micro-Arrays (TMAs), detecting and extracting tumor cores.
+                Defaults to False. Experimental function with limited testing.
+            randomize_origin (bool, optional): Randomize pixel starting position during extraction. Defaults to False.
+            buffer (str, optional): Slides will be copied to this directory before extraction. Defaults to None.
+                Using an SSD or ramdisk buffer vastly improves tile extraction speed.
+            num_workers (int, optional): Extract tiles from this many slides simultaneously. Defaults to 4.
+
+        Keyword Args:
+            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
+                If None but using a normalizer, will use an internal tile for normalization.
+                Internal default tile can be found at slideflow.util.norm_tile.jpg
+            whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
+                Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.
+            whitespace_threshold (int, optional): Range 0-255. Defaults to 230.
+                Threshold above which a pixel (RGB average) is considered whitespace.
+            grayspace_fraction (float, optional): Range 0-1. Defaults to 0.6.
+                Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.
+            grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
+                Pixels in HSV format with saturation below this threshold are considered grayspace.
+            img_format (str, optional): 'png' or 'jpg'. Defaults to 'png'. Image format to use in tfrecords.
+                PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
+            full_core (bool, optional): Only used if extracting from TMA. If True, will save entire TMA core as image.
+                Otherwise, will extract sub-images from each core using the given tile micron size. Defaults to False.
+            shuffle (bool, optional): Shuffle tiles prior to storage in tfrecords. Defaults to True.
+            num_threads (int, optional): Number of workers threads for each tile extractor. Defaults to 4.
         """
 
         dataset = self.get_dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank, verification='slides')

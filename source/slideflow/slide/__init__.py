@@ -79,7 +79,7 @@ def _polyArea(x, y):
 
 def _wsi_extraction_worker(c, args):
     '''Multiprocessing working for WSI. Extracts a tile at the given coordinates.'''
-    slide = VIPSWrapper(args.path)
+    slide = _VIPSWrapper(args.path)
     normalizer = None if not args.normalizer else StainNormalizer(method=args.normalizer, source=args.normalizer_source)
 
     index = c[2]
@@ -252,7 +252,7 @@ class ExtractionReport:
     def save(self, filename):
         self.pdf.output(filename)
 
-class VIPSWrapper:
+class _VIPSWrapper:
     '''Wrapper for VIPS to preserve openslide-like functions.'''
 
     def __init__(self, path, buffer=None):
@@ -356,7 +356,7 @@ class VIPSWrapper:
         if self.buffer == 'vmtouch':
             os.system(f'vmtouch -e "{self.path}"')
 
-class JPGslideToVIPS(VIPSWrapper):
+class JPGslideToVIPS(_VIPSWrapper):
     '''Wrapper for JPG files, which do not possess separate levels, to preserve openslide-like functions.'''
 
     def __init__(self, path, buffer=None):
@@ -445,7 +445,7 @@ class _BaseLoader:
             if filetype.lower() == 'jpg':
                 self.slide = JPGslideToVIPS(path)
             else:
-                self.slide = VIPSWrapper(path, buffer=buffer)
+                self.slide = _VIPSWrapper(path, buffer=buffer)
         else:
             log.error(f"Unsupported file type '{filetype}' for slide {self.name}.")
             self.load_error = True

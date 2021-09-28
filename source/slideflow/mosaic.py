@@ -33,14 +33,14 @@ class Mosaic:
 
     """
 
-    def __init__(self, tfrecord_map, tfrecords, focus=None, leniency=1.5, expanded=False, tile_zoom=15, num_tiles_x=50,
+    def __init__(self, slide_map, tfrecords, focus=None, leniency=1.5, expanded=False, tile_zoom=15, num_tiles_x=50,
                  resolution='high', relative_size=False, tile_select='nearest', tile_meta=None, normalizer=None,
                  normalizer_source=None, focus_slide=None):
 
         """Generate a mosaic map.
 
         Args:
-            tfrecord_map (:class:`slideflow.statistics.SlideMap`): SlideMap object.
+            slide_map (:class:`slideflow.statistics.SlideMap`): SlideMap object.
             tfrecords (list(str)): List of tfrecords paths.
             focus (list, optional): List of tfrecords (paths) to highlight on the mosaic.
             leniency (float, optional): UMAP leniency.
@@ -68,7 +68,7 @@ class Mosaic:
         max_distance_factor = leniency
         mapping_method = 'expanded' if expanded else 'strict'
         self.mapped_tiles = {}
-        self.tfrecord_map = tfrecord_map
+        self.slide_map = slide_map
         self.num_tiles_x = num_tiles_x
         self.tfrecords = tfrecords
 
@@ -99,15 +99,15 @@ class Mosaic:
         log.info('Loading coordinates and plotting points...')
         self.points = []
 
-        for i in range(len(tfrecord_map.x)):
-            slide = tfrecord_map.point_meta[i]['slide']
-            meta = tile_meta[slide][tfrecord_map.point_meta[i]['index']] if tile_meta else None
-            self.points.append({'coord':np.array((tfrecord_map.x[i], tfrecord_map.y[i])),
+        for i in range(len(slide_map.x)):
+            slide = slide_map.point_meta[i]['slide']
+            meta = tile_meta[slide][slide_map.point_meta[i]['index']] if tile_meta else None
+            self.points.append({'coord':np.array((slide_map.x[i], slide_map.y[i])),
                                 'global_index': i,
                                 'category':'none',
                                 'slide':slide,
                                 'tfrecord':self._get_tfrecords_from_slide(slide),
-                                'tfrecord_index':tfrecord_map.point_meta[i]['index'],
+                                'tfrecord_index':slide_map.point_meta[i]['index'],
                                 'paired_tile':None,
                                 'meta':meta})
         x_points = [p['coord'][0] for p in self.points]
@@ -236,7 +236,7 @@ class Mosaic:
                 point = self.points[closest_point]
 
                 if not point['tfrecord']:
-                    log.error(f"TFRecord {point['slide']} not found in tfrecord_map; verify that the TFRecord exists.")
+                    log.error(f"TFRecord {point['slide']} not found in slide_map; verify that the TFRecord exists.")
                     continue
                 _, tile_image = sf.io.tfrecords.get_tfrecord_by_index(point['tfrecord'],
                                                                      point['tfrecord_index'],

@@ -8,33 +8,32 @@ There are two methods for configuring model hyperparameters. If you intend to tr
 
 .. code-block:: python
 
-	from slideflow.model import HyperParameters
-	hp = HyperParameters(
-		finetune_epochs=[1, 5],
-		model='Xception',
-		loss='sparse_categorical_crossentropy',
-		learning_rate=0.00001,
-		batch_size=8)
+    hp = sf.model.HyperParameters(
+        finetune_epochs=[1, 5],
+        model='Xception',
+        loss='sparse_categorical_crossentropy',
+        learning_rate=0.00001,
+        batch_size=8)
 
-Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the ``create_hyperparameter_sweep`` function to automatically save a sweep to a CSV file. For example, the following would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:
+Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the ``create_hyperparameter_sweep`` function to automatically save a sweep to a TSV file. For example, the following would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:
 
 .. code-block:: python
 
-	SFP.create_hyperparameter_sweep(
-		finetune_epochs=[5],
-		toplayer_epochs=0,
-		model=['Xception'],
-		pooling=['avg'],
-		loss='sparse_categorical_crossentropy',
-		learning_rate=[0.01, 0.001],
-		batch_size=64,
-		hidden_layers=[1],
-		optimizer='Adam',
-		early_stop=True,
-		early_stop_patience=15,
-		balanced_training=['BALANCE_BY_CATEGORY'],
-		balanced_validation='NO_BALANCE',
-		augment=True)
+    SFP.create_hyperparameter_sweep(
+        finetune_epochs=[5],
+        toplayer_epochs=0,
+        model=['Xception'],
+        pooling=['avg'],
+        loss='sparse_categorical_crossentropy',
+        learning_rate=[0.01, 0.001],
+        batch_size=64,
+        hidden_layers=[1],
+        optimizer='Adam',
+        early_stop=True,
+        early_stop_patience=15,
+        balanced_training=['BALANCE_BY_CATEGORY'],
+        balanced_validation='NO_BALANCE',
+        augment=True)
 
 Available hyperparameters include:
 
@@ -60,7 +59,7 @@ Available hyperparameters include:
 - **trainable_layers** - number of layers available for training, other layers will be frozen. If 0, all layers are trained
 - **L2_weight** - if provided, adds L2 regularization to all layers with this weight
 - **dropout** - dropout, used for post-convolutional layer.
-- **augment** - whether to augment data with random flipping/rotating during training
+- **augment** - Image augmentations to perform, including flipping/rotating and random JPEG compression. Please see :class:`slideflow.model.HyperParameters` for more details.
 
 If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.HyperParameters._LinearLoss``, and all available loss functions are in ``slideflow.model.HyperParameters._AllLoss``.
 
@@ -80,13 +79,11 @@ For example, to train using only slides labeled as "train" in the "dataset" colu
 
 .. code-block:: python
 
-	SFP.train(outcome_label_headers="category",
-		  filters={"dataset": ["train"]},
-		  batch_file='batch_train.tsv')
+    SFP.train(outcome_label_headers="category",
+          filters={"dataset": ["train"]},
+          batch_file='batch_train.tsv')
 
-If you would like to use a different validation plan than the default, manually pass the relevant variables to :func:`slideflow.project.get_validation_settings`, and pass the returned settings namespace to the train() function's ``validation_settings``)
-
-To begin training, save your ``actions.py`` file and execute the ``run_project.py`` script in the slideflow directory.
+If you would like to use a different validation plan than the default, pass the relevant keyword arguments to the training function.
 
 Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the ``results_log.csv`` file in the project directory. Additional data, including ROCs and scatter plots, are saved in the model directories.
 
@@ -107,12 +104,15 @@ If desired, models can also be trained with clinical input data alone, without i
 Cox Proportional Hazards (CPH) models
 *************************************
 
-Models can also be trained to a time series outcome using CPH and negative log likelihood loss. For CPH models, use 'negative_log_likelihood' loss and set ``outcome_label_header`` equal to the annotation column indicating event *time*. Specify the event *type* (0 or 1) by passing the event type annotation column to the argument ``input_header``. If you are using multiple clinical inputs, the first header passed to ``input_header`` must be event type.
+Models can also be trained to a time series outcome using CPH and negative log likelihood loss. For CPH models, use 'negative_log_likelihood' loss and set ``outcome_label_header`` equal to the annotation column indicating event *time*. Specify the event *type* (0 or 1) by passing the event type annotation column to the argument ``input_header``. If you are using multiple clinical inputs, the first header passed to ``input_header`` must be event type. CPH models are not compatible with multiple outcomes.
 
 Distributed training across GPUs
 ********************************
 
 If multiple GPUs are available, training can be distributed by passing the argument ``multi_gpu=True``. If provided, slideflow will use all available (and visible) GPUs for training.
+
+.. note::
+    There is currently a bug in Tensorflow 2.5+ with Python 3.8+ which prevents multi gpu training using MirroredStrategy. You can follow the issue on `Tensorflow Github <https://github.com/tensorflow/tensorflow/issues/50487>`_.
 
 Monitoring performance
 **********************
@@ -121,6 +121,6 @@ During training, progress can be monitored using Tensorflow's bundled ``Tensorbo
 
 .. code-block:: bash
 
-	$ tensorboard --logdir=/path/to/model/directory
+    $ tensorboard --logdir=/path/to/model/directory
 
 ... and open http://localhost:6006 in your web browser.

@@ -1,10 +1,3 @@
-# Copyright (C) James Dolezal - All Rights Reserved
-#
-# Unauthorized copying of this file, via any medium is strictly prohibited
-# Proprietary and confidential
-# Written by James Dolezal <jamesmdolezal@gmail.com>, September 2019
-# ==========================================================================
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
