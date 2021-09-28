@@ -1,7 +1,6 @@
 import os
 import sys
 import csv
-
 import types
 import time
 import pickle
@@ -10,8 +9,9 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 import multiprocessing as mp
-import slideflow.util as sfutil
+import slideflow as sf
 
+from collections import defaultdict
 from functools import partial
 from slideflow.util import ProgressBar
 from os.path import join
@@ -27,231 +27,223 @@ from matplotlib.widgets import LassoSelector
 from lifelines.utils import concordance_index as c_index
 
 # TODO: remove 'hidden_0' reference as this may not be present if the model does not have hidden layers
+# TODO: convert all this x /y /meta /values stuff to just a pandas dataframe?
 
 class StatisticsError(Exception):
     pass
 
-class TFRecordMap:
-    '''Map of tiles from TFRecords, mapped either explicitly with pre-specified coordinates,
-            or mapped with dimensionality reduction from post-convolutional layer weights,
-            as provided from sf.activations.ActivationsVisualizer.'''
+class SlideMap:
+    """Two-dimensional slide map used for visualization, as well as subsequent construction of mosaic maps.
 
-    def __init__(self, slides, tfrecords, cache=None):
-        ''' Backend for mapping TFRecords into two dimensional space. Can use an ActivationsVisualizer object
-        to map TFRecords according to UMAP of activations, or map according to pre-specified coordinates.
+    Slides are mapped in 2D either explicitly with pre-specified coordinates, or with dimensionality reduction
+    from post-convolutional layer weights, provided from :class:`slideflow.activations.ActivationsVisualizer`.
+
+    """
+
+    def __init__(self, slides, cache=None):
+        """Backend for mapping slides into two dimensional space. Can use an ActivationsVisualizer object
+        to map slides according to UMAP of activations, or map according to pre-specified coordinates.
 
         Args:
-            slides:		List of slide names
-            tfrecords:	List of paths to tfrecords
-            cache:		(optional) String, path name. If provided, will cache activations to this PKL file.'''
+            slides (list(str)): List of slide names
+            cache (str, optional): Path to PKL file to cache activations. Defaults to None (caching disabled).
+        """
 
         self.slides = slides
-        self.tfrecords = tfrecords
         self.cache = cache
-
         self.x = []
         self.y = []
         self.point_meta = []
-        self.values = []
+        self.labels = []
         self.map_meta = {}
-
-        # Try to load from cache
-        if self.cache:
-            if self.load_cache():
-                return
+        if self.cache: self.load_cache() # Try to load from cache
 
     @classmethod
-    def from_precalculated(cls, slides, x, y, meta, values=None, tfrecords=None, cache=None):
-        ''' Initializes map from precalculated coordinates.
+    def from_precalculated(cls, slides, x, y, meta, labels=None, cache=None):
+        """Initializes map from precalculated coordinates.
 
         Args:
-            slides:		List of slide names
-            x:			X coordinates for tfrecords
-            y:			Y coordinates for tfrecords
-            meta:		List of dicts. Metadata for each point on the map (representing a single tfrecord).
-            values:		Values used to overlay colors during plotting.
-            tfrecords:	(optional) List of paths to tfrecords. Not required, used to store for use by other objects.
-                        *** TODO: REMOVE ***
-            cache:		(optional) String, path name. If provided, will cache umap coordinates to this PKL file. '''
+            slides (list(str)): List of slide names.
+            x (list(int)): List of X coordinates for tfrecords.
+            y (list(int)): List of Y coordinates for tfrecords.
+            meta (list(dict)): List of dicts containing metadata for each point on the map (representing a single tfrecord).
+            labels (list(str)): Labels assigned to each tfrecord, used for coloring TFRecords according to labels.
+            cache (str, optional): Path to PKL file to cache coordinates. Defaults to None (caching disabled).
+        """
 
-        obj = cls(slides, tfrecords)
+        obj = cls(slides)
         obj.x = np.array(x) if type(x) == list else x
         obj.y = np.array(y) if type(y) == list else y
         obj.point_meta = np.array(meta) if type(meta) == list else meta
         obj.cache = cache
-        obj.values = np.array(values) if type(values) == list else values
-        if obj.values == []:
-            obj.values = np.array(['None' for i in range(len(obj.point_meta))])
+        obj.labels = np.array(labels) if type(labels) == list else labels
+        if obj.labels == []:
+            obj.labels = np.array(['None' for i in range(len(obj.point_meta))])
         obj.save_cache()
         return obj
 
     @classmethod
-    def from_activations(cls, activations, exclude_slides=None, prediction_filter=None, force_recalculate=False,
+    def from_activations(cls, AV, exclude_slides=None, prediction_filter=None, recalculate=False,
                          map_slide=None, cache=None, low_memory=False, max_tiles_per_slide=0, umap_dim=2):
-        '''Initializes map from an activations visualizer.
+        """Initializes map from an activations visualizer.
 
         Args:
-            activations:		ActivationsVisualizer class
-            exclude_slides:		(optional) List of names of slides to exclude from map.
-            prediction_filter:	(optional) List. Will restrict predictions to only these provided categories.
-            force_recalculate:	(optional) Will force recalculation of umap despite presence of cache.
-            use_centroid:		(optional) Will calculate and map centroid activations.
-            map_slide:			Either None (default), 'centroid', or 'average'.
-                                    If none, will map all tiles from each slide.
-            cache:				(optional) String, path name. If provided, will cache umap coordinates to this file. '''
+            AV (:class:`slideflow.activations.ActivationsVisualizer`): ActivationsVisualizer object.
+            exclude_slides (list, optional): List of slides to exclude from map.
+            prediction_filter (list, optional) Restrict outcome predictions to only these provided categories.
+            recalculate (bool, optional):  Force recalculation of umap despite presence of cache.
+            use_centroid (bool, optional): Calculate and map centroid activations.
+            map_slide (str, optional): Either None (default), 'centroid', or 'average'.
+                If None, will map all tiles from each slide.
+            cache (str, optional): Path to PKL file to cache coordinates. Defaults to None (caching disabled).
+        """
 
         if map_slide is not None and map_slide not in ('centroid', 'average'):
             raise StatisticsError(f"map_slide must be None (default), 'centroid', or 'average', not '{map_slide}'")
 
         if not exclude_slides:
-            slides = activations.slides
-            tfrecords = activations.tfrecords
+            slides = AV.slides
         else:
-            slides = [slide for slide in activations.slides if slide not in exclude_slides]
-            tfrecords = [tfr for tfr in activations.tfrecords if sfutil.path_to_name(tfr) not in exclude_slides]
+            slides = [slide for slide in AV.slides if slide not in exclude_slides]
 
-        obj = cls(slides, tfrecords, cache=cache)
-        obj.AV = activations
+        obj = cls(slides, cache=cache)
+        obj.AV = AV
         if map_slide:
             obj._calculate_from_slides(method=map_slide,
                                        prediction_filter=prediction_filter,
-                                       force_recalculate=force_recalculate,
+                                       recalculate=recalculate,
                                        low_memory=low_memory)
         else:
             obj._calculate_from_tiles(prediction_filter=prediction_filter,
-                                      force_recalculate=force_recalculate,
+                                      recalculate=recalculate,
                                       low_memory=low_memory,
                                       max_tiles_per_slide=max_tiles_per_slide,
                                       dim=umap_dim)
         return obj
 
-    def _calculate_from_tiles(self, prediction_filter=None, force_recalculate=False,
-                              low_memory=False, max_tiles_per_slide=0, dim=2):
+    def _calculate_from_tiles(self, prediction_filter=None, recalculate=False, max_tiles_per_slide=0, **umap_kwargs):
 
-        ''' Internal function to guide calculation of UMAP from final layer activations,
-                as provided via ActivationsVisualizer nodes.'''
+        """Internal function to guide calculation of UMAP from final layer activations,
+        as provided by ActivationsVisualizer.
 
-        if len(self.x) and len(self.y) and not force_recalculate:
+        Args:
+            prediction_filter (list, optional): Restrict predictions to this list of logits. Default is None.
+            recalculate (bool, optional): Recalculate of UMAP despite loading from cache. Defaults to False.
+            max_tiles_per_slide (int, optional): Only include a maximum of this many tiles per slide. Defaults to 0.
+                If 0, includes all tiles.
+
+        Keyword Args:
+            dim (int): Number of dimensions for UMAP. Defaults to 2.
+            n_neighbors (int): Number of neighbors for UMAP. Defaults to 50.
+            min_dist (float): Minimum distance for UMAP. Defaults to 0.1.
+            metric (str): UMAP metric. Defaults to 'cosine'.
+            low_memory (bool). Operate UMAP in low memory mode. Defaults to False.
+        """
+
+        if prediction_filter:
+            log.info("UMAP logit predictions are masked through a provided prediction filter.")
+        else:
+            prediction_filter = range(self.AV.num_logits)
+
+        if len(self.x) and len(self.y) and not recalculate:
             log.debug("UMAP loaded from cache, will not recalculate")
 
             # First, filter out slides not included in provided activations
-            self.x = np.array([self.x[i] for i in range(len(self.x)) if self.point_meta[i]['slide'] in self.AV.slides])
-            self.y = np.array([self.y[i] for i in range(len(self.y)) if self.point_meta[i]['slide'] in self.AV.slides])
-            self.point_meta = np.array([self.point_meta[i] for i in range(len(self.point_meta))
-                                                           if self.point_meta[i]['slide'] in self.AV.slides])
-            self.values = np.array(['None' for i in range(len(self.point_meta))
-                                           if self.point_meta[i]['slide'] in self.AV.slides])
+            filtered_idx = list(filter(lambda x: x['slide'] in self.AV.slides, range(len(self.point_meta))))
+            self.x = self.x[filtered_idx]
+            self.y = self.y[filtered_idx]
+            self.point_meta = self.point_meta[filtered_idx]
 
-            # If UMAP already calculated, only update predictions if prediction filter is provided
-            if prediction_filter:
-                log.debug("Updating UMAP predictions according to filter restrictions")
-
-                num_logits = len(self.AV.slide_logits_dict[self.slides[0]])
-
-                for i in range(len(self.point_meta)):
-                    slide = self.point_meta[i]['slide']
-                    tile_index = self.point_meta[i]['index']
-                    logits = [self.AV.slide_logits_dict[slide][l][tile_index] for l in range(num_logits)]
-                    filtered_logits = [logits[l] for l in prediction_filter]
-                    prediction = logits.index(max(filtered_logits))
-                    self.point_meta[i]['logits'] = logits
-                    self.point_meta[i]['prediction'] = prediction
+            # If UMAP already calculated, update predictions if prediction filter is provided
+            for i in range(len(self.point_meta)):
+                slide = self.point_meta[i]['slide']
+                tile_index = self.point_meta[i]['index']
+                logits = self.AV.logits[slide][tile_index]
+                prediction = filtered_prediction(logits, prediction_filter)
+                self.point_meta[i]['logits'] = logits
+                self.point_meta[i]['prediction'] = prediction
 
             if max_tiles_per_slide:
                 log.info(f"Restricting map to maximum of {max_tiles_per_slide} tiles per slide")
                 new_x, new_y, new_meta = [], [], []
-                slide_tile_count = {}
+                slide_tile_count = defaultdict(int)
                 for i, pm in enumerate(self.point_meta):
                     slide = pm['slide']
-                    if slide not in slide_tile_count:
-                        slide_tile_count.update({slide: 1})
-                    elif slide_tile_count[slide] < max_tiles_per_slide:
+                    slide_tile_count[slide] += 1
+                    if slide_tile_count[slide] < max_tiles_per_slide:
                         new_x += [self.x[i]]
                         new_y += [self.y[i]]
                         new_meta += [pm]
                         slide_tile_count[slide] += 1
                 self.x, self.y, self.point_meta = np.array(new_x), np.array(new_y), np.array(new_meta)
-                self.values = np.array(['None' for i in range(len(self.point_meta))])
             return
 
         # Calculate UMAP
-        node_activations = []
-        self.map_meta['nodes'] = self.AV.nodes
+        node_activations = np.concatenate([self.AV.activations[slide] for slide in self.slides])
+        self.map_meta['num_features'] = self.AV.num_features
         log.info("Calculating UMAP...")
         for slide in self.slides:
-            first_node = list(self.AV.slide_node_dict[slide].keys())[0]
-            num_vals = len(self.AV.slide_node_dict[slide][first_node])
-            num_logits = len(self.AV.slide_logits_dict[slide])
-            for i in range(num_vals):
-                node_activations += [[self.AV.slide_node_dict[slide][n][i] for n in self.AV.nodes]]
-                logits = [self.AV.slide_logits_dict[slide][l][i] for l in range(num_logits)]
-                location = self.AV.slide_loc_dict[slide][i]
-                # if prediction_filter is supplied, calculate prediction based on maximum value of allowed outcomes
-                if prediction_filter:
-                    filtered_logits = [logits[l] for l in prediction_filter]
-                    prediction = logits.index(max(filtered_logits))
-                elif logits:
-                    prediction = logits.index(max(logits))
+            for i in range(self.AV.activations[slide].shape[0]):
+                location = self.AV.locations[slide][i]
+                logits = self.AV.logits[slide][i]
+                if self.AV.logits[slide] != []:
+                    pred = filtered_prediction(logits, prediction_filter)
                 else:
-                    prediction = None
-
+                    pred = None
                 self.point_meta += [{
                     'slide': slide,
                     'index': i,
-                    'prediction': prediction,
+                    'prediction': pred,
                     'logits': logits,
                     'loc': location
                 }]
 
-        coordinates = gen_umap(np.array(node_activations),
-                               n_components=dim,
-                               n_neighbors=100,
-                               min_dist=0.1,
-                               low_memory=low_memory)
+        coordinates = gen_umap(node_activations, **umap_kwargs)
 
         self.x = np.array([c[0] for c in coordinates])
-        if dim > 1:
+        if umap_kwargs['dim'] > 1:
             self.y = np.array([c[1] for c in coordinates])
         else:
             self.y = np.array([0 for i in range(len(self.x))])
-        self.values = np.array(['None' for i in range(len(self.point_meta))])
         self.save_cache()
 
-    def _calculate_from_slides(self, method='centroid', prediction_filter=None,
-                               force_recalculate=False, low_memory=False):
+    def _calculate_from_slides(self, method='centroid', prediction_filter=None, recalculate=False, **umap_kwargs):
 
-        ''' Internal function to guide calculation of UMAP from final layer activations for eadch tile,
+        """ Internal function to guide calculation of UMAP from final layer activations for each tile,
             as provided via ActivationsVisualizer nodes, and then map only the centroid tile for each slide.
 
         Args:
-            method:					Either 'centroid' or 'average'. If centroid, will calculate UMAP only
-                                        from centroid tiles for each slide. If average, will calculate UMAP
-                                        based on average node activations across all tiles within the slide,
-                                        then display the centroid tile for each slide.
-            prediction_filter:		(optional) List of int. If provided, will restrict predictions to these categories.
-            force_recalculate:		Bool, default=False. If true, will recalculate of UMAP despite loading from cache.
-            low_memory:				Bool, if True, will calculate UMAP in low-memory mode
-        '''
+            method (str, optional): Either 'centroid' or 'average'. If centroid, will calculate UMAP only
+                from centroid tiles for each slide. If average, will calculate UMAP based on average node
+                activations across all tiles within the slide, then display the centroid tile for each slide.
+            prediction_filter (list, optional): List of int. If provided, will restrict predictions to these categories.
+            recalculate (bool, optional): Recalculate of UMAP despite loading from cache. Defaults to False.
+            low_memory (bool, optional): Calculate UMAP in low-memory mode. Defaults to False.
+
+        Keyword Args:
+            dim (int): Number of dimensions for UMAP. Defaults to 2.
+            n_neighbors (int): Number of neighbors for UMAP. Defaults to 50.
+            min_dist (float): Minimum distance for UMAP. Defaults to 0.1.
+            metric (str): UMAP metric. Defaults to 'cosine'.
+            low_memory (bool). Operate UMAP in low memory mode. Defaults to False.
+        """
 
         if method not in ('centroid', 'average'):
             raise StatisticsError(f'Method must be either "centroid" or "average", not {method}')
 
         log.info("Calculating centroid indices...")
-        optimal_slide_indices, centroid_activations = calculate_centroid(self.AV.slide_node_dict)
+        optimal_slide_indices, centroid_activations = calculate_centroid(self.AV.activations)
 
         # Restrict mosaic to only slides that had enough tiles to calculate an optimal index from centroid
         successful_slides = list(optimal_slide_indices.keys())
         num_warned = 0
-        warn_threshold = 3
         for slide in self.AV.slides:
-            print_func = print if num_warned < warn_threshold else None
             if slide not in successful_slides:
-                log.warning(f"Unable to calculate centroid for {sfutil.green(slide)}; will not include")
-                num_warned += 1
-        if num_warned >= warn_threshold:
-            log.warning(f"...{num_warned} total warnings, see project log for details")
+                log.debug(f"Unable to calculate centroid for {sf.util.green(slide)}; will not include")
+        if num_warned:
+            log.warning(f"Unable to calculate centroid for {num_warned} slides.")
 
-        if len(self.x) and len(self.y) and not force_recalculate:
+        if len(self.x) and len(self.y) and not recalculate:
             log.info("UMAP loaded from cache, will filter to include only provided tiles")
             new_x, new_y, new_meta = [], [], []
             for i in range(len(self.point_meta)):
@@ -260,11 +252,9 @@ class TFRecordMap:
                     new_x += [self.x[i]]
                     new_y += [self.y[i]]
                     if prediction_filter:
-                        num_logits = len(self.AV.slide_logits_dict[slide])
                         tile_index = self.point_meta[i]['index']
-                        logits = [self.AV.slide_logits_dict[slide][l][tile_index] for l in range(num_logits)]
-                        filtered_logits = [logits[l] for l in prediction_filter]
-                        prediction = logits.index(max(filtered_logits))
+                        logits = self.AV.logits[slide][tile_index]
+                        prediction = filtered_prediction(logits, prediction_filter)
                         meta = {
                             'slide': slide,
                             'index': tile_index,
@@ -277,7 +267,6 @@ class TFRecordMap:
             self.x = np.array(new_x)
             self.y = np.array(new_y)
             self.point_meta = np.array(new_meta)
-            self.values = np.array(['None' for i in range(len(self.point_meta))])
         else:
             log.info(f"Calculating UMAP from slide-level {method}...")
             umap_input = []
@@ -285,7 +274,7 @@ class TFRecordMap:
                 if method == 'centroid':
                     umap_input += [centroid_activations[slide]]
                 elif method == 'average':
-                    activation_averages = [np.mean(self.AV.slide_node_dict[slide][n]) for n in self.AV.nodes]
+                    activation_averages = np.mean(self.AV.activations[slide])
                     umap_input += [activation_averages]
                 self.point_meta += [{
                     'slide': slide,
@@ -294,24 +283,39 @@ class TFRecordMap:
                     'prediction': 0
                 }]
 
-            coordinates = gen_umap(np.array(umap_input), n_neighbors=50, min_dist=0.1, low_memory=low_memory)
+            coordinates = gen_umap(np.array(umap_input), **umap_kwargs)
             self.x = np.array([c[0] for c in coordinates])
             self.y = np.array([c[1] for c in coordinates])
-            self.values = np.array(['None' for i in range(len(self.point_meta))])
             self.save_cache()
 
     def cluster(self, n_clusters):
-        '''Performs clustering on data and adds to metadata labels. Requires an ActivationsVisualizer backend. '''
-        activations = [[self.AV.slide_node_dict[pm['slide']][n][pm['index']] for n in self.AV.nodes]
-                        for pm in self.point_meta]
+        """Performs clustering on data and adds to metadata labels. Requires an ActivationsVisualizer backend.
+
+        Clusters are saved to self.point_meta[i]['cluster'].
+
+        Args:
+            n_clusters (int): Number of clusters for K means clustering.
+
+        Returns:
+            ndarray: Array with cluster labels corresponding to tiles in self.point_meta.
+        """
+
+        activations = [self.AV.activations[pm['slide']][pm['index']] for pm in self.point_meta]
         log.info(f"Calculating K-means clustering (n={n_clusters})")
         kmeans = KMeans(n_clusters=n_clusters).fit(activations)
         labels = kmeans.labels_
         for i, label in enumerate(labels):
             self.point_meta[i]['cluster'] = label
+        return np.array([p['cluster'] for p in self.point_meta])
 
     def export_to_csv(self, filename):
-        '''Exports calculated UMAP coordinates to csv.'''
+        """Exports calculated UMAP coordinates in csv format.
+
+        Args:
+            filename (str): Path to CSV file in which to save coordinates.
+
+        """
+
         with open(filename, 'w') as outfile:
             csvwriter = csv.writer(outfile)
             header = ['slide', 'index', 'x', 'y']
@@ -325,24 +329,23 @@ class TFRecordMap:
                 row = [slide, index, x, y]
                 csvwriter.writerow(row)
 
-    def calculate_neighbors(self, slide_categories=None, algorithm='kd_tree'):
-        '''Calculates neighbors among tiles in this map, assigning neighboring statistics
+    def neighbors(self, slide_categories=None, algorithm='kd_tree'):
+        """Calculates neighbors among tiles in this map, assigning neighboring statistics
             to tile metadata 'num_unique_neighbors' and 'percent_matching_categories'.
 
         Args:
-            slide_categories:	Optional, dict mapping slides to categories. If provided, will be used to
-                                    calculate 'percent_matching_categories' statistic.
-            algorithm:			NearestNeighbor algorithm, either 'kd_tree', 'ball_tree', or 'brute'
-        '''
+            slide_categories (dict, optional): Dict mapping slides to categories. Defaults to None.
+                If provided, will be used to calculate 'percent_matching_categories' statistic.
+            algorithm (str, optional): NearestNeighbor algorithm, either 'kd_tree', 'ball_tree', or 'brute'.
+                Defaults to 'kd_tree'.
+        """
+
         from sklearn.neighbors import NearestNeighbors
         log.info("Initializing neighbor search...")
-        X = np.array([ [self.AV.slide_node_dict[self.point_meta[i]['slide']][n][self.point_meta[i]['index']]
-                        for n in self.AV.nodes]
-                      for i in range(len(self.x))])
-
+        X = np.array([self.AV.activations[pm['slide']][pm['index']] for pm in self.point_meta])
         nbrs = NearestNeighbors(n_neighbors=100, algorithm=algorithm, n_jobs=-1).fit(X)
         log.info("Calculating nearest neighbors...")
-        distances, indices = nbrs.kneighbors(X)
+        _, indices = nbrs.kneighbors(X)
         for i, ind in enumerate(indices):
             num_unique_slides = len(list(set([self.point_meta[_i]['slide'] for _i in ind])))
             self.point_meta[i]['num_unique_neighbors'] = num_unique_slides
@@ -353,7 +356,12 @@ class TFRecordMap:
                 self.point_meta[i]['percent_matching_categories'] = percent_matching_categories
 
     def filter(self, slides):
-        '''Filters map to only show tiles from the given slides.'''
+        """Filters map to only show tiles from the given slides.
+
+        Args:
+            slides (list(str)): List of slide names.
+        """
+
         if not hasattr(self, 'full_x'):
             # Backup full coordinates
             self.full_x, self.full_y, self.full_meta = self.x, self.y, self.point_meta
@@ -366,18 +374,20 @@ class TFRecordMap:
         self.y = np.array([self.y[yi] for yi in range(len(self.y)) if self.point_meta[yi]['slide'] in slides])
 
     def show_neighbors(self, neighbor_AV, slide):
-        '''Filters map to only show neighbors with a corresponding neighbor ActivationsVisualizer and neighbor slide.
+        """Filters map to only show neighbors with a corresponding neighbor ActivationsVisualizer and neighbor slide.
 
         Args:
-            neighbor_AV:		ActivationsVisualizer containing activations for neighboring slide
-            slide:				Name of neighboring slide
-        '''
-        if slide not in neighbor_AV.slide_node_dict:
+            neighbor_AV (:class:`slideflow.activations.ActivationsVisualizer`): ActivationsVisualizer object
+                containing activations for neighboring slide.
+            slide (str): Name of neighboring slide.
+        """
+
+        if slide not in neighbor_AV.activations:
             raise StatisticsError(f"Slide {slide} not found in ActivationsVisualizer, unable to find neighbors")
         if not hasattr(self, 'AV'):
-            raise StatisticsError(f"TFRecordMap does not have an ActivationsVisualizer, unable to calculate neighbors")
+            raise StatisticsError(f"SlideMap does not have an ActivationsVisualizer, unable to calculate neighbors")
 
-        tile_neighbors = self.AV.find_neighbors(neighbor_AV, slide, n_neighbors=5)
+        tile_neighbors = self.AV.neighbors(neighbor_AV, slide, n_neighbors=5)
 
         if not hasattr(self, 'full_x'):
             # Backup full coordinates
@@ -397,81 +407,94 @@ class TFRecordMap:
         self.meta = filter_by_neighbors(self.meta)
 
     def label_by_logits(self, index):
-        '''Displays each point with label equal to the logits (linear from 0-1)
+        """Displays each point with label equal to the logits (linear from 0-1)
 
         Args:
-            index:				Logit index
-        '''
-        self.values = np.array([m['logits'][index] for m in self.point_meta])
+            index (int): Logit index.
+        """
+
+        self.labels = np.array([m['logits'][index] for m in self.point_meta])
 
     def label_by_slide(self, slide_labels=None):
-        '''Displays each point as the name of the corresponding slide.
+        """Displays each point as the name of the corresponding slide.
             If slide_labels is provided, will use this dictionary to label slides.
 
         Args:
-            slide_labels:		(Optional) Dict mapping slide names to labels.
-        '''
+            slide_labels (dict, optional): Dict mapping slide names to labels.
+        """
+
         if slide_labels:
-            self.values = np.array([slide_labels[m['slide']] for m in self.point_meta])
+            self.labels = np.array([slide_labels[m['slide']] for m in self.point_meta])
         else:
-            self.values = np.array([m['slide'] for m in self.point_meta])
+            self.labels = np.array([m['slide'] for m in self.point_meta])
 
     def label_by_tile_meta(self, tile_meta, translation_dict=None):
-        '''Displays each point with label equal a value in tile metadata (e.g. 'prediction')
+        """Displays each point with label equal a value in tile metadata (e.g. 'prediction')
 
         Args:
-            tile_meta:			String, key to metadata from which to read
-            translation_dict:	Optional, if provided, will translate the read metadata through this dictionary
-        '''
+            tile_meta (str): Key to metadata from which to read
+            translation_dict (dict, optional): If provided, will translate the read metadata through this dictionary.
+        """
+
         if translation_dict:
             try:
-                self.values = np.array([translation_dict[m[tile_meta]] for m in self.point_meta])
+                self.labels = np.array([translation_dict[m[tile_meta]] for m in self.point_meta])
             except KeyError:
                 # Try by converting metadata to string
-                self.values = np.array([translation_dict[str(m[tile_meta])] for m in self.point_meta])
+                self.labels = np.array([translation_dict[str(m[tile_meta])] for m in self.point_meta])
         else:
-            self.values = np.array([m[tile_meta] for m in self.point_meta])
+            self.labels = np.array([m[tile_meta] for m in self.point_meta])
 
-    def save_2d_plot(self, filename, subsample=None, title=None, cmap=None,
-                     use_float=False, xlim=(-0.05, 1.05), ylim=(-0.05, 1.05),
-                     dpi=300, xlabel=None, ylabel=None, legend=None):
-        '''Saves plot of data to a provided filename.
+    def save_2d_plot(self, *args, **kwargs):
+        """Deprecated function; please use `save`."""
+
+        log.warning("save_2d_plot() is deprecated, please use save()")
+        self.save(*args, **kwargs)
+
+    def save(self, filename, subsample=None, title=None, cmap=None, use_float=False,
+             xlim=(-0.05, 1.05), ylim=(-0.05, 1.05), xlabel=None, ylabel=None, legend=None, dpi=300):
+
+        """Saves plot of data to a provided filename.
 
         Args:
-            filename:		Saves image of plot to this file.
-            slide_labels:	(optional) Dictionary mapping slide names to labels.
-            slide_filter:	(optional) List, restricts map to the provided slides.
-            show_tile_meta:	(optional) String (key), if provided, will label tiles
-                                according to this key as provided in the tile-level meta (self.point_meta)
-            outcome_labels:	(optional) Dictionary to translate outcomes (provided
-                                via show_tile_meta and point_meta) to human readable label.
-            subsample:		(optional) Int, if provided, will only
-                                include this number of tiles on plot (randomly selected)
-            title:			(optional) String, title for plot
-            cmap:			(optional) Dicionary mapping labels to colors
-            use_float:		(optional) Interpret labels as float for linear coloring'''
+            filename (str): File path to save the image.
+            subsample (int, optional): Subsample to only include this many tiles on plot. Defaults to None.
+            title (str, optional): Title for plot.
+            cmap (dict, optional): Dict mapping labels to colors.
+            use_float (bool, optional): Interpret labels as float for linear coloring. Defaults to False.
+            xlim (list, optional): List of float indicating limit for x-axis. Defaults to (-0.05, 1.05).
+            ylim (list, optional): List of float indicating limit for y-axis. Defaults to (-0.05, 1.05).
+            xlabel (str, optional): Label for x axis. Defaults to None.
+            ylabel (str, optional): Label for y axis. Defaults to None.
+            legend (str, optional): Title for legend. Defaults to None.
+            dpi (int, optional): DPI for final image. Defaults to 300.
+        """
 
         # Subsampling
         if subsample:
             ri = sample(range(len(self.x)), min(len(self.x), subsample))
         else:
             ri = list(range(len(self.x)))
+
+        df = pd.DataFrame()
         x = self.x[ri]
         y = self.y[ri]
-        values = self.values[ri]
-
-        # Prepare pandas dataframe
-        df = pd.DataFrame()
         df['umap_x'] = x
         df['umap_y'] = y
-        df['category'] = values if use_float else pd.Series(values, dtype='category')
+
+        if self.labels:
+            labels = self.labels[ri]
+            df['category'] = labels if use_float else pd.Series(labels, dtype='category')
+        else:
+            labels = ['NA']
+            df['category'] = 'NA'
 
         # Prepare color palette
         if use_float:
             cmap = None
             palette = None
         else:
-            unique_categories = list(set(values))
+            unique_categories = list(set(labels))
             unique_categories.sort()
             if len(unique_categories) <= 12:
                 seaborn_palette = sns.color_palette("Paired", len(unique_categories))
@@ -491,33 +514,32 @@ class TFRecordMap:
         if title: umap_figure.axes[0].set_title(title)
         umap_figure.canvas.start_event_loop(sys.float_info.min)
         umap_figure.savefig(filename, bbox_inches='tight', dpi=dpi)
-        log.info(f"Saved 2D UMAP to {sfutil.green(filename)}")
-
+        log.info(f"Saved 2D UMAP to {sf.util.green(filename)}")
         def onselect(verts):
             print(verts)
-
         lasso = LassoSelector(plt.gca(), onselect)
 
-    def save_3d_plot(self, z=None, node=None, filename=None, subsample=None):
-        '''Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument "z"
+    def save_3d_plot(self, filename, z=None, feature=None, subsample=None):
+        """Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument "z".
 
         Args:
-            z: 			Values for z axis (optional).
-            node:		Int, node to plot on 3rd axis (optional). Ignored if z is supplied.
-            filename:	Filename to save image of plot
-            subsample:	(optionanl) int, if provided will subsample data to include only this number of tiles as max'''
+            filename (str): Filename to save image of plot.
+            z (list, optional): Values for z axis. Must supply z or node. Defaults to None.
+            node (int, optional): Int, node to plot on 3rd axis. Must supply z or node. Defaults to None.
+            subsample (int, optional): Subsample to only include this many tiles on plot. Defaults to None.
+        """
 
-        title = f"UMAP with node {node} focus"
+        title = f"UMAP with feature {feature} focus"
 
         if not filename:
             filename = "3d_plot.png"
 
-        if (z is None) and (node is None):
-            raise StatisticsError("Must supply either 'z' or 'node'.")
+        if (z is None) and (feature is None):
+            raise StatisticsError("Must supply either 'z' or 'feature'.")
 
-        # Get node activations for 3rd dimension
+        # Get feature activations for 3rd dimension
         if z is None:
-            z = np.array([self.AV.slide_node_dict[m['slide']][node][m['index']] for m in self.point_meta])
+            z = np.array([self.AV.activations[m['slide']][m['index']][feature] for m in self.point_meta])
 
         # Subsampling
         if subsample:
@@ -529,7 +551,7 @@ class TFRecordMap:
         y = self.y[ri]
         z = z[ri]
 
-        # Plot tiles on a 3D coordinate space with 2 coordinates from UMAP & 3rd from the value of the excluded node
+        # Plot tiles on a 3D coordinate space with 2 coordinates from UMAP & 3rd from the value of the excluded feature
         fig = plt.figure()
         ax = Axes3D(fig)
         ax.scatter(x, y, z, c=z,
@@ -537,12 +559,22 @@ class TFRecordMap:
                             linewidth=0.5,
                             edgecolor="black")
         ax.set_title(title)
-        log.info(f"Saving 3D UMAP to {sfutil.green(filename)}...")
+        log.info(f"Saving 3D UMAP to {sf.util.green(filename)}...")
         plt.savefig(filename, bbox_inches='tight')
 
     def get_tiles_in_area(self, x_lower=-999, x_upper=999, y_lower=-999, y_upper=999):
-        '''Returns dictionary of slide names mapping to tile indices,
-            or tiles that fall within the specified location on the umap.'''
+        """Returns dictionary of slide names mapping to tile indices,
+            or tiles that fall within the specified location on the umap.
+
+        Args:
+            x_lower (int, optional): X-axis lower limit. Defaults to -999.
+            x_upper (int, optional): X-axis upper limit. Defaults to 999.
+            y_lower (int, optional): Y-axis lower limit. Defaults to -999.
+            y_upper (int, optional): Y-axis upper limit. Defaults to 999.
+
+        Returns:
+            dict: Dict mapping slide names to tile indices, for tiles included in the given area.
+        """
 
         # Find tiles that meet UMAP location criteria
         filtered_tiles = {}
@@ -560,26 +592,28 @@ class TFRecordMap:
         return filtered_tiles
 
     def save_cache(self):
+        """Save cache of coordinates to PKL file."""
         if self.cache:
             try:
                 with open(self.cache, 'wb') as cache_file:
                     pickle.dump([self.x, self.y, self.point_meta, self.map_meta], cache_file)
-                    log.info(f"Wrote UMAP cache to {sfutil.green(self.cache)}")
+                    log.info(f"Wrote UMAP cache to {sf.util.green(self.cache)}")
             except:
-                log.info(f"Error attempting to write UMAP cache to {sfutil.green(self.cache)}")
+                log.info(f"Error attempting to write UMAP cache to {sf.util.green(self.cache)}")
 
     def load_cache(self):
+        """Load coordinates from PKL cache."""
         try:
             with open(self.cache, 'rb') as cache_file:
                 self.x, self.y, self.point_meta, self.map_meta = pickle.load(cache_file)
-                log.info(f"Loaded UMAP cache from {sfutil.green(self.cache)}")
+                log.info(f"Loaded UMAP cache from {sf.util.green(self.cache)}")
                 return True
         except FileNotFoundError:
-            log.info(f"No UMAP cache found at {sfutil.green(self.cache)}")
+            log.info(f"No UMAP cache found at {sf.util.green(self.cache)}")
         return False
 
-def generate_tile_roc(i, y_true, y_pred, data_dir, label_start, histogram=False):
-    '''Generates tile-level ROC. Defined as a separate function for use with multiprocessing.'''
+def _generate_tile_roc(i, y_true, y_pred, data_dir, label_start, histogram=False):
+    """Generates tile-level ROC. Defined as a separate function for use with multiprocessing."""
     try:
         roc_res = generate_roc(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_ROC{i}')
         roc_auc, average_precision, optimal_threshold = roc_res
@@ -590,12 +624,13 @@ def generate_tile_roc(i, y_true, y_pred, data_dir, label_start, histogram=False)
         return None, None, None
     return roc_auc, average_precision, optimal_threshold
 
-def get_average_by_group(prediction_array, prediction_label, unique_groups, tile_to_group, y_true_group,
+def _get_average_by_group(prediction_array, prediction_label, unique_groups, tile_to_group, y_true_group,
                             num_cat, label_end, save_predictions=False, data_dir=None, label='group'):
-    '''Function to generate group-level averages (e.g. slide-level or patient-level).
+    """Internal function to generate group-level averages (e.g. slide-level or patient-level).
 
     For a given tile-level prediction array, calculate spercent predictions
-    in each outcome by group (e.g. patient, slide), and saves to CSV if specified.'''
+    in each outcome by group (e.g. patient, slide), and saves to CSV if specified.
+    """
 
     groups = {g:[] for g in unique_groups}
 
@@ -621,28 +656,232 @@ def get_average_by_group(prediction_array, prediction_label, unique_groups, tile
                 writer.writerow(row)
     return avg_by_group
 
+def _cph_metrics(args):
+    """Internal function to calculate tile, slide, and patient level metrics for a CPH outcome."""
+    # Detect number of outcome categories
+    num_cat = args.y_pred.shape[1]
+
+    # Generate c_index
+    args.c_index['tile'] = concordance_index(args.y_true, args.y_pred)
+
+    # Generate and save slide-level averages of each outcome
+    averages_by_slide = _get_average_by_group(args.y_pred,
+                                            prediction_label="average",
+                                            unique_groups=args.unique_slides,
+                                            tile_to_group=args.tile_to_slides,
+                                            y_true_group=args.y_true_slide,
+                                            num_cat=num_cat,
+                                            label_end=args.label_end,
+                                            save_predictions=args.save_slide_predictions,
+                                            data_dir=args.data_dir,
+                                            label="slide")
+    y_true_by_slide = np.array([args.y_true_slide[slide] for slide in args.unique_slides])
+    args.c_index['slide'] = concordance_index(y_true_by_slide, averages_by_slide)
+    if not args.patient_error:
+        # Generate and save patient-level averages of each outcome
+        averages_by_patient = _get_average_by_group(args.y_pred,
+                                                    prediction_label="average",
+                                                    unique_groups=args.patients,
+                                                    tile_to_group=args.tile_to_patients,
+                                                    y_true_group=args.y_true_patient,
+                                                    num_cat=num_cat,
+                                                    label_end=args.label_end,
+                                                    save_predictions=args.save_patient_predictions,
+                                                    data_dir=args.data_dir,
+                                                    label="patient")
+        y_true_by_patient = np.array([args.y_true_patient[patient] for patient in args.patients])
+        args.c_index['patient'] = concordance_index(y_true_by_patient, averages_by_patient)
+
+def _linear_metrics(args):
+    """Internal function to calculate tile, slide, and patient level metrics for a linear outcome."""
+    # Detect number of outcome categories
+    num_cat = args.y_pred.shape[1]
+
+    # Main loop
+    # Generate R-squared
+    args.r_squared['tile'] = generate_scatter(args.y_true, args.y_pred, args.data_dir, args.label_end, plot=args.plot)
+
+    # Generate and save slide-level averages of each outcome
+    averages_by_slide = _get_average_by_group(args.y_pred,
+                                            prediction_label="average",
+                                            unique_groups=args.unique_slides,
+                                            tile_to_group=args.tile_to_slides,
+                                            y_true_group=args.y_true_slide,
+                                            num_cat=num_cat,
+                                            label_end=args.label_end,
+                                            save_predictions=args.save_slide_predictions,
+                                            data_dir=args.data_dir,
+                                            label="slide")
+    y_true_by_slide = np.array([args.y_true_slide[slide] for slide in args.unique_slides])
+    args.r_squared['slide'] = generate_scatter(y_true_by_slide,
+                                               averages_by_slide,
+                                               args.data_dir,
+                                               args.label_end+"_by_slide")
+    if not args.patient_error:
+        # Generate and save patient-level averages of each outcome
+        averages_by_patient = _get_average_by_group(args.y_pred,
+                                                    prediction_label="average",
+                                                    unique_groups=args.patients,
+                                                    tile_to_group=args.tile_to_patients,
+                                                    y_true_group=args.y_true_patient,
+                                                    num_cat=num_cat,
+                                                    label_end=args.label_end,
+                                                    save_predictions=args.save_patient_predictions,
+                                                    data_dir=args.data_dir,
+                                                    label="patient")
+
+        y_true_by_patient = np.array([args.y_true_patient[patient] for patient in args.patients])
+        args.r_squared['patient'] = generate_scatter(y_true_by_patient,
+                                                     averages_by_patient,
+                                                     args.data_dir,
+                                                     args.label_end+"_by_patient")
+
+def _categorical_metrics(args, outcome_name, starttime=None):
+    """Internal function to calculate tile, slide, and patient level metrics for a categorical outcome."""
+    start = starttime
+    num_observed_outcome_categories = np.max(args.y_true)+1
+    if num_observed_outcome_categories != args.y_pred.shape[1]:
+        log.warning(f"Model predictions have different number of outcome categories ({args.y_pred.shape[1]}) " + \
+                    f"than provided annotations ({num_observed_outcome_categories})!")
+
+    num_cat = max(num_observed_outcome_categories, args.y_pred.shape[1])
+
+    # For categorical models, convert to one-hot encoding
+    args.y_true = np.array([to_onehot(i, num_cat) for i in args.y_true])
+    args.y_true_slide = {k:to_onehot(v, num_cat) for k,v in args.y_true_slide.items()}
+    args.y_true_patient = {k:to_onehot(v, num_cat) for k,v in args.y_true_patient.items()}
+
+    args.auc['tile'][outcome_name] = []
+    args.auc['slide'][outcome_name] = []
+    args.auc['patient'][outcome_name] = []
+
+    ctx = mp.get_context('spawn')
+    with ctx.Pool(processes=8) as p:
+        # TODO: this is memory inefficient as it copies y_true / y_pred to each subprocess
+        # Furthermore, it copies all categories when only one category is needed for each process
+        # Consider implementing shared memory, ideally compatible with python 3.7
+        for i, (auc, ap, thresh) in enumerate(p.imap(partial(_generate_tile_roc, y_true=args.y_true,
+                                                                                y_pred=args.y_pred,
+                                                                                data_dir=args.data_dir,
+                                                                                label_start=args.label_start + outcome_name + "_",
+                                                                                histogram=args.histogram), range(num_cat))):
+            args.auc['tile'][outcome_name] += [auc]
+            if args.verbose:
+                log.info(f"Tile-level AUC (cat #{i:>2}): {auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
+
+    # Convert predictions to one-hot encoding
+    onehot_predictions = np.array([to_onehot(x, num_cat) for x in np.argmax(args.y_pred, axis=1)])
+
+    # Compare one-hot predictions to one-hot y_true for category-level accuracy
+    split_predictions = np.split(onehot_predictions, num_cat, 1)
+    for ci, cat_pred_array in enumerate(split_predictions):
+        try:
+            y_true_in_category = args.y_true[:, ci]
+            num_tiles_in_category = np.sum(y_true_in_category)
+            correct_pred = np.sum(cat_pred_array[np.argwhere(y_true_in_category>0)])
+            category_accuracy = correct_pred / num_tiles_in_category
+            cat_percent_acc = category_accuracy * 100
+            if args.verbose:
+                log.info(f"Category {ci} accuracy: {cat_percent_acc:.1f}% ({correct_pred}/{num_tiles_in_category})")
+        except IndexError:
+            log.warning(f"Unable to generate category-level accuracy stats for category index {ci}")
+
+    # Generate slide-level percent calls
+    percent_calls_by_slide = _get_average_by_group(onehot_predictions,
+                                                  prediction_label="percent_tiles_positive",
+                                                  unique_groups=args.unique_slides,
+                                                  tile_to_group=args.tile_to_slides,
+                                                  y_true_group=args.y_true_slide,
+                                                  num_cat=num_cat,
+                                                  label_end="_" + outcome_name + args.label_end,
+                                                  save_predictions=args.save_slide_predictions,
+                                                  data_dir=args.data_dir,
+                                                  label="slide")
+
+    # Generate slide-level ROC
+    for i in range(num_cat):
+        try:
+            slide_y_pred = percent_calls_by_slide[:, i]
+            slide_y_true = [args.y_true_slide[slide][i] for slide in args.unique_slides]
+            roc_res = generate_roc(slide_y_true,
+                                   slide_y_pred,
+                                   args.data_dir, f'{args.label_start}{outcome_name}_slide_ROC{i}')
+            roc_auc, ap, thresh = roc_res
+            args.auc['slide'][outcome_name] += [roc_auc]
+            if args.verbose:
+                log.info(f"Slide-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
+        except IndexError:
+            log.warning(f"Unable to generate slide-level stats for outcome {i}")
+
+    if not args.patient_error:
+        # Generate patient-level percent calls
+        percent_calls_by_patient = _get_average_by_group(onehot_predictions,
+                                                        prediction_label="percent_tiles_positive",
+                                                        unique_groups=args.patients,
+                                                        tile_to_group=args.tile_to_patients,
+                                                        y_true_group=args.y_true_patient,
+                                                        num_cat=num_cat,
+                                                        label_end="_" + outcome_name + args.label_end,
+                                                        save_predictions=args.save_patient_predictions,
+                                                        data_dir=args.data_dir,
+                                                        label="patient")
+
+        # Generate patient-level ROC
+        for i in range(num_cat):
+            try:
+                patient_y_pred = percent_calls_by_patient[:, i]
+                patient_y_true = np.array([args.y_true_patient[patient][i] for patient in args.patients])
+                roc_res = generate_roc(patient_y_true,
+                                       patient_y_pred,
+                                       args.data_dir,
+                                       f'{args.label_start}{outcome_name}_patient_ROC{i}')
+                roc_auc, ap, thresh = roc_res
+                args.auc['patient'][outcome_name] += [roc_auc]
+                if args.verbose:
+                    log.info(f"Patient-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
+            except IndexError:
+                log.warning(f"Unable to generate patient-level stats for outcome {i}")
+
+def filtered_prediction(logits, filter):
+    """Generates a prediction from a logits vector masked by a given filter.
+
+    Args:
+        filter (list(int)): List of logit indices to include when generating a prediction. All other logits will be masked.
+
+    Returns:
+        int: index of prediction.
+    """
+    prediction_mask = np.zeros(logits.shape, dtype=np.int)
+    prediction_mask[filter] = 1
+    masked_logits = np.ma.masked_array(logits, mask=prediction_mask)
+    return np.argmax(masked_logits)
+
 def get_centroid_index(input_array):
-    '''Calculate index of centroid from a given two-dimensional input array.'''
+    """Calculate index nearest to centroid from a given two-dimensional input array."""
     km = KMeans(n_clusters=1).fit(input_array)
     closest, _ = pairwise_distances_argmin_min(km.cluster_centers_, input_array)
     return closest[0]
 
-def calculate_centroid(slide_node_dict):
-    '''Calcultes slide-level centroid indices for a provided slide-node dict.'''
+def calculate_centroid(activations):
+    """Calcultes slide-level centroid indices for a provided slide-node dict.
+
+    Args:
+        activations (dict): Dict mapping slide names to ndarray of activations across tiles,
+            of shape (n_tiles, n_features)
+
+    Returns:
+        dict: Dict mapping slides to index of tile nearest to centroid
+        dict: Dict mapping slides to activations of tile nearest to centroid
+    """
+
     optimal_indices = {}
     centroid_activations = {}
-    nodes = list(slide_node_dict[list(slide_node_dict.keys())[0]].keys())
-    for slide in slide_node_dict:
-        slide_nodes = slide_node_dict[slide]
-        # Reorganize "slide_nodes" into an array of node activations for each tile
-        # Final size of array should be (num_nodes, num_tiles_in_slide)
-        activations = [[slide_nodes[n][i] for n in nodes] for i in range(len(slide_nodes[0]))]
-        if not len(activations): continue
-        km = KMeans(n_clusters=1).fit(activations)
-        closest, _ = pairwise_distances_argmin_min(km.cluster_centers_, activations)
+    for slide in activations:
+        if not len(activations[slide]): continue
+        km = KMeans(n_clusters=1).fit(activations[slide])
+        closest, _ = pairwise_distances_argmin_min(km.cluster_centers_, activations[slide])
         closest_index = closest[0]
         closest_activations = activations[closest_index]
-
         optimal_indices.update({slide: closest_index})
         centroid_activations.update({slide: closest_activations})
     return optimal_indices, centroid_activations
@@ -667,11 +906,11 @@ def normalize_layout(layout, min_percentile=1, max_percentile=99, relative_margi
 
     return clipped
 
-def gen_umap(array, n_components=2, n_neighbors=20, min_dist=0.01, metric='cosine', low_memory=False):
-    '''Generates and returns a umap from a given array.'''
-    import umap
+def gen_umap(array, dim=2, n_neighbors=50, min_dist=0.1, metric='cosine', low_memory=False):
+    """Generates and returns a umap from a given array, using umap.UMAP"""
+    import umap # Imported in this function due to long import times
     try:
-        layout = umap.UMAP(n_components=n_components,
+        layout = umap.UMAP(n_components=dim,
                            verbose=(log.getEffectiveLevel() <= 20),
                            n_neighbors=n_neighbors,
                            min_dist=min_dist,
@@ -683,8 +922,8 @@ def gen_umap(array, n_components=2, n_neighbors=20, min_dist=0.01, metric='cosin
 
     return normalize_layout(layout)
 
-def save_histogram(y_true, y_pred, data_dir, name='histogram'):
-    '''Generates histogram of y_pred, labeled by y_true'''
+def save_histogram(y_true, y_pred, outdir, name='histogram'):
+    """Generates histogram of y_pred, labeled by y_true, saving to outdir."""
     #TODO: switch from distplot (deprecated) to displot or histplot (neither working during last test)
 
     cat_false = [yp for i, yp in enumerate(y_pred) if y_true[i] == 0]
@@ -693,26 +932,27 @@ def save_histogram(y_true, y_pred, data_dir, name='histogram'):
     plt.clf()
     plt.title('Tile-level Predictions')
     try:
-        sns.distplot( cat_false , color="skyblue", label="Negative")
-        sns.distplot( cat_true , color="red", label="Positive")
+        sns.distplot( cat_false , color="skyblue", label="Negative") # Despite the deprecation warning, I have not found
+        sns.distplot( cat_true , color="red", label="Positive")      # a good substitute for distplot that actually works
     except np.linalg.LinAlgError:
         log.warning("Unable to generate histogram, insufficient data")
     plt.legend()
-    plt.savefig(os.path.join(data_dir, f'{name}.png'))
+    plt.savefig(os.path.join(outdir, f'{name}.png'))
 
 def to_onehot(val, num_cat):
-    '''Converts value to one-hot encoding
+    """Converts value to one-hot encoding
 
     Args:
-        val:		Value to encode
-        num_cat:	Maximum value (length of onehot encoding)'''
+        val (int): Value to encode
+        num_cat (int): Maximum value (length of onehot encoding)
+    """
 
     onehot = [0] * num_cat
     onehot[val] = 1
     return onehot
 
 def generate_roc(y_true, y_pred, save_dir=None, name='ROC'):
-    '''Generates and saves an ROC with a given set of y_true, y_pred values.'''
+    """Generates and saves an ROC with a given set of y_true, y_pred values."""
     # ROC
     fpr, tpr, threshold = metrics.roc_curve(y_true, y_pred)
     roc_auc = metrics.auc(fpr, tpr)
@@ -755,7 +995,7 @@ def generate_roc(y_true, y_pred, save_dir=None, name='ROC'):
     return roc_auc, average_precision, optimal_threshold
 
 def generate_combined_roc(y_true, y_pred, save_dir, labels, name='ROC'):
-    '''Generates and saves overlapping ROCs with a given combination of y_true and y_pred.'''
+    """Generates and saves overlapping ROCs with a given combination of y_true and y_pred."""
     # Plot
     plt.clf()
     plt.title(name)
@@ -780,7 +1020,7 @@ def generate_combined_roc(y_true, y_pred, save_dir, labels, name='ROC'):
     return rocs
 
 def read_predictions(predictions_file, level):
-    '''Reads predictions from a previously saved CSV file.'''
+    """Reads predictions from a previously saved CSV file."""
     predictions = {}
     y_pred_label = "percent_tiles_positive" if level in ("patient", "slide") else "y_pred"
     with open(predictions_file, 'r') as csvfile:
@@ -865,6 +1105,7 @@ def basic_metrics(y_true, y_pred):
     return accuracy, sensitivity, specificity, precision, recall, f1_score, kappa
 
 def concordance_index(y_true, y_pred):
+    '''Calculates concordance index from a given y_true and y_pred.'''
     E = y_pred[:, -1]  # HERE
     y_pred = y_pred[:, :-1]  # HERE
     y_pred = y_pred.flatten()
@@ -873,192 +1114,8 @@ def concordance_index(y_true, y_pred):
     y_pred = - y_pred # Need to take negative to get concordance index since these are log hazard ratios
     return c_index(y_true, y_pred, E)
 
-def _cph_metrics(args):
-    '''Internal function to calculate tile, slide, and patient level metrics for a CPH outcome.'''
-    # Detect number of outcome categories
-    num_cat = args.y_pred.shape[1]
-
-    # Generate c_index
-    args.c_index['tile'] = concordance_index(args.y_true, args.y_pred)
-
-    # Generate and save slide-level averages of each outcome
-    averages_by_slide = get_average_by_group(args.y_pred,
-                                            prediction_label="average",
-                                            unique_groups=args.unique_slides,
-                                            tile_to_group=args.tile_to_slides,
-                                            y_true_group=args.y_true_slide,
-                                            num_cat=num_cat,
-                                            label_end=args.label_end,
-                                            save_predictions=args.save_slide_predictions,
-                                            data_dir=args.data_dir,
-                                            label="slide")
-    y_true_by_slide = np.array([args.y_true_slide[slide] for slide in args.unique_slides])
-    args.c_index['slide'] = concordance_index(y_true_by_slide, averages_by_slide)
-    if not args.patient_error:
-        # Generate and save patient-level averages of each outcome
-        averages_by_patient = get_average_by_group(args.y_pred,
-                                                    prediction_label="average",
-                                                    unique_groups=args.patients,
-                                                    tile_to_group=args.tile_to_patients,
-                                                    y_true_group=args.y_true_patient,
-                                                    num_cat=num_cat,
-                                                    label_end=args.label_end,
-                                                    save_predictions=args.save_patient_predictions,
-                                                    data_dir=args.data_dir,
-                                                    label="patient")
-        y_true_by_patient = np.array([args.y_true_patient[patient] for patient in args.patients])
-        args.c_index['patient'] = concordance_index(y_true_by_patient, averages_by_patient)
-
-def _linear_metrics(args):
-    '''Internal function to calculate tile, slide, and patient level metrics for a linear outcome.'''
-    # Detect number of outcome categories
-    num_cat = args.y_pred.shape[1]
-
-    # Main loop
-    # Generate R-squared
-    args.r_squared['tile'] = generate_scatter(args.y_true, args.y_pred, args.data_dir, args.label_end, plot=args.plot)
-
-    # Generate and save slide-level averages of each outcome
-    averages_by_slide = get_average_by_group(args.y_pred,
-                                            prediction_label="average",
-                                            unique_groups=args.unique_slides,
-                                            tile_to_group=args.tile_to_slides,
-                                            y_true_group=args.y_true_slide,
-                                            num_cat=num_cat,
-                                            label_end=args.label_end,
-                                            save_predictions=args.save_slide_predictions,
-                                            data_dir=args.data_dir,
-                                            label="slide")
-    y_true_by_slide = np.array([args.y_true_slide[slide] for slide in args.unique_slides])
-    args.r_squared['slide'] = generate_scatter(y_true_by_slide,
-                                               averages_by_slide,
-                                               args.data_dir,
-                                               args.label_end+"_by_slide")
-    if not args.patient_error:
-        # Generate and save patient-level averages of each outcome
-        averages_by_patient = get_average_by_group(args.y_pred,
-                                                    prediction_label="average",
-                                                    unique_groups=args.patients,
-                                                    tile_to_group=args.tile_to_patients,
-                                                    y_true_group=args.y_true_patient,
-                                                    num_cat=num_cat,
-                                                    label_end=args.label_end,
-                                                    save_predictions=args.save_patient_predictions,
-                                                    data_dir=args.data_dir,
-                                                    label="patient")
-
-        y_true_by_patient = np.array([args.y_true_patient[patient] for patient in args.patients])
-        args.r_squared['patient'] = generate_scatter(y_true_by_patient,
-                                                     averages_by_patient,
-                                                     args.data_dir,
-                                                     args.label_end+"_by_patient")
-
-def _categorical_metrics(args, outcome_name, starttime=None):
-    '''Internal function to calculate tile, slide, and patient level metrics for a categorical outcome.'''
-    start = starttime
-    num_observed_outcome_categories = np.max(args.y_true)+1
-    if num_observed_outcome_categories != args.y_pred.shape[1]:
-        log.warning(f"Model predictions have different number of outcome categories ({args.y_pred.shape[1]}) " + \
-                    f"than provided annotations ({num_observed_outcome_categories})!")
-
-    num_cat = max(num_observed_outcome_categories, args.y_pred.shape[1])
-
-    # For categorical models, convert to one-hot encoding
-    args.y_true = np.array([to_onehot(i, num_cat) for i in args.y_true])
-    args.y_true_slide = {k:to_onehot(v, num_cat) for k,v in args.y_true_slide.items()}
-    args.y_true_patient = {k:to_onehot(v, num_cat) for k,v in args.y_true_patient.items()}
-
-    args.auc['tile'][outcome_name] = []
-    args.auc['slide'][outcome_name] = []
-    args.auc['patient'][outcome_name] = []
-
-    with mp.Pool(processes=8) as p:
-        # TODO: this is memory inefficient as it copies y_true / y_pred to each subprocess
-        # Furthermore, it copies all categories when only one category is needed for each process
-        # Consider implementing shared memory, ideally compatible with python 3.7
-        for i, (auc, ap, thresh) in enumerate(p.imap(partial(generate_tile_roc, y_true=args.y_true,
-                                                                                y_pred=args.y_pred,
-                                                                                data_dir=args.data_dir,
-                                                                                label_start=args.label_start + outcome_name + "_",
-                                                                                histogram=args.histogram), range(num_cat))):
-            args.auc['tile'][outcome_name] += [auc]
-            if args.verbose:
-                log.info(f"Tile-level AUC (cat #{i:>2}): {auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
-
-    # Convert predictions to one-hot encoding
-    onehot_predictions = np.array([to_onehot(x, num_cat) for x in np.argmax(args.y_pred, axis=1)])
-
-    # Compare one-hot predictions to one-hot y_true for category-level accuracy
-    split_predictions = np.split(onehot_predictions, num_cat, 1)
-    for ci, cat_pred_array in enumerate(split_predictions):
-        try:
-            y_true_in_category = args.y_true[:, ci]
-            num_tiles_in_category = np.sum(y_true_in_category)
-            correct_pred = np.sum(cat_pred_array[np.argwhere(y_true_in_category>0)])
-            category_accuracy = correct_pred / num_tiles_in_category
-            cat_percent_acc = category_accuracy * 100
-            if args.verbose:
-                log.info(f"Category {ci} accuracy: {cat_percent_acc:.1f}% ({correct_pred}/{num_tiles_in_category})")
-        except IndexError:
-            log.warning(f"Unable to generate category-level accuracy stats for category index {ci}")
-
-    # Generate slide-level percent calls
-    percent_calls_by_slide = get_average_by_group(onehot_predictions,
-                                                  prediction_label="percent_tiles_positive",
-                                                  unique_groups=args.unique_slides,
-                                                  tile_to_group=args.tile_to_slides,
-                                                  y_true_group=args.y_true_slide,
-                                                  num_cat=num_cat,
-                                                  label_end="_" + outcome_name + args.label_end,
-                                                  save_predictions=args.save_slide_predictions,
-                                                  data_dir=args.data_dir,
-                                                  label="slide")
-
-    # Generate slide-level ROC
-    for i in range(num_cat):
-        try:
-            slide_y_pred = percent_calls_by_slide[:, i]
-            slide_y_true = [args.y_true_slide[slide][i] for slide in args.unique_slides]
-            roc_res = generate_roc(slide_y_true,
-                                   slide_y_pred,
-                                   args.data_dir, f'{args.label_start}{outcome_name}_slide_ROC{i}')
-            roc_auc, ap, thresh = roc_res
-            args.auc['slide'][outcome_name] += [roc_auc]
-            if args.verbose:
-                log.info(f"Slide-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
-        except IndexError:
-            log.warning(f"Unable to generate slide-level stats for outcome {i}")
-
-    if not args.patient_error:
-        # Generate patient-level percent calls
-        percent_calls_by_patient = get_average_by_group(onehot_predictions,
-                                                        prediction_label="percent_tiles_positive",
-                                                        unique_groups=args.patients,
-                                                        tile_to_group=args.tile_to_patients,
-                                                        y_true_group=args.y_true_patient,
-                                                        num_cat=num_cat,
-                                                        label_end="_" + outcome_name + args.label_end,
-                                                        save_predictions=args.save_patient_predictions,
-                                                        data_dir=args.data_dir,
-                                                        label="patient")
-
-        # Generate patient-level ROC
-        for i in range(num_cat):
-            try:
-                patient_y_pred = percent_calls_by_patient[:, i]
-                patient_y_true = np.array([args.y_true_patient[patient][i] for patient in args.patients])
-                roc_res = generate_roc(patient_y_true,
-                                       patient_y_pred,
-                                       args.data_dir,
-                                       f'{args.label_start}{outcome_name}_patient_ROC{i}')
-                roc_auc, ap, thresh = roc_res
-                args.auc['patient'][outcome_name] += [roc_auc]
-                if args.verbose:
-                    log.info(f"Patient-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
-            except IndexError:
-                log.warning(f"Unable to generate patient-level stats for outcome {i}")
-
 def save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end, outcome_names=None):
+    """Saves given set of predictions to CSV."""
     # Save tile-level predictions
     if type(y_true) == list:
         assert len(y_true) == len(y_pred), "Number of outcomes in y_true and y_pred must match"
@@ -1111,32 +1168,41 @@ def save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end,
                 y_pred_str_list = [str(y_pred[i])] if y_pred_is_reduced else [str(ypi) for ypi in y_pred[i]]
                 row = np.concatenate([[tile_to_slides[i]], y_true_str_list, y_pred_str_list])
                 writer.writerow(row)
-    log.info(f"Predictions saved to {sfutil.green(data_dir)}")
+    log.info(f"Predictions saved to {sf.util.green(data_dir)}")
 
-def metrics_from_predictions(y_true,
-                             y_pred,
-                             tile_to_slides,
-                             annotations,
-                             model_type,
-                             manifest,
-                             outcome_names=None,
-                             label=None,
-                             min_tiles_per_slide=0,
-                             data_dir=None,
-                             verbose=True,
-                             save_predictions=True,
-                             histogram=False,
-                             plot=True):
-    '''
-        For multiple outcomes, y_true and y_pred are expected to be a list of numpy arrays
-        (each numpy array corresponding to whole-dataset predictions for a single outcome)
-    '''
+def metrics_from_predictions(y_true, y_pred, tile_to_slides, annotations, model_type, manifest, outcome_names=None,
+                             label=None, min_tiles_per_slide=0, data_dir=None, verbose=True, save_predictions=True,
+                             histogram=False, plot=True):
+
+    """Generates metrics from a set of predictions.
+
+    For multiple outcomes, y_true and y_pred are expected to be a list of numpy arrays
+    (each numpy array corresponding to whole-dataset predictions for a single outcome)
+
+    Args:
+        y_true (ndarray): True labels for the dataset.
+        y_pred (ndarray): Predicted labels for the dataset.
+        tile_to_slides (list(str)): List of length y_true of slide names.
+        annotations (dict): Dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
+        model_type (str): Either 'linear', 'categorical', or 'cph'.
+        manifest (dict): Number of tiles per tfrecord, as provided by :meth:`slideflow.dataset.Datset.get_manifest`
+        outcome_names (list, optional): List of str, names for outcomes. Defaults to None.
+        label (str, optional): Label prefix/suffix for saving. Defaults to None.
+        min_tiles_per_slide (int, optional): Minimum tiles per slide to include in metrics. Defaults to 0.
+        data_dir (str, optional): Path to data directory for saving. Defaults to None.
+        verbose (bool, optional): Include verbose output. Defaults to True.
+        save_predictions (bool, optional): Save tile, slide, and patient-level predictions to CSV. Defaults to True.
+            May take a substantial amount of time for very large datasets.
+        histogram (bool, optional): Write histograms to data_dir. Defaults to False.
+            Takes a substantial amount of time for large datasets, potentially hours.
+        plot (bool, optional): Save scatterplot for linear outcomes. Defaults to True.
+    """
 
     start = time.time()
     label_end = "" if not label else f"_{label}"
     label_start = "" if not label else f"{label}_"
 
-    tile_to_patients = np.array([annotations[slide][sfutil.TCGA.patient] for slide in tile_to_slides])
+    tile_to_patients = np.array([annotations[slide][sf.util.TCGA.patient] for slide in tile_to_slides])
     patients = np.unique(tile_to_patients)
     unique_slides = np.unique(tile_to_slides)
 
@@ -1145,10 +1211,10 @@ def metrics_from_predictions(y_true,
     num_total_slides = len(unique_slides)
     if manifest:
         for tfrecord in manifest:
-            tfrecord_name = sfutil.path_to_name(tfrecord)
+            tfrecord_name = sf.util.path_to_name(tfrecord)
             num_tiles_tfrecord = manifest[tfrecord]['total']
             if num_tiles_tfrecord < min_tiles_per_slide:
-                if verbose:	log.info(f"Filtering out {tfrecord_name}: {num_tiles_tfrecord} tiles")
+                if verbose:    log.info(f"Filtering out {tfrecord_name}: {num_tiles_tfrecord} tiles")
                 slides_to_filter += [tfrecord_name]
     else:
         log.warning("Manifest not provided, unable to filter tfrecords by min_tiles_per_slide")
@@ -1159,12 +1225,12 @@ def metrics_from_predictions(y_true,
 
     # Set up annotations
     y_true_slide = {s: annotations[s]['outcome_label'] for s in annotations}
-    y_true_patient = {annotations[s][sfutil.TCGA.patient]: annotations[s]['outcome_label'] for s in annotations}
+    y_true_patient = {annotations[s][sf.util.TCGA.patient]: annotations[s]['outcome_label'] for s in annotations}
 
     # Verify patient outcomes are consistent if multiples slides are present for each patient
     patient_error = False
     for slide in annotations:
-        patient = annotations[slide][sfutil.TCGA.patient]
+        patient = annotations[slide][sf.util.TCGA.patient]
         if  y_true_slide[slide] != y_true_patient[patient]:
             log.error("Data integrity failure; patient assigned to multiple slides w/ different outcomes")
             patient_error = True
@@ -1226,7 +1292,7 @@ def metrics_from_predictions(y_true,
                 metric_args.y_pred = y_pred
                 metric_args.y_true = y_true
 
-            log.info(f"Validation metrics for outcome {sfutil.green(outcome)}:")
+            log.info(f"Validation metrics for outcome {sf.util.green(outcome)}:")
             _categorical_metrics(metric_args, outcome, starttime=start)
 
     elif model_type == 'linear':
@@ -1245,10 +1311,27 @@ def metrics_from_predictions(y_true,
         except:
             log.error("Unable to save predictions to CSV - not yet implemented for multiple outcomes")
 
-    return metric_args.auc, metric_args.r_squared, metric_args.c_index
+    combined_metrics = {
+        'auc': metric_args.auc,
+        'r_squared': metric_args.r_squared,
+        'c_index': metric_args.c_index
+    }
+
+    return combined_metrics
 
 def predict_from_model(model, dataset, num_tiles=0):
-    '''Generates predictions (y_true, y_pred, tile_to_slide) from a given model and dataset.'''
+
+    """Generates predictions (y_true, y_pred, tile_to_slide) from a given model and dataset.
+
+    Args:
+        model (str): Path to Tensorflow model.
+        dataset (tf.data.Dataset): Tensorflow dataset.
+        num_tiles (int, optional): Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.
+
+    Returns:
+        y_true, y_pred, tile_to_slides
+    """
+
     import tensorflow as tf
 
     @tf.function
@@ -1286,7 +1369,7 @@ def predict_from_model(model, dataset, num_tiles=0):
         if not detected_batch_size: detected_batch_size = len(tile_to_slides)
 
     if pb: pb.end()
-    if log.getEffectiveLevel() <= 20: sfutil.clear_console()
+    if log.getEffectiveLevel() <= 20: sf.util.clear_console()
 
     tile_to_slides = np.array(tile_to_slides)
     if type(y_pred[0]) == list:
@@ -1305,7 +1388,20 @@ def predict_from_model(model, dataset, num_tiles=0):
 
     return y_true, y_pred, tile_to_slides
 
-def predict_from_layer(model, layer_input, input_layer_name='hidden_0', ouput_layer_index=None):
+def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_layer_index=None):
+
+    """Generate predictions from a model, providing intermediate layer input.
+
+    Args:
+        model (str): Path to Tensorflow model
+        layer_input (ndarray): Dataset to use as input for the given layer, to generate predictions.
+        input_layer_name (str, optional): Name of intermediate layer, to which input is provided. Defaults to 'hidden_0'.
+        output_layer_index (int, optional): Excludes layers beyond this index. CPH models include a final
+            concatenation layer (softmax + event tensor) that should be excluded. Defaults to None.
+
+    Returns:
+        ndarray: Model predictions.
+    """
     import tensorflow as tf
     from slideflow.model_utils import get_layer_index_by_name
 
@@ -1315,9 +1411,9 @@ def predict_from_layer(model, layer_input, input_layer_name='hidden_0', ouput_la
 
     # create the new nodes for each layer in the path
     # For CPH models, include hidden layers excluding the final concatenation
-    # 	(softmax + event tensor) layer
-    if ouput_layer_index is not None:
-        for layer in model.layers[first_hidden_layer_index:ouput_layer_index]:
+    #     (softmax + event tensor) layer
+    if output_layer_index is not None:
+        for layer in model.layers[first_hidden_layer_index:output_layer_index]:
             x = layer(x)
     else:
         for layer in model.layers[first_hidden_layer_index:]:
@@ -1328,39 +1424,33 @@ def predict_from_layer(model, layer_input, input_layer_name='hidden_0', ouput_la
     y_pred = new_model.predict(layer_input)
     return y_pred
 
-def metrics_from_dataset(model,
-                         model_type,
-                         annotations,
-                         manifest,
-                         dataset,
-                         outcome_names=None,
-                         label=None,
-                         min_tiles_per_slide=0,
-                         data_dir=None,
-                         num_tiles=0,
-                         histogram=False,
-                         verbose=True,
+def metrics_from_dataset(model, model_type, annotations, manifest, dataset, outcome_names=None, label=None,
+                         min_tiles_per_slide=0, data_dir=None, num_tiles=0, histogram=False, verbose=True,
                          save_predictions=True):
 
-    '''Evaluate performance of a given model on a given TFRecord dataset,
+    """Evaluate performance of a given model on a given TFRecord dataset,
     generating a variety of statistical outcomes and graphs.
 
     Args:
-        model						Keras model to evaluate
-        dataset		TFRecord dataset which include three items: raw image data, labels, and slide names.
-        annotations					dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
-        model_type					'linear' or 'categorical'
-        data_dir					directory in which to save performance metrics and graphs
-        label						(optional) label with which to annotation saved files and graphs
-        manifest					(optional) manifest as provided by Dataset, used to filter slides
-                                        that do not have minimum number of tiles
-        min_tiles_per_slide			(optional) if provided, will only perform calculations on slides
-                                        that have a given minimum number of tiles
-        num_tiles					(optional) total number of tiles across dataset, used for progress bar.
+        model (tf.keras.Model): Keras model to evaluate.
+        model_type (str): 'categorical', 'linear', or 'cph'.
+        annotations (dict): Dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
+        manifest (dict): Number of tiles per tfrecord, as provided by :meth:`slideflow.dataset.Datset.get_manifest`
+        dataset (tf.data.Dataset): Tensorflow dataset.
+        outcome_names (list, optional): List of str, names for outcomes. Defaults to None.
+        label (str, optional): Label prefix/suffix for saving. Defaults to None.
+        min_tiles_per_slide (int, optional): Minimum tiles per slide to include in metrics. Defaults to 0.
+        data_dir (str, optional): Path to data directory for saving. Defaults to None.
+        num_tiles (int, optional): Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.
+        histogram (bool, optional): Write histograms to data_dir. Defaults to False.
+            Takes a substantial amount of time for large datasets, potentially hours.
+        verbose (bool, optional): Include verbose output. Defaults to True.
+        save_predictions (bool, optional): Save tile, slide, and patient-level predictions to CSV. Defaults to True.
+            May take a substantial amount of time for very large datasets.
 
     Returns:
         auc, r_squared, c_index
-    '''
+    """
 
     y_true, y_pred, tile_to_slides = predict_from_model(model, dataset, num_tiles=num_tiles)
 
@@ -1383,43 +1473,33 @@ def metrics_from_dataset(model,
     log.debug(f'Validation metrics generated, time: {after_metrics-before_metrics:.2f} s')
     return metrics
 
-def permutation_feature_importance(model,
-                                   dataset_with_slidenames,
-                                   annotations,
-                                   model_type,
-                                   data_dir,
-                                   outcome_names=None,
-                                   label=None,
-                                   manifest=None,
-                                   min_tiles_per_slide=0,
-                                   num_tiles=0,
-                                   feature_names=None,
-                                   feature_sizes=None,
-                                   drop_images=False):
+def permutation_feature_importance(model, dataset, annotations, model_type, data_dir,
+                                   outcome_names=None, label=None, manifest=None, min_tiles_per_slide=0, num_tiles=0,
+                                   feature_names=None, feature_sizes=None, drop_images=False):
 
-    '''Calculate metrics (tile, slide, and patient AUC) from a given model that accepts clinical, slide-level feature
+    """Calculate metrics (tile, slide, and patient AUC) from a given model that accepts clinical, slide-level feature
         inputs, and permute to find relative feature performance.
 
     Args:
-        model						Keras model to evaluate
-        dataset_with_slidenames		TFRecord dataset which include three items: raw image data, labels, and slide names.
-        annotations					dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
-        model_type					'linear' or 'categorical'
-        data_dir					directory in which to save performance metrics and graphs
-        label						(optional) label with which to annotate saved files and graphs
-        manifest					(optional) manifest as provided by Dataset, used to filter slides
-                                        that do not have minimum number of tiles
-        min_tiles_per_slide			(optional) if provided, will only perform calculations on slides
-                                        that have a given minimum number of tiles
-        num_tiles					(optional) total number of tiles across dataset, used for progress bar.
-        feature_names				Names for each of the clinical input features.
-        feature_sizes				Sizes for each of the clinical input features.
-        drop_images					Bool. If True, will exclude images from model (making predictions from clinical features alone)
+        model (str): Path to Tensorflow model.
+        dataset (tf.data.Dataset): TFRecord dataset which include three items:
+            raw image data, labels, and slide names.
+        annotations (dict): Dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
+        model_type (str): 'categorical', 'linear', or 'cph'.
+        data_dir (str): Path to output data directory.
+        outcome_names (list, optional): List of str, names for outcomes. Defaults to None.
+        label (str, optional): Label prefix/suffix for saving. Defaults to None.
+        manifest (dict): Number of tiles per tfrecord, as provided by :meth:`slideflow.dataset.Datset.get_manifest`
+        min_tiles_per_slide (int, optional): Minimum tiles per slide to include in metrics. Defaults to 0.
+        num_tiles (int, optional): Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.
+        feature_names (list, optional): List of str, names for each of the clinical input features.
+        feature_sizes (list, optional): List of int, sizes for each of the clinical input features.
+        drop_images (bool, optional): Exclude images (predict from clinical features alone). Defaults to False.
 
     Returns:
         Dictiory of AUCs with keys 'tile', 'slide', and 'patient'
+    """
 
-    '''
     import tensorflow as tf
 
     y_true = [] # True outcomes for each tile
@@ -1453,8 +1533,8 @@ def permutation_feature_importance(model,
         events = []
 
     # For all tiles, calculate the intermediate layer (pre-hidden layer) activations,
-    # 	and if a CPH model is being used, include time-to-event data
-    for i, batch in enumerate(dataset_with_slidenames):
+    #     and if a CPH model is being used, include time-to-event data
+    for i, batch in enumerate(dataset):
         if pb: pb.increase_bar_value(detected_batch_size)
         elif log.getEffectiveLevel() <= 20:
             sys.stdout.write(f"\rGenerating predictions (batch {i})...")
@@ -1479,19 +1559,19 @@ def permutation_feature_importance(model,
         sys.stdout.flush()
 
     # Generate baseline model predictions from hidden layers,
-    # 	Using the pre-hidden layer activations generated just above.
-    #	These baseline predictions should be identical to running
-    # 	the complete model all at once.
+    #     Using the pre-hidden layer activations generated just above.
+    #    These baseline predictions should be identical to running
+    #     the complete model all at once.
     if model_type == 'cph':
-        y_pred = predict_from_layer(model, pre_hl, input_layer_name='hidden_0', ouput_layer_index=-1)
+        y_pred = predict_from_layer(model, pre_hl, input_layer_name='hidden_0', output_layer_index=-1)
         y_pred = np.concatenate((y_pred, events), axis = 1)
     else:
         y_pred = predict_from_layer(model, pre_hl, input_layer_name='hidden_0')
 
     # Generate the AUC, R-squared, and C-index metrics
-    # 	From the generated baseline predictions.
+    #     From the generated baseline predictions.
     base_auc, base_r_squared, base_c_index = metrics_from_predictions(y_true=y_true,
-                                                                        y_pred=y_pred,
+                                                                      y_pred=y_pred,
                                                                       tile_to_slides=tile_to_slides,
                                                                       annotations=annotations,
                                                                       model_type=model_type,
@@ -1532,7 +1612,7 @@ def permutation_feature_importance(model,
             curCount = curCount + feature_sizes[i]
 
         if model_type == 'cph':
-            y_pred = predict_from_layer(model, pre_hl_new, input_layer_name='hidden_0', ouput_layer_index=-1)
+            y_pred = predict_from_layer(model, pre_hl_new, input_layer_name='hidden_0', output_layer_index=-1)
             y_pred = np.concatenate((y_pred, events), axis = 1)
         else:
             y_pred = predict_from_layer(model, pre_hl_new, input_layer_name='hidden_0')
@@ -1568,4 +1648,10 @@ def permutation_feature_importance(model,
             feature_text += feature + ": " + str(metrics[feature][0]) + ", "
     log.info("Feature importance, tile level: " + feature_text)
 
-    return base_auc, base_r_squared, base_c_index
+    combined_metrics = {
+        'auc': base_auc,
+        'r_squared': base_auc,
+        'c_index': base_c_index
+    }
+
+    return combined_metrics

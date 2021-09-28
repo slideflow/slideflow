@@ -1,0 +1,558 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Setting up a Project &mdash; slideflow 1.12.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Validation Planning" href="validation.html" />
+    <link rel="prev" title="Pipeline Overview" href="pipeline.html" />
+  <!-- Google Analytics -->
+  
+  <!-- End Google Analytics -->
+  
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">Showcase</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  1.12
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Source</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tfrecords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.reader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="statistics.html">slideflow.statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>Setting up a Project</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="_sources/project_setup.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <div class="section" id="setting-up-a-project">
+<h1>Setting up a Project<a class="headerlink" href="#setting-up-a-project" title="Permalink to this headline">¶</a></h1>
+<p>The easiest way to use <code class="docutils literal notranslate"><span class="pre">slideflow</span></code> is through the bundled project management class, <code class="docutils literal notranslate"><span class="pre">slideflow.Project</span></code>, which supports unified datasets, annotations, and project directory structure for all of the various pipeline functions. Projects are initialized at a directory, with settings saved in a <code class="docutils literal notranslate"><span class="pre">settings.json</span></code> file. Below are the configuration settings used to create a project:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 36%" />
+<col style="width: 64%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>name</strong></p></td>
+<td><p>Project name.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>annotations</strong></p></td>
+<td><p>Path to CSV containing annotations.
+Each line is a unique slide.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>dataset_config</strong></p></td>
+<td><p>Path to JSON file containing dataset configuration.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>sources</strong></p></td>
+<td><p>Names of dataset(s) to include in the project.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>models_dir</strong></p></td>
+<td><p>Path, where model files and results are saved.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>eval_dir</strong></p></td>
+<td><p>Path, where model evaluation results are saved.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>batch_train_config</strong></p></td>
+<td><p>Path to TSV file, where hyperparameter sweep
+configurations will be saved.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>mixed_precision</strong></p></td>
+<td><p>Bool, whether models should be trained using
+mixed precision (16-bit vs. 32-bit).</p></td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="sf-project">
+<h2>sf.Project<a class="headerlink" href="#sf-project" title="Permalink to this headline">¶</a></h2>
+<p>To interactively create a new project, initialize a Project with the <code class="docutils literal notranslate"><span class="pre">from_prompt</span></code> initializer:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="n">SFP</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="o">.</span><span class="n">from_prompt</span><span class="p">(</span><span class="s1">&#39;/path/to/project/directory&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You will then be prompted for each project configuration setting.</p>
+<p>Alternatively, you may provide this configuration through keyword arguments:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="n">SFP</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="o">.</span><span class="n">from_prompt</span><span class="p">(</span><span class="s1">&#39;/path/to/project/directory&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;MyProject&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Once a project has been initialized at a directory, you may then load the project with the following syntax:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="n">SFP</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/path/to/project/directory&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Pipeline functions are then called on <code class="docutils literal notranslate"><span class="pre">SFP</span></code>.</p>
+<p>Alternatively, you can use the bundled <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script to execute project functions. This script helps by setting some useful environmental variables and can be used to easily manage GPU allocations. It initializes a <code class="docutils literal notranslate"><span class="pre">Project</span></code> object at a given directory, then looks for and loads an <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file in this directory, executing functions contained therein.</p>
+<p>To create a new project with this script, or execute functions on an existing project, use the following syntax:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">james@example:~/slideflow/source$ </span>python3 run_project.py -p /path/to/project/directory
+</pre></div>
+</div>
+<p>…where the -p flag is used to designate the path to your project directory. Other available flags can be seen by running <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">run_project.py</span> <span class="pre">--help</span></code>.</p>
+</div>
+<div class="section" id="configuring-datasets">
+<h2>Configuring Datasets<a class="headerlink" href="#configuring-datasets" title="Permalink to this headline">¶</a></h2>
+<p>Once initial project settings are established, you will need to either create or load a dataset configuration, which will specify directory locations for slides, ROIs, tiles, and TFRecords for each group of slides.</p>
+<p>Dataset configurations are saved in a JSON file with the below syntax. Dataset configuration files can be shared and used across multiple projects, or saved locally within a project directory.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="nt">&quot;SOURCE&quot;</span><span class="p">:</span>
+    <span class="p">{</span>
+        <span class="nt">&quot;slides&quot;</span><span class="p">:</span> <span class="s2">&quot;/directory&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;roi&quot;</span><span class="p">:</span> <span class="s2">&quot;/directory&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;tiles&quot;</span><span class="p">:</span> <span class="s2">&quot;/directory&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;tfrecords&quot;</span><span class="p">:</span> <span class="s2">&quot;/directory&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Datasets are configured either interactively at the time of project initialization, or may be added by calling <code class="docutils literal notranslate"><span class="pre">Project.add_dataset()</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">add_dataset</span><span class="p">(</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;NAME&quot;</span><span class="p">,</span>
+                 <span class="n">slides</span><span class="o">=</span><span class="s2">&quot;/slides/directory&quot;</span><span class="p">,</span>
+                 <span class="n">roi</span><span class="o">=</span><span class="s2">&quot;/roi/directory&quot;</span><span class="p">,</span>
+                 <span class="n">tiles</span><span class="o">=</span><span class="s2">&quot;/tiles/directory&quot;</span><span class="p">,</span>
+                 <span class="n">tfrecords</span><span class="o">=</span><span class="s2">&quot;/tfrecords/directory&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="setting-up-annotations">
+<h2>Setting up annotations<a class="headerlink" href="#setting-up-annotations" title="Permalink to this headline">¶</a></h2>
+<p>Your annotations CSV file is used to label patients and slides with clinical data and/or other outcome variables (or additional input variables) that will be used for training. Each line in the annotations file should correspond to a unique slide.</p>
+<p>The annotations file may contain as many columns as you would like, but it must contain the following headers at minimum:</p>
+<ul class="simple">
+<li><p><strong>submitter_id</strong>: patient identifier</p></li>
+<li><p><strong>slide</strong>: slide name / identifier (without the file extension)</p></li>
+</ul>
+<p>An example annotations file is generated each time a new project is initialized. An example annotations file is given below:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 27%" />
+<col style="width: 18%" />
+<col style="width: 13%" />
+<col style="width: 42%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><em>submitter_id</em></p></td>
+<td><p><em>category</em></p></td>
+<td><p><em>dataset</em></p></td>
+<td><p><em>slide</em></p></td>
+</tr>
+<tr class="row-even"><td><p>TCGA-EL-A23A</p></td>
+<td><p>EGFR-mutant</p></td>
+<td><p>train</p></td>
+<td><p>TCGA-EL-A3CO-01Z-00-DX1-7BF5F</p></td>
+</tr>
+<tr class="row-odd"><td><p>TCGA-EL-A35B</p></td>
+<td><p>EGFR-mutant</p></td>
+<td><p>eval</p></td>
+<td><p>TCGA-EL-A35B-01Z-00-DX1-89FCD</p></td>
+</tr>
+<tr class="row-even"><td><p>TCGA-EL-A26X</p></td>
+<td><p>non-mutant</p></td>
+<td><p>train</p></td>
+<td><p>TCGA-EL-A26X-01Z-00-DX1-4HA2C</p></td>
+</tr>
+<tr class="row-odd"><td><p>TCGA-EL-B83L</p></td>
+<td><p>non-mutant</p></td>
+<td><p>eval</p></td>
+<td><p>TCGA-EL-B83L-01Z-00-DX1-6BC5L</p></td>
+</tr>
+</tbody>
+</table>
+<p>Slide names do not need to be explicitly set in the annotations file by the user. Rather, once a dataset has been set up, slideflow will search through the linked slide directories and attempt to match slides to entries in the annotations file using <strong>submitter_id</strong>. Entries that are blank in the <strong>slide</strong> column will be auto-populated with any detected and matching slides, if available.</p>
+</div>
+<div class="section" id="executing-commands">
+<span id="execute"></span><h2>Executing commands<a class="headerlink" href="#executing-commands" title="Permalink to this headline">¶</a></h2>
+<p>If you plan to use <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code>, open the <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file located in the project directory. It should look something like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">SFP</span><span class="p">):</span>
+    <span class="c1">#SFP.extract_tiles(filters = {&#39;to_extract&#39;: &#39;yes&#39;})</span>
+
+    <span class="c1">#SFP.train(</span>
+    <span class="c1">#      outcome_label_headers=&quot;category&quot;,</span>
+    <span class="c1">#      filters = {</span>
+    <span class="c1">#          &#39;dataset&#39;: &#39;train&#39;,</span>
+    <span class="c1">#          &#39;category&#39;: [&#39;negative&#39;, &#39;positive&#39;]</span>
+    <span class="c1">#      },</span>
+    <span class="c1">#      batch_file=&#39;batch_train.tsv&#39;)</span>
+
+            <span class="c1">#model_to_evaluate = &#39;/path_to_model/&#39;</span>
+    <span class="c1">#SFP.evaluate(model=model_to_evaluate, outcome_label_headers=&quot;category&quot;, filters = {&#39;dataset&#39;: &#39;eval&#39;})</span>
+    <span class="c1">#SFP.generate_heatmaps(model_to_evaluate)</span>
+    <span class="c1">#SFP.generate_mosaic(model_to_evaluate)</span>
+    <span class="k">pass</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">main()</span></code> function contains several example functions. These serve as examples to help remind you of functions and arguments you can use on projects.</p>
+<p>To execute the commands you have prepared in this file, execute the <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script pointing to your project directory.</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">james@example:~/slideflow/source$ </span>python3 run_project.py -g <span class="m">1</span> -p /path/to/project/directory
+</pre></div>
+</div>
+</div>
+</div>
+
+
+             </article>
+             
+            </div>
+            <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="validation.html" class="btn btn-neutral float-right" title="Validation Planning" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+      
+      
+        <a href="pipeline.html" class="btn btn-neutral" title="Pipeline Overview" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+      
+    </div>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2021, James M Dolezal.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Setting up a Project</a><ul>
+<li><a class="reference internal" href="#sf-project">sf.Project</a></li>
+<li><a class="reference internal" href="#configuring-datasets">Configuring Datasets</a></li>
+<li><a class="reference internal" href="#setting-up-annotations">Setting up annotations</a></li>
+<li><a class="reference internal" href="#executing-commands">Executing commands</a></li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+         <script src="_static/jquery.js"></script>
+         <script src="_static/underscore.js"></script>
+         <script src="_static/doctools.js"></script>
+     
+
+  
+
+  <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://pytorch.org/get-started">Get Started</a>
+          </li>
+
+          <li>
+            <a href="https://pytorch.org/ecosystem">Ecosystem</a>
+          </li>
+
+          <li>
+            <a href="https://pytorch.org/mobile">Mobile</a>
+          </li>
+
+          <li>
+            <a href="https://pytorch.org/hub">PyTorch Hub</a>
+          </li>
+
+          <li class="active">
+            <a href="https://pytorch.org/blog/">Blog</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

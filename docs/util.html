@@ -1,0 +1,647 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.util &mdash; slideflow 1.12.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="slideflow.statistics" href="statistics.html" />
+  <!-- Google Analytics -->
+  
+  <!-- End Google Analytics -->
+  
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">Showcase</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  1.12
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Source</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tfrecords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.reader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="statistics.html">slideflow.statistics</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">slideflow.util</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>slideflow.util</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="_sources/util.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <div class="section" id="slideflow-util">
+<h1>slideflow.util<a class="headerlink" href="#slideflow-util" title="Permalink to this headline">¶</a></h1>
+<p>This module contains a variety of utility functions used throughout the package.</p>
+<span class="target" id="module-slideflow.util"></span><dl class="py exception">
+<dt class="sig sig-object py" id="slideflow.util.CPLEXError">
+<em class="property"><span class="pre">exception</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">CPLEXError</span></span><a class="headerlink" href="#slideflow.util.CPLEXError" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="slideflow.util.FileFormatter">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">FileFormatter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datefmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">style</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.FileFormatter" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="slideflow.util.FileFormatter.format">
+<span class="sig-name descname"><span class="pre">format</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">record</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.FileFormatter.format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Format the specified record as text.</p>
+<p>The record’s attribute dictionary is used as the operand to a
+string formatting operation which yields the returned string.
+Before formatting the dictionary, a couple of preparatory steps
+are carried out. The message attribute of the record is computed
+using LogRecord.getMessage(). If the formatting string uses the
+time (as determined by a call to usesTime(), formatTime() is
+called to format the event time. If there is exception information,
+it is formatted using formatException() and appended to the message.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="slideflow.util.LogFormatter">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">LogFormatter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datefmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">style</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.LogFormatter" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="slideflow.util.LogFormatter.format">
+<span class="sig-name descname"><span class="pre">format</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">record</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.LogFormatter.format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Format the specified record as text.</p>
+<p>The record’s attribute dictionary is used as the operand to a
+string formatting operation which yields the returned string.
+Before formatting the dictionary, a couple of preparatory steps
+are carried out. The message attribute of the record is computed
+using LogRecord.getMessage(). If the formatting string uses the
+time (as determined by a call to usesTime(), formatTime() is
+called to format the event time. If there is exception information,
+it is formatted using formatException() and appended to the message.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="slideflow.util.ProgressBar">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">ProgressBar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ending_val</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starting_val</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bar_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">endtext</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_eta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_counter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counter_text</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">leadtext</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mp_counter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mp_lock</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.ProgressBar" title="Permalink to this definition">¶</a></dt>
+<dd><p>Flexible progress bar with dynamic ETA monitoring and multiprocessing support.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.util.ProgressBar.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ending_val</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starting_val</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bar_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">endtext</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_eta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_counter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counter_text</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">leadtext</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mp_counter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mp_lock</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.ProgressBar.__init__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="slideflow.util.StainNormalizer">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">StainNormalizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'reinhard'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.StainNormalizer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Object to supervise stain normalization for images and efficiently convert between common image types.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.util.StainNormalizer.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'reinhard'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.StainNormalizer.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initializer. Establishes normalization method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Either ‘macenko’, ‘reinhard’, or ‘vahadane’. Defaults to ‘reinhard’.</p></li>
+<li><p><strong>source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Path to source image for normalizer. If not provided, defaults to an internal example image.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.util.StainNormalizer.jpeg_to_jpeg">
+<span class="sig-name descname"><span class="pre">jpeg_to_jpeg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">jpeg_string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.StainNormalizer.jpeg_to_jpeg" title="Permalink to this definition">¶</a></dt>
+<dd><p>Non-normalized compressed JPG string data -&gt; normalized compressed JPG string data</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.util.StainNormalizer.jpeg_to_rgb">
+<span class="sig-name descname"><span class="pre">jpeg_to_rgb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">jpeg_string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.StainNormalizer.jpeg_to_rgb" title="Permalink to this definition">¶</a></dt>
+<dd><p>Non-normalized compressed JPG string data -&gt; normalized RGB numpy array</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.util.StainNormalizer.pil_to_pil">
+<span class="sig-name descname"><span class="pre">pil_to_pil</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.StainNormalizer.pil_to_pil" title="Permalink to this definition">¶</a></dt>
+<dd><p>Non-normalized PIL.Image -&gt; normalized PIL.Image</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.util.StainNormalizer.png_to_rgb">
+<span class="sig-name descname"><span class="pre">png_to_rgb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">png_string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.StainNormalizer.png_to_rgb" title="Permalink to this definition">¶</a></dt>
+<dd><p>Non-normalized compressed PNG string data -&gt; normalized RGB numpy array</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.util.StainNormalizer.rgb_to_rgb">
+<span class="sig-name descname"><span class="pre">rgb_to_rgb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.StainNormalizer.rgb_to_rgb" title="Permalink to this definition">¶</a></dt>
+<dd><p>Non-normalized RGB numpy array -&gt; normalized RGB numpy array</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.util.StainNormalizer.tf_to_rgb">
+<span class="sig-name descname"><span class="pre">tf_to_rgb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.StainNormalizer.tf_to_rgb" title="Permalink to this definition">¶</a></dt>
+<dd><p>Non-normalized tensorflow image array -&gt; normalized RGB numpy array</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="slideflow.util.TqdmLoggingHandler">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">TqdmLoggingHandler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.TqdmLoggingHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Avoid tqdm progress bar interruption by logger’s output to console</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.util.TqdmLoggingHandler.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.TqdmLoggingHandler.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize the handler.</p>
+<p>If stream is not specified, sys.stderr is used.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.util.TqdmLoggingHandler.emit">
+<span class="sig-name descname"><span class="pre">emit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">record</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.TqdmLoggingHandler.emit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Emit a record.</p>
+<p>If a formatter is specified, it is used to format the record.
+The record is then written to the stream with a trailing newline.  If
+exception information is present, it is formatted using
+traceback.print_exception and appended to the stream.  If the stream
+has an ‘encoding’ attribute, it is used to determine how to do the
+output to the stream.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="slideflow.util.UserError">
+<em class="property"><span class="pre">exception</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">UserError</span></span><a class="headerlink" href="#slideflow.util.UserError" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.choice_input">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">choice_input</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">prompt</span></em>, <em class="sig-param"><span class="pre">valid_choices</span></em>, <em class="sig-param"><span class="pre">default=None</span></em>, <em class="sig-param"><span class="pre">multi_choice=False</span></em>, <em class="sig-param"><span class="pre">input_type=&lt;class</span> <span class="pre">'str'&gt;</span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.choice_input" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prompts user for multi-choice input.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.float_input">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">float_input</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prompt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valid_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.float_input" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prompts user for float input.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.get_model_hyperparameters">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">get_model_hyperparameters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.get_model_hyperparameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads model hyperparameters JSON file.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.get_relative_tfrecord_paths">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">get_relative_tfrecord_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">root</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.get_relative_tfrecord_paths" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns relative tfrecord paths with respect to the given directory.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.get_slide_paths">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">get_slide_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slides_dir</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.get_slide_paths" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get all slide paths from a given directory containing slides.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.get_slides_from_model_manifest">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">get_slides_from_model_manifest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.get_slides_from_model_manifest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get list of slides from a model manifest.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Path to model from which to load the model manifest.</p></li>
+<li><p><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – ‘training’ or ‘validation’. Will return only slides from this dataset. Defaults to None (all).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>List of slide names.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)">list</a>(<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)">str</a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.global_path">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">global_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">root</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path_string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.global_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns global path from a local path.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.int_input">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">int_input</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prompt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.int_input" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prompts user for int input.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.load_json">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">load_json</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.load_json" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads JSON data from file.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.make_dir">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">make_dir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">_dir</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.make_dir" title="Permalink to this definition">¶</a></dt>
+<dd><p>Makes a directory if one does not already exist, in a manner compatible with multithreading.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.path_input">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">path_input</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prompt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">root</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">create_on_invalid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filetype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verify</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.path_input" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prompts user for directory input.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.path_to_ext">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">path_to_ext</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.path_to_ext" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns extension of a file path string.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.path_to_name">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">path_to_name</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.path_to_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns name of a file, without extension, from a given full path string.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.read_annotations">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">read_annotations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">annotations_file</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.read_annotations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read an annotations file.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.update_results_log">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">update_results_log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results_log_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">results_dict</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.update_results_log" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dynamically update results_log when recording training metrics.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.write_json">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">write_json</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.write_json" title="Permalink to this definition">¶</a></dt>
+<dd><p>Writes data to JSON file.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.yes_no_input">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">yes_no_input</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prompt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'no'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.yes_no_input" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prompts user for yes/no input.</p>
+</dd></dl>
+
+</div>
+
+
+             </article>
+             
+            </div>
+            <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="statistics.html" class="btn btn-neutral" title="slideflow.statistics" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+      
+    </div>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2021, James M Dolezal.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">slideflow.util</a></li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+         <script src="_static/jquery.js"></script>
+         <script src="_static/underscore.js"></script>
+         <script src="_static/doctools.js"></script>
+     
+
+  
+
+  <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://pytorch.org/get-started">Get Started</a>
+          </li>
+
+          <li>
+            <a href="https://pytorch.org/ecosystem">Ecosystem</a>
+          </li>
+
+          <li>
+            <a href="https://pytorch.org/mobile">Mobile</a>
+          </li>
+
+          <li>
+            <a href="https://pytorch.org/hub">PyTorch Hub</a>
+          </li>
+
+          <li class="active">
+            <a href="https://pytorch.org/blog/">Blog</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

@@ -1,0 +1,609 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.io.tfrecords &mdash; slideflow 1.12.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="slideflow.io.reader" href="reader.html" />
+    <link rel="prev" title="slideflow.dataset" href="dataset.html" />
+  <!-- Google Analytics -->
+  
+  <!-- End Google Analytics -->
+  
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">Showcase</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  1.12
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Source</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">slideflow.io.tfrecords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.reader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="statistics.html">slideflow.statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>slideflow.io.tfrecords</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="_sources/tfrecords.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <div class="section" id="slideflow-io-tfrecords">
+<h1>slideflow.io.tfrecords<a class="headerlink" href="#slideflow-io-tfrecords" title="Permalink to this headline">¶</a></h1>
+<p>This module contains functions for processing TFRecords, including detecting contents and image format of saved
+TFRecords, extracting tiles from TFRecords, splitting and merging TFRecrds, and a variety of other manipulations.</p>
+<p>The more important compontent of this module, however, is the <a class="reference internal" href="#slideflow.io.tfrecords.interleave" title="slideflow.io.tfrecords.interleave"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.io.tfrecords.interleave()</span></code></a> function,
+which interleaves a set of tfrecords together into a <code class="xref py py-class docutils literal notranslate"><span class="pre">tf.data.Datasets</span></code> object that can be used for training.
+This interleaving can include patient or category-level balancing for returned batches (see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a>).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The TFRecord reading and interleaving implemented in this module is only compatible with Tensorflow models.
+The <a href="#id1"><span class="problematic" id="id2">:module:`slideflow.io.reader`</span></a> module includes a backend-agnostic TFRecord reader based on
+<a class="reference external" href="https://github.com/podgorskiy/DareBlopy">dareblopy</a> which can be used as input for Torch models.</p>
+</div>
+<span class="target" id="module-slideflow.io.tfrecords"></span><dl class="py exception">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.TFRecordsError">
+<em class="property"><span class="pre">exception</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">TFRecordsError</span></span><a class="headerlink" href="#slideflow.io.tfrecords.TFRecordsError" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.checkpoint_to_tf_model">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">checkpoint_to_tf_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">models_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.checkpoint_to_tf_model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a checkpoint file into a saved model.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.detect_tfrecord_format">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">detect_tfrecord_format</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.detect_tfrecord_format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads a tfrecord at the specified path, and detects the feature description and image type.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Feature description dictionary.
+str:  Stored image type, either ‘png’ or ‘jpg’.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.extract_tiles">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">extract_tiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfrecord</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">destination</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{'image_raw':</span> <span class="pre">FixedLenFeature(shape=[],</span> <span class="pre">dtype=tf.string,</span> <span class="pre">default_value=None),</span> <span class="pre">'loc_x':</span> <span class="pre">FixedLenFeature(shape=[],</span> <span class="pre">dtype=tf.int64,</span> <span class="pre">default_value=None),</span> <span class="pre">'loc_y':</span> <span class="pre">FixedLenFeature(shape=[],</span> <span class="pre">dtype=tf.int64,</span> <span class="pre">default_value=None),</span> <span class="pre">'slide':</span> <span class="pre">FixedLenFeature(shape=[],</span> <span class="pre">dtype=tf.string,</span> <span class="pre">default_value=None)}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'image_raw'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.extract_tiles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads and saves images from a TFRecord to a destination folder.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.get_locations_from_tfrecord">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">get_locations_from_tfrecord</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.get_locations_from_tfrecord" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns dictionary mapping indices to tile locations (X, Y)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.get_tfrecord_by_index">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">get_tfrecord_by_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfrecord</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.get_tfrecord_by_index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads and returns an individual record from a tfrecord by index, including slide name and processed image data.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.get_tfrecord_parser">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">get_tfrecord_parser</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfrecord_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features_to_return</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to_numpy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decode_images</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">standardize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">img_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error_if_invalid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.get_tfrecord_parser" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a tfrecord parsing function based on the specified parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tfrecord_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Path to tfrecord to parse.</p></li>
+<li><p><strong>features_to_return</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Designates format for how features should be returned from parser.
+If a list of feature names is provided, the parsing function will return tfrecord features as a list
+in the order provided. If a dictionary of labels (keys) mapping to feature names (values) is provided,
+features will be returned from the parser as a dictionary matching the same format. If None, will
+return all features as a list.</p></li>
+<li><p><strong>to_numpy</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Convert records from tensors to numpy arrays. Defaults to False.</p></li>
+<li><p><strong>decode_images</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Decode raw image strings into image arrays. Defaults to True.</p></li>
+<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images into the range (0,1). Defaults to False.</p></li>
+<li><p><strong>img_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Width of images in pixels. Will call tf.set_shape(…) if provided. Defaults to False.</p></li>
+<li><p><strong>normalizer</strong> (<a class="reference internal" href="util.html#slideflow.util.StainNormalizer" title="slideflow.util.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.util.StainNormalizer</span></code></a>) – Stain normalizer to use on images. Defaults to None.</p></li>
+<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Image augmentations to perform. String containing characters designating augmentations.
+‘x’ indicates random x-flipping, ‘y’ y-flipping, ‘r’ rotating, and ‘j’ JPEG compression/decompression
+at random quality levels. Passing either ‘xyrj’ or True will use all augmentations.</p></li>
+<li><p><strong>error_if_invalid</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Raise an error if a tfrecord cannot be read. Defaults to True.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.interleave">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">interleave</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfrecords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">img_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_parser</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'categorical'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">balance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">finite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">standardize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slides</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_shards</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shard_idx</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_parallel_reads</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.interleave" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates an interleaved dataset from a collection of tfrecord files, sampling from tfrecord files randomly
+according to balancing if provided. Requires manifest for balancing. Assumes TFRecord files are named by slide.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>)</em>) – List of paths to TFRecord files.</p></li>
+<li><p><strong>img_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Image width in pixels.</p></li>
+<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Batch size.</p></li>
+<li><p><strong>label_parser</strong> (<em>func</em><em>, </em><em>optional</em>) – Base function to use for parsing labels. Function must accept an image (tensor)
+and slide name (str), and return an image (tensor) and label. If None is provided, all labels will be None.</p></li>
+<li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Model type. ‘categorical’ enables category-level balancing. Defaults to ‘categorical’.</p></li>
+<li><p><strong>balance</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Batch-level balancing. Options: BALANCE_BY_CATEGORY, BALANCE_BY_PATIENT, and NO_BALANCE.
+If finite option is used, will drop tiles in order to maintain proportions across the interleaved dataset.</p></li>
+<li><p><strong>finite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Create a finite dataset iterating through tiles only once. WARNING: If finite option is
+used with balancing, some tiles will be skipped. Defaults to False (infinite dataset).</p></li>
+<li><p><strong>annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping slide names to outcome labels, used for balancing. Defaults to None.</p></li>
+<li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Maximum number of tiles to use per slide. Defaults to 0 (use all tiles).</p></li>
+<li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Minimum number of tiles that each slide must have to be included. Defaults to 0.</p></li>
+<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Image augmentations to perform. String containing characters designating augmentations.
+‘x’ indicates random x-flipping, ‘y’ y-flipping, ‘r’ rotating, and ‘j’ JPEG compression/decompression
+at random quality levels. Passing either ‘xyrj’ or True will use all augmentations.</p></li>
+<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images to (0,1). Defaults to True.</p></li>
+<li><p><strong>normalizer</strong> (<a class="reference internal" href="util.html#slideflow.util.StainNormalizer" title="slideflow.util.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.util.StainNormalizer</span></code></a>, optional) – Normalizer to use on images. Defaults to None.</p></li>
+<li><p><strong>manfest</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset manifest containing number of tiles per tfrecord.</p></li>
+<li><p><strong>slides</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>)</em><em>, </em><em>optional</em>) – Only interleaves tfrecords with these slide names. If None, uses all tfrecords.</p></li>
+<li><p><strong>num_shards</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Shard the tfrecord datasets, used for multiprocessing datasets. Defaults to None.</p></li>
+<li><p><strong>shard_idx</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Index of the tfrecord shard to use. Defaults to None.</p></li>
+<li><p><strong>num_parallel_reads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Number of parallel reads for each TFRecordDataset. Defaults to 4.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.join_tfrecord">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">join_tfrecord</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_folder</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">assign_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.join_tfrecord" title="Permalink to this definition">¶</a></dt>
+<dd><p>Randomly samples from tfrecords in the input folder with shuffling,
+and combines into a single tfrecord file.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.merge_split_tfrecords">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">merge_split_tfrecords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">destination</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.merge_split_tfrecords" title="Permalink to this definition">¶</a></dt>
+<dd><p>Merges TFRecords with the same name in subfolders within the given source folder,
+as may be the case when using split TFRecords for tile-level validation.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.multi_image_example">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">multi_image_example</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slide</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_dict</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.multi_image_example" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a Tensorflow Data example for TFRecord storage with multiple images.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.print_tfrecord">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">print_tfrecord</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">target</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.print_tfrecord" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prints the slide names (and locations, if present) for records in the given tfrecord file</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.shuffle_tfrecord">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">shuffle_tfrecord</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">target</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.shuffle_tfrecord" title="Permalink to this definition">¶</a></dt>
+<dd><p>Shuffles records in a TFRecord, saving the original to a .old file.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.shuffle_tfrecords_by_dir">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">shuffle_tfrecords_by_dir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directory</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.shuffle_tfrecords_by_dir" title="Permalink to this definition">¶</a></dt>
+<dd><p>For each TFRecord in a directory, shuffles records in the TFRecord, saving the original to a .old file.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.split_tfrecord">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">split_tfrecord</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfrecord_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_folder</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.split_tfrecord" title="Permalink to this definition">¶</a></dt>
+<dd><p>Splits records from a single tfrecord file into individual tfrecord files by slide.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.tfrecord_example">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">tfrecord_example</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slide</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_raw</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loc_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loc_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.tfrecord_example" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a Tensorflow Data example for TFRecord storage.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.transform_tfrecord">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">transform_tfrecord</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">origin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">assign_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hue_shift</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.transform_tfrecord" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transforms images in a single tfrecord. Can perform hue shifting, resizing, or re-assigning slide label.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.update_manifest_at_dir">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">update_manifest_at_dir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_update</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.update_manifest_at_dir" title="Permalink to this definition">¶</a></dt>
+<dd><p>Log number of tiles in each TFRecord file present in the given directory and all subdirectories,
+saving manifest to file within the parent directory.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.update_tfrecord">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">update_tfrecord</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfrecord_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">assign_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_raw</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'image_raw'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.update_tfrecord" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates a single tfrecord from an old format to a new format.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.update_tfrecord_dir">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">update_tfrecord_dir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">old_feature_description</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{'image_raw':</span> <span class="pre">FixedLenFeature(shape=[],</span> <span class="pre">dtype=tf.string,</span> <span class="pre">default_value=None),</span> <span class="pre">'loc_x':</span> <span class="pre">FixedLenFeature(shape=[],</span> <span class="pre">dtype=tf.int64,</span> <span class="pre">default_value=None),</span> <span class="pre">'loc_y':</span> <span class="pre">FixedLenFeature(shape=[],</span> <span class="pre">dtype=tf.int64,</span> <span class="pre">default_value=None),</span> <span class="pre">'slide':</span> <span class="pre">FixedLenFeature(shape=[],</span> <span class="pre">dtype=tf.string,</span> <span class="pre">default_value=None)}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'slide'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">assign_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_raw</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'image_raw'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.update_tfrecord_dir" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates tfrecords in a directory from an old format to a new format.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.write_tfrecords_merge">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">write_tfrecords_merge</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.write_tfrecords_merge" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scans a folder for subfolders, assumes subfolders are slide names. Assembles all image tiles within
+subfolders and labels using the provided annotation_dict, assuming the subfolder is the slide name.
+Collects all image tiles and exports into a single tfrecord file.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.write_tfrecords_multi">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">write_tfrecords_multi</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_directory</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.write_tfrecords_multi" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scans a folder for subfolders, assumes subfolders are slide names. Assembles all image tiles within
+subfolders and labels using the provided annotation_dict, assuming the subfolder is the slide name.
+Collects all image tiles and exports into multiple tfrecord files, one for each slide.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.tfrecords.write_tfrecords_single">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.tfrecords.</span></span><span class="sig-name descname"><span class="pre">write_tfrecords_single</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slide</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.tfrecords.write_tfrecords_single" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scans a folder for image tiles, annotates using the provided slide, exports
+into a single tfrecord file.</p>
+</dd></dl>
+
+</div>
+
+
+             </article>
+             
+            </div>
+            <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="reader.html" class="btn btn-neutral float-right" title="slideflow.io.reader" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+      
+      
+        <a href="dataset.html" class="btn btn-neutral" title="slideflow.dataset" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+      
+    </div>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2021, James M Dolezal.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">slideflow.io.tfrecords</a></li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+         <script src="_static/jquery.js"></script>
+         <script src="_static/underscore.js"></script>
+         <script src="_static/doctools.js"></script>
+     
+
+  
+
+  <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://pytorch.org/get-started">Get Started</a>
+          </li>
+
+          <li>
+            <a href="https://pytorch.org/ecosystem">Ecosystem</a>
+          </li>
+
+          <li>
+            <a href="https://pytorch.org/mobile">Mobile</a>
+          </li>
+
+          <li>
+            <a href="https://pytorch.org/hub">PyTorch Hub</a>
+          </li>
+
+          <li class="active">
+            <a href="https://pytorch.org/blog/">Blog</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

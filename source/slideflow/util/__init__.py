@@ -8,6 +8,7 @@ import shutil
 import threading
 import logging
 import cv2
+import multiprocessing_logging
 
 from glob import glob
 from os.path import join, isdir, exists, dirname
@@ -27,6 +28,9 @@ except:
     pass
 # ------
 
+# Set the backend
+os.environ['SF_BACKEND'] = 'tensorflow'
+
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif', 'jpg']
 SLIDE_ANNOTATIONS_TO_IGNORE = ['', ' ']
 LOGGING_PREFIXES = ['', ' + ', '    - ']
@@ -42,12 +46,13 @@ def bold(text):       return '\033[1m' + str(text) + '\033[0m'
 def underline(text):  return '\033[4m' + str(text) + '\033[0m'
 def purple(text):     return '\033[38;5;5m' + str(text) + '\033[0m'
 
-# ---------------------------------------------------------
-
 log = logging.getLogger('slideflow')
 log.setLevel(logging.INFO)
 
 class UserError(Exception):
+    pass
+
+class CPLEXError(Exception):
     pass
 
 class LogFormatter(logging.Formatter):
@@ -64,6 +69,16 @@ class LogFormatter(logging.Formatter):
         log_fmt = self.LEVEL_FORMATS[record.levelno]
         formatter = logging.Formatter(log_fmt, '%Y-%m-%d %H:%M:%S')
         return formatter.format(record)
+
+class FileFormatter(logging.Formatter):
+    MSG_FORMAT = "%(asctime)s [%(levelname)s] - %(message)s"
+    FORMAT_CHARS = ['\033[1m', '\033[2m', '\033[4m', '\033[91m', '\033[92m', '\033[93m', '\033[94m', '\033[38;5;5m', '\033[0m']
+    def format(self, record):
+        formatter = logging.Formatter(fmt=self.MSG_FORMAT, datefmt='%Y-%m-%d %H:%M:%S')
+        formatted = formatter.format(record)
+        for char in self.FORMAT_CHARS:
+            formatted = formatted.replace(char, '')
+        return formatted
 
 class TqdmLoggingHandler(logging.StreamHandler):
     """Avoid tqdm progress bar interruption by logger's output to console"""
@@ -91,20 +106,21 @@ class TqdmLoggingHandler(logging.StreamHandler):
 ch = TqdmLoggingHandler()
 ch.setFormatter(LogFormatter())
 log.addHandler(ch)
+multiprocessing_logging.install_mp_handler()
 # ------------------------------------------------------------
+import tensorflow as tf
 
 class StainNormalizer:
-    '''Object to supervise stain normalization for images and
-    efficiently convert between common image types.'''
+    """Object to supervise stain normalization for images and efficiently convert between common image types."""
 
-    def __init__(self, method='macenko', source=None):
-        '''Initializer. Establishes normalization method.
+    def __init__(self, method='reinhard', source=None):
+        """Initializer. Establishes normalization method.
 
         Args:
-            method:		Either 'macenko', 'reinhard', or 'vahadane'.
-            source:		Path to source image for normalizer.
-                            If not provided, defaults to an internal example image.
-        '''
+            method (str): Either 'macenko', 'reinhard', or 'vahadane'. Defaults to 'reinhard'.
+            source (str): Path to source image for normalizer. If not provided, defaults to an internal example image.
+        """
+
         import slideflow.slide.normalizers as normalizers
 
         self.normalizers = {
@@ -145,6 +161,10 @@ class StainNormalizer:
         cv_image = self.n.transform(cv_image)
         cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
         return cv_image
+
+    def png_to_rgb(self, png_string):
+        '''Non-normalized compressed PNG string data -> normalized RGB numpy array'''
+        return self.jpeg_to_rgb(png_string) # It should auto-detect format
 
     def jpeg_to_jpeg(self, jpeg_string):
         '''Non-normalized compressed JPG string data -> normalized compressed JPG string data'''
@@ -237,7 +257,7 @@ class Bar:
         return self.text
 
 class ProgressBar:
-    '''Flexible progress bar with dynamic ETA monitoring.'''
+    '''Flexible progress bar with dynamic ETA monitoring and multiprocessing support.'''
     tail = ''
     text = ''
 
@@ -471,6 +491,16 @@ def write_json(data, filename):
         json.dump(data, data_file, indent=1)
 
 def get_slides_from_model_manifest(model_path, dataset=None):
+    """Get list of slides from a model manifest.
+
+    Args:
+        model_path (str): Path to model from which to load the model manifest.
+        dataset (str):  'training' or 'validation'. Will return only slides from this dataset. Defaults to None (all).
+
+    Returns:
+        list(str): List of slide names.
+    """
+
     slides = []
     if exists(join(model_path, 'slide_manifest.log')):
         manifest = join(model_path, 'slide_manifest.log')
@@ -494,6 +524,8 @@ def get_slides_from_model_manifest(model_path, dataset=None):
     return slides
 
 def get_model_hyperparameters(model_path):
+    """Loads model hyperparameters JSON file."""
+
     if exists(join(model_path, 'hyperparameters.json')):
         return load_json(join(model_path, 'hyperparameters.json'))
     elif exists(join(dirname(model_path), 'hyperparameters.json')):
@@ -532,6 +564,8 @@ def read_annotations(annotations_file):
     return header, results
 
 def get_relative_tfrecord_paths(root, directory=""):
+    '''Returns relative tfrecord paths with respect to the given directory.'''
+
     tfrecords = [join(directory, f) for f in os.listdir(join(root, directory))
                                     if (not isdir(join(root, directory, f))
                                         and len(f) > 10 and f[-10:] == ".tfrecords")]
@@ -618,34 +652,3 @@ def update_results_log(results_log_path, model_name, results_dict):
     # Delete the old results log file
     if exists(f"{results_log_path}.temp"):
         os.remove(f"{results_log_path}.temp")
-
-def read_predictions_from_csv(path, outcome_labels=None, restrict_outcomes=None, outcome_type='categorical'):
-    '''Function to assist with loading predictions from files.
-
-    Returns:
-        Dictionary mapping slides to nested dictionary, which maps outcome labels to predictions.'''
-
-    predictor_label = 'percent_tiles_positive' if outcome_type == 'categorical' else 'average'
-
-    predictions = {}
-
-    with open(path, 'r') as csv_file:
-        reader = csv.reader(csv_file)
-        header = next(reader)
-        slide_i = header.index('slide')
-
-        if restrict_outcomes:
-            outcomes = restrict_outcomes
-        else:
-            outcomes = [int(h.split('y_true')[-1]) for h in header if 'y_true' in h]
-
-        for row in reader:
-            slide = row[slide_i]
-            predictions_dict = {}
-            for outcome in outcomes:
-                prediction_index = header.index(f'{predictor_label}{outcome}')
-                outcome_label = outcome if not outcome_labels else outcome_labels[outcome]
-                predictions_dict.update({outcome_label: row[prediction_index]})
-            predictions.update({slide: predictions_dict})
-
-    return predictions

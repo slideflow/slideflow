@@ -1,144 +1,184 @@
 
 
+
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Training &mdash; slideflow 1.11.0 documentation</title>
+  <title>Training &mdash; slideflow 1.12.0 documentation</title>
   
 
   
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-
-  
-  
-
-  
-  
-
-  
-
-  
-  <!--[if lt IE 9]>
-    <script src="_static/js/html5shiv.min.js"></script>
-  <![endif]-->
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/doctools.js"></script>
-    
-    <script type="text/javascript" src="_static/js/theme.js"></script>
-
-    
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Evaluation" href="evaluation.html" />
-    <link rel="prev" title="Tile extraction" href="extract_tiles.html" /> 
+    <link rel="prev" title="Tile extraction" href="extract_tiles.html" />
+  <!-- Google Analytics -->
+  
+  <!-- End Google Analytics -->
+  
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
 </head>
 
-<body class="wy-body-for-nav">
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">Showcase</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
 
    
-  <div class="wy-grid-for-nav">
+
     
-    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
-      <div class="wy-side-scroll">
-        <div class="wy-side-nav-search" >
-          
 
-          
-            <a href="root.html" class="icon icon-home"> slideflow
-          
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
 
-          
-          </a>
-
-          
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
             
-            
-              <div class="version">
-                1.11
-              </div>
-            
-          
 
-          
+            
+              
+              
+                <div class="version">
+                  1.12
+                </div>
+              
+            
+
+            
+
+
+  
+
+
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search Docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
 
-          
-        </div>
+            
+          </div>
 
-        
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
             
               
             
             
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="index.html">Introduction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="project.html">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Training</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#prepare-hyperparameters">Prepare hyperparameters</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#begin-training">Begin training</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#multiple-outcomes">Multiple outcomes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#multiple-input-variables">Multiple input variables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#cox-proportional-hazards-cph-models">Cox Proportional Hazards (CPH) models</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#distributed-training-across-gpus">Distributed training across GPUs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#monitoring-performance">Monitoring performance</a></li>
-</ul>
-</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
-<li class="toctree-l1"><a class="reference internal" href="slideflow.html">Source</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Source</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tfrecords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.reader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="statistics.html">slideflow.statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
 </ul>
 
             
           
         </div>
-        
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
-          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="root.html">slideflow</a>
-        
-      </nav>
-
-
-      <div class="wy-nav-content">
-        
-        <div class="rst-content">
-        
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
           
-
-
 
 
 
@@ -156,17 +196,24 @@
 
 <div role="navigation" aria-label="breadcrumbs navigation">
 
-  <ul class="wy-breadcrumbs">
+  <ul class="pytorch-breadcrumbs">
     
-      <li><a href="root.html" class="icon icon-home"></a> &raquo;</li>
+      <li>
+        <a href="index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
         
       <li>Training</li>
     
     
-      <li class="wy-breadcrumbs-aside">
+      <li class="pytorch-breadcrumbs-aside">
         
-          
-            <a href="_sources/training.rst.txt" rel="nofollow"> View page source</a>
+            
+            <a href="_sources/training.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
           
         
       </li>
@@ -174,41 +221,53 @@
   </ul>
 
   
-  <hr/>
 </div>
-          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
-           <div itemprop="articleBody">
-            
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
   <div class="section" id="training">
 <h1>Training<a class="headerlink" href="#training" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="prepare-hyperparameters">
 <h2>Prepare hyperparameters<a class="headerlink" href="#prepare-hyperparameters" title="Permalink to this headline">¶</a></h2>
 <p>There are two methods for configuring model hyperparameters. If you intend to train a model using a single combination of hyperparameters, use the <code class="docutils literal notranslate"><span class="pre">HyperParameters</span></code> class:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">HyperParameters</span>
-<span class="n">hp</span> <span class="o">=</span> <span class="n">HyperParameters</span><span class="p">(</span>
-        <span class="n">finetune_epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
-        <span class="n">model</span><span class="o">=</span><span class="s1">&#39;Xception&#39;</span><span class="p">,</span>
-        <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
-        <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.00001</span><span class="p">,</span>
-        <span class="n">batch_size</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hp</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">HyperParameters</span><span class="p">(</span>
+    <span class="n">finetune_epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
+    <span class="n">model</span><span class="o">=</span><span class="s1">&#39;Xception&#39;</span><span class="p">,</span>
+    <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
+    <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.00001</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the <code class="docutils literal notranslate"><span class="pre">create_hyperparameter_sweep</span></code> function to automatically save a sweep to a CSV file. For example, the following would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:</p>
+<p>Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the <code class="docutils literal notranslate"><span class="pre">create_hyperparameter_sweep</span></code> function to automatically save a sweep to a TSV file. For example, the following would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">create_hyperparameter_sweep</span><span class="p">(</span>
-        <span class="n">finetune_epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span>
-        <span class="n">toplayer_epochs</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-        <span class="n">model</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Xception&#39;</span><span class="p">],</span>
-        <span class="n">pooling</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;avg&#39;</span><span class="p">],</span>
-        <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
-        <span class="n">learning_rate</span><span class="o">=</span><span class="p">[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">],</span>
-        <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span>
-        <span class="n">hidden_layers</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
-        <span class="n">optimizer</span><span class="o">=</span><span class="s1">&#39;Adam&#39;</span><span class="p">,</span>
-        <span class="n">early_stop</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">early_stop_patience</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>
-        <span class="n">balanced_training</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;BALANCE_BY_CATEGORY&#39;</span><span class="p">],</span>
-        <span class="n">balanced_validation</span><span class="o">=</span><span class="s1">&#39;NO_BALANCE&#39;</span><span class="p">,</span>
-        <span class="n">augment</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">finetune_epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span>
+    <span class="n">toplayer_epochs</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+    <span class="n">model</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Xception&#39;</span><span class="p">],</span>
+    <span class="n">pooling</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;avg&#39;</span><span class="p">],</span>
+    <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
+    <span class="n">learning_rate</span><span class="o">=</span><span class="p">[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">],</span>
+    <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span>
+    <span class="n">hidden_layers</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+    <span class="n">optimizer</span><span class="o">=</span><span class="s1">&#39;Adam&#39;</span><span class="p">,</span>
+    <span class="n">early_stop</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">early_stop_patience</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>
+    <span class="n">balanced_training</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;BALANCE_BY_CATEGORY&#39;</span><span class="p">],</span>
+    <span class="n">balanced_validation</span><span class="o">=</span><span class="s1">&#39;NO_BALANCE&#39;</span><span class="p">,</span>
+    <span class="n">augment</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Available hyperparameters include:</p>
@@ -235,7 +294,7 @@
 <li><p><strong>trainable_layers</strong> - number of layers available for training, other layers will be frozen. If 0, all layers are trained</p></li>
 <li><p><strong>L2_weight</strong> - if provided, adds L2 regularization to all layers with this weight</p></li>
 <li><p><strong>dropout</strong> - dropout, used for post-convolutional layer.</p></li>
-<li><p><strong>augment</strong> - whether to augment data with random flipping/rotating during training</p></li>
+<li><p><strong>augment</strong> - Image augmentations to perform, including flipping/rotating and random JPEG compression. Please see <a class="reference internal" href="model.html#slideflow.model.HyperParameters" title="slideflow.model.HyperParameters"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.HyperParameters</span></code></a> for more details.</p></li>
 </ul>
 <p>If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in <code class="docutils literal notranslate"><span class="pre">slideflow.model.HyperParameters._LinearLoss</span></code>, and all available loss functions are in <code class="docutils literal notranslate"><span class="pre">slideflow.model.HyperParameters._AllLoss</span></code>.</p>
 </div>
@@ -244,44 +303,94 @@
 <p>Once your hyperparameter settings have been chosen you may begin training using the <code class="docutils literal notranslate"><span class="pre">train</span></code> function. Documentation of the function is given below:</p>
 <dl class="py function">
 <dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">slideflow.SlideflowProject.</span></span><span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome_label_headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'category'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_header</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resume_training</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pretrain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'imagenet'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pretrain_model_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hyperparameters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_settings</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles_per_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles_per_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starting_epoch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps_per_epoch_override</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">auto_extract</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_strategy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'tfrecord'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_tensorboard</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_gpu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_predictions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_metrics</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span></dt>
-<dd><p>Train model(s).</p>
+<span class="sig-prename descclassname"><span class="pre">slideflow.project.Project.</span></span><span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome_label_headers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hyperparameters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sweep'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exp_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_header</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resume_training</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pretrain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'imagenet'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">training_kwargs</span></span></em><span class="sig-paren">)</span></dt>
+<dd><p>Train model(s) using a given set of hyperparameters, outcomes, and inputs.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>model_names</strong> – Either a string representing a model name, or an array of strings containing multiple model names.
-Required if training to a single hyperparameter combination with the “hyperparameters” argument.
-If performing a hyperparameter sweep, will only train models with these names in the batch_train.tsv config file.
-May supply None if performing a hyperparameter sweep, in which case all models in the batch_train.tsv config file will be trained.</p></li>
-<li><p><strong>outcome_label_headers</strong> – String or list. Specifies which header(s) in the annotation file to use for the output category.
-Defaults to ‘category’. If a list is provided, will loop through all outcomes and perform HP sweep on each.</p></li>
-<li><p><strong>filters</strong> – Dictionary of column names mapping to column values by which to filter slides using the annotation file.</p></li>
-<li><p><strong>resume_training</strong> – Path to Tensorflow model to continue training</p></li>
-<li><p><strong>checkpoint</strong> – Path to cp.ckpt from which to load weights</p></li>
-<li><p><strong>pretrain</strong> – Pretrained weights to load. Default is imagenet. May supply a compatible Tensorflow model from which to load weights.</p></li>
-<li><p><strong>pretrain_model_format</strong> – Optional. May supply format of pretrained Slideflow Keras model if the model was made with a legacy version.
-Default value will be slideflow.model.MODEL_FORMAT_CURRENT,
-but slideflow.model.MODEL_FORMAT_LEGACY may be supplied.</p></li>
-<li><p><strong>batch_file</strong> – Manually specify batch file to use for a hyperparameter sweep. If not specified, will use project default.</p></li>
-<li><p><strong>hyperparameters</strong> – Manually specify hyperparameter combination to use for training. If specified, will ignore batch training file.</p></li>
-<li><p><strong>validation_settings</strong> – Namespace of validation settings, as provided by sf.project.get_validation_settings()</p></li>
-<li><p><strong>max_tiles_per_slide</strong> – Will only use up to this many tiles from each slide for training. If zero, will include all tiles.</p></li>
-<li><p><strong>min_tiles_per_slide</strong> – Minimum number of tiles a slide must have to be included in training.</p></li>
-<li><p><strong>starting_epoch</strong> – Starts training at the specified epoch</p></li>
-<li><p><strong>steps_per_epoch_override</strong> – If provided, will manually set the number of steps in an epoch (default epoch length is the number of total tiles)</p></li>
-<li><p><strong>auto_extract</strong> – Bool. If True, will automatically extract tiles as needed for training, without needing to explicitly call extract_tiles()</p></li>
-<li><p><strong>normalizer</strong> – Normalization strategy to use on image tiles</p></li>
-<li><p><strong>normalizer_source</strong> – Path to normalizer source image</p></li>
-<li><p><strong>normalizer_strategy</strong> – Either ‘tfrecord’ or ‘realtime’. If TFrecord and auto_extract is True, then tiles will be extracted to TFRecords and stored normalized.
-If realtime, then normalization is performed during training.</p></li>
-<li><p><strong>use_tensorboard</strong> – Bool. If True, will add tensorboard callback during training for realtime monitoring.</p></li>
-<li><p><strong>multi_gpu</strong> – Bool. If True, will attempt to train using multiple GPUs using Keras MirroredStrategy.</p></li>
-<li><p><strong>save_predicitons</strong> – Bool. If True, will save predictions with each validation. May increase validation time for large projects.</p></li>
-<li><p><strong>skip_metrics</strong> – Bool. If True, will skip metrics (ROC, AP, F1) during validation, which may improve training time for large projects.</p></li>
+<li><p><strong>outcome_label_headers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Str or list of str. Annotation column header specifying the outcome label(s).</p></li>
+<li><p><strong>hyperparameters</strong> (<a class="reference internal" href="model.html#slideflow.model.HyperParameters" title="slideflow.model.HyperParameters"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.HyperParameters</span></code></a>, list, dict, or str) – Defaults to ‘sweep’.
+If ‘sweep’, will use project batch train configuration file to sweep through all HP combinations.
+Additionally, a <a class="reference internal" href="model.html#slideflow.model.HyperParameters" title="slideflow.model.HyperParameters"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.HyperParameters</span></code></a> may be provided, either individually,
+as a list, or as a dictionary mapping model names to HP objects. Please see examples below for use.</p></li>
+<li><p><strong>exp_label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Optional experiment label to add to each model name.</p></li>
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters dict to use when selecting tfrecords. Defaults to None.
+See <a class="reference internal" href="project.html#slideflow.project.Project.get_dataset" title="slideflow.project.Project.get_dataset"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get_dataset()</span></code></a> documentation for more information on filtering.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – Slides blank in these columns will be excluded. Defaults to None.</p></li>
+<li><p><strong>input_header</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – List of annotation column headers to use as model input. Defaults to None.</p></li>
+<li><p><strong>resume_training</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Path to Tensorflow model to continue training. Defaults to None.</p></li>
+<li><p><strong>checkpoint</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Path to cp.ckpt from which to load weights. Defaults to None.</p></li>
+<li><p><strong>pretrain</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘imagenet’ or path to Tensorflow model from which to load weights.
+Defaults to ‘imagenet’.</p></li>
+<li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy to use on image tiles. Defaults to None.</p></li>
+<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image. Defaults to None.
+If None but using a normalizer, will use an internal tile for normalization.
+Internal default tile can be found at slideflow.util.norm_tile.jpg</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>A dictionary containing model names mapped to train_acc, val_loss, and val_acc</p>
+<dt class="field-even">Keyword Arguments</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>val_strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Validation dataset selection strategy. Defaults to ‘k-fold’.
+Options include bootstrap, k-fold, k-fold-manual, k-fold-preserved-site, fixed, and none.</p></li>
+<li><p><strong>val_k_fold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Total number of K if using K-fold validation. Defaults to 3.</p></li>
+<li><p><strong>val_k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Iteration of K-fold to train, starting at 1. Defaults to None (training all k-folds).</p></li>
+<li><p><strong>val_k_fold_header</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Annotations file header column for manually specifying k-fold.
+Only used if validation strategy is ‘k-fold-manual’. Defaults to None.</p></li>
+<li><p><strong>val_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – Fraction of dataset to use for validation testing, if strategy is ‘fixed’.</p></li>
+<li><p><strong>val_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Dataset source to use for validation. Defaults to None (same as training).</p></li>
+<li><p><strong>val_annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Path to annotations file for validation dataset. Defaults to None (same as training).</p></li>
+<li><p><strong>val_filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a>) – Filters dictionary to use for validation dataset. Defaults to None (same as training).</p></li>
+<li><p><strong>starting_epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Start training at the specified epoch. Defaults to 0.</p></li>
+<li><p><strong>steps_per_epoch_override</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – If provided, will manually set the number of steps in an epoch
+Default epoch length is the number of total tiles.</p></li>
+<li><p><strong>max_tiles_per_slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Only use up to this many tiles from each slide for training. Defaults to 0.
+If zero, will include all tiles.</p></li>
+<li><p><strong>min_tiles_per_slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Minimum number of tiles a slide must have to include in training. Defaults to 0.</p></li>
+<li><p><strong>save_predicitons</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – Save predictions with each validation. Defaults to False.
+May increase validation time for large projects.</p></li>
+<li><p><strong>skip_metrics</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – Skip metrics (ROC, AP, F1) during validation. Defaults to False.
+May improve training time for large projects.</p></li>
+<li><p><strong>validate_on_batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Validation will be performed every N batches. Defaults to 512.</p></li>
+<li><p><strong>validation_batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Validation dataset batch size. Defaults to 32.</p></li>
+<li><p><strong>use_tensorboard</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – Add tensorboard callback for realtime training monitoring. Defaults to False.</p></li>
+<li><p><strong>multi_gpu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – Train using multiple GPUs using Keras MirroredStrategy when available. Defaults to True.</p></li>
+<li><p><strong>validation_steps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Number of steps of validation to perform each time doing a validation check.
+Defaults to 200.</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A dictionary containing model names mapped to train_acc, val_loss, and val_acc</p>
+</dd>
+</dl>
+<dl>
+<dt>Examples</dt><dd><p>Method 1 (hyperparameter sweep from project batch train configuration file):</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="s1">&#39;outcome&#39;</span><span class="p">,</span> <span class="n">hyperparameters</span><span class="o">=</span><span class="s1">&#39;sweep&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Method 2 (hyperparameter sweep from other batch train configuration file):</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow.model</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="n">slideflow</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">get_hp_from_batch_file</span><span class="p">(</span><span class="s1">&#39;./batch_train.tsv&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="s1">&#39;outcome&#39;</span><span class="p">,</span> <span class="n">hyperparameters</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Method 3 (manually specified hyperparameters):</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">HyperParameters</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="n">HyperParameters</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="s1">&#39;outcome&#39;</span><span class="p">,</span> <span class="n">hyperparameters</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Method 4 (list of hyperparameters):</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">HyperParameters</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="p">[</span><span class="n">HyperParameters</span><span class="p">(</span><span class="o">...</span><span class="p">),</span> <span class="n">HyperParameters</span><span class="p">(</span><span class="o">...</span><span class="p">)]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="s1">&#39;outcome&#39;</span><span class="p">,</span> <span class="n">hyperparameters</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Method 5 (dict of hyperparameters):</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">HyperParameters</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;HP0&#39;</span><span class="p">:</span> <span class="n">HyperParameters</span><span class="p">(</span><span class="o">...</span><span class="p">),</span> <span class="s1">&#39;HP1&#39;</span><span class="p">:</span> <span class="n">HyperParameters</span><span class="p">(</span><span class="o">...</span><span class="p">)}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="s1">&#39;outcome&#39;</span><span class="p">,</span> <span class="n">hyperparameters</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</pre></div>
+</div>
 </dd>
 </dl>
 </dd></dl>
@@ -290,12 +399,11 @@ If realtime, then normalization is performed during training.</p></li>
 <p>Your outcome variable(s) are specified with the <code class="docutils literal notranslate"><span class="pre">outcome_label_headers</span></code> argument. You may filter slides for training using the <code class="docutils literal notranslate"><span class="pre">filter</span></code> argument, as previously described.</p>
 <p>For example, to train using only slides labeled as “train” in the “dataset” column, with the outcome variable defined by the column “category”, use the following syntax:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">outcome_label_headers</span><span class="o">=</span><span class="s2">&quot;category&quot;</span><span class="p">,</span>
-          <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">]},</span>
-          <span class="n">batch_file</span><span class="o">=</span><span class="s1">&#39;batch_train.tsv&#39;</span><span class="p">)</span>
+      <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">]},</span>
+      <span class="n">batch_file</span><span class="o">=</span><span class="s1">&#39;batch_train.tsv&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>If you would like to use a different validation plan than the default, manually pass the relevant variables to <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.project.get_validation_settings()</span></code>, and pass the returned settings namespace to the train() function’s <code class="docutils literal notranslate"><span class="pre">validation_settings</span></code>)</p>
-<p>To begin training, save your <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file and execute the <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script in the slideflow directory.</p>
+<p>If you would like to use a different validation plan than the default, pass the relevant keyword arguments to the training function.</p>
 <p>Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the <code class="docutils literal notranslate"><span class="pre">results_log.csv</span></code> file in the project directory. Additional data, including ROCs and scatter plots, are saved in the model directories.</p>
 <p>At each designated epoch, models are saved in their own folders. Each model directory will include a copy of its hyperparameters in a <code class="docutils literal notranslate"><span class="pre">hyperparameters.json</span></code> file, and a copy of its training/validation slide manifest in <code class="docutils literal notranslate"><span class="pre">slide.log</span></code>.</p>
 </div>
@@ -310,11 +418,15 @@ If realtime, then normalization is performed during training.</p></li>
 </div>
 <div class="section" id="cox-proportional-hazards-cph-models">
 <h2>Cox Proportional Hazards (CPH) models<a class="headerlink" href="#cox-proportional-hazards-cph-models" title="Permalink to this headline">¶</a></h2>
-<p>Models can also be trained to a time series outcome using CPH and negative log likelihood loss. For CPH models, use ‘negative_log_likelihood’ loss and set <code class="docutils literal notranslate"><span class="pre">outcome_label_header</span></code> equal to the annotation column indicating event <em>time</em>. Specify the event <em>type</em> (0 or 1) by passing the event type annotation column to the argument <code class="docutils literal notranslate"><span class="pre">input_header</span></code>. If you are using multiple clinical inputs, the first header passed to <code class="docutils literal notranslate"><span class="pre">input_header</span></code> must be event type.</p>
+<p>Models can also be trained to a time series outcome using CPH and negative log likelihood loss. For CPH models, use ‘negative_log_likelihood’ loss and set <code class="docutils literal notranslate"><span class="pre">outcome_label_header</span></code> equal to the annotation column indicating event <em>time</em>. Specify the event <em>type</em> (0 or 1) by passing the event type annotation column to the argument <code class="docutils literal notranslate"><span class="pre">input_header</span></code>. If you are using multiple clinical inputs, the first header passed to <code class="docutils literal notranslate"><span class="pre">input_header</span></code> must be event type. CPH models are not compatible with multiple outcomes.</p>
 </div>
 <div class="section" id="distributed-training-across-gpus">
 <h2>Distributed training across GPUs<a class="headerlink" href="#distributed-training-across-gpus" title="Permalink to this headline">¶</a></h2>
 <p>If multiple GPUs are available, training can be distributed by passing the argument <code class="docutils literal notranslate"><span class="pre">multi_gpu=True</span></code>. If provided, slideflow will use all available (and visible) GPUs for training.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>There is currently a bug in Tensorflow 2.5+ with Python 3.8+ which prevents multi gpu training using MirroredStrategy. You can follow the issue on <a class="reference external" href="https://github.com/tensorflow/tensorflow/issues/50487">Tensorflow Github</a>.</p>
+</div>
 </div>
 <div class="section" id="monitoring-performance">
 <h2>Monitoring performance<a class="headerlink" href="#monitoring-performance" title="Permalink to this headline">¶</a></h2>
@@ -327,51 +439,159 @@ If realtime, then normalization is performed during training.</p></li>
 </div>
 
 
-           </div>
-           
-          </div>
-          <footer>
+             </article>
+             
+            </div>
+            <footer>
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="evaluation.html" class="btn btn-neutral float-right" title="Evaluation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-        <a href="extract_tiles.html" class="btn btn-neutral float-left" title="Tile extraction" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+      
+        <a href="evaluation.html" class="btn btn-neutral float-right" title="Evaluation" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+      
+      
+        <a href="extract_tiles.html" class="btn btn-neutral" title="Tile extraction" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+      
     </div>
+  
 
-  <hr/>
+  
+
+    <hr>
+
+  
 
   <div role="contentinfo">
     <p>
-        &#169; Copyright 2021, James M Dolezal.
+        &copy; Copyright 2021, James M Dolezal.
 
     </p>
   </div>
     
-    
-    
-    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
-    
-    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
-    
-    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
 
 </footer>
+
+          </div>
         </div>
-      </div>
 
-    </section>
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Training</a><ul>
+<li><a class="reference internal" href="#prepare-hyperparameters">Prepare hyperparameters</a></li>
+<li><a class="reference internal" href="#begin-training">Begin training</a></li>
+<li><a class="reference internal" href="#multiple-outcomes">Multiple outcomes</a></li>
+<li><a class="reference internal" href="#multiple-input-variables">Multiple input variables</a></li>
+<li><a class="reference internal" href="#cox-proportional-hazards-cph-models">Cox Proportional Hazards (CPH) models</a></li>
+<li><a class="reference internal" href="#distributed-training-across-gpus">Distributed training across GPUs</a></li>
+<li><a class="reference internal" href="#monitoring-performance">Monitoring performance</a></li>
+</ul>
+</li>
+</ul>
 
-  </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
   
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+         <script src="_static/jquery.js"></script>
+         <script src="_static/underscore.js"></script>
+         <script src="_static/doctools.js"></script>
+     
+
+  
+
+  <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="_static/js/theme.js"></script>
 
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
+  </script> 
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://pytorch.org/get-started">Get Started</a>
+          </li>
+
+          <li>
+            <a href="https://pytorch.org/ecosystem">Ecosystem</a>
+          </li>
+
+          <li>
+            <a href="https://pytorch.org/mobile">Mobile</a>
+          </li>
+
+          <li>
+            <a href="https://pytorch.org/hub">PyTorch Hub</a>
+          </li>
+
+          <li class="active">
+            <a href="https://pytorch.org/blog/">Blog</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
   </script>
-
-  
-  
-    
-   
-
 </body>
 </html>

@@ -1,9 +1,9 @@
 import imghdr
-import numpy as np
 import os
 import copy
 import shutil
 import logging
+import slideflow as sf
 
 from os import listdir
 from os.path import isfile, isdir, join, exists
@@ -16,7 +16,6 @@ logging.getLogger("tensorflow").setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import tensorflow as tf
-import slideflow.util as sfutil
 
 BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
 BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
@@ -26,14 +25,10 @@ FEATURE_TYPES = (tf.int64, tf.string, tf.string)
 FEATURE_DESCRIPTION_LEGACY =  {'slide':    tf.io.FixedLenFeature([], tf.string),
                                'image_raw':tf.io.FixedLenFeature([], tf.string)}
 
-FEATURE_DESCRIPTION = {'slide':    	tf.io.FixedLenFeature([], tf.string),
-                       'image_raw':	tf.io.FixedLenFeature([], tf.string),
-                       'loc_x':		tf.io.FixedLenFeature([], tf.int64),
-                       'loc_y':		tf.io.FixedLenFeature([], tf.int64)}
-
-FEATURE_DESCRIPTION_MULTI =  {'slide':    tf.io.FixedLenFeature([], tf.string),
-                              'input_1':  tf.io.FixedLenFeature([], tf.string),
-                              'input_2':  tf.io.FixedLenFeature([], tf.string)}
+FEATURE_DESCRIPTION = {'slide':        tf.io.FixedLenFeature([], tf.string),
+                       'image_raw':    tf.io.FixedLenFeature([], tf.string),
+                       'loc_x':        tf.io.FixedLenFeature([], tf.int64),
+                       'loc_y':        tf.io.FixedLenFeature([], tf.int64)}
 
 class TFRecordsError(Exception):
     pass
@@ -52,7 +47,7 @@ def _int64_feature(value):
 
 def _get_images_by_dir(directory):
     files = [f for f in listdir(directory) if (isfile(join(directory, f))) and
-                (sfutil.path_to_ext(f) in ("jpg", "png"))]
+                (sf.util.path_to_ext(f) in ("jpg", "png"))]
     return files
 
 def _read_and_return_record(record, feature_description, assign_slide=None):
@@ -69,7 +64,7 @@ def _print_record(filename):
 
     for i, record in enumerate(dataset):
         slide, loc_x, loc_y = parser(record)
-        print(f"{sfutil.purple(filename)}: Record {i}: Slide: {sfutil.green(str(slide))} Loc: {(loc_x, loc_y)}")
+        print(f"{sf.util.purple(filename)}: Record {i}: Slide: {sf.util.green(str(slide))} Loc: {(loc_x, loc_y)}")
 
 def _decode_image(img_string, img_type, size=None, standardize=False, normalizer=None, augment=False):
     tf_decoders = {
@@ -111,13 +106,20 @@ def _decode_image(img_string, img_type, size=None, standardize=False, normalizer
 def get_tfrecords_from_model_manifest(path_to_model):
     log.warning("Deprecation Warning: sf.io.tfrecords.get_tfrecord_from_model_manifest() will be removed " + \
                 "in a future version. Please use sf.util.get_slides_from_model_manifest()")
-    return sfutil.get_slides_from_model_manifest(path_to_model)
+    return sf.util.get_slides_from_model_manifest(path_to_model)
 
-def detect_tfrecord_format(tfr):
+def detect_tfrecord_format(path):
+    """Loads a tfrecord at the specified path, and detects the feature description and image type.
+
+    Returns:
+        dict: Feature description dictionary.
+        str:  Stored image type, either 'png' or 'jpg'.
+    """
+
     try:
-        record = next(iter(tf.data.TFRecordDataset(tfr)))
+        record = next(iter(tf.data.TFRecordDataset(path)))
     except StopIteration:
-        log.warning(f"TFRecord {tfr} is empty.")
+        log.warning(f"TFRecord {path} is empty.")
         return None, None
     try:
         features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
@@ -130,21 +132,37 @@ def detect_tfrecord_format(tfr):
             features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION_LEGACY)
             feature_description = FEATURE_DESCRIPTION_LEGACY
         except tf.errors.InvalidArgumentError:
-            raise TFRecordsError(f"Unrecognized TFRecord format: {tfr}")
+            raise TFRecordsError(f"Unrecognized TFRecord format: {path}")
     image_type = imghdr.what('', features['image_raw'].numpy())
     return feature_description, image_type
 
-def get_tfrecord_parser(tfrecord_path,
-                        features_to_return=None,
-                        to_numpy=False,
-                        decode_images=True,
-                        standardize=False,
-                        img_size=None,
-                        normalizer=None,
-                        augment=False,
-                        error_if_invalid=True):
+def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False, decode_images=True,
+                        standardize=False, img_size=None, normalizer=None, augment=False, error_if_invalid=True):
+
+    """Returns a tfrecord parsing function based on the specified parameters.
+
+    Args:
+        tfrecord_path (str): Path to tfrecord to parse.
+        features_to_return (list or dict, optional): Designates format for how features should be returned from parser.
+            If a list of feature names is provided, the parsing function will return tfrecord features as a list
+            in the order provided. If a dictionary of labels (keys) mapping to feature names (values) is provided,
+            features will be returned from the parser as a dictionary matching the same format. If None, will
+            return all features as a list.
+        to_numpy (bool, optional): Convert records from tensors to numpy arrays. Defaults to False.
+        decode_images (bool, optional): Decode raw image strings into image arrays. Defaults to True.
+        standardize (bool, optional): Standardize images into the range (0,1). Defaults to False.
+        img_size (int): Width of images in pixels. Will call tf.set_shape(...) if provided. Defaults to False.
+        normalizer (:class:`slideflow.util.StainNormalizer`): Stain normalizer to use on images. Defaults to None.
+        augment (str): Image augmentations to perform. String containing characters designating augmentations.
+            'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
+            at random quality levels. Passing either 'xyrj' or True will use all augmentations.
+        error_if_invalid (bool, optional): Raise an error if a tfrecord cannot be read. Defaults to True.
+    """
 
     feature_description, img_type = detect_tfrecord_format(tfrecord_path)
+    if feature_description is None:
+        log.warning(f"Unable to read tfrecord at {tfrecord_path} - is it empty?")
+        return None
     if features_to_return is None:
         features_to_return = list(feature_description.keys())
 
@@ -171,51 +189,49 @@ def get_tfrecord_parser(tfrecord_path,
     return parser
 
 def get_locations_from_tfrecord(filename):
+    '''Returns dictionary mapping indices to tile locations (X, Y)'''
+
     dataset = tf.data.TFRecordDataset(filename)
     loc_dict = {}
     parser = get_tfrecord_parser(filename, ('loc_x', 'loc_y'), to_numpy=True)
     for i, record in enumerate(dataset):
         loc_x, loc_y = parser(record)
-        loc_dict.update({ i: (loc_x, loc_y)	})
+        loc_dict.update({ i: (loc_x, loc_y)    })
     return loc_dict
 
-def interleave_tfrecords(tfrecords,
-                         image_size,
-                         batch_size,
-                         label_parser=None,
-                         model_type='categorical',
-                         balance=None,
-                         finite=False,
-                         annotations=None,
-                         max_tiles=0,
-                         min_tiles=0,
-                         drop_remainder=False,
-                         include_slidenames=False,
-                         augment=True,
-                         standardize=True,
-                         normalizer=None,
-                         manifest=None,
-                         slides=None,
-                         num_shards=None,
-                         shard_idx=None,
-                         num_parallel_reads=4):
+def interleave(tfrecords, img_size, batch_size, label_parser=None, model_type='categorical', balance=None,
+                finite=False, annotations=None, max_tiles=0, min_tiles=0, augment=True, standardize=True,
+                normalizer=None, manifest=None, slides=None, num_shards=None, shard_idx=None, num_parallel_reads=4):
 
-    '''Generates an interleaved dataset from a collection of tfrecord files,
-    sampling from tfrecord files randomly according to balancing if provided.
-    Requires manifest for balancing. Assumes TFRecord files are named by slide.
+    """Generates an interleaved dataset from a collection of tfrecord files, sampling from tfrecord files randomly
+    according to balancing if provided. Requires manifest for balancing. Assumes TFRecord files are named by slide.
 
     Args:
-        tfrecords:				Array of paths to TFRecord files
-        batch_size:				Batch size
-        balance:				Whether to use balancing for batches. Options are BALANCE_BY_CATEGORY,
-                                    BALANCE_BY_PATIENT, and NO_BALANCE. If finite option is used, will drop
-                                    tiles in order to maintain proportions across the interleaved dataset.
-        augment:					Whether to use data augmentation (random flip/rotate)
-        finite:					Whether create finite or infinite datasets. WARNING: If finite option is
-                                    used with balancing, some tiles will be skipped.
-        max_tiles:				Maximum number of tiles to use per slide.
-        min_tiles:				Minimum number of tiles that each slide must have to be included.
-    '''
+        tfrecords (list(str)): List of paths to TFRecord files.
+        img_size (int): Image width in pixels.
+        batch_size (int): Batch size.
+        label_parser (func, optional): Base function to use for parsing labels. Function must accept an image (tensor)
+            and slide name (str), and return an image (tensor) and label. If None is provided, all labels will be None.
+        model_type (str, optional): Model type. 'categorical' enables category-level balancing. Defaults to 'categorical'.
+        balance (str, optional): Batch-level balancing. Options: BALANCE_BY_CATEGORY, BALANCE_BY_PATIENT, and NO_BALANCE.
+            If finite option is used, will drop tiles in order to maintain proportions across the interleaved dataset.
+        finite (bool, optional): Create a finite dataset iterating through tiles only once. WARNING: If finite option is
+            used with balancing, some tiles will be skipped. Defaults to False (infinite dataset).
+        annotations (dict, optional): Dict mapping slide names to outcome labels, used for balancing. Defaults to None.
+        max_tiles (int, optional): Maximum number of tiles to use per slide. Defaults to 0 (use all tiles).
+        min_tiles (int, optional): Minimum number of tiles that each slide must have to be included. Defaults to 0.
+        augment (str, optional): Image augmentations to perform. String containing characters designating augmentations.
+                'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
+                at random quality levels. Passing either 'xyrj' or True will use all augmentations.
+        standardize (bool, optional): Standardize images to (0,1). Defaults to True.
+        normalizer (:class:`slideflow.util.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
+        manfest (dict, optional): Dataset manifest containing number of tiles per tfrecord.
+        slides (list(str), optional): Only interleaves tfrecords with these slide names. If None, uses all tfrecords.
+        num_shards (int, optional): Shard the tfrecord datasets, used for multiprocessing datasets. Defaults to None.
+        shard_idx (int, optional): Index of the tfrecord shard to use. Defaults to None.
+        num_parallel_reads (int, optional): Number of parallel reads for each TFRecordDataset. Defaults to 4.
+    """
+
     log.debug(f'Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min={min_tiles}')
     with tf.device('cpu'):
         datasets = []
@@ -235,15 +251,15 @@ def interleave_tfrecords(tfrecords,
             label_parser = default_label_parser
 
         if slides is None:
-            slides = [sfutil.path_to_name(t) for t in tfrecords]
+            slides = [sf.util.path_to_name(t) for t in tfrecords]
 
         if tfrecords == []:
             raise TFRecordsError('No TFRecords found.')
 
         if manifest:
-            pb = sfutil.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
+            pb = sf.util.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
             for filename in tfrecords:
-                slide_name = sfutil.path_to_name(filename)
+                slide_name = sf.util.path_to_name(filename)
 
                 if slide_name not in slides:
                     continue
@@ -252,7 +268,7 @@ def interleave_tfrecords(tfrecords,
                 try:
                     tiles = manifest[filename]['total']
                 except KeyError:
-                    log.error(f'Manifest not finished, unable to find {sfutil.green(filename)}')
+                    log.error(f'Manifest not finished, unable to find {sf.util.green(filename)}')
                     raise TFRecordsError(f'Manifest not finished, unable to find {filename}')
 
                 # Ensure TFRecord has minimum number of tiles; otherwise, skip
@@ -270,19 +286,19 @@ def interleave_tfrecords(tfrecords,
                     raise TFRecordsError('Inconsistent TFRecord internal formatting; all must be formatted the same.')
                 if base_parser is None:
                     base_parser = get_tfrecord_parser(filename,
-                            ('slide', 'image_raw'),
-                            standardize=standardize,
-                            img_size=image_size,
-                            normalizer=normalizer,
-                            augment=augment)
+                                                      ('image_raw', 'slide'),
+                                                      standardize=standardize,
+                                                      img_size=img_size,
+                                                      normalizer=normalizer,
+                                                      augment=augment)
 
                 # Assign category by outcome if this is a categorical model,
-                #	Merging category names if there are multiple outcomes
+                #    Merging category names if there are multiple outcomes
                 #   (balancing across all combinations of outcome categories equally)
                 # Otherwise, consider all slides from the same category (effectively skipping balancing).
                 #   Appropriate for linear models.
                 if model_type == 'categorical' and annotations is not None:
-                    category = annotations[slide_name]['outcome_label']
+                    category = annotations[slide_name]
                     category = [category] if not isinstance(category, list) else category
                     category = '-'.join(map(str, category))
                 elif model_type == 'categorical' and balance == BALANCE_BY_CATEGORY:
@@ -299,7 +315,7 @@ def interleave_tfrecords(tfrecords,
 
                 # Cap number of tiles to take from TFRecord at maximum specified
                 if max_tiles and tiles > max_tiles:
-                    log.debug(f'Only taking maximum of {max_tiles} (of {tiles}) tiles from {sfutil.green(filename)}')
+                    log.debug(f'Only taking maximum of {max_tiles} (of {tiles}) tiles from {sf.util.green(filename)}')
                     tiles = max_tiles
 
                 if category not in categories.keys():
@@ -363,20 +379,20 @@ def interleave_tfrecords(tfrecords,
                 log.error(manifest_msg)
             else:
                 log.warning(manifest_msg)
-            pb = sfutil.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
+            pb = sf.util.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
             for filename in tfrecords:
-                slide_name = sfutil.path_to_name(filename)
+                slide_name = sf.util.path_to_name(filename)
 
                 if slide_name not in slides:
                     continue
 
                 if base_parser is None:
                     base_parser = get_tfrecord_parser(filename,
-                            ('slide', 'image_raw'),
-                            standardize=standardize,
-                            img_size=image_size,
-                            normalizer=normalizer,
-                            augment=augment)
+                                                      ('image_raw', 'slide'),
+                                                      standardize=standardize,
+                                                      img_size=img_size,
+                                                      normalizer=normalizer,
+                                                      augment=augment)
 
                 datasets += [tf.data.TFRecordDataset(filename, num_parallel_reads=num_parallel_reads)]
                 pb.increase_bar_value()
@@ -385,53 +401,47 @@ def interleave_tfrecords(tfrecords,
         # Interleave and batch datasets
         try:
             sampled_dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
-            dataset = get_parsed_datasets(sampled_dataset,
-                                                label_parser=label_parser,
-                                                base_parser=base_parser,
-                                                include_slidenames=False)
+            dataset = _get_parsed_datasets(sampled_dataset,
+                                          label_parser=label_parser,
+                                          base_parser=base_parser,
+                                          include_slidenames=False)
             if batch_size:
-                dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
+                dataset = dataset.batch(batch_size, drop_remainder=False)
             #dataset = dataset.prefetch(tf.data.AUTOTUNE)
         except IndexError:
             raise TFRecordsError('No TFRecords found after filter criteria; please verify TFRecords exist')
 
-        if include_slidenames:
-            dataset_with_slidenames = get_parsed_datasets(sampled_dataset,
-                                                                label_parser=label_parser,
-                                                                base_parser=base_parser,
-                                                                include_slidenames=True)
-            if batch_size:
-                dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=drop_remainder)
-            #dataset_with_slidenames = dataset_with_slidenames.prefetch(tf.data.AUTOTUNE)
-
-        else:
-            dataset_with_slidenames = None
+        dataset_with_slidenames = _get_parsed_datasets(sampled_dataset,
+                                                        label_parser=label_parser,
+                                                        base_parser=base_parser,
+                                                        include_slidenames=True)
+        if batch_size:
+            dataset_with_slidenames = dataset_with_slidenames.batch(batch_size, drop_remainder=False)
+        #dataset_with_slidenames = dataset_with_slidenames.prefetch(tf.data.AUTOTUNE)
 
         return dataset, dataset_with_slidenames, global_num_tiles
 
-def get_parsed_datasets(tfrecord_dataset, label_parser, base_parser, include_slidenames=False):
-    if include_slidenames:
-        training_parser_with_slidenames = partial(label_parser,
-                                                    base_parser=base_parser,
-                                                    include_slidenames=True)
+def _get_parsed_datasets(tfrecord_dataset, label_parser, base_parser, include_slidenames=False):
+    def final_parser(record, incl_slidenames):
+        image, slide = base_parser(record)
+        l_image, label = label_parser(image, slide)
+        if incl_slidenames:
+            return l_image, label, slide
+        else:
+            return l_image, label
 
-        dataset_with_slidenames = tfrecord_dataset.map(training_parser_with_slidenames, num_parallel_calls=8)
+    if include_slidenames:
+        training_parser_with_slidenames = partial(final_parser, incl_slidenames=True)
+
+        dataset_with_slidenames = tfrecord_dataset.map(training_parser_with_slidenames, num_parallel_calls=32)
         return dataset_with_slidenames
     else:
-        training_parser = partial(label_parser, base_parser=base_parser, include_slidenames=False)
-        dataset = tfrecord_dataset.map(training_parser, num_parallel_calls=8)
+        training_parser = partial(final_parser, incl_slidenames=False)
+        dataset = tfrecord_dataset.map(training_parser, num_parallel_calls=32)
         return dataset
 
-def default_label_parser(record, base_parser, include_slidenames=True):
-        '''Parses raw entry read from TFRecord.'''
-
-        slide, image = base_parser(record)
-        label = None
-
-        if include_slidenames:
-            return image, label, slide
-        else:
-            return image, label
+def default_label_parser(image, slide):
+    return image, None
 
 def tfrecord_example(slide, image_raw, loc_x=0, loc_y=0):
     '''Returns a Tensorflow Data example for TFRecord storage.'''
@@ -446,7 +456,7 @@ def tfrecord_example(slide, image_raw, loc_x=0, loc_y=0):
 def multi_image_example(slide, image_dict):
     '''Returns a Tensorflow Data example for TFRecord storage with multiple images.'''
     feature = {
-        'slide':	_bytes_feature(slide)
+        'slide':    _bytes_feature(slide)
     }
     for image_label in image_dict:
         feature.update({
@@ -462,7 +472,7 @@ def merge_split_tfrecords(source, destination):
     for subdir in subdirs:
         tfrs = [tfr for tfr in listdir(join(source, subdir)) if isfile(join(source, subdir, tfr)) and tfr[-9:] == 'tfrecords']
         for tfr in tfrs:
-            name = sfutil.path_to_name(tfr)
+            name = sf.util.path_to_name(tfr)
             if name not in tfrecords:
                 tfrecords.update({name: [join(source, subdir, tfr)] })
             else:
@@ -521,7 +531,7 @@ def split_tfrecord(tfrecord_file, output_folder):
     writers = {}
     for record in dataset:
         slide = parser(record)
-        shortname = sfutil._shortname(slide.decode('utf-8'))
+        shortname = sf.util._shortname(slide.decode('utf-8'))
 
         if shortname not in writers.keys():
             tfrecord_path = join(output_folder, f"{shortname}.tfrecords")
@@ -564,7 +574,7 @@ def write_tfrecords_merge(input_directory, output_directory, filename):
             image_string = open(filename, 'rb').read()
             tf_example = tfrecord_example(label, image_string)
             writer.write(tf_example.SerializeToString())
-    log.info(f"Wrote {len(keys)} image tiles to {sfutil.green(tfrecord_path)}")
+    log.info(f"Wrote {len(keys)} image tiles to {sf.util.green(tfrecord_path)}")
     return len(keys)
 
 def write_tfrecords_multi(input_directory, output_directory):
@@ -578,9 +588,9 @@ def write_tfrecords_multi(input_directory, output_directory):
                                               output_directory,
                                               f'{slide_dir}.tfrecords',
                                               slide_dir)
-    msg_num_tiles = sfutil.bold(total_tiles)
-    msg_num_tfr = sfutil.bold(len(slide_dirs))
-    log.info(f"Wrote {msg_num_tiles} tiles across {msg_num_tfr} tfrecords in {sfutil.green(output_directory)}")
+    msg_num_tiles = sf.util.bold(total_tiles)
+    msg_num_tfr = sf.util.bold(len(slide_dirs))
+    log.info(f"Wrote {msg_num_tiles} tiles across {msg_num_tfr} tfrecords in {sf.util.green(output_directory)}")
 
 def write_tfrecords_single(input_directory, output_directory, filename, slide):
     '''Scans a folder for image tiles, annotates using the provided slide, exports
@@ -600,10 +610,12 @@ def write_tfrecords_single(input_directory, output_directory, filename, slide):
             image_string = open(filename, 'rb').read()
             tf_example = tfrecord_example(label, image_string)
             writer.write(tf_example.SerializeToString())
-    log.info(f"Wrote {len(keys)} image tiles to {sfutil.green(tfrecord_path)}")
+    log.info(f"Wrote {len(keys)} image tiles to {sf.util.green(tfrecord_path)}")
     return len(keys)
 
 def checkpoint_to_tf_model(models_dir, model_name):
+    '''Converts a checkpoint file into a saved model.'''
+
     checkpoint = join(models_dir, model_name, "cp.ckpt")
     tf_model = join(models_dir, model_name, "untrained_model")
     updated_tf_model = join(models_dir, model_name, "checkpoint_model")
@@ -615,348 +627,11 @@ def checkpoint_to_tf_model(models_dir, model_name):
         # Not sure why this happens, something to do with the optimizer?
         pass
 
-def split_patients_list(patients_dict, n, balance=None, randomize=True, preserved_site=False):
-    '''Splits a dictionary of patients into n groups, balancing according to key "balance" if provided.'''
-    patient_list = list(patients_dict.keys())
-    shuffle(patient_list)
-
-    def flatten(l):
-        '''Flattens a list'''
-        return [y for x in l for y in x]
-
-    def split(a, n):
-        '''Function to split a list into n components'''
-        k, m = divmod(len(a), n)
-        return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
-
-    if balance:
-        # Get patient outcome labels
-        patient_outcome_labels = [patients_dict[p][balance] for p in patients_dict]
-
-        # Get unique outcomes
-        unique_labels = list(set(patient_outcome_labels))
-        if preserved_site:
-            import pandas as pd
-            import slideflow.io.preservedsite.crossfolds as cv
-
-            site_list = [p[5:7] for p in patients_dict]
-            df = pd.DataFrame(list(zip(patient_list, patient_outcome_labels, site_list)),
-                              columns = ['patient', 'outcome_label', 'site'])
-            df = cv.generate(df,
-                             'outcome_label',
-                             unique_labels,
-                             crossfolds = n,
-                             target_column = 'CV',
-                             patient_column = 'patient',
-                             site_column = 'site')
-
-            log.info(sfutil.bold("Generating Split with Preserved Site Cross Validation"))
-            log.info(sfutil.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_labels)))])))
-            for k in range(n):
-                log.info(f"K-fold-{k}\t" + "\t".join([str(len(df[(df.CV == str(k+1)) & (df.outcome_label == o)].index))
-                                                       for o in unique_labels]))
-
-            return [df.loc[df.CV == str(ni+1), "patient"].tolist() for ni in range(n)]
-
-        else:
-            # Now, split patient_list according to outcomes
-            patients_split_by_outcomes = [[p for p in patient_list if patients_dict[p][balance] == uo] for uo in unique_labels]
-
-            # Then, for each sublist, split into n components
-            patients_split_by_outcomes_split_by_n = [list(split(sub_l, n)) for sub_l in patients_split_by_outcomes]
-
-            # Print splitting as a table
-            log.info(sfutil.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_labels)))])))
-            for k in range(n):
-                log.info(f"K-fold-{k}\t" + "\t".join([str(len(clist[k])) for clist in patients_split_by_outcomes_split_by_n]))
-
-            # Join sublists
-            return [flatten([item[ni] for item in patients_split_by_outcomes_split_by_n]) for ni in range(n)]
-    else:
-        return list(split(patient_list, n))
-
-def get_train_and_val_tfrecords(dataset,
-                                validation_log,
-                                model_type,
-                                slide_labels_dict,
-                                outcome_key,
-                                val_target,
-                                val_strategy,
-                                val_fraction=None,
-                                val_k_fold=None,
-                                k_fold_iter=None,
-                                read_only=False):
-
-    '''From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
-        If a validation plan has already been prepared (e.g. K-fold iterations were already determined),
-        the previously generated plan will be used. Otherwise, create a new plan and log the result in the
-        TFRecord directory so future models may use the same plan for consistency.
-
-    Args:
-        dataset:				A slideflow.datasets.Dataset object
-        validation_log:			Path to .log file containing validation plans
-        slide_labels_dict:		Dictionary mapping slides to labels
-                                    (used for balancing outcome labels in training and validation cohorts).
-                                    Example dictionary:
-                                        {
-                                            'slide1': {
-                                                outcome_key: 'Outcome1',
-                                                sfutil.TCGA.patient: 'patient_id'
-                                            }
-                                        }
-        outcome_key:			Key indicating outcome variable in slide_labels_dict
-        model_type:				Either 'categorical' or 'linear'
-        val_target:		Either 'per-patient' or 'per-tile'
-        val_strategy:	Either 'k-fold', 'k-fold-preserved-site', 'bootstrap', or 'fixed'.
-        val_fraction:	Float, proportion of data for validation. Not used if strategy is k-fold.
-        val_k_fold:		K, if using K-fold validation.
-        k_fold_iter:			Which K-fold iteration, if using K-fold validation.
-
-    Returns:
-        Two arrays: 	an array of full paths to training tfrecords, and an array of paths to validation tfrecords.'''
-
-    # Prepare dataset
-    tfr_folders = dataset.get_tfrecords_folders()
-    subdirs = []
-    for folder in tfr_folders:
-        try:
-            detected_subdirs = [sd for sd in os.listdir(folder) if isdir(join(folder, sd))]
-        except:
-            err_msg = f"Unable to find TFRecord location {sfutil.green(folder)}"
-            log.error(err_msg)
-            raise TFRecordsError(err_msg)
-        subdirs = detected_subdirs if not subdirs else subdirs
-        if detected_subdirs != subdirs:
-            log.error("Unable to combine TFRecords from datasets; subdirectory structures do not match.")
-            raise TFRecordsError("Unable to combine TFRecords from datasets; subdirectory structures do not match.")
-
-    if k_fold_iter:
-        k_fold_index = int(k_fold_iter)-1
-    k_fold = val_k_fold
-    training_tfrecords = []
-    validation_tfrecords = []
-    accepted_plan = None
-    slide_list = list(slide_labels_dict.keys())
-
-    # If validation is done per-tile, use pre-separated TFRecord files (validation separation done at time of TFRecord creation)
-    if val_target == 'per-tile':
-        log.info(f"Attempting to load pre-separated TFRecords")
-        if val_strategy == 'bootstrap':
-            log.warning("Validation bootstrapping is not supported when the validation target is per-tile; " + \
-                        "using tfrecords in 'training' and 'validation' subdirectories")
-        if val_strategy in ('bootstrap', 'fixed'):
-            # Load tfrecords from 'validation' and 'training' subdirectories
-            if ('validation' not in subdirs) or ('training' not in subdirs):
-                err_msg = f"{sfutil.bold(val_strategy)} selected as validation strategy but tfrecords are not\
-                            organized as such (unable to find 'training' or 'validation' subdirectories)"
-                log.error(err_msg)
-                raise TFRecordsError(err_msg)
-            training_tfrecords += dataset.get_tfrecords_by_subfolder("training")
-            validation_tfrecords += dataset.get_tfrecords_by_subfolder("validation")
-        elif val_strategy == 'k-fold':
-            if not k_fold_iter:
-                log.warning("No k-fold iteration specified; assuming iteration #1")
-                k_fold_iter = 1
-            if k_fold_iter > k_fold:
-                err_msg = f"K-fold iteration supplied ({k_fold_iter}) exceeds the project K-fold setting ({k_fold})"
-                log.error(err_msg)
-                raise TFRecordsError(err_msg)
-            for k in range(k_fold):
-                if k == k_fold_index:
-                    validation_tfrecords += dataset.get_tfrecords_by_subfolder(f'kfold-{k}')
-                else:
-                    training_tfrecords += dataset.get_tfrecords_by_subfolder(f'kfold-{k}')
-        elif val_strategy == 'none':
-            if len(subdirs):
-                err_msg = "Validation strategy set as 'none' but the TFRecord directory has been configured " + \
-                                f"for validation (contains subfolders {', '.join(subdirs)})"
-                log.error(err_msg)
-                raise TFRecordsError(err_msg)
-        # Remove tfrecords not specified in slide_list
-        training_tfrecords = [tfr for tfr in training_tfrecords if tfr.split('/')[-1][:-10] in slide_list]
-        validation_tfrecords = [tfr for tfr in validation_tfrecords if tfr.split('/')[-1][:-10] in slide_list]
-
-    elif val_target == 'per-patient':
-        # Assemble dictionary of patients linking to list of slides and outcome labels
-        # slideflow.util.get_labels_from_annotations() ensures no duplicate outcome labels are found in a single patient
-        tfrecord_dir_list = dataset.get_tfrecords()
-        tfrecord_dir_list_names = [tfr.split('/')[-1][:-10] for tfr in tfrecord_dir_list]
-        patients_dict = {}
-        num_warned = 0
-        warn_threshold = 3
-        for slide in slide_list:
-            patient = slide_labels_dict[slide][sfutil.TCGA.patient]
-            print_func = print if num_warned < warn_threshold else None
-            # Skip slides not found in directory
-            if slide not in tfrecord_dir_list_names:
-                log.warning(f"Slide {slide} not found in tfrecord directory, skipping")
-                num_warned += 1
-                continue
-            if patient not in patients_dict:
-                patients_dict[patient] = {
-                    'outcome_label': slide_labels_dict[slide][outcome_key],
-                    'slides': [slide]
-                }
-            elif patients_dict[patient]['outcome_label'] != slide_labels_dict[slide][outcome_key]:
-                ol = patients_dict[patient]['outcome_label']
-                ok = slide_labels_dict[slide][outcome_key]
-                err_msg = f"Multiple outcome labels found for patient {patient} ({ol}, {ok})"
-                log.error(err_msg)
-                raise TFRecordsError(err_msg)
-            else:
-                patients_dict[patient]['slides'] += [slide]
-        if num_warned >= warn_threshold:
-            log.warning(f"...{num_warned} total warnings, see project log for details")
-        patients = list(patients_dict.keys())
-        sorted_patients = [p for p in patients]
-        sorted_patients.sort()
-        shuffle(patients)
-
-        # Create and log a validation subset
-        if len(subdirs):
-            err_msg = "Validation target set to 'per-patient', but TFRecord directory has validation configured " + \
-                            f"per-tile (contains subfolders {', '.join(subdirs)}"
-            log.error(err_msg)
-            raise TFRecordsError(err_msg)
-        if val_strategy == 'none':
-            log.info(f"Validation strategy set to 'none'; selecting no tfrecords for validation.")
-            training_slides = np.concatenate([patients_dict[patient]['slides']
-                                              for patient in patients_dict.keys()]).tolist()
-            validation_slides = []
-        elif val_strategy == 'bootstrap':
-            num_val = int(val_fraction * len(patients))
-            log.info(f"Boostrap validation: selecting {sfutil.bold(num_val)} pts at random for validation testing")
-            validation_patients = patients[0:num_val]
-            training_patients = patients[num_val:]
-            if not len(validation_patients) or not len(training_patients):
-                err_msg = "Insufficient number of patients to generate validation dataset."
-                log.error(err_msg)
-                raise TFRecordsError(err_msg)
-            validation_slides = np.concatenate([patients_dict[patient]['slides']
-                                                for patient in validation_patients]).tolist()
-            training_slides = np.concatenate([patients_dict[patient]['slides']
-                                              for patient in training_patients]).tolist()
-        else:
-            # Try to load validation plan
-            validation_plans = [] if not exists(validation_log) else sfutil.load_json(validation_log)
-            for plan in validation_plans:
-                # First, see if plan type is the same
-                if plan['strategy'] != val_strategy:
-                    continue
-                # If k-fold, check that k-fold length is the same
-                if (val_strategy == 'k-fold' or val_strategy == 'k-fold-preserved-site') \
-                    and len(list(plan['tfrecords'].keys())) != k_fold:
-
-                    continue
-
-                # Then, check if patient lists are the same
-                plan_patients = list(plan['patients'].keys())
-                plan_patients.sort()
-                if plan_patients == sorted_patients:
-                    # Finally, check if outcome variables are the same
-                    if [patients_dict[p]['outcome_label'] for p in plan_patients] == \
-                        [plan['patients'][p]['outcome_label']for p in plan_patients]:
-
-                        log.info(f"Using {val_strategy} validation plan detected at {sfutil.green(validation_log)}")
-                        accepted_plan = plan
-                        break
-
-            # If no plan found, create a new one
-            if not accepted_plan:
-                log.info(f"No suitable validation plan found; will log plan at {sfutil.green(validation_log)}")
-                new_plan = {
-                    'strategy':		val_strategy,
-                    'patients':		patients_dict,
-                    'tfrecords':	{}
-                }
-                if val_strategy == 'fixed':
-                    num_val = int(val_fraction * len(patients))
-                    validation_patients = patients[0:num_val]
-                    training_patients = patients[num_val:]
-                    if not len(validation_patients) or not len(training_patients):
-                        err_msg = "Insufficient number of patients to generate validation dataset."
-                        log.error(err_msg)
-                        raise TFRecordsError(err_msg)
-                    validation_slides = np.concatenate([patients_dict[patient]['slides']
-                                                        for patient in validation_patients]).tolist()
-                    training_slides = np.concatenate([patients_dict[patient]['slides']
-                                                      for patient in training_patients]).tolist()
-                    new_plan['tfrecords']['validation'] = validation_slides
-                    new_plan['tfrecords']['training'] = training_slides
-                elif val_strategy == 'k-fold' or val_strategy == 'k-fold-preserved-site':
-                    balance = 'outcome_label' if model_type == 'categorical' else None
-                    k_fold_patients = split_patients_list(patients_dict,
-                                                          k_fold,
-                                                          balance=balance,
-                                                          randomize=True,
-                                                          preserved_site=(val_strategy == 'k-fold-preserved-site'))
-                    # Verify at least one patient is in each k_fold group
-                    if not min([len(patients) for patients in k_fold_patients]):
-                        err_msg = "Insufficient number of patients to generate validation dataset."
-                        log.error(err_msg)
-                        raise TFRecordsError(err_msg)
-                    training_patients = []
-                    for k in range(k_fold):
-                        new_plan['tfrecords'][f'k-fold-{k+1}'] = np.concatenate([patients_dict[patient]['slides']
-                                                                                 for patient in k_fold_patients[k]]).tolist()
-                        if k == k_fold_index:
-                            validation_patients = k_fold_patients[k]
-                        else:
-                            training_patients += k_fold_patients[k]
-                    validation_slides = np.concatenate([patients_dict[patient]['slides']
-                                                        for patient in validation_patients]).tolist()
-                    training_slides = np.concatenate([patients_dict[patient]['slides']
-                                                      for patient in training_patients]).tolist()
-                else:
-                    err_msg = f"Unknown validation strategy {val_strategy} requested."
-                    log.error(err_msg)
-                    raise TFRecordsError(err_msg)
-                # Write the new plan to log
-                validation_plans += [new_plan]
-                if not read_only:
-                    sfutil.write_json(validation_plans, validation_log)
-            else:
-                # Use existing plan
-                if val_strategy == 'fixed':
-                    validation_slides = accepted_plan['tfrecords']['validation']
-                    training_slides = accepted_plan['tfrecords']['training']
-                elif val_strategy == 'k-fold' or val_strategy == 'k-fold-preserved-site':
-                    validation_slides = accepted_plan['tfrecords'][f'k-fold-{k_fold_iter}']
-                    training_slides = np.concatenate([accepted_plan['tfrecords'][f'k-fold-{ki+1}']
-                                                      for ki in range(k_fold)
-                                                      if ki != k_fold_index]).tolist()
-                else:
-                    err_msg = f"Unknown validation strategy {val_strategy} requested."
-                    log.error(err_msg)
-                    raise TFRecordsError(err_msg)
-
-        # Perform final integrity check to ensure no patients are in both training and validation slides
-        validation_pt = list(set([slide_labels_dict[slide][sfutil.TCGA.patient] for slide in validation_slides]))
-        training_pt = list(set([slide_labels_dict[slide][sfutil.TCGA.patient] for slide in training_slides]))
-        if sum([pt in training_pt for pt in validation_pt]):
-            err_msg = "At least one patient is in both validation and training sets."
-            log.error(err_msg)
-            raise TFRecordsError(err_msg)
-
-        # Return list of tfrecords
-        validation_tfrecords = [tfr for tfr in tfrecord_dir_list if sfutil.path_to_name(tfr) in validation_slides]
-        training_tfrecords = [tfr for tfr in tfrecord_dir_list if sfutil.path_to_name(tfr) in training_slides]
-    else:
-        err_msg = f"Invalid validation strategy '{val_target}' detected; must be either 'per-tile' or 'per-patient'."
-        log.error(err_msg)
-        raise TFRecordsError(err_msg)
-    train_msg = sfutil.bold(len(training_tfrecords))
-    val_msg = sfutil.bold(len(validation_tfrecords))
-    log.info(f"Using {train_msg} TFRecords for training, {val_msg} for validation")
-    return training_tfrecords, validation_tfrecords
-
-def update_tfrecord_dir(directory,
-                        old_feature_description=FEATURE_DESCRIPTION,
-                        slide='slide',
-                        assign_slide=None,
+def update_tfrecord_dir(directory, old_feature_description=FEATURE_DESCRIPTION, slide='slide', assign_slide=None,
                         image_raw='image_raw'):
 
     '''Updates tfrecords in a directory from an old format to a new format.'''
+
     if not exists(directory):
         log.error(f"Directory {directory} does not exist; unable to update tfrecords.")
     else:
@@ -965,13 +640,10 @@ def update_tfrecord_dir(directory,
             update_tfrecord(tfr, old_feature_description, slide, assign_slide, image_raw)
         return len(tfrecord_files)
 
-def update_tfrecord(tfrecord_file,
-                    old_feature_description=FEATURE_DESCRIPTION,
-                    slide='slide',
-                    assign_slide=None,
-                    image_raw='image_raw'):
+def update_tfrecord(tfrecord_file, assign_slide=None, image_raw='image_raw'):
 
     '''Updates a single tfrecord from an old format to a new format.'''
+
     shutil.move(tfrecord_file, tfrecord_file+".old")
     dataset = tf.data.TFRecordDataset(tfrecord_file+".old")
     writer = tf.io.TFRecordWriter(tfrecord_file)
@@ -983,14 +655,16 @@ def update_tfrecord(tfrecord_file,
     os.remove(tfrecord_file+'.old')
 
 def transform_tfrecord(origin,target, assign_slide=None, hue_shift=None, resize=None, silent=False):
+
     '''Transforms images in a single tfrecord. Can perform hue shifting, resizing, or re-assigning slide label.'''
+
     print_func = None if silent else print
-    log.info(f"Transforming tiles in tfrecord {sfutil.green(origin)}")
-    log.info(f"Saving to new tfrecord at {sfutil.green(target)}")
+    log.info(f"Transforming tiles in tfrecord {sf.util.green(origin)}")
+    log.info(f"Saving to new tfrecord at {sf.util.green(target)}")
     if assign_slide:
-        log.info(f"Assigning slide name {sfutil.bold(assign_slide)}")
+        log.info(f"Assigning slide name {sf.util.bold(assign_slide)}")
     if hue_shift:
-        log.info(f"Shifting hue by {sfutil.bold(str(hue_shift))}")
+        log.info(f"Shifting hue by {sf.util.bold(str(hue_shift))}")
     if resize:
         log.info(f"Resizing records to ({resize}, {resize})")
 
@@ -1022,7 +696,9 @@ def transform_tfrecord(origin,target, assign_slide=None, hue_shift=None, resize=
     writer.close()
 
 def shuffle_tfrecord(target):
+
     '''Shuffles records in a TFRecord, saving the original to a .old file.'''
+
     old_tfrecord = target+".old"
     shutil.move(target, old_tfrecord)
 
@@ -1041,13 +717,16 @@ def shuffle_tfrecord(target):
     writer.close()
 
 def shuffle_tfrecords_by_dir(directory):
+
     '''For each TFRecord in a directory, shuffles records in the TFRecord, saving the original to a .old file.'''
+
     records = [tfr for tfr in listdir(directory) if tfr[-10:] == ".tfrecords"]
     for record in records:
         log.info(f'Working on {record}')
         shuffle_tfrecord(join(directory, record))
 
 def get_tfrecord_by_index(tfrecord, index, decode=True):
+
     '''Reads and returns an individual record from a tfrecord by index, including slide name and processed image data.'''
 
     if type(index) != int:
@@ -1066,15 +745,17 @@ def get_tfrecord_by_index(tfrecord, index, decode=True):
             return parser(record)
         else: continue
 
-    log.error(f"Unable to find record at index {index} in {sfutil.green(tfrecord)} ({total} total records)")
+    log.error(f"Unable to find record at index {index} in {sf.util.green(tfrecord)} ({total} total records)")
     return False, False
 
 def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION, feature_label='image_raw'):
+
     '''Reads and saves images from a TFRecord to a destination folder.'''
+
     if not exists(destination):
         os.makedirs(destination)
-    log.info(f"Extracting tiles from tfrecord {sfutil.green(tfrecord)}")
-    log.info(f"Saving tiles to directory {sfutil.green(destination)}")
+    log.info(f"Extracting tiles from tfrecord {sf.util.green(tfrecord)}")
+    log.info(f"Saving tiles to directory {sf.util.green(destination)}")
 
     dataset = tf.data.TFRecordDataset(tfrecord)
     _, img_type = detect_tfrecord_format(tfrecord)
@@ -1091,14 +772,15 @@ def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION, featur
         image_string.close()
 
 def update_manifest_at_dir(directory, force_update=False):
+
     '''Log number of tiles in each TFRecord file present in the given directory and all subdirectories,
     saving manifest to file within the parent directory.'''
 
     manifest_path = join(directory, "manifest.json")
-    manifest = {} if not exists(manifest_path) else sfutil.load_json(manifest_path)
+    manifest = {} if not exists(manifest_path) else sf.util.load_json(manifest_path)
     prior_manifest = copy.deepcopy(manifest)
     try:
-        relative_tfrecord_paths = sfutil.get_relative_tfrecord_paths(directory)
+        relative_tfrecord_paths = sf.util.get_relative_tfrecord_paths(directory)
     except FileNotFoundError:
         log.warning(f"Unable to find TFRecords in the directory {directory}")
         return
@@ -1122,7 +804,7 @@ def update_manifest_at_dir(directory, force_update=False):
         except Exception as e:
             log.error(f"Unable to open TFRecords file with Tensorflow: {str(e)}")
             return
-        if log.getEffectiveLevel() <= 20: print(f"\r\033[K + Verifying tiles in {sfutil.green(rel_tfr)}...", end="")
+        if log.getEffectiveLevel() <= 20: print(f"\r\033[K + Verifying tiles in {sf.util.green(rel_tfr)}...", end="")
         total = 0
         try:
             #TODO: consider updating this to use sf.io.tfrecords.get_tfrecord_parser()
@@ -1148,6 +830,6 @@ def update_manifest_at_dir(directory, force_update=False):
 
     # Write manifest file
     if (manifest != prior_manifest) or (manifest == {}):
-        sfutil.write_json(manifest, manifest_path)
+        sf.util.write_json(manifest, manifest_path)
 
     return manifest

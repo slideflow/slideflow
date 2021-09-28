@@ -4,12 +4,11 @@ import os
 import slideflow as sf
 import tensorflow as tf
 import numpy as np
-import slideflow.util as sfutil
 
 from tqdm import tqdm
 from os.path import join
 from slideflow.io import tfrecords
-from slideflow.statistics import gen_umap, TFRecordMap
+from slideflow.statistics import gen_umap, SlideMap
 from slideflow.mosaic import Mosaic
 
 out_dir = '/home/t.cri.jdolezal/stylegan2-slideflow/out2/'
@@ -42,10 +41,9 @@ umap = gen_umap(vectors)
 # Create mosaic
 print('Setting up mosaic...')
 meta = [{'slide': 'generated', 'index': i} for i in range(len(seeds))]
-tfrecord_map = TFRecordMap.from_precalculated(tfrecords=[tfrecord_dest],
-                                              slides=['generated'],
+tfrecord_map = SlideMap.from_precalculated(slides=['generated'],
                                               x=umap[:,0],
                                               y=umap[:,1],
                                               meta=meta)
-mosaic_map = Mosaic(tfrecord_map, num_tiles_x=40)
+mosaic_map = Mosaic(tfrecord_map, tfrecords=[tfrecord_dest], num_tiles_x=40)
 mosaic_map.save(join(out_dir, 'mosaic', 'mosaic.png'))

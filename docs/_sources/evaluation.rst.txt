@@ -1,6 +1,11 @@
 Evaluation
 ==========
 
+In addition to examining cross-validation training performance, model performance can be assessed with external dataset evaluation, and visualization of predictions across evaluation slides in the format of a heatmap.
+
+Model evaluation
+****************
+
 Once training and hyperparameter tuning is complete, you can test model performance on your held-out evaluation set using the ``evaluate`` function. Specify the path to the saved with the ``model`` argument. For example:
 
 .. code-block:: python
@@ -10,11 +15,11 @@ Once training and hyperparameter tuning is complete, you can test model performa
 		outcome_label_headers="category",
 		filters={"dataset": ["evaluation"]})
 
-.. autofunction:: slideflow.SlideflowProject.evaluate
+.. autofunction:: slideflow.project.Project.evaluate
    :noindex:
 
-Generate heatmaps
-*****************
+Heatmaps
+********
 
 To generate a predictive heatmap for a set of slides, use the ``generate_heatmaps()`` function as below, which will automatically save heatmap images in your project directory:
 
@@ -24,7 +29,7 @@ To generate a predictive heatmap for a set of slides, use the ``generate_heatmap
 		model="/path/to/trained_model_epoch1",
 		filters={"dataset": ["evaluation"]})
 
-.. autofunction:: slideflow.SlideflowProject.generate_heatmaps
+.. autofunction:: slideflow.project.Project.generate_heatmaps
    :noindex:
 
 If you would like to directly interact with the calculated heatmap data, create a ``sf.activations.Heatmap`` object by providing a path to a slide, a path to a model, and tile size information:

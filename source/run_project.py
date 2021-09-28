@@ -25,7 +25,7 @@ if __name__=='__main__':
 
     print()
     print(f'+-------------------------------+')
-    print(f'|      Slideflow v{sf.__version__:<8}      |')
+    print(f'|      Slideflow v{sf.__version__:<13} |')
     print(f'|       by James Dolezal        |')
     print(f'| james.dolezal@uchospitals.edu |')
     print(f'+-------------------------------+')
