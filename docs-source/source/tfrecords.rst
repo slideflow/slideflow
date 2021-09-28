@@ -12,7 +12,7 @@ This interleaving can include patient or category-level balancing for returned b
 
 .. note::
     The TFRecord reading and interleaving implemented in this module is only compatible with Tensorflow models.
-    The :module:`slideflow.io.reader` module includes a backend-agnostic TFRecord reader based on
+    The :mod:`slideflow.io.reader` module includes a backend-agnostic TFRecord reader based on
     `dareblopy <https://github.com/podgorskiy/DareBlopy>`_ which can be used as input for Torch models.
 
 .. automodule:: slideflow.io.tfrecords

@@ -11,7 +11,7 @@ def main(SFP):
     # ---------------------------------
     #SFP.create_hyperparameter_sweep(tile_px=[299, 331],
     #                                tile_um=[302],
-    #                                finetune_epochs=[5],
+    #                                epochs=[5],
     #                                toplayer_epochs=0,
     #                                model=['Xception'],
     #                                pooling=['avg'],

@@ -20,4 +20,4 @@ torch>=1.9.1
 torch-vision
 dareblopy
 pyspng
--e git+https://github.com/pytorch/pytorch_sphinx_theme.git#egg=pytorch_sphinx_theme
+multiprocessing_logging

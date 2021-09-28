@@ -5,7 +5,7 @@ from slideflow.project import Project, SlideflowProject # SlideflowProject is de
 # | james.dolezal@uchospitals.edu           |
 # +-----------------------------------------+
 
-__version__ = "1.12.0"
+__version__ = "1.12.0-rc0"
 
 # Style information
 # =================
