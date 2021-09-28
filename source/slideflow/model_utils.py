@@ -3,7 +3,7 @@ import os
 import csv
 import tempfile
 import numpy as np
-import slideflow.util as sfutil
+import slideflow as sf
 from slideflow.util import log
 
 class HyperParameterError(Exception):
@@ -28,17 +28,16 @@ def get_layer_index_by_name(model, name):
         if layer.name == name:
             return i
 
-def _negative_log_likelihood(y_true, y_pred):
-    '''
-    First implementation, mostly by Fred.
-    Looks like it was adapted from here: https://github.com/havakv/pycox/blob/master/pycox/models/loss.py'''
+def negative_log_likelihood(y_true, y_pred):
+    '''Implemented by Fred Howard, adapted from: https://github.com/havakv/pycox/blob/master/pycox/models/loss.py'''
+
     events = tf.reshape(y_pred[:, -1], [-1]) # E
     pred_hr = tf.reshape(y_pred[:, 0], [-1]) # y_pred
-    time = tf.reshape(y_true, [-1])		   # y_true
+    time = tf.reshape(y_true, [-1])           # y_true
 
     order = tf.argsort(time) #direction='DESCENDING'
-    sorted_events = tf.gather(events, order) 		# E
-    sorted_predictions = tf.gather(pred_hr, order) 	# y_pred
+    sorted_events = tf.gather(events, order)         # E
+    sorted_predictions = tf.gather(pred_hr, order)     # y_pred
 
     # Finds maximum HR in predictions
     gamma = tf.math.reduce_max(sorted_predictions)
@@ -64,8 +63,8 @@ def _negative_log_likelihood(y_true, y_pred):
 
     return neg_likelihood
 
-def negative_log_likelihood(y_true, y_pred):
-    '''Third attempt - Breslow approximation'''
+def negative_log_likelihood_breslow(y_true, y_pred):
+    '''Breslow approximation'''
     events = tf.reshape(y_pred[:, -1], [-1])
     pred = tf.reshape(y_pred[:, 0], [-1])
     time = tf.reshape(y_true, [-1])
@@ -97,40 +96,6 @@ def negative_log_likelihood(y_true, y_pred):
 
     return loss_breslow
 
-def _new_negative_log_likelihood(y_true, y_pred):
-    '''Second attempt at implementation, by James.'''
-    events = tf.reshape(y_pred[:, -1], [-1])
-    pred_hr = tf.reshape(y_pred[:, 0], [-1])
-    time = tf.reshape(y_true, [-1])
-
-    order = tf.argsort(time)
-    sorted_events = tf.gather(events, order)
-    sorted_hr = tf.math.log(tf.gather(pred_hr, order))
-
-    neg_likelihood = - tf.reduce_sum(
-                        tf.math.divide(
-                            tf.math.multiply(
-                                sorted_hr,
-                                sorted_events),
-                            tf.math.cumsum(sorted_hr, reverse=True)))
-
-    return neg_likelihood
-
-'''def _n_l_l(y_true, y_pred):
-    E = y_pred[:, -1]
-    y_pred = y_pred[:, :-1]
-    E = tf.reshape(E, [-1])
-    y_pred = tf.reshape(y_pred, [-1])
-    y_true = tf.reshape(y_true, [-1])
-    order = tf.argsort(y_true)
-    E = tf.gather(E, order)
-    y_pred = tf.gather(y_pred, order)
-    gamma = tf.math.reduce_max(y_pred)
-    eps = tf.constant(1e-7, dtype=tf.float16)
-    log_cumsum_h = tf.math.add(tf.math.log(tf.math.add(tf.math.cumsum(tf.math.exp(tf.math.subtract(y_pred, gamma))), eps)), gamma)
-    neg_likelihood = -tf.math.divide(tf.reduce_sum(tf.math.multiply(tf.subtract(y_pred, log_cumsum_h), E)),tf.reduce_sum(E))
-    return neg_likelihood'''
-
 def concordance_index(y_true, y_pred):
     E = y_pred[:, -1]
     y_pred = y_pred[:, :-1]
@@ -150,6 +115,7 @@ def concordance_index(y_true, y_pred):
 def add_regularization(model, regularizer):
     '''Adds regularization (e.g. L2) to all eligible layers of a model.
     This function is from "https://sthalles.github.io/keras-regularizer/" '''
+
     if not isinstance(regularizer, tf.keras.regularizers.Regularizer):
         print('Regularizer must be a subclass of tf.keras.regularizers.Regularizer')
         return model
@@ -173,84 +139,71 @@ def add_regularization(model, regularizer):
     model.load_weights(tmp_weights_path, by_name=True)
     return model
 
-def get_hyperparameter_combinations(hyperparameters, models, batch_train_file):
-    '''Organizes a list of hyperparameters ojects and associated models names.
+def get_hp_from_batch_file(batch_train_file, models=None):
+    """Organizes a list of hyperparameters ojects and associated models names.
 
     Args:
-        hyperparameters:		List of Hyperparameters objects
-        models:					List of model names
-        batch_train_file:		Path to train train TSV file
+        batch_train_file (str): Path to train train TSV file.
+        models (list(str)): List of model names. Defaults to None.
+            If not supplied, returns all valid models from batch file.
 
     Returns:
         List of (Hyperparameter, model_name) for each HP combination
-    '''
-    if not hyperparameters:
-        hp_models_to_train = get_valid_models_from_batch_file(batch_train_file, models)
-    else:
-        hp_models_to_train = [models]
+    """
 
-    hyperparameter_list = []
-    if not hyperparameters:
-        # Assembling list of models and hyperparameters from batch_train.tsv file
-        batch_train_rows = []
+    if models is not None and not isinstance(models, list):
+        raise sf.util.UserError("If supplying models, must be a list of strings containing model names.")
+    if isinstance(models, list) and not list(set(models)) == models:
+        raise sf.util.UserError("Duplicate model names provided.")
+
+    # First, ensure all indicated models are in the batch train file
+    if models:
+        valid_models = []
         with open(batch_train_file) as csv_file:
             reader = csv.reader(csv_file, delimiter='\t')
             header = next(reader)
-            for row in reader:
-                batch_train_rows += [row]
-
-        for row in batch_train_rows:
-            # Read hyperparameters
             try:
-                hp, hp_model_name = get_hp_from_row(row, header)
-            except HyperParameterError as e:
-                log.error('Invalid Hyperparameter combination: ' + str(e))
-                return
+                model_name_i = header.index('model_name')
+            except:
+                err_msg = "Unable to find column 'model_name' in the batch training config file."
+                log.error(err_msg)
+                raise ValueError(err_msg)
+            for row in reader:
+                model_name = row[model_name_i]
+                # First check if this row is a valid model
+                if (not models) or (isinstance(models, str) and model_name==models) or model_name in models:
+                    # Now verify there are no duplicate model names
+                    if model_name in valid_models:
+                        err_msg = f'Duplicate model names found in {sf.util.green(batch_train_file)}.'
+                        log.error(err_msg)
+                        raise ValueError(err_msg)
+                    valid_models += [model_name]
+        missing_models = [m for m in models if m not in valid_models]
+        if missing_models:
+            raise ValueError(f"Unable to find the following models in the batch train file: {', '.join(missing_models)}")
 
-            if hp_model_name not in hp_models_to_train: continue
-
-            hyperparameter_list += [[hp, hp_model_name]]
-    elif isinstance(hyperparameters, list) and isinstance(models, list):
-        if len(models) != len(hyperparameters):
-            log.error('Unable to iterate through hyperparameters provided; number of hyperparameters ' + \
-                        f'({len(hyperparameters)}) must match number of models ({len(models)})')
-            return
-        for i in range(len(models)):
-            if not hyperparameters[i].validate():
-                return
-            hyperparameter_list += [[hyperparameters[i], models[i]]]
-    else:
-        if not hyperparameters.validate():
-            return
-        hyperparameter_list = [[hyperparameters, models]]
-    return hyperparameter_list
-
-def get_valid_models_from_batch_file(batch_train_file, models):
-    '''Scans a batch_train file for valid, trainable models.'''
-    models_to_train = []
+    # Read the batch train file and generate HyperParameter objects from the given configurations
+    hyperparameters = {}
+    batch_train_rows = []
     with open(batch_train_file) as csv_file:
         reader = csv.reader(csv_file, delimiter='\t')
         header = next(reader)
-        try:
-            model_name_i = header.index('model_name')
-        except:
-            err_msg = "Unable to find column 'model_name' in the batch training config file."
-            log.error(err_msg)
-            raise ValueError(err_msg)
         for row in reader:
-            model_name = row[model_name_i]
-            # First check if this row is a valid model
-            if (not models) or (isinstance(models, str) and model_name==models) or model_name in models:
-                # Now verify there are no duplicate model names
-                if model_name in models_to_train:
-                    err_msg = f'Duplicate model names found in {sfutil.green(batch_train_file)}.'
-                    log.error(err_msg)
-                    raise ValueError(err_msg)
-                models_to_train += [model_name]
-    return models_to_train
+            batch_train_rows += [row]
+
+    for row in batch_train_rows:
+        try:
+            hp, hp_model_name = get_hp_from_row(row, header)
+        except HyperParameterError as e:
+            log.error('Invalid Hyperparameter combination: ' + str(e))
+            return
+        if models and hp_model_name not in models: continue
+        hyperparameters[hp_model_name] = hp
+    return hyperparameters
 
 def get_hp_from_row(row, header):
-    '''Converts a row in the batch_train CSV file into a HyperParameters object.'''
+    """Converts a row in the batch_train CSV file into a HyperParameters object."""
+
     from slideflow.model import HyperParameters
 
     model_name_i = header.index('model_name')
@@ -280,27 +233,3 @@ def get_hp_from_row(row, header):
         else:
             log.error(f"Unknown argument '{arg}' found in training config file.", 0)
     return hp, model_name
-
-# ====== Scratch code for new CPH models
-
-def make_riskset(time):
-    '''Compute mask that represents a sample's risk set.
-
-    Args:
-        time:		np array, shape=(n_samples,). Observed event time ?in descending order?.
-
-    Returns:
-        risk_set:	np array, shape=(n_samples, n_samples). Boolean matrix where the `i`-th row
-                        denotes the risk set of the `i`-th instance, i.e. the indices `j`
-                        for which the observer time `y_j >= y_i`
-    '''
-    o = np.argsort(-time, kind='mergesort')
-    n_samples = len(time)
-
-    risk_set = np.zeros((n_samples, n_samples), dtype=np.bool_)
-    for i_org, i_sort in enumerate(o):
-        k = i_org
-        while k < n_samples and time[i_sort] == time[o[k]]:
-            k += 1
-        risk_set[i_sort, o[:k]] = True
-    return risk_set

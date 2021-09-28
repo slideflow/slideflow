@@ -28,8 +28,8 @@ import random
 import tempfile
 import warnings
 
+import slideflow as sf
 import matplotlib.colors as mcol
-import slideflow.util as sfutil
 import multiprocessing as mp
 
 from os.path import join, exists
@@ -41,8 +41,6 @@ from functools import partial
 from tqdm import tqdm
 from fpdf import FPDF
 
-#TODO: optionally randomize center of individual tile extraction
-
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
 DEFAULT_JPG_MPP = 1
@@ -51,9 +49,10 @@ OPS_MPP_X = 'openslide.mpp-x'
 TIF_EXIF_KEY_MPP = 65326
 OPS_WIDTH = 'width'
 OPS_HEIGHT = 'height'
-EXTRACT_INSIDE = 'inside'
-EXTRACT_OUTSIDE = 'outside'
-IGNORE_ROI = 'ignore'
+DEFAULT_WHITESPACE_THRESHOLD = 230
+DEFAULT_WHITESPACE_FRACTION = 1.0
+DEFAULT_GRAYSPACE_THRESHOLD = 0.05
+DEFAULT_GRAYSPACE_FRACTION = 0.6
 
 def OPS_LEVEL_HEIGHT(l):
     return f'openslide.level[{l}].height'
@@ -75,18 +74,12 @@ VIPS_FORMAT_TO_DTYPE = {
     'dpcomplex': np.complex128,
 }
 
-def polyArea(x, y):
+def _polyArea(x, y):
     return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
 
-def vips2numpy(vi):
-    '''Converts a VIPS image into a numpy array'''
-    return np.ndarray(buffer=vi.write_to_memory(),
-                      dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
-                      shape=[vi.height, vi.width, vi.bands])
-
-def slide_extraction_worker(c, args):
-    '''Multiprocessing working for WSI. Extracts a tile at the given coordinates'''
-    slide = VIPSWrapper(args.path)
+def _wsi_extraction_worker(c, args):
+    '''Multiprocessing working for WSI. Extracts a tile at the given coordinates.'''
+    slide = _VIPSWrapper(args.path)
     normalizer = None if not args.normalizer else StainNormalizer(method=args.normalizer, source=args.normalizer_source)
 
     index = c[2]
@@ -97,13 +90,13 @@ def slide_extraction_worker(c, args):
     x_coord = int((c[0]+args.full_extract_px/2)/args.ROI_SCALE)
     y_coord = int((c[1]+args.full_extract_px/2)/args.ROI_SCALE)
 
-    if args.roi_method != IGNORE_ROI and bool(args.annPolys):
+    if args.roi_method != 'ignore' and bool(args.annPolys):
         point_in_roi = any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in args.annPolys])
-        # If the extraction method is EXTRACT_INSIDE, skip the tile if it's not in an ROI
-        if (args.roi_method == EXTRACT_INSIDE) and not point_in_roi:
+        # If the extraction method is 'inside', skip the tile if it's not in an ROI
+        if (args.roi_method == 'inside') and not point_in_roi:
             return 'skip'
-        # If the extraction method is EXTRACT_OUTSIDE, skip the tile if it's in an ROI
-        elif (args.roi_method == EXTRACT_OUTSIDE) and point_in_roi:
+        # If the extraction method is 'outside', skip the tile if it's in an ROI
+        elif (args.roi_method == 'outside') and point_in_roi:
             return 'skip'
 
     # Read the region and resize to target size
@@ -113,49 +106,54 @@ def slide_extraction_worker(c, args):
     # Read regions into memory and convert to numpy arrays
     np_image = vips2numpy(region)[:,:,:-1]
 
-    if args.dual_extract:
+    # Perform whitespace filtering
+    if args.whitespace_fraction < 1:
+        fraction = (np.mean(np_image, axis=2) > args.whitespace_threshold).sum() / (args.tile_px**2)
+        if fraction > args.whitespace_fraction: return
+
+    # Perform grayspace filtering
+    if args.grayspace_fraction < 1:
+        hsv_image = mcol.rgb_to_hsv(np_image)
+        fraction = (hsv_image[:,:,1] < args.grayspace_threshold).sum() / (args.tile_px**2)
+        if fraction > args.grayspace_fraction: return
+
+    # Apply normalization
+    if normalizer:
         try:
-            surrounding_region = slide.read_region((c[0]-args.full_stride,
-                                                            c[1]-args.full_stride),
-                                                            args.downsample_level,
-                                                            [args.extract_px*3, args.extract_px*3])
-            surrounding_region = surrounding_region.thumbnail_image(args.tile_px)
-            outer_region = vips2numpy(surrounding_region)[:,:,:-1]
+            np_image = normalizer.rgb_to_rgb(np_image)
         except:
+            # The image could not be normalized, which happens when a tile is primarily one solid color (background)
             return
 
-        # Apply normalization
-        if normalizer:
-            np_image = normalizer.rgb_to_rgb(np_image)
-            outer_region = normalizer.rgb_to_rgb(outer_region)
-
-        return {"input_1": np_image, "input_2": outer_region}, index
+    if args.include_loc == 'grid':
+        return {'image': np_image, 'loc': [grid_xi, grid_yi]}, index
+    elif args.include_loc:
+        return {'image': np_image, 'loc': [x_coord, y_coord]}, index
     else:
-        # Perform whitespace filtering
-        if args.whitespace_fraction < 1:
-            fraction = (np.mean(np_image, axis=2) > args.whitespace_threshold).sum() / (args.tile_px**2)
-            if fraction > args.whitespace_fraction: return
+        return {'image': np_image}, index
 
-        # Perform grayspace filtering
-        if args.grayspace_fraction < 1:
-            hsv_image = mcol.rgb_to_hsv(np_image)
-            fraction = (hsv_image[:,:,1] < args.grayspace_threshold).sum() / (args.tile_px**2)
-            if fraction > args.grayspace_fraction: return
+def vips2numpy(vi):
+    '''Converts a VIPS image into a numpy array'''
+    return np.ndarray(buffer=vi.write_to_memory(),
+                      dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
+                      shape=[vi.height, vi.width, vi.bands])
 
-        # Apply normalization
-        if normalizer:
-            try:
-                np_image = normalizer.rgb_to_rgb(np_image)
-            except:
-                # The image could not be normalized, which happens when a tile is primarily one solid color (background)
-                return
+def log_extraction_params(**kwargs):
+    '''Logs tile extraction parameters.'''
 
-        if args.include_loc == 'grid':
-            return {'image': np_image, 'loc': [grid_xi, grid_yi]}, index
-        elif args.include_loc:
-            return {'image': np_image, 'loc': [x_coord, y_coord]}, index
-        else:
-            return {'image': np_image}, index
+    ws_f = DEFAULT_WHITESPACE_FRACTION if 'whitespace_fraction' not in kwargs else kwargs['whitespace_fraction']
+    ws_t = DEFAULT_WHITESPACE_THRESHOLD if 'whitespace_threshold' not in kwargs else kwargs['whitespace_threshold']
+    gs_f = DEFAULT_GRAYSPACE_FRACTION if 'grayspace_fraction' not in kwargs else kwargs['grayspace_fraction']
+    gs_t = DEFAULT_GRAYSPACE_THRESHOLD if 'grayspace_threshold' not in kwargs else kwargs['grayspace_threshold']
+
+    if 'normalizer' in kwargs:
+        log.info(f'Extracting tiles using {sf.util.bold(kwargs["normalizer"])} normalization')
+    if ws_f < 1:
+        log.info('Filtering tiles by whitespace fraction')
+        log.debug(f'Whitespace defined as RGB avg > {ws_t} (exclude if >={ws_f*100:.0f}% whitespace')
+    if gs_f < 1:
+        log.info('Filtering tiles by grayspace fraction')
+        log.debug(f'Grayspace defined as HSV avg < {gs_t} (exclude if >={gs_f*100:.0f}% grayspace)')
 
 class InvalidTileSplitException(Exception):
     '''Raised when invalid tile splitting parameters are given to WSI.'''
@@ -166,18 +164,18 @@ class TileCorruptionError(Exception):
     pass
 
 class SlideReport:
-    '''Report to summarize tile extraction from a slide,
-    including example images of extracted tiles.'''
+    '''Report to summarize tile extraction from a slide, including example images of extracted tiles.'''
 
     def __init__(self, images, path, data=None, compress=True):
-        '''Initializer.
+        """Initializer.
 
         Args:
-            images:		List of JPEG image strings (example tiles)
-            path:		Path to slide
-            data:		Dictionary of slide extraction report metadata
-            compress:	Bool, if True, compresses images to reduce image sizes
-        '''
+            images (list(str)): List of JPEG image strings (example tiles).
+            path (str): Path to slide.
+            data (dict, optional): Dictionary of slide extraction report metadata. Defaults to None.
+            compress (bool, optional): Compresses images to reduce image sizes. Defaults to True.
+        """
+
         self.data = data
         self.path = path
         if not compress:
@@ -213,16 +211,17 @@ class ExtractionPDF(FPDF):
         self.cell(0, 10, 'Page ' + str(self.page_no()) + '/{nb}', 0, 0, 'C')
 
 class ExtractionReport:
-    '''Creates a PDF report summarizing extracted tiles,
-        from a collection of tile extraction reports.'''
+    """Creates a PDF report summarizing extracted tiles, from a collection of tile extraction reports."""
+
     def __init__(self, reports, tile_px=None, tile_um=None):
-        '''Initializer.
+        """Initializer.
 
         Args:
-            reports:	List of SlideReport objects
-            tile_px:	Tile size in pixels.
-            tile_um:	Tile size in microns.
-        '''
+            reports (list(:class:`SlideReport`)): List of SlideReport objects.
+            tile_px (int): Tile size in pixels.
+            tile_um (int): Tile size in microns.
+        """
+
         pdf = ExtractionPDF()
         pdf.alias_nb_pages()
         pdf.add_page()
@@ -253,8 +252,9 @@ class ExtractionReport:
     def save(self, filename):
         self.pdf.output(filename)
 
-class VIPSWrapper:
+class _VIPSWrapper:
     '''Wrapper for VIPS to preserve openslide-like functions.'''
+
     def __init__(self, path, buffer=None):
         self.path = path
         self.buffer = buffer
@@ -279,7 +279,7 @@ class VIPSWrapper:
                         log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}")
                         self.properties[OPS_MPP_X] = img.tag[TIF_EXIF_KEY_MPP][0]
             except UnidentifiedImageError:
-                log.error(f"PIL image reading error; slide {sfutil.path_to_name(path)} is corrupt.")
+                log.error(f"PIL image reading error; slide {sf.util.path_to_name(path)} is corrupt.")
 
         # Prepare downsample levels
         self.loaded_downsample_levels = {
@@ -356,8 +356,9 @@ class VIPSWrapper:
         if self.buffer == 'vmtouch':
             os.system(f'vmtouch -e "{self.path}"')
 
-class JPGslideToVIPS(VIPSWrapper):
+class JPGslideToVIPS(_VIPSWrapper):
     '''Wrapper for JPG files, which do not possess separate levels, to preserve openslide-like functions.'''
+
     def __init__(self, path, buffer=None):
         self.buffer = buffer
         self.path = path
@@ -394,8 +395,9 @@ class JPGslideToVIPS(VIPSWrapper):
                 log.info(f"Setting MPP to default {DEFAULT_JPG_MPP}")
                 self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
 
-class ROIObject:
+class ROI:
     '''Object container for ROI annotations.'''
+
     def __init__(self, name):
         self.name = name
         self.coordinates = []
@@ -409,16 +411,16 @@ class ROIObject:
         for point in shape:
             self.add_coord(point)
 
-class BaseLoader:
+class _BaseLoader:
     '''Object that loads an SVS slide and makes preparations for tile extraction.
-    Should not be used directly; this class must be inherited and extended by a child class'''
+    Should not be used directly; this class must be inherited and extended by a child class.'''
+
     def __init__(self, path, tile_px, tile_um, stride_div, enable_downsample=False,
-                    silent=False, buffer=None, pb=None, pb_counter=None, counter_lock=None):
+                    buffer=None, pb=None, pb_counter=None, counter_lock=None):
         self.load_error = False
-        self.silent = silent
 
         # if a progress bar is not directly provided, use the provided multiprocess-friendly progress bar counter and lock
-        # 	(for multiprocessing, as ProgressBar cannot be pickled)
+        #     (for multiprocessing, as ProgressBar cannot be pickled)
         if not pb:
             self.pb_counter = pb_counter
             self.counter_lock = counter_lock
@@ -427,8 +429,8 @@ class BaseLoader:
             self.pb_counter = pb.get_counter()
             self.counter_lock = pb.get_lock()
 
-        self.name = sfutil.path_to_name(path)
-        self.shortname = sfutil._shortname(self.name)
+        self.name = sf.util.path_to_name(path)
+        self.shortname = sf.util._shortname(self.name)
         self.tile_px = tile_px
         self.tile_um = tile_um
         self.tile_mask = None
@@ -436,14 +438,14 @@ class BaseLoader:
         self.thumb_image = None
         self.stride_div = stride_div
         self.path = path
-        filetype = sfutil.path_to_ext(path)
+        filetype = sf.util.path_to_ext(path)
 
         # Initiate supported slide reader
-        if filetype.lower() in sfutil.SUPPORTED_FORMATS:
+        if filetype.lower() in sf.util.SUPPORTED_FORMATS:
             if filetype.lower() == 'jpg':
                 self.slide = JPGslideToVIPS(path)
             else:
-                self.slide = VIPSWrapper(path, buffer=buffer)
+                self.slide = _VIPSWrapper(path, buffer=buffer)
         else:
             log.error(f"Unsupported file type '{filetype}' for slide {self.name}.")
             self.load_error = True
@@ -453,7 +455,7 @@ class BaseLoader:
         try:
             self.MPP = float(self.slide.properties[OPS_MPP_X])
         except KeyError:
-            log.error(f"Slide {sfutil.green(self.name)} missing MPP property ({OPS_MPP_X})")
+            log.error(f"Slide {sf.util.green(self.name)} missing MPP property ({OPS_MPP_X})")
             self.load_error = True
             return
         self.full_shape = self.slide.dimensions
@@ -490,7 +492,7 @@ class BaseLoader:
         '''Returns a square thumbnail of the slide, with black bar borders.
 
         Args:
-            width:		Width/height of thumbnail in pixels.
+            width:        Width/height of thumbnail in pixels.
 
         Returns:
             PIL image
@@ -515,7 +517,7 @@ class BaseLoader:
         '''Returns PIL thumbnail of the slide.
 
         Args:
-            mpp:	Microns-per-pixel of thumbnail (determines size of thumbnail to return)
+            mpp:    Microns-per-pixel of thumbnail (determines size of thumbnail to return)
 
         Returns:
             PIL image
@@ -552,7 +554,7 @@ class BaseLoader:
         if self.tile_px > self.extract_px:
             upscale_msg = 'Tiles will be up-scaled with bilinear interpolation'
             upscale_amount = f'({self.extract_px}px -> {self.tile_px}px)'
-            log.warn(f"{self.shortname}: [{sfutil.red('!WARN!')}] {upscale_msg} {upscale_amount}")
+            log.warn(f"{self.shortname}: [{sf.util.red('!WARN!')}] {upscale_msg} {upscale_amount}")
 
         def empty_generator():
             yield None
@@ -569,34 +571,27 @@ class BaseLoader:
             return False
         return loaded_correctly
 
-    def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, split_fraction=None, split_names=None,
-                      img_format='png', shuffle=True, num_threads=4, **kwargs):
+    def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, img_format='png', **kwargs):
         '''Extractes tiles from slide and saves into a TFRecord file or as loose JPG tiles in a directory.
         Args:
-            tfrecord_dir:			If provided, saves tiles into a TFRecord file (named according to slide name) here.
-            tiles_dir:				If provided, saves loose images into a subdirectory (per slide name) here.
-            split_fraction:			List of float. If provided, splits the extracted tiles into subsets
-                                        (e.g. for validation set) using these fractions.
-                                        Should add up to 1 (except for fractions of -1).
-                                        Remaining tiles are split between fractions of "-1".
-            split_names:			List of names to label the split fractions
-            img_format:				'png' or 'jpg'. Format of images for internal storage in tfrecords.
+            tfrecord_dir:           If provided, saves tiles into a TFRecord file (named according to slide name) here.
+            tiles_dir:              If provided, saves loose images into a subdirectory (per slide name) here.
+            img_format:                'png' or 'jpg'. Format of images for internal storage in tfrecords.
                                         PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
+        Kwargs:
+            normalizer:             Normalization strategy to use on image tiles
+            normalizer_source:      Path to normalizer source image
+            whitespace_fraction:    Float 0-1. Fraction of whitespace which causes a tile to be discarded.
+                                        If 1, will not perform whitespace filtering.
+            whitespace_threshold:   Int 0-255. Threshold above which a pixel (RGB average) is considered whitespace.
+            grayspace_fraction:        Float 0-1. Fraction of grayspace which causes a tile to be discarded.
+                                       If 1, will not perform grayspace filtering.
+            grayspace_threshold:    Int 0-1. HSV (hue, saturation, value) is calculated for each pixel.
+                                        If a pixel's saturation is below this threshold, it is considered grayspace.
+            full_core:              Bool. Only used for TMA. If true, will extract full image cores
+                                        regardless of supplied tile micron size.
             shuffle:                Bool. If true, will shuffle tiles prior to storage. (default = True)
             num_threads:            Number of threads to allocate to tile extraction workers.
-
-        Kwargs:
-            normalizer:				Normalization strategy to use on image tiles
-            normalizer_source:		Path to normalizer source image
-            whitespace_fraction:	Float 0-1. Fraction of whitespace which causes a tile to be discarded.
-                                        If 1, will not perform whitespace filtering.
-            whitespace_threshold:	Int 0-255. Threshold above which a pixel (RGB average) is considered whitespace.
-            grayspace_fraction:		Float 0-1. Fraction of grayspace which causes a tile to be discarded.
-                                        If 1, will not perform grayspace filtering.
-            grayspace_threshold:	Int 0-1. HSV (hue, saturation, value) is calculated for each pixel.
-                                        If a pixel's saturation is below this threshold, it is considered grayspace.
-            full_core:				Bool. Only used for TMA. If true, will extract full image cores
-                                        regardless of supplied tile micron size.
         '''
         assert img_format in ('png', 'jpg', 'jpeg')
         if tfrecord_dir is None and tiles_dir is None:
@@ -608,44 +603,19 @@ class BaseLoader:
         if tiles_dir:
             if not os.path.exists(tiles_dir): os.makedirs(tiles_dir)
 
-        if tfrecord_dir or tiles_dir:
-            # Log to keep track of when tiles have finished extracting
-            # To be used in case tile extraction is interrupted, so the slide can be flagged for re-extraction
-            unfinished_marker = join((tfrecord_dir if tfrecord_dir else tiles_dir), f'{self.name}.unfinished')
-            with open(unfinished_marker, 'w') as marker_file:
-                marker_file.write(' ')
+        # Log to keep track of when tiles have finished extracting
+        # To be used in case tile extraction is interrupted, so the slide can be flagged for re-extraction
+        unfinished_marker = join((tfrecord_dir if tfrecord_dir else tiles_dir), f'{self.name}.unfinished')
+        with open(unfinished_marker, 'w') as marker_file:
+            marker_file.write(' ')
+        if tfrecord_dir:
+            tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
 
-            if split_fraction and split_names:
-                # Tile splitting error checking
-                if len(split_fraction) != len(split_names):
-                    raise InvalidTileSplitException(f'When splitting tiles, "fraction" length ({len(split_fraction)})' + \
-                                                        f' should equal length of "names" ({len(split_names)})')
-                if sum([i for i in split_fraction if i != -1]) > 1:
-                    raise InvalidTileSplitException("Unable to split tiles; sum of split_fraction is greater than 1")
-                # Calculate dynamic splitting
-                if -1 in split_fraction:
-                    num_to_dynamic_split = sum([i for i in split_fraction if i == -1])
-                    dynamic_fraction = (1 - sum([i for i in split_fraction if i != -1])) / num_to_dynamic_split
-                    split_fraction = [s if s != -1 else dynamic_fraction for s in split_fraction]
-                # Prepare subfolders for splitting
-                if tfrecord_dir:
-                    tfrecord_writers = []
-                    for name in split_names:
-                        if not exists(join(tfrecord_dir, name)):
-                            os.makedirs(join(tfrecord_dir, name))
-                            tfrecord_writers += [tf.io.TFRecordWriter(join(tfrecord_dir, name, self.name+".tfrecords"))]
-                if tiles_dir:
-                    for name in split_names:
-                        if not exists(join(tiles_dir, name)):
-                            os.makedirs(join(tiles_dir, name))
-            elif tfrecord_dir:
-                tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
-
-        generator = self.build_generator(shuffle=shuffle, num_threads=num_threads, **kwargs)
+        generator = self.build_generator(**kwargs)
         slidename_bytes = bytes(self.name, 'utf-8')
 
         if not generator:
-            log.error(f"No tiles extracted from slide {sfutil.green(self.name)}")
+            log.error(f"No tiles extracted from slide {sf.util.green(self.name)}")
             return
 
         sample_tiles = []
@@ -677,17 +647,10 @@ class BaseLoader:
             elif not tiles_dir and not tfrecord_dir:
                 break
             if tiles_dir:
-                if split_fraction and split_names:
-                    save_dir = join(tiles_dir, random.choices(split_names, weights=split_fraction))
-                else:
-                    save_dir = tiles_dir
-                with open(join(save_dir, f'{self.shortname}_{index}.{img_format}'), 'wb') as outfile:
+                with open(join(tiles_dir, f'{self.shortname}_{index}.{img_format}'), 'wb') as outfile:
                     outfile.write(image_string)
             if tfrecord_dir:
-                if split_fraction and split_names:
-                    writer = random.choices(tfrecord_writers, weights=split_fraction)
-                else:
-                    writer = tfrecord_writer
+                writer = tfrecord_writer
                 tf_example = tfrecord_example(slidename_bytes, image_string, location[0], location[1])
                 writer.write(tf_example.SerializeToString())
         if self.counter_lock is None:
@@ -706,51 +669,44 @@ class BaseLoader:
         report = SlideReport(sample_tiles, self.slide.path)
         return report
 
-class WSI(BaseLoader):
-    '''Extension of slideflow.slide.BaseLoader. Loads a slide and its annotated region of interest (ROI).'''
+class WSI(_BaseLoader):
+    '''Loads a slide and its annotated region of interest (ROI).'''
 
-    def __init__(self,
-                 path,
-                 tile_px,
-                 tile_um,
-                 stride_div=1,
-                 enable_downsample=False,
-                 roi_dir=None,
-                 roi_list=None,
-                 roi_method=EXTRACT_INSIDE,
-                 skip_missing_roi=False,
-                 randomize_origin=False,
-                 silent=False,
-                 buffer=None,
-                 pb=None,
-                 pb_counter=None,
-                 counter_lock=None):
+    def __init__(self, path, tile_px, tile_um, stride_div=1, enable_downsample=False, roi_dir=None, roi_list=None,
+                 roi_method='ignore', skip_missing_roi=False, randomize_origin=False, buffer=None, pb=None,
+                 pb_counter=None, counter_lock=None):
 
-        '''Initializer.
+        """Loads slide and ROI(s).
 
         Args:
-            path:				Path to slide
-            tile_px:			Size of tiles to extract, in pixels
-            tile_um:			Size of tiles to extract, in microns
-            stride_div:			Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc)
-            enable_downsample:	Bool, if True, allows use of downsampled intermediate layers in the slide image pyramid,
-                                    which greatly improves tile extraction speed.
-            roi_dir:			Directory in which to search for ROI CSV files
-            roi_list:			Alternatively, a list of ROI paths can be explicitly provided
-            roi_method:			Either inside, outside, or ignore. Determines how ROIs are used to extract tiles
-            skip_missing_roi:	Bool, if True, will skip tiles that are missing a ROI file
-            silent:				Bool, if True, will hide logging output
-            buffer:				Path to directory. Slides will be copied to the directory as a buffer before extraction.
-                                    Vastly improves extraction speed if an SSD or ramdisk buffer is used.
-            pb:					ProgressBar instance; will update progress bar during tile extraction if provided
-            pb_id:				ID of bar in ProgressBar, defaults to 0
-        '''
+            path (str): Path to slide.
+            tile_px (int): Size of tiles to extract, in pixels.
+            tile_um (int): Size of tiles to extract, in microns.
+            stride_div (int, optional): Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc).
+                Defaults to 1.
+            enable_downsample (bool, optional): Allow use of downsampled intermediate layers in the slide image pyramid,
+                which greatly improves tile extraction speed. May result in artifacts for slides with incompletely
+                generated intermediates pyramid layers. Defaults to False.
+            roi_dir (str, optional): Directory in which to search for ROI CSV files. Defaults to None.
+            roi_list (list(str)): Alternatively, a list of ROI paths can be explicitly provided. Defaults to None.
+            roi_method (str): Either 'inside', 'outside', or 'ignore'. Determines how ROIs are used to extract tiles.
+                Defaults to 'inside'.
+            skip_missing_roi (bool, optional): Skip tiles that are missing a ROI file. Defaults to False.
+            randomize_origin (bool, optional): Offset the starting grid by a random amount. Defaults to False.
+            buffer (str): Path to directory. Slides will be copied to the directory as a buffer before extraction.
+                Vastly improves extraction speed if an SSD or ramdisk buffer is used. Defaults to None
+            pb (:class:`slideflow.util.ProgressBar`, optional): Multiprocessing-capable ProgressBar instance; will
+                update progress bar during tile extraction if provided. Used for multiprocessing tile extraction.
+            pb_counter (:obj:): Multiprocessing counter (a multiprocessing Value, from Progress Bar) used to follow
+                tile extraction progress. Defaults to None.
+            counter_lock (:obj:): Lock object for updating pb_counter, if provided. Defaults to None.
+        """
+
         super().__init__(path,
                          tile_px,
                          tile_um,
                          stride_div,
                          enable_downsample,
-                         silent,
                          buffer,
                          pb,
                          pb_counter,
@@ -778,11 +734,11 @@ class WSI(BaseLoader):
 
         # Else try loading ROI from same folder as slide
         elif exists(self.name + ".csv"):
-            self.load_csv_roi(sfutil.path_to_name(path) + ".csv")
-        elif roi_list and self.name in [sfutil.path_to_name(r) for r in roi_list]:
+            self.load_csv_roi(sf.util.path_to_name(path) + ".csv")
+        elif roi_list and self.name in [sf.util.path_to_name(r) for r in roi_list]:
             matching_rois = []
             for rp in roi_list:
-                rn = sfutil.path_to_name(rp)
+                rn = sf.util.path_to_name(rp)
                 if rn == self.name:
                     matching_rois += [rp]
             if len(matching_rois) > 1:
@@ -791,13 +747,13 @@ class WSI(BaseLoader):
 
         # Handle missing ROIs
         if not len(self.rois) and skip_missing_roi and roi_method != 'ignore':
-            log.error(f"No ROI found for {sfutil.green(self.name)}, skipping slide")
+            log.error(f"No ROI found for {sf.util.green(self.name)}, skipping slide")
             self.shape = None
             self.load_error = True
             return None
         elif not len(self.rois):
             self.estimated_num_tiles = int(len(self.coord))
-            log.warning(f"[{sfutil.green(self.shortname)}]  No ROI found in {roi_dir}, using whole slide.")
+            log.info(f"[{sf.util.green(self.shortname)}] No ROI found in {roi_dir}, using whole slide.")
             self.roi_method = 'ignore'
 
         mpp_roi_msg = f'{self.MPP} um/px | {len(self.rois)} ROI(s)'
@@ -807,10 +763,12 @@ class WSI(BaseLoader):
 
         # Abort if errors were raised during ROI loading
         if self.load_error:
-            log.error(f'Skipping slide {sfutil.green(self.name)} due to loading error')
+            log.error(f'Skipping slide {sf.util.green(self.name)} due to loading error')
             return None
 
     def _build_coord(self, randomize_origin):
+        '''Set up coordinate grid.'''
+
         # Calculate window sizes, strides, and coordinates for windows
         self.extracted_x_size = self.full_shape[0] - self.full_extract_px
         self.extracted_y_size = self.full_shape[1] - self.full_extract_px
@@ -837,31 +795,45 @@ class WSI(BaseLoader):
 
         self.grid = np.zeros((len(x_range), len(y_range)))
 
-    def build_generator(self, dual_extract=False, shuffle=True, whitespace_fraction=1.0,
-                            whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05,
-                            normalizer=None, normalizer_source=None, include_loc=True, num_threads=4,
-                            show_progress=False, full_core=None):
+    def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None,
+                        grayspace_fraction=None, grayspace_threshold=None, normalizer=None, normalizer_source=None,
+                        include_loc=True, num_threads=8, show_progress=False, full_core=None):
 
-        '''Builds generator to supervise extraction of tiles across the slide.
+        """Builds tile generator to extract of tiles across the slide.
 
         Args:
-            dual_extract:			If true, will extract base image and the surrounding region.
-            shuffle:				If true, will shuffle images during extraction
-            whitespace_fraction:	Float from 0-1, representing a percent. Tiles with this percent of pixels
-                                        (or more) classified as "whitespace" and will be skipped during extraction.
-            whitespace_threshold:	Int from 0-255, pixel brightness above which a pixel is considered whitespace
-            normalizer:				Normalization strategy to use on image tiles
-            normalizer_source:		Path to normalizer source image
-        '''
+            shuffle (bool): Shuffle images during extraction.
+            whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
+                Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.
+            whitespace_threshold (int, optional): Range 0-255. Defaults to 230.
+                Threshold above which a pixel (RGB average) is considered whitespace.
+            grayspace_fraction (float, optional): Range 0-1. Defaults to 0.6.
+                Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.
+            grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
+                Pixels in HSV format with saturation below this threshold are considered grayspace.
+                normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
+                If None but using a normalizer, will use an internal tile for normalization.
+                Internal default tile can be found at slideflow.util.norm_tile.jpg
+            include_loc (bool, optional): Return (x,y) origin coordinates for each tile along with tile images.
+            show_progress (bool, optional): Show a progress bar for tile extraction.
+        """
+
         super().build_generator()
 
         if self.estimated_num_tiles == 0:
-            log.warning(f"No tiles extracted at the given micron size for slide {sfutil.green(self.name)}")
+            log.warning(f"No tiles extracted at the given micron size for slide {sf.util.green(self.name)}")
             return None
 
         # Shuffle coordinates to randomize extraction order
         if shuffle:
             random.shuffle(self.coord)
+
+        # Set whitespace / grayspace fraction to global defaults if not provided
+        if whitespace_fraction is None:     whitespace_fraction  = DEFAULT_WHITESPACE_FRACTION
+        if whitespace_threshold is None:    whitespace_threshold = DEFAULT_WHITESPACE_THRESHOLD
+        if grayspace_fraction is None:      grayspace_fraction   = DEFAULT_GRAYSPACE_FRACTION
+        if grayspace_threshold is None:     grayspace_threshold  = DEFAULT_GRAYSPACE_THRESHOLD
 
         worker_args = {
             'full_extract_px': self.full_extract_px,
@@ -873,7 +845,6 @@ class WSI(BaseLoader):
             'path': self.path,
             'extract_px': self.extract_px,
             'tile_px': self.tile_px,
-            'dual_extract': dual_extract,
             'full_stride': self.full_stride,
             'normalizer': normalizer,
             'normalizer_source': normalizer_source,
@@ -892,7 +863,7 @@ class WSI(BaseLoader):
             with mp.Pool(processes=num_threads) as p:
                 if show_progress:
                     pbar = tqdm(total=self.estimated_num_tiles, ncols=80)
-                for res in p.imap(partial(slide_extraction_worker, args=worker_args), self.coord):
+                for res in p.imap(partial(_wsi_extraction_worker, args=worker_args), self.coord):
                     if res == 'skip':
                         continue
                     if show_progress:
@@ -906,21 +877,23 @@ class WSI(BaseLoader):
                 if show_progress:
                     pbar.close()
 
-            name_msg = sfutil.green(self.shortname)
+            name_msg = sf.util.green(self.shortname)
             num_msg = f'({np.sum(self.tile_mask)} tiles of {len(self.coord)} possible)'
             log.info(f"Finished tile extraction for {name_msg} {num_msg}")
 
         return generator
 
     def annotated_thumb(self, mpp=None, width=None):
-        '''Returns PIL Image of thumbnail with ROI overlay.
+        """Returns PIL Image of thumbnail with ROI overlay.
 
         Args:
-            mpp:	Microns-per-pixel, used to determine thumbnail size
+            mpp (float, optional): Microns-per-pixel, used to determine thumbnail size.
+            width (int, optional): Alternatively, goal thumbnail width may be supplied.
 
         Returns:
             PIL image
-        '''
+        """
+
         if mpp is not None:
             ROI_SCALE = self.full_shape[0] / (int((self.MPP * self.full_shape[0]) / mpp))
         else:
@@ -936,6 +909,7 @@ class WSI(BaseLoader):
 
     def load_csv_roi(self, path):
         '''Loads CSV ROI from a given path.'''
+
         roi_dict = {}
         with open(path, "r") as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
@@ -946,7 +920,7 @@ class WSI(BaseLoader):
                 index_x = headers.index("x_base")
                 index_y = headers.index("y_base")
             except:
-                log.error(f'Unable to read CSV ROI file {sfutil.green(path)}, please check file integrity and ' + \
+                log.error(f'Unable to read CSV ROI file {sf.util.green(path)}, please check file integrity and ' + \
                                 'ensure headers contain "ROI_name", "X_base", and "Y_base".')
                 self.load_error = True
                 return
@@ -956,20 +930,20 @@ class WSI(BaseLoader):
                 y_coord = int(float(row[index_y]))
 
                 if roi_name not in roi_dict:
-                    roi_dict.update({roi_name: ROIObject(roi_name)})
+                    roi_dict.update({roi_name: ROI(roi_name)})
                 roi_dict[roi_name].add_coord((x_coord, y_coord))
 
             for roi_object in roi_dict.values():
                 self.rois.append(roi_object)
 
         # Load annotations as shapely.geometry objects
-        if self.roi_method != IGNORE_ROI:
+        if self.roi_method != 'ignore':
             self.annPolys = []
             for i, annotation in enumerate(self.rois):
                 try:
                     self.annPolys += [sg.Polygon(annotation.scaled_area(self.ROI_SCALE))]
                 except ValueError:
-                    log.warning(f"Unable to use ROI {i} in slide {sfutil.green(self.name)}, at least 3 points required " + \
+                    log.warning(f"Unable to use ROI {i} in slide {sf.util.green(self.name)}, at least 3 points required " + \
                                 "to create a geometric shape.")
             roi_area = sum([poly.area for poly in self.annPolys])
         else:
@@ -977,7 +951,7 @@ class WSI(BaseLoader):
         total_area = (self.full_shape[0]/self.ROI_SCALE) * (self.full_shape[1]/self.ROI_SCALE)
         roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
 
-        if self.roi_method == EXTRACT_INSIDE:
+        if self.roi_method == 'inside':
             self.estimated_num_tiles = int(len(self.coord) * roi_area_fraction)
         else:
             self.estimated_num_tiles = int(len(self.coord) * (1-roi_area_fraction))
@@ -986,75 +960,19 @@ class WSI(BaseLoader):
 
     def load_json_roi(self, path, scale=10):
         '''Loads ROI from a JSON file.'''
+
         with open(path, "r") as json_file:
             json_data = json.load(json_file)['shapes']
         for shape in json_data:
             area_reduced = np.multiply(shape['points'], scale)
-            self.rois.append(ROIObject(f"Object{len(self.rois)}"))
+            self.rois.append(ROI(f"Object{len(self.rois)}"))
             self.rois[-1].add_shape(area_reduced)
         return len(self.rois)
 
-    def predict(self, model, layers=['postconv'], normalizer=None, normalizer_source=None, whitespace_fraction=1.0,
-                    whitespace_threshold=230, grayspace_fraction=0.6, grayspace_threshold=0.05,
-                    batch_size=128, dtype=np.float16, **kwargs):
-
-        from slideflow.model import ModelActivationsInterface
-        model_interface = ModelActivationsInterface(model, layers=layers)
-        prediction_grid = np.zeros((self.grid.shape[0], self.grid.shape[1], model_interface.num_features), dtype=dtype)
-
-        generator = self.build_generator(shuffle=False,
-                                        normalizer=normalizer,
-                                        normalizer_source=normalizer_source,
-                                        whitespace_fraction=whitespace_fraction,
-                                        whitespace_threshold=whitespace_threshold,
-                                        grayspace_fraction=grayspace_fraction,
-                                        grayspace_threshold=grayspace_threshold,
-                                        include_loc='grid',
-                                        **kwargs)
-
-        if not generator:
-            log.error(f"No tiles extracted from slide {sfutil.green(self.name)}")
-            return
-
-        def _parse_function(record):
-            image = record['image']
-            loc = record['loc']
-            parsed_image = tf.image.per_image_standardization(image)
-            parsed_image = tf.image.convert_image_dtype(parsed_image, tf.float32)
-            parsed_image.set_shape([self.tile_px, self.tile_px, 3])
-            return parsed_image, loc
-
-        # Generate dataset from the generator
-        with tf.name_scope('dataset_input'):
-            output_signature={'image':tf.TensorSpec(shape=(self.tile_px,self.tile_px,3), dtype=tf.uint8),
-                              'loc':tf.TensorSpec(shape=(2), dtype=tf.uint32)}
-            tile_dataset = tf.data.Dataset.from_generator(generator, output_signature=output_signature)
-            tile_dataset = tile_dataset.map(_parse_function, num_parallel_calls=8)
-            tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
-            tile_dataset = tile_dataset.prefetch(8)
-
-        act_arr = []
-        loc_arr = []
-        for i, (batch_images, batch_loc) in tqdm(enumerate(tile_dataset), total=self.estimated_num_tiles // batch_size, ncols=80):
-            act, logits = model_interface.predict(batch_images)
-            act_arr += [act]
-            loc_arr += [batch_loc.numpy()]
-
-        act_arr = np.concatenate(act_arr)
-        loc_arr = np.concatenate(loc_arr)
-
-        for i, act in enumerate(act_arr):
-            xi = loc_arr[i][0]
-            yi = loc_arr[i][1]
-            prediction_grid[xi][yi] = act
-
-        return prediction_grid
-
-class TMA(BaseLoader):
-    '''Extension of slideflow.slide.BaseLoader. Loads a TMA-formatted slide and detects tissue cores.'''
+class TMA(_BaseLoader):
+    '''Loads a TMA-formatted slide and detects tissue cores.'''
 
     QUEUE_SIZE = 8
-    NUM_EXTRACTION_WORKERS = 8
     HEIGHT_MIN = 20
     WIDTH_MIN = 20
     BLACK = (0,0,0)
@@ -1064,23 +982,22 @@ class TMA(BaseLoader):
     RED = (100, 100, 200)
     WHITE = (255,255,255)
 
-    def __init__(self, path, tile_px, tile_um, stride_div, annotations_dir=None,
-                    enable_downsample=False, silent=False, report_dir=None, buffer=None, pb=None, pb_id=0):
+    def __init__(self, path, tile_px, tile_um, stride_div=1, annotations_dir=None,
+                    enable_downsample=False, report_dir=None, buffer=None, pb=None, pb_id=0):
         '''Initializer.
 
         Args:
-            path:				Path to slide
-            tile_px:			Size of tiles to extract, in pixels
-            tile_um:			Size of tiles to extract, in microns
-            stride_div:			Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc)
-            enable_downsample:	Bool, if True, allows use of downsampled intermediate layers in the slide image pyramid,
+            path:               Path to slide
+            tile_px:            Size of tiles to extract, in pixels
+            tile_um:            Size of tiles to extract, in microns
+            stride_div:         Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc)
+            enable_downsample:  Bool, if True, allows use of downsampled intermediate layers in the slide image pyramid,
                                     which greatly improves tile extraction speed.
-            silent:				Bool, if True, will hide logging output
-            buffer:				Path to directory. Slides will be copied here prior to extraction.
-            pb:					ProgressBar instance; will update progress bar during tile extraction if provided
-            pb_id:				ID of bar in ProgressBar, defaults to 0
+            buffer:             Path to directory. Slides will be copied here prior to extraction.
+            pb:                 ProgressBar instance; will update progress bar during tile extraction if provided
+            pb_id:              ID of bar in ProgressBar, defaults to 0
         '''
-        super().__init__(path, tile_px, tile_um, stride_div, enable_downsample, silent, buffer, pb)
+        super().__init__(path, tile_px, tile_um, stride_div, enable_downsample, buffer, pb)
 
         if not self.loaded_correctly():
             return
@@ -1207,7 +1124,7 @@ class TMA(BaseLoader):
                 cv2.circle(img_annotated, (cX, cY), 4, self.GREEN, -1)
                 box = cv2.boxPoints(rect)
                 box = np.int0(box)
-                area = polyArea([b[0] for b in box], [b[1] for b in box])
+                area = _polyArea([b[0] for b in box], [b[1] for b in box])
                 self.box_areas += [area]
                 cv2.drawContours(img_annotated, [box], 0, self.BLUE, 2)
                 num_filtered += 1
@@ -1225,22 +1142,34 @@ class TMA(BaseLoader):
 
         return num_filtered, num_filtered
 
-    def build_generator(self, shuffle=True, whitespace_fraction=1.0, whitespace_threshold=230,
-                            grayspace_fraction=0.6, grayspace_threshold=0.05,
-                            normalizer=None, normalizer_source=None, full_core=None):
+    def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None, grayspace_fraction=None,
+                        grayspace_threshold=None, normalizer=None, normalizer_source=None, include_loc=True,
+                        num_threads=8, full_core=False):
 
-        '''Builds generator to supervise extraction of tiles across the slide.
+        """Builds tile generator to extract of tiles across the slide.
 
         Args:
-            shuffle:				If true, will shuffle images during extraction
-            whitespace_fraction:	Float from 0-1, representing a percent. Tiles with this percent of pixels
-                                        (or more) classified as "whitespace" and will be skipped during extraction.
-            whitespace_threshold:	Int from 0-255, pixel brightness above which a pixel is considered whitespace
-            normalizer:				Normalization strategy to use on image tiles
-            normalizer_source:		Path to normalizer source image
-            export_full_core:	If true, will also save a thumbnail of each fully extracted core.'''
+            shuffle (bool): Shuffle images during extraction.
+            whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
+                Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.
+            whitespace_threshold (int, optional): Range 0-255. Defaults to 230.
+                Threshold above which a pixel (RGB average) is considered whitespace.
+            grayspace_fraction (float, optional): Range 0-1. Defaults to 0.6.
+                Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.
+            grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
+                Pixels in HSV format with saturation below this threshold are considered grayspace.
+                normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
+                If None but using a normalizer, will use an internal tile for normalization.
+                Internal default tile can be found at slideflow.util.norm_tile.jpg
+            full_core (bool, optional): Extract an entire detected core, rather than subdividing into image tiles.
+                Defaults to False.
+        """
 
         super().build_generator()
+
+        if include_loc:
+            log.warning("Tile location logging for TMA slides is not yet complete; recording all locations as (0, 0).")
 
         # Setup normalization
         normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
@@ -1248,6 +1177,12 @@ class TMA(BaseLoader):
         # Shuffle TMAs
         if shuffle:
             random.shuffle(self.object_rects)
+
+        # Set whitespace / grayspace fraction to global defaults if not provided
+        if whitespace_fraction is None:     whitespace_fraction  = DEFAULT_WHITESPACE_FRACTION
+        if whitespace_threshold is None:    whitespace_threshold = DEFAULT_WHITESPACE_THRESHOLD
+        if grayspace_fraction is None:      grayspace_fraction   = DEFAULT_GRAYSPACE_FRACTION
+        if grayspace_threshold is None:     grayspace_threshold  = DEFAULT_GRAYSPACE_THRESHOLD
 
         # Establish extraction queues
         rectangle_queue = mp.Queue()
@@ -1265,7 +1200,7 @@ class TMA(BaseLoader):
 
         def generator():
             unique_tile = True
-            extraction_pool = mp.Pool(self.NUM_EXTRACTION_WORKERS, section_extraction_worker,(rectangle_queue, extraction_queue,))
+            extraction_pool = mp.Pool(num_threads, section_extraction_worker,(rectangle_queue, extraction_queue,))
 
             for rect in self.object_rects:
                 rectangle_queue.put(rect)
@@ -1284,7 +1219,11 @@ class TMA(BaseLoader):
                     resized_core = self._resize_to_target(image_core)
 
                     if full_core:
-                        yield cv2.resize(image_core, (self.tile_px, self.tile_px))
+                        resized = cv2.resize(image_core, (self.tile_px, self.tile_px))
+                        if include_loc:
+                            yield {'image': resized, 'loc': [0, 0]}
+                        else:
+                            yield {'image': resized}
                     else:
                         subtiles = self._split_core(resized_core)
                         for subtile in subtiles:
@@ -1307,8 +1246,10 @@ class TMA(BaseLoader):
                                     # The image could not be normalized, which happens when
                                     # a tile is primarily one solid color (background)
                                     continue
-
-                            yield subtile
+                            if include_loc:
+                                yield {'image': subtile, 'loc': [0, 0]}
+                            else:
+                                yield {'image': subtile}
 
             extraction_pool.close()
 
