@@ -1,12 +1,10 @@
-![slideflow logo](http://jmd172.bitbucket.io/_images/full_logo.png)
+![slideflow logo](docs-source/pytorch_sphinx_theme/images/slideflow-banner.png)
 
 [![Python application](https://github.com/pearson-laboratory/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/pearson-laboratory/slideflow/actions/workflows/python-app.yml)
 
-# Slideflow README
+# Slideflow
 
-Slideflow is a Python package which aims to provide an easy and intuitive way of building and testing neural network models for use in histology image analysis. It is built using Keras (with Tensorflow backend) and supports many standard network architectures - e.g. InceptionV3, Resnet, and VGG16 - as well as custom architectures.
-
-The overarching goal of the package is to provide tools to train and test models on histology slides, apply these models to new slides, and analyze performance by generating predictive heatmaps, ROCs, and mosaic maps.
+Slideflow is a computational pathology Python package which aims to provide an easy and intuitive way of building and testing deep learning models for use in histology image analysis. It is built using Keras (with Tensorflow backend) and supports all Keras architectures, as well as [CLAM](https://github.com/mahmoodlab/CLAM). The overarching goal of the package is to provide tools to train and test models on histology slides, apply these models to new slides, and assess performance using analytical tools including predictive heatmaps, mosaic maps, ROCs, and more.
 
 Slideflow requires Python 3.7+ and [libvips](https://libvips.github.io/libvips/).
 
@@ -53,4 +51,4 @@ Following tile extraction, you can begin model training:
 SFP.train()
 ```
 
-Complete documentation of all functions and options can be found at [slideflow.dev](https://www.slideflow.dev/).
+Please see the documentation at [slideflow.dev](https://www.slideflow.dev/).

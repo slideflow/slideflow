@@ -238,7 +238,7 @@ def interactive_project_setup(project_folder):
         create_blank_train_config(project['batch_train_config'])
 
     # Save settings as relative paths
-    settings = project_config(**project)
+    settings = _project_config(**project)
 
     sf.util.write_json(settings, join(project_folder, 'settings.json'))
 

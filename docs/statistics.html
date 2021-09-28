@@ -1,0 +1,1011 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.statistics &mdash; slideflow 1.12.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="slideflow.util" href="util.html" />
+    <link rel="prev" title="slideflow.slide" href="slide.html" />
+  <!-- Google Analytics -->
+  
+  <!-- End Google Analytics -->
+  
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">Showcase</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  1.12
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Source</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tfrecords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.reader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">slideflow.statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>slideflow.statistics</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="_sources/statistics.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <div class="section" id="slideflow-statistics">
+<h1>slideflow.statistics<a class="headerlink" href="#slideflow-statistics" title="Permalink to this headline">¶</a></h1>
+<p>In addition to containing functions used during model training and evaluation, this module provides
+the <a class="reference internal" href="#slideflow.statistics.SlideMap" title="slideflow.statistics.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.statistics.SlideMap</span></code></a> class designed to assist with visualizing tiles and slides
+in two-dimensional space.</p>
+<p>Once a model has been trained, tile-level predictions and intermediate layer activations can be calculated
+across an entire dataset with <a class="reference internal" href="activations.html#slideflow.activations.ActivationsVisualizer" title="slideflow.activations.ActivationsVisualizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.activations.ActivationsVisualizer</span></code></a>.
+The <a class="reference internal" href="#slideflow.statistics.SlideMap" title="slideflow.statistics.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.statistics.SlideMap</span></code></a> class can then perform dimensionality reduction on these dataset-wide
+activations, plotting tiles and slides in two-dimensional space. Visualizing the distribution and clustering
+of tile-level and slide-level layer activations can help reveal underlying structures in the dataset and shared
+visual features among classes.</p>
+<p>The primary method of use is first generating an <a class="reference internal" href="activations.html#slideflow.activations.ActivationsVisualizer" title="slideflow.activations.ActivationsVisualizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.activations.ActivationsVisualizer</span></code></a> from a trained
+model, then creating an instance of a <a class="reference internal" href="#slideflow.statistics.SlideMap" title="slideflow.statistics.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.statistics.SlideMap</span></code></a> by using the <code class="docutils literal notranslate"><span class="pre">from_activations</span></code> class
+method:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">AV</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">activations</span><span class="o">.</span><span class="n">ActivationsVisualizer</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s1">&#39;/path/&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+<span class="n">slide_map</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">statistics</span><span class="o">.</span><span class="n">SlideMap</span><span class="o">.</span><span class="n">from_activations</span><span class="p">(</span><span class="n">AV</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Alternatively, if you would like to map slides from a dataset in two-dimensional space using pre-calculated <em>x</em> and <em>y</em>
+coordinates, you can use the <code class="docutils literal notranslate"><span class="pre">from_precalculated</span></code> class method. In addition to X and Y, this method requires supplying
+tile-level metadata in the form of a list of dicts. Each dict must contain the name of the origin slide and the tile
+index in the slide TFRecord.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">get_dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
+<span class="n">slides</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_slides</span><span class="p">()</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">meta</span> <span class="o">=</span> <span class="p">[{</span><span class="s1">&#39;slide&#39;</span><span class="p">:</span> <span class="o">...</span><span class="p">,</span> <span class="s1">&#39;index&#39;</span><span class="p">:</span> <span class="o">...</span><span class="p">}</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))]</span>
+<span class="n">slide_map</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">statistics</span><span class="o">.</span><span class="n">SlideMap</span><span class="o">.</span><span class="n">from_precalculated</span><span class="p">(</span><span class="n">slides</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">meta</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="section" id="slidemap">
+<h2>SlideMap<a class="headerlink" href="#slidemap" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">SlideMap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slides</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Two-dimensional slide map used for visualization, as well as subsequent construction of mosaic maps.</p>
+<p>Slides are mapped in 2D either explicitly with pre-specified coordinates, or with dimensionality reduction
+from post-convolutional layer weights, provided from <a class="reference internal" href="activations.html#slideflow.activations.ActivationsVisualizer" title="slideflow.activations.ActivationsVisualizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.activations.ActivationsVisualizer</span></code></a>.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slides</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Backend for mapping slides into two dimensional space. Can use an ActivationsVisualizer object
+to map slides according to UMAP of activations, or map according to pre-specified coordinates.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>slides</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>)</em>) – List of slide names</p></li>
+<li><p><strong>cache</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Path to PKL file to cache activations. Defaults to None (caching disabled).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.cluster">
+<span class="sig-name descname"><span class="pre">cluster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_clusters</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.cluster" title="Permalink to this definition">¶</a></dt>
+<dd><p>Performs clustering on data and adds to metadata labels. Requires an ActivationsVisualizer backend.</p>
+<p>Clusters are saved to self.point_meta[i][‘cluster’].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>n_clusters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Number of clusters for K means clustering.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Array with cluster labels corresponding to tiles in self.point_meta.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.export_to_csv">
+<span class="sig-name descname"><span class="pre">export_to_csv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.export_to_csv" title="Permalink to this definition">¶</a></dt>
+<dd><p>Exports calculated UMAP coordinates in csv format.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Path to CSV file in which to save coordinates.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.filter">
+<span class="sig-name descname"><span class="pre">filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slides</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.filter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Filters map to only show tiles from the given slides.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>slides</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>)</em>) – List of slide names.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.from_activations">
+<em class="property"><span class="pre">classmethod</span> </em><span class="sig-name descname"><span class="pre">from_activations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">AV</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclude_slides</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prediction_filter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recalculate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">map_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">low_memory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles_per_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">umap_dim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.from_activations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initializes map from an activations visualizer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>AV</strong> (<a class="reference internal" href="activations.html#slideflow.activations.ActivationsVisualizer" title="slideflow.activations.ActivationsVisualizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.activations.ActivationsVisualizer</span></code></a>) – ActivationsVisualizer object.</p></li>
+<li><p><strong>exclude_slides</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – List of slides to exclude from map.</p></li>
+<li><p><strong>prediction_filter</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – </p></li>
+<li><p><strong>recalculate</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Force recalculation of umap despite presence of cache.</p></li>
+<li><p><strong>use_centroid</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Calculate and map centroid activations.</p></li>
+<li><p><strong>map_slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Either None (default), ‘centroid’, or ‘average’.
+If None, will map all tiles from each slide.</p></li>
+<li><p><strong>cache</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Path to PKL file to cache coordinates. Defaults to None (caching disabled).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.from_precalculated">
+<em class="property"><span class="pre">classmethod</span> </em><span class="sig-name descname"><span class="pre">from_precalculated</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slides</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">meta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.from_precalculated" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initializes map from precalculated coordinates.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>slides</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>)</em>) – List of slide names.</p></li>
+<li><p><strong>x</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>)</em>) – List of X coordinates for tfrecords.</p></li>
+<li><p><strong>y</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>)</em>) – List of Y coordinates for tfrecords.</p></li>
+<li><p><strong>meta</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>)</em>) – List of dicts containing metadata for each point on the map (representing a single tfrecord).</p></li>
+<li><p><strong>labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>)</em>) – Labels assigned to each tfrecord, used for coloring TFRecords according to labels.</p></li>
+<li><p><strong>cache</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Path to PKL file to cache coordinates. Defaults to None (caching disabled).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.get_tiles_in_area">
+<span class="sig-name descname"><span class="pre">get_tiles_in_area</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x_lower</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">999</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x_upper</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">999</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_lower</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">999</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_upper</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">999</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.get_tiles_in_area" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Returns dictionary of slide names mapping to tile indices,</dt><dd><p>or tiles that fall within the specified location on the umap.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x_lower</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – X-axis lower limit. Defaults to -999.</p></li>
+<li><p><strong>x_upper</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – X-axis upper limit. Defaults to 999.</p></li>
+<li><p><strong>y_lower</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Y-axis lower limit. Defaults to -999.</p></li>
+<li><p><strong>y_upper</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Y-axis upper limit. Defaults to 999.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Dict mapping slide names to tile indices, for tiles included in the given area.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.label_by_logits">
+<span class="sig-name descname"><span class="pre">label_by_logits</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.label_by_logits" title="Permalink to this definition">¶</a></dt>
+<dd><p>Displays each point with label equal to the logits (linear from 0-1)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>index</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Logit index.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.label_by_slide">
+<span class="sig-name descname"><span class="pre">label_by_slide</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slide_labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.label_by_slide" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Displays each point as the name of the corresponding slide.</dt><dd><p>If slide_labels is provided, will use this dictionary to label slides.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>slide_labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping slide names to labels.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.label_by_tile_meta">
+<span class="sig-name descname"><span class="pre">label_by_tile_meta</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tile_meta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">translation_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.label_by_tile_meta" title="Permalink to this definition">¶</a></dt>
+<dd><p>Displays each point with label equal a value in tile metadata (e.g. ‘prediction’)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tile_meta</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Key to metadata from which to read</p></li>
+<li><p><strong>translation_dict</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – If provided, will translate the read metadata through this dictionary.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.load_cache">
+<span class="sig-name descname"><span class="pre">load_cache</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.load_cache" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load coordinates from PKL cache.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.neighbors">
+<span class="sig-name descname"><span class="pre">neighbors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slide_categories</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">algorithm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'kd_tree'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.neighbors" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Calculates neighbors among tiles in this map, assigning neighboring statistics</dt><dd><p>to tile metadata ‘num_unique_neighbors’ and ‘percent_matching_categories’.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>slide_categories</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping slides to categories. Defaults to None.
+If provided, will be used to calculate ‘percent_matching_categories’ statistic.</p></li>
+<li><p><strong>algorithm</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – NearestNeighbor algorithm, either ‘kd_tree’, ‘ball_tree’, or ‘brute’.
+Defaults to ‘kd_tree’.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subsample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cmap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_float</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xlim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(-</span> <span class="pre">0.05,</span> <span class="pre">1.05)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ylim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(-</span> <span class="pre">0.05,</span> <span class="pre">1.05)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xlabel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ylabel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">legend</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dpi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">300</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves plot of data to a provided filename.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – File path to save the image.</p></li>
+<li><p><strong>subsample</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Subsample to only include this many tiles on plot. Defaults to None.</p></li>
+<li><p><strong>title</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Title for plot.</p></li>
+<li><p><strong>cmap</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping labels to colors.</p></li>
+<li><p><strong>use_float</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Interpret labels as float for linear coloring. Defaults to False.</p></li>
+<li><p><strong>xlim</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – List of float indicating limit for x-axis. Defaults to (-0.05, 1.05).</p></li>
+<li><p><strong>ylim</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – List of float indicating limit for y-axis. Defaults to (-0.05, 1.05).</p></li>
+<li><p><strong>xlabel</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Label for x axis. Defaults to None.</p></li>
+<li><p><strong>ylabel</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Label for y axis. Defaults to None.</p></li>
+<li><p><strong>legend</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Title for legend. Defaults to None.</p></li>
+<li><p><strong>dpi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – DPI for final image. Defaults to 300.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.save_2d_plot">
+<span class="sig-name descname"><span class="pre">save_2d_plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.save_2d_plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deprecated function; please use <cite>save</cite>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.save_3d_plot">
+<span class="sig-name descname"><span class="pre">save_3d_plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subsample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.save_3d_plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument “z”.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Filename to save image of plot.</p></li>
+<li><p><strong>z</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – Values for z axis. Must supply z or node. Defaults to None.</p></li>
+<li><p><strong>node</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Int, node to plot on 3rd axis. Must supply z or node. Defaults to None.</p></li>
+<li><p><strong>subsample</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Subsample to only include this many tiles on plot. Defaults to None.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.save_cache">
+<span class="sig-name descname"><span class="pre">save_cache</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.save_cache" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save cache of coordinates to PKL file.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.statistics.SlideMap.show_neighbors">
+<span class="sig-name descname"><span class="pre">show_neighbors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">neighbor_AV</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slide</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.SlideMap.show_neighbors" title="Permalink to this definition">¶</a></dt>
+<dd><p>Filters map to only show neighbors with a corresponding neighbor ActivationsVisualizer and neighbor slide.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>neighbor_AV</strong> (<a class="reference internal" href="activations.html#slideflow.activations.ActivationsVisualizer" title="slideflow.activations.ActivationsVisualizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.activations.ActivationsVisualizer</span></code></a>) – ActivationsVisualizer object
+containing activations for neighboring slide.</p></li>
+<li><p><strong>slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Name of neighboring slide.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="basic-metrics">
+<h2>basic_metrics<a class="headerlink" href="#basic-metrics" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.basic_metrics">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">basic_metrics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y_true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_pred</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.basic_metrics" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates basic performance metrics, including sensitivity, specificity, and accuracy.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="calculate-centroid">
+<h2>calculate_centroid<a class="headerlink" href="#calculate-centroid" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.calculate_centroid">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">calculate_centroid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">activations</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.calculate_centroid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calcultes slide-level centroid indices for a provided slide-node dict.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>activations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a>) – Dict mapping slide names to ndarray of activations across tiles,
+of shape (n_tiles, n_features)</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Dict mapping slides to index of tile nearest to centroid
+dict: Dict mapping slides to activations of tile nearest to centroid</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="concordance-index">
+<h2>concordance_index<a class="headerlink" href="#concordance-index" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.concordance_index">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">concordance_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y_true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_pred</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.concordance_index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates concordance index from a given y_true and y_pred.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="filtered-prediction">
+<h2>filtered_prediction<a class="headerlink" href="#filtered-prediction" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.filtered_prediction">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">filtered_prediction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.filtered_prediction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates a prediction from a logits vector masked by a given filter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>filter</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>)</em>) – List of logit indices to include when generating a prediction. All other logits will be masked.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>index of prediction.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)">int</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="generate-combined-roc">
+<h2>generate_combined_roc<a class="headerlink" href="#generate-combined-roc" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.generate_combined_roc">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">generate_combined_roc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y_true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ROC'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.generate_combined_roc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates and saves overlapping ROCs with a given combination of y_true and y_pred.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="generate-roc">
+<h2>generate_roc<a class="headerlink" href="#generate-roc" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.generate_roc">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">generate_roc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y_true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ROC'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.generate_roc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates and saves an ROC with a given set of y_true, y_pred values.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="generate-scatter">
+<h2>generate_scatter<a class="headerlink" href="#generate-scatter" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.generate_scatter">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">generate_scatter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y_true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'_plot'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.generate_scatter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate and save scatter plots and calculate R2 statistic for each outcome variable.
+y_true and y_pred are both 2D arrays; the first dimension is each observation,
+the second dimension is each outcome variable.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="gen-umap">
+<h2>gen_umap<a class="headerlink" href="#gen-umap" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.gen_umap">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">gen_umap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_neighbors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metric</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cosine'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">low_memory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.gen_umap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates and returns a umap from a given array, using umap.UMAP</p>
+</dd></dl>
+
+</div>
+<div class="section" id="get-centroid-index">
+<h2>get_centroid_index<a class="headerlink" href="#get-centroid-index" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.get_centroid_index">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">get_centroid_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_array</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.get_centroid_index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate index nearest to centroid from a given two-dimensional input array.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="metrics-from-dataset">
+<h2>metrics_from_dataset<a class="headerlink" href="#metrics-from-dataset" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.metrics_from_dataset">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">metrics_from_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles_per_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">histogram</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_predictions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.metrics_from_dataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluate performance of a given model on a given TFRecord dataset,
+generating a variety of statistical outcomes and graphs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>tf.keras.Model</em>) – Keras model to evaluate.</p></li>
+<li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – ‘categorical’, ‘linear’, or ‘cph’.</p></li>
+<li><p><strong>annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a>) – Dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)</p></li>
+<li><p><strong>manifest</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a>) – Number of tiles per tfrecord, as provided by <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.dataset.Datset.get_manifest()</span></code></p></li>
+<li><p><strong>dataset</strong> (<em>tf.data.Dataset</em>) – Tensorflow dataset.</p></li>
+<li><p><strong>outcome_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – List of str, names for outcomes. Defaults to None.</p></li>
+<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Label prefix/suffix for saving. Defaults to None.</p></li>
+<li><p><strong>min_tiles_per_slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Minimum tiles per slide to include in metrics. Defaults to 0.</p></li>
+<li><p><strong>data_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Path to data directory for saving. Defaults to None.</p></li>
+<li><p><strong>num_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.</p></li>
+<li><p><strong>histogram</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Write histograms to data_dir. Defaults to False.
+Takes a substantial amount of time for large datasets, potentially hours.</p></li>
+<li><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Include verbose output. Defaults to True.</p></li>
+<li><p><strong>save_predictions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile, slide, and patient-level predictions to CSV. Defaults to True.
+May take a substantial amount of time for very large datasets.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>auc, r_squared, c_index</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="metrics-from-predictions">
+<h2>metrics_from_predictions<a class="headerlink" href="#metrics-from-predictions" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.metrics_from_predictions">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">metrics_from_predictions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y_true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_to_slides</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles_per_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_predictions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">histogram</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.metrics_from_predictions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates metrics from a set of predictions.</p>
+<p>For multiple outcomes, y_true and y_pred are expected to be a list of numpy arrays
+(each numpy array corresponding to whole-dataset predictions for a single outcome)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>y_true</strong> (<em>ndarray</em>) – True labels for the dataset.</p></li>
+<li><p><strong>y_pred</strong> (<em>ndarray</em>) – Predicted labels for the dataset.</p></li>
+<li><p><strong>tile_to_slides</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>)</em>) – List of length y_true of slide names.</p></li>
+<li><p><strong>annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a>) – Dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)</p></li>
+<li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Either ‘linear’, ‘categorical’, or ‘cph’.</p></li>
+<li><p><strong>manifest</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a>) – Number of tiles per tfrecord, as provided by <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.dataset.Datset.get_manifest()</span></code></p></li>
+<li><p><strong>outcome_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – List of str, names for outcomes. Defaults to None.</p></li>
+<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Label prefix/suffix for saving. Defaults to None.</p></li>
+<li><p><strong>min_tiles_per_slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Minimum tiles per slide to include in metrics. Defaults to 0.</p></li>
+<li><p><strong>data_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Path to data directory for saving. Defaults to None.</p></li>
+<li><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Include verbose output. Defaults to True.</p></li>
+<li><p><strong>save_predictions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile, slide, and patient-level predictions to CSV. Defaults to True.
+May take a substantial amount of time for very large datasets.</p></li>
+<li><p><strong>histogram</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Write histograms to data_dir. Defaults to False.
+Takes a substantial amount of time for large datasets, potentially hours.</p></li>
+<li><p><strong>plot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Save scatterplot for linear outcomes. Defaults to True.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="normalize-layout">
+<h2>normalize_layout<a class="headerlink" href="#normalize-layout" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.normalize_layout">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">normalize_layout</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">layout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_percentile</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_percentile</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">99</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_margin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.normalize_layout" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes outliers and scales layout to between [0,1].</p>
+</dd></dl>
+
+</div>
+<div class="section" id="read-predictions">
+<h2>read_predictions<a class="headerlink" href="#read-predictions" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.read_predictions">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">read_predictions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">predictions_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.read_predictions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads predictions from a previously saved CSV file.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="permutation-feature-importance">
+<h2>permutation_feature_importance<a class="headerlink" href="#permutation-feature-importance" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.permutation_feature_importance">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">permutation_feature_importance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles_per_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_sizes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">drop_images</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.permutation_feature_importance" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Calculate metrics (tile, slide, and patient AUC) from a given model that accepts clinical, slide-level feature</dt><dd><p>inputs, and permute to find relative feature performance.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Path to Tensorflow model.</p></li>
+<li><p><strong>dataset</strong> (<em>tf.data.Dataset</em>) – TFRecord dataset which include three items:
+raw image data, labels, and slide names.</p></li>
+<li><p><strong>annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a>) – Dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)</p></li>
+<li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – ‘categorical’, ‘linear’, or ‘cph’.</p></li>
+<li><p><strong>data_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Path to output data directory.</p></li>
+<li><p><strong>outcome_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – List of str, names for outcomes. Defaults to None.</p></li>
+<li><p><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Label prefix/suffix for saving. Defaults to None.</p></li>
+<li><p><strong>manifest</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a>) – Number of tiles per tfrecord, as provided by <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.dataset.Datset.get_manifest()</span></code></p></li>
+<li><p><strong>min_tiles_per_slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Minimum tiles per slide to include in metrics. Defaults to 0.</p></li>
+<li><p><strong>num_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.</p></li>
+<li><p><strong>feature_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – List of str, names for each of the clinical input features.</p></li>
+<li><p><strong>feature_sizes</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – List of int, sizes for each of the clinical input features.</p></li>
+<li><p><strong>drop_images</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Exclude images (predict from clinical features alone). Defaults to False.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Dictiory of AUCs with keys ‘tile’, ‘slide’, and ‘patient’</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="predict-from-layer">
+<h2>predict_from_layer<a class="headerlink" href="#predict-from-layer" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.predict_from_layer">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">predict_from_layer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer_input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_layer_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'hidden_0'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_layer_index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.predict_from_layer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate predictions from a model, providing intermediate layer input.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Path to Tensorflow model</p></li>
+<li><p><strong>layer_input</strong> (<em>ndarray</em>) – Dataset to use as input for the given layer, to generate predictions.</p></li>
+<li><p><strong>input_layer_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Name of intermediate layer, to which input is provided. Defaults to ‘hidden_0’.</p></li>
+<li><p><strong>output_layer_index</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Excludes layers beyond this index. CPH models include a final
+concatenation layer (softmax + event tensor) that should be excluded. Defaults to None.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Model predictions.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="predict-from-model">
+<h2>predict_from_model<a class="headerlink" href="#predict-from-model" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.predict_from_model">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">predict_from_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.predict_from_model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates predictions (y_true, y_pred, tile_to_slide) from a given model and dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Path to Tensorflow model.</p></li>
+<li><p><strong>dataset</strong> (<em>tf.data.Dataset</em>) – Tensorflow dataset.</p></li>
+<li><p><strong>num_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>y_true, y_pred, tile_to_slides</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="save-histogram">
+<h2>save_histogram<a class="headerlink" href="#save-histogram" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.save_histogram">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">save_histogram</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y_true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'histogram'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.save_histogram" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates histogram of y_pred, labeled by y_true, saving to outdir.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="save-predictions-to-csv">
+<h2>save_predictions_to_csv<a class="headerlink" href="#save-predictions-to-csv" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.save_predictions_to_csv">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">save_predictions_to_csv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y_true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_to_slides</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_end</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.save_predictions_to_csv" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves given set of predictions to CSV.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="to-onehot">
+<h2>to_onehot<a class="headerlink" href="#to-onehot" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.statistics.to_onehot">
+<span class="sig-prename descclassname"><span class="pre">slideflow.statistics.</span></span><span class="sig-name descname"><span class="pre">to_onehot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">val</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_cat</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.statistics.to_onehot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts value to one-hot encoding</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>val</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Value to encode</p></li>
+<li><p><strong>num_cat</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Maximum value (length of onehot encoding)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+
+
+             </article>
+             
+            </div>
+            <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="util.html" class="btn btn-neutral float-right" title="slideflow.util" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+      
+      
+        <a href="slide.html" class="btn btn-neutral" title="slideflow.slide" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+      
+    </div>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2021, James M Dolezal.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">slideflow.statistics</a><ul>
+<li><a class="reference internal" href="#slidemap">SlideMap</a></li>
+<li><a class="reference internal" href="#basic-metrics">basic_metrics</a></li>
+<li><a class="reference internal" href="#calculate-centroid">calculate_centroid</a></li>
+<li><a class="reference internal" href="#concordance-index">concordance_index</a></li>
+<li><a class="reference internal" href="#filtered-prediction">filtered_prediction</a></li>
+<li><a class="reference internal" href="#generate-combined-roc">generate_combined_roc</a></li>
+<li><a class="reference internal" href="#generate-roc">generate_roc</a></li>
+<li><a class="reference internal" href="#generate-scatter">generate_scatter</a></li>
+<li><a class="reference internal" href="#gen-umap">gen_umap</a></li>
+<li><a class="reference internal" href="#get-centroid-index">get_centroid_index</a></li>
+<li><a class="reference internal" href="#metrics-from-dataset">metrics_from_dataset</a></li>
+<li><a class="reference internal" href="#metrics-from-predictions">metrics_from_predictions</a></li>
+<li><a class="reference internal" href="#normalize-layout">normalize_layout</a></li>
+<li><a class="reference internal" href="#read-predictions">read_predictions</a></li>
+<li><a class="reference internal" href="#permutation-feature-importance">permutation_feature_importance</a></li>
+<li><a class="reference internal" href="#predict-from-layer">predict_from_layer</a></li>
+<li><a class="reference internal" href="#predict-from-model">predict_from_model</a></li>
+<li><a class="reference internal" href="#save-histogram">save_histogram</a></li>
+<li><a class="reference internal" href="#save-predictions-to-csv">save_predictions_to_csv</a></li>
+<li><a class="reference internal" href="#to-onehot">to_onehot</a></li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+         <script src="_static/jquery.js"></script>
+         <script src="_static/underscore.js"></script>
+         <script src="_static/doctools.js"></script>
+     
+
+  
+
+  <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://pytorch.org/get-started">Get Started</a>
+          </li>
+
+          <li>
+            <a href="https://pytorch.org/ecosystem">Ecosystem</a>
+          </li>
+
+          <li>
+            <a href="https://pytorch.org/mobile">Mobile</a>
+          </li>
+
+          <li>
+            <a href="https://pytorch.org/hub">PyTorch Hub</a>
+          </li>
+
+          <li class="active">
+            <a href="https://pytorch.org/blog/">Blog</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/pearson-laboratory/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

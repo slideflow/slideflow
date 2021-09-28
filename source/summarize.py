@@ -6,6 +6,7 @@ import pprint
 import hashlib
 import argparse
 
+import slideflow as sf
 import slideflow.statistics as sfstats
 
 from statistics import mean

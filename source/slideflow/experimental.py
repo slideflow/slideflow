@@ -1,4 +1,5 @@
-import os
+# Commenting out all experimental code until it can be further tested
+"""import os
 from io import BytesIO
 from PIL import Image
 from os.path import exists, join
@@ -269,7 +270,7 @@ def visualize_tiles(model, node, tfrecord_dict=None, directory=None, mask_width=
                 TV.visualize_tile(image_jpg=tile_loc, export_folder=directory)
 
 def neighbors(AV, n_AV, neighbor_slides, n_neighbors=5, algorithm='ball_tree'):
-    """Finds neighboring tiles for a given ActivationsVisualizer and list of slides.
+    '''Finds neighboring tiles for a given ActivationsVisualizer and list of slides.
     WARNING: not confirmed to be working after a refactor. In need of further testing.
 
     Args:
@@ -284,7 +285,7 @@ def neighbors(AV, n_AV, neighbor_slides, n_neighbors=5, algorithm='ball_tree'):
     Returns:
         dict: Dict mapping slide names to tile indices for tiles found to be neighbors
             to the provided n_AV and neighbor_slides.
-    """
+    '''
 
     if not isinstance(neighbor_slides, list): neighbor_slides = [neighbor_slides]
     if not all(slide in n_AV.activations for slide in neighbor_slides):
@@ -339,3 +340,5 @@ class RNASeqModel(sf.model.Model):
         #                        Tout=tf.float32)
         # ====================
         pass
+"""
+pass

@@ -16,19 +16,11 @@ Configuring a validation plan
 
 There are several ways you can plan to validate your data. The validation settings available include:
 
-- **target**:  *'per-patient'* or *'per-tile'*
 - **strategy**:  *'bootstrap'*, *'k-fold'*, *k-fold-manual'*, *k-fold-preserved-site*, *'fixed'*, *'none'*
 - **fraction**:  (float between 0-1)
 - **k_fold**:  int
 
-The default arguments are 'per-patient' target and 'k-fold' strategy, with K=3. If a different validation strategy is required, create a custom validation plan using :func:`slideflow.project.get_validation_settings` and passing the arguments to customize.
-
-Validation target
-^^^^^^^^^^^^^^^^^
-
-The first consideration is whether you will be separating validation data on a **tile-level** (setting aside a certain % of tiles from every slide for validation) or **patient-level** (splitting patients, and their constituent slides, into training/validation datasets). Patient-level validation is highly recommended and used by default, due to risk of bias and overfitting when using tile-level validation.
-
-*Note: if using tile-level validation, this must be configured at the time of tile extraction due to the way TFRecord tile data is stored. If you change validation_target mid-project, you may need to re-extract tiles.*
+The default strategy is 'k-fold', with k=3.
 
 Validation strategy
 ^^^^^^^^^^^^^^^^^^^
@@ -37,9 +29,9 @@ The ``strategy`` option determines how the validation data is selected.
 
 If **fixed**, a certain percentage of your training data is set aside for testing (determined by ``fraction``). The chosen validation subset is saved to a log file and will be re-used for all training iterations.
 
-If **bootstrap**, validation data will be selected at random (percentage determined by ``fraction``), and all training iterations will be repeated a number of times equal to ``k_fold``. The saved and reported model training metrics will be an average of all bootstrap iterations. 
+If **bootstrap**, validation data will be selected at random (percentage determined by ``fraction``), and all training iterations will be repeated a number of times equal to ``k_fold``. The saved and reported model training metrics will be an average of all bootstrap iterations.
 
-If **k-fold**, training data will be automatically separated into *k* number of groups (where *k* is equal to ``k_fold``), and all training iterations will be repeated *k* number of times using k-fold cross validation. The saved and reported model training metrics will be an average of all k-fold iterations. 
+If **k-fold**, training data will be automatically separated into *k* number of groups (where *k* is equal to ``k_fold``), and all training iterations will be repeated *k* number of times using k-fold cross validation. The saved and reported model training metrics will be an average of all k-fold iterations.
 
 If you would like to manually separate your data into k-folds, you may do so with the **k-fold-manual** strategy, by indicating which k-fold each slide should be in using the annotations file, and designating the appropriate column header with ``k_fold_header``
 
@@ -51,4 +43,4 @@ Selecting an evaluation cohort
 ******************************
 
 Designating an evaluation cohort is done using the project annotations file, with a column indicating whether a slide is set aside for evaluation.
-The training and evaluation functions include a ``filter`` argument which will allow you to restrict your training or evaluationg according to these annotations. This will be discussed in greater detail in subsequent sections. 
+The training and evaluation functions include a ``filter`` argument which will allow you to restrict your training or evaluation according to these annotations. This will be discussed in greater detail in subsequent sections.
