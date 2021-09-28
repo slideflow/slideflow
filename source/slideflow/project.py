@@ -325,13 +325,13 @@ class Project:
             filename = self.batch_train_config
         project_utils.create_blank_train_config(filename)
 
-    def create_hyperparameter_sweep(self, tile_px, tile_um, finetune_epochs, label=None, filename=None, **kwargs):
+    def create_hyperparameter_sweep(self, tile_px, tile_um, epochs, label=None, filename=None, **kwargs):
         """Prepares a hyperparameter sweep, saving to a batch train TSV file.
 
         Args:
             tile_px (int): Tile width, in pixels.
             tile_um (int): Tile width, in microns.
-            finetune_epochs (int): Number of epochs to train.
+            epochs (int): Number of epochs to train.
             label (str, optional): Label to use when naming models in sweep. Defaults to None.
             filename (str, optional): Path to save hyperparameter sweep. If None, uses project default.
         """
@@ -354,14 +354,14 @@ class Project:
         with open(filename, 'w') as csv_outfile:
             writer = csv.writer(csv_outfile, delimiter='\t')
             # Create headers
-            header = ['model_name', 'finetune_epochs']
+            header = ['model_name', 'epochs']
             for arg in args:
                 header += [arg]
             writer.writerow(header)
             # Iterate through sweep
             for i, params in enumerate(sweep):
-                row = [f'{label}HPSweep{i}', ','.join([str(f) for f in finetune_epochs])]
-                full_params = dict(zip(['finetune_epochs'] + args, [finetune_epochs] + list(params)))
+                row = [f'{label}HPSweep{i}', ','.join([str(f) for f in epochs])]
+                full_params = dict(zip(['epochs'] + args, [epochs] + list(params)))
                 hp = HyperParameters(**full_params)
                 for arg in args:
                     row += [getattr(hp, arg)]

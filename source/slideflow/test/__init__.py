@@ -314,7 +314,7 @@ class TestSuite:
 
         # Create batch train file
         self.SFP.create_hyperparameter_sweep(tile_px=299, tile_um=302,
-                                            finetune_epochs=[1],
+                                            epochs=[1],
                                             toplayer_epochs=[0],
                                             model=["InceptionV3"],
                                             pooling=["max"],
@@ -337,7 +337,7 @@ class TestSuite:
                                             filename=self.SFP.batch_train_config)
 
         # Create single hyperparameter combination
-        hp = sf.model.HyperParameters(finetune_epochs=1,
+        hp = sf.model.HyperParameters(epochs=1,
                                       toplayer_epochs=0,
                                       model='InceptionV3',
                                       pooling='max',

@@ -37,6 +37,9 @@ If you would like to manually separate your data into k-folds, you may do so wit
 
 The **k-fold-preserved-site** strategy is a cross-validation strategy that ensures site is preserved across the training/validation sets, in order to reduce bias from batch effect as described by `Howard, et al <https://www.nature.com/articles/s41467-021-24698-1>`_. This strategy is recommended when using data from The Cancer Genome Atlas (`TCGA <https://portal.gdc.cancer.gov/>`_).
 
+.. note::
+    Preserved-site cross-validation requires `CPLEX <https://www.ibm.com/analytics/cplex-optimizer>`_. The original implementation of the preserved-site cross-validation algorithm described by Howard et al can be found `on GitHub <https://github.com/fmhoward/PreservedSiteCV>`_. 
+
 If **none**, no validation testing will be performed.
 
 Selecting an evaluation cohort

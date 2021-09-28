@@ -86,7 +86,7 @@ class HyperParameters:
                 'is_categorical_crossentropy',
                 'negative_log_likelihood']
 
-    def __init__(self, tile_px=299, tile_um=302, finetune_epochs=10, toplayer_epochs=0,
+    def __init__(self, tile_px=299, tile_um=302, epochs=10, toplayer_epochs=0,
                  model='Xception', pooling='max', loss='sparse_categorical_crossentropy',
                  learning_rate=0.0001, learning_rate_decay=0, learning_rate_decay_steps=100000,
                  batch_size=16, hidden_layers=1, hidden_layer_width=500, optimizer='Adam',
@@ -99,7 +99,7 @@ class HyperParameters:
         Args:
             tile_px (int, optional): Tile width in pixels. Defaults to 299.
             tile_um (int, optional): Tile width in microns. Defaults to 302.
-            finetune_epochs (int, optional): Number of epochs to train the full model. Defaults to 10.
+            epochs (int, optional): Number of epochs to train the full model. Defaults to 10.
             toplayer_epochs (int, optional): Number of epochs to only train the fully-connected layers. Defaults to 0.
             model (str, optional): Base model architecture name. Defaults to 'Xception'.
             pooling (str, optional): Post-convolution pooling. 'max', 'avg', or 'none'. Defaults to 'max'.
@@ -137,9 +137,9 @@ class HyperParameters:
         assert isinstance(tile_px, int)
         assert isinstance(tile_um, int)
         assert isinstance(toplayer_epochs, int)
-        assert isinstance(finetune_epochs, (int, list))
-        if isinstance(finetune_epochs, list):
-            assert all([isinstance(t, int) for t in finetune_epochs])
+        assert isinstance(epochs, (int, list))
+        if isinstance(epochs, list):
+            assert all([isinstance(t, int) for t in epochs])
         assert model in self._ModelDict.keys()
         assert pooling in ['max', 'avg', 'none']
         assert loss in self._AllLoss
@@ -167,7 +167,7 @@ class HyperParameters:
         self.tile_px = tile_px
         self.tile_um = tile_um
         self.toplayer_epochs = toplayer_epochs
-        self.finetune_epochs = finetune_epochs if isinstance(finetune_epochs, list) else [finetune_epochs]
+        self.epochs = epochs if isinstance(epochs, list) else [epochs]
         self.model = model
         self.pooling = pooling if pooling != 'none' else None
         self.loss = loss
@@ -283,7 +283,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs={}):
         if log.getEffectiveLevel() <= 20: print('\r\033[K', end='')
         self.epoch_count += 1
-        if self.epoch_count in [e for e in self.hp.finetune_epochs]:
+        if self.epoch_count in [e for e in self.hp.epochs]:
             model_name = self.parent.name if self.parent.name else 'trained_model'
             model_path = os.path.join(self.parent.outdir, f'{model_name}_epoch{self.epoch_count}')
             self.model.save(model_path)
@@ -897,14 +897,14 @@ class Model:
                 validation_steps = 0
 
         # Calculate parameters
-        if max(self.hp.finetune_epochs) <= starting_epoch:
-            max_epoch = max(self.hp.finetune_epochs)
+        if max(self.hp.epochs) <= starting_epoch:
+            max_epoch = max(self.hp.epochs)
             log.error(f'Starting epoch ({starting_epoch}) cannot be greater than the max target epoch ({max_epoch})')
         if self.hp.early_stop and self.hp.early_stop_method == 'accuracy' and self._model_type != 'categorical':
             log.error(f"Unable to use 'accuracy' early stopping with model type '{self.hp.model_type()}'")
         if starting_epoch != 0:
             log.info(f'Starting training at epoch {starting_epoch}')
-        total_epochs = self.hp.toplayer_epochs + (max(self.hp.finetune_epochs) - starting_epoch)
+        total_epochs = self.hp.toplayer_epochs + (max(self.hp.epochs) - starting_epoch)
         if steps_per_epoch_override:
             steps_per_epoch = steps_per_epoch_override
         else:

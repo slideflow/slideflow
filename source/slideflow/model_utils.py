@@ -213,7 +213,7 @@ def get_hp_from_row(row, header):
     for arg in args:
         value = row[header.index(arg)]
         if arg in hp._get_args():
-            if arg != 'finetune_epochs':
+            if arg != 'epochs':
                 arg_type = type(getattr(hp, arg))
                 if arg_type == bool:
                     if value.lower() in ['true', 'yes', 'y', 't']:

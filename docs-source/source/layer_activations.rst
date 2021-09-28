@@ -10,10 +10,10 @@ The easiest way to get started with layer activations is to calculate and displa
 
 .. code-block:: python
 
-	SFP.generate_mosaic(
-			model="/path/to/saved/model.h5",
-			mosaic_filename="/path/to/destination/mosaic.png",
-		  	filters={"dataset": ["evaluation"]})
+    SFP.generate_mosaic(
+        model="/path/to/saved/model.h5",
+        mosaic_filename="/path/to/destination/mosaic.png",
+        filters={"dataset": ["evaluation"]})
 
 .. autofunction:: slideflow.project.Project.generate_mosaic
    :noindex:
@@ -29,17 +29,18 @@ Instead of mapping all tiles within a slide, you can choose instead to map only 
 
 .. image:: umap_example_centroid.png
 
-There are many additional arguments that can be provided to the ``generate_mosaic()`` function to customize the mosaic and UMAP plots. However, you may choose to further customize these plots by working with the :class:`slideflow.mosaic.Mosaic` object directly, which are returned from the ``generate_mosaic()`` function.
+There are many additional arguments that can be provided to the :meth:`slideflow.Project.generate_mosaic()` function to customize the mosaic and UMAP plots. However, you may choose to further customize these plots by working with the :class:`slideflow.mosaic.Mosaic` object directly, which are returned from the ``generate_mosaic()`` function.
 
 For example, it may be interesting to view a UMAP of tiles with an added third dimension, such as the activation value of a particular penultimate layer node. With this kind of plot, one can visualize how the activation of a particular node varies across the UMAP. To make such a plot, use the ``save_3d_node_plot`` function of the ``SlideMap``:
 
 .. code-block:: python
 
-	mosaic = SFP.generate_mosaic(
-		model="/path/to/saved/model.h5",
-		mosaic_filename="/path/to/destination/mosaic.png",
-		filters={"dataset": ["evaluation"]})
-	slide_map = mosiac.slide_map
+    mosaic = SFP.generate_mosaic(
+        model="/path/to/saved/model.h5",
+        mosaic_filename="/path/to/destination/mosaic.png",
+        filters={"dataset": ["evaluation"]})
+
+    slide_map = mosiac.slide_map
     slide_map.save_3d_node_plot(node=497)
 
 .. image:: 3d_umap.png
@@ -73,13 +74,25 @@ To generate activations across an entire slide, the same interface can be called
 ActivationsVisualizer
 ---------------------
 
-Alternatively, the :class:`slideflow.activations.ActivationsVisualizer` class is used to calculate and examine activations across an entire dataset. Instancing the class supervises the calculation and caching of layer activations, which can then be exported, viewed (as a mosaic map), or analyzed with various statistical methods. The project function :func:`slideflow.project.Project.generate_activations` creates and returns an instance of this class.
+The :class:`slideflow.activations.ActivationsVisualizer` class is used to calculate and examine activations across an entire dataset. Instancing the class supervises the calculation and caching of layer activations, which can then be exported, viewed (as a mosaic map), or analyzed with various statistical methods. The project function :func:`slideflow.project.Project.generate_activations` creates and returns an instance of this class.
 
 .. code-block:: python
 
-	AV = SFP.generate_activations(
-		model='/path/to/trained_model_epoch1',
-		outcome_label_headers="HPV")
+    AV = SFP.generate_activations(
+        model='/path/to/trained_model',
+        outcome_label_headers='HPV')
+
+Alternatively, you can create an instance of this class directly:
+
+.. code-block:: python
+
+    dataset = SFP.get_dataset(299, 302)
+
+    AV = sf.activations.ActivationsVisualizer(
+        model='/path/to/trained_model',
+        tfrecords=dataset.get_tfrecords(),
+        annotations=dataset.slide_to_label('HPV')
+    )
 
 To return the average logits value for each slide (averaged across constituent tiles), use :func:`slideflow.activations.ActivationsVisualizer.logits_mean`. Similarly, :func:`slideflow.activations.ActivationsVisualizer.logits_predict` can be used to generate final slide-level logit predictions.
 
@@ -87,7 +100,7 @@ Activations of individual features across categories can be statistically compar
 
 .. code-block:: python
 
-	AV.feature_stats(outdir='/path', method='mean')
+    AV.feature_stats(outdir='/path', method='mean')
 
 To compare activations of layer nodes across outcome categories and find nodes which differ significantly across categories, use the :func:`slideflow.activations.ActivationsVisualizer.box_plots` function:
 
