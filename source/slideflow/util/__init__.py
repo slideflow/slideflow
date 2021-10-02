@@ -9,6 +9,7 @@ import threading
 import logging
 import cv2
 import multiprocessing_logging
+import importlib
 
 from glob import glob
 from os.path import join, isdir, exists, dirname
@@ -29,16 +30,16 @@ except:
 # ------
 
 # Set the backend
-os.environ['SF_BACKEND'] = 'tensorflow'
-
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif', 'jpg']
 SLIDE_ANNOTATIONS_TO_IGNORE = ['', ' ']
 LOGGING_PREFIXES = ['', ' + ', '    - ']
 LOGGING_PREFIXES_WARN = ['', ' ! ', '    ! ']
 LOGGING_PREFIXES_EMPTY = ['', '   ', '     ']
+CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
 
 def dim(text):        return '\033[2m' + str(text) + '\033[0m'
 def yellow(text):     return '\033[93m' + str(text) + '\033[0m'
+def cyan(text):       return '\033[96m' + str(text) + '\033[0m'
 def blue(text):       return '\033[94m' + str(text) + '\033[0m'
 def green(text):      return '\033[92m' + str(text) + '\033[0m'
 def red(text):        return '\033[91m' + str(text) + '\033[0m'

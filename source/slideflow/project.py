@@ -460,36 +460,29 @@ class Project:
             outcome_label_to_int = None
 
         use_float = (hp.model_type() in ['linear', 'cph'])
-        slide_labels_dict, unique_labels = dataset.get_labels_from_annotations(outcome_label_headers,
-                                                                               use_float=use_float,
-                                                                               key='outcome_label',
-                                                                               assigned_labels=outcome_label_to_int)
+        labels, unique_labels = dataset.labels(outcome_label_headers,
+                                               use_float=use_float,
+                                               assigned_labels=outcome_label_to_int)
 
         if hp.model_type() == 'categorical' and len(outcome_label_headers) > 1:
-
             def process_outcome_label(v):
                 return '-'.join(map(str, v)) if isinstance(v, list) else v
-
-            labels_for_splitting = {k:{
-                                        'outcome_label': process_outcome_label(v['outcome_label']),
-                                        sf.util.TCGA.patient : v[sf.util.TCGA.patient]
-                                    }
-                                    for k,v in slide_labels_dict.items()}
+            labels_for_split = {k: process_outcome_label(v) for k,v in labels.items()}
         else:
-            labels_for_splitting = slide_labels_dict
+            labels_for_split = labels
 
         # If using a specific k-fold, load validation plan
         if eval_k_fold:
             log.info(f"Using {sf.util.bold('k-fold iteration ' + str(eval_k_fold))}")
             validation_log = join(self.root, 'validation_plans.json')
-            _, eval_tfrecords = dataset.training_validation_split(validation_log,
-                                                                  hp.model_type(),
-                                                                  labels_for_splitting,
-                                                                  outcome_key='outcome_label',
+            _, eval_tfrecords = dataset.training_validation_split(hp.model_type(),
+                                                                  labels_for_split,
                                                                   val_strategy=hp_data['validation_strategy'],
+                                                                  patients=dataset.patients(),
+                                                                  validation_log=validation_log,
                                                                   val_fraction=hp_data['validation_fraction'],
                                                                   val_k_fold=hp_data['validation_k_fold'],
-                                                                   k_fold_iter=eval_k_fold)
+                                                                  k_fold_iter=eval_k_fold)
         # Otherwise use all TFRecords
         else:
             eval_tfrecords = dataset.get_tfrecords()
@@ -501,36 +494,36 @@ class Project:
             input_labels_dict = {}  # Dict mapping input_vars to nested dictionaries,
                                     #    which map category ID to category label names (for categorical variables)
                                     #     or mapping to 'float' for float variables
-            for slide in slide_labels_dict:
-                slide_labels_dict[slide]['input'] = []
+            model_inputs = {}
+            for slide in labels:
+                model_inputs[slide] = []
 
             for input_var in input_header:
                 # Check if variable can be converted to float (default). If not, will assume categorical.
                 try:
-                    dataset.get_labels_from_annotations(input_var, use_float=True)
+                    dataset.labels(input_var, use_float=True)
                     is_float = True
                 except TypeError:
                     is_float = False
                 log.info(f"Adding input variable {sf.util.blue(input_var)} as {'float' if is_float else 'categorical'}")
 
                 if is_float:
-                    input_labels, _ = dataset.get_labels_from_annotations(input_var, use_float=is_float)
-                    for slide in slide_labels_dict:
-                        slide_labels_dict[slide]['input'] += input_labels[slide]['label']
+                    input_labels, _ = dataset.labels(input_var, use_float=is_float)
+                    for slide in input_labels:
+                        model_inputs[slide] += input_labels[slide]
                     input_labels_dict[input_var] = 'float'
                     feature_len_dict[input_var] = 1
                 else:
                     # Read categorical variable assignments from hyperparameter file
                     input_label_to_int = {v: int(k) for k, v in hp_data['input_feature_labels'][input_var].items()}
-                    input_labels, _ = dataset.get_labels_from_annotations(input_var,
-                                                                            use_float=is_float,
-                                                                            assigned_labels=input_label_to_int)
+                    input_labels, _ = dataset.labels(input_var,
+                                                     use_float=is_float,
+                                                     assigned_labels=input_label_to_int)
                     feature_len_dict[input_var] = len(input_label_to_int)
                     input_labels_dict[input_var] = hp_data['input_feature_labels'][input_var]
 
-                    for slide in slide_labels_dict:
-                        slide_labels_dict[slide]['input'] += to_onehot(input_labels[slide]['label'],
-                                                                    feature_len_dict[input_var])
+                    for slide in labels:
+                        model_inputs[slide] += to_onehot(input_labels[slide], feature_len_dict[input_var])
 
             feature_sizes = [feature_len_dict[i] for i in input_header]
 
@@ -594,16 +587,18 @@ class Project:
         log.info(f'Evaluating {sf.util.bold(len(eval_tfrecords))} tfrecords')
 
         # Build a model using the slide list as input and the annotations dictionary as output labels
-        SFM = sf.model.model_from_hp(hp,
-                                     outdir=model_dir,
-                                     annotations=slide_labels_dict,
-                                     manifest=dataset.get_manifest(),
-                                     mixed_precision=self.mixed_precision,
-                                     normalizer=normalizer,
-                                     normalizer_source=normalizer_source,
-                                     feature_names=input_header,
-                                     feature_sizes=feature_sizes,
-                                     outcome_names=outcome_label_headers)
+        SFM = sf.model.trainer_from_hp(hp,
+                                       outdir=model_dir,
+                                       labels=labels,
+                                       patients=dataset.patients(),
+                                       slide_input=model_inputs,
+                                       manifest=dataset.manifest(),
+                                       mixed_precision=self.mixed_precision,
+                                       normalizer=normalizer,
+                                       normalizer_source=normalizer_source,
+                                       feature_names=input_header,
+                                       feature_sizes=feature_sizes,
+                                       outcome_names=outcome_label_headers)
         if model:
             SFM.load(model)
         elif checkpoint:
@@ -687,9 +682,7 @@ class Project:
         evaluation_slides = [s for s in dataset.get_slides() if exists(join(pt_files, s+'.pt'))]
         dataset.apply_filters(filters={'slide': evaluation_slides})
 
-        slide_labels, unique_labels = dataset.get_labels_from_annotations(outcome_label_headers,
-                                                                          use_float=False,
-                                                                          key='outcome_label')
+        slide_labels, unique_labels = dataset.labels(outcome_label_headers, use_float=False)
 
         # Set up evaluation annotations file based off existing pt_files
         outcome_dict = dict(zip(range(len(unique_labels)), unique_labels))
@@ -698,7 +691,7 @@ class Project:
             header = ['submitter_id', 'slide', outcome_label_headers]
             writer.writerow(header)
             for slide in evaluation_slides:
-                row = [slide, slide, outcome_dict[slide_labels[slide]['outcome_label']]]
+                row = [slide, slide, outcome_dict[slide_labels[slide]]]
                 writer.writerow(row)
 
         clam_dataset = Generic_MIL_Dataset(csv_path=join(eval_dir, 'eval_annotations.csv'),
@@ -722,8 +715,8 @@ class Project:
                          outdir=attention_dir,
                          pt_files=pt_files,
                          slides=dataset.get_slides(),
-                         reverse_label_dict = dict(zip(range(len(unique_labels)), unique_labels)),
-                         slide_to_label = {s:slide_labels[s]['outcome_label'] for s in slide_labels})
+                         reverse_labels=dict(zip(range(len(unique_labels)), unique_labels)),
+                         labels=slide_labels)
         if attention_heatmaps:
             heatmaps_dir = join(eval_dir, 'attention_heatmaps')
             if not exists(heatmaps_dir): os.makedirs(heatmaps_dir)
@@ -868,13 +861,13 @@ class Project:
             tile_px = dataset.tile_px
 
         tfrecords_list = dataset.get_tfrecords()
-        outcome_annotations = dataset.slide_to_label(outcome_label_headers) if outcome_label_headers else None
+        outcome_annotations = dataset.labels(outcome_label_headers, format='name')[0] if outcome_label_headers else None
         log.info(f'Visualizing activations from {len(tfrecords_list)} slides')
 
         AV = ActivationsVisualizer(model=model,
                                    tfrecords=tfrecords_list,
                                    annotations=outcome_annotations,
-                                   manifest=dataset.get_manifest(),
+                                   manifest=dataset.manifest(),
                                    **kwargs)
         if torch_export:
             AV.export_to_torch(torch_export)
@@ -954,6 +947,7 @@ class Project:
                                   max_tiles_per_slide=max_tiles_per_slide,
                                   min_tiles_per_slide=min_tiles_per_slide,
                                   torch_export=outdir,
+                                  include_logits=False,
                                   cache=None)
         return outdir
 
@@ -1145,7 +1139,7 @@ class Project:
         if model_type == 'linear':
             use_float = True
         if outcome_label_headers and (show_prediction is None):
-            slide_labels = dataset.slide_to_label(outcome_label_headers, use_float=use_float)
+            slide_labels, _ = dataset.labels(outcome_label_headers, use_float=use_float, format='name')
         else:
             slide_labels = {}
 
@@ -1286,11 +1280,11 @@ class Project:
             # (some slides did not have a large enough ROI for tile extraction,
             # and some slides may be in the annotations but are missing a slide image)
             slides = [sf.util.path_to_name(tfr) for tfr in dataset.get_tfrecords()]
-            slide_labels_dict, _ = dataset.get_labels_from_annotations([header_x, header_y], use_float=True)
-            slide_to_category = dataset.slide_to_label(outcome_label_headers)
+            labels, _ = dataset.labels([header_x, header_y], use_float=True)
+            slide_to_category, _ = dataset.labels(outcome_label_headers, format='name')
 
-            umap_x = np.array([slide_labels_dict[slide]['label'][0] for slide in slides])
-            umap_y = np.array([slide_labels_dict[slide]['label'][1] for slide in slides])
+            umap_x = np.array([labels[slide][0] for slide in slides])
+            umap_y = np.array([labels[slide][1] for slide in slides])
 
             if use_optimal_tile and not model:
                 log.error('Unable to calculate optimal tile if no model is specified.')
@@ -1319,8 +1313,8 @@ class Project:
                 if num_warned >= warn_threshold:
                     log.warn(f'...{num_warned} total warnings, see project log for details')
 
-                umap_x = np.array([slide_labels_dict[slide]['label'][0] for slide in successful_slides])
-                umap_y = np.array([slide_labels_dict[slide]['label'][1] for slide in successful_slides])
+                umap_x = np.array([labels[slide][0] for slide in successful_slides])
+                umap_y = np.array([labels[slide][1] for slide in successful_slides])
                 umap_meta = [{'slide': slide, 'index': optimal_slide_indices[slide]} for slide in successful_slides]
             else:
                 # Take the first tile from each slide/TFRecord
@@ -1406,7 +1400,7 @@ class Project:
             Dictionary mapping slide names to dict of statistics (mean, median, above_0, and above_1)
         """
 
-        from slideflow.io.tfrecords import get_locations_from_tfrecord
+        from slideflow.io.tensorflow import get_locations_from_tfrecord
         from slideflow.slide import WSI
 
         slide_name = sf.util.path_to_name(tfrecord)
@@ -1881,9 +1875,7 @@ class Project:
 
             # --- Load labels -----------------------------------------------------------------------------------------
             use_float = (hp.model_type() in ['linear', 'cph'])
-            slide_labels_dict, unique_labels = dataset.get_labels_from_annotations(outcome_label_headers,
-                                                                                   use_float=use_float,
-                                                                                   key='outcome_label')
+            labels, unique_labels = dataset.labels(outcome_label_headers, use_float=use_float)
             if hp.model_type() == 'categorical' and len(outcome_label_headers) == 1:
                 outcome_labels = dict(zip(range(len(unique_labels)), unique_labels))
             elif hp.model_type() == 'categorical':
@@ -1895,12 +1887,9 @@ class Project:
 
             # If multiple categorical outcomes are used, create a merged variable for k-fold splitting
             if hp.model_type() == 'categorical' and len(outcome_label_headers) > 1:
-                labels_for_splitting = {k:{
-                                            'outcome_label':'-'.join(map(str, v['outcome_label'])),
-                                            sf.util.TCGA.patient:v[sf.util.TCGA.patient]
-                                        } for k,v in slide_labels_dict.items()}
+                labels_for_split = {k:'-'.join(map(str, v)) for k,v in labels.items()}
             else:
-                labels_for_splitting = slide_labels_dict
+                labels_for_split = labels
 
             # --- Prepare k-fold validation configuration -------------------------------------------------------------
             results_log_path = os.path.join(self.root, 'results_log.csv')
@@ -1908,9 +1897,10 @@ class Project:
             k_iter = [k_iter] if (k_iter != None and not isinstance(k_iter, list)) else k_iter
 
             if val_settings.strategy == 'k-fold-manual':
-                k_fold_slide_labels, valid_k = dataset.slide_to_label(val_settings.k_fold_header,
-                                                                      return_unique=True,
-                                                                      verbose=False)
+                k_fold_slide_labels, valid_k = dataset.labels(val_settings.k_fold_header,
+                                                              return_unique=True,
+                                                              verbose=False,
+                                                              format='name')
                 k_fold = len(valid_k)
                 log.info(f"Manual K-fold iterations detected: {', '.join(valid_k)}")
                 if k_iter:
@@ -1938,7 +1928,7 @@ class Project:
                 log.info(f'Validation settings: {json.dumps(vars(val_settings), indent=2)}')
 
                 # --- Set up validation data --------------------------------------------------------------------------
-                manifest = dataset.get_manifest()
+                manifest = dataset.manifest()
 
                 # Use an external validation dataset if supplied
                 if val_settings.source:
@@ -1952,11 +1942,9 @@ class Project:
                                       filter_blank=val_settings.filter_blank)
 
                     val_tfrecords = val_dts.get_tfrecords()
-                    manifest.update(val_dts.get_manifest())
-                    validation_labels, _ = val_dts.get_labels_from_annotations(outcome_label_headers,
-                                                                            use_float=use_float,
-                                                                            key='outcome_label')
-                    slide_labels_dict.update(validation_labels)
+                    manifest.update(val_dts.manifest())
+                    validation_labels, _ = val_dts.labels(outcome_label_headers, use_float=use_float)
+                    labels.update(validation_labels)
 
                 # Use manual k-fold assignments if indicated
                 elif val_settings.strategy == 'k-fold-manual':
@@ -1972,32 +1960,33 @@ class Project:
                     training_tfrecords = dataset.get_tfrecords()
                 # Otherwise, calculate k-fold splits
                 else:
-                    tfr_split = dataset.training_validation_split(validation_log,
-                                                                  hp.model_type(),
-                                                                  labels_for_splitting,
-                                                                  outcome_key='outcome_label',
+                    tfr_split = dataset.training_validation_split(hp.model_type(),
+                                                                  labels_for_split,
                                                                   val_strategy=val_settings.strategy,
+                                                                  patients=dataset.patients(),
+                                                                  validation_log=validation_log,
                                                                   val_fraction=val_settings.fraction,
                                                                   val_k_fold=val_settings.k_fold,
                                                                   k_fold_iter=k)
                     training_tfrecords, val_tfrecords = tfr_split
 
                 # --- Prepare additional slide-level input -----------------------------------------------------------
+                model_inputs = {}
                 if input_header:
                     input_header = [input_header] if not isinstance(input_header, list) else input_header
                     feature_len_dict = {}   # Dict mapping input_vars to num of different labels for each input header
                     input_labels_dict = {}  # Dict mapping input_vars to nested dictionaries which map category ID
                                             #   to category label names (for categorical variables)
                                             #   or mapping to 'float' for float variables
-                    for slide in slide_labels_dict:
-                        slide_labels_dict[slide]['input'] = []
+                    for slide in labels:
+                        model_inputs[slide] = []
 
                     for input_var in input_header:
                         # Check if variable can be converted to float (default). If not, will assume categorical.
                         try:
-                            dataset.get_labels_from_annotations(input_var, use_float=True)
+                            dataset.labels(input_var, use_float=True)
                             if val_settings.source:
-                                val_dts.get_labels_from_annotations(input_var, use_float=True)
+                                val_dts.labels(input_var, use_float=True)
                             inp_is_float = True
                         except TypeError:
                             inp_is_float = False
@@ -2005,28 +1994,28 @@ class Project:
 
                         # Next, if this is a categorical variable, harmonize categories in training and validation datasets
                         if (not inp_is_float) and val_settings.source:
-                            _, unique_train_input_labels = dataset.get_labels_from_annotations(input_var, use_float=inp_is_float)
-                            _, unique_val_input_labels = val_dts.get_labels_from_annotations(input_var, use_float=inp_is_float)
+                            _, unique_train_input_labels = dataset.labels(input_var, use_float=inp_is_float)
+                            _, unique_val_input_labels = val_dts.labels(input_var, use_float=inp_is_float)
 
                             unique_inp_labels = sorted(list(set(unique_train_input_labels + unique_val_input_labels)))
                             input_label_to_int = dict(zip(unique_inp_labels, range(len(unique_inp_labels))))
-                            inp_labels_dict, _ = dataset.get_labels_from_annotations(input_var, assigned_labels=input_label_to_int)
-                            val_input_labels, _ = val_dts.get_labels_from_annotations(input_var, assigned_labels=input_label_to_int)
+                            inp_labels_dict, _ = dataset.labels(input_var, assigned_labels=input_label_to_int)
+                            val_input_labels, _ = val_dts.labels(input_var, assigned_labels=input_label_to_int)
                             inp_labels_dict.update(val_input_labels)
                         else:
-                            inp_labels_dict, unique_inp_labels = dataset.get_labels_from_annotations(input_var, use_float=inp_is_float)
+                            inp_labels_dict, unique_inp_labels = dataset.labels(input_var, use_float=inp_is_float)
 
                         # Assign features to 'input' key of the slide-level annotations dict
                         if inp_is_float:
                             feature_len_dict[input_var] = num_features = 1
-                            for slide in slide_labels_dict:
-                                slide_labels_dict[slide]['input'] += inp_labels_dict[slide]['label']
+                            for slide in labels:
+                                model_inputs[slide] += inp_labels_dict[slide]
                             input_labels_dict[input_var] = 'float'
                         else:
                             feature_len_dict[input_var] = num_features = len(unique_inp_labels)
-                            for slide in slide_labels_dict:
-                                onehot_label = sf.statistics.to_onehot(inp_labels_dict[slide]['label'], num_features)
-                                slide_labels_dict[slide]['input'] += onehot_label # We are concatenating the onehot labels together
+                            for slide in labels:
+                                onehot_label = sf.statistics.to_onehot(inp_labels_dict[slide], num_features)
+                                model_inputs[slide] += onehot_label # We are concatenating the onehot labels together
                             input_labels_dict[input_var] = dict(zip(range(len(unique_inp_labels)), unique_inp_labels))
 
                     feature_sizes = [feature_len_dict[i] for i in input_header]
@@ -2078,7 +2067,9 @@ class Project:
                 training_args = types.SimpleNamespace(
                     model_dir=model_dir,
                     hp=hp,
-                    slide_labels_dict=slide_labels_dict,
+                    labels=labels,
+                    patients=dataset.patients(),
+                    slide_input=model_inputs,
                     training_tfrecords=training_tfrecords,
                     val_tfrecords=val_tfrecords,
                     verbosity=self.verbosity,
@@ -2191,19 +2182,17 @@ class Project:
         num_features = clam.detect_num_features(pt_file_paths[0])
 
         # Note: CLAM only supports categorical outcomes
-        slide_labels, unique_labels = dataset.get_labels_from_annotations(outcome_label_headers,
-                                                                          use_float=False,
-                                                                          key='outcome_label')
+        labels, unique_labels = dataset.labels(outcome_label_headers, use_float=False)
 
         if train_slides == validation_slides == 'auto':
             train_slides, validation_slides = {}, {}
             for k in range(clam_args.k):
                 validation_log = join(self.root, 'validation_plans.json')
-                train_tfrecords, eval_tfrecords = dataset.training_validation_split(validation_log,
-                                                                                    'categorical',
-                                                                                    slide_labels,
-                                                                                    outcome_key='outcome_label',
+                train_tfrecords, eval_tfrecords = dataset.training_validation_split('categorical',
+                                                                                    labels,
                                                                                     val_strategy='k-fold',
+                                                                                    patients=dataset.patients(),
+                                                                                    validation_log=validation_log,
                                                                                     val_k_fold=clam_args.k,
                                                                                     k_fold_iter=k+1)
                 train_slides[k] = [sf.util.path_to_name(t) for t in train_tfrecords]
@@ -2269,12 +2258,12 @@ class Project:
             attention_dir = join(clam_dir, 'attention', str(k))
             if not exists(attention_dir): os.makedirs(attention_dir)
             export_attention(vars(clam_args),
-                            ckpt_path=join(results_dir, f's_{k}_checkpoint.pt'),
-                            outdir=attention_dir,
-                            pt_files=pt_files,
-                            slides=validation_slides[k],
-                            reverse_label_dict = dict(zip(range(len(unique_labels)), unique_labels)),
-                            slide_to_label = {s:slide_labels[s]['outcome_label'] for s in slide_labels})
+                             ckpt_path=join(results_dir, f's_{k}_checkpoint.pt'),
+                             outdir=attention_dir,
+                             pt_files=pt_files,
+                             slides=validation_slides[k],
+                             reverse_labels=dict(zip(range(len(unique_labels)), unique_labels)),
+                             labels=labels)
             if attention_heatmaps:
                 heatmaps_dir = join(clam_dir, 'attention_heatmaps', str(k))
                 if not exists(heatmaps_dir): os.makedirs(heatmaps_dir)

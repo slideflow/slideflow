@@ -9,7 +9,7 @@ from os.path import join, isdir, exists
 
 def update_project_models(project_folder):
     import tensorflow as tf
-    from slideflow.model_utils import negative_log_likelihood, concordance_index
+    from slideflow.model.utils import negative_log_likelihood, concordance_index
     folder = project_folder
 
     if exists(join(project_folder, 'models')):

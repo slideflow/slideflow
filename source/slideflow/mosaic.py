@@ -73,7 +73,7 @@ class Mosaic:
         self.tfrecords = tfrecords
 
         # Detect tfrecord image format
-        _, self.img_format = sf.io.tfrecords.detect_tfrecord_format(self.tfrecords[0])
+        _, self.img_format = sf.io.tensorflow.detect_tfrecord_format(self.tfrecords[0])
 
         # Setup normalization
         if normalizer: log.info(f'Using realtime {normalizer} normalization')
@@ -238,7 +238,7 @@ class Mosaic:
                 if not point['tfrecord']:
                     log.error(f"TFRecord {point['slide']} not found in slide_map; verify that the TFRecord exists.")
                     continue
-                _, tile_image = sf.io.tfrecords.get_tfrecord_by_index(point['tfrecord'],
+                _, tile_image = sf.io.tensorflow.get_tfrecord_by_index(point['tfrecord'],
                                                                      point['tfrecord_index'],
                                                                      decode=False)
                 if not tile_image: continue
@@ -276,7 +276,7 @@ class Mosaic:
                 point = self.points[distance_pair['point_index']]
                 tile = self.GRID[distance_pair['grid_index']]
                 if not (point['paired_tile'] or tile['paired_point']):
-                    _, tile_image = sf.io.tfrecords.get_tfrecord_by_index(point['tfrecord'],
+                    _, tile_image = sf.io.tensorflow.get_tfrecord_by_index(point['tfrecord'],
                                                                          point['tfrecord_index'],
                                                                          decode=False)
                     if not tile_image: continue

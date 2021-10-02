@@ -330,8 +330,8 @@ class TestSuite:
                                             trainable_layers=0,
                                             L2_weight=0.1,
                                             dropout=0.1,
-                                            balanced_training=["BALANCE_BY_PATIENT"],
-                                            balanced_validation=["NO_BALANCE"],
+                                            balanced_training=["patient"],
+                                            balanced_validation=["none"],
                                             augment=[True],
                                             label='TEST',
                                             filename=self.SFP.batch_train_config)
@@ -350,8 +350,8 @@ class TestSuite:
                                       dropout=0.1,
                                       L2_weight=0.1,
                                       early_stop_patience=0,
-                                      balanced_training='BALANCE_BY_PATIENT',
-                                      balanced_validation='NO_BALANCE',
+                                      balanced_training='patient',
+                                      balanced_validation='none',
                                       augment=True)
         return hp
 

@@ -131,6 +131,9 @@ to the project ``actions.py`` file:
             enable_downsample=True
         )
 
+Training
+********
+
 After tiles are extracted, the dataset will be ready for training. We will train with a single set of manually defined
 hyperparameters, which we can configure with :class:`slideflow.model.HyperParameters`. We will use the
 `Xception <https://arxiv.org/abs/1610.02357>`_ model with a batch size of 32, otherwise keeping defaults.
@@ -149,7 +152,7 @@ hyperparameters, which we can configure with :class:`slideflow.model.HyperParame
             epochs=[3]
         )
 
-For training, will use 5-fold cross-validation on the training dataset. To set up training, invoke the
+For training, we will use 5-fold cross-validation on the training dataset. To set up training, invoke the
 :meth:`slideflow.Project.train` function with the outcome of interest, our hyperparameters, and our validation plan.
 We will use the ``filters`` argument to limit our training to the "train" dataset, as well as limit the training
 to only include patients with documented ER status (otherwise a blank "" would be marked as a third outcome).
@@ -241,6 +244,9 @@ and patient-level receiver operator curves are saved in the model folder, along 
       - .. figure:: er_roc_patient.png
 
         Patient-level receiver operator curve
+
+Evaluation
+**********
 
 The final step of our classification experiment is to assess performance on our held-out evaluation dataset.
 The final trained model should be stored at ``/home/er_project/models/00003-er_status_by_ihc/er_status_by_ihc_epoch3``,

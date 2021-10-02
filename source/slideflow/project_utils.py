@@ -8,8 +8,6 @@ import importlib.util
 from os.path import join, exists
 from slideflow.util import log
 
-CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
-
 def _project_config(name='MyProject', annotations='./annotations.csv', dataset_config='./datasets.json',
                     sources='source1', models_dir='./models', eval_dir='./eval', mixed_precision=True,
                     batch_train_config='batch_train.tsv'):
@@ -43,27 +41,24 @@ def _trainer(training_args, model_kwargs, training_kwargs, results_dict):
     """Internal function to execute model training in an isolated process."""
 
     import slideflow.model
-    import tensorflow as tf
     log.setLevel(training_args.verbosity)
-    tf.keras.backend.clear_session() # Clear prior Tensorflow graph to free memory
 
     # Build a model using the slide list as input and the annotations dictionary as output labels
-    SFM = sf.model.model_from_hp(training_args.hp,
-                                 outdir=training_args.model_dir,
-                                 annotations=training_args.slide_labels_dict,
-                                 **model_kwargs)
-    try:
-        results = SFM.train(training_args.training_tfrecords,
-                            training_args.val_tfrecords,
-                            pretrain=training_args.pretrain,
-                            resume_training=training_args.resume_training,
-                            checkpoint=training_args.checkpoint,
-                            **training_kwargs)
-        results_dict.update({model_kwargs['name']: results})
-    except tf.errors.ResourceExhaustedError as e:
-        print()
-        print(e)
-        log.error(f"Training failed for {sf.util.bold(model_kwargs['name'])}, GPU memory exceeded.")
+    SFM = sf.model.trainer_from_hp(training_args.hp,
+                                   outdir=training_args.model_dir,
+                                   labels=training_args.labels,
+                                   patients=training_args.patients,
+                                   slide_input=training_args.slide_input,
+                                   **model_kwargs)
+
+    results = SFM.train(training_args.training_tfrecords,
+                        training_args.val_tfrecords,
+                        pretrain=training_args.pretrain,
+                        resume_training=training_args.resume_training,
+                        checkpoint=training_args.checkpoint,
+                        **training_kwargs)
+
+    results_dict.update({model_kwargs['name']: results})
 
 def get_validation_settings(**kwargs):
     """Returns a namespace of validation settings.

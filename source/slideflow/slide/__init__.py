@@ -35,7 +35,7 @@ import multiprocessing as mp
 from os.path import join, exists
 from PIL import Image, ImageDraw, UnidentifiedImageError
 from slideflow.util import log, StainNormalizer, SUPPORTED_FORMATS, UserError
-from slideflow.io.tfrecords import tfrecord_example
+from slideflow.io.tensorflow import tfrecord_example
 from datetime import datetime
 from functools import partial
 from tqdm import tqdm

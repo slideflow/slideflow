@@ -40,6 +40,6 @@ if __name__=='__main__':
         import actions
     except Exception as e:
         print(f"Error loading actions.py in {args.project}; either does not exist or contains an error")
-        raise Exception
+        raise e
 
     actions.main(SFP)
