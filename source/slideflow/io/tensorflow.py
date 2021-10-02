@@ -379,7 +379,7 @@ def interleave(tfrecords, img_size, batch_size, label_parser=None, model_type='c
             if (balance and balance != 'none') or max_tiles or min_tiles:
                 log.error(manifest_msg)
             else:
-                log.warning(manifest_msg)
+                log.debug(manifest_msg)
             pb = sf.util.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
             for filename in tfrecords:
                 slide_name = sf.util.path_to_name(filename)

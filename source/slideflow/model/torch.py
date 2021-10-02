@@ -145,14 +145,14 @@ class Trainer(_base.Trainer):
             num_replicas=num_gpus,
             labels=self.labels,
             seed=seed,
-            buffer_size=64,
+            chunk_size=16,
             normalizer=self.normalizer,
             balance='none',
             manifest=self.manifest,
             max_tiles=max_tiles_per_slide,
             min_tiles=min_tiles_per_slide,
             pin_memory=True,
-            num_workers=6,
+            num_workers=8,
         )
         dataloaders = {
             'train': interleave_dataloader(train_tfrecords, batch_size=self.hp.batch_size, augment=True, **vars(interleave_args)),
@@ -298,7 +298,7 @@ def test_train():
     labels, _ = dataset.labels(sf_config['outcome_label_headers'])
     training_tfrecords, val_tfrecords = dataset.training_validation_split('categorical', labels=labels, val_strategy='k-fold', val_k_fold=3, k_fold_iter=1)
 
-    hp = HyperParameters(tile_px=sf_config['tile_px'], batch_size=256, epochs=10, model='resnet18')
+    hp = HyperParameters(tile_px=sf_config['tile_px'], batch_size=128, epochs=[1,3,5,10], model='resnet18')
 
-    trainer = Trainer(hp, '/mnt/data/tmp', labels=labels, patients=dataset.patients(), manifest=dataset.manifest())
+    trainer = Trainer(hp, '/mnt/data/tmp/vit', labels=labels, patients=dataset.patients(), manifest=dataset.manifest())
     trainer.train(training_tfrecords, val_tfrecords)

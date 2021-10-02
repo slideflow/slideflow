@@ -18,7 +18,6 @@ from slideflow.statistics import SlideMap
 from os.path import join
 from functools import wraps
 
-
 #TODO:
 #- JPG, TIFF, SVS
 #- Verify properties: dimensions, properties (dict), level_dimensions, level_count, level_downsamples
@@ -124,6 +123,53 @@ def clam_feature_generator(project, model):
     process.join()
 
 # ----------------------------------------
+
+def reader_tester(project):
+    dataset = project.SFP.get_dataset(299, 302)
+    tfrecords = dataset.get_tfrecords()
+    assert len(tfrecords)
+
+    # Tensorflow backend
+    with TaskWrapper("Testing tensorflow dataloader...") as test:
+        from slideflow.io.tensorflow import interleave
+        tf_results = []
+        tf_dts, _, num_tiles = interleave(tfrecords,
+                                            299,
+                                            batch_size=128,
+                                            annotations=None,
+                                            label_parser=None,
+                                            normalizer=None,
+                                            infinite=False,
+                                            augment=False,
+                                            manifest=dataset.manifest(),
+                                            standardize=False)
+        for images, labels in tf_dts:
+            tf_results += [hash(str(img.numpy())) for img in images]
+        tf_results = sorted(tf_results)
+
+    # Torch backend
+    with TaskWrapper("Testing torch dataloader...") as test:
+        from slideflow.io.torch import interleave_dataloader
+        torch_results = []
+        torch_dts = interleave_dataloader(tfrecords,
+                                            299,
+                                            batch_size=128,
+                                            normalizer=None,
+                                            num_workers=6,
+                                            infinite=False,
+                                            augment=False,
+                                            standardize=False,
+                                            incl_slidenames=False,
+                                            manifest=dataset.manifest(),
+                                            labels=None,
+                                            pin_memory=False)
+        for images, labels in torch_dts:
+            torch_results += [hash(str(img.numpy().transpose(1, 2, 0))) for img in images] # CWH -> WHC
+        torch_results = sorted(torch_results)
+
+    assert len(torch_results)
+    assert len(torch_results) == len(tf_results) == num_tiles
+    assert torch_results == tf_results
 
 class TestConfigurator:
     def __init__(self, path, slides=RANDOM_TCGA):
@@ -376,6 +422,12 @@ class TestSuite:
                            steps_per_epoch_override=5,
                            **train_kwargs)
 
+    def test_readers(self):
+        ctx = multiprocessing.get_context('spawn')
+        process = ctx.Process(target=reader_tester, args=(self,))
+        process.start()
+        process.join()
+
     def test_training(self, categorical=True, linear=True, multi_input=True, cph=True, multi_cph=True, **train_kwargs):
         if categorical:
             # Test categorical outcome
@@ -573,11 +625,12 @@ class TestSuite:
         with TaskWrapper('Evaluating CLAM...') as test:
             pass
 
-    def test(self, extract=True, train=True, normalizer=True, evaluate=True, heatmap=True,
+    def test(self, extract=True, reader=True, train=True, normalizer=True, evaluate=True, heatmap=True,
              activations=True, predict_wsi=True, clam=True):
         '''Perform and report results of all available testing.'''
 
         if extract:             self.test_extraction()
+        if reader:              self.test_readers()
         if train:               self.test_training()
         if normalizer:          self.test_realtime_normalizer()
         if evaluate:            self.test_evaluation()

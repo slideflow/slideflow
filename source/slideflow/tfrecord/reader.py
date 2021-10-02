@@ -12,6 +12,7 @@ import threading
 import slideflow as sf
 from slideflow.tfrecord import example_pb2
 from slideflow.tfrecord import iterator_utils
+from slideflow.util import log
 from collections import deque
 from multiprocessing.dummy import Pool as DPool
 
@@ -20,6 +21,7 @@ def tfrecord_iterator(
     index_path: typing.Optional[str] = None,
     shard: typing.Optional[typing.Tuple[int, int]] = None,
     compression_type: typing.Optional[str] = None,
+    random_start: bool = False,
 ) -> typing.Iterable[memoryview]:
     """Create an iterator over the tfrecord dataset.
 
@@ -39,6 +41,9 @@ def tfrecord_iterator(
         A tuple (index, count) representing worker_id and num_workers
         count. Necessary to evenly split/shard the dataset among many
         workers (i.e. >1).
+
+    random_start: randomize starting location of reading.
+        Requires an index file. Only works if shard is None.
 
     Yields:
     -------
@@ -76,16 +81,21 @@ def tfrecord_iterator(
                 raise RuntimeError("Failed to read the record.")
             if file.readinto(crc_bytes) != 4:
                 raise RuntimeError("Failed to read the end token.")
+            #log.info(f"Read hash: {hash(datum_bytes_view.tobytes())}")
             yield datum_bytes_view
 
     if index_path is None:
+        if shard is not None:
+            log.warn(f"Index files not found for tfrecord; unable to perform sharding {shard} (data will be duplicated).")
         yield from read_records()
     else:
         index = np.loadtxt(index_path, dtype=np.int64)[:, 0]
-        if shard is None:
+        if shard is None and random_start:
             offset = np.random.choice(index)
             yield from read_records(offset)
             yield from read_records(0, offset)
+        elif shard is None:
+            yield from read_records()
         else:
             num_records = len(index)
             shard_idx, shard_count = shard
@@ -279,7 +289,7 @@ def chunk_example_loader(
         compression_type=compression_type,
     )
 
-    chunk_size = 8
+    chunk_size = 2
     while True:
         chunk = []
         while len(chunk) < chunk_size:

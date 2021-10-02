@@ -4,7 +4,7 @@ from __future__ import division
 
 import typing
 import warnings
-
+import threading
 import numpy as np
 import random
 from collections import deque
@@ -46,7 +46,6 @@ def sample_iterators(iterators: typing.List[typing.Iterator],
     ratios = np.array(ratios)
     ratios = ratios / ratios.sum()
     while iterators:
-        #choice = np.random.choice(len(ratios), p=ratios)
         choice = random.choices(range(len(ratios)), ratios, k=1)[0]
         try:
             yield next(iterators[choice])
@@ -81,52 +80,73 @@ def sample_chunk_iterators(iterators: typing.List[typing.Iterator],
         an iterator (based off their sampling ratio).
     """
     if infinite:
-        iterators = [cycle(iterator) for iterator in iterators]
+        iterators = {str(i):cycle(iterator) for i, iterator in enumerate(iterators)}
     else:
-        iterators = [iterator() for iterator in iterators]
-    ratios = np.array(ratios)
-    ratios = ratios / ratios.sum()
-    chunks = [deque() for idx in range(len(ratios))]
-    chunk_counts = np.zeros(len(ratios))
-    while iterators:
-        #choice = np.random.choice(len(ratios), p=ratios)
-        choice = random.choices(range(len(ratios)), ratios, k=1)[0]
+        iterators = {str(i):iterator() for i, iterator in enumerate(iterators)}
+    ratios = {str(r):ratios[r] for r in range(len(ratios))}
+    chunks = {str(idx):deque() for idx in range(len(ratios))}
+    chunk_counts = {str(r):0 for r in range(len(ratios))}
+    chunklock = threading.Lock()
+    finishedlock = threading.Lock()
+    chunk_threads = {}
+    finished_iteration = []
+    finished_yield = []
+    finished_count = 0
+    num_total = len(ratios)
+
+    def get_next_chunk(c):
+        nonlocal chunks
+        nonlocal chunk_counts
+        nonlocal iterators
+        nonlocal chunk_threads
+        nonlocal finished_iteration
+        try:
+            chunk = next(iterators[c])
+            with chunklock:
+                chunks[c].extend(chunk)
+                chunk_counts[c] += len(chunk)
+        except StopIteration:
+            with finishedlock:
+                finished_iteration += [c]
+        if c in chunk_threads:
+            with chunklock:
+                del chunk_threads[c]
+
+    start_threads = [threading.Thread(target=get_next_chunk, args=(str(r),)) for r in range(len(ratios))]
+    for t in start_threads:
+        t.start()
+    for t in start_threads:
+        t.join()
+
+    while finished_count < num_total:
+        with finishedlock:
+            ratio_keys = [r for r in ratios if r not in finished_yield]
+            ratio_vals = [ratios[r] for r in ratio_keys]
+        try:
+            choice = str(random.choices(ratio_keys, ratio_vals, k=1)[0])
+        except IndexError as e:
+            print(ratio_keys, ratio_vals)
+            raise e
+        if choice in chunk_threads:
+            chunk_threads[choice].join()
         if chunk_counts[choice]:
             yield chunks[choice].popleft()
-            chunk_counts[choice] -= 1
+            with chunklock:
+                chunk_counts[choice] -= 1
+            if not chunk_counts[choice] and choice in finished_iteration:
+                finished_yield += [choice]
+                finished_count += 1
+            elif not chunk_counts[choice] and choice not in chunk_threads:
+                assert choice in iterators
+                t = threading.Thread(target=get_next_chunk, args=(choice,))
+                with chunklock:
+                    chunk_threads[choice] = t
+                t.start()
+        elif choice in finished_iteration:
+            finished_yield += [choice]
+            finished_count += 1
         else:
-            try:
-                chunk = next(iterators[choice])
-                chunks[choice].extend(chunk)
-                chunk_counts[choice] += len(chunk)
-            except StopIteration:
-                if iterators:
-                    del iterators[choice]
-                    del chunks[choice]
-                    chunk_counts = np.delete(chunk_counts, choice)
-                    ratios = np.delete(ratios, choice)
-                    ratios = ratios / ratios.sum()
-
-    '''    reading_thread = threading.Thread(target=reader, daemon=False)
-    reading_thread.start()
-
-    while True:
-        yield 'banana'
-        continue
-        if len(buffer):
-            chunk = buffer.popleft()
-            if chunk is None:
-                break
-            else:
-                print('chunking!', len(chunk))
-                for i, record in enumerate(chunk[0]):
-                    print('chunk', i)
-                    yield record
-                    print('done with yield')
-
-    #reading_thread.join()'''
-
-
+            raise IndexError(f"This shouldn't happen!: {choice}")
 
 def shuffle_iterator(iterator: typing.Iterator,
                      queue_size: int) -> typing.Iterable[typing.Any]:

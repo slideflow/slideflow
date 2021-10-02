@@ -86,7 +86,8 @@ class Project:
         elif project_kwargs:
             log.info(f"Creating project at {project_folder}...")
             self._settings = project_utils._project_config(**project_kwargs)
-            os.makedirs(project_folder)
+            if not exists(project_folder):
+                os.makedirs(project_folder)
         else:
             raise sf.util.UserError(f"Project folder {project_folder} does not exist.")
 
@@ -303,7 +304,12 @@ class Project:
         if exists(filename):
             raise sf.util.UserError(f"Unable to create blank annotations file at {filename}; file already exists.")
 
-        dataset = self.get_dataset(verification=None)
+        dataset = Dataset(config_file=self.dataset_config,
+                          sources=self.sources,
+                          tile_px=None,
+                          tile_um=None,
+                          annotations=None)
+
         slides = [sf.util.path_to_name(s) for s in dataset.get_slide_paths(apply_filters=False)]
         with open(filename, 'w') as csv_outfile:
             csv_writer = csv.writer(csv_outfile, delimiter=',')

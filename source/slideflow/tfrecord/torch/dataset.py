@@ -61,6 +61,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
                  transform: typing.Callable[[dict], typing.Any] = None,
                  sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                  compression_type: typing.Optional[str] = None,
+                 autoshard: bool = True,
                  ) -> None:
         super(TFRecordDataset, self).__init__()
         self.data_path = data_path
@@ -70,10 +71,11 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
         self.shuffle_queue_size = shuffle_queue_size
         self.transform = transform or (lambda x: x)
         self.compression_type = compression_type
+        self.autoshard = autoshard
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
-        if worker_info is not None:
+        if self.autoshard and worker_info is not None:
             shard = worker_info.id, worker_info.num_workers
             np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
         else:
@@ -141,7 +143,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
 
     def __init__(self,
                  paths: typing.List[str],
-                 indices: typing.List[str],
+                 indices: typing.Dict[str, str],
                  splits: typing.Dict[str, float],
                  description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                  shuffle_queue_size: typing.Optional[int] = None,
@@ -152,6 +154,8 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
                  infinite: bool = True
                  ) -> None:
         super(MultiTFRecordDataset, self).__init__()
+        if indices is not None and not isinstance(indices, dict):
+            raise TypeError(f"Invalid type {type(indices)}; must be a dict mapping tfrecord names to index paths")
         self.paths = paths
         self.indices = indices
         self.splits = splits

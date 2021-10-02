@@ -171,7 +171,10 @@ class Dataset:
             self.sources[source]['label'] = label
 
         if annotations:
-            self.load_annotations(annotations)
+            if os.path.exists(annotations):
+                self.load_annotations(annotations)
+            else:
+                log.warning(f"Unable to load annotations from {sf.util.green(annotations)}; file does not exist.")
 
     def apply_filters(self, **kwargs):
         for kwarg in kwargs:
