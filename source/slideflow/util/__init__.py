@@ -523,7 +523,7 @@ def get_slides_from_model_manifest(model_path, dataset=None):
                 slides += [slide_name]
     return slides
 
-def get_model_hyperparameters(model_path):
+def get_model_params(model_path):
     """Loads model hyperparameters JSON file."""
 
     if exists(join(model_path, 'hyperparameters.json')):

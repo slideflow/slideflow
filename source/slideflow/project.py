@@ -352,7 +352,7 @@ class Project:
         argsv = list(pdict.values())
         sweep = list(itertools.product(*argsv))
 
-        from slideflow.model import HyperParameters
+        from slideflow.model import ModelParams
 
         if not filename:
             filename = self.batch_train_config
@@ -368,9 +368,9 @@ class Project:
             for i, params in enumerate(sweep):
                 row = [f'{label}HPSweep{i}', ','.join([str(f) for f in epochs])]
                 full_params = dict(zip(['epochs'] + args, [epochs] + list(params)))
-                hp = HyperParameters(**full_params)
+                mp = ModelParams(**full_params)
                 for arg in args:
-                    row += [getattr(hp, arg)]
+                    row += [getattr(mp, arg)]
                 writer.writerow(row)
         log.info(f'Wrote {len(sweep)} combinations for sweep to {sf.util.green(filename)}')
 
@@ -431,8 +431,10 @@ class Project:
         if hyperparameters:
             hp_data = sf.util.load_json(hyperparameters)
         else:
-            hp_data = sf.util.get_model_hyperparameters(model)
-        hp = sf.model.HyperParameters()
+            hp_data = sf.util.get_model_params(model)
+            if not hp_data:
+                raise OSError(f"Unable to find mode parameters file for model {model}.")
+        hp = sf.model.ModelParams()
         hp.load_dict(hp_data['hp'])
         model_name = f"eval-{basename(model)}"
 
@@ -491,16 +493,16 @@ class Project:
                                                                   k_fold_iter=eval_k_fold)
         # Otherwise use all TFRecords
         else:
-            eval_tfrecords = dataset.get_tfrecords()
+            eval_tfrecords = dataset.tfrecords()
 
         # Prepare additional slide-level input
+        model_inputs = {}
         if input_header:
             input_header = [input_header] if not isinstance(input_header, list) else input_header
             feature_len_dict = {}   # Dict mapping input_vars to total number of different labels for each input header
             input_labels_dict = {}  # Dict mapping input_vars to nested dictionaries,
                                     #    which map category ID to category label names (for categorical variables)
                                     #     or mapping to 'float' for float variables
-            model_inputs = {}
             for slide in labels:
                 model_inputs[slide] = []
 
@@ -593,30 +595,31 @@ class Project:
         log.info(f'Evaluating {sf.util.bold(len(eval_tfrecords))} tfrecords')
 
         # Build a model using the slide list as input and the annotations dictionary as output labels
-        SFM = sf.model.trainer_from_hp(hp,
-                                       outdir=model_dir,
-                                       labels=labels,
-                                       patients=dataset.patients(),
-                                       slide_input=model_inputs,
-                                       manifest=dataset.manifest(),
-                                       mixed_precision=self.mixed_precision,
-                                       normalizer=normalizer,
-                                       normalizer_source=normalizer_source,
-                                       feature_names=input_header,
-                                       feature_sizes=feature_sizes,
-                                       outcome_names=outcome_label_headers)
-        if model:
-            SFM.load(model)
-        elif checkpoint:
-            SFM.load_checkpoint(checkpoint)
+        trainer = sf.model.trainer_from_hp(hp,
+                                           outdir=model_dir,
+                                           labels=labels,
+                                           patients=dataset.patients(),
+                                           slide_input=model_inputs,
+                                           manifest=dataset.manifest(),
+                                           mixed_precision=self.mixed_precision,
+                                           normalizer=normalizer,
+                                           normalizer_source=normalizer_source,
+                                           feature_names=input_header,
+                                           feature_sizes=feature_sizes,
+                                           outcome_names=outcome_label_headers)
+        if isinstance(model, str):
+            trainer.load(model)
+        if checkpoint:
+            trainer.model = hp.build_model(labels=labels, num_slide_features=(0 if not feature_sizes else sum(feature_sizes)))
+            trainer.model.load_weights(checkpoint)
 
-        results = SFM.evaluate(tfrecords=eval_tfrecords,
-                               batch_size=batch_size,
-                               max_tiles_per_slide=max_tiles_per_slide,
-                               min_tiles_per_slide=min_tiles_per_slide,
-                               permutation_importance=permutation_importance,
-                               histogram=histogram,
-                               save_predictions=save_predictions)
+        results = trainer.evaluate(tfrecords=eval_tfrecords,
+                                   batch_size=batch_size,
+                                   max_tiles_per_slide=max_tiles_per_slide,
+                                   min_tiles_per_slide=min_tiles_per_slide,
+                                   permutation_importance=permutation_importance,
+                                   histogram=histogram,
+                                   save_predictions=save_predictions)
         return results
 
     def evaluate_clam(self, exp_name, pt_files, outcome_label_headers, tile_px, tile_um, k=0, eval_tag=None,
@@ -713,7 +716,7 @@ class Project:
         clam.evaluate(ckpt_path, args, clam_dataset)
 
         # Get attention from trained model on validation set
-        attention_tfrecords = dataset.get_tfrecords()
+        attention_tfrecords = dataset.tfrecords()
         attention_dir = join(eval_dir, 'attention')
         if not exists(attention_dir): os.makedirs(attention_dir)
         export_attention(args_dict,
@@ -850,7 +853,7 @@ class Project:
         if not exists(stats_root): os.makedirs(stats_root)
 
         # Load dataset for evaluation
-        hp_data = sf.util.get_model_hyperparameters(model)
+        hp_data = sf.util.get_model_params(model)
         if dataset is None:
             tile_px = hp_data['hp']['tile_px']
             tile_um = hp_data['hp']['tile_um']
@@ -866,7 +869,7 @@ class Project:
                 log.warning("Dataset supplied; ignoring provided filters and filter_blank")
             tile_px = dataset.tile_px
 
-        tfrecords_list = dataset.get_tfrecords()
+        tfrecords_list = dataset.tfrecords()
         outcome_annotations = dataset.labels(outcome_label_headers, format='name')[0] if outcome_label_headers else None
         log.info(f'Visualizing activations from {len(tfrecords_list)} slides')
 
@@ -909,7 +912,7 @@ class Project:
         assert min_tiles_per_slide >= 8, 'Slides must have at least 8 tiles to train CLAM.'
 
         # First, ensure the model is valid with a hyperparameters file
-        hp_data = sf.util.get_model_hyperparameters(model)
+        hp_data = sf.util.get_model_params(model)
         if not hp_data:
             raise Exception('Unable to find model hyperparameters file.')
         tile_px = hp_data['tile_px']
@@ -1011,7 +1014,7 @@ class Project:
         del heatmap_args.self
 
         # Prepare dataset1
-        hp_data = sf.util.get_model_hyperparameters(model)
+        hp_data = sf.util.get_model_params(model)
         heatmaps_dataset = self.get_dataset(filters=filters,
                                             filter_blank=filter_blank,
                                             tile_px=hp_data['hp']['tile_px'],
@@ -1030,9 +1033,9 @@ class Project:
         heatmap_args.stride_div = stride_div
 
         # Attempt to auto-detect supplied model name
-        hp_data = sf.util.get_model_hyperparameters(model)
+        hp_data = sf.util.get_model_params(model)
         detected_model_name = os.path.basename(model)
-        hp_data = sf.util.get_model_hyperparameters(model)
+        hp_data = sf.util.get_model_params(model)
         if hp_data and 'model_name' in hp_data:
             detected_model_name = hp_data['model_name']
 
@@ -1120,7 +1123,7 @@ class Project:
         if not exists(mosaic_root): os.makedirs(mosaic_root)
 
         # Prepare dataset & model
-        hp_data = sf.util.get_model_hyperparameters(AV.model)
+        hp_data = sf.util.get_model_params(AV.model)
         if dataset is None:
             tile_px, tile_um = hp_data['hp']['tile_px'], hp_data['hp']['tile_um']
             dataset = self.get_dataset(tile_px=tile_px,
@@ -1136,7 +1139,7 @@ class Project:
             tile_px = dataset.tile_px
 
         # Get TFrecords, and prepare a list for focus, if requested
-        tfrecords_list = dataset.get_tfrecords()
+        tfrecords_list = dataset.tfrecords()
         log.info(f'Generating mosaic from {len(tfrecords_list)} slides')
 
         # If a header category is supplied and we are not showing predictions,
@@ -1151,7 +1154,7 @@ class Project:
 
         # If showing predictions, try to automatically load prediction labels
         if (show_prediction is not None) and (not use_float):
-            model_hp = sf.util.get_model_hyperparameters(AV.model)
+            model_hp = sf.util.get_model_params(AV.model)
             if model_hp:
                 outcome_labels = model_hp['outcome_labels']
                 model_type = model_type if model_type else model_hp['model_type']
@@ -1223,7 +1226,7 @@ class Project:
             umap.label_by_tile_meta('prediction', translation_dict=outcome_labels)
         umap.filter(dataset.get_slides())
 
-        mosaic = Mosaic(umap, dataset.get_tfrecords(), normalizer=normalizer, normalizer_source=normalizer_source, **kwargs)
+        mosaic = Mosaic(umap, dataset.tfrecords(), normalizer=normalizer, normalizer_source=normalizer_source, **kwargs)
         return mosaic
 
     def generate_mosaic_from_annotations(self, header_x, header_y, dataset, model=None, mosaic_filename=None,
@@ -1285,7 +1288,7 @@ class Project:
             # because we only want to use slides that have a corresponding TFRecord
             # (some slides did not have a large enough ROI for tile extraction,
             # and some slides may be in the annotations but are missing a slide image)
-            slides = [sf.util.path_to_name(tfr) for tfr in dataset.get_tfrecords()]
+            slides = [sf.util.path_to_name(tfr) for tfr in dataset.tfrecords()]
             labels, _ = dataset.labels([header_x, header_y], use_float=True)
             slide_to_category, _ = dataset.labels(outcome_label_headers, format='name')
 
@@ -1298,7 +1301,7 @@ class Project:
             elif use_optimal_tile:
                 # Calculate most representative tile in each slide/TFRecord for display
                 AV = ActivationsVisualizer(model=model,
-                                           tfrecords=dataset.get_tfrecords(),
+                                           tfrecords=dataset.tfrecords(),
                                            normalizer=normalizer,
                                            normalizer_source=normalizer_source,
                                            batch_size=batch_size,
@@ -1332,7 +1335,7 @@ class Project:
                                                              meta=umap_meta)
 
             mosaic_map = Mosaic(umap,
-                                dataset.get_tfrecords(),
+                                dataset.tfrecords(),
                                 tile_select='centroid' if use_optimal_tile else 'nearest',
                                 normalizer=normalizer,
                                 normalizer_source=normalizer_source,
@@ -1638,7 +1641,7 @@ class Project:
         else:        sources = self.sources
 
         # Prepare dataset & model
-        hp_data = sf.util.get_model_hyperparameters(model)
+        hp_data = sf.util.get_model_params(model)
         if dataset is None:
             tile_px, tile_um = hp_data['hp']['tile_px'], hp_data['hp']['tile_um']
             dataset = self.get_dataset(tile_px=tile_px,
@@ -1735,15 +1738,15 @@ class Project:
 
     def train(self, outcome_label_headers, hyperparameters='sweep', exp_label=None, filters=None, filter_blank=None,
               input_header=None, resume_training=None, checkpoint=None, pretrain='imagenet',
-              normalizer=None, normalizer_source=None, **training_kwargs):
+              normalizer=None, normalizer_source=None, multi_gpu=False, **training_kwargs):
 
         """Train model(s) using a given set of hyperparameters, outcomes, and inputs.
 
         Args:
             outcome_label_headers (str): Str or list of str. Annotation column header specifying the outcome label(s).
-            hyperparameters (:class:`slideflow.model.HyperParameters`, list, dict, or str): Defaults to 'sweep'.
+            hyperparameters (:class:`slideflow.model.ModelParams`, list, dict, or str): Defaults to 'sweep'.
                 If 'sweep', will use project batch train configuration file to sweep through all HP combinations.
-                Additionally, a :class:`slideflow.model.HyperParameters` may be provided, either individually,
+                Additionally, a :class:`slideflow.model.ModelParams` may be provided, either individually,
                 as a list, or as a dictionary mapping model names to HP objects. Please see examples below for use.
             exp_label (str, optional): Optional experiment label to add to each model name.
             filters (dict, optional): Filters dict to use when selecting tfrecords. Defaults to None.
@@ -1758,6 +1761,7 @@ class Project:
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
                 Internal default tile can be found at slideflow.util.norm_tile.jpg
+            multi_gpu (bool): Train using multiple GPUs using Keras MirroredStrategy when available. Defaults to True.
 
         Keyword Args:
             val_strategy (str): Validation dataset selection strategy. Defaults to 'k-fold'.
@@ -1784,7 +1788,6 @@ class Project:
             validate_on_batch (int): Validation will be performed every N batches. Defaults to 512.
             validation_batch_size (int): Validation dataset batch size. Defaults to 32.
             use_tensorboard (bool): Add tensorboard callback for realtime training monitoring. Defaults to False.
-            multi_gpu (bool): Train using multiple GPUs using Keras MirroredStrategy when available. Defaults to True.
             validation_steps (int): Number of steps of validation to perform each time doing a validation check.
                 Defaults to 200.
 
@@ -1804,25 +1807,25 @@ class Project:
 
             Method 3 (manually specified hyperparameters):
 
-                >>> from slideflow.model import HyperParameters
-                >>> hp = HyperParameters(...)
+                >>> from slideflow.model import ModelParams
+                >>> hp = ModelParams(...)
                 >>> SFP.train('outcome', hyperparameters=hp, ...)
 
             Method 4 (list of hyperparameters):
 
-                >>> from slideflow.model import HyperParameters
-                >>> hp = [HyperParameters(...), HyperParameters(...)]
+                >>> from slideflow.model import ModelParams
+                >>> hp = [ModelParams(...), ModelParams(...)]
                 >>> SFP.train('outcome', hyperparameters=hp, ...)
 
             Method 5 (dict of hyperparameters):
 
-                >>> from slideflow.model import HyperParameters
-                >>> hp = {'HP0': HyperParameters(...), 'HP1': HyperParameters(...)}
+                >>> from slideflow.model import ModelParams
+                >>> hp = {'HP0': ModelParams(...), 'HP1': ModelParams(...)}
                 >>> SFP.train('outcome', hyperparameters=hp, ...)
 
         """
 
-        from slideflow.model import get_hp_from_batch_file, HyperParameters
+        from slideflow.model import get_hp_from_batch_file, ModelParams
 
         # Prepare outcome_label_headers
         if not isinstance(outcome_label_headers, list):
@@ -1834,17 +1837,17 @@ class Project:
         # Prepare hyperparameters
         if hyperparameters == 'sweep':
             hp_dict = get_hp_from_batch_file(self.batch_train_config)
-        elif isinstance(hyperparameters, HyperParameters):
+        elif isinstance(hyperparameters, ModelParams):
             hp_dict = {'HP0': hyperparameters}
         elif isinstance(hyperparameters, list):
-            if not all([isinstance(hp, HyperParameters) for hp in hyperparameters]):
-                raise sf.util.UserError('If supplying list of hyperparameters, items must be sf.model.HyperParameters')
+            if not all([isinstance(hp, ModelParams) for hp in hyperparameters]):
+                raise sf.util.UserError('If supplying list of hyperparameters, items must be sf.model.ModelParams')
             hp_dict = {f'HP{i}':hp for i,hp in enumerate(hyperparameters)}
         elif isinstance(hyperparameters, dict):
             if not all([isinstance(hp, str) for hp in hyperparameters.keys()]):
                 raise sf.util.UserError('If supplying dict of hyperparameters, keys must be of type str')
-            if not all([isinstance(hp, HyperParameters) for hp in hyperparameters.values()]):
-                raise sf.util.UserError('If supplying dict of hyperparameters, values must be sf.model.HyperParameters')
+            if not all([isinstance(hp, ModelParams) for hp in hyperparameters.values()]):
+                raise sf.util.UserError('If supplying dict of hyperparameters, values must be sf.model.ModelParams')
             hp_dict = hyperparameters
 
         # Get default validation settings from kwargs
@@ -1903,10 +1906,7 @@ class Project:
             k_iter = [k_iter] if (k_iter != None and not isinstance(k_iter, list)) else k_iter
 
             if val_settings.strategy == 'k-fold-manual':
-                k_fold_slide_labels, valid_k = dataset.labels(val_settings.k_fold_header,
-                                                              return_unique=True,
-                                                              verbose=False,
-                                                              format='name')
+                k_fold_slide_labels, valid_k = dataset.labels(val_settings.k_fold_header, verbose=False, format='name')
                 k_fold = len(valid_k)
                 log.info(f"Manual K-fold iterations detected: {', '.join(valid_k)}")
                 if k_iter:
@@ -1938,7 +1938,7 @@ class Project:
 
                 # Use an external validation dataset if supplied
                 if val_settings.source:
-                    training_tfrecords = dataset.get_tfrecords()
+                    training_tfrecords = dataset.tfrecords()
                     val_dts = Dataset(tile_px=hp.tile_px,
                                       tile_um=hp.tile_um,
                                       config_file=self.dataset_config,
@@ -1947,14 +1947,14 @@ class Project:
                                       filters=val_settings.filters,
                                       filter_blank=val_settings.filter_blank)
 
-                    val_tfrecords = val_dts.get_tfrecords()
+                    val_tfrecords = val_dts.tfrecords()
                     manifest.update(val_dts.manifest())
                     validation_labels, _ = val_dts.labels(outcome_label_headers, use_float=use_float)
                     labels.update(validation_labels)
 
                 # Use manual k-fold assignments if indicated
                 elif val_settings.strategy == 'k-fold-manual':
-                    all_tfrecords = dataset.get_tfrecords()
+                    all_tfrecords = dataset.tfrecords()
                     training_tfrecords = [tfr for tfr in all_tfrecords if k_fold_slide_labels[sf.util.path_to_name(tfr)] != k]
                     val_tfrecords = [tfr for tfr in all_tfrecords if k_fold_slide_labels[sf.util.path_to_name(tfr)] == k]
                     num_train_str = sf.util.bold(len(training_tfrecords))
@@ -1963,7 +1963,7 @@ class Project:
 
                 elif val_settings.strategy == 'none':
                     val_tfrecords = []
-                    training_tfrecords = dataset.get_tfrecords()
+                    training_tfrecords = dataset.tfrecords()
                 # Otherwise, calculate k-fold splits
                 else:
                     tfr_split = dataset.training_validation_split(hp.model_type(),
@@ -2081,6 +2081,7 @@ class Project:
                     verbosity=self.verbosity,
                     pretrain=pretrain,
                     resume_training=resume_training,
+                    multi_gpu=multi_gpu,
                     checkpoint=checkpoint
                 )
 
@@ -2095,18 +2096,19 @@ class Project:
                     'outcome_names': outcome_label_headers
                 }
 
-                process = ctx.Process(target=project_utils._trainer, args=(training_args,
-                                                                           model_kwargs,
-                                                                           training_kwargs,
-                                                                           results_dict))
+                process = ctx.Process(target=project_utils._train_worker, args=(training_args,
+                                                                                model_kwargs,
+                                                                                training_kwargs,
+                                                                                results_dict))
                 process.start()
                 log.debug(f'Spawning training process (PID: {process.pid})')
                 process.join()
 
             # Record results
             for mi in model_iterations:
-                if mi not in results_dict:
+                if mi not in results_dict or 'epochs' not in results_dict[mi]:
                     log.error(f'Training failed for model {model_name}')
+                    return {}
                 else:
                     sf.util.update_results_log(results_log_path, mi, results_dict[mi]['epochs'])
             log.info(f'Training complete for model {model_name}, results saved to {sf.util.green(results_log_path)}')
@@ -2260,7 +2262,7 @@ class Project:
 
         # Get attention from trained model on validation set(s)
         for k in validation_slides:
-            attention_tfrecords = [tfr for tfr in dataset.get_tfrecords() if sf.util.path_to_name(tfr) in validation_slides[k]]
+            attention_tfrecords = [tfr for tfr in dataset.tfrecords() if sf.util.path_to_name(tfr) in validation_slides[k]]
             attention_dir = join(clam_dir, 'attention', str(k))
             if not exists(attention_dir): os.makedirs(attention_dir)
             export_attention(vars(clam_args),

@@ -10,6 +10,17 @@ from slideflow.util import log
 class HyperParameterError(Exception):
     pass
 
+class ModelError(Exception):
+    def __init__(self, message, errors=None):
+        log.error(message)
+        super().__init__(message)
+
+class no_scope():
+    def __enter__(self):
+        return None
+    def __exit__(self, exc_type, exc_value, traceback):
+        return False
+
 def to_onehot(val, max):
     onehot = np.zeros(max, dtype=np.int64)
     onehot[val] = 1
@@ -78,14 +89,14 @@ def get_hp_from_batch_file(batch_train_file, models=None):
     return hyperparameters
 
 def get_hp_from_row(row, header):
-    """Converts a row in the batch_train CSV file into a HyperParameters object."""
+    """Converts a row in the batch_train CSV file into a ModelParams object."""
 
-    from slideflow.model import HyperParameters
+    from slideflow.model import ModelParams
 
     model_name_i = header.index('model_name')
     args = header[0:model_name_i] + header[model_name_i+1:]
     model_name = row[model_name_i]
-    hp = HyperParameters()
+    hp = ModelParams()
     for arg in args:
         value = row[header.index(arg)]
         if arg in hp._get_args():

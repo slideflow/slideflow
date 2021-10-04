@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Slideflow Documentation &mdash; slideflow 1.12.0 documentation</title>
+  <title>Slideflow Documentation &mdash; slideflow 1.12.0-rc1 documentation</title>
   
 
   
@@ -151,6 +151,7 @@
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -159,13 +160,17 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tfrecords</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.reader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="statistics.html">slideflow.statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
 </ul>
 
             
@@ -240,9 +245,9 @@
               
   <div class="section" id="slideflow-documentation">
 <h1>Slideflow Documentation<a class="headerlink" href="#slideflow-documentation" title="Permalink to this headline">¶</a></h1>
-<p><code class="docutils literal notranslate"><span class="pre">slideflow</span></code> is a computational pathology Python package which aims to provide an easy and intuitive way of building and testing deep learning models for use in histology image analysis. It is built using Keras (with <a class="reference external" href="https://www.tensorflow.org/">Tensorflow</a> backend) and supports all Keras architectures, as well as <a class="reference external" href="https://github.com/mahmoodlab/CLAM">CLAM</a>. The overarching goal of the package is to provide tools to train and test models on histology slides, apply these models to new slides, and assess performance using analytical tools including predictive heatmaps, mosaic maps, ROCs, and more.</p>
+<p><code class="docutils literal notranslate"><span class="pre">slideflow</span></code> is a computational pathology Python package which aims to provide an easy and intuitive way of building and testing deep learning models in histology image analysis. It is built with a <a class="reference external" href="https://www.tensorflow.org/">Tensorflow/Keras</a> backend, but also includes an optimized <a class="reference external" href="https://pytorch.org">PyTorch</a> dataloader which can read and serve images stored in cross-compatible TFRecord format (full PyTorch backend support in development), as well as <a class="reference external" href="https://github.com/mahmoodlab/CLAM">CLAM</a>. The overarching goal of the package is to provide tools to efficiently process histology slides in tile-wise fashion suitable for deep learning models; enable easy model training and testing from extracted tiles; and supply functional tools to assist with model analysis and interpretability, including predictive heatmaps, mosaic maps, and more.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">slideflow</span></code> package includes a <code class="docutils literal notranslate"><span class="pre">Project</span></code> class to help coordinate project organization and supervise execution of the pipeline.  This documentation starts with a high-level overview of the pipeline, and will include examples of how to execute pipeline functions using the <code class="docutils literal notranslate"><span class="pre">Project</span></code> class. We will end by describing some of the source code components in more detail and provide examples for how you may further customize this pipeline according to your needs.</p>
-<p>The current implementation has been developed in Python 3.7 and 3.8, using Tensorflow 2.5, in Ubuntu 20.04, CentOS 7, and CentOS 8.</p>
+<p>The current implementation has been developed and tested in Python 3.7/3.8, using Tensorflow 2.5/2.6 and PyTorch 1.19, in Ubuntu 20.04, CentOS 7, and CentOS 8.</p>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
@@ -254,6 +259,7 @@
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -264,8 +270,8 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tfrecords</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.reader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
@@ -273,13 +279,17 @@
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
 </ul>
 </div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
+</ul>
+</div>
 </div>
 <div class="section" id="indices-and-tables">
 <h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
 <ul class="simple">
 <li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
-<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
-<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
 </ul>
 </div>
 

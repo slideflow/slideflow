@@ -1,0 +1,41 @@
+PyTorch
+=======
+
+While the primary backend for this package is Tensorflow/Keras, it includes a PyTorch TFRecord reader to ensure extracted and saved image tiles can be served to either Tensorflow or PyTorch models in cross-compatible fashion. There is also early support for a PyTorch model Trainer; full backend support is in development.
+
+
+TFRecord DataLoader
+*******************
+
+To use existing TFRecords that contain tiles extracted with ``slideflow``, use the :mod:`slideflow.io.torch` module to create a DataLoader class
+that loads and interleaves TFRecords with the same functionality as the Tensorflow backend. To start, load a saved project and select a dataset:
+
+.. code-block:: python
+
+    SFP = sf.Project('/project/path', ...)
+    dts = SFP.get_dataset(tile_px=299, tile_um=302, filters=None)
+    tfrecords = dts.tfrecords()
+    labels = dts.labels('HPV_status')
+    manifest = dts.get_manifest()
+
+Next, use the :class:`slideflow.io.torch.interleave_dataloader` class to create the DataLoader object:
+
+.. code-block:: python
+
+    from slideflow.io.torch import interleave_dataloader
+
+    dataloader = interleave_dataloader(
+        tfrecords,
+        tile_px      = 299,
+        batch_size   = 64,
+        labels       = labels,   # Dataset labels
+        num_workers  = 6,        # Number of workers reading tfrecords
+        infinite     = True,     # True for training, False for validation
+        augment      = True,     # Flip/rotate/compression augmentation
+        standardize  = True,     # Standardize images: mean 0, variance of 1
+        balance      = None,     # Batch-level balancing, optional
+        manifest     = manifest, # Necessary if balancing
+        pin_memory   = False,    # Pin memory to GPUs
+    )
+
+The returned dataloader can then be used directly with your PyTorch applications.

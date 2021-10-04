@@ -1,12 +1,13 @@
 import json
 import os
 import csv
+import numpy as np
 from slideflow.util import log
 from slideflow.model.utils import HyperParameterError
 
 """Base classes to be extended by framework-specific implementations."""
 
-class HyperParameters:
+class ModelParams:
     """Build a set of hyperparameters."""
 
     OptDict = {}
@@ -120,14 +121,15 @@ class HyperParameters:
 
     def _get_args(self):
         return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt',
-                                                                            'get_model',
+                                                                            'build_model',
                                                                             'model_type',
                                                                             'validate',
                                                                             'get_dict',
                                                                             'load_dict',
                                                                             'OptDict',
                                                                             'ModelDict',
-                                                                            'LossDict']]
+                                                                            'LinearLossDict',
+                                                                            'AllLossDict']]
 
     def get_dict(self):
         d = {}
@@ -146,6 +148,19 @@ class HyperParameters:
         args = sorted(self._get_args(), key=lambda arg: arg.lower())
         arg_dict = {arg: getattr(self, arg) for arg in args}
         return json.dumps(arg_dict, indent=2)
+
+    def _detect_classes_from_labels(self, labels):
+        outcome_labels = np.array(list(labels.values()))
+        if len(outcome_labels.shape) == 1:
+            outcome_labels = np.expand_dims(outcome_labels, axis=1)
+
+        if self.model_type() == 'categorical':
+            return {i: np.unique(outcome_labels[:,i]).shape[0] for i in range(outcome_labels.shape[1])}
+        else:
+            try:
+                return outcome_labels.shape[1]
+            except TypeError:
+                raise HyperParameterError('Incorrect formatting of outcome labels for linear model; must be an ndarray.')
 
     def validate(self):
         """Check that hyperparameter combinations are valid."""

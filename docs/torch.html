@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Pipeline Overview &mdash; slideflow 1.12.0-rc1 documentation</title>
+  <title>PyTorch &mdash; slideflow 1.12.0-rc1 documentation</title>
   
 
   
@@ -31,8 +31,8 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Setting up a Project" href="project_setup.html" />
-    <link rel="prev" title="Slideflow Documentation" href="index.html" />
+    <link rel="next" title="Troubleshooting" href="troubleshooting.html" />
+    <link rel="prev" title="CLAM" href="clam.html" />
   <!-- Google Analytics -->
   
   <!-- End Google Analytics -->
@@ -144,7 +144,7 @@
             
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
@@ -152,7 +152,7 @@
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
-<li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -212,13 +212,13 @@
       </li>
 
         
-      <li>Pipeline Overview</li>
+      <li>PyTorch</li>
     
     
       <li class="pytorch-breadcrumbs-aside">
         
             
-            <a href="_sources/pipeline.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
+            <a href="_sources/torch.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
           
         
       </li>
@@ -244,64 +244,39 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="pipeline-overview">
-<h1>Pipeline Overview<a class="headerlink" href="#pipeline-overview" title="Permalink to this headline">¶</a></h1>
-<img alt="_images/pipeline_overview.png" src="_images/pipeline_overview.png" />
-<p>The overall pipeline is separated into two phases and 6 steps.</p>
-<p>The first phase - <strong>Model Creation</strong> - involves three steps: 1) labeling slides with regions of interest (ROIs), 2) tessellating and preparing image tiles from the slides, and 3) training a model.</p>
-<p>The second phase - <strong>Model Assessment</strong> - also involves three steps: 1) analytics describing model performance, including basic measures like percent accuracy, ROCs, and scatter plots, 2) creating heatmap overlays for whole-slide images to visualize predictions, and 3) generating mosaic maps to visualize learned image features.</p>
-<p>A high-level overview of each of the six steps is provided below. We will examine execution of these steps in more detail in the following sections.</p>
-<div class="section" id="step-1-create-rois">
-<h2>Step 1: Create ROIs<a class="headerlink" href="#step-1-create-rois" title="Permalink to this headline">¶</a></h2>
-<ol class="arabic simple">
-<li><p><strong>Label ROIs</strong> (optional). Using <a class="reference external" href="https://qupath.github.io/">QuPath</a>, annotate whole-slide images with the Polygon tool. Then, click <strong>Automate</strong> -&gt; <strong>Show script editor</strong>. In the box that comes up, click <strong>File</strong> -&gt; <strong>Open</strong> and load the <code class="docutils literal notranslate"><span class="pre">qupath_roi.groovy</span></code> script. Press CTRL + R and wait for the script to finish. Alternatively, you can load multiple SVS files into a QuPath project and run the script on the entire project using “Run for project”.</p></li>
-</ol>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>This step may be skipped if you are performing analysis on whole-slide images, rather than annotated tumor regions.</p>
+  <div class="section" id="pytorch">
+<h1>PyTorch<a class="headerlink" href="#pytorch" title="Permalink to this headline">¶</a></h1>
+<p>While the primary backend for this package is Tensorflow/Keras, it includes a PyTorch TFRecord reader to ensure extracted and saved image tiles can be served to either Tensorflow or PyTorch models in cross-compatible fashion. There is also early support for a PyTorch model Trainer; full backend support is in development.</p>
+<div class="section" id="tfrecord-dataloader">
+<h2>TFRecord DataLoader<a class="headerlink" href="#tfrecord-dataloader" title="Permalink to this headline">¶</a></h2>
+<p>To use existing TFRecords that contain tiles extracted with <code class="docutils literal notranslate"><span class="pre">slideflow</span></code>, use the <a class="reference internal" href="reader.html#module-slideflow.io.torch" title="slideflow.io.torch"><code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.io.torch</span></code></a> module to create a DataLoader class
+that loads and interleaves TFRecords with the same functionality as the Tensorflow backend. To start, load a saved project and select a dataset:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/project/path&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+<span class="n">dts</span> <span class="o">=</span> <span class="n">SFP</span><span class="o">.</span><span class="n">get_dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">,</span> <span class="n">filters</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<span class="n">tfrecords</span> <span class="o">=</span> <span class="n">dts</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()</span>
+<span class="n">labels</span> <span class="o">=</span> <span class="n">dts</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="s1">&#39;HPV_status&#39;</span><span class="p">)</span>
+<span class="n">manifest</span> <span class="o">=</span> <span class="n">dts</span><span class="o">.</span><span class="n">get_manifest</span><span class="p">()</span>
+</pre></div>
 </div>
+<p>Next, use the <a class="reference internal" href="reader.html#slideflow.io.torch.interleave_dataloader" title="slideflow.io.torch.interleave_dataloader"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.io.torch.interleave_dataloader</span></code></a> class to create the DataLoader object:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.io.torch</span> <span class="kn">import</span> <span class="n">interleave_dataloader</span>
+
+<span class="n">dataloader</span> <span class="o">=</span> <span class="n">interleave_dataloader</span><span class="p">(</span>
+    <span class="n">tfrecords</span><span class="p">,</span>
+    <span class="n">tile_px</span>      <span class="o">=</span> <span class="mi">299</span><span class="p">,</span>
+    <span class="n">batch_size</span>   <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>
+    <span class="n">labels</span>       <span class="o">=</span> <span class="n">labels</span><span class="p">,</span>   <span class="c1"># Dataset labels</span>
+    <span class="n">num_workers</span>  <span class="o">=</span> <span class="mi">6</span><span class="p">,</span>        <span class="c1"># Number of workers reading tfrecords</span>
+    <span class="n">infinite</span>     <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>     <span class="c1"># True for training, False for validation</span>
+    <span class="n">augment</span>      <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>     <span class="c1"># Flip/rotate/compression augmentation</span>
+    <span class="n">standardize</span>  <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>     <span class="c1"># Standardize images: mean 0, variance of 1</span>
+    <span class="n">balance</span>      <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>     <span class="c1"># Batch-level balancing, optional</span>
+    <span class="n">manifest</span>     <span class="o">=</span> <span class="n">manifest</span><span class="p">,</span> <span class="c1"># Necessary if balancing</span>
+    <span class="n">pin_memory</span>   <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>    <span class="c1"># Pin memory to GPUs</span>
+<span class="p">)</span>
+</pre></div>
 </div>
-<div class="section" id="step-2-data-preparation">
-<h2>Step 2: Data Preparation<a class="headerlink" href="#step-2-data-preparation" title="Permalink to this headline">¶</a></h2>
-<img alt="_images/tile_extraction.png" src="_images/tile_extraction.png" />
-<img alt="_images/saving_tfrecords.png" src="_images/saving_tfrecords.png" />
-<ol class="arabic simple" start="2">
-<li><p><strong>Extract tiles</strong>. Once ROIs have been created, tiles will need to be extracted from the ROIs across all of your slides. Tiles will be extracted at a given magnification size in microns, and saved at a given resolution in pixels. The optimal extraction size in both microns and pixels will depend on your dataset and model architecture. Poor quality tiles - including background tiles or tiles with high whitespace content - will be automatically discarded. Tiles will be stored as TFRecords, a binary file format used to improve dataset reading performance during training. Each slide will have its own TFRecord file containing its extracted tiles.</p></li>
-</ol>
-<img alt="_images/dataset_assembly.png" src="_images/dataset_assembly.png" />
-<ol class="arabic simple" start="3">
-<li><p><strong>Set aside final evaluation set</strong>. Using the project annotations CSV file, designate which slides should be saved for final evaluation.</p></li>
-<li><p><strong>Establish training and validation dataset</strong>. By default, three-fold cross-validation will be performed during training. Many other validation strategies are also supported (<a class="reference internal" href="validation.html#validation-planning"><span class="std std-ref">Validation Planning</span></a>).</p></li>
-</ol>
-</div>
-<div class="section" id="step-3-model-training">
-<h2>Step 3: Model Training<a class="headerlink" href="#step-3-model-training" title="Permalink to this headline">¶</a></h2>
-<ol class="arabic simple" start="5">
-<li><p><strong>Choose hyperparameters</strong>. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). This can be done explicitly one at a time, or an automatic hyperparameter sweep can be configured.</p></li>
-<li><p><strong>Initiate training</strong>. Train your model across all desired hyperparameters and select the best-performing hyperparameter combination for final evaluation testing.</p></li>
-</ol>
-</div>
-<div class="section" id="step-4-analytics">
-<h2>Step 4: Analytics<a class="headerlink" href="#step-4-analytics" title="Permalink to this headline">¶</a></h2>
-<p>Validation testing is performed both during training - at specified epochs - and after training has completed. Various metrics are recorded in the project directory at these intervals to assist with model performance assessment, including:</p>
-<ul class="simple">
-<li><p><strong>Training and validation loss</strong></p></li>
-<li><p><strong>Training and validation accuracy</strong> (for categorical outcomes)</p></li>
-<li><p><strong>Tile-level, slide-level, and patient-level AUROC and AP</strong> (for categorical outcomes)</p></li>
-<li><p><strong>Tile-level, slide-level, and patient-level scatter plots with R-squared</strong> (for continuous outcomes)</p></li>
-<li><p><strong>Tile-level, slide-level, and patient-level C-index</strong> (for Cox Proportional Hazards models)</p></li>
-<li><p><strong>Histograms of predictions</strong> (for continuous outcomes)</p></li>
-</ul>
-</div>
-<div class="section" id="step-5-visualizing-results-with-heatmaps">
-<h2>Step 5: Visualizing Results with Heatmaps<a class="headerlink" href="#step-5-visualizing-results-with-heatmaps" title="Permalink to this headline">¶</a></h2>
-<p>In addition to the above metrics, performance of a trained model can be assessed by visualizing predictions for a set slides as heatmaps.</p>
-<img alt="_images/heatmap_example.png" src="_images/heatmap_example.png" />
-</div>
-<div class="section" id="step-6-mosaic-maps">
-<h2>Step 6: Mosaic maps<a class="headerlink" href="#step-6-mosaic-maps" title="Permalink to this headline">¶</a></h2>
-<p>Finally, learned image features can be visualized using dimensionality reduction on model layer activations. A set of image tiles is first provided to your trained model, which calculates activations at a specified intermediate layer. Tile-level activations are then plotted with dimensionality reduction (UMAP), and points on the plot are replaced with image tiles, generating a mosaic map.</p>
-<img alt="_images/mosaic_example.png" src="_images/mosaic_example.png" />
+<p>The returned dataloader can then be used directly with your PyTorch applications.</p>
 </div>
 </div>
 
@@ -313,10 +288,10 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="project_setup.html" class="btn btn-neutral float-right" title="Setting up a Project" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="troubleshooting.html" class="btn btn-neutral float-right" title="Troubleshooting" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
-        <a href="index.html" class="btn btn-neutral" title="Slideflow Documentation" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+        <a href="clam.html" class="btn btn-neutral" title="CLAM" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
       
     </div>
   
@@ -348,13 +323,8 @@
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
-<li><a class="reference internal" href="#">Pipeline Overview</a><ul>
-<li><a class="reference internal" href="#step-1-create-rois">Step 1: Create ROIs</a></li>
-<li><a class="reference internal" href="#step-2-data-preparation">Step 2: Data Preparation</a></li>
-<li><a class="reference internal" href="#step-3-model-training">Step 3: Model Training</a></li>
-<li><a class="reference internal" href="#step-4-analytics">Step 4: Analytics</a></li>
-<li><a class="reference internal" href="#step-5-visualizing-results-with-heatmaps">Step 5: Visualizing Results with Heatmaps</a></li>
-<li><a class="reference internal" href="#step-6-mosaic-maps">Step 6: Mosaic maps</a></li>
+<li><a class="reference internal" href="#">PyTorch</a><ul>
+<li><a class="reference internal" href="#tfrecord-dataloader">TFRecord DataLoader</a></li>
 </ul>
 </li>
 </ul>

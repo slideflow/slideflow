@@ -11,7 +11,7 @@ def backend():
 # | james.dolezal@uchospitals.edu           |
 # +-----------------------------------------+
 
-__version__ = "1.12.0-dev3"
+__version__ = "1.12.0-rc1"
 
 # Style information
 # =================

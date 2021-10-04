@@ -75,7 +75,10 @@ def tfrecord_iterator(
                 raise RuntimeError("Failed to read the start token.")
             length, = struct.unpack("<Q", length_bytes)
             if length > len(datum_bytes):
-                datum_bytes = datum_bytes.zfill(int(length * 1.5))
+                try:
+                    datum_bytes = datum_bytes.zfill(int(length * 1.5))
+                except OverflowError as e:
+                    raise OverflowError('Error reading tfrecords; please try regenerating index files')
             datum_bytes_view = memoryview(datum_bytes)[:length]
             if file.readinto(datum_bytes_view) != length:
                 raise RuntimeError("Failed to read the record.")
@@ -541,4 +544,4 @@ def multi_tfrecord_loader(paths: typing.List[str],
                                  )
                for tfr_path in paths]
     splits_list = [splits[sf.util.path_to_name(tfr)] for tfr in paths] if splits is not None else [0.5 for t in range(len(paths))]
-    return iterator_utils.sample_chunk_iterators(loaders, splits_list, infinite=infinite)
+    return iterator_utils.sample_chunk_iterators(loaders, splits_list, infinite=infinite, shard=shard)

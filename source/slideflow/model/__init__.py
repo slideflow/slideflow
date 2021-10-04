@@ -1,34 +1,23 @@
 import os
 from slideflow.util import log
 if os.environ['SF_BACKEND'] == 'tensorflow':
-    from slideflow.model.tensorflow import HyperParameters
+    from slideflow.model.tensorflow import ModelParams
     from slideflow.model.tensorflow import Trainer
     from slideflow.model.tensorflow import LinearTrainer
     from slideflow.model.tensorflow import CPHTrainer
 elif os.environ['SF_BACKEND'] == 'torch':
-    from slideflow.model.torch import HyperParameters
+    from slideflow.model.torch import ModelParams
     from slideflow.model.torch import Trainer
 else:
     raise ValueError(f"Unknown backend {os.environ['SF_BACKEND']}")
-from slideflow.model.utils import get_hp_from_batch_file
-
-class HyperParameterError(Exception):
-    pass
-
-class ManifestError(Exception):
-    pass
-
-class ModelError(Exception):
-    def __init__(self, message, errors=None):
-        log.error(message)
-        super().__init__(message)
+from slideflow.model.utils import get_hp_from_batch_file, ModelError
 
 def trainer_from_hp(hp, **kwargs):
-    """From the given :class:`slideflow.model.HyperParameters` object, returns the appropriate instance of
+    """From the given :class:`slideflow.model.ModelParams` object, returns the appropriate instance of
     :class:`slideflow.model.Model`.
 
     Args:
-        hp (:class:`slideflow.model.HyperParameters`): HyperParameters object.
+        hp (:class:`slideflow.model.ModelParams`): ModelParams object.
 
     Keyword Args:
         outdir (str): Location where event logs and checkpoints will be written.
@@ -49,10 +38,10 @@ def trainer_from_hp(hp, **kwargs):
     """
 
     if hp.model_type() == 'categorical':
-        return Trainer(hp, **kwargs)
+        return Trainer(hp=hp, **kwargs)
     if hp.model_type() == 'linear':
-        return LinearTrainer(hp, **kwargs)
+        return LinearTrainer(hp=hp, **kwargs)
     if hp.model_type() == 'cph':
-        return CPHTrainer(hp, **kwargs)
+        return CPHTrainer(hp=hp, **kwargs)
     else:
         raise ModelError(f"Unknown model type: {hp.model_type()}")

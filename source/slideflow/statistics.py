@@ -1332,12 +1332,15 @@ def predict_from_torch(model, dataset):
 
     # Get predictions and performance metrics
     model.eval()
-    for img, yt, slide in tqdm(dataset, total=dataset.num_tiles // dataset.batch_size, ncols=80, unit_scale=32):
-        img = img.to(torch.device('cuda:0'))
+    device = torch.device('cuda:0')
+    pb = tqdm(total=dataset.num_tiles, ncols=100, unit='img', leave=False)
+    for img, yt, slide in dataset:
+        img = img.to(device, non_blocking=True)
 
-        with torch.no_grad():
-            res = model(img).cpu().numpy().copy()
-            y_pred += [res]
+        with torch.cuda.amp.autocast():
+            with torch.no_grad():
+                res = model(img).cpu().numpy().copy()
+                y_pred += [res]
 
         if type(yt) == dict:
             y_true += [[yt[f'out-{o}'] for o in range(len(yt))]]
@@ -1347,6 +1350,7 @@ def predict_from_torch(model, dataset):
 
         tile_to_slides += slide
         if not detected_batch_size: detected_batch_size = len(slide)
+        pb.update(dataset.batch_size)
 
     if log.getEffectiveLevel() <= 20: sf.util.clear_console()
 
@@ -1367,7 +1371,7 @@ def predict_from_torch(model, dataset):
 
     return y_true, y_pred, tile_to_slides
 
-def predict_from_model(model, dataset, num_tiles=0):
+def predict_from_tensorflow(model, dataset, num_tiles=0):
 
     """Generates predictions (y_true, y_pred, tile_to_slide) from a given model and dataset.
 
@@ -1474,7 +1478,7 @@ def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_l
 
 def metrics_from_dataset(model, model_type, labels, patients, manifest, dataset, outcome_names=None, label=None,
                          min_tiles_per_slide=0, data_dir=None, num_tiles=0, histogram=False, verbose=True,
-                         save_predictions=True, method='tensorflow'):
+                         save_predictions=True):
 
     """Evaluate performance of a given model on a given TFRecord dataset,
     generating a variety of statistical outcomes and graphs.
@@ -1501,8 +1505,8 @@ def metrics_from_dataset(model, model_type, labels, patients, manifest, dataset,
         auc, r_squared, c_index
     """
 
-    if method == 'tensorflow':
-        y_true, y_pred, tile_to_slides = predict_from_model(model, dataset, num_tiles=num_tiles)
+    if sf.backend() == 'tensorflow':
+        y_true, y_pred, tile_to_slides = predict_from_tensorflow(model, dataset, num_tiles=num_tiles)
     else:
         y_true, y_pred, tile_to_slides = predict_from_torch(model, dataset)
 

@@ -307,7 +307,7 @@ class Dataset:
 
             # Check for interrupted or already-extracted tfrecords
             if skip_extracted and save_tfrecord:
-                already_done = [sf.util.path_to_name(tfr) for tfr in self.get_tfrecords(source=source)]
+                already_done = [sf.util.path_to_name(tfr) for tfr in self.tfrecords(source=source)]
                 interrupted = [sf.util.path_to_name(marker) for marker in glob(join((tfrecord_dir
                                                            if tfrecord_dir else tiles_dir), '*.unfinished'))]
                 if len(interrupted):
@@ -441,7 +441,7 @@ class Dataset:
             dest (str): Path to directory in which to save tile images. Defaults to None. If None, uses dataset default.
         """
         for source in self.sources:
-            to_extract_tfrecords = self.get_tfrecords(source=source)
+            to_extract_tfrecords = self.tfrecords(source=source)
             if dest:
                 tiles_dir = dest
             else:
@@ -513,9 +513,9 @@ class Dataset:
 
         # Now filter out any tfrecords that would be excluded by filters
         if key == 'path':
-            filtered_tfrecords = self.get_tfrecords()
+            filtered_tfrecords = self.tfrecords()
         else:
-            filtered_tfrecords = [sf.util.path_to_name(tfr) for tfr in self.get_tfrecords()]
+            filtered_tfrecords = [sf.util.path_to_name(tfr) for tfr in self.tfrecords()]
         manifest_tfrecords = list(combined_manifest.keys())
         for tfr in manifest_tfrecords:
             if tfr not in filtered_tfrecords:
@@ -630,7 +630,7 @@ class Dataset:
         else:
             return paths
 
-    def get_tfrecords(self, source=None):
+    def tfrecords(self, source=None):
         """Returns a list of all tfrecords."""
         if source and source not in self.sources.keys():
             log.error(f"Dataset {source} not found.")
@@ -845,7 +845,7 @@ class Dataset:
         """
 
         log.info(f'Resizing TFRecord tiles to ({tile_px}, {tile_px})')
-        tfrecords_list = self.get_tfrecords()
+        tfrecords_list = self.tfrecords()
         log.info(f'Resizing {len(tfrecords_list)} tfrecords')
         for tfr in tfrecords_list:
             sf.io.tensorflow.transform_tfrecord(tfr, tfr+'.transformed', resize=tile_px)
@@ -926,7 +926,7 @@ class Dataset:
         import slideflow.io.tensorflow
         import tensorflow as tf
 
-        tfrecords = self.get_tfrecords()
+        tfrecords = self.tfrecords()
         slides = {sf.util.path_to_name(s):s for s in self.get_slide_paths()}
         rois = self.get_rois()
         manifest = self.manifest()
@@ -976,7 +976,7 @@ class Dataset:
         if normalizer: log.info(f'Using realtime {normalizer} normalization')
         normalizer = None if not normalizer else sf.util.StainNormalizer(method=normalizer, source=normalizer_source)
 
-        tfrecord_list = self.get_tfrecords()
+        tfrecord_list = self.tfrecords()
         reports = []
         log.info('Generating TFRecords report...')
         for tfr in tfrecord_list:
@@ -1059,7 +1059,7 @@ class Dataset:
 
         # Assemble dictionary of patients linking to list of slides and outcome labels
         # dataset.labels() ensures no duplicate outcome labels are found in a single patient
-        tfrecord_dir_list = self.get_tfrecords()
+        tfrecord_dir_list = self.tfrecords()
         tfrecord_dir_list_names = [tfr.split('/')[-1][:-10] for tfr in tfrecord_dir_list]
         patients_dict = {}
         num_warned = 0

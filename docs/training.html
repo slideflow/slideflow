@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Training &mdash; slideflow 1.12.0 documentation</title>
+  <title>Training &mdash; slideflow 1.12.0-rc1 documentation</title>
   
 
   
@@ -152,6 +152,7 @@
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -160,13 +161,17 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tfrecords</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.reader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="statistics.html">slideflow.statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
 </ul>
 
             
@@ -243,9 +248,9 @@
 <h1>Training<a class="headerlink" href="#training" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="prepare-hyperparameters">
 <h2>Prepare hyperparameters<a class="headerlink" href="#prepare-hyperparameters" title="Permalink to this headline">¶</a></h2>
-<p>There are two methods for configuring model hyperparameters. If you intend to train a model using a single combination of hyperparameters, use the <code class="docutils literal notranslate"><span class="pre">HyperParameters</span></code> class:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hp</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">HyperParameters</span><span class="p">(</span>
-    <span class="n">finetune_epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
+<p>There are two methods for configuring model hyperparameters. If you intend to train a model using a single combination of hyperparameters, use the <code class="docutils literal notranslate"><span class="pre">ModelParams</span></code> class:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hp</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span>
+    <span class="n">epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
     <span class="n">model</span><span class="o">=</span><span class="s1">&#39;Xception&#39;</span><span class="p">,</span>
     <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
     <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.00001</span><span class="p">,</span>
@@ -254,7 +259,7 @@
 </div>
 <p>Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the <code class="docutils literal notranslate"><span class="pre">create_hyperparameter_sweep</span></code> function to automatically save a sweep to a TSV file. For example, the following would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">create_hyperparameter_sweep</span><span class="p">(</span>
-    <span class="n">finetune_epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span>
+    <span class="n">epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span>
     <span class="n">toplayer_epochs</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
     <span class="n">model</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Xception&#39;</span><span class="p">],</span>
     <span class="n">pooling</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;avg&#39;</span><span class="p">],</span>
@@ -274,7 +279,7 @@
 <ul class="simple">
 <li><p><strong>tile_px</strong> - size of extracted tiles in pixels</p></li>
 <li><p><strong>tile_um</strong> - size of extracted tiles in microns</p></li>
-<li><p><strong>finetune_epochs</strong> - number of epochs to spend training the full model</p></li>
+<li><p><strong>epochs</strong> - number of epochs to spend training the full model</p></li>
 <li><p><strong>toplayer_epochs</strong> - number of epochs to spend training just the final layer, with all convolutional layers “locked” (sometimes used for transfer learning)</p></li>
 <li><p><strong>model</strong> - model architecture; please see <a class="reference external" href="https://keras.io/applications/">Keras application documentation</a> for all options</p></li>
 <li><p><strong>pooling</strong> - pooling strategy to use before final fully-connected layers; either ‘max’, ‘avg’, or ‘none’</p></li>
@@ -294,24 +299,24 @@
 <li><p><strong>trainable_layers</strong> - number of layers available for training, other layers will be frozen. If 0, all layers are trained</p></li>
 <li><p><strong>L2_weight</strong> - if provided, adds L2 regularization to all layers with this weight</p></li>
 <li><p><strong>dropout</strong> - dropout, used for post-convolutional layer.</p></li>
-<li><p><strong>augment</strong> - Image augmentations to perform, including flipping/rotating and random JPEG compression. Please see <a class="reference internal" href="model.html#slideflow.model.HyperParameters" title="slideflow.model.HyperParameters"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.HyperParameters</span></code></a> for more details.</p></li>
+<li><p><strong>augment</strong> - Image augmentations to perform, including flipping/rotating and random JPEG compression. Please see <a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a> for more details.</p></li>
 </ul>
-<p>If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in <code class="docutils literal notranslate"><span class="pre">slideflow.model.HyperParameters._LinearLoss</span></code>, and all available loss functions are in <code class="docutils literal notranslate"><span class="pre">slideflow.model.HyperParameters._AllLoss</span></code>.</p>
+<p>If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in <code class="docutils literal notranslate"><span class="pre">slideflow.model.ModelParams._LinearLoss</span></code>, and all available loss functions are in <code class="docutils literal notranslate"><span class="pre">slideflow.model.ModelParams._AllLoss</span></code>.</p>
 </div>
 <div class="section" id="begin-training">
 <h2>Begin training<a class="headerlink" href="#begin-training" title="Permalink to this headline">¶</a></h2>
 <p>Once your hyperparameter settings have been chosen you may begin training using the <code class="docutils literal notranslate"><span class="pre">train</span></code> function. Documentation of the function is given below:</p>
 <dl class="py function">
 <dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">slideflow.project.Project.</span></span><span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome_label_headers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hyperparameters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sweep'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exp_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_header</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resume_training</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pretrain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'imagenet'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">training_kwargs</span></span></em><span class="sig-paren">)</span></dt>
+<span class="sig-prename descclassname"><span class="pre">slideflow.project.Project.</span></span><span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome_label_headers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hyperparameters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sweep'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exp_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_header</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resume_training</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pretrain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'imagenet'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_gpu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">training_kwargs</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Train model(s) using a given set of hyperparameters, outcomes, and inputs.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>outcome_label_headers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Str or list of str. Annotation column header specifying the outcome label(s).</p></li>
-<li><p><strong>hyperparameters</strong> (<a class="reference internal" href="model.html#slideflow.model.HyperParameters" title="slideflow.model.HyperParameters"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.HyperParameters</span></code></a>, list, dict, or str) – Defaults to ‘sweep’.
+<li><p><strong>hyperparameters</strong> (<a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a>, list, dict, or str) – Defaults to ‘sweep’.
 If ‘sweep’, will use project batch train configuration file to sweep through all HP combinations.
-Additionally, a <a class="reference internal" href="model.html#slideflow.model.HyperParameters" title="slideflow.model.HyperParameters"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.HyperParameters</span></code></a> may be provided, either individually,
+Additionally, a <a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a> may be provided, either individually,
 as a list, or as a dictionary mapping model names to HP objects. Please see examples below for use.</p></li>
 <li><p><strong>exp_label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Optional experiment label to add to each model name.</p></li>
 <li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters dict to use when selecting tfrecords. Defaults to None.
@@ -326,6 +331,7 @@ Defaults to ‘imagenet’.</p></li>
 <li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image. Defaults to None.
 If None but using a normalizer, will use an internal tile for normalization.
 Internal default tile can be found at slideflow.util.norm_tile.jpg</p></li>
+<li><p><strong>multi_gpu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – Train using multiple GPUs using Keras MirroredStrategy when available. Defaults to True.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Keyword Arguments</dt>
@@ -353,7 +359,6 @@ May improve training time for large projects.</p></li>
 <li><p><strong>validate_on_batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Validation will be performed every N batches. Defaults to 512.</p></li>
 <li><p><strong>validation_batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Validation dataset batch size. Defaults to 32.</p></li>
 <li><p><strong>use_tensorboard</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – Add tensorboard callback for realtime training monitoring. Defaults to False.</p></li>
-<li><p><strong>multi_gpu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – Train using multiple GPUs using Keras MirroredStrategy when available. Defaults to True.</p></li>
 <li><p><strong>validation_steps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Number of steps of validation to perform each time doing a validation check.
 Defaults to 200.</p></li>
 </ul>
@@ -374,20 +379,20 @@ Defaults to 200.</p></li>
 </pre></div>
 </div>
 <p>Method 3 (manually specified hyperparameters):</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">HyperParameters</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="n">HyperParameters</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="s1">&#39;outcome&#39;</span><span class="p">,</span> <span class="n">hyperparameters</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Method 4 (list of hyperparameters):</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">HyperParameters</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="p">[</span><span class="n">HyperParameters</span><span class="p">(</span><span class="o">...</span><span class="p">),</span> <span class="n">HyperParameters</span><span class="p">(</span><span class="o">...</span><span class="p">)]</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="p">[</span><span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">),</span> <span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">)]</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="s1">&#39;outcome&#39;</span><span class="p">,</span> <span class="n">hyperparameters</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Method 5 (dict of hyperparameters):</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">HyperParameters</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;HP0&#39;</span><span class="p">:</span> <span class="n">HyperParameters</span><span class="p">(</span><span class="o">...</span><span class="p">),</span> <span class="s1">&#39;HP1&#39;</span><span class="p">:</span> <span class="n">HyperParameters</span><span class="p">(</span><span class="o">...</span><span class="p">)}</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;HP0&#39;</span><span class="p">:</span> <span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">),</span> <span class="s1">&#39;HP1&#39;</span><span class="p">:</span> <span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">)}</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="s1">&#39;outcome&#39;</span><span class="p">,</span> <span class="n">hyperparameters</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -395,7 +400,7 @@ Defaults to 200.</p></li>
 </dl>
 </dd></dl>
 
-<p>If you used the <code class="docutils literal notranslate"><span class="pre">HyperParameters</span></code> class to configure a single combination of parameters, pass this object via the <code class="docutils literal notranslate"><span class="pre">hyperparameters</span></code> argument. If you configured a hyperparameter sweep, set the <code class="docutils literal notranslate"><span class="pre">batch_file</span></code> argument to the name of your hyperparameter sweep file (saved by default to ‘batch_train.tsv’).</p>
+<p>If you used the <code class="docutils literal notranslate"><span class="pre">ModelParams</span></code> class to configure a single combination of parameters, pass this object via the <code class="docutils literal notranslate"><span class="pre">hyperparameters</span></code> argument. If you configured a hyperparameter sweep, set the <code class="docutils literal notranslate"><span class="pre">batch_file</span></code> argument to the name of your hyperparameter sweep file (saved by default to ‘batch_train.tsv’).</p>
 <p>Your outcome variable(s) are specified with the <code class="docutils literal notranslate"><span class="pre">outcome_label_headers</span></code> argument. You may filter slides for training using the <code class="docutils literal notranslate"><span class="pre">filter</span></code> argument, as previously described.</p>
 <p>For example, to train using only slides labeled as “train” in the “dataset” column, with the outcome variable defined by the column “category”, use the following syntax:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">outcome_label_headers</span><span class="o">=</span><span class="s2">&quot;category&quot;</span><span class="p">,</span>

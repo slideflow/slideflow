@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.slide &mdash; slideflow 1.12.0 documentation</title>
+  <title>slideflow.slide &mdash; slideflow 1.12.0-rc1 documentation</title>
   
 
   
@@ -152,6 +152,7 @@
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -160,13 +161,17 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tfrecords</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.reader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="statistics.html">slideflow.statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
 </ul>
 
             
@@ -274,34 +279,6 @@ format TFRecords, with or without data augmentation.</p>
 </dd>
 </dl>
 </dd></dl>
-
-</dd></dl>
-
-<dl class="py exception">
-<dt class="sig sig-object py" id="slideflow.slide.InvalidTileSplitException">
-<em class="property"><span class="pre">exception</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.slide.</span></span><span class="sig-name descname"><span class="pre">InvalidTileSplitException</span></span><a class="headerlink" href="#slideflow.slide.InvalidTileSplitException" title="Permalink to this definition">¶</a></dt>
-<dd><p>Raised when invalid tile splitting parameters are given to WSI.</p>
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="slideflow.slide.JPGslideToVIPS">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.slide.</span></span><span class="sig-name descname"><span class="pre">JPGslideToVIPS</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.slide.JPGslideToVIPS" title="Permalink to this definition">¶</a></dt>
-<dd><p>Wrapper for JPG files, which do not possess separate levels, to preserve openslide-like functions.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="slideflow.slide.JPGslideToVIPS.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.slide.JPGslideToVIPS.__init__" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="slideflow.slide.ROI">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.slide.</span></span><span class="sig-name descname"><span class="pre">ROI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.slide.ROI" title="Permalink to this definition">¶</a></dt>
-<dd><p>Object container for ROI annotations.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="slideflow.slide.ROI.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.slide.ROI.__init__" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
 
 </dd></dl>
 
@@ -422,9 +399,9 @@ Defaults to ‘inside’.</p></li>
 Vastly improves extraction speed if an SSD or ramdisk buffer is used. Defaults to None</p></li>
 <li><p><strong>pb</strong> (<a class="reference internal" href="util.html#slideflow.util.ProgressBar" title="slideflow.util.ProgressBar"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.util.ProgressBar</span></code></a>, optional) – Multiprocessing-capable ProgressBar instance; will
 update progress bar during tile extraction if provided. Used for multiprocessing tile extraction.</p></li>
-<li><p><strong>(</strong> (<em>counter_lock</em>) – obj:): Multiprocessing counter (a multiprocessing Value, from Progress Bar) used to follow
+<li><p><strong>pb_counter</strong> (<em>obj</em>) – Multiprocessing counter (a multiprocessing Value, from Progress Bar) used to follow
 tile extraction progress. Defaults to None.</p></li>
-<li><p><strong>(</strong> – obj:): Lock object for updating pb_counter, if provided. Defaults to None.</p></li>
+<li><p><strong>counter_lock</strong> (<em>obj</em>) – Lock object for updating pb_counter, if provided. Defaults to None.</p></li>
 </ul>
 </dd>
 </dl>

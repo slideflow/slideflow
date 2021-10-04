@@ -4,11 +4,11 @@ Training
 Prepare hyperparameters
 ***********************
 
-There are two methods for configuring model hyperparameters. If you intend to train a model using a single combination of hyperparameters, use the ``HyperParameters`` class:
+There are two methods for configuring model hyperparameters. If you intend to train a model using a single combination of hyperparameters, use the ``ModelParams`` class:
 
 .. code-block:: python
 
-    hp = sf.model.HyperParameters(
+    hp = sf.model.ModelParams(
         epochs=[1, 5],
         model='Xception',
         loss='sparse_categorical_crossentropy',
@@ -59,9 +59,9 @@ Available hyperparameters include:
 - **trainable_layers** - number of layers available for training, other layers will be frozen. If 0, all layers are trained
 - **L2_weight** - if provided, adds L2 regularization to all layers with this weight
 - **dropout** - dropout, used for post-convolutional layer.
-- **augment** - Image augmentations to perform, including flipping/rotating and random JPEG compression. Please see :class:`slideflow.model.HyperParameters` for more details.
+- **augment** - Image augmentations to perform, including flipping/rotating and random JPEG compression. Please see :class:`slideflow.model.ModelParams` for more details.
 
-If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.HyperParameters._LinearLoss``, and all available loss functions are in ``slideflow.model.HyperParameters._AllLoss``.
+If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.ModelParams._LinearLoss``, and all available loss functions are in ``slideflow.model.ModelParams._AllLoss``.
 
 Begin training
 **************
@@ -71,7 +71,7 @@ Once your hyperparameter settings have been chosen you may begin training using 
 .. autofunction:: slideflow.project.Project.train
    :noindex:
 
-If you used the ``HyperParameters`` class to configure a single combination of parameters, pass this object via the ``hyperparameters`` argument. If you configured a hyperparameter sweep, set the ``batch_file`` argument to the name of your hyperparameter sweep file (saved by default to 'batch_train.tsv').
+If you used the ``ModelParams`` class to configure a single combination of parameters, pass this object via the ``hyperparameters`` argument. If you configured a hyperparameter sweep, set the ``batch_file`` argument to the name of your hyperparameter sweep file (saved by default to 'batch_train.tsv').
 
 Your outcome variable(s) are specified with the ``outcome_label_headers`` argument. You may filter slides for training using the ``filter`` argument, as previously described.
 

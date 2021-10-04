@@ -90,7 +90,7 @@ Alternatively, you can create an instance of this class directly:
 
     AV = sf.activations.ActivationsVisualizer(
         model='/path/to/trained_model',
-        tfrecords=dataset.get_tfrecords(),
+        tfrecords=dataset.tfrecords(),
         annotations=dataset.slide_to_label('HPV')
     )
 

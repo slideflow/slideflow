@@ -78,7 +78,7 @@ class ActivationsInterface:
         if layers and not isinstance(layers, list): layers = [layers]
         self.path = path
         try:
-            self.hp = sf.util.get_model_hyperparameters(path)
+            self.hp = sf.util.get_model_params(path)
         except:
             self.hp = None
         self.num_logits = 0
@@ -255,7 +255,7 @@ class ActivationsVisualizer:
         self.model = model
         self.tfrecords = np.array(tfrecords)
         self.slides = sorted([sf.util.path_to_name(tfr) for tfr in self.tfrecords])
-        self.tile_px = sf.util.get_model_hyperparameters(model)['tile_px']
+        self.tile_px = sf.util.get_model_params(model)['tile_px']
 
         if min_tiles_per_slide and not manifest:
             raise ActivationsError("'manifest' must be provided if specifying min_tiles_per_slide.")
@@ -870,7 +870,7 @@ class Heatmap:
             roi_method = 'ignore'
 
         interface = ActivationsInterface(model, layers=None, include_logits=True)
-        model_hyperparameters = sf.util.get_model_hyperparameters(model)
+        model_hyperparameters = sf.util.get_model_params(model)
         self.tile_px = model_hyperparameters['tile_px']
         self.tile_um = model_hyperparameters['tile_um']
         self.num_classes = interface.num_logits

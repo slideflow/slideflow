@@ -37,26 +37,26 @@ def _heatmap_worker(slide, heatmap_args, kwargs):
                       num_threads=heatmap_args.num_threads)
     heatmap.save(heatmap_args.outdir, **kwargs)
 
-def _trainer(training_args, model_kwargs, training_kwargs, results_dict):
+def _train_worker(training_args, model_kwargs, training_kwargs, results_dict):
     """Internal function to execute model training in an isolated process."""
 
     import slideflow.model
     log.setLevel(training_args.verbosity)
 
     # Build a model using the slide list as input and the annotations dictionary as output labels
-    SFM = sf.model.trainer_from_hp(training_args.hp,
-                                   outdir=training_args.model_dir,
-                                   labels=training_args.labels,
-                                   patients=training_args.patients,
-                                   slide_input=training_args.slide_input,
-                                   **model_kwargs)
+    trainer = sf.model.trainer_from_hp(training_args.hp,
+                                        outdir=training_args.model_dir,
+                                        labels=training_args.labels,
+                                        patients=training_args.patients,
+                                        slide_input=training_args.slide_input,
+                                        **model_kwargs)
 
-    results = SFM.train(training_args.training_tfrecords,
-                        training_args.val_tfrecords,
-                        pretrain=training_args.pretrain,
-                        resume_training=training_args.resume_training,
-                        checkpoint=training_args.checkpoint,
-                        **training_kwargs)
+    results = trainer.train(training_args.training_tfrecords,
+                            training_args.val_tfrecords,
+                            pretrain=training_args.pretrain,
+                            checkpoint=training_args.checkpoint,
+                            multi_gpu=training_args.multi_gpu,
+                            **training_kwargs)
 
     results_dict.update({model_kwargs['name']: results})
 
@@ -134,13 +134,13 @@ def load_sources(path):
 
 def create_blank_train_config(filename):
     """Creates a TSV file with the batch training hyperparameter structure."""
-    from slideflow.model import HyperParameters
+    from slideflow.model import ModelParams
     with open(filename, 'w') as csv_outfile:
         writer = csv.writer(csv_outfile, delimiter='\t')
         # Create headers and first row
         header = ['model_name']
         firstrow = ['model1']
-        default_hp = HyperParameters()
+        default_hp = ModelParams()
         for arg in default_hp._get_args():
             header += [arg]
             firstrow += [getattr(default_hp, arg)]

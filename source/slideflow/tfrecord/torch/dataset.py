@@ -126,6 +126,11 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         provided in the description, transforms it and returns a
         desirable output.
 
+    shard: tuple of ints, optional, default=None
+        A tuple (index, count) representing worker_id and num_workers
+        count. Necessary to evenly split/shard the dataset among many
+        workers (i.e. >1).
+
     sequence_description: list or dict of str, optional, default=None
         Similar to `description`, but refers to the sequence features
         within a `SequenceExample`. When this field is `None`, then it

@@ -106,9 +106,13 @@ predict_from_layer
 ----------------------
 .. autofunction:: predict_from_layer
 
-predict_from_model
+predict_from_tensorflow
+------------------------
+.. autofunction:: predict_from_tensorflow
+
+predict_from_torch
 ----------------------
-.. autofunction:: predict_from_model
+.. autofunction:: predict_from_torch
 
 save_histogram
 ----------------------

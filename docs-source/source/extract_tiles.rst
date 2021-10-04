@@ -76,6 +76,4 @@ Extraction reports
 
 Once tiles have been extracted, a PDF report will be generated with a summary and sample of tiles extracted from their corresponding slides. An example of such a report is given below. It is generally good practice to review this report, as you may catch slides with data corruption, artifacts with stain normalization, or suboptimal whitespace/grayspace filtering. The report is saved in the project root directory.
 
-.. image:: extraction_report.png
-
 In addition to viewing reports after tile extraction, you may generate new reports on existing tfrecords with :func:`slideflow.project.Project.tfrecord_report`. You can also generate reports for slides that have not yet been extracted with :func:`slideflow.project.Project.slide_report`.

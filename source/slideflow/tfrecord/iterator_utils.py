@@ -57,8 +57,9 @@ def sample_iterators(iterators: typing.List[typing.Iterator],
 
 
 def sample_chunk_iterators(iterators: typing.List[typing.Iterator],
-                     ratios: typing.List[int],
-                     infinite: bool = True) -> typing.Iterable[typing.Any]:
+                           ratios: typing.List[int],
+                           infinite: bool = True,
+                           shard: typing.Optional[typing.Tuple[int, int]] = None,) -> typing.Iterable[typing.Any]:
     """Retrieve info generated from the iterator(s) according to their
     sampling ratios.
 
@@ -72,6 +73,13 @@ def sample_chunk_iterators(iterators: typing.List[typing.Iterator],
 
     infinite: bool, optional, default=True
         Whether the returned iterator should be infinite or not
+
+    shard: tuple of ints, optional, default=None
+        A tuple (index, count) representing worker_id and num_workers
+        count. Necessary to evenly split/shard the dataset among many
+        workers (i.e. >1) and synchronize random sampling.
+
+    shard:
 
     Yields:
     -------
@@ -87,7 +95,6 @@ def sample_chunk_iterators(iterators: typing.List[typing.Iterator],
     chunks = {str(idx):deque() for idx in range(len(ratios))}
     chunk_counts = {str(r):0 for r in range(len(ratios))}
     chunklock = threading.Lock()
-    finishedlock = threading.Lock()
     chunk_threads = {}
     finished_iteration = []
     finished_yield = []
@@ -106,8 +113,7 @@ def sample_chunk_iterators(iterators: typing.List[typing.Iterator],
                 chunks[c].extend(chunk)
                 chunk_counts[c] += len(chunk)
         except StopIteration:
-            with finishedlock:
-                finished_iteration += [c]
+            finished_iteration += [c]
         if c in chunk_threads:
             with chunklock:
                 del chunk_threads[c]
@@ -118,15 +124,14 @@ def sample_chunk_iterators(iterators: typing.List[typing.Iterator],
     for t in start_threads:
         t.join()
 
+    global_idx = -1
     while finished_count < num_total:
-        with finishedlock:
-            ratio_keys = [r for r in ratios if r not in finished_yield]
-            ratio_vals = [ratios[r] for r in ratio_keys]
-        try:
-            choice = str(random.choices(ratio_keys, ratio_vals, k=1)[0])
-        except IndexError as e:
-            print(ratio_keys, ratio_vals)
-            raise e
+        global_idx += 1
+        ratio_keys = [r for r in ratios if r not in finished_yield]
+        ratio_vals = [ratios[r] for r in ratio_keys]
+        choice = str(random.choices(ratio_keys, ratio_vals, k=1)[0])
+        if shard is not None and (global_idx % shard[1] != shard[0]):
+            continue
         if choice in chunk_threads:
             chunk_threads[choice].join()
         if chunk_counts[choice]:
@@ -146,7 +151,9 @@ def sample_chunk_iterators(iterators: typing.List[typing.Iterator],
             finished_yield += [choice]
             finished_count += 1
         else:
+            #print('Dump:', choice, chunk_counts[choice], choice in chunk_threads, choice in finished_iteration, choice in finished_yield)
             raise IndexError(f"This shouldn't happen!: {choice}")
+            #pass
 
 def shuffle_iterator(iterator: typing.Iterator,
                      queue_size: int) -> typing.Iterable[typing.Any]:
