@@ -4,12 +4,12 @@ Training
 Prepare hyperparameters
 ***********************
 
-There are two methods for configuring model hyperparameters. If you intend to train a model using a single combination of hyperparameters, use the ``HyperParameters`` class:
+There are two methods for configuring model hyperparameters. If you intend to train a model using a single combination of hyperparameters, use the ``ModelParams`` class:
 
 .. code-block:: python
 
-    hp = sf.model.HyperParameters(
-        finetune_epochs=[1, 5],
+    hp = sf.model.ModelParams(
+        epochs=[1, 5],
         model='Xception',
         loss='sparse_categorical_crossentropy',
         learning_rate=0.00001,
@@ -20,7 +20,7 @@ Alternatively, if you intend to perform a sweep across multiple hyperparameter c
 .. code-block:: python
 
     SFP.create_hyperparameter_sweep(
-        finetune_epochs=[5],
+        epochs=[5],
         toplayer_epochs=0,
         model=['Xception'],
         pooling=['avg'],
@@ -39,7 +39,7 @@ Available hyperparameters include:
 
 - **tile_px** - size of extracted tiles in pixels
 - **tile_um** - size of extracted tiles in microns
-- **finetune_epochs** - number of epochs to spend training the full model
+- **epochs** - number of epochs to spend training the full model
 - **toplayer_epochs** - number of epochs to spend training just the final layer, with all convolutional layers "locked" (sometimes used for transfer learning)
 - **model** - model architecture; please see `Keras application documentation <https://keras.io/applications/>`_ for all options
 - **pooling** - pooling strategy to use before final fully-connected layers; either 'max', 'avg', or 'none'
@@ -59,9 +59,9 @@ Available hyperparameters include:
 - **trainable_layers** - number of layers available for training, other layers will be frozen. If 0, all layers are trained
 - **L2_weight** - if provided, adds L2 regularization to all layers with this weight
 - **dropout** - dropout, used for post-convolutional layer.
-- **augment** - Image augmentations to perform, including flipping/rotating and random JPEG compression. Please see :class:`slideflow.model.HyperParameters` for more details.
+- **augment** - Image augmentations to perform, including flipping/rotating and random JPEG compression. Please see :class:`slideflow.model.ModelParams` for more details.
 
-If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.HyperParameters._LinearLoss``, and all available loss functions are in ``slideflow.model.HyperParameters._AllLoss``.
+If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.ModelParams._LinearLoss``, and all available loss functions are in ``slideflow.model.ModelParams._AllLoss``.
 
 Begin training
 **************
@@ -71,7 +71,7 @@ Once your hyperparameter settings have been chosen you may begin training using 
 .. autofunction:: slideflow.project.Project.train
    :noindex:
 
-If you used the ``HyperParameters`` class to configure a single combination of parameters, pass this object via the ``hyperparameters`` argument. If you configured a hyperparameter sweep, set the ``batch_file`` argument to the name of your hyperparameter sweep file (saved by default to 'batch_train.tsv').
+If you used the ``ModelParams`` class to configure a single combination of parameters, pass this object via the ``hyperparameters`` argument. If you configured a hyperparameter sweep, set the ``batch_file`` argument to the name of your hyperparameter sweep file (saved by default to 'batch_train.tsv').
 
 Your outcome variable(s) are specified with the ``outcome_label_headers`` argument. You may filter slides for training using the ``filter`` argument, as previously described.
 

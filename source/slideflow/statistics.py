@@ -626,6 +626,7 @@ def _generate_tile_roc(i, y_true, y_pred, data_dir, label_start, histogram=False
 
 def _get_average_by_group(prediction_array, prediction_label, unique_groups, tile_to_group, y_true_group,
                             num_cat, label_end, save_predictions=False, data_dir=None, label='group'):
+
     """Internal function to generate group-level averages (e.g. slide-level or patient-level).
 
     For a given tile-level prediction array, calculate spercent predictions
@@ -1170,7 +1171,7 @@ def save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end,
                 writer.writerow(row)
     log.info(f"Predictions saved to {sf.util.green(data_dir)}")
 
-def metrics_from_predictions(y_true, y_pred, tile_to_slides, annotations, model_type, manifest, outcome_names=None,
+def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, model_type, manifest, outcome_names=None,
                              label=None, min_tiles_per_slide=0, data_dir=None, verbose=True, save_predictions=True,
                              histogram=False, plot=True):
 
@@ -1183,9 +1184,10 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, annotations, model_
         y_true (ndarray): True labels for the dataset.
         y_pred (ndarray): Predicted labels for the dataset.
         tile_to_slides (list(str)): List of length y_true of slide names.
-        annotations (dict): Dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
+        labels (dict): Dictionary mapping slidenames to outcomes.
+        patients (dict): Dictionary mapping slidenames to patients.
         model_type (str): Either 'linear', 'categorical', or 'cph'.
-        manifest (dict): Number of tiles per tfrecord, as provided by :meth:`slideflow.dataset.Datset.get_manifest`
+        manifest (dict): Number of tiles per tfrecord, as provided by :meth:`slideflow.dataset.Datset.manifest`
         outcome_names (list, optional): List of str, names for outcomes. Defaults to None.
         label (str, optional): Label prefix/suffix for saving. Defaults to None.
         min_tiles_per_slide (int, optional): Minimum tiles per slide to include in metrics. Defaults to 0.
@@ -1202,8 +1204,8 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, annotations, model_
     label_end = "" if not label else f"_{label}"
     label_start = "" if not label else f"{label}_"
 
-    tile_to_patients = np.array([annotations[slide][sf.util.TCGA.patient] for slide in tile_to_slides])
-    patients = np.unique(tile_to_patients)
+    tile_to_patients = np.array([patients[slide] for slide in tile_to_slides])
+    unique_patients = np.unique(tile_to_patients)
     unique_slides = np.unique(tile_to_slides)
 
     # Filter out slides not meeting minimum tile number criteria, if specified
@@ -1224,13 +1226,13 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, annotations, model_
                     f"in evaluation set (minimum tiles per slide: {min_tiles_per_slide})")
 
     # Set up annotations
-    y_true_slide = {s: annotations[s]['outcome_label'] for s in annotations}
-    y_true_patient = {annotations[s][sf.util.TCGA.patient]: annotations[s]['outcome_label'] for s in annotations}
+    y_true_slide = labels
+    y_true_patient = {patients[s]: labels[s] for s in labels}
 
     # Verify patient outcomes are consistent if multiples slides are present for each patient
     patient_error = False
-    for slide in annotations:
-        patient = annotations[slide][sf.util.TCGA.patient]
+    for slide in labels:
+        patient = patients[slide]
         if  y_true_slide[slide] != y_true_patient[patient]:
             log.error("Data integrity failure; patient assigned to multiple slides w/ different outcomes")
             patient_error = True
@@ -1254,7 +1256,7 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, annotations, model_
         save_tile_predictions = should_save_predictions('tile'),
         data_dir = data_dir,
         patient_error = patient_error,
-        patients = patients,
+        patients = unique_patients,
         r_squared = {'tile': None, 'slide': None, 'patient': None},
         c_index = {'tile': None, 'slide': None, 'patient': None},
         auc = {'tile': {}, 'slide': {}, 'patient': {}},
@@ -1319,7 +1321,57 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, annotations, model_
 
     return combined_metrics
 
-def predict_from_model(model, dataset, num_tiles=0):
+def predict_from_torch(model, dataset):
+    import torch
+    from tqdm import tqdm
+    start = time.time()
+    y_true, y_pred, tile_to_slides = [], [], []
+    detected_batch_size = 0
+
+    log.info("Generating predictions from torch model")
+
+    # Get predictions and performance metrics
+    model.eval()
+    device = torch.device('cuda:0')
+    pb = tqdm(total=dataset.num_tiles, ncols=100, unit='img', leave=False)
+    for img, yt, slide in dataset:
+        img = img.to(device, non_blocking=True)
+
+        with torch.cuda.amp.autocast():
+            with torch.no_grad():
+                res = model(img).cpu().numpy().copy()
+                y_pred += [res]
+
+        if type(yt) == dict:
+            y_true += [[yt[f'out-{o}'] for o in range(len(yt))]]
+        else:
+            yt = yt.detach().numpy().copy()
+            y_true += [yt]
+
+        tile_to_slides += slide
+        if not detected_batch_size: detected_batch_size = len(slide)
+        pb.update(dataset.batch_size)
+
+    if log.getEffectiveLevel() <= 20: sf.util.clear_console()
+
+    tile_to_slides = np.array(tile_to_slides)
+    if type(y_pred[0]) == list:
+        # Concatenate predictions for each outcome
+        y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
+    else:
+        y_pred = np.concatenate(y_pred)
+    if type(y_true[0]) == list:
+        # Concatenate y_true for each outcome
+        y_true = [np.concatenate(yt) for yt in zip(*y_true)]
+    else:
+        y_true = np.concatenate(y_true)
+
+    end = time.time()
+    log.debug(f"Prediction complete. Time to completion: {int(end-start)} s")
+
+    return y_true, y_pred, tile_to_slides
+
+def predict_from_tensorflow(model, dataset, num_tiles=0):
 
     """Generates predictions (y_true, y_pred, tile_to_slide) from a given model and dataset.
 
@@ -1403,7 +1455,7 @@ def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_l
         ndarray: Model predictions.
     """
     import tensorflow as tf
-    from slideflow.model_utils import get_layer_index_by_name
+    from slideflow.model.utils import get_layer_index_by_name
 
     first_hidden_layer_index = get_layer_index_by_name(model, input_layer_name)
     input_shape = model.layers[first_hidden_layer_index].get_input_shape_at(0) # get the input shape of desired layer
@@ -1424,7 +1476,7 @@ def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_l
     y_pred = new_model.predict(layer_input)
     return y_pred
 
-def metrics_from_dataset(model, model_type, annotations, manifest, dataset, outcome_names=None, label=None,
+def metrics_from_dataset(model, model_type, labels, patients, manifest, dataset, outcome_names=None, label=None,
                          min_tiles_per_slide=0, data_dir=None, num_tiles=0, histogram=False, verbose=True,
                          save_predictions=True):
 
@@ -1434,8 +1486,9 @@ def metrics_from_dataset(model, model_type, annotations, manifest, dataset, outc
     Args:
         model (tf.keras.Model): Keras model to evaluate.
         model_type (str): 'categorical', 'linear', or 'cph'.
-        annotations (dict): Dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
-        manifest (dict): Number of tiles per tfrecord, as provided by :meth:`slideflow.dataset.Datset.get_manifest`
+        labels (dict): Dictionary mapping slidenames to outcomes.
+        patients (dict): Dictionary mapping slidenames to patients.
+        manifest (dict): Number of tiles per tfrecord, as provided by :meth:`slideflow.dataset.Datset.manifest`
         dataset (tf.data.Dataset): Tensorflow dataset.
         outcome_names (list, optional): List of str, names for outcomes. Defaults to None.
         label (str, optional): Label prefix/suffix for saving. Defaults to None.
@@ -1452,13 +1505,17 @@ def metrics_from_dataset(model, model_type, annotations, manifest, dataset, outc
         auc, r_squared, c_index
     """
 
-    y_true, y_pred, tile_to_slides = predict_from_model(model, dataset, num_tiles=num_tiles)
+    if sf.backend() == 'tensorflow':
+        y_true, y_pred, tile_to_slides = predict_from_tensorflow(model, dataset, num_tiles=num_tiles)
+    else:
+        y_true, y_pred, tile_to_slides = predict_from_torch(model, dataset)
 
     before_metrics = time.time()
     metrics = metrics_from_predictions(y_true=y_true,
                                         y_pred=y_pred,
                                         tile_to_slides=tile_to_slides,
-                                        annotations=annotations,
+                                        labels=labels,
+                                        patients=patients,
                                         model_type=model_type,
                                         manifest=manifest,
                                         outcome_names=outcome_names,
@@ -1473,7 +1530,7 @@ def metrics_from_dataset(model, model_type, annotations, manifest, dataset, outc
     log.debug(f'Validation metrics generated, time: {after_metrics-before_metrics:.2f} s')
     return metrics
 
-def permutation_feature_importance(model, dataset, annotations, model_type, data_dir,
+def permutation_feature_importance(model, dataset, labels, patients, model_type, data_dir,
                                    outcome_names=None, label=None, manifest=None, min_tiles_per_slide=0, num_tiles=0,
                                    feature_names=None, feature_sizes=None, drop_images=False):
 
@@ -1484,12 +1541,13 @@ def permutation_feature_importance(model, dataset, annotations, model_type, data
         model (str): Path to Tensorflow model.
         dataset (tf.data.Dataset): TFRecord dataset which include three items:
             raw image data, labels, and slide names.
-        annotations (dict): Dictionary mapping slidenames to patients (TCGA.patient) and outcomes (outcome)
+        labels (dict): Dictionary mapping slidenames to outcomes.
+        patients (dict): Dictionary mapping slidenames to patients.
         model_type (str): 'categorical', 'linear', or 'cph'.
         data_dir (str): Path to output data directory.
         outcome_names (list, optional): List of str, names for outcomes. Defaults to None.
         label (str, optional): Label prefix/suffix for saving. Defaults to None.
-        manifest (dict): Number of tiles per tfrecord, as provided by :meth:`slideflow.dataset.Datset.get_manifest`
+        manifest (dict): Number of tiles per tfrecord, as provided by :meth:`slideflow.dataset.Datset.manifest`
         min_tiles_per_slide (int, optional): Minimum tiles per slide to include in metrics. Defaults to 0.
         num_tiles (int, optional): Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.
         feature_names (list, optional): List of str, names for each of the clinical input features.
@@ -1573,7 +1631,8 @@ def permutation_feature_importance(model, dataset, annotations, model_type, data
     base_auc, base_r_squared, base_c_index = metrics_from_predictions(y_true=y_true,
                                                                       y_pred=y_pred,
                                                                       tile_to_slides=tile_to_slides,
-                                                                      annotations=annotations,
+                                                                      labels=labels,
+                                                                      patients=patients,
                                                                       model_type=model_type,
                                                                       manifest=manifest,
                                                                       outcome_names=outcome_names,
@@ -1620,7 +1679,8 @@ def permutation_feature_importance(model, dataset, annotations, model_type, data
         new_auc, new_r, new_c = metrics_from_predictions(y_true=y_true,
                                                 y_pred=y_pred,
                                                 tile_to_slides=tile_to_slides,
-                                                annotations=annotations,
+                                                labels=labels,
+                                                patients=patients,
                                                 model_type=model_type,
                                                 manifest=manifest,
                                                 outcome_names=outcome_names,

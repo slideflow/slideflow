@@ -417,7 +417,7 @@ class Model:
                     self.filters = self.hyperparameters['filters']
                     self.manifest = SlideManifest(join(self.dir, "slide_manifest.log"))
                     self.load_results(join(self.dir, "results_log.csv"))
-                    params = {i:self.hyperparameters['hp'][i] for i in self.hyperparameters['hp'] if i!='finetune_epochs'}
+                    params = {i:self.hyperparameters['hp'][i] for i in self.hyperparameters['hp'] if i!='epochs'}
                     self.hp_key = tuple(sorted(params.items()))
                     self.model_type = self.hyperparameters['model_type']
                     self.outcome_labels = self.hyperparameters['outcome_labels']
@@ -474,8 +474,8 @@ class Model:
         dataset.filters=self.hyperparameters['filters']
         dataset.filter_blank=self.hyperparameters['outcome_label_headers']
         try:
-            _, unique_outcomes = dataset.get_labels_from_annotations(self.hyperparameters['outcome_label_headers'],
-                                                                     use_float=(self.hyperparameters['model_type'] == 'linear'))
+            _, unique_outcomes = dataset.labels(self.hyperparameters['outcome_label_headers'],
+                                                use_float=(self.hyperparameters['model_type'] == 'linear'))
         except TypeError:
             log.error(f"Unable to load results for model {sf.util.green(self.dir)}; model_type is {self.hyperparameters['model_type']} but outcomes in annotations file cannot be converted into float")
             return False

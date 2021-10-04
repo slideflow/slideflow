@@ -18,7 +18,6 @@ from slideflow.statistics import SlideMap
 from os.path import join
 from functools import wraps
 
-
 #TODO:
 #- JPG, TIFF, SVS
 #- Verify properties: dimensions, properties (dict), level_dimensions, level_count, level_downsamples
@@ -124,6 +123,53 @@ def clam_feature_generator(project, model):
     process.join()
 
 # ----------------------------------------
+
+def reader_tester(project):
+    dataset = project.SFP.get_dataset(299, 302)
+    tfrecords = dataset.tfrecords()
+    assert len(tfrecords)
+
+    # Tensorflow backend
+    with TaskWrapper("Testing tensorflow dataloader...") as test:
+        from slideflow.io.tensorflow import interleave
+        tf_results = []
+        tf_dts, _, num_tiles = interleave(tfrecords,
+                                            299,
+                                            batch_size=128,
+                                            annotations=None,
+                                            label_parser=None,
+                                            normalizer=None,
+                                            infinite=False,
+                                            augment=False,
+                                            manifest=dataset.manifest(),
+                                            standardize=False)
+        for images, labels in tf_dts:
+            tf_results += [hash(str(img.numpy())) for img in images]
+        tf_results = sorted(tf_results)
+
+    # Torch backend
+    with TaskWrapper("Testing torch dataloader...") as test:
+        from slideflow.io.torch import interleave_dataloader
+        torch_results = []
+        torch_dts = interleave_dataloader(tfrecords,
+                                          299,
+                                          batch_size=128,
+                                          normalizer=None,
+                                          num_workers=6,
+                                          infinite=False,
+                                          augment=False,
+                                          standardize=False,
+                                          incl_slidenames=False,
+                                          manifest=dataset.manifest(),
+                                          labels=None,
+                                          pin_memory=False)
+        for images, labels in torch_dts:
+            torch_results += [hash(str(img.numpy().transpose(1, 2, 0))) for img in images] # CWH -> WHC
+        torch_results = sorted(torch_results)
+
+    assert len(torch_results)
+    assert len(torch_results) == len(tf_results) == num_tiles
+    assert torch_results == tf_results
 
 class TestConfigurator:
     def __init__(self, path, slides=RANDOM_TCGA):
@@ -264,16 +310,19 @@ class TestSuite:
         prev_run_dirs = [x for x in os.listdir(self.SFP.models_dir) if os.path.isdir(join(self.SFP.models_dir, x))]
         for run in sorted(prev_run_dirs, reverse=True):
             if run[6:] == name:
-                return join(self.SFP.models_dir, run, f'{name}_epoch{epoch}')
+                if sf.backend() == 'tensorflow':
+                    return join(self.SFP.models_dir, run, f'{name}_epoch{epoch}')
+                else:
+                    return join(self.SFP.models_dir, run, f'saved_model_epoch{epoch}')
 
     def configure_sources(self):
         with TaskWrapper("Dataset configuration...") as test:
             for source in self.config.sources.keys():
                 self.SFP.add_source(source, slides=self.config.sources[source]['slides'],
-                                                roi=self.config.sources[source]['roi'],
-                                                tiles=self.config.sources[source]['tiles'],
-                                                tfrecords=self.config.sources[source]['tfrecords'],
-                                                path=self.SFP.dataset_config)
+                                            roi=self.config.sources[source]['roi'],
+                                            tiles=self.config.sources[source]['tiles'],
+                                            tfrecords=self.config.sources[source]['tfrecords'],
+                                            path=self.SFP.dataset_config)
 
     def configure_annotations(self):
         with TaskWrapper("Annotation configuration...") as test:
@@ -306,17 +355,17 @@ class TestSuite:
             pass
         # Setup loss function
         if model_type == 'categorical':
-            loss = 'sparse_categorical_crossentropy'
+            loss = 'sparse_categorical_crossentropy' if sf.backend() == 'tensorflow' else 'CrossEntropyLoss'
         elif model_type == 'linear':
-            loss = 'mean_squared_error'
+            loss = 'mean_squared_error' if sf.backend() == 'tensorflow' else 'MSELoss'
         elif model_type == 'cph':
-            loss = 'negative_log_likelihood'
+            loss = 'negative_log_likelihood' if sf.backend() == 'tensorflow' else 'NLLLoss'
 
         # Create batch train file
         self.SFP.create_hyperparameter_sweep(tile_px=299, tile_um=302,
-                                            finetune_epochs=[1],
+                                            epochs=[1],
                                             toplayer_epochs=[0],
-                                            model=["InceptionV3"],
+                                            model=["Xception"] if sf.backend() == 'tensorflow' else ['xception'],
                                             pooling=["max"],
                                             loss=[loss],
                                             learning_rate=[0.001],
@@ -330,29 +379,29 @@ class TestSuite:
                                             trainable_layers=0,
                                             L2_weight=0.1,
                                             dropout=0.1,
-                                            balanced_training=["BALANCE_BY_PATIENT"],
-                                            balanced_validation=["NO_BALANCE"],
+                                            balanced_training=["patient"],
+                                            balanced_validation=["none"],
                                             augment=[True],
                                             label='TEST',
                                             filename=self.SFP.batch_train_config)
 
         # Create single hyperparameter combination
-        hp = sf.model.HyperParameters(finetune_epochs=1,
-                                      toplayer_epochs=0,
-                                      model='InceptionV3',
-                                      pooling='max',
-                                      loss=loss,
-                                      learning_rate=0.001,
-                                      batch_size=64,
-                                      hidden_layers=1,
-                                      optimizer='Adam',
-                                      early_stop=False,
-                                      dropout=0.1,
-                                      L2_weight=0.1,
-                                      early_stop_patience=0,
-                                      balanced_training='BALANCE_BY_PATIENT',
-                                      balanced_validation='NO_BALANCE',
-                                      augment=True)
+        hp = sf.model.ModelParams(epochs=1,
+                                toplayer_epochs=0,
+                                model="Xception" if sf.backend() == 'tensorflow' else 'xception',
+                                pooling='max',
+                                loss=loss,
+                                learning_rate=0.001,
+                                batch_size=64,
+                                hidden_layers=1,
+                                optimizer='Adam',
+                                early_stop=False,
+                                dropout=0.1,
+                                L2_weight=0.1,
+                                early_stop_patience=0,
+                                balanced_training='patient',
+                                balanced_validation='none',
+                                augment=True)
         return hp
 
     def test_extraction(self, enable_downsample=True, **kwargs):
@@ -376,6 +425,12 @@ class TestSuite:
                            steps_per_epoch_override=5,
                            **train_kwargs)
 
+    def test_readers(self):
+        ctx = multiprocessing.get_context('spawn')
+        process = ctx.Process(target=reader_tester, args=(self,))
+        process.start()
+        process.join()
+
     def test_training(self, categorical=True, linear=True, multi_input=True, cph=True, multi_cph=True, **train_kwargs):
         if categorical:
             # Test categorical outcome
@@ -387,11 +442,11 @@ class TestSuite:
                                               val_k=1,
                                               validate_on_batch=50,
                                               save_predictions=True,
-                                              steps_per_epoch_override=5,
+                                              steps_per_epoch_override=20,
                                               **train_kwargs)
 
                 if not results_dict:
-                    print("\tKeras results object not received from training")
+                    log.error("Results object not received from training")
                     test.fail()
 
             # Test multiple sequential categorical outcome models
@@ -454,11 +509,6 @@ class TestSuite:
         multi_inp_model = self._get_model('category1-multi_input-HP0-kfold1')
         perf_model = self._get_model('category1-manual_hp-HP0-kfold1')
         cph_model = self._get_model('time-cph-HP0-kfold1')
-
-        assert os.path.exists(multi_cat_model)
-        assert os.path.exists(multi_lin_model)
-        assert os.path.exists(multi_inp_model)
-        assert os.path.exists(perf_model)
 
         # Performs evaluation in isolated thread to avoid OOM errors with sequential model loading/testing
         with TaskWrapper("Testing evaluation of single categorical outcome model...") as test:
@@ -528,7 +578,7 @@ class TestSuite:
             AV = self.SFP.generate_activations(model=perf_model, outcome_label_headers='category1', **act_kwargs)
             assert AV.num_features == 2048
             assert AV.num_logits == 2
-            assert len(AV.activations) == len(dataset.get_tfrecords())
+            assert len(AV.activations) == len(dataset.tfrecords())
             assert len(AV.locations) == len(AV.activations) == len(AV.logits)
             assert all([len(AV.activations[slide]) == len(AV.logits[slide]) == len(AV.locations[slide]) for slide in AV.activations])
             assert len(AV.activations_by_category(0)) == 2
@@ -573,11 +623,12 @@ class TestSuite:
         with TaskWrapper('Evaluating CLAM...') as test:
             pass
 
-    def test(self, extract=True, train=True, normalizer=True, evaluate=True, heatmap=True,
+    def test(self, extract=True, reader=True, train=True, normalizer=True, evaluate=True, heatmap=True,
              activations=True, predict_wsi=True, clam=True):
         '''Perform and report results of all available testing.'''
 
         if extract:             self.test_extraction()
+        if reader:              self.test_readers()
         if train:               self.test_training()
         if normalizer:          self.test_realtime_normalizer()
         if evaluate:            self.test_evaluation()

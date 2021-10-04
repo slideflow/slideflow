@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.io.reader &mdash; slideflow 1.12.0 documentation</title>
+  <title>slideflow.io.torch &mdash; slideflow 1.12.0-rc1 documentation</title>
   
 
   
@@ -32,7 +32,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="slideflow.model" href="model.html" />
-    <link rel="prev" title="slideflow.io.tfrecords" href="tfrecords.html" />
+    <link rel="prev" title="slideflow.io.tensorflow" href="tfrecords.html" />
   <!-- Google Analytics -->
   
   <!-- End Google Analytics -->
@@ -152,6 +152,7 @@
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -160,13 +161,17 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tfrecords</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">slideflow.io.reader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="statistics.html">slideflow.statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
 </ul>
 
             
@@ -207,7 +212,7 @@
       </li>
 
         
-      <li>slideflow.io.reader</li>
+      <li>slideflow.io.torch</li>
     
     
       <li class="pytorch-breadcrumbs-aside">
@@ -239,39 +244,83 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="slideflow-io-reader">
-<h1>slideflow.io.reader<a class="headerlink" href="#slideflow-io-reader" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="slideflow-io-torch">
+<h1>slideflow.io.torch<a class="headerlink" href="#slideflow-io-torch" title="Permalink to this headline">¶</a></h1>
 <p>The purpose of this module is to provide a performant, backend-agnostic TFRecord reader and interleaver to use as
-input for Torch models. It uses <a class="reference external" href="https://github.com/podgorskiy/DareBlopy">dareblopy</a> for the binary TFRecord file
-reading, and contains <a class="reference internal" href="#slideflow.io.reader.interleave" title="slideflow.io.reader.interleave"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.io.reader.interleave()</span></code></a> function built around this package capable of efficient interleaving
-and balancing.</p>
+input for Torch models. It uses a backend-agnostic TFRecord reader based on a modified version of
+the tfrecord reader/writer <a class="reference external" href="https://github.com/vahidk/tfrecord">https://github.com/vahidk/tfrecord</a>, optimized with improved performance. Binary TFRecord file
+reading and interleaving is supervised by <a class="reference internal" href="#slideflow.io.torch.interleave" title="slideflow.io.torch.interleave"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.io.torch.interleave()</span></code></a>, while the
+<a class="reference internal" href="#slideflow.io.torch.interleave_dataloader" title="slideflow.io.torch.interleave_dataloader"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.io.torch.interleave_dataloader()</span></code></a> function provides a PyTorch DataLoader object which can be directly used.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>If using this module to generate input for a Torch model, please note that performance may suffer if
-Tensorflow has also been been loaded. Many modules in this package are not loaded by default for this
-reason, in order to delay the loading of Tensorflow until needed in case backend-agnostic functions are required.</p>
+<p>PyTorch support is currently in development. The interleaving functions in this module are currently optimized for
+throughput at the expense of memory usage; if memory usage becomes excessive with large datasets, consider decreasing
+<cite>num_workers</cite> and <cite>chunk_size</cite>.</p>
 </div>
-<span class="target" id="module-slideflow.io.reader"></span><dl class="py exception">
-<dt class="sig sig-object py" id="slideflow.io.reader.TFRecordsError">
-<em class="property"><span class="pre">exception</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.io.reader.</span></span><span class="sig-name descname"><span class="pre">TFRecordsError</span></span><a class="headerlink" href="#slideflow.io.reader.TFRecordsError" title="Permalink to this definition">¶</a></dt>
+<span class="target" id="module-slideflow.io.torch"></span><dl class="py exception">
+<dt class="sig sig-object py" id="slideflow.io.torch.EmptyTFRecordsError">
+<em class="property"><span class="pre">exception</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.io.torch.</span></span><span class="sig-name descname"><span class="pre">EmptyTFRecordsError</span></span><a class="headerlink" href="#slideflow.io.torch.EmptyTFRecordsError" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="slideflow.io.torch.InterleaveIterator">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.io.torch.</span></span><span class="sig-name descname"><span class="pre">InterleaveIterator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfrecords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">incl_slidenames</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_replicas</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">standardize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">infinite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">balance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">preload</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">onehot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.torch.InterleaveIterator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pytorch Iterable Dataset that interleaves tfrecords with the interleave() function below, serving as a bridge
+between the python generator returned by interleave() and the pytorch DataLoader class.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.io.torch.InterleaveIterator.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfrecords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">incl_slidenames</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_replicas</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">standardize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">infinite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">balance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">preload</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">onehot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.torch.InterleaveIterator.__init__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.io.torch.InterleaveIterator.get_label">
+<span class="sig-name descname"><span class="pre">get_label</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.torch.InterleaveIterator.get_label" title="Permalink to this definition">¶</a></dt>
+<dd><p>#Randomly returns a label, for use with StyleGAN2
+if self.use_labels and self.model_type == ‘categorical’:</p>
+<blockquote>
+<div><p>label = random.choices(self.unique_labels, weights=self.label_prob, k=1)[0]
+return label.copy() if not self.onehot else to_onehot(label, self.max_label+1).copy()</p>
+</div></blockquote>
+<dl class="simple">
+<dt>elif self.use_labels:</dt><dd><p>return [np.random.rand()]</p>
+</dd>
+<dt>else:</dt><dd><p>return np.zeros((1,))</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="slideflow.io.torch.InterleaveIterator.label_shape">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">label_shape</span></span><a class="headerlink" href="#slideflow.io.torch.InterleaveIterator.label_shape" title="Permalink to this definition">¶</a></dt>
+<dd><p>For use with StyleGAN2</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="slideflow.io.torch.TFRecordsError">
+<em class="property"><span class="pre">exception</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.io.torch.</span></span><span class="sig-name descname"><span class="pre">TFRecordsError</span></span><a class="headerlink" href="#slideflow.io.torch.TFRecordsError" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="slideflow.io.reader.default_label_parser">
-<span class="sig-prename descclassname"><span class="pre">slideflow.io.reader.</span></span><span class="sig-name descname"><span class="pre">default_label_parser</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slide</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.reader.default_label_parser" title="Permalink to this definition">¶</a></dt>
-<dd><p>same as sf.io.tfrecords</p>
+<dt class="sig sig-object py" id="slideflow.io.torch.detect_tfrecord_format">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.torch.</span></span><span class="sig-name descname"><span class="pre">detect_tfrecord_format</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.torch.detect_tfrecord_format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Detects tfrecord format. Torch implementation; different than sf.io.tensorflow</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Image file type (png/jpeg)
+dict: Feature description dictionary (including or excluding location data as supported)</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)">str</a></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="slideflow.io.reader.detect_tfrecord_format">
-<span class="sig-prename descclassname"><span class="pre">slideflow.io.reader.</span></span><span class="sig-name descname"><span class="pre">detect_tfrecord_format</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.reader.detect_tfrecord_format" title="Permalink to this definition">¶</a></dt>
-<dd><p>Detects tfrecord format. Torch implementation; different than sf.io.tfrecords</p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="slideflow.io.reader.get_tfrecord_parser">
-<span class="sig-prename descclassname"><span class="pre">slideflow.io.reader.</span></span><span class="sig-name descname"><span class="pre">get_tfrecord_parser</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfrecord_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features_to_return</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decode_images</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">standardize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.reader.get_tfrecord_parser" title="Permalink to this definition">¶</a></dt>
-<dd><p>Gets tfrecord parser using dareblopy reader. Torch implementation; different than sf.io.tfrecords</p>
+<dt class="sig sig-object py" id="slideflow.io.torch.get_tfrecord_parser">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.torch.</span></span><span class="sig-name descname"><span class="pre">get_tfrecord_parser</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfrecord_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features_to_return</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decode_images</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">standardize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.torch.get_tfrecord_parser" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets tfrecord parser using dareblopy reader. Torch implementation; different than sf.io.tensorflow</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -289,27 +338,36 @@ return all features as a list.</p></li>
 at random quality levels. Passing either ‘xyrj’ or True will use all augmentations.</p></li>
 </ul>
 </dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Parsing function
+dict: Detected feature description for the tfrecord</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>func</p>
+</dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="slideflow.io.reader.interleave">
-<span class="sig-prename descclassname"><span class="pre">slideflow.io.reader.</span></span><span class="sig-name descname"><span class="pre">interleave</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfrecords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_parser</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'categorical'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">balance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">finite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">standardize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slides</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.reader.interleave" title="Permalink to this definition">¶</a></dt>
-<dd><p>Generates an interleaved dataset from a collection of tfrecord files, sampling from tfrecord files randomly
-according to balancing if provided. Requires manifest for balancing. Assumes TFRecord files are named by slide.</p>
-<p>Uses dareblopy tfrecord reading. Different than sf.io.tfrecords. Supports Pytorch.</p>
+<dt class="sig sig-object py" id="slideflow.io.torch.interleave">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.torch.</span></span><span class="sig-name descname"><span class="pre">interleave</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfrecords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_parser</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'categorical'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">balance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">infinite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">standardize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_threads</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_replicas</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.torch.interleave" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a generator that interleaves records from a collection of tfrecord files, sampling from tfrecord files
+randomly according to balancing if provided (requires manifest). Assumes TFRecord files are named by slide.</p>
+<p>Different than tensorflow backend implementation (sf.io.tensorflow). Supports Pytorch.
+Use interleave_dataloader for the torch DataLoader class; use this function directly to get images from a generator
+with no PyTorch data processing.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>)</em>) – List of paths to TFRecord files.</p></li>
-<li><p><strong>label_parser</strong> (<em>func</em><em>, </em><em>optional</em>) – Base function to use for parsing labels. Function must accept an image (tensor)
-and slide name (str), and return an image (tensor) and label. If None is provided, all labels will be None.</p></li>
+<li><p><strong>label_parser</strong> (<em>func</em><em>, </em><em>optional</em>) – Base function to use for parsing labels. Function must accept a str (slide name)
+and return a int or ndarray (label) If None is provided, will return slide name.</p></li>
 <li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Model type. ‘categorical’ enables category-level balancing. Defaults to ‘categorical’.</p></li>
-<li><p><strong>balance</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Batch-level balancing. Options: BALANCE_BY_CATEGORY, BALANCE_BY_PATIENT, and NO_BALANCE.
-If finite option is used, will drop tiles in order to maintain proportions across the interleaved dataset.</p></li>
-<li><p><strong>finite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Create a finite dataset iterating through tiles only once. WARNING: If finite option is
-used with balancing, some tiles will be skipped. Defaults to False (infinite dataset).</p></li>
-<li><p><strong>annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping slide names to outcome labels, used for balancing. Defaults to None.</p></li>
+<li><p><strong>balance</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Batch-level balancing. Options: category, patient, and None.
+If infinite is not True, will drop tiles in order to maintain proportions across the interleaved dataset.</p></li>
+<li><p><strong>infinite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Create an finite dataset. WARNING: If infinite is False &amp;&amp; balancing is used,
+some tiles will be skipped. Defaults to True.</p></li>
+<li><p><strong>labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping slide names to outcome labels, used for balancing. Defaults to None.</p></li>
 <li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Maximum number of tiles to use per slide. Defaults to 0 (use all tiles).</p></li>
 <li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Minimum number of tiles that each slide must have to be included. Defaults to 0.</p></li>
 <li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Image augmentations to perform. String containing characters designating augmentations.
@@ -317,10 +375,56 @@ used with balancing, some tiles will be skipped. Defaults to False (infinite dat
 at random quality levels. Passing either ‘xyrj’ or True will use all augmentations.</p></li>
 <li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images to (0,1). Defaults to True.</p></li>
 <li><p><strong>normalizer</strong> (<a class="reference internal" href="util.html#slideflow.util.StainNormalizer" title="slideflow.util.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.util.StainNormalizer</span></code></a>, optional) – Normalizer to use on images. Defaults to None.</p></li>
-<li><p><strong>manfest</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset manifest containing number of tiles per tfrecord.</p></li>
-<li><p><strong>slides</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>)</em><em>, </em><em>optional</em>) – Only interleaves tfrecords with these slide names. If None, uses all tfrecords.</p></li>
+<li><p><strong>manifest</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset manifest containing number of tiles per tfrecord.</p></li>
 <li><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Use the following seed when randomly interleaving. Necessary for synchronized
 multiprocessing distributed reading.</p></li>
+<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Number of threads to use decoding images. Defaults to 8.</p></li>
+<li><p><strong>chunk_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Chunk size for image decoding. Defaults to 16.</p></li>
+<li><p><strong>num_replicas</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Number of total workers reading the dataset with this interleave function,
+defined as number of gpus * number of torch DataLoader workers. Used to interleave results among workers
+without duplications. Defaults to 1.</p></li>
+<li><p><strong>rank</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Worker ID to identify which worker this represents. Used to interleave results
+among workers without duplications. Defaults to 0 (first worker).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="slideflow.io.torch.interleave_dataloader">
+<span class="sig-prename descclassname"><span class="pre">slideflow.io.torch.</span></span><span class="sig-name descname"><span class="pre">interleave_dataloader</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfrecords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">onehot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">incl_slidenames</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">infinite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_replicas</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">preload_factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">balance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">standardize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pin_memory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.torch.interleave_dataloader" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepares a PyTorch DataLoader with a new InterleaveIterator instance, interleaving tfrecords and processing
+labels and tiles, with support for scaling the dataset across GPUs and dataset workers.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>)</em>) – List of paths to TFRecord files.</p></li>
+<li><p><strong>tile_px</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Tile size in pixels.</p></li>
+<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Batch size.</p></li>
+<li><p><strong>onehot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Onehot encode labels. Defaults to False.</p></li>
+<li><p><strong>incl_slidenames</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Include slidenames as third returned variable. Defaults to False.</p></li>
+<li><p><strong>infinite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Infinitely repeat data. Defaults to False.</p></li>
+<li><p><strong>rank</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Worker ID to identify which worker this represents. Used to interleave results
+among workers without duplications. Defaults to 0 (first worker).</p></li>
+<li><p><strong>num_replicas</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Number of GPUs or unique instances which will have their own DataLoader. Used to
+interleave results among workers without duplications. Defaults to 1.</p></li>
+<li><p><strong>labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping slide names to outcome labels, used for balancing. Defaults to None.</p></li>
+<li><p><strong>normalizer</strong> (<a class="reference internal" href="util.html#slideflow.util.StainNormalizer" title="slideflow.util.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.util.StainNormalizer</span></code></a>, optional) – Normalizer to use on images. Defaults to None.</p></li>
+<li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Maximum number of tiles to use per slide. Defaults to 0 (use all tiles).</p></li>
+<li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Minimum number of tiles that each slide must have to be included. Defaults to 0.</p></li>
+<li><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Use the following seed when randomly interleaving. Necessary for synchronized
+multiprocessing distributed reading.</p></li>
+<li><p><strong>chunk_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Chunk size for image decoding. Defaults to 16.</p></li>
+<li><p><strong>preload_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Number of batches to preload. Defaults to 1.</p></li>
+<li><p><strong>manifest</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Dataset manifest containing number of tiles per tfrecord.</p></li>
+<li><p><strong>balance</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Batch-level balancing. Options: category, patient, and None.
+If infinite is not True, will drop tiles in order to maintain proportions across the interleaved dataset.</p></li>
+<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Image augmentations to perform. String containing characters designating augmentations.
+‘x’ indicates random x-flipping, ‘y’ y-flipping, ‘r’ rotating, and ‘j’ JPEG compression/decompression
+at random quality levels. Passing either ‘xyrj’ or True will use all augmentations.</p></li>
+<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images to (0,1). Defaults to True.</p></li>
+<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Number of DataLoader workers. Defaults to 2.</p></li>
+<li><p><strong>pin_memory</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Pin memory to GPU. Defaults to True.</p></li>
 </ul>
 </dd>
 </dl>
@@ -339,7 +443,7 @@ multiprocessing distributed reading.</p></li>
         <a href="model.html" class="btn btn-neutral float-right" title="slideflow.model" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
-        <a href="tfrecords.html" class="btn btn-neutral" title="slideflow.io.tfrecords" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+        <a href="tfrecords.html" class="btn btn-neutral" title="slideflow.io.tensorflow" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
       
     </div>
   
@@ -371,7 +475,7 @@ multiprocessing distributed reading.</p></li>
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
-<li><a class="reference internal" href="#">slideflow.io.reader</a></li>
+<li><a class="reference internal" href="#">slideflow.io.torch</a></li>
 </ul>
 
             </div>

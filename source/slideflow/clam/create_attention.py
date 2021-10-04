@@ -74,7 +74,7 @@ def parse_config_dict(args, config_dict):
         config_dict['patching_arguments']['overlap'] = args.overlap
     return config_dict
 
-def export_attention(model_args, ckpt_path, outdir, pt_files, slides, reverse_label_dict, slide_to_label): #Should include n_classes, model_size):
+def export_attention(model_args, ckpt_path, outdir, pt_files, slides, reverse_labels, labels): #Should include n_classes, model_size):
 
     '''
     reverse_label_dict = {
@@ -101,7 +101,7 @@ def export_attention(model_args, ckpt_path, outdir, pt_files, slides, reverse_la
         features = torch.load(features_path)
 
 
-        Y_hats, Y_hats_str, Y_probs, A = infer_single_slide(model, features, slide_to_label[slide], reverse_label_dict, model_args.n_classes, silent=True)
+        Y_hats, Y_hats_str, Y_probs, A = infer_single_slide(model, features, labels[slide], reverse_labels, model_args.n_classes, silent=True)
 
         logits[slide]['pred'] = Y_hats_str[0]
         logits[slide]['prob'] = Y_probs[0]

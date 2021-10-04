@@ -10,10 +10,10 @@ Once training and hyperparameter tuning is complete, you can test model performa
 
 .. code-block:: python
 
-	SFP.evaluate(
-		model="/path/to/trained_model_epoch1",
-		outcome_label_headers="category",
-		filters={"dataset": ["evaluation"]})
+    SFP.evaluate(
+        model="/path/to/trained_model_epoch1",
+        outcome_label_headers="category",
+        filters={"dataset": ["evaluation"]})
 
 .. autofunction:: slideflow.project.Project.evaluate
    :noindex:
@@ -25,17 +25,21 @@ To generate a predictive heatmap for a set of slides, use the ``generate_heatmap
 
 .. code-block:: python
 
-	SFP.generate_heatmaps(
-		model="/path/to/trained_model_epoch1",
-		filters={"dataset": ["evaluation"]})
+    SFP.generate_heatmaps(
+        model="/path/to/trained_model_epoch1",
+        filters={"dataset": ["evaluation"]})
 
 .. autofunction:: slideflow.project.Project.generate_heatmaps
    :noindex:
 
-If you would like to directly interact with the calculated heatmap data, create a ``sf.activations.Heatmap`` object by providing a path to a slide, a path to a model, and tile size information:
+If you would like to directly interact with the calculated heatmap data, create a :class:``slideflow.activations.Heatmap`` object by providing a path to a slide, a path to a model, and tile size information:
 
 .. code-block:: python
 
-	heatmap = sf.activations.Heatmap('/path/to/slide.svs', '/path/to/model.h5', size_px=299, size_um=302)
+    heatmap = sf.activations.Heatmap(
+        slide='/path/to/slide.svs',
+        model='/path/to/model.h5',
+        size_px=299,
+        size_um=302)
 
 The spatial map of logits, as calculated across the input slide, can be accessed through ``heatmap.logits``. The spatial map of post-convolution, penultimate activations can be accessed through ``heatmap.postconv``. The heatmap can be saved with ``heatmap.save('/path/')``.

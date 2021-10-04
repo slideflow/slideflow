@@ -78,7 +78,7 @@ class ActivationsInterface:
         if layers and not isinstance(layers, list): layers = [layers]
         self.path = path
         try:
-            self.hp = sf.util.get_model_hyperparameters(path)
+            self.hp = sf.util.get_model_params(path)
         except:
             self.hp = None
         self.num_logits = 0
@@ -93,14 +93,14 @@ class ActivationsInterface:
         Intermediate layers are returned in the order of layers. Logits are returned last.
 
         Args:
-            model (:class:`tensorflow.keras.models.Model` or :class:`slideflow.model.Model`): Loaded model.
+            model (:class:`tensorflow.keras.models.Model` or :class:`slideflow.model.Trainer`): Loaded model.
             layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation layer
                 is accessed via 'postconv'. Defaults to 'postconv'.
             include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
         """
         if isinstance(model, tf.keras.models.Model):
             self._model = model
-        elif isinstance(model, sf.model.Model):
+        elif isinstance(model, sf.model.Trainer):
             if not model.model:
                 raise sf.util.UserError("Provided model has not yet been built or loaded.")
             self._model = model.model
@@ -196,7 +196,11 @@ class ActivationsInterface:
             outputs_list += [self._model.output]
         self.model = tf.keras.models.Model(inputs=self._model.input, outputs=outputs_list)
         self.num_features = sum([outputs[o].shape[1] for o in outputs])
-        self.num_logits = 0 if not include_logits else self._model.output.shape[1]
+        if isinstance(self._model.output, list):
+            log.warning("Multi-categorical outcomes not yet supported for this interface.")
+            self.num_logits = 0
+        else:
+            self.num_logits = 0 if not include_logits else self._model.output.shape[1]
         if include_logits:
             log.debug(f'Number of logits: {self.num_logits}')
         log.debug(f'Number of activation features: {self.num_features}')
@@ -251,7 +255,7 @@ class ActivationsVisualizer:
         self.model = model
         self.tfrecords = np.array(tfrecords)
         self.slides = sorted([sf.util.path_to_name(tfr) for tfr in self.tfrecords])
-        self.tile_px = sf.util.get_model_hyperparameters(model)['tile_px']
+        self.tile_px = sf.util.get_model_params(model)['tile_px']
 
         if min_tiles_per_slide and not manifest:
             raise ActivationsError("'manifest' must be provided if specifying min_tiles_per_slide.")
@@ -366,13 +370,13 @@ class ActivationsVisualizer:
         # Validate tfrecords, excluding any that are empty
         for tfrecord in tqdm(self.tfrecords, desc="Validating tfrecords...", ncols=80, leave=False):
             if parser is None:
-                parser = sf.io.tfrecords.get_tfrecord_parser(tfrecord,
+                parser = sf.io.tensorflow.get_tfrecord_parser(tfrecord,
                                                              ('image_raw', 'slide', 'loc_x', 'loc_y'),
                                                              normalizer=normalizer,
                                                              standardize=True,
                                                              img_size=self.tile_px,
                                                              error_if_invalid=False) # Returns None for loc_x/loc_y if not in tfrecords
-            tfr_features, _ = sf.io.tfrecords.detect_tfrecord_format(tfrecord)
+            tfr_features, _ = sf.io.tensorflow.detect_tfrecord_format(tfrecord)
             if not tfr_features:
                 tfr_to_remove += tfrecord
                 self.remove(sf.util.path_to_name(tfrecord))
@@ -407,7 +411,7 @@ class ActivationsVisualizer:
                 decoded_slides = [bs.decode('utf-8') for bs in batch_slides.numpy()]
                 if not isinstance(model_out, list):
                     model_out = [model_out]
-                model_out = [m.numpy() for m in model_out]
+                model_out = [m.numpy() if not isinstance(m, list) else m for m in model_out]
 
                 if include_logits:
                     logits = model_out[-1]
@@ -825,7 +829,7 @@ class ActivationsVisualizer:
                         tfr_dir = tfr
                 if not tfr_dir:
                     log.warning(f"TFRecord location not found for slide {g['slide']}")
-                slide, image = sf.io.tfrecords.get_tfrecord_by_index(tfr_dir, g['index'], decode=False)
+                slide, image = sf.io.tensorflow.get_tfrecord_by_index(tfr_dir, g['index'], decode=False)
                 tile_filename = f"{i}-tfrecord{g['slide']}-{g['index']}-{g['val']:.2f}.jpg"
                 image_string = open(join(outdir, str(f), tile_filename), 'wb')
                 image_string.write(image.numpy())
@@ -866,7 +870,7 @@ class Heatmap:
             roi_method = 'ignore'
 
         interface = ActivationsInterface(model, layers=None, include_logits=True)
-        model_hyperparameters = sf.util.get_model_hyperparameters(model)
+        model_hyperparameters = sf.util.get_model_params(model)
         self.tile_px = model_hyperparameters['tile_px']
         self.tile_um = model_hyperparameters['tile_um']
         self.num_classes = interface.num_logits

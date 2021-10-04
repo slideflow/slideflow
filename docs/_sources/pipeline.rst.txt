@@ -14,11 +14,10 @@ A high-level overview of each of the six steps is provided below. We will examin
 Step 1: Create ROIs
 *******************
 
-1) **Label ROIs** (optional). Using `QuPath <https://qupath.github.io/>`_, annotate whole-slide images with the Polygon tool. Then, click **Automate** -> **Show script editor**. In the box that comes up, click **File** -> **Open** and load the ``qupath_roi.groovy`` script. Press CTRL + R and wait for the script to finish.
+1) **Label ROIs** (optional). Using `QuPath <https://qupath.github.io/>`_, annotate whole-slide images with the Polygon tool. Then, click **Automate** -> **Show script editor**. In the box that comes up, click **File** -> **Open** and load the ``qupath_roi.groovy`` script. Press CTRL + R and wait for the script to finish. Alternatively, you can load multiple SVS files into a QuPath project and run the script on the entire project using "Run for project".
 
-*You may choose to speed-up workflow by loading multiple SVS files into a QuPath project, and then running the script on the entire project using "Run for project."*
-
-*This step may be skipped if you are performing analysis on whole-slide images, rather than annotated tumor regions.*
+.. note::
+    This step may be skipped if you are performing analysis on whole-slide images, rather than annotated tumor regions.
 
 Step 2: Data Preparation
 ************************

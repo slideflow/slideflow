@@ -1,17 +1,18 @@
-.. currentmodule:: slideflow.io.reader
+.. currentmodule:: slideflow.io.torch
 
-slideflow.io.reader
+slideflow.io.torch
 ===================
 
 The purpose of this module is to provide a performant, backend-agnostic TFRecord reader and interleaver to use as
-input for Torch models. It uses `dareblopy <https://github.com/podgorskiy/DareBlopy>`_ for the binary TFRecord file
-reading, and contains :func:`slideflow.io.reader.interleave` function built around this package capable of efficient interleaving
-and balancing.
+input for Torch models. It uses a backend-agnostic TFRecord reader based on a modified version of
+the tfrecord reader/writer https://github.com/vahidk/tfrecord, optimized with improved performance. Binary TFRecord file
+reading and interleaving is supervised by :func:`slideflow.io.torch.interleave`, while the
+:func:`slideflow.io.torch.interleave_dataloader` function provides a PyTorch DataLoader object which can be directly used.
 
 .. warning::
-    If using this module to generate input for a Torch model, please note that performance may suffer if
-    Tensorflow has also been been loaded. Many modules in this package are not loaded by default for this
-    reason, in order to delay the loading of Tensorflow until needed in case backend-agnostic functions are required.
+    PyTorch support is currently in development. The interleaving functions in this module are currently optimized for
+    throughput at the expense of memory usage; if memory usage becomes excessive with large datasets, consider decreasing
+    `num_workers` and `chunk_size`.
 
-.. automodule:: slideflow.io.reader
+.. automodule:: slideflow.io.torch
     :members:

@@ -24,7 +24,7 @@ To further filter by the annotation header "mutation_status", including only sli
     SFP.extract_tiles(tile_px=299, tile_um=302, filters={"dataset": ["train"], "mutation_status": ["braf", "ras"]})
 
 .. note::
-    The "filters" argument can be also used for filtering input slides in many slideflow functions, including train(), evaluate(), generate_heatmaps(), and generate_mosaic().*
+    The ``filters`` argument can be also used for filtering input slides in many slideflow functions, including train(), evaluate(), generate_heatmaps(), and generate_mosaic().*
 
 Tiles will be extracted at the specified pixel and micron size. Tiles will be automatically stored in TFRecord format, although loose tiles can also be saved by passing a destination path to the argument ``tiles_dir``.
 
@@ -75,7 +75,5 @@ Extraction reports
 ******************
 
 Once tiles have been extracted, a PDF report will be generated with a summary and sample of tiles extracted from their corresponding slides. An example of such a report is given below. It is generally good practice to review this report, as you may catch slides with data corruption, artifacts with stain normalization, or suboptimal whitespace/grayspace filtering. The report is saved in the project root directory.
-
-.. image:: extraction_report.png
 
 In addition to viewing reports after tile extraction, you may generate new reports on existing tfrecords with :func:`slideflow.project.Project.tfrecord_report`. You can also generate reports for slides that have not yet been extracted with :func:`slideflow.project.Project.slide_report`.

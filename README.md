@@ -2,8 +2,6 @@
 
 [![Python application](https://github.com/pearson-laboratory/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/pearson-laboratory/slideflow/actions/workflows/python-app.yml)
 
-# Slideflow
-
 Slideflow is a computational pathology Python package which aims to provide an easy and intuitive way of building and testing deep learning models for use in histology image analysis. It is built using Keras (with Tensorflow backend) and supports all Keras architectures, as well as [CLAM](https://github.com/mahmoodlab/CLAM). The overarching goal of the package is to provide tools to train and test models on histology slides, apply these models to new slides, and assess performance using analytical tools including predictive heatmaps, mosaic maps, ROCs, and more.
 
 Slideflow requires Python 3.7+ and [libvips](https://libvips.github.io/libvips/).

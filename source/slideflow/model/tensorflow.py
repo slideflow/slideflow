@@ -14,23 +14,21 @@ warnings.filterwarnings('ignore')
 import numpy as np
 import tensorflow as tf
 import slideflow as sf
-import slideflow.io.tfrecords
+import slideflow.io.tensorflow
 import slideflow.statistics
+import slideflow.model.base as _base
 
 from slideflow.util import log
-from slideflow.model_utils import *
+from slideflow.model.utils import *
+from slideflow.model.tensorflow_utils import *
 from slideflow.util import StainNormalizer
-
-BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
-BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
-NO_BALANCE = 'NO_BALANCE'
 
 #TODO: Fix ActivationsInterface for multiple categorical outcomes
 
-class HyperParameters:
+class ModelParams(_base.ModelParams):
     """Build a set of hyperparameters."""
 
-    _OptDict = {
+    OptDict = {
         'Adam':    tf.keras.optimizers.Adam,
         'SGD': tf.keras.optimizers.SGD,
         'RMSprop': tf.keras.optimizers.RMSprop,
@@ -39,7 +37,7 @@ class HyperParameters:
         'Adamax': tf.keras.optimizers.Adamax,
         'Nadam': tf.keras.optimizers.Nadam
     }
-    _ModelDict = {
+    ModelDict = {
         'Xception': tf.keras.applications.Xception,
         'VGG16': tf.keras.applications.VGG16,
         'VGG19': tf.keras.applications.VGG19,
@@ -86,143 +84,252 @@ class HyperParameters:
                 'is_categorical_crossentropy',
                 'negative_log_likelihood']
 
-    def __init__(self, tile_px=299, tile_um=302, finetune_epochs=10, toplayer_epochs=0,
-                 model='Xception', pooling='max', loss='sparse_categorical_crossentropy',
-                 learning_rate=0.0001, learning_rate_decay=0, learning_rate_decay_steps=100000,
-                 batch_size=16, hidden_layers=1, hidden_layer_width=500, optimizer='Adam',
-                 early_stop=False, early_stop_patience=0, early_stop_method='loss',
-                 balanced_training=BALANCE_BY_CATEGORY, balanced_validation=NO_BALANCE,
-                 trainable_layers=0, L2_weight=0, dropout=0, augment=True, drop_images=False):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        assert self.model in self.ModelDict.keys()
+        assert self.optimizer in self.OptDict.keys()
+        assert self.loss in self._AllLoss
 
-        """Collection of hyperparameters used for model building and training
+    def _add_hidden_layers(self, model, regularizer):
+        for i in range(self.hidden_layers):
+            model = tf.keras.layers.Dense(self.hidden_layer_width,
+                                          name=f'hidden_{i}',
+                                          activation='relu',
+                                          kernel_regularizer=regularizer)(model)
+        return model
+
+    def _add_regularization(self, model):
+        # Add L2 regularization to all compatible layers in the base model
+        if self.L2_weight != 0:
+            regularizer = tf.keras.regularizers.l2(self.L2_weight)
+            model = add_regularization(model, regularizer)
+        else:
+            regularizer = None
+        return model, regularizer
+
+    def _freeze_layers(self, model):
+        freezeIndex = int(len(model.layers) - (self.trainable_layers - 1 ))# - self.hp.hidden_layers - 1))
+        log.info(f'Only training on last {self.trainable_layers} layers (of {len(model.layers)} total)')
+        for layer in model.layers[:freezeIndex]:
+            layer.trainable = False
+        return model
+
+    def _get_core(self, weights=None):
+        """Returns a Keras model of the appropriate architecture, input shape, pooling, and initial weights."""
+        if self.model == 'NASNetLarge':
+            input_shape = (self.tile_px, self.tile_px, 3)
+        else:
+            input_shape = None
+        return self.ModelDict[self.model](
+            input_shape=input_shape,
+            include_top=False,
+            pooling=self.pooling,
+            weights=weights
+        )
+
+    def _build_base(self, pretrain='imagenet'):
+        """Builds the base image model, from a Keras model core, with the appropriate input tensors and identity layers."""
+        image_shape = (self.tile_px, self.tile_px, 3)
+        tile_input_tensor = tf.keras.Input(shape=image_shape, name='tile_image')
+        if pretrain: log.info(f'Using pretraining from {sf.util.green(pretrain)}')
+        if pretrain and pretrain != 'imagenet':
+            pretrained_model = tf.keras.models.load_model(pretrain)
+            try:
+                # This is the tile_image input
+                pretrained_input = pretrained_model.get_layer(name='tile_image').input
+                # Name of the pretrained model core, which should be at layer 1
+                pretrained_name = pretrained_model.get_layer(index=1).name
+                # This is the post-convolution layer
+                pretrained_output = pretrained_model.get_layer(name='post_convolution').output
+                base_model = tf.keras.Model(inputs=pretrained_input,
+                                            outputs=pretrained_output,
+                                            name=f'pretrained_{pretrained_name}').layers[1]
+            except ValueError:
+                log.warning('Unable to automatically read pretrained model, will try legacy format')
+                base_model = pretrained_model.get_layer(index=0)
+        else:
+            base_model = self._get_core(weights=pretrain)
+
+        # Add regularization
+        base_model, regularizer = self._add_regularization(base_model)
+
+        # Allow only a subset of layers in the base model to be trainable
+        if self.trainable_layers != 0:
+            base_model = self._freeze_layers(base_model)
+
+        # This is an identity layer that simply returns the last layer, allowing us to name and access this layer later
+        post_convolution_identity_layer = tf.keras.layers.Activation('linear', name='post_convolution')
+        layers = [tile_input_tensor, base_model]
+        if not self.pooling:
+            layers += [tf.keras.layers.Flatten()]
+        layers += [post_convolution_identity_layer]
+        if self.dropout:
+            layers += [tf.keras.layers.Dropout(self.dropout)]
+        tile_image_model = tf.keras.Sequential(layers)
+        model_inputs = [tile_image_model.input]
+        return tile_image_model, model_inputs, regularizer
+
+    def _build_categorical_model(self, num_classes, num_slide_features=0, activation='softmax',
+                                pretrain='imagenet', checkpoint=None):
+
+        """Assembles categorical model, using pretraining (imagenet) or the base layers of a supplied model.
 
         Args:
-            tile_px (int, optional): Tile width in pixels. Defaults to 299.
-            tile_um (int, optional): Tile width in microns. Defaults to 302.
-            finetune_epochs (int, optional): Number of epochs to train the full model. Defaults to 10.
-            toplayer_epochs (int, optional): Number of epochs to only train the fully-connected layers. Defaults to 0.
-            model (str, optional): Base model architecture name. Defaults to 'Xception'.
-            pooling (str, optional): Post-convolution pooling. 'max', 'avg', or 'none'. Defaults to 'max'.
-            loss (str, optional): Loss function. Defaults to 'sparse_categorical_crossentropy'.
-            learning_rate (float, optional): Learning rate. Defaults to 0.0001.
-            learning_rate_decay (int, optional): Learning rate decay rate. Defaults to 0.
-            learning_rate_decay_steps (int, optional): Learning rate decay steps. Defaults to 100000.
-            batch_size (int, optional): Batch size. Defaults to 16.
-            hidden_layers (int, optional): Number of post-convolutional fully-connected hidden layers. Defaults to 1.
-            hidden_layer_width (int, optional): Width of fully-connected hidden layers. Defaults to 500.
-            optimizer (str, optional): Name of optimizer. Defaults to 'Adam'.
-            early_stop (bool, optional): Use early stopping. Defaults to False.
-            early_stop_patience (int, optional): Patience for early stopping, in epochs. Defaults to 0.
-            early_stop_method (str, optional): Metric to monitor for early stopping. Defaults to 'loss'.
-            balanced_training ([type], optional): Type of batch-level balancing to use during training.
-                Defaults to BALANCE_BY_CATEGORY.
-            balanced_validation ([type], optional): Type of batch-level balancing to use during validation.
-                Defaults to NO_BALANCE.
-            trainable_layers (int, optional): Number of layers which are traininable. If 0, trains all layers. Defaults to 0.
-            L2_weight (int, optional): L2 regularization weight. Defaults to 0.
-            dropout (int, optional): Post-convolution dropout rate. Defaults to 0.
-            augment (str): Image augmentations to perform. String containing characters designating augmentations.
-                'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
-                at random quality levels. Passing either 'xyrj' or True will use all augmentations.
-            drop_images (bool, optional): Drop images, using only other slide-level features as input. Defaults to False.
+            num_classes (int or dict): Either int (single categorical outcome, indicating number of classes) or dict
+                (dict mapping categorical outcome names to number of unique categories in each outcome).
+            num_slide_features (int): Number of slide-level features separate from image input. Defaults to 0.
+            activation (str): Type of final layer activation to use. Defaults to softmax.
+            pretrain (str): Either 'imagenet' or path to model to use as pretraining. Defaults to 'imagenet'.
+            checkpoint (str): Path to checkpoint from which to resume model training. Defaults to None.
         """
 
-        # Additional hyperparameters to consider:
-        # beta1 0.9
-        # beta2 0.999
-        # epsilon 1.0
-        # batch_norm_decay 0.99
+        tile_image_model, model_inputs, regularizer = self._build_base(pretrain)
 
-        # Assert provided hyperparameters are valid
-        assert isinstance(tile_px, int)
-        assert isinstance(tile_um, int)
-        assert isinstance(toplayer_epochs, int)
-        assert isinstance(finetune_epochs, (int, list))
-        if isinstance(finetune_epochs, list):
-            assert all([isinstance(t, int) for t in finetune_epochs])
-        assert model in self._ModelDict.keys()
-        assert pooling in ['max', 'avg', 'none']
-        assert loss in self._AllLoss
-        assert isinstance(learning_rate, float)
-        assert isinstance(learning_rate_decay, (int, float))
-        assert isinstance(learning_rate_decay_steps, (int))
-        assert isinstance(batch_size, int)
-        assert isinstance(hidden_layers, int)
-        assert optimizer in self._OptDict.keys()
-        assert isinstance(early_stop, bool)
-        assert isinstance(early_stop_patience, int)
-        assert early_stop_method in ['loss', 'accuracy']
-        assert balanced_training in [BALANCE_BY_CATEGORY, BALANCE_BY_PATIENT, NO_BALANCE]
-        assert isinstance(hidden_layer_width, int)
-        assert isinstance(trainable_layers, int)
-        assert isinstance(L2_weight, (int, float))
-        assert isinstance(dropout, (int, float))
-        assert isinstance(augment, bool)
-        assert isinstance(drop_images, bool)
+        if num_slide_features:
+            slide_feature_input_tensor = tf.keras.Input(shape=(num_slide_features), name='slide_feature_input')
 
-        assert 0 <= learning_rate_decay <= 1
-        assert 0 <= L2_weight <= 1
-        assert 0 <= dropout <= 1
+        # Merge layers
+        if num_slide_features and ((self.tile_px == 0) or self.drop_images):
+            log.info('Generating model with just clinical variables and no images')
+            merged_model = slide_feature_input_tensor
+            model_inputs += [slide_feature_input_tensor]
+        else:
+            merged_model = tile_image_model.output
 
-        self.tile_px = tile_px
-        self.tile_um = tile_um
-        self.toplayer_epochs = toplayer_epochs
-        self.finetune_epochs = finetune_epochs if isinstance(finetune_epochs, list) else [finetune_epochs]
-        self.model = model
-        self.pooling = pooling if pooling != 'none' else None
-        self.loss = loss
-        self.learning_rate = learning_rate
-        self.learning_rate_decay = learning_rate_decay
-        self.learning_rate_decay_steps = learning_rate_decay_steps
-        self.batch_size = batch_size
-        self.optimizer = optimizer
-        self.early_stop = early_stop
-        self.early_stop_method = early_stop_method
-        self.early_stop_patience = early_stop_patience
-        self.hidden_layers = hidden_layers
-        self.balanced_training = balanced_training
-        self.balanced_validation = balanced_validation
-        self.augment = augment
-        self.hidden_layer_width = hidden_layer_width
-        self.trainable_layers = trainable_layers
-        self.L2_weight = float(L2_weight)
-        self.dropout = dropout
-        self.drop_images = drop_images
+        # Add hidden layers
+        merged_model = self._add_hidden_layers(merged_model, regularizer)
 
-        # Perform check to ensure combination of HPs are valid
-        self.validate()
+        # Multi-categorical outcomes
+        if type(num_classes) == dict:
+            outputs = []
+            for c in num_classes:
+                final_dense_layer = tf.keras.layers.Dense(num_classes[c],
+                                                          kernel_regularizer=regularizer,
+                                                          name=f'prelogits-{c}')(merged_model)
+                outputs += [tf.keras.layers.Activation(activation, dtype='float32', name=f'out-{c}')(final_dense_layer)]
+        else:
+            final_dense_layer = tf.keras.layers.Dense(num_classes,
+                                                      kernel_regularizer=regularizer,
+                                                      name='prelogits')(merged_model)
+            outputs = [tf.keras.layers.Activation(activation, dtype='float32', name='output')(final_dense_layer)]
 
-    def _get_args(self):
-        return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt',
-                                                                            'get_model',
-                                                                            'model_type',
-                                                                            'validate',
-                                                                            'get_dict',
-                                                                            'load_dict']]
-    def get_dict(self):
-        d = {}
-        for arg in self._get_args():
-            d.update({arg: getattr(self, arg)})
-        return d
+        # Assemble final model
+        log.debug(f'Using {activation} activation')
+        model = tf.keras.Model(inputs=model_inputs, outputs=outputs)
 
-    def load_dict(self, hp_dict):
-        for key, value in hp_dict.items():
-            try:
-                setattr(self, key, value)
-            except:
-                log.error(f'Unrecognized hyperparameter {key}; unable to load')
+        if checkpoint:
+            log.info(f'Loading checkpoint weights from {sf.util.green(checkpoint)}')
+            model.load_weights(checkpoint)
 
-    def __str__(self):
-        args = sorted(self._get_args(), key=lambda arg: arg.lower())
-        arg_dict = {arg: getattr(self, arg) for arg in args}
-        return json.dumps(arg_dict, indent=2)
+        # Print model summary
+        if log.getEffectiveLevel() <= 20:
+            print()
+            model.summary()
 
-    def validate(self):
-        """Check that hyperparameter combinations are valid."""
-        if (self.model_type() != 'categorical' and ((self.balanced_training == BALANCE_BY_CATEGORY) or
-                                                    (self.balanced_validation == BALANCE_BY_CATEGORY))):
-            raise HyperParameterError(f'Cannot combine category-level balancing with model type "{self.model_type()}".')
-        return True
+        return model
+
+    def _build_cph_model(self, num_classes, num_slide_features=1, pretrain=None, checkpoint=None):
+        """Assembles a Cox Proportional Hazards (CPH) model, using pretraining (imagenet) or the base layers
+        of a supplied model.
+
+        Args:
+            num_classes (int or dict): Either int (single categorical outcome, indicating number of classes) or dict
+                (dict mapping categorical outcome names to number of unique categories in each outcome).
+            num_slide_features (int): Number of slide-level features separate from image input. Defaults to 0.
+            activation (str): Type of final layer activation to use. Defaults to softmax.
+            pretrain (str): Either 'imagenet' or path to model to use as pretraining. Defaults to 'imagenet'.
+            checkpoint (str): Path to checkpoint from which to resume model training. Defaults to None.
+        """
+
+        activation = 'linear'
+        tile_image_model, model_inputs, regularizer = self._build_base(pretrain)
+
+        # Add slide feature input tensors, if there are more slide features
+        #    than just the event input tensor for CPH models
+        event_input_tensor = tf.keras.Input(shape=(1), name='event_input')
+        if not (num_slide_features == 1):
+            slide_feature_input_tensor = tf.keras.Input(shape=(num_slide_features - 1),
+                                                        name='slide_feature_input')
+
+        # Merge layers
+        if num_slide_features and ((self.tile_px == 0) or self.drop_images):
+            # Add images
+            log.info('Generating model with just clinical variables and no images')
+            merged_model = slide_feature_input_tensor
+            model_inputs += [slide_feature_input_tensor, event_input_tensor]
+        elif num_slide_features and num_slide_features > 1:
+            # Add slide feature input tensors, if there are more slide features
+            #    than just the event input tensor for CPH models
+            merged_model = tf.keras.layers.Concatenate(name='input_merge')([slide_feature_input_tensor,
+                                                                            tile_image_model.output])
+            model_inputs += [slide_feature_input_tensor, event_input_tensor]
+        else:
+            merged_model = tile_image_model.output
+            model_inputs += [event_input_tensor]
+
+        # Add hidden layers
+        merged_model = self._add_hidden_layers(merged_model, regularizer)
+
+        log.debug(f'Using {activation} activation')
+
+        # Multi-categorical outcomes
+        if type(num_classes) == dict:
+            outputs = []
+            for c in self.num_classes:
+                final_dense_layer = tf.keras.layers.Dense(num_classes[c],
+                                                          kernel_regularizer=regularizer,
+                                                          name=f'prelogits-{c}')(merged_model)
+                outputs += [tf.keras.layers.Activation(activation, dtype='float32', name=f'out-{c}')(final_dense_layer)]
+        else:
+            final_dense_layer = tf.keras.layers.Dense(num_classes,
+                                                      kernel_regularizer=regularizer,
+                                                      name='prelogits')(merged_model)
+            outputs = [tf.keras.layers.Activation(activation, dtype='float32', name='output')(final_dense_layer)]
+        outputs[0] = tf.keras.layers.Concatenate(name='output_merge_CPH',
+                                                 dtype='float32')([outputs[0], event_input_tensor])
+
+        # Assemble final model
+        model = tf.keras.Model(inputs=model_inputs, outputs=outputs)
+
+        if checkpoint:
+            log.info(f'Loading checkpoint weights from {sf.util.green(checkpoint)}')
+            model.load_weights(checkpoint)
+
+        # Print model summary
+        if log.getEffectiveLevel() <= 20:
+            print()
+            model.summary()
+
+        return model
+
+    def build_model(self, labels=None, num_classes=None, **kwargs):
+        """Auto-detects model type (categorical, linear, CPH) from parameters and builds, using pretraining (imagenet)
+        or the base layers of a supplied model.
+
+        Args:
+            labels (dict, optional): Dict mapping slide names to outcomes. Used to detect number of outcome categories.
+            num_classes (int or dict, optional): Either int (single categorical outcome, indicating number of classes)
+                or dict (dict mapping categorical outcome names to number of unique categories in each outcome).
+                Must supply either `num_classes` or `label` (can detect number of classes from labels)
+            num_slide_features (int, optional): Number of slide-level features separate from image input. Defaults to 0.
+            activation (str, optional): Type of final layer activation to use. Defaults to 'softmax' (categorical models)
+                or 'linear' (linear or CPH models).
+            pretrain (str, optional): Either 'imagenet' or path to model to use as pretraining. Defaults to 'imagenet'.
+            checkpoint (str, optional): Path to checkpoint from which to resume model training. Defaults to None.
+        """
+
+        assert num_classes is not None or labels is not None
+        if num_classes is None:
+            num_classes = self._detect_classes_from_labels(labels)
+
+        if self.model_type() == 'categorical':
+            return self._build_categorical_model(num_classes, **kwargs, activation='softmax')
+        elif self.model_type() == 'linear':
+            return self._build_categorical_model(num_classes, **kwargs, activation='linear')
+        elif self.model_type() == 'cph':
+            return self._build_cph_model(num_classes, **kwargs)
+        else:
+            raise ModelError(f'Unknown model type: {self.model_type()}')
 
     def get_opt(self):
         """Returns optimizer with appropriate learning rate."""
@@ -234,23 +341,9 @@ class HyperParameters:
                 decay_rate=self.learning_rate_decay,
                 staircase=True
             )
-            return self._OptDict[self.optimizer](learning_rate=lr_schedule)
+            return self.OptDict[self.optimizer](learning_rate=lr_schedule)
         else:
-            return self._OptDict[self.optimizer](lr=self.learning_rate)
-
-    def get_model(self, input_tensor=None, weights=None):
-        """Returns a Keras model of the appropriate architecture, input shape, pooling, and initial weights."""
-        if self.model == 'NASNetLarge':
-            input_shape = (self.tile_px, self.tile_px, 3)
-        else:
-            input_shape = None
-        return self._ModelDict[self.model](
-            input_shape=input_shape,
-            input_tensor=input_tensor,
-            include_top=False,
-            pooling=self.pooling,
-            weights=weights
-        )
+            return self.OptDict[self.optimizer](lr=self.learning_rate)
 
     def model_type(self):
         """Returns either 'linear', 'categorical', or 'cph' depending on the loss type."""
@@ -283,7 +376,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs={}):
         if log.getEffectiveLevel() <= 20: print('\r\033[K', end='')
         self.epoch_count += 1
-        if self.epoch_count in [e for e in self.hp.finetune_epochs]:
+        if self.epoch_count in [e for e in self.hp.epochs]:
             model_name = self.parent.name if self.parent.name else 'trained_model'
             model_path = os.path.join(self.parent.outdir, f'{model_name}_epoch{self.epoch_count}')
             self.model.save(model_path)
@@ -384,7 +477,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         if not self.cb_args.skip_metrics:
             metrics = sf.statistics.metrics_from_dataset(self.model,
                                                          model_type=self.hp.model_type(),
-                                                         annotations=self.parent.annotations,
+                                                         labels=self.parent.labels,
+                                                         patients=self.parent.patients,
                                                          manifest=self.parent.manifest,
                                                          dataset=self.cb_args.validation_data_with_slidenames,
                                                          outcome_names=self.parent.outcome_names,
@@ -411,11 +505,11 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         epoch_results = self.results['epochs'][f'epoch{epoch}']
         sf.util.update_results_log(self.cb_args.results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
 
-class Model:
-    """Base model class containing functionality for model building, input processing, training, and evaluation.
+class Trainer(_base.Trainer):
+    """Base trainer class containing functionality for model building, input processing, training, and evaluation.
 
     This base class requires categorical outcome(s). Additional outcome types are supported by
-    :class:`slideflow.model.LinearModel` and :class:`slideflow.model.CPHModel`.
+    :class:`slideflow.model.LinearTrainer` and :class:`slideflow.model.CPHTrainer`.
 
     Slide-level (e.g. clinical) features can be used as additional model input by providing slide labels
     in the slide annotations dictionary, under the key 'input'.
@@ -423,16 +517,18 @@ class Model:
 
     _model_type = 'categorical'
 
-    def __init__(self, hp, outdir, annotations, name=None, manifest=None, feature_sizes=None, feature_names=None,
-                 normalizer=None, normalizer_source=None, outcome_names=None, mixed_precision=True):
+    def __init__(self, hp, outdir, labels, patients, slide_input=None, name=None, manifest=None, feature_sizes=None,
+                 feature_names=None, normalizer=None, normalizer_source=None, outcome_names=None, mixed_precision=True):
 
         """Sets base configuration, preparing model inputs and outputs.
 
         Args:
-            hp (:class:`slideflow.model.HyperParameters`): HyperParameters object.
+            hp (:class:`slideflow.model.ModelParams`): ModelParams object.
             outdir (str): Location where event logs and checkpoints will be written.
-            annotations (dict): Nested dict, mapping slide names to a dict with patient name (key 'submitter_id'),
-                outcome labels (key 'outcome_label'), and any additional slide-level inputs (key 'input').
+            labels (dict): Dict mapping slide names to outcome labels (int or float format).
+            patients (dict): Dict mapping slide names to patient ID, as some patients may have multiple slides.
+                If not provided, assumes 1:1 mapping between slide names and patients.
+            slide_input (dict): Dict mapping slide names to additional slide-level input, concatenated after post-conv.
             name (str, optional): Optional name describing the model, used for model saving. Defaults to None.
             manifest (dict, optional): Manifest dictionary mapping TFRecords to number of tiles. Defaults to None.
             model_type (str, optional): Type of model outcome, 'categorical' or 'linear'. Defaults to 'categorical'.
@@ -450,21 +546,25 @@ class Model:
         self.outdir = outdir
         self.manifest = manifest
         self.tile_px = hp.tile_px
-        self.annotations = annotations
+        self.labels = labels
         self.hp = hp
-        self.slides = list(annotations.keys())
+        self.slides = list(labels.keys())
+        self.slide_input = slide_input
         self.feature_names = feature_names
         self.feature_sizes = feature_sizes
         self.num_slide_features = 0 if not feature_sizes else sum(feature_sizes)
         self.outcome_names = outcome_names
         self.mixed_precision = mixed_precision
         self.name = name
-        self.model = None
+        if patients:
+            self.patients = patients
+        else:
+            self.patients = {s:s for s in self.slides}
 
         if not os.path.exists(outdir): os.makedirs(outdir)
 
         # Format outcome labels (ensures compatibility with single and multi-outcome models)
-        outcome_labels = np.array([annotations[slide]['outcome_label'] for slide in self.slides])
+        outcome_labels = np.array(list(labels.values()))
         if len(outcome_labels.shape) == 1:
             outcome_labels = np.expand_dims(outcome_labels, axis=1)
         if not self.outcome_names:
@@ -477,7 +577,7 @@ class Model:
             raise ModelError(f'Size of outcome_names ({num_names}) does not match number of outcomes {num_outcomes}')
 
         self._setup_inputs()
-        self._setup_outcomes(outcome_labels)
+        self.num_classes = self.hp._detect_classes_from_labels(labels)
 
         # Normalization setup
         if normalizer: log.info(f'Using realtime {normalizer} normalization')
@@ -495,152 +595,19 @@ class Model:
                     tf.lookup.KeyValueTensorInitializer(self.slides, outcome_labels[:,oi]), -1
                 )]
 
-    def _setup_outcomes(self, outcome_labels):
-        # Set up number of outcome classes
-        self.num_classes = {i: np.unique(outcome_labels[:,i]).shape[0] for i in range(outcome_labels.shape[1])}
-
     def _setup_inputs(self):
         # Setup slide-level input
         if self.num_slide_features:
             try:
-                self.slide_feature_table = {slide: self.annotations[slide]['input'] for slide in self.slides}
                 if self.num_slide_features:
                     log.info(f'Training with both images and {self.num_slide_features} categories of slide-level input')
             except KeyError:
                 raise ModelError("Unable to find slide-level input at 'input' key in annotations")
             for slide in self.slides:
-                if len(self.slide_feature_table[slide]) != self.num_slide_features:
+                if len(self.slide_input[slide]) != self.num_slide_features:
                     err_msg = f'Length of input for slide {slide} does not match feature_sizes'
-                    num_in_feature_table = len(self.slide_feature_table[slide])
+                    num_in_feature_table = len(self.slide_input[slide])
                     raise ModelError(f'{err_msg}; expected {self.num_slide_features}, got {num_in_feature_table}')
-
-    def _add_regularization(self, base_model):
-        # Add L2 regularization to all compatible layers in the base model
-        if self.hp.L2_weight != 0:
-            regularizer = tf.keras.regularizers.l2(self.hp.L2_weight)
-            base_model = add_regularization(base_model, regularizer)
-        else:
-            regularizer = None
-        return base_model, regularizer
-
-    def _add_hidden_layers(self, model, regularizer):
-        for i in range(self.hp.hidden_layers):
-            model = tf.keras.layers.Dense(self.hp.hidden_layer_width,
-                                          name=f'hidden_{i}',
-                                          activation='relu',
-                                          kernel_regularizer=regularizer)(model)
-        return model
-
-    def _freeze_layers(self, base_model):
-        freezeIndex = int(len(base_model.layers) - (self.hp.trainable_layers - 1 ))# - self.hp.hidden_layers - 1))
-        log.info(f'Only training on last {self.hp.trainable_layers} layers (of {len(base_model.layers)} total)')
-        for layer in base_model.layers[:freezeIndex]:
-            layer.trainable = False
-        return base_model
-
-    def _build_bottom(self, pretrain):
-        image_shape = (self.tile_px, self.tile_px, 3)
-        tile_input_tensor = tf.keras.Input(shape=image_shape, name='tile_image')
-        if pretrain: log.info(f'Using pretraining from {sf.util.green(pretrain)}')
-        if pretrain and pretrain != 'imagenet':
-            pretrained_model = tf.keras.models.load_model(pretrain)
-            try:
-                # This is the tile_image input
-                pretrained_input = pretrained_model.get_layer(name='tile_image').input
-                # Name of the pretrained model core, which should be at layer 1
-                pretrained_name = pretrained_model.get_layer(index=1).name
-                # This is the post-convolution layer
-                pretrained_output = pretrained_model.get_layer(name='post_convolution').output
-                base_model = tf.keras.Model(inputs=pretrained_input,
-                                            outputs=pretrained_output,
-                                            name=f'pretrained_{pretrained_name}').layers[1]
-            except ValueError:
-                log.warning('Unable to automatically read pretrained model, will try legacy format')
-                base_model = pretrained_model.get_layer(index=0)
-            return base_model
-        else:
-            base_model = self.hp.get_model(weights=pretrain)
-
-        # Add regularization
-        base_model, regularizer = self._add_regularization(base_model)
-
-        # Allow only a subset of layers in the base model to be trainable
-        if self.hp.trainable_layers != 0:
-            base_model = self._freeze_layers(base_model)
-        # Create sequential tile model:
-        #     tile image --> convolutions --> pooling/flattening --> hidden layers ---> prelogits --> softmax/logits
-        #                             additional slide input --/
-
-        # This is an identity layer that simply returns the last layer, allowing us to name and access this layer later
-        post_convolution_identity_layer = tf.keras.layers.Activation('linear', name='post_convolution')
-        layers = [tile_input_tensor, base_model]
-        if not self.hp.pooling:
-            layers += [tf.keras.layers.Flatten()]
-        layers += [post_convolution_identity_layer]
-        if self.hp.dropout:
-            layers += [tf.keras.layers.Dropout(self.hp.dropout)]
-        tile_image_model = tf.keras.Sequential(layers)
-        model_inputs = [tile_image_model.input]
-        return tile_image_model, model_inputs, regularizer
-
-    def _build_model(self, activation='softmax', pretrain=None, checkpoint=None):
-        ''' Assembles base model, using pretraining (imagenet) or the base layers of a supplied model.
-
-        Args:
-            pretrain:    Either 'imagenet' or path to model to use as pretraining
-            checkpoint:    Path to checkpoint from which to resume model training
-        '''
-
-        tile_image_model, model_inputs, regularizer = self._build_bottom(pretrain)
-
-        if self.num_slide_features:
-            slide_feature_input_tensor = tf.keras.Input(shape=(self.num_slide_features),
-                                                        name='slide_feature_input')
-        # Merge layers
-        if self.num_slide_features and ((self.hp.tile_px == 0) or self.hp.drop_images):
-            log.info('Generating model with just clinical variables and no images')
-            merged_model = slide_feature_input_tensor
-            model_inputs += [slide_feature_input_tensor]
-        else:
-            merged_model = tile_image_model.output
-
-
-        # Add hidden layers
-        merged_model = self._add_hidden_layers(merged_model, regularizer)
-
-        log.debug(f'Using {activation} activation')
-
-        # Multi-categorical outcomes
-        if type(self.num_classes) == dict:
-            outputs = []
-            for c in self.num_classes:
-                final_dense_layer = tf.keras.layers.Dense(self.num_classes[c],
-                                                          kernel_regularizer=regularizer,
-                                                          name=f'prelogits-{c}')(merged_model)
-
-                outputs += [tf.keras.layers.Activation(activation, dtype='float32', name=f'out-{c}')(final_dense_layer)]
-
-        else:
-            final_dense_layer = tf.keras.layers.Dense(self.num_classes,
-                                                      kernel_regularizer=regularizer,
-                                                      name='prelogits')(merged_model)
-
-
-            outputs = [tf.keras.layers.Activation(activation, dtype='float32', name='output')(final_dense_layer)]
-
-        # Assemble final model
-        model = tf.keras.Model(inputs=model_inputs, outputs=outputs)
-
-        if checkpoint:
-            log.info(f'Loading checkpoint weights from {sf.util.green(checkpoint)}')
-            model.load_weights(checkpoint)
-
-        # Print model summary
-        if log.getEffectiveLevel() <= 20:
-            print()
-            model.summary()
-
-        return model
 
     def _compile_model(self):
         '''Compiles keras model.'''
@@ -662,7 +629,7 @@ class Model:
         # Add additional non-image feature inputs if indicated,
         #     excluding the event feature used for CPH models
         if self.num_slide_features:
-            def slide_lookup(s): return self.slide_feature_table[s.numpy().decode('utf-8')]
+            def slide_lookup(s): return self.slide_input[s.numpy().decode('utf-8')]
             num_features = self.num_slide_features
             slide_feature_input_val = tf.py_function(func=slide_lookup, inp=[slide], Tout=[tf.float32] * num_features)
             image_dict.update({'slide_feature_input': slide_feature_input_val})
@@ -690,32 +657,12 @@ class Model:
         self.model.layers[0].trainable = True
         return toplayer_model.history
 
-    def _save_manifest(self, train_tfrecords=None, val_tfrecords=None):
-            """Save the training and evaluation manifest to a log file."""
-            # Record which slides are used for training and validation, and to which categories they belong
-            if train_tfrecords or val_tfrecords:
-                with open(os.path.join(self.outdir, 'slide_manifest.log'), 'w') as slide_manifest:
-                    writer = csv.writer(slide_manifest)
-                    writer.writerow(['slide', 'dataset', 'outcome_label'])
-                    if train_tfrecords:
-                        for tfrecord in train_tfrecords:
-                            slide = tfrecord.split('/')[-1][:-10]
-                            if slide in self.slides:
-                                outcome_label = self.annotations[slide]['outcome_label']
-                                writer.writerow([slide, 'training', outcome_label])
-                    if val_tfrecords:
-                        for tfrecord in val_tfrecords:
-                            slide = tfrecord.split('/')[-1][:-10]
-                            if slide in self.slides:
-                                outcome_label = self.annotations[slide]['outcome_label']
-                                writer.writerow([slide, 'validation', outcome_label])
-
     def _interleave_kwargs(self, **kwargs):
         args = types.SimpleNamespace(
             img_size=self.tile_px,
             model_type=self._model_type,
             label_parser = self._parse_tfrecord_labels,
-            annotations={s:l['outcome_label'] for s,l in self.annotations.items()},
+            annotations=self.labels,
             normalizer=self.normalizer,
             manifest=self.manifest,
             slides=self.slides,
@@ -727,7 +674,8 @@ class Model:
         args = types.SimpleNamespace(
             model=self.model,
             model_type=self._model_type,
-            annotations=self.annotations,
+            labels=self.labels,
+            patients=self.patients,
             manifest=self.manifest,
             outcome_names=self.outcome_names,
             data_dir=self.outdir,
@@ -735,14 +683,8 @@ class Model:
         )
         return vars(args)
 
-    def load(self, path):
-        """Load saved model."""
-        self.model = tf.keras.models.load_model(path)
-
-    def load_checkpoint(self, path):
-        """Load model from checkpoint."""
-        self.model = self._build_model(self.hp)
-        self.model.load_weights(path)
+    def load(self, model):
+        self.model = tf.keras.models.load_model(model)
 
     def evaluate(self, tfrecords, batch_size=None, max_tiles_per_slide=0, min_tiles_per_slide=0,
                  permutation_importance=False, histogram=False, save_predictions=False):
@@ -767,17 +709,17 @@ class Model:
 
         # Load and initialize model
         if not self.model:
-            raise sf.util.UserError("Model has not been loaded, unable to evaluate. Try calling load() or load_checkpoint().")
+            raise sf.util.UserError("Model has not been loaded, unable to evaluate.")
         self._save_manifest(val_tfrecords=tfrecords)
         if not batch_size: batch_size = self.hp.batch_size
         with tf.name_scope('input'):
             interleave_kwargs = self._interleave_kwargs(batch_size=batch_size,
-                                                        balance=NO_BALANCE,
-                                                        finite=True,
+                                                        balance='none',
+                                                        infinite=False,
                                                         max_tiles=max_tiles_per_slide,
                                                         min_tiles=min_tiles_per_slide,
                                                         augment=False)
-            dataset, dataset_with_slidenames, num_tiles = sf.io.tfrecords.interleave(tfrecords, **interleave_kwargs)
+            dataset, dataset_with_slidenames, num_tiles = sf.io.tensorflow.interleave(tfrecords, **interleave_kwargs)
         # Generate performance metrics
         log.info('Calculating performance metrics...')
         metric_kwargs = self._metric_kwargs(dataset=dataset_with_slidenames, num_tiles=num_tiles, label='eval')
@@ -814,22 +756,16 @@ class Model:
         sf.util.update_results_log(results_log, 'eval_model', results_dict)
         return val_metrics
 
-    def train(self, train_tfrecords, val_tfrecords, pretrain='imagenet', resume_training=None, checkpoint=None,
-              log_frequency=100, validate_on_batch=512, validation_batch_size=32, validation_steps=200,
-              max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, ema_observations=20, ema_smoothing=2,
-              steps_per_epoch_override=None, use_tensorboard=False, multi_gpu=False, save_predictions=False,
-              skip_metrics=False):
+    def train(self, train_tfrecords, val_tfrecords, log_frequency=100, validate_on_batch=512, validation_batch_size=32,
+              validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, ema_observations=20,
+              ema_smoothing=2, use_tensorboard=False, steps_per_epoch_override=None, save_predictions=False,
+              skip_metrics=False, resume_training=None, pretrain='imagenet', checkpoint=None, multi_gpu=False):
 
         """Builds and trains a model from hyperparameters.
 
         Args:
             train_tfrecords (list(str)): List of tfrecord paths for training.
             val_tfrecords (list(str)): List of tfrecord paths for validation.
-            pretrain (str, optional): Either None, 'imagenet' or path to Tensorflow model for pretrained weights.
-                Defaults to 'imagenet'.
-            resume_training (str, optional): Path to saved model from which to resume training. Defaults to None.
-            checkpoint (str, optional): Path to cp.cpkt checkpoint file. If provided, will load checkpoint weights.
-                Defaults to None.
             log_frequency (int, optional): How frequent to update Tensorboard logs, in batches. Defaults to 100.
             validate_on_batch (int, optional): How frequent o perform validation, in batches. Defaults to 512.
             validation_batch_size (int, optional): Batch size to use during validation. Defaults to 32.
@@ -840,34 +776,49 @@ class Model:
             ema_observations (int, optional): Number of observations over which to perform exponential moving average
                 smoothing. Defaults to 20.
             ema_smoothing (int, optional): Exponential average smoothing value. Defaults to 2.
-            steps_per_epoch_override (int, optional): Manually set the number of steps per epoch. Defaults to None.
             use_tensoboard (bool, optional): Enable tensorboard callbacks. Defaults to False.
-            multi_gpu (bool, optional): Enable mutli-GPU training. Defaults to False.
+            steps_per_epoch_override (int, optional): Manually set the number of steps per epoch. Defaults to None.
             save_predictions (bool, optional): Save tile, slide, and patient-level predictions at each evaluation.
                 Defaults to False.
             skip_metrics (bool, optional): Skip validation metrics. Defaults to False.
+            resume_training (str, optional): Path to Tensorflow model to continue training. Defaults to None.
+            pretrain (str, optional): Either 'imagenet' or path to Tensorflow model from which to load weights.
+                Defaults to 'imagenet'.
+            checkpoint (str, optional): Path to cp.ckpt from which to load weights. Defaults to None.
 
         Returns:
             Nested results dictionary containing metrics for each evaluated epoch.
         """
-
         if self.hp.model_type() != self._model_type:
             raise ModelError(f"Incomptable model types: {self.hp.model_type()} (hp) and {self._model_type} (model)")
+        tf.keras.backend.clear_session() # Clear prior Tensorflow graph to free memory
+
         if multi_gpu:
             strategy = tf.distribute.MirroredStrategy()
             log.info(f'Multi-GPU training with {strategy.num_replicas_in_sync} devices')
         else:
             strategy = None
-        self._save_manifest(train_tfrecords, val_tfrecords)
-        with strategy.scope() if strategy is not None else no_scope():
+
+        with strategy.scope() if strategy else no_scope():
+            # Build model from ModeLParams
+            if resume_training:
+                self.model = tf.keras.load_model(resume_training)
+            else:
+                model = self.hp.build_model(labels=self.labels,
+                                            num_slide_features=self.num_slide_features,
+                                            pretrain=pretrain,
+                                            checkpoint=checkpoint)
+                self.model = model
+
+            self._save_manifest(train_tfrecords, val_tfrecords)
             with tf.name_scope('input'):
                 interleave_kwargs = self._interleave_kwargs(batch_size=self.hp.batch_size,
                                                             balance=self.hp.balanced_training,
-                                                            finite=False,
+                                                            infinite=True,
                                                             max_tiles=max_tiles_per_slide,
                                                             min_tiles=min_tiles_per_slide,
                                                             augment=self.hp.augment)
-                train_data, _, num_tiles = sf.io.tfrecords.interleave(train_tfrecords, **interleave_kwargs)
+                train_data, _, num_tiles = sf.io.tensorflow.interleave(train_tfrecords, **interleave_kwargs)
 
             # Set up validation data
             using_validation = (val_tfrecords and len(val_tfrecords))
@@ -875,11 +826,11 @@ class Model:
                 with tf.name_scope('input'):
                     val_interleave_kwargs = self._interleave_kwargs(batch_size=validation_batch_size,
                                                                     balance=self.hp.balanced_validation,
-                                                                    finite=True,
+                                                                    infinite=False,
                                                                     max_tiles=max_tiles_per_slide,
                                                                     min_tiles=min_tiles_per_slide,
                                                                     augment=False)
-                    interleave_results = sf.io.tfrecords.interleave(val_tfrecords, **val_interleave_kwargs)
+                    interleave_results = sf.io.tensorflow.interleave(val_tfrecords, **val_interleave_kwargs)
                     validation_data, validation_data_with_slidenames, num_val_tiles = interleave_results
 
                 val_log_msg = '' if not validate_on_batch else f'every {str(validate_on_batch)} steps and '
@@ -896,61 +847,52 @@ class Model:
                 validation_data_for_training = None
                 validation_steps = 0
 
-        # Calculate parameters
-        if max(self.hp.finetune_epochs) <= starting_epoch:
-            max_epoch = max(self.hp.finetune_epochs)
-            log.error(f'Starting epoch ({starting_epoch}) cannot be greater than the max target epoch ({max_epoch})')
-        if self.hp.early_stop and self.hp.early_stop_method == 'accuracy' and self._model_type != 'categorical':
-            log.error(f"Unable to use 'accuracy' early stopping with model type '{self.hp.model_type()}'")
-        if starting_epoch != 0:
-            log.info(f'Starting training at epoch {starting_epoch}')
-        total_epochs = self.hp.toplayer_epochs + (max(self.hp.finetune_epochs) - starting_epoch)
-        if steps_per_epoch_override:
-            steps_per_epoch = steps_per_epoch_override
-        else:
-            steps_per_epoch = round(num_tiles/self.hp.batch_size)
-        results_log = os.path.join(self.outdir, 'results_log.csv')
-
-        cb_args = types.SimpleNamespace(
-            starting_epoch=starting_epoch,
-            using_validation=using_validation,
-            validate_on_batch=validate_on_batch,
-            validation_data=validation_data,
-            validation_steps=validation_steps,
-            ema_observations=ema_observations,
-            ema_smoothing=ema_smoothing,
-            steps_per_epoch=steps_per_epoch,
-            skip_metrics=skip_metrics,
-            validation_data_with_slidenames=validation_data_with_slidenames,
-            num_val_tiles=num_val_tiles,
-            save_predictions=save_predictions,
-            results_log=results_log
-        )
-
-        # Create callbacks for early stopping, checkpoint saving, summaries, and history
-        history_callback = tf.keras.callbacks.History()
-        checkpoint_path = os.path.join(self.outdir, 'cp.ckpt')
-        evaluation_callback = _PredictionAndEvaluationCallback(self, cb_args)
-        cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
-                                                         save_weights_only=True,
-                                                         verbose=(log.getEffectiveLevel() <= 20))
-        tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.outdir,
-                                                              histogram_freq=0,
-                                                              write_graph=False,
-                                                              update_freq=log_frequency)
-
-        callbacks = [history_callback, evaluation_callback, cp_callback]
-        if use_tensorboard:
-            callbacks += [tensorboard_callback]
-
-        with strategy.scope() if strategy is not None else no_scope():
-
-            # Build or load model
-            if resume_training:
-                log.info(f'Resuming training from {sf.util.green(resume_training)}')
-                self.model = tf.keras.models.load_model(resume_training)
+            # Calculate parameters
+            if max(self.hp.epochs) <= starting_epoch:
+                max_epoch = max(self.hp.epochs)
+                log.error(f'Starting epoch ({starting_epoch}) cannot be greater than the max target epoch ({max_epoch})')
+            if self.hp.early_stop and self.hp.early_stop_method == 'accuracy' and self._model_type != 'categorical':
+                log.error(f"Unable to use 'accuracy' early stopping with model type '{self.hp.model_type()}'")
+            if starting_epoch != 0:
+                log.info(f'Starting training at epoch {starting_epoch}')
+            total_epochs = self.hp.toplayer_epochs + (max(self.hp.epochs) - starting_epoch)
+            if steps_per_epoch_override:
+                steps_per_epoch = steps_per_epoch_override
             else:
-                self.model = self._build_model(pretrain=pretrain, checkpoint=checkpoint)
+                steps_per_epoch = round(num_tiles/self.hp.batch_size)
+            results_log = os.path.join(self.outdir, 'results_log.csv')
+
+            cb_args = types.SimpleNamespace(
+                starting_epoch=starting_epoch,
+                using_validation=using_validation,
+                validate_on_batch=validate_on_batch,
+                validation_data=validation_data,
+                validation_steps=validation_steps,
+                ema_observations=ema_observations,
+                ema_smoothing=ema_smoothing,
+                steps_per_epoch=steps_per_epoch,
+                skip_metrics=skip_metrics,
+                validation_data_with_slidenames=validation_data_with_slidenames,
+                num_val_tiles=num_val_tiles,
+                save_predictions=save_predictions,
+                results_log=results_log
+            )
+
+            # Create callbacks for early stopping, checkpoint saving, summaries, and history
+            history_callback = tf.keras.callbacks.History()
+            checkpoint_path = os.path.join(self.outdir, 'cp.ckpt')
+            evaluation_callback = _PredictionAndEvaluationCallback(self, cb_args)
+            cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
+                                                            save_weights_only=True,
+                                                            verbose=(log.getEffectiveLevel() <= 20))
+            tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.outdir,
+                                                                histogram_freq=0,
+                                                                write_graph=False,
+                                                                update_freq=log_frequency)
+
+            callbacks = [history_callback, evaluation_callback, cp_callback]
+            if use_tensorboard:
+                callbacks += [tensorboard_callback]
 
             # Retrain top layer only, if using transfer learning and not resuming training
             if self.hp.toplayer_epochs:
@@ -962,20 +904,25 @@ class Model:
             log.info('Beginning training')
             #tf.debugging.enable_check_numerics()
 
-            self.model.fit(train_data,
-                           steps_per_epoch=steps_per_epoch,
-                           epochs=total_epochs,
-                           verbose=(log.getEffectiveLevel() <= 20),
-                           initial_epoch=self.hp.toplayer_epochs,
-                           validation_data=validation_data_for_training,
-                           validation_steps=validation_steps,
-                           callbacks=callbacks)
+            try:
+                self.model.fit(train_data,
+                                steps_per_epoch=steps_per_epoch,
+                                epochs=total_epochs,
+                                verbose=(log.getEffectiveLevel() <= 20),
+                                initial_epoch=self.hp.toplayer_epochs,
+                                validation_data=validation_data_for_training,
+                                validation_steps=validation_steps,
+                                callbacks=callbacks)
+            except tf.errors.ResourceExhaustedError as e:
+                print()
+                print(e)
+                log.error(f"Training failed for {sf.util.bold(self.name)}, GPU memory exceeded.")
 
-        return evaluation_callback.results
+            return evaluation_callback.results
 
-class LinearModel(Model):
+class LinearTrainer(Trainer):
 
-    """Extends the base :class:`slideflow.model.Model` class to add support for lienar outcomes. Requires that all
+    """Extends the base :class:`slideflow.model.Trainer` class to add support for linear outcomes. Requires that all
     outcomes be linear, with appropriate linear loss function. Uses R-squared as the evaluation metric, rather
     than AUROC."""
 
@@ -983,16 +930,6 @@ class LinearModel(Model):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-    def _setup_outcomes(self, outcome_labels):
-        # Set up number of outcome classes
-        try:
-            self.num_classes = outcome_labels.shape[1]
-        except TypeError:
-            raise ModelError('Incorrect formatting of outcome labels for linear model; must be an ndarray.')
-
-    def _build_model(self, pretrain=None, checkpoint=None):
-        return super()._build_model(activation='linear', pretrain=pretrain, checkpoint=checkpoint)
 
     def _compile_model(self):
         self.model.compile(optimizer=self.hp.get_opt(),
@@ -1006,14 +943,14 @@ class LinearModel(Model):
         # Add additional non-image feature inputs if indicated,
         #     excluding the event feature used for CPH models
         if self.num_slide_features:
-            def slide_lookup(s): return self.slide_feature_table[s.numpy().decode('utf-8')]
+            def slide_lookup(s): return self.slide_input[s.numpy().decode('utf-8')]
             num_features = self.num_slide_features
             slide_feature_input_val = tf.py_function(func=slide_lookup, inp=[slide], Tout=[tf.float32] * num_features)
             image_dict.update({'slide_feature_input': slide_feature_input_val})
 
         return image_dict, label
 
-class CPHModel(LinearModel):
+class CPHTrainer(LinearTrainer):
 
     """Cox Proportional Hazards model. Requires that the user provide event data as the first input feature,
     and time to outcome as the linear outcome. Uses concordance index as the evaluation metric."""
@@ -1029,7 +966,6 @@ class CPHModel(LinearModel):
     def _setup_inputs(self):
         # Setup slide-level input
         try:
-            self.slide_feature_table = {slide: self.annotations[slide]['input'] for slide in self.slides}
             num_features = self.num_slide_features - 1
             if num_features:
                 log.info(f'Training with both images and {num_features} categories of slide-level input')
@@ -1039,9 +975,9 @@ class CPHModel(LinearModel):
         except KeyError:
             raise ModelError("Unable to find slide-level input at 'input' key in annotations")
         for slide in self.slides:
-            if len(self.slide_feature_table[slide]) != self.num_slide_features:
+            if len(self.slide_input[slide]) != self.num_slide_features:
                 err_msg = f'Length of input for slide {slide} does not match feature_sizes'
-                num_in_feature_table = len(self.slide_feature_table[slide])
+                num_in_feature_table = len(self.slide_input[slide])
                 raise ModelError(f'{err_msg}; expected {self.num_slide_features}, got {num_in_feature_table}')
 
     def load(self, model):
@@ -1049,73 +985,6 @@ class CPHModel(LinearModel):
                           'concordance_index':concordance_index}
         self.model = tf.keras.models.load_model(model, custom_objects=custom_objects)
         self.model.compile(loss=negative_log_likelihood, metrics=concordance_index)
-
-    def _build_model(self, pretrain=None, checkpoint=None):
-        activation = 'linear'
-        tile_image_model, model_inputs, regularizer = self._build_bottom(pretrain)
-
-        # Add slide feature input tensors, if there are more slide features
-        #    than just the event input tensor for CPH models
-        event_input_tensor = tf.keras.Input(shape=(1), name='event_input')
-        if not (self.num_slide_features == 1):
-            slide_feature_input_tensor = tf.keras.Input(shape=(self.num_slide_features - 1),
-                                                        name='slide_feature_input')
-
-        # Merge layers
-        if self.num_slide_features and ((self.hp.tile_px == 0) or self.hp.drop_images):
-            # Add images
-            log.info('Generating model with just clinical variables and no images')
-            merged_model = slide_feature_input_tensor
-            model_inputs += [slide_feature_input_tensor, event_input_tensor]
-        elif self.num_slide_features and self.num_slide_features > 1:
-            # Add slide feature input tensors, if there are more slide features
-            #    than just the event input tensor for CPH models
-            merged_model = tf.keras.layers.Concatenate(name='input_merge')([slide_feature_input_tensor,
-                                                                            tile_image_model.output])
-            model_inputs += [slide_feature_input_tensor, event_input_tensor]
-        else:
-            merged_model = tile_image_model.output
-            model_inputs += [event_input_tensor]
-
-        # Add hidden layers
-        merged_model = self._add_hidden_layers(merged_model, regularizer)
-
-        log.debug(f'Using {activation} activation')
-
-        # Multi-categorical outcomes
-        if type(self.num_classes) == dict:
-            outputs = []
-            for c in self.num_classes:
-                final_dense_layer = tf.keras.layers.Dense(self.num_classes[c],
-                                                          kernel_regularizer=regularizer,
-                                                          name=f'prelogits-{c}')(merged_model)
-
-                outputs += [tf.keras.layers.Activation(activation, dtype='float32', name=f'out-{c}')(final_dense_layer)]
-
-        else:
-            final_dense_layer = tf.keras.layers.Dense(self.num_classes,
-                                                      kernel_regularizer=regularizer,
-                                                      name='prelogits')(merged_model)
-
-
-            outputs = [tf.keras.layers.Activation(activation, dtype='float32', name='output')(final_dense_layer)]
-
-        outputs[0] = tf.keras.layers.Concatenate(name='output_merge_CPH',
-                                                 dtype='float32')([outputs[0], event_input_tensor])
-
-        # Assemble final model
-        model = tf.keras.Model(inputs=model_inputs, outputs=outputs)
-
-        if checkpoint:
-            log.info(f'Loading checkpoint weights from {sf.util.green(checkpoint)}')
-            model.load_weights(checkpoint)
-
-        # Print model summary
-        if log.getEffectiveLevel() <= 20:
-            print()
-            model.summary()
-
-        return model
 
     def _compile_model(self):
         self.model.compile(optimizer=self.hp.get_opt(),
@@ -1130,8 +999,8 @@ class CPHModel(LinearModel):
         #     excluding the event feature used for CPH models
         if self.num_slide_features:
             # Time-to-event data must be added as a separate feature
-            def slide_lookup(s): return self.slide_feature_table[s.numpy().decode('utf-8')][1:]
-            def event_lookup(s): return self.slide_feature_table[s.numpy().decode('utf-8')][0]
+            def slide_lookup(s): return self.slide_input[s.numpy().decode('utf-8')][1:]
+            def event_lookup(s): return self.slide_input[s.numpy().decode('utf-8')][0]
             num_features = self.num_slide_features - 1
 
             event_input_val = tf.py_function(func=event_lookup, inp=[slide], Tout=[tf.float32])
@@ -1143,37 +1012,3 @@ class CPHModel(LinearModel):
             if not (self.num_slide_features == 1):
                 image_dict.update({'slide_feature_input': slide_feature_input_val})
         return image_dict, label
-
-def model_from_hp(hp, **kwargs):
-    """From the given :class:`slideflow.model.HyperParameters` object, returns the appropriate instance of
-    :class:`slideflow.model.Model`.
-
-    Args:
-        hp (:class:`slideflow.model.HyperParameters`): HyperParameters object.
-
-    Keyword Args:
-        outdir (str): Location where event logs and checkpoints will be written.
-        annotations (dict): Nested dict, mapping slide names to a dict with patient name (key 'submitter_id'),
-            outcome labels (key 'outcome_label'), and any additional slide-level inputs (key 'input').
-        name (str, optional): Optional name describing the model, used for model saving. Defaults to None.
-        manifest (dict, optional): Manifest dictionary mapping TFRecords to number of tiles. Defaults to None.
-        model_type (str, optional): Type of model outcome, 'categorical' or 'linear'. Defaults to 'categorical'.
-        feature_sizes (list, optional): List of sizes of input features. Required if providing additional
-            input features as input to the model.
-        feature_names (list, optional): List of names for input features. Used when permuting feature importance.
-        normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
-        normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
-            If None but using a normalizer, will use an internal tile for normalization.
-            Internal default tile can be found at slideflow.util.norm_tile.jpg
-        outcome_names (list, optional): Name of each outcome. Defaults to "Outcome {X}" for each outcome.
-        mixed_precision (bool, optional): Use FP16 mixed precision (rather than FP32). Defaults to True.
-    """
-
-    if hp.model_type() == 'categorical':
-        return Model(hp, **kwargs)
-    if hp.model_type() == 'linear':
-        return LinearModel(hp, **kwargs)
-    if hp.model_type() == 'cph':
-        return CPHModel(hp, **kwargs)
-    else:
-        raise ModelError(f"Unknown model type: {hp.model_type()}")

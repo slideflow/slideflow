@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Pipeline Overview &mdash; slideflow 1.12.0 documentation</title>
+  <title>Pipeline Overview &mdash; slideflow 1.12.0-rc1 documentation</title>
   
 
   
@@ -152,6 +152,7 @@
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -160,13 +161,17 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tfrecords</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.reader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="statistics.html">slideflow.statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
 </ul>
 
             
@@ -249,10 +254,12 @@
 <div class="section" id="step-1-create-rois">
 <h2>Step 1: Create ROIs<a class="headerlink" href="#step-1-create-rois" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple">
-<li><p><strong>Label ROIs</strong> (optional). Using <a class="reference external" href="https://qupath.github.io/">QuPath</a>, annotate whole-slide images with the Polygon tool. Then, click <strong>Automate</strong> -&gt; <strong>Show script editor</strong>. In the box that comes up, click <strong>File</strong> -&gt; <strong>Open</strong> and load the <code class="docutils literal notranslate"><span class="pre">qupath_roi.groovy</span></code> script. Press CTRL + R and wait for the script to finish.</p></li>
+<li><p><strong>Label ROIs</strong> (optional). Using <a class="reference external" href="https://qupath.github.io/">QuPath</a>, annotate whole-slide images with the Polygon tool. Then, click <strong>Automate</strong> -&gt; <strong>Show script editor</strong>. In the box that comes up, click <strong>File</strong> -&gt; <strong>Open</strong> and load the <code class="docutils literal notranslate"><span class="pre">qupath_roi.groovy</span></code> script. Press CTRL + R and wait for the script to finish. Alternatively, you can load multiple SVS files into a QuPath project and run the script on the entire project using “Run for project”.</p></li>
 </ol>
-<p><em>You may choose to speed-up workflow by loading multiple SVS files into a QuPath project, and then running the script on the entire project using “Run for project.”</em></p>
-<p><em>This step may be skipped if you are performing analysis on whole-slide images, rather than annotated tumor regions.</em></p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This step may be skipped if you are performing analysis on whole-slide images, rather than annotated tumor regions.</p>
+</div>
 </div>
 <div class="section" id="step-2-data-preparation">
 <h2>Step 2: Data Preparation<a class="headerlink" href="#step-2-data-preparation" title="Permalink to this headline">¶</a></h2>

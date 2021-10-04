@@ -1,1 +1,1 @@
-# Abstraction for tfrecord reading, with either tensorflow or dareblopy backend
+# Abstraction for tfrecord reading, with either tensorflow or torch backend

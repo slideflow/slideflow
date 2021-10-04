@@ -17,9 +17,6 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import tensorflow as tf
 
-BALANCE_BY_CATEGORY = 'BALANCE_BY_CATEGORY'
-BALANCE_BY_PATIENT = 'BALANCE_BY_PATIENT'
-NO_BALANCE = 'NO_BALANCE'
 FEATURE_TYPES = (tf.int64, tf.string, tf.string)
 
 FEATURE_DESCRIPTION_LEGACY =  {'slide':    tf.io.FixedLenFeature([], tf.string),
@@ -104,7 +101,7 @@ def _decode_image(img_string, img_type, size=None, standardize=False, normalizer
     return image
 
 def get_tfrecords_from_model_manifest(path_to_model):
-    log.warning("Deprecation Warning: sf.io.tfrecords.get_tfrecord_from_model_manifest() will be removed " + \
+    log.warning("Deprecation Warning: sf.io.tensorflow.get_tfrecord_from_model_manifest() will be removed " + \
                 "in a future version. Please use sf.util.get_slides_from_model_manifest()")
     return sf.util.get_slides_from_model_manifest(path_to_model)
 
@@ -200,7 +197,7 @@ def get_locations_from_tfrecord(filename):
     return loc_dict
 
 def interleave(tfrecords, img_size, batch_size, label_parser=None, model_type='categorical', balance=None,
-                finite=False, annotations=None, max_tiles=0, min_tiles=0, augment=True, standardize=True,
+                infinite=True, annotations=None, max_tiles=0, min_tiles=0, augment=True, standardize=True,
                 normalizer=None, manifest=None, slides=None, num_shards=None, shard_idx=None, num_parallel_reads=4):
 
     """Generates an interleaved dataset from a collection of tfrecord files, sampling from tfrecord files randomly
@@ -213,10 +210,10 @@ def interleave(tfrecords, img_size, batch_size, label_parser=None, model_type='c
         label_parser (func, optional): Base function to use for parsing labels. Function must accept an image (tensor)
             and slide name (str), and return an image (tensor) and label. If None is provided, all labels will be None.
         model_type (str, optional): Model type. 'categorical' enables category-level balancing. Defaults to 'categorical'.
-        balance (str, optional): Batch-level balancing. Options: BALANCE_BY_CATEGORY, BALANCE_BY_PATIENT, and NO_BALANCE.
-            If finite option is used, will drop tiles in order to maintain proportions across the interleaved dataset.
-        finite (bool, optional): Create a finite dataset iterating through tiles only once. WARNING: If finite option is
-            used with balancing, some tiles will be skipped. Defaults to False (infinite dataset).
+        balance (str, optional): Batch-level balancing. Options: category, patient, and None.
+            If infinite is not True, will drop tiles in order to maintain proportions across the interleaved dataset.
+        infinite (bool, optional): Create an finite dataset. WARNING: If infinite is False && balancing is used,
+            some tiles will be skipped. Defaults to True.
         annotations (dict, optional): Dict mapping slide names to outcome labels, used for balancing. Defaults to None.
         max_tiles (int, optional): Maximum number of tiles to use per slide. Defaults to 0 (use all tiles).
         min_tiles (int, optional): Minimum number of tiles that each slide must have to be included. Defaults to 0.
@@ -232,7 +229,7 @@ def interleave(tfrecords, img_size, batch_size, label_parser=None, model_type='c
         num_parallel_reads (int, optional): Number of parallel reads for each TFRecordDataset. Defaults to 4.
     """
 
-    log.debug(f'Interleaving {len(tfrecords)} tfrecords: finite={finite}, max_tiles={max_tiles}, min={min_tiles}')
+    log.debug(f'Interleaving {len(tfrecords)} tfrecords: infinite={infinite}, max_tiles={max_tiles}, min={min_tiles}')
     with tf.device('cpu'):
         datasets = []
         datasets_categories = []
@@ -255,6 +252,9 @@ def interleave(tfrecords, img_size, batch_size, label_parser=None, model_type='c
 
         if tfrecords == []:
             raise TFRecordsError('No TFRecords found.')
+
+        if annotations and not all(sf.util.path_to_name(t) in annotations for t in tfrecords):
+            raise TFRecordsError('Not all tfrecords found in provided annotations.')
 
         if manifest:
             pb = sf.util.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
@@ -301,7 +301,7 @@ def interleave(tfrecords, img_size, batch_size, label_parser=None, model_type='c
                     category = annotations[slide_name]
                     category = [category] if not isinstance(category, list) else category
                     category = '-'.join(map(str, category))
-                elif model_type == 'categorical' and balance == BALANCE_BY_CATEGORY:
+                elif model_type == 'categorical' and balance == 'category':
                     raise TFRecordsError('No annotations provided; unable to perform category-level balancing')
                 else:
                     category = 1
@@ -340,21 +340,21 @@ def interleave(tfrecords, img_size, batch_size, label_parser=None, model_type='c
                 categories_tile_fraction[category] = lowest_category_tile_count / categories[category]['num_tiles']
 
             # Balancing
-            if not balance or balance == NO_BALANCE:
+            if not balance or balance == 'none':
                 log.debug(f'Not balancing input')
                 prob_weights = [i/sum(num_tiles) for i in num_tiles]
-            if balance == BALANCE_BY_PATIENT:
+            if balance == 'patient':
                 log.debug(f'Balancing input across slides')
                 prob_weights = [1.0] * len(datasets)
-                if finite:
+                if not infinite:
                     # Only take as many tiles as the number of tiles in the smallest dataset
                     minimum_tiles = min(num_tiles)
                     for i in range(len(datasets)):
                         num_tiles[i] = minimum_tiles
-            if balance == BALANCE_BY_CATEGORY:
+            if balance == 'category':
                 log.debug(f'Balancing input across categories')
                 prob_weights = [categories_prob[datasets_categories[i]] for i in range(len(datasets))]
-                if finite:
+                if not infinite:
                     # Only take as many tiles as the number of tiles in the smallest category
                     for i in range(len(datasets)):
                         num_tiles[i] = int(num_tiles[i] * categories_tile_fraction[datasets_categories[i]])
@@ -364,21 +364,22 @@ def interleave(tfrecords, img_size, batch_size, label_parser=None, model_type='c
 
             # Take the calculcated number of tiles from each dataset and calculate global number of tiles
             for i in range(len(datasets)):
-                if max_tiles or (balance in (BALANCE_BY_PATIENT, BALANCE_BY_CATEGORY)):
+                if max_tiles or (balance in ('patient', 'category')):
                     to_take = num_tiles[i]
                     if num_shards:
                         to_take = to_take // num_shards
                     datasets[i] = datasets[i].take(to_take)
-                if not finite:
+                if infinite:
                     datasets[i] = datasets[i].repeat()
             global_num_tiles = sum(num_tiles)
+            log.debug(f'Global num tiles: {global_num_tiles}')
 
         else:
             manifest_msg = 'No manifest detected! Unable to perform balancing or any tile-level selection operations'
-            if (balance and balance != NO_BALANCE) or max_tiles or min_tiles:
+            if (balance and balance != 'none') or max_tiles or min_tiles:
                 log.error(manifest_msg)
             else:
-                log.warning(manifest_msg)
+                log.debug(manifest_msg)
             pb = sf.util.ProgressBar(len(tfrecords), counter_text='files', leadtext='Interleaving tfrecords... ')
             for filename in tfrecords:
                 slide_name = sf.util.path_to_name(filename)
@@ -807,7 +808,7 @@ def update_manifest_at_dir(directory, force_update=False):
         if log.getEffectiveLevel() <= 20: print(f"\r\033[K + Verifying tiles in {sf.util.green(rel_tfr)}...", end="")
         total = 0
         try:
-            #TODO: consider updating this to use sf.io.tfrecords.get_tfrecord_parser()
+            #TODO: consider updating this to use sf.io.tensorflow.get_tfrecord_parser()
             for raw_record in raw_dataset:
                 example = tf.train.Example()
                 example.ParseFromString(raw_record.numpy())

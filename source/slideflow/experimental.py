@@ -159,7 +159,7 @@ class TileVisualizer:
             image_file = open(image_jpg, 'rb')
             tf_decoded_image = tf.image.decode_png(image_file.read(), channels=3)
         else:
-            slide, tf_decoded_image = sf.io.tfrecords.get_tfrecord_by_index(tfrecord, index, decode=True)
+            slide, tf_decoded_image = sf.io.tensorflow.get_tfrecord_by_index(tfrecord, index, decode=True)
             tilename = f"{slide.numpy().decode('utf-8')}-{index}"
             self.tile_image = Image.fromarray(tf_decoded_image.numpy())
 
@@ -247,7 +247,7 @@ def visualize_tiles(model, node, tfrecord_dict=None, directory=None, mask_width=
         '''
         from slideflow.activations import TileVisualizer
 
-        hp_data = sf.util.get_model_hyperparameters(model)
+        hp_data = sf.util.get_model_params(model)
         tile_px = hp_data['hp']['tile_px']
         TV = TileVisualizer(model=model,
                             node=node,
@@ -306,7 +306,7 @@ def neighbors(AV, n_AV, neighbor_slides, n_neighbors=5, algorithm='ball_tree'):
 
     return neighbors
 
-class RNASeqModel(sf.model.Model):
+class RNASeqTrainer(sf.model.Trainer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         #self.RNA_SEQ_TABLE = {self.slides[i]:outcome_labels[i] for i in range(len(self.slides))}

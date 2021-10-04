@@ -104,7 +104,7 @@ The annotations file may contain as many columns as you would like, but it must 
 - **submitter_id**: patient identifier
 - **slide**: slide name / identifier (without the file extension)
 
-An example annotations file is generated each time a new project is initialized. An example annotations file is given below:
+An example annotations file is given below:
 
 +-----------------------+---------------+-----------+-----------------------------------+
 | *submitter_id*        | *category*    | *dataset* | *slide*                           |
@@ -117,6 +117,12 @@ An example annotations file is generated each time a new project is initialized.
 +-----------------------+---------------+-----------+-----------------------------------+
 | TCGA-EL-B83L          | non-mutant    | eval      | TCGA-EL-B83L-01Z-00-DX1-6BC5L     |
 +-----------------------+---------------+-----------+-----------------------------------+
+
+An example annotations file is generated each time a new project is initialized. To manually generate an empty annotations file that contains all detected slides, use the bundled ``Project`` function:
+
+.. code-block:: python
+
+    SFP.create_blank_annotations()
 
 Slide names do not need to be explicitly set in the annotations file by the user. Rather, once a dataset has been set up, slideflow will search through the linked slide directories and attempt to match slides to entries in the annotations file using **submitter_id**. Entries that are blank in the **slide** column will be auto-populated with any detected and matching slides, if available.
 

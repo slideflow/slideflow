@@ -7,6 +7,7 @@ import csv
 import shutil
 import multiprocessing
 import shapely.geometry as sg
+from sklearn.utils import validation
 import slideflow as sf
 import numpy as np
 import pandas as pd
@@ -170,7 +171,10 @@ class Dataset:
             self.sources[source]['label'] = label
 
         if annotations:
-            self.load_annotations(annotations)
+            if os.path.exists(annotations):
+                self.load_annotations(annotations)
+            else:
+                log.warning(f"Unable to load annotations from {sf.util.green(annotations)}; file does not exist.")
 
     def apply_filters(self, **kwargs):
         for kwarg in kwargs:
@@ -303,7 +307,7 @@ class Dataset:
 
             # Check for interrupted or already-extracted tfrecords
             if skip_extracted and save_tfrecord:
-                already_done = [sf.util.path_to_name(tfr) for tfr in self.get_tfrecords(source=source)]
+                already_done = [sf.util.path_to_name(tfr) for tfr in self.tfrecords(source=source)]
                 interrupted = [sf.util.path_to_name(marker) for marker in glob(join((tfrecord_dir
                                                            if tfrecord_dir else tiles_dir), '*.unfinished'))]
                 if len(interrupted):
@@ -437,7 +441,7 @@ class Dataset:
             dest (str): Path to directory in which to save tile images. Defaults to None. If None, uses dataset default.
         """
         for source in self.sources:
-            to_extract_tfrecords = self.get_tfrecords(source=source)
+            to_extract_tfrecords = self.tfrecords(source=source)
             if dest:
                 tiles_dir = dest
             else:
@@ -446,7 +450,7 @@ class Dataset:
                 if not exists(tiles_dir):
                     os.makedirs(tiles_dir)
             for tfr in to_extract_tfrecords:
-                sf.io.tfrecords.extract_tiles(tfr, tiles_dir)
+                sf.io.tensorflow.extract_tiles(tfr, tiles_dir)
 
     def generate_tfrecords_from_tiles(self, delete_tiles=True):
         """Create tfrecord files from a collection of raw images, as stored in project tiles directory"""
@@ -466,16 +470,16 @@ class Dataset:
                 subdirs = [_dir for _dir in os.listdir(tiles_dir) if isdir(join(tiles_dir, _dir))]
                 for subdir in subdirs:
                     tfrecord_subdir = join(tfrecord_dir, subdir)
-                    sf.io.tfrecords.write_tfrecords_multi(join(tiles_dir, subdir), tfrecord_subdir)
+                    sf.io.tensorflow.write_tfrecords_multi(join(tiles_dir, subdir), tfrecord_subdir)
             else:
-                sf.io.tfrecords.write_tfrecords_multi(tiles_dir, tfrecord_dir)
+                sf.io.tensorflow.write_tfrecords_multi(tiles_dir, tfrecord_dir)
 
             self.update_manifest()
 
             if delete_tiles:
                 shutil.rmtree(tiles_dir)
 
-    def get_manifest(self, key='path'):
+    def manifest(self, key='path'):
         """Generates a manifest of all tfrecords.
 
         Args:
@@ -497,8 +501,8 @@ class Dataset:
 
                 # Import delayed until here in order to avoid importing tensorflow until necessary,
                 # as tensorflow claims a GPU once imported
-                import slideflow.io.tfrecords
-                slideflow.io.tfrecords.update_manifest_at_dir(tfrecord_dir)
+                import slideflow.io.tensorflow
+                slideflow.io.tensorflow.update_manifest_at_dir(tfrecord_dir)
 
             relative_manifest = sf.util.load_json(manifest_path)
             global_manifest = {}
@@ -509,9 +513,9 @@ class Dataset:
 
         # Now filter out any tfrecords that would be excluded by filters
         if key == 'path':
-            filtered_tfrecords = self.get_tfrecords()
+            filtered_tfrecords = self.tfrecords()
         else:
-            filtered_tfrecords = [sf.util.path_to_name(tfr) for tfr in self.get_tfrecords()]
+            filtered_tfrecords = [sf.util.path_to_name(tfr) for tfr in self.tfrecords()]
         manifest_tfrecords = list(combined_manifest.keys())
         for tfr in manifest_tfrecords:
             if tfr not in filtered_tfrecords:
@@ -626,7 +630,7 @@ class Dataset:
         else:
             return paths
 
-    def get_tfrecords(self, source=None):
+    def tfrecords(self, source=None):
         """Returns a list of all tfrecords."""
         if source and source not in self.sources.keys():
             log.error(f"Dataset {source} not found.")
@@ -685,7 +689,19 @@ class Dataset:
             folders += [join(self.sources[source]['tfrecords'], self.sources[source]['label'])]
         return folders
 
-    def get_labels_from_annotations(self, headers, use_float=False, assigned_labels=None, key='label', verbose=True):
+    def patients(self):
+        slides = self.get_slides()
+        result = {}
+        for annotation in self.annotations:
+            slide = annotation[TCGA.slide]
+            patient = annotation[TCGA.patient]
+            if slide in result and result[slide] != patient:
+                raise DatasetError(f"Slide {slide} assigned to multiple patients in annotations file ({patient}, {result[slide]})")
+            else:
+                result[slide] = patient
+        return result
+
+    def labels(self, headers, use_float=False, assigned_labels=None, verbose=True, format='index'):
         """Returns a dictionary of slide names mapping to patient id and [an] label(s).
 
         Args:
@@ -698,13 +714,17 @@ class Dataset:
                 interpret as categorical instead.
             assigned_labels (dict, optional):  Dictionary mapping label ids to label names. If not provided, will map
                 ids to names by sorting alphabetically.
-            key (str, optional): Key name to use for the returned dictionary. Defaults to 'label'.
             verbose (bool, optional): Verbose output.
+            format (str, optional): Either 'index' or 'name.' Indicates which format should be used for categorical
+                outcomes when returning the label dictionary. If 'name', uses the string label name. If 'index',
+                returns an int (index corresponding with the returned list of unique outcome names as str).
+                Defaults to 'index'.
 
         Returns:
-            1) Dictionary with slides as keys and dictionaries as values.
-                The value dictionaries contain both "TCGA.patient" and "label" (or manually specified) keys.
-            2) list of unique labels
+            1) Dictionary mapping slides to outcome labels in numerical format (float for linear outcomes,
+                int of outcome label id for categorical outcomes).
+            2) List of unique labels. For categorical outcomes, this will be a list of str, whose indices correspond
+                with the outcome label id.
         """
 
         slides = self.get_slides()
@@ -750,7 +770,7 @@ class Dataset:
                 try:
                     filtered_labels = [float(o) for o in filtered_labels]
                 except ValueError:
-                    raise TypeError(f"Unable to convert label {header} into type 'float'.")
+                    raise TypeError(f"Unable to convert all labels of {header} into type 'float' ({','.join(filtered_labels)}).")
             else:
                 if verbose: log.debug(f'Assigning label descriptors in column "{header}" to numerical values')
                 unique_labels_for_this_header = list(set(filtered_labels))
@@ -775,6 +795,8 @@ class Dataset:
                     return float(o)
                 elif assigned_labels_for_this_header:
                     return assigned_labels_for_this_header[o]
+                elif format == 'name':
+                    return o
                 else:
                     return unique_labels_for_this_header.index(o)
 
@@ -786,7 +808,6 @@ class Dataset:
                 slide = annotation[TCGA.slide]
                 patient = annotation[TCGA.patient]
                 annotation_label = _process_label(annotation[header])
-                print_func = print if num_warned < warn_threshold else None
 
                 # Mark this slide as having been already assigned a label with his header
                 assigned_headers[header][slide] = True
@@ -795,7 +816,7 @@ class Dataset:
                 if patient not in patient_labels:
                     patient_labels[patient] = annotation_label
                 elif patient_labels[patient] != annotation_label:
-                    log.error(f"Multiple different labels in header {header} found for patient {patient}:")
+                    log.error(f"Multiple labels in header {header} found for patient {patient}:")
                     log.error(f"{patient_labels[patient]}")
                     log.error(f"{annotation_label}")
                     num_warned += 1
@@ -804,12 +825,11 @@ class Dataset:
 
                 if slide in slides:
                     if slide in results:
-                        so = results[slide][key]
-                        results[slide][key] = [so] if not isinstance(so, list) else so
-                        results[slide][key] += [annotation_label]
+                        so = results[slide]
+                        results[slide] = [so] if not isinstance(so, list) else so
+                        results[slide] += [annotation_label]
                     else:
-                        results[slide] = {key: annotation_label if not use_float_for_this_header else [annotation_label]}
-                        results[slide][TCGA.patient] = patient
+                        results[slide] = (annotation_label if not use_float_for_this_header else [annotation_label])
             if num_warned >= warn_threshold:
                 log.warning(f"...{num_warned} total warnings, see project log for details")
             unique_labels[header] = unique_labels_for_this_header
@@ -825,10 +845,10 @@ class Dataset:
         """
 
         log.info(f'Resizing TFRecord tiles to ({tile_px}, {tile_px})')
-        tfrecords_list = self.get_tfrecords()
+        tfrecords_list = self.tfrecords()
         log.info(f'Resizing {len(tfrecords_list)} tfrecords')
         for tfr in tfrecords_list:
-            sf.io.tfrecords.transform_tfrecord(tfr, tfr+'.transformed', resize=tile_px)
+            sf.io.tensorflow.transform_tfrecord(tfr, tfr+'.transformed', resize=tile_px)
 
     def slide_report(self, stride_div=1, destination='auto', tma=False, enable_downsample=False,
                         roi_method='inside', skip_missing_roi=False, normalizer=None, normalizer_source=None):
@@ -895,34 +915,6 @@ class Dataset:
         pdf_report.save(filename)
         log.info(f'Slide report saved to {sf.util.green(filename)}')
 
-    def slide_to_label(self, headers, use_float=False, return_unique=False, verbose=True):
-        """Returns dictionary mapping slide names to labels.
-
-        Args:
-            headers (str): Header column from which to read labels
-            use_float (bool, optional): Interpret labels as float. Defaults to False.
-            return_unique (bool, optional): Return a list of all unique labels in addition to the mapping dict.
-                Defaults to False.
-            verbose (bool, optional): Verbose output. Defaults to True.
-
-        Raises:
-            DatasetError: If no labels were found for the given header.
-
-        Returns:
-            dict: Dict mapping slide names to labels
-        """
-        labels, unique_labels = self.get_labels_from_annotations(headers=headers, use_float=use_float, verbose=verbose)
-        if not use_float and not unique_labels:
-            raise DatasetError(f"No labels were detected for header {headers} in this dataset")
-        elif not use_float:
-            return_dict = {k:unique_labels[v['label']] for k, v in labels.items()}
-        else:
-            return_dict = {k:labels[k]['label'] for k,v in labels.items()}
-        if return_unique:
-            return return_dict, unique_labels
-        else:
-            return return_dict
-
     def split_tfrecords_by_roi(self, destination):
         """Split dataset tfrecords into separate tfrecords according to ROI.
 
@@ -931,13 +923,13 @@ class Dataset:
         """
 
         from slideflow.slide import WSI
-        import slideflow.io.tfrecords
+        import slideflow.io.tensorflow
         import tensorflow as tf
 
-        tfrecords = self.get_tfrecords()
+        tfrecords = self.tfrecords()
         slides = {sf.util.path_to_name(s):s for s in self.get_slide_paths()}
         rois = self.get_rois()
-        manifest = self.get_manifest()
+        manifest = self.manifest()
 
         for tfr in tfrecords:
             slidename = sf.util.path_to_name(tfr)
@@ -946,8 +938,8 @@ class Dataset:
             slide = WSI(slides[slidename], self.tile_px, self.tile_um, roi_list=rois, skip_missing_roi=True)
             if slide.load_error:
                 continue
-            feature_description, _ = sf.io.tfrecords.detect_tfrecord_format(tfr)
-            parser = sf.io.tfrecords.get_tfrecord_parser(tfr, ('loc_x', 'loc_y'), to_numpy=True)
+            feature_description, _ = sf.io.tensorflow.detect_tfrecord_format(tfr)
+            parser = sf.io.tensorflow.get_tfrecord_parser(tfr, ('loc_x', 'loc_y'), to_numpy=True)
             reader = tf.data.TFRecordDataset(tfr)
             if not exists(join(destination, 'inside')):
                 os.makedirs(join(destination, 'inside'))
@@ -958,7 +950,7 @@ class Dataset:
             for record in tqdm(reader, total=manifest[tfr]['total']):
                 loc_x, loc_y = parser(record)
                 tile_in_roi = any([annPoly.contains(sg.Point(loc_x, loc_y)) for annPoly in slide.annPolys])
-                record_bytes = sf.io.tfrecords._read_and_return_record(record, feature_description)
+                record_bytes = sf.io.tensorflow._read_and_return_record(record, feature_description)
                 if tile_in_roi:
                     inside_roi_writer.write(record_bytes)
                 else:
@@ -984,13 +976,13 @@ class Dataset:
         if normalizer: log.info(f'Using realtime {normalizer} normalization')
         normalizer = None if not normalizer else sf.util.StainNormalizer(method=normalizer, source=normalizer_source)
 
-        tfrecord_list = self.get_tfrecords()
+        tfrecord_list = self.tfrecords()
         reports = []
         log.info('Generating TFRecords report...')
         for tfr in tfrecord_list:
             print(f'\r\033[KGenerating report for tfrecord {sf.util.green(sf.util.path_to_name(tfr))}...', end='')
             dataset = tf.data.TFRecordDataset(tfr)
-            parser = sf.io.tfrecords.get_tfrecord_parser(tfr, ('image_raw',), to_numpy=True, decode_images=False)
+            parser = sf.io.tensorflow.get_tfrecord_parser(tfr, ('image_raw',), to_numpy=True, decode_images=False)
             if not parser: continue
             sample_tiles = []
             for i, record in enumerate(dataset):
@@ -1009,9 +1001,8 @@ class Dataset:
         pdf_report.save(filename)
         log.info(f'TFRecord report saved to {sf.util.green(filename)}')
 
-    def training_validation_split(self, validation_log, model_type, slide_labels_dict, val_strategy,
-                                  outcome_key='outcome_label', val_fraction=None, val_k_fold=None, k_fold_iter=None,
-                                  read_only=False):
+    def training_validation_split(self, model_type, labels, val_strategy, patients=None, validation_log=None,
+                                  val_fraction=None, val_k_fold=None, k_fold_iter=None, read_only=False):
 
         """From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
             If a validation plan has already been prepared (e.g. K-fold iterations were already determined),
@@ -1019,12 +1010,13 @@ class Dataset:
             TFRecord directory so future models may use the same plan for consistency.
 
         Args:
-            validation_log (str): Path to .log file containing validation plans.
             model_type (str): Either 'categorical' or 'linear'.
-            slide_labels_dict (dict):  Dictionary mapping slides to labels. Used for balancing outcome labels in
-                training and validation cohorts. Eg: { 'slide1': { outcome_key: 'Outcome1',
-                sf.util.TCGA.patient: 'patient_id' } }
+            labels (dict):  Dictionary mapping slides to labels. Used for balancing outcome labels in
+                training and validation cohorts.
             val_strategy (str): Either 'k-fold', 'k-fold-preserved-site', 'bootstrap', or 'fixed'.
+            patients (dict): Dictionary mapping slides to patient IDs. If not provided, assumes 1:1 mapping of slides
+                to patients. Defaults to None.
+            validation_log (str, optional): Path to .log file containing validation plans. Defaults to None.
             outcome_key (str, optional): Key indicating outcome label in slide_labels_dict. Defaults to 'outcome_label'.
             val_fraction (float, optional): Proportion of data for validation. Not used if strategy is k-fold.
                 Defaults to None
@@ -1039,6 +1031,10 @@ class Dataset:
 
         if (not k_fold_iter and val_strategy=='k-fold'):
             raise DatasetError("If strategy is 'k-fold', must supply k_fold_iter (int starting at 1)")
+        if (not val_k_fold and val_strategy=='k-fold'):
+            raise DatasetError("If strategy is 'k-fold', must supply val_k_fold (K)")
+        if not patients:
+            log.debug(f"Patients not provided for dataset splitting; assuming 1:1 mapping of slides to patients")
 
         # Prepare dataset
         tfr_folders = self.get_tfrecords_folders()
@@ -1059,16 +1055,16 @@ class Dataset:
         training_tfrecords = []
         val_tfrecords = []
         accepted_plan = None
-        slide_list = list(slide_labels_dict.keys())
+        slide_list = list(labels.keys())
 
         # Assemble dictionary of patients linking to list of slides and outcome labels
-        # slideflow.util.get_labels_from_annotations() ensures no duplicate outcome labels are found in a single patient
-        tfrecord_dir_list = self.get_tfrecords()
+        # dataset.labels() ensures no duplicate outcome labels are found in a single patient
+        tfrecord_dir_list = self.tfrecords()
         tfrecord_dir_list_names = [tfr.split('/')[-1][:-10] for tfr in tfrecord_dir_list]
         patients_dict = {}
         num_warned = 0
         for slide in slide_list:
-            patient = slide_labels_dict[slide][sf.util.TCGA.patient]
+            patient = slide if not patients else patients[slide]
             # Skip slides not found in directory
             if slide not in tfrecord_dir_list_names:
                 log.debug(f"Slide {slide} not found in tfrecord directory, skipping")
@@ -1076,12 +1072,12 @@ class Dataset:
                 continue
             if patient not in patients_dict:
                 patients_dict[patient] = {
-                    'outcome_label': slide_labels_dict[slide][outcome_key],
+                    'outcome_label': labels[slide],
                     'slides': [slide]
                 }
-            elif patients_dict[patient]['outcome_label'] != slide_labels_dict[slide][outcome_key]:
+            elif patients_dict[patient]['outcome_label'] != labels[slide]:
                 ol = patients_dict[patient]['outcome_label']
-                ok = slide_labels_dict[slide][outcome_key]
+                ok = labels[slide]
                 err_msg = f"Multiple outcome labels found for patient {patient} ({ol}, {ok})"
                 log.error(err_msg)
                 raise DatasetError(err_msg)
@@ -1089,10 +1085,10 @@ class Dataset:
                 patients_dict[patient]['slides'] += [slide]
         if num_warned:
             log.warning(f"Total of {num_warned} slides not found in tfrecord directory, skipping")
-        patients = list(patients_dict.keys())
-        sorted_patients = [p for p in patients]
+        patients_list = list(patients_dict.keys())
+        sorted_patients = [p for p in patients_list]
         sorted_patients.sort()
-        shuffle(patients)
+        shuffle(patients_list)
 
         # Create and log a validation subset
         if val_strategy == 'none':
@@ -1101,10 +1097,10 @@ class Dataset:
                                                 for patient in patients_dict.keys()]).tolist()
             validation_slides = []
         elif val_strategy == 'bootstrap':
-            num_val = int(val_fraction * len(patients))
+            num_val = int(val_fraction * len(patients_list))
             log.info(f"Boostrap validation: selecting {sf.util.bold(num_val)} pts at random for validation testing")
-            validation_patients = patients[0:num_val]
-            training_patients = patients[num_val:]
+            validation_patients = patients_list[0:num_val]
+            training_patients = patients_list[num_val:]
             if not len(validation_patients) or not len(training_patients):
                 err_msg = "Insufficient number of patients to generate validation dataset."
                 log.error(err_msg)
@@ -1115,7 +1111,7 @@ class Dataset:
                                                 for patient in training_patients]).tolist()
         else:
             # Try to load validation plan
-            validation_plans = [] if not exists(validation_log) else sf.util.load_json(validation_log)
+            validation_plans = [] if (not validation_log or not exists(validation_log)) else sf.util.load_json(validation_log)
             for plan in validation_plans:
                 # First, see if plan type is the same
                 if plan['strategy'] != val_strategy:
@@ -1140,16 +1136,19 @@ class Dataset:
 
             # If no plan found, create a new one
             if not accepted_plan:
-                log.info(f"No suitable validation plan found; will log plan at {sf.util.green(validation_log)}")
+                if validation_log:
+                    log.info(f"No suitable validation plan found; will log plan at {sf.util.green(validation_log)}")
+                else:
+                    log.info(f"No validation log provided; unable to save or load validation plans.")
                 new_plan = {
                     'strategy':        val_strategy,
                     'patients':        patients_dict,
                     'tfrecords':    {}
                 }
                 if val_strategy == 'fixed':
-                    num_val = int(val_fraction * len(patients))
-                    validation_patients = patients[0:num_val]
-                    training_patients = patients[num_val:]
+                    num_val = int(val_fraction * len(patients_list))
+                    validation_patients = patients_list[0:num_val]
+                    training_patients = patients_list[num_val:]
                     if not len(validation_patients) or not len(training_patients):
                         err_msg = "Insufficient number of patients to generate validation dataset."
                         log.error(err_msg)
@@ -1168,7 +1167,7 @@ class Dataset:
                                                         randomize=True,
                                                         preserved_site=(val_strategy == 'k-fold-preserved-site'))
                     # Verify at least one patient is in each k_fold group
-                    if len(k_fold_patients) != k_fold or not min([len(patients) for patients in k_fold_patients]):
+                    if len(k_fold_patients) != k_fold or not min([len(pl) for pl in k_fold_patients]):
                         err_msg = "Insufficient number of patients to generate validation dataset."
                         log.error(err_msg)
                         raise DatasetError(err_msg)
@@ -1190,7 +1189,7 @@ class Dataset:
                     raise DatasetError(err_msg)
                 # Write the new plan to log
                 validation_plans += [new_plan]
-                if not read_only:
+                if not read_only and validation_log:
                     sf.util.write_json(validation_plans, validation_log)
             else:
                 # Use existing plan
@@ -1208,8 +1207,11 @@ class Dataset:
                     raise DatasetError(err_msg)
 
             # Perform final integrity check to ensure no patients are in both training and validation slides
-            validation_pt = list(set([slide_labels_dict[slide][sf.util.TCGA.patient] for slide in validation_slides]))
-            training_pt = list(set([slide_labels_dict[slide][sf.util.TCGA.patient] for slide in training_slides]))
+            if patients:
+                validation_pt = list(set([patients[slide] for slide in validation_slides]))
+                training_pt = list(set([patients[slide] for slide in training_slides]))
+            else:
+                validation_pt, training_pt = validation_slides, training_slides
             if sum([pt in training_pt for pt in validation_pt]):
                 err_msg = "At least one patient is in both validation and training sets."
                 log.error(err_msg)
@@ -1286,11 +1288,11 @@ class Dataset:
 
         # Import delayed until here in order to avoid importing tensorflow until necessary,
         # as tensorflow claims a GPU once imported
-        import slideflow.io.tfrecords
+        import slideflow.io.tensorflow
 
         tfrecords_folders = self.get_tfrecords_folders()
         for tfr_folder in tfrecords_folders:
-            slideflow.io.tfrecords.update_manifest_at_dir(directory=tfr_folder,
+            slideflow.io.tensorflow.update_manifest_at_dir(directory=tfr_folder,
                                                           force_update=force_update)
 
     def update_annotations_with_slidenames(self, annotations_file):
