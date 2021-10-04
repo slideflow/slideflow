@@ -266,7 +266,7 @@ class Project:
             backend (str): Either 'tensorflow' or 'pytorch'.
         """
 
-        if backend not in ('slideflow', 'pytorch'):
+        if backend not in ('tensorflow', 'pytorch'):
             raise sf.util.UserError(f'Unknown backend {backend}')
         os.environ['SF_BACKEND'] = backend
 
