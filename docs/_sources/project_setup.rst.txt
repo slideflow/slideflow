@@ -91,9 +91,6 @@ Datasets are configured either interactively at the time of project initializati
                      tiles="/tiles/directory",
                      tfrecords="/tfrecords/directory")
 
-.. autofunction:: slideflow.project.Project.add_dataset
-   :noindex:
-
 Setting up annotations
 **********************
 
