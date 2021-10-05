@@ -1322,6 +1322,17 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
     return combined_metrics
 
 def predict_from_torch(model, dataset):
+    """Generates predictions (y_true, y_pred, tile_to_slide) from a given PyTorch model and dataset.
+
+    Args:
+        model (str): Path to PyTorch model.
+        dataset (tf.data.Dataset): PyTorch dataloader.
+        num_tiles (int, optional): Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.
+
+    Returns:
+        y_true, y_pred, tile_to_slides
+    """
+
     import torch
     from tqdm import tqdm
     start = time.time()
@@ -1372,8 +1383,7 @@ def predict_from_torch(model, dataset):
     return y_true, y_pred, tile_to_slides
 
 def predict_from_tensorflow(model, dataset, num_tiles=0):
-
-    """Generates predictions (y_true, y_pred, tile_to_slide) from a given model and dataset.
+    """Generates predictions (y_true, y_pred, tile_to_slide) from a given Tensorflow model and dataset.
 
     Args:
         model (str): Path to Tensorflow model.
@@ -1441,7 +1451,6 @@ def predict_from_tensorflow(model, dataset, num_tiles=0):
     return y_true, y_pred, tile_to_slides
 
 def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_layer_index=None):
-
     """Generate predictions from a model, providing intermediate layer input.
 
     Args:

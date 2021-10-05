@@ -98,7 +98,7 @@ class ModelParams(_base.ModelParams):
 
         if self.model == 'ViT':
             return ViT(image_size=self.tile_px,
-                        patch_size=23,
+                        patch_size=32,
                         num_classes=num_classes,
                         dim=1024,
                         depth=6,

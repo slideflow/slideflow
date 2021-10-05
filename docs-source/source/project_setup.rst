@@ -41,7 +41,7 @@ Alternatively, you may provide this configuration through keyword arguments:
 .. code-block:: python
 
 	import slideflow as sf
-	SFP = sf.Project.from_prompt('/path/to/project/directory', name="MyProject", ...)
+	SFP = sf.Project('/path/to/project/directory', name="MyProject", ...)
 
 Once a project has been initialized at a directory, you may then load the project with the following syntax:
 
