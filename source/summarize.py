@@ -469,8 +469,9 @@ class Model:
 
     def get_outcomes(self):
         log.info(f"Outcomes not found in model hyperparameter log ({sf.util.green(self.dir)}), attempting to automatically detect...")
-        dataset = Dataset(config_file=self.project.settings['dataset_config'], sources=self.project.settings['datasets'])
-        dataset.load_annotations(self.project.settings['annotations'])
+        dataset = Dataset(config_file=self.project.settings['dataset_config'],
+                          sources=self.project.settings['datasets'],
+                          annotations=self.project.settings['annotations'])
         dataset.filters=self.hyperparameters['filters']
         dataset.filter_blank=self.hyperparameters['outcome_label_headers']
         try:

@@ -20,7 +20,7 @@ class ModelParams:
                  learning_rate=0.0001, learning_rate_decay=0, learning_rate_decay_steps=100000,
                  batch_size=16, hidden_layers=1, hidden_layer_width=500, optimizer='Adam',
                  early_stop=False, early_stop_patience=0, early_stop_method='loss',
-                 balanced_training='category', balanced_validation='none',
+                 training_balance='category', validation_balance='none',
                  trainable_layers=0, L2_weight=0, dropout=0, augment=True, drop_images=False):
 
         """Collection of hyperparameters used for model building and training
@@ -43,9 +43,9 @@ class ModelParams:
             early_stop (bool, optional): Use early stopping. Defaults to False.
             early_stop_patience (int, optional): Patience for early stopping, in epochs. Defaults to 0.
             early_stop_method (str, optional): Metric to monitor for early stopping. Defaults to 'loss'.
-            balanced_training ([type], optional): Type of batch-level balancing to use during training.
+            training_balance ([type], optional): Type of batch-level balancing to use during training.
                 Defaults to 'category'.
-            balanced_validation ([type], optional): Type of batch-level balancing to use during validation.
+            validation_balance ([type], optional): Type of batch-level balancing to use during validation.
                 Defaults to 'none'.
             trainable_layers (int, optional): Number of layers which are traininable. If 0, trains all layers. Defaults to 0.
             L2_weight (int, optional): L2 regularization weight. Defaults to 0.
@@ -79,7 +79,8 @@ class ModelParams:
         assert isinstance(early_stop, bool)
         assert isinstance(early_stop_patience, int)
         assert early_stop_method in ['loss', 'accuracy']
-        assert balanced_training in ['category', 'patient', 'none']
+        assert training_balance in ['tile', 'category', 'patient', 'slide', 'none', None]
+        assert validation_balance in ['tile', 'category', 'patient', 'slide', 'none', None]
         assert isinstance(hidden_layer_width, int)
         assert isinstance(trainable_layers, int)
         assert isinstance(L2_weight, (int, float))
@@ -107,8 +108,8 @@ class ModelParams:
         self.early_stop_method = early_stop_method
         self.early_stop_patience = early_stop_patience
         self.hidden_layers = hidden_layers
-        self.balanced_training = balanced_training
-        self.balanced_validation = balanced_validation
+        self.training_balance = training_balance
+        self.validation_balance = validation_balance
         self.augment = augment
         self.hidden_layer_width = hidden_layer_width
         self.trainable_layers = trainable_layers
@@ -164,8 +165,8 @@ class ModelParams:
 
     def validate(self):
         """Check that hyperparameter combinations are valid."""
-        if (self.model_type() != 'categorical' and ((self.balanced_training == 'category') or
-                                                    (self.balanced_validation == 'category'))):
+        if (self.model_type() != 'categorical' and ((self.training_balance == 'category') or
+                                                    (self.validation_balance == 'category'))):
             raise HyperParameterError(f'Cannot combine category-level balancing with model type "{self.model_type()}".')
         return True
 

@@ -31,7 +31,7 @@ index in the slide TFRecord.
 .. code-block:: python
 
     dataset = project.get_dataset(tile_px=299, tile_um=302)
-    slides = dataset.get_slides()
+    slides = dataset.slides()
     x = np.array(...)
     y = np.array(...)
     meta = [{'slide': ..., 'index': ...} for i in range(len(x))]

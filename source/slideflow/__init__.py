@@ -49,6 +49,7 @@ def set_backend(backend):
 #TODO: choose a journal
 #TODO: finish cleaning up dataset_with_slidenames
 #TODO: remove label_parser in tfrecords interleave; just use an annotations dictionary
+#TODO: implement clipping for tfrecord interleaving
 
 # Future updates
 # ===============

@@ -31,8 +31,8 @@ Alternatively, if you intend to perform a sweep across multiple hyperparameter c
         optimizer='Adam',
         early_stop=True,
         early_stop_patience=15,
-        balanced_training=['BALANCE_BY_CATEGORY'],
-        balanced_validation='NO_BALANCE',
+        training_balance=['category'],
+        validation_balance='none',
         augment=True)
 
 Available hyperparameters include:
@@ -54,8 +54,8 @@ Available hyperparameters include:
 - **early_stop** - whether to use early stopping if validation loss is not decreasing
 - **early_stop_patience** - number of epochs to wait before allowing early stopping
 - **early_stop_method** - metric to use for early stopping, e.g. 'loss' or 'accuracy'
-- **balanced_training** - training input balancing strategy; please see :ref:`balancing` for more details
-- **balanced_validation** - validation input balancing strategy; please see :ref:`balancing` for more details
+- **training_balance** - training input balancing strategy; please see :ref:`balancing` for more details
+- **validation_balance** - validation input balancing strategy; please see :ref:`balancing` for more details
 - **trainable_layers** - number of layers available for training, other layers will be frozen. If 0, all layers are trained
 - **L2_weight** - if provided, adds L2 regularization to all layers with this weight
 - **dropout** - dropout, used for post-convolutional layer.

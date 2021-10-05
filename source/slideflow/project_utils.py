@@ -51,8 +51,8 @@ def _train_worker(training_args, model_kwargs, training_kwargs, results_dict):
                                         slide_input=training_args.slide_input,
                                         **model_kwargs)
 
-    results = trainer.train(training_args.training_tfrecords,
-                            training_args.val_tfrecords,
+    results = trainer.train(training_args.train_dts,
+                            training_args.val_dts,
                             pretrain=training_args.pretrain,
                             checkpoint=training_args.checkpoint,
                             multi_gpu=training_args.multi_gpu,

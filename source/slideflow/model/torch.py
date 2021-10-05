@@ -8,7 +8,6 @@ import slideflow as sf
 import numpy as np
 import slideflow.statistics
 
-from slideflow.io.torch import interleave_dataloader
 from slideflow.model import base as _base
 from slideflow.util import log, StainNormalizer
 from tqdm import tqdm
@@ -151,8 +150,7 @@ class Trainer(_base.Trainer):
         self.model = self.hp.build_model(labels=self.labels)
         self.model.load_state_dict(torch.load(model))
 
-    def evaluate(self, tfrecords, batch_size=None, max_tiles_per_slide=0, min_tiles_per_slide=0,
-                 permutation_importance=False, histogram=False, save_predictions=False):
+    def evaluate(self, dataset, batch_size=None, permutation_importance=False, histogram=False, save_predictions=False):
 
         # Load and initialize model
         if not self.model:
@@ -160,31 +158,27 @@ class Trainer(_base.Trainer):
         device = torch.device('cuda')
         self.model.to(device)
         self.model.eval()
-        self._save_manifest(val_tfrecords=tfrecords)
+        self._save_manifest(val_tfrecords=dataset.tfrecords())
         if not batch_size: batch_size = self.hp.batch_size
 
         # Setup dataloaders
         interleave_args = types.SimpleNamespace(
-            tile_px=self.hp.tile_px,
+            img_size=self.hp.tile_px,
             rank=0,
             num_replicas=1,
             labels=self.labels,
             seed=0,
             chunk_size=16,
             normalizer=self.normalizer,
-            balance=self.hp.balanced_training,
-            manifest=self.manifest,
-            max_tiles=max_tiles_per_slide,
-            min_tiles=min_tiles_per_slide,
             pin_memory=True,
             num_workers=8,
             onehot=False,
         )
 
-        dataset = interleave_dataloader(tfrecords, infinite=False, batch_size=batch_size, augment=False, incl_slidenames=True, **vars(interleave_args))
+        torch_dataset = dataset.torch(infinite=False, batch_size=batch_size, augment=False, incl_slidenames=True, **vars(interleave_args))
 
         metric_kwargs = types.SimpleNamespace(
-            dataset=dataset,
+            dataset=torch_dataset,
             model=self.model,
             model_type=self.hp.model_type(),
             labels=self.labels,
@@ -225,10 +219,10 @@ class Trainer(_base.Trainer):
         sf.util.update_results_log(results_log, 'eval_model', results_dict)
         return results_dict
 
-    def train(self, train_tfrecords, val_tfrecords, validate_on_batch=512, validation_batch_size=32, validation_steps=100,
-              max_tiles_per_slide=0, min_tiles_per_slide=0, save_predictions=True, skip_metrics=False, seed=0,
-              log_frequency=None, starting_epoch=0, ema_observations=None, ema_smoothing=None, use_tensorboard=None,
-              steps_per_epoch_override=0, multi_gpu=None, resume_training=None, pretrain='imagenet', checkpoint=None):
+    def train(self, train_dts, val_dts, validate_on_batch=512, validation_batch_size=32, validation_steps=100,
+              save_predictions=True, skip_metrics=False, seed=0, log_frequency=None, starting_epoch=0,
+              ema_observations=None, ema_smoothing=None, use_tensorboard=None, steps_per_epoch_override=0,
+              multi_gpu=None, resume_training=None, pretrain='imagenet', checkpoint=None):
 
         # Temporary arguments; to be replaced once in a multi-GPU training loop
         rank = 0
@@ -257,14 +251,13 @@ class Trainer(_base.Trainer):
             raise NotImplementedError
 
         # Training preparation
-        self._save_manifest(train_tfrecords, val_tfrecords)
+        self._save_manifest(train_dts.tfrecords(), val_dts.tfrecords())
         device = torch.device("cuda")
         if steps_per_epoch_override:
             steps_per_epoch = steps_per_epoch_override
             log.info(f"Overriding steps per epoch = {steps_per_epoch_override}")
         else:
-            num_train_tiles = sum([self.manifest[tfr]['total'] for tfr in train_tfrecords])
-            steps_per_epoch = num_train_tiles // self.hp.batch_size
+            steps_per_epoch = train_dts.num_tiles // self.hp.batch_size
             log.info(f"Steps per epoch = {steps_per_epoch}")
 
         # Build model
@@ -272,26 +265,24 @@ class Trainer(_base.Trainer):
 
         # Setup dataloaders
         interleave_args = types.SimpleNamespace(
-            tile_px=self.hp.tile_px,
+            img_size=self.hp.tile_px,
             rank=rank,
             num_replicas=num_gpus,
             labels=self.labels,
             seed=seed,
             chunk_size=16,
             normalizer=self.normalizer,
-            balance=self.hp.balanced_training,
-            manifest=self.manifest,
-            max_tiles=max_tiles_per_slide,
-            min_tiles=min_tiles_per_slide,
+            balance=self.hp.training_balance,
             pin_memory=True,
             num_workers=8,
             onehot=False,
         )
+
         dataloaders = {
-            'train': iter(interleave_dataloader(train_tfrecords, infinite=True, batch_size=self.hp.batch_size, augment=True, **vars(interleave_args))),
+            'train': iter(train_dts.torch(infinite=True, batch_size=self.hp.batch_size, augment=True, **vars(interleave_args)))
         }
-        if val_tfrecords:
-            dataloaders['val'] = interleave_dataloader(val_tfrecords, infinite=False, batch_size=validation_batch_size, augment=False, incl_slidenames=True, **vars(interleave_args))
+        if val_dts:
+            dataloaders['val'] = val_dts.torch(infinite=False, batch_size=validation_batch_size, augment=False, incl_slidenames=True, **vars(interleave_args))
             val_log_msg = '' if not validate_on_batch else f'every {str(validate_on_batch)} steps and '
             log.debug(f'Validation during training: {val_log_msg}at epoch end')
             if validation_steps:
@@ -381,7 +372,7 @@ class Trainer(_base.Trainer):
                         step += 1
                     dataloader_pb.close()
 
-                elif val_tfrecords and (skip_metrics or epoch not in self.hp.epochs):
+                elif val_dts and (skip_metrics or epoch not in self.hp.epochs):
                     # Perform basic evaluation
                     self.model.eval()
                     dataloader_pb = tqdm(total=dataloaders['val'].num_tiles, ncols=100, unit='img', leave=False)
@@ -410,7 +401,7 @@ class Trainer(_base.Trainer):
                         step += 1
                     dataloader_pb.close()
 
-                elif val_tfrecords and epoch in self.hp.epochs:
+                elif val_dts and epoch in self.hp.epochs:
                     # Calculate full evaluation metrics
                     self.model.eval()
                     save_path = os.path.join(self.outdir, f'saved_model_epoch{epoch}')
@@ -425,7 +416,7 @@ class Trainer(_base.Trainer):
                                                                 data_dir=self.outdir,
                                                                 save_predictions=save_predictions)
 
-                if not (val_tfrecords and epoch in self.hp.epochs):
+                if not (val_dts and epoch in self.hp.epochs):
                     elapsed = time.strftime('%H:%M:%S', time.gmtime(time.time() - starttime))
                     epoch_loss = running_loss / num_records
                     epoch_acc = running_corrects.double() / num_records

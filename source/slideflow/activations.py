@@ -217,8 +217,7 @@ class ActivationsVisualizer:
 
     """
 
-    def __init__(self, model, tfrecords, annotations=None, cache=None, max_tiles_per_slide=0, min_tiles_per_slide=0,
-                 manifest=None, **kwargs):
+    def __init__(self, model, dataset, annotations=None, cache=None, manifest=None, **kwargs):
 
         """Calculates activations from model, storing to internal parameters `self.activations`, and `self.logits`,
         `self.locations`, dictionaries mapping slides to arrays of activations, logits, and locations for each tiles'
@@ -226,14 +225,10 @@ class ActivationsVisualizer:
 
         Args:
             model (str): Path to model from which to calculate activations.
-            tfrecords (list(str)): List of tfrecords paths.
+            dataset (:class:`slideflow.dataset.Dataset`): Dataset from which to generate activations.
             annotations (dict, optional): Dict mapping slide names to outcome categories.
             cache (str, optional): File in which to store activations PKL cache.
-            max_tiles_per_slide (int, optional): Maximum number of tiles per slide to generate activations.
-                If 0, will generate all activations for tiles in each slide. Defaults to 0.
-            min_tiles_per_slide (int, optional): Only evaluate slides with this minimum number of tiles. Defaults to 0.
-            manifest (dict, optional): Dict mapping tfrecords to number of tiles contained.
-                Used for progress bars and min_tiles_per_slide.
+            manifest (dict, optional): Dict mapping tfrecords to number of tiles contained. Used for progress bars.
 
         Keyword Args:
             layers (str): Model layer(s) from which to calculate activations. Defaults to 'postconv'.
@@ -253,14 +248,10 @@ class ActivationsVisualizer:
         self.manifest = manifest
         self.annotations = annotations
         self.model = model
-        self.tfrecords = np.array(tfrecords)
+        self.dataset = dataset
+        self.tfrecords = np.array(dataset.tfrecords())
         self.slides = sorted([sf.util.path_to_name(tfr) for tfr in self.tfrecords])
         self.tile_px = sf.util.get_model_params(model)['tile_px']
-
-        if min_tiles_per_slide and not manifest:
-            raise ActivationsError("'manifest' must be provided if specifying min_tiles_per_slide.")
-        if min_tiles_per_slide:
-            self._filter_by_min_tiles(min_tiles_per_slide)
 
         if annotations:
             self.categories = list(set(self.annotations.values()))
@@ -283,19 +274,13 @@ class ActivationsVisualizer:
             # Load saved PKL cache
             log.info(f'Loading pre-calculated predictions and activations from {sf.util.green(cache)}...')
             with open(cache, 'rb') as pt_pkl_file:
-
                 self.activations, self.logits, self.locations = pickle.load(pt_pkl_file)
-                if max_tiles_per_slide:
-                    log.info(f'Filtering activations to maximum {max_tiles_per_slide} tiles per slide')
-                    self.activations = {s: a[:max_tiles_per_slide] for s,a in self.activations.items()}
-                    self.logits = {s: l[:max_tiles_per_slide] for s,l in self.logits.items()}
-                    self.locations = {s: l[:max_tiles_per_slide] for s,l in self.locations.items()}
                 self.num_features = self.activations[self.slides[0]].shape[-1]
                 self.num_logits = self.logits[self.slides[0]].shape[-1]
 
         # Otherwise will need to generate new activations from a given model
         else:
-            self._generate_from_model(model, max_tiles_per_slide=max_tiles_per_slide, cache=cache, **kwargs)
+            self._generate_from_model(model, cache=cache, **kwargs)
 
         # Now delete slides not included in our filtered TFRecord list
         loaded_slides = list(self.activations.keys())
@@ -327,7 +312,7 @@ class ActivationsVisualizer:
         log.debug(f'Number of activation features: {self.num_features}')
 
     def _generate_from_model(self, model, layers='postconv', normalizer=None, normalizer_source=None,
-                            include_logits=True, max_tiles_per_slide=0, batch_size=32, cache=None):
+                            include_logits=True, batch_size=32, cache=None):
 
         """Calculates activations from a given model, saving to self.activations
 
@@ -339,20 +324,16 @@ class ActivationsVisualizer:
                 If None but using a normalizer, will use an internal tile for normalization.
                 Internal default tile can be found at slideflow.util.norm_tile.jpg
             include_logits (bool, optional): Include logit predictions. Defaults to True.
-            max_tiles_per_slide (int, optional): Maximum number of tiles per slide to generate activations.
-                If 0, will generate all activations for tiles in each slide. Defaults to 0.
             batch_size (int, optional): Batch size to use during activations calculations. Defaults to 32.
             cache (str, optional): File in which to store activations PKL cache.
         """
 
         # Rename tfrecord_array to tfrecords
-        end_msg = f', max {max_tiles_per_slide} tiles per slide.' if max_tiles_per_slide else ''
-        log.info(f'Calculating activations from {sf.util.green(model)}{end_msg}')
+        log.info(f'Calculating activations from {sf.util.green(model)}')
         if not isinstance(layers, list): layers = [layers]
 
         # Load model
         combined_model = ActivationsInterface(model, layers=layers, include_logits=include_logits)
-        unique_slides = list(set([sf.util.path_to_name(tfr) for tfr in self.tfrecords]))
         self.num_features = combined_model.num_features
         self.num_logits = 0 if not include_logits else combined_model.num_logits
 
@@ -364,42 +345,15 @@ class ActivationsVisualizer:
         # Calculate final layer activations for each tfrecord
         fla_start_time = time.time()
         include_tfrecord_loc = True
-        tfr_to_remove = []
-        parser = None
-
-        # Validate tfrecords, excluding any that are empty
-        for tfrecord in tqdm(self.tfrecords, desc="Validating tfrecords...", ncols=80, leave=False):
-            if parser is None:
-                parser = sf.io.tensorflow.get_tfrecord_parser(tfrecord,
-                                                             ('image_raw', 'slide', 'loc_x', 'loc_y'),
-                                                             normalizer=normalizer,
-                                                             standardize=True,
-                                                             img_size=self.tile_px,
-                                                             error_if_invalid=False) # Returns None for loc_x/loc_y if not in tfrecords
-            tfr_features, _ = sf.io.tensorflow.detect_tfrecord_format(tfrecord)
-            if not tfr_features:
-                tfr_to_remove += tfrecord
-                self.remove(sf.util.path_to_name(tfrecord))
-                continue
-            if 'loc_x' not in tfr_features:
-                include_tfrecord_loc = False
 
         # Interleave tfrecord datasets
-        tfr_to_use = [t for t in self.tfrecords if t not in tfr_to_remove]
-        if max_tiles_per_slide:
-            tfrecord_datasets = [tf.data.TFRecordDataset(tfr).take(max_tiles_per_slide) for tfr in tfr_to_use]
-        else:
-            tfrecord_datasets = [tf.data.TFRecordDataset(tfr, num_parallel_reads=8) for tfr in tfr_to_use]
-        ds = tf.data.Dataset.from_tensor_slices(tfrecord_datasets)
-        dataset = ds.interleave(lambda x: x, cycle_length=1024, num_parallel_calls=16)
-        dataset = dataset.map(parser, num_parallel_calls=16)
-        dataset = dataset.batch(batch_size, drop_remainder=False)
-        if self.manifest and max_tiles_per_slide:
-            estimated_tiles = sum([max(self.manifest[t]['total'], max_tiles_per_slide) for t in tfr_to_use])
-        elif self.manifest:
-            estimated_tiles = sum([self.manifest[t]['total'] for t in tfr_to_use])
-        else:
-            estimated_tiles = 0
+        estimated_tiles = self.dataset.num_tiles
+        tf_dataset = self.dataset.tensorflow(label_parser=None,
+                                             infinite=False,
+                                             batch_size=batch_size,
+                                             augment=False,
+                                             incl_slidenames=True,
+                                             incl_loc=True)
 
         # Worker to process activations/logits, for more efficient GPU throughput
         q = queue.Queue()
@@ -434,18 +388,13 @@ class ActivationsVisualizer:
         batch_processing_thread.start()
 
         pb = tqdm(total=estimated_tiles, ncols=80, leave=False)
-        for i, (batch_img, batch_slides, batch_loc_x, batch_loc_y) in enumerate(dataset):
+        for i, (batch_img, _, batch_slides, batch_loc_x, batch_loc_y) in enumerate(tf_dataset):
             model_output = combined_model(batch_img)
             q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
             pb.update(batch_size)
         pb.close()
         q.put((None, None, None))
         batch_processing_thread.join()
-
-        if max_tiles_per_slide and ((i+1)*batch_size) > max_tiles_per_slide:
-            self.activations = {s:v[:max_tiles_per_slide] for s,v in self.activations.items()}
-            self.logits = {s:v[:max_tiles_per_slide] for s,v in self.logits.items()}
-            self.locations = {s:v[:max_tiles_per_slide] for s,v in self.locations.items()}
 
         self.activations = {s:np.stack(v) for s,v in self.activations.items()}
         self.logits = {s:np.stack(v) for s,v in self.logits.items()}
@@ -460,22 +409,6 @@ class ActivationsVisualizer:
             with open(cache, 'wb') as pt_pkl_file:
                 pickle.dump([self.activations, self.logits, self.locations], pt_pkl_file)
             log.info(f'Predictions and activations cached to {sf.util.green(cache)}')
-
-    def _filter_by_min_tiles(self, min_tiles):
-        """Filter tfrecords and activations to only include slides with a minimum number of tiles."""
-        unique_slides = []
-        included_tfrecords = []
-        for tfr in self.tfrecords:
-            num_tiles = self.manifest[tfr]['total']
-            if num_tiles < min_tiles:
-                log.info(f'Skipped {sf.util.green(sf.util.path_to_name(tfr))} (has {num_tiles} tiles, min {min_tiles})')
-            else:
-                unique_slides += [sf.util.path_to_name(tfr)]
-                included_tfrecords += [tfr]
-        unique_slides = list(set(unique_slides))
-        self.tfrecords = included_tfrecords
-        self.slides = sorted(unique_slides)
-        log.info(f'Total slides after filtering by minimum number of tiles: {len(self.slides)}')
 
     def activations_by_category(self, idx):
         """For each outcome category, calculates activations of a given feature across all tiles in the category.

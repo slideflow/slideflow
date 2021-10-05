@@ -659,13 +659,8 @@ class Trainer(_base.Trainer):
 
     def _interleave_kwargs(self, **kwargs):
         args = types.SimpleNamespace(
-            img_size=self.tile_px,
-            model_type=self._model_type,
             label_parser = self._parse_tfrecord_labels,
-            annotations=self.labels,
             normalizer=self.normalizer,
-            manifest=self.manifest,
-            slides=self.slides,
             **kwargs
         )
         return vars(args)
@@ -686,17 +681,14 @@ class Trainer(_base.Trainer):
     def load(self, model):
         self.model = tf.keras.models.load_model(model)
 
-    def evaluate(self, tfrecords, batch_size=None, max_tiles_per_slide=0, min_tiles_per_slide=0,
-                 permutation_importance=False, histogram=False, save_predictions=False):
+    def evaluate(self, dataset, batch_size=None, permutation_importance=False, histogram=False, save_predictions=False):
 
         """Evaluate model, saving metrics and predictions.
 
         Args:
-            tfrecords (list(str)): Paths to TFrecords paths to evaluate.
+            dataset (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords to evaluate.
             checkpoint (list, optional): Path to cp.cpkt checkpoint to load. Defaults to None.
             batch_size (int, optional): Evaluation batch size. Defaults to the same as training (per self.hp)
-            max_tiles_per_slide (int, optional): Max number of tiles to use from each slide. Defaults to 0 (all tiles).
-            min_tiles_per_slide (int, optional): Only evaluate slides with a minimum number of tiles. Defaults to 0.
             permutation_importance (bool, optional): Run permutation feature importance to define relative benefit
                 of histology and each clinical slide-level feature input, if provided.
             histogram (bool, optional): Save histogram of tile predictions. Poorly optimized, uses seaborn, may
@@ -710,19 +702,16 @@ class Trainer(_base.Trainer):
         # Load and initialize model
         if not self.model:
             raise sf.util.UserError("Model has not been loaded, unable to evaluate.")
-        self._save_manifest(val_tfrecords=tfrecords)
+        self._save_manifest(val_tfrecords=dataset.tfrecords())
         if not batch_size: batch_size = self.hp.batch_size
         with tf.name_scope('input'):
-            interleave_kwargs = self._interleave_kwargs(batch_size=batch_size,
-                                                        balance='none',
-                                                        infinite=False,
-                                                        max_tiles=max_tiles_per_slide,
-                                                        min_tiles=min_tiles_per_slide,
-                                                        augment=False)
-            dataset, dataset_with_slidenames, num_tiles = sf.io.tensorflow.interleave(tfrecords, **interleave_kwargs)
+            interleave_kwargs = self._interleave_kwargs(batch_size=batch_size, infinite=False, augment=False)
+            tf_dts = dataset.tensorflow(**interleave_kwargs)
+            tf_dts_w_slidenames = dataset.tensorflow(incl_slidenames=True, **interleave_kwargs)
+
         # Generate performance metrics
         log.info('Calculating performance metrics...')
-        metric_kwargs = self._metric_kwargs(dataset=dataset_with_slidenames, num_tiles=num_tiles, label='eval')
+        metric_kwargs = self._metric_kwargs(dataset=tf_dts_w_slidenames, num_tiles=dataset.num_tiles, label='eval')
         if permutation_importance:
             drop_images = ((self.hp.tile_px == 0) or self.hp.drop_images)
             metrics = sf.statistics.permutation_feature_importance(feature_names=self.feature_names,
@@ -746,7 +735,7 @@ class Trainer(_base.Trainer):
                     f'patient_{metric}': metrics[metric]['patient']
                 })
 
-        val_metrics = self.model.evaluate(dataset, verbose=(log.getEffectiveLevel() <= 20), return_dict=True)
+        val_metrics = self.model.evaluate(tf_dts, verbose=(log.getEffectiveLevel() <= 20), return_dict=True)
 
         results_log = os.path.join(self.outdir, 'results_log.csv')
         log.info(f'Evaluation metrics:')
@@ -756,22 +745,20 @@ class Trainer(_base.Trainer):
         sf.util.update_results_log(results_log, 'eval_model', results_dict)
         return val_metrics
 
-    def train(self, train_tfrecords, val_tfrecords, log_frequency=100, validate_on_batch=512, validation_batch_size=32,
-              validation_steps=200, max_tiles_per_slide=0, min_tiles_per_slide=0, starting_epoch=0, ema_observations=20,
-              ema_smoothing=2, use_tensorboard=False, steps_per_epoch_override=None, save_predictions=False,
-              skip_metrics=False, resume_training=None, pretrain='imagenet', checkpoint=None, multi_gpu=False):
+    def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=512, validation_batch_size=32,
+              validation_steps=200, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=False,
+              steps_per_epoch_override=None, save_predictions=False, skip_metrics=False, resume_training=None,
+              pretrain='imagenet', checkpoint=None, multi_gpu=False):
 
         """Builds and trains a model from hyperparameters.
 
         Args:
-            train_tfrecords (list(str)): List of tfrecord paths for training.
-            val_tfrecords (list(str)): List of tfrecord paths for validation.
+            train_dts (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords for training.
+            val_dts (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords for validation.
             log_frequency (int, optional): How frequent to update Tensorboard logs, in batches. Defaults to 100.
             validate_on_batch (int, optional): How frequent o perform validation, in batches. Defaults to 512.
             validation_batch_size (int, optional): Batch size to use during validation. Defaults to 32.
             validation_steps (int, optional): Number of batches to use for each instance of validation. Defaults to 200.
-            max_tiles_per_slide (int, optional): Max number of tiles to use from each slide. Defaults to 0 (all tiles).
-            min_tiles_per_slide (int, optional): Only evaluate slides with a minimum number of tiles. Defaults to 0.
             starting_epoch (int, optional): Starts training at the specified epoch. Defaults to 0.
             ema_observations (int, optional): Number of observations over which to perform exponential moving average
                 smoothing. Defaults to 20.
@@ -810,37 +797,27 @@ class Trainer(_base.Trainer):
                                             checkpoint=checkpoint)
                 self.model = model
 
-            self._save_manifest(train_tfrecords, val_tfrecords)
+            self._save_manifest(train_dts.tfrecords(), val_dts.tfrecords())
             with tf.name_scope('input'):
-                interleave_kwargs = self._interleave_kwargs(batch_size=self.hp.batch_size,
-                                                            balance=self.hp.balanced_training,
-                                                            infinite=True,
-                                                            max_tiles=max_tiles_per_slide,
-                                                            min_tiles=min_tiles_per_slide,
-                                                            augment=self.hp.augment)
-                train_data, _, num_tiles = sf.io.tensorflow.interleave(train_tfrecords, **interleave_kwargs)
+                t_kwargs = self._interleave_kwargs(batch_size=self.hp.batch_size, infinite=True, augment=self.hp.augment)
+                train_data = train_dts.tensorflow(**t_kwargs)
 
             # Set up validation data
-            using_validation = (val_tfrecords and len(val_tfrecords))
+            using_validation = (val_dts and len(val_dts.tfrecords()))
             if using_validation:
                 with tf.name_scope('input'):
-                    val_interleave_kwargs = self._interleave_kwargs(batch_size=validation_batch_size,
-                                                                    balance=self.hp.balanced_validation,
-                                                                    infinite=False,
-                                                                    max_tiles=max_tiles_per_slide,
-                                                                    min_tiles=min_tiles_per_slide,
-                                                                    augment=False)
-                    interleave_results = sf.io.tensorflow.interleave(val_tfrecords, **val_interleave_kwargs)
-                    validation_data, validation_data_with_slidenames, num_val_tiles = interleave_results
+                    v_kwargs = self._interleave_kwargs(batch_size=validation_batch_size, infinite=False, augment=False)
+                    val_data = val_dts.tensorflow(**v_kwargs)
+                    val_data_w_slidenames = val_dts.tensorflow(incl_slidenames=True, **v_kwargs)
 
                 val_log_msg = '' if not validate_on_batch else f'every {str(validate_on_batch)} steps and '
                 log.debug(f'Validation during training: {val_log_msg}at epoch end')
                 if validation_steps:
-                    validation_data_for_training = validation_data.repeat()
+                    validation_data_for_training = val_data.repeat()
                     num_samples = validation_steps * self.hp.batch_size
                     log.debug(f'Using {validation_steps} batches ({num_samples} samples) each validation check')
                 else:
-                    validation_data_for_training = validation_data
+                    validation_data_for_training = val_data
                     log.debug(f'Using entire validation set each validation check')
             else:
                 log.debug('Validation during training: None')
@@ -859,21 +836,21 @@ class Trainer(_base.Trainer):
             if steps_per_epoch_override:
                 steps_per_epoch = steps_per_epoch_override
             else:
-                steps_per_epoch = round(num_tiles/self.hp.batch_size)
+                steps_per_epoch = round(train_dts.num_tiles/self.hp.batch_size)
             results_log = os.path.join(self.outdir, 'results_log.csv')
 
             cb_args = types.SimpleNamespace(
                 starting_epoch=starting_epoch,
                 using_validation=using_validation,
                 validate_on_batch=validate_on_batch,
-                validation_data=validation_data,
+                validation_data=val_data,
                 validation_steps=validation_steps,
                 ema_observations=ema_observations,
                 ema_smoothing=ema_smoothing,
                 steps_per_epoch=steps_per_epoch,
                 skip_metrics=skip_metrics,
-                validation_data_with_slidenames=validation_data_with_slidenames,
-                num_val_tiles=num_val_tiles,
+                validation_data_with_slidenames=val_data_w_slidenames,
+                num_val_tiles=val_dts.num_tiles,
                 save_predictions=save_predictions,
                 results_log=results_log
             )

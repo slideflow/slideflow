@@ -278,13 +278,79 @@ class-aware function.</p>
 <h2>Dataset<a class="headerlink" href="#dataset" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.dataset.Dataset">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.dataset.</span></span><span class="sig-name descname"><span class="pre">Dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sources</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_um</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.dataset.</span></span><span class="sig-name descname"><span class="pre">Dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sources</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_um</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset" title="Permalink to this definition">¶</a></dt>
 <dd><p>Object to supervise organization of slides, tfrecords, and tiles
 across a one or more sources in a stored configuration file.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.dataset.Dataset.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sources</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_um</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.__init__" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sources</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_um</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.__init__" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.balance">
+<span class="sig-name descname"><span class="pre">balance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strategy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'category'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.balance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a dataset with prob_weights reflecting balancing per tile, slide, patient, or category.</p>
+<p>Saves balancing information to the dataset variable prob_weights, which is used by the interleaving dataloaders
+when sampling from tfrecords to create a batch.</p>
+<p>Tile level balancing will create prob_weights reflective of the number of tiles per slide, thus causing the
+batch sampling to mirror random sampling from the entire population of tiles (rather than randomly sampling
+from slides).</p>
+<p>Slide level balancing is the default behavior, where batches are assembled by randomly sampling from each
+slide/tfrecord with equal probability. This balancing behavior would be the same as not balancing.</p>
+<p>Patient level balancing is used to randomly sample from individual patients with equal probability. This is
+distinct from slide level balancing, as some patients may have multiple slides per patient.</p>
+<p>Category level balancing takes a list of annotation header(s) and generates prob_weights such that each category
+is sampled equally. This requires categorical outcomes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>headers</strong> (<em>list of str</em><em>, </em><em>optional</em>) – List of annotation headers if balancing by category. Defaults to None.</p></li>
+<li><p><strong>strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – ‘tile’, ‘slide’, ‘patient’, or ‘category’. Create prob_weights used to balance
+dataset batches to evenly distribute slides, patients, or categories in a given batch. Tile-level
+balancing generates prob_weights reflective of the total number of tiles in a slide.
+Defaults to ‘category.’</p></li>
+<li><p><strong>force</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – If using category-level balancing, interpret all headers as categorical variables,
+even if the header appears to be a float.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>balanced <a class="reference internal" href="#slideflow.dataset.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a> object.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.clear_filters">
+<span class="sig-name descname"><span class="pre">clear_filters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.clear_filters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a dataset with all filters cleared.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#slideflow.dataset.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a> object.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.clip">
+<span class="sig-name descname"><span class="pre">clip</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strategy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.clip" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a dataset clipped to either a fixed maximum number of tiles per tfrecord, or to the minimum number
+of tiles per patient or category.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Clip the maximum number of tiles per tfrecord to this number.</p></li>
+<li><p><strong>strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – ‘slide’, ‘patient’, or ‘category’. Clip the maximum number of tiles to the
+minimum tiles seen across slides, patients, or categories. If ‘category’, headers must be provided.
+Defaults to None.</p></li>
+<li><p><strong>headers</strong> (<em>list of str</em><em>, </em><em>optional</em>) – List of annotation headers to use if clipping by minimum category count
+(strategy=’category’). Defaults to None.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>clipped <a class="reference internal" href="#slideflow.dataset.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a> object.</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.dataset.Dataset.extract_tiles">
@@ -354,78 +420,40 @@ Otherwise, will extract sub-images from each core using the given tile micron si
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="slideflow.dataset.Dataset.filtered">
-<span class="sig-name descname"><span class="pre">filtered</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.filtered" title="Permalink to this definition">¶</a></dt>
-<dd><p>Temporarily filters dataset with the provided filters or filter_blank.</p>
-<p>Use by calling this function through ‘with’. After exiting the ‘with’ block,
-filters will be reverted to their original values.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">dataset</span><span class="o">.</span><span class="n">filtered</span><span class="p">(</span><span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="o">...</span><span class="p">}):</span>
-    <span class="o">...</span>
-</pre></div>
-</div>
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.filter">
+<span class="sig-name descname"><span class="pre">filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.filter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a filtered dataset.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>None</strong> – </p>
-</dd>
-<dt class="field-even">Keyword Arguments</dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters dict to use when selecting tfrecords. Defaults to None.
-Ignored if dataset is supplied.
-See <code class="xref py py-meth docutils literal notranslate"><span class="pre">get_dataset()</span></code> documentation for more information on filtering.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – Slides blank in these columns will be excluded. Defaults to None.
-Ignored if dataset is supplied.</p></li>
-</ul>
-</dd>
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>Object that, when entered, temporarily filters this dataset using the supplied filters or filter_blank,
-and when exited, reverts filters back to their previous state.</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="slideflow.dataset.Dataset.generate_tfrecords_from_tiles">
-<span class="sig-name descname"><span class="pre">generate_tfrecords_from_tiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">delete_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.generate_tfrecords_from_tiles" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create tfrecord files from a collection of raw images, as stored in project tiles directory</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="slideflow.dataset.Dataset.get_rois">
-<span class="sig-name descname"><span class="pre">get_rois</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.get_rois" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a list of all ROIs.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="slideflow.dataset.Dataset.get_slide_paths">
-<span class="sig-name descname"><span class="pre">get_slide_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply_filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.get_slide_paths" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a list of paths to either all slides, or slides matching dataset filters.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Keyword Arguments</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Dataset source name. Defaults to None (using all sources).</p></li>
-<li><p><strong>filter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Return only slide paths meeting filter criteria. If False, return all slides.
-Defaults to True.</p></li>
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a>) – Filters dict to use when selecting tfrecords. Defaults to None.
+See <code class="xref py py-meth docutils literal notranslate"><span class="pre">get_dataset()</span></code> documentation for more information on filtering.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a>) – Slides blank in these columns will be excluded. Defaults to None.</p></li>
+<li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Filter out tfrecords that have less than this minimum number of tiles.</p></li>
 </ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><a class="reference internal" href="#slideflow.dataset.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a> object.</p>
 </dd>
 </dl>
 </dd></dl>
 
-<dl class="py method">
-<dt class="sig sig-object py" id="slideflow.dataset.Dataset.get_slides">
-<span class="sig-name descname"><span class="pre">get_slides</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.get_slides" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a list of slide names in this dataset.</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.filter_blank">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">filter_blank</span></span><a class="headerlink" href="#slideflow.dataset.Dataset.filter_blank" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the active filter_blank filter, if any.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.filters">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">filters</span></span><a class="headerlink" href="#slideflow.dataset.Dataset.filters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the active filters, if any.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="slideflow.dataset.Dataset.get_tfrecords_by_subfolder">
-<span class="sig-name descname"><span class="pre">get_tfrecords_by_subfolder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subfolder</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.get_tfrecords_by_subfolder" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a list of tfrecords in a specific subfolder.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="slideflow.dataset.Dataset.get_tfrecords_folders">
-<span class="sig-name descname"><span class="pre">get_tfrecords_folders</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.get_tfrecords_folders" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns folders containing tfrecords.</p>
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.is_float">
+<span class="sig-name descname"><span class="pre">is_float</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">header</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.is_float" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns True if labels in the given header can all be converted to <cite>float</cite>, else False.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -469,14 +497,8 @@ Defaults to ‘index’.</p></li>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="slideflow.dataset.Dataset.load_annotations">
-<span class="sig-name descname"><span class="pre">load_annotations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">annotations_file</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.load_annotations" title="Permalink to this definition">¶</a></dt>
-<dd><p>Load annotations from a given CSV file.</p>
-</dd></dl>
-
-<dl class="py method">
 <dt class="sig sig-object py" id="slideflow.dataset.Dataset.manifest">
-<span class="sig-name descname"><span class="pre">manifest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'path'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.manifest" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">manifest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'path'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.manifest" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generates a manifest of all tfrecords.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -491,6 +513,35 @@ Defaults to ‘index’.</p></li>
 </dl>
 </dd></dl>
 
+<dl class="py property">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.min_tiles">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">min_tiles</span></span><a class="headerlink" href="#slideflow.dataset.Dataset.min_tiles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the active min_tiles filter, if any (defaults to 0).</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.num_tiles">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">num_tiles</span></span><a class="headerlink" href="#slideflow.dataset.Dataset.num_tiles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the total number of tiles in the tfrecords in this dataset, after filtering/clipping.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.remove_filter">
+<span class="sig-name descname"><span class="pre">remove_filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.remove_filter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes a specific filter from the active filters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Keyword Arguments</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filters</strong> (<em>list of str</em>) – Filter keys. Will remove filters with these keys.</p></li>
+<li><p><strong>filter_blank</strong> (<em>list of str</em>) – Will remove these headers stored in filter_blank.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><a class="reference internal" href="#slideflow.dataset.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a> object.</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.dataset.Dataset.resize_tfrecords">
 <span class="sig-name descname"><span class="pre">resize_tfrecords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tile_px</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.resize_tfrecords" title="Permalink to this definition">¶</a></dt>
@@ -498,6 +549,27 @@ Defaults to ‘index’.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>tile_px</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Target pixel size for resizing TFRecord images.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.rois">
+<span class="sig-name descname"><span class="pre">rois</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.rois" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of all ROIs.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.slide_paths">
+<span class="sig-name descname"><span class="pre">slide_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply_filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.slide_paths" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of paths to either all slides, or slides matching dataset filters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Dataset source name. Defaults to None (using all sources).</p></li>
+<li><p><strong>filter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Return only slide paths meeting filter criteria. If False, return all slides.
+Defaults to True.</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
@@ -527,11 +599,55 @@ Internal default tile can be found at slideflow.util.norm_tile.jpg</p></li>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.slides">
+<span class="sig-name descname"><span class="pre">slides</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.slides" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of slide names in this dataset.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="slideflow.dataset.Dataset.split_tfrecords_by_roi">
 <span class="sig-name descname"><span class="pre">split_tfrecords_by_roi</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">destination</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.split_tfrecords_by_roi" title="Permalink to this definition">¶</a></dt>
 <dd><p>Split dataset tfrecords into separate tfrecords according to ROI.</p>
 <p>Will generate two sets of tfrecords, with identical names: one with tiles inside the ROIs, one with tiles
 outside the ROIs. Will skip any tfrecords that are missing ROIs. Requires slides to be available.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.tensorflow">
+<span class="sig-name descname"><span class="pre">tensorflow</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label_parser</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.tensorflow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a Tensorflow Dataset object that interleaves tfrecords from this dataset.</p>
+<p>The returned dataset returns a batch of (image, label) for each tile.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>label_parser</strong> (<em>func</em><em>, </em><em>optional</em>) – Base function to use for parsing labels. Function must accept an image (tensor)
+and slide name (str), and return an image (tensor) and label. If None is provided, all labels will be None.</p></li>
+<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Batch size.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Keyword Arguments</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>onehot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Onehot encode labels. Defaults to False.</p></li>
+<li><p><strong>incl_slidenames</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Include slidenames as third returned variable. Defaults to False.</p></li>
+<li><p><strong>infinite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Infinitely repeat data. Defaults to False.</p></li>
+<li><p><strong>rank</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Worker ID to identify which worker this represents. Used to interleave results
+among workers without duplications. Defaults to 0 (first worker).</p></li>
+<li><p><strong>num_replicas</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Number of GPUs or unique instances which will have their own DataLoader. Used to
+interleave results among workers without duplications. Defaults to 1.</p></li>
+<li><p><strong>normalizer</strong> (<a class="reference internal" href="util.html#slideflow.util.StainNormalizer" title="slideflow.util.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.util.StainNormalizer</span></code></a>, optional) – Normalizer to use on images. Defaults to None.</p></li>
+<li><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Use the following seed when randomly interleaving. Necessary for synchronized
+multiprocessing distributed reading.</p></li>
+<li><p><strong>chunk_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Chunk size for image decoding. Defaults to 16.</p></li>
+<li><p><strong>preload_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Number of batches to preload. Defaults to 1.</p></li>
+<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Image augmentations to perform. String containing characters designating augmentations.
+‘x’ indicates random x-flipping, ‘y’ y-flipping, ‘r’ rotating, and ‘j’ JPEG compression/decompression
+at random quality levels. Passing either ‘xyrj’ or True will use all augmentations.</p></li>
+<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images to (0,1). Defaults to True.</p></li>
+<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Number of DataLoader workers. Defaults to 2.</p></li>
+<li><p><strong>pin_memory</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Pin memory to GPU. Defaults to True.</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
@@ -555,6 +671,64 @@ Internal default tile can be found at slideflow.util.norm_tile.jpg</p></li>
 <dt class="sig sig-object py" id="slideflow.dataset.Dataset.tfrecords">
 <span class="sig-name descname"><span class="pre">tfrecords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.tfrecords" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns a list of all tfrecords.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.tfrecords_by_subfolder">
+<span class="sig-name descname"><span class="pre">tfrecords_by_subfolder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subfolder</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.tfrecords_by_subfolder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of all tfrecords in a specific subfolder, ignoring filters.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.tfrecords_folders">
+<span class="sig-name descname"><span class="pre">tfrecords_folders</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.tfrecords_folders" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns folders containing tfrecords.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.tfrecords_from_tiles">
+<span class="sig-name descname"><span class="pre">tfrecords_from_tiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">delete_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.tfrecords_from_tiles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create tfrecord files from a collection of raw images, as stored in project tiles directory</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.torch">
+<span class="sig-name descname"><span class="pre">torch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.torch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a PyTorch DataLoader object that interleaves tfrecords from this dataset.</p>
+<p>The returned data loader returns a batch of (image, label) for each tile.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – If a dict is provided, expect a dict mapping slide names to outcome labels. If a str,
+will intepret as categorical annotation header. For linear outcomes, or outcomes with manually
+assigned labels, pass the first result of dataset.labels(…).
+If None, will return slide name instead of label.</p></li>
+<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Batch size.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Keyword Arguments</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>onehot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Onehot encode labels. Defaults to False.</p></li>
+<li><p><strong>incl_slidenames</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Include slidenames as third returned variable. Defaults to False.</p></li>
+<li><p><strong>infinite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Infinitely repeat data. Defaults to False.</p></li>
+<li><p><strong>rank</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Worker ID to identify which worker this represents. Used to interleave results
+among workers without duplications. Defaults to 0 (first worker).</p></li>
+<li><p><strong>num_replicas</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Number of GPUs or unique instances which will have their own DataLoader. Used to
+interleave results among workers without duplications. Defaults to 1.</p></li>
+<li><p><strong>normalizer</strong> (<a class="reference internal" href="util.html#slideflow.util.StainNormalizer" title="slideflow.util.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.util.StainNormalizer</span></code></a>, optional) – Normalizer to use on images. Defaults to None.</p></li>
+<li><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Use the following seed when randomly interleaving. Necessary for synchronized
+multiprocessing distributed reading.</p></li>
+<li><p><strong>chunk_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Chunk size for image decoding. Defaults to 16.</p></li>
+<li><p><strong>preload_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Number of batches to preload. Defaults to 1.</p></li>
+<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Image augmentations to perform. String containing characters designating augmentations.
+‘x’ indicates random x-flipping, ‘y’ y-flipping, ‘r’ rotating, and ‘j’ JPEG compression/decompression
+at random quality levels. Passing either ‘xyrj’ or True will use all augmentations.</p></li>
+<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images to (0,1). Defaults to True.</p></li>
+<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Number of DataLoader workers. Defaults to 2.</p></li>
+<li><p><strong>pin_memory</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Pin memory to GPU. Defaults to True.</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
@@ -586,10 +760,22 @@ Defaults to None.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>a list of full paths to training tfrecords, and a list of paths to validation tfrecords.</p>
+<dd class="field-even"><p>training dataset
+slideflow.dataset.Dataset: validation dataset</p>
 </dd>
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>Two lists</p>
+<dd class="field-odd"><p><a class="reference internal" href="#slideflow.dataset.Dataset" title="slideflow.dataset.Dataset">slideflow.dataset.Dataset</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.dataset.Dataset.unclip">
+<span class="sig-name descname"><span class="pre">unclip</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.unclip" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a dataset object with all clips removed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#slideflow.dataset.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a> object.</p>
 </dd>
 </dl>
 </dd></dl>

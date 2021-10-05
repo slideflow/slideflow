@@ -1,4 +1,4 @@
-
+import copy
 import queue
 import threading
 import time
@@ -144,12 +144,18 @@ class Dataset:
     """Object to supervise organization of slides, tfrecords, and tiles
     across a one or more sources in a stored configuration file."""
 
-    def __init__(self, config_file, sources, tile_px, tile_um, annotations=None, filters=None, filter_blank=None):
+    def __init__(self, config_file, sources, tile_px, tile_um, annotations=None, filters=None, filter_blank=None,
+                 min_tiles=0):
+
         self.tile_px = tile_px
         self.tile_um = tile_um
         self.annotations = []
-        self.filters = filters
-        self.filter_blank = filter_blank
+        self._filters = filters if filters else {}
+        self._filter_blank = filter_blank if filter_blank else []
+        self._filter_blank = [self.filter_blank] if not isinstance(self._filter_blank, list) else self._filter_blank
+        self._min_tiles = min_tiles
+        self._clip = {}
+        self.prob_weights = None
 
         config = sf.util.load_json(config_file)
         sources = sources if isinstance(sources, list) else [sources]
@@ -172,60 +178,244 @@ class Dataset:
 
         if annotations:
             if os.path.exists(annotations):
-                self.load_annotations(annotations)
+                self._load_annotations(annotations)
             else:
                 log.warning(f"Unable to load annotations from {sf.util.green(annotations)}; file does not exist.")
 
-    def apply_filters(self, **kwargs):
-        for kwarg in kwargs:
-            if kwarg not in ('filters', 'filter_blank'):
-                raise sf.util.UserError(f'Unknown filtering argument {kwarg}')
-        if 'filters' in kwargs:
-            self.filters = kwargs['filters']
-        if 'filter_blank' in kwargs:
-            self.filter_blank = kwargs['filter_blank']
+    @property
+    def num_tiles(self):
+        """Returns the total number of tiles in the tfrecords in this dataset, after filtering/clipping."""
+        tfrecords = self.tfrecords()
+        manifest = self.manifest()
+        if not all([tfr in manifest for tfr in tfrecords]):
+            self.update_manifest()
+        return sum(manifest[tfr]['total'] if 'clipped' not in manifest[tfr] else manifest[tfr]['clipped'] for tfr in tfrecords)
 
-    def filtered(self, **kwargs):
-        """Temporarily filters dataset with the provided filters or filter_blank.
+    @property
+    def filters(self):
+        """Returns the active filters, if any."""
+        return self._filters
 
-        Use by calling this function through 'with'. After exiting the 'with' block,
-        filters will be reverted to their original values.
+    @property
+    def filter_blank(self):
+        """Returns the active filter_blank filter, if any."""
+        return self._filter_blank
 
-        .. code-block:: python
+    @property
+    def min_tiles(self):
+        """Returns the active min_tiles filter, if any (defaults to 0)."""
+        return self._min_tiles
 
-            with dataset.filtered(filters={...}):
-                ...
+    def _load_annotations(self, annotations_file):
+        """Load annotations from a given CSV file."""
+        # Verify annotations file exists
+        if not os.path.exists(annotations_file):
+            raise DatasetError(f"Annotations file {sf.util.green(annotations_file)} does not exist, unable to load")
+
+        header, current_annotations = sf.util.read_annotations(annotations_file)
+
+        # Check for duplicate headers in annotations file
+        if len(header) != len(set(header)):
+            err_msg = "Annotations file containers at least one duplicate header; all headers must be unique"
+            log.error(err_msg)
+            raise DatasetError(err_msg)
+
+        # Verify there is a patient header
+        try:
+            patient_index = header.index(TCGA.patient)
+        except:
+            print(header)
+            err_msg = f"Check that annotations file is formatted correctly and contains header '{TCGA.patient}'."
+            log.error(err_msg)
+            raise DatasetError(err_msg)
+
+        # Verify that a slide header exists; if not, offer to make one and
+        # automatically associate slide names with patients
+        try:
+            slide_index = header.index(TCGA.slide)
+        except:
+            log.info(f"Header column '{TCGA.slide}' not found. Attempting to associate patients with slides...")
+            self.update_annotations_with_slidenames(annotations_file)
+            header, current_annotations = sf.util.read_annotations(annotations_file)
+        self.annotations = current_annotations
+
+    def balance(self, headers=None, strategy='category', force=False):
+        """Returns a dataset with prob_weights reflecting balancing per tile, slide, patient, or category.
+
+        Saves balancing information to the dataset variable prob_weights, which is used by the interleaving dataloaders
+        when sampling from tfrecords to create a batch.
+
+        Tile level balancing will create prob_weights reflective of the number of tiles per slide, thus causing the
+        batch sampling to mirror random sampling from the entire population of tiles (rather than randomly sampling
+        from slides).
+
+        Slide level balancing is the default behavior, where batches are assembled by randomly sampling from each
+        slide/tfrecord with equal probability. This balancing behavior would be the same as not balancing.
+
+        Patient level balancing is used to randomly sample from individual patients with equal probability. This is
+        distinct from slide level balancing, as some patients may have multiple slides per patient.
+
+        Category level balancing takes a list of annotation header(s) and generates prob_weights such that each category
+        is sampled equally. This requires categorical outcomes.
 
         Args:
-            None
-
-        Keyword Args:
-            filters (dict, optional): Filters dict to use when selecting tfrecords. Defaults to None.
-                Ignored if dataset is supplied.
-                See :meth:`get_dataset` documentation for more information on filtering.
-            filter_blank (list, optional): Slides blank in these columns will be excluded. Defaults to None.
-                Ignored if dataset is supplied.
+            headers (list of str, optional): List of annotation headers if balancing by category. Defaults to None.
+            strategy (str, optional): 'tile', 'slide', 'patient', or 'category'. Create prob_weights used to balance
+                dataset batches to evenly distribute slides, patients, or categories in a given batch. Tile-level
+                balancing generates prob_weights reflective of the total number of tiles in a slide.
+                Defaults to 'category.'
+            force (bool, optional): If using category-level balancing, interpret all headers as categorical variables,
+                even if the header appears to be a float.
 
         Returns:
-            Object that, when entered, temporarily filters this dataset using the supplied filters or filter_blank,
-            and when exited, reverts filters back to their previous state.
+            balanced :class:`slideflow.dataset.Dataset` object.
         """
 
-        for kwarg in kwargs:
-            if kwarg not in ('filters', 'filter_blank'):
-                raise sf.util.UserError(f'Unknown filtering argument {kwarg}')
-        parent = self
+        ret = copy.deepcopy(self)
+        manifest = ret.manifest()
+        tfrecords = ret.tfrecords()
+        slides = [sf.util.path_to_name(tfr) for tfr in tfrecords]
+        totals = {tfr: (manifest[tfr]['total'] if 'clipped' not in manifest[tfr] else manifest[tfr]['clipped']) for tfr in tfrecords}
 
-        class TempFilter:
-            def __init__(self): pass
-            def __enter__(self):
-                self.old_filters = parent.filters
-                self.old_filter_blank = parent.filter_blank
-                parent.apply_filters(**kwargs)
-            def __exit__(self, exc_type, exc_value, traceback):
-                parent.apply_filters(self.old_filters, self.old_filter_blank)
+        if strategy == 'none' or strategy is None:
+            return self
 
-        return TempFilter()
+        if strategy == 'tile':
+            ret.prob_weights = {tfr: totals[tfr] / sum(totals.values()) for tfr in tfrecords}
+
+        if strategy == 'slide':
+            ret.prob_weights = {tfr: 1/len(tfrecords) for tfr in tfrecords}
+
+        if strategy == 'patient':
+            patients = ret.patients() # Maps tfrecords to patients
+            rev_patients = {}         # Will map patients to list of tfrecords
+            for slide in patients:
+                if slide not in slides: continue
+                if patients[slide] not in rev_patients:
+                    rev_patients[patients[slide]] = [slide]
+                else:
+                    rev_patients[patients[slide]] += [slide]
+            ret.prob_weights = {tfr: 1/(len(rev_patients) * len(rev_patients[patients[sf.util.path_to_name(tfr)]])) for tfr in tfrecords}
+
+        if strategy == 'category':
+            # Ensure that header is not type 'float'
+            if not isinstance(headers, list): headers = [headers]
+            if any(ret.is_float(h) for h in headers) and not force:
+                raise DatasetError(f"Headers {','.join(headers)} appear to be `float`. Categorical outcomes required " + \
+                                    "for balancing. To force balancing with these outcomes, pass `force=True` to Dataset.balance()")
+
+            labels, _ = ret.labels(headers, use_float=False, verbose=False)
+            categories, categories_prob, tfrecord_categories = {}, {}, {}
+            for tfrecord in tfrecords:
+                slide = sf.util.path_to_name(tfrecord)
+                balance_category = labels[slide]
+                if not isinstance(balance_category, list): balance_category = [balance_category]
+                balance_category = '-'.join(map(str, balance_category))
+                tfrecord_categories[tfrecord] = balance_category
+                tiles = totals[tfrecord]
+                if balance_category not in categories:
+                    categories.update({balance_category: {
+                        'num_slides': 1,
+                        'num_tiles': tiles
+                    }})
+                else:
+                    categories[balance_category]['num_slides'] += 1
+                    categories[balance_category]['num_tiles'] += tiles
+
+            for category in categories:
+                lowest_category_slide_count = min([categories[i]['num_slides'] for i in categories])
+                categories_prob[category] = lowest_category_slide_count / categories[category]['num_slides']
+
+            total_prob = sum([categories_prob[tfrecord_categories[tfr]] for tfr in tfrecords])
+            ret.prob_weights = {tfr: categories_prob[tfrecord_categories[tfr]]/total_prob for tfr in tfrecords}
+
+        return ret
+
+    def clear_filters(self):
+        """Returns a dataset with all filters cleared.
+
+        Returns:
+            :class:`slideflow.dataset.Dataset` object.
+        """
+
+        ret = copy.deepcopy(self)
+        ret._filters = {}
+        ret._filter_blank = []
+        ret._min_tiles = 0
+        return ret
+
+    def clip(self, max_tiles=0, strategy=None, headers=None):
+        '''Returns a dataset clipped to either a fixed maximum number of tiles per tfrecord, or to the minimum number
+        of tiles per patient or category.
+
+        Args:
+            max_tiles (int, optional): Clip the maximum number of tiles per tfrecord to this number.
+            strategy (str, optional): 'slide', 'patient', or 'category'. Clip the maximum number of tiles to the
+                minimum tiles seen across slides, patients, or categories. If 'category', headers must be provided.
+                Defaults to None.
+            headers (list of str, optional): List of annotation headers to use if clipping by minimum category count
+                (strategy='category'). Defaults to None.
+
+        Returns:
+            clipped :class:`slideflow.dataset.Dataset` object.
+        '''
+
+        if strategy == 'category' and not headers:
+            raise DatasetError("headers must be provided if clip strategy is 'category'.")
+        if strategy is None and headers is not None:
+            strategy = 'category'
+        if strategy is None and headers is None and not max_tiles:
+            return self
+
+        ret = copy.deepcopy(self)
+        manifest = ret.manifest()
+        tfrecords = ret.tfrecords()
+        slides = [sf.util.path_to_name(tfr) for tfr in tfrecords]
+        totals = {tfr: manifest[tfr]['total'] for tfr in tfrecords}
+
+        if strategy == 'slide':
+            clip = min(min(totals.values()), max_tiles) if max_tiles else min(totals.values())
+            ret._clip = {tfr: (clip if totals[tfr] > clip else totals[tfr]) for tfr in manifest}
+
+        elif strategy == 'patient':
+            patients = ret.patients() # Maps slide name to patient
+            rev_patients = {}         # Will map patients to list of slide names
+            slide_totals = {sf.util.path_to_name(tfr): t for tfr,t in totals.items()}
+            for slide in patients:
+                if slide not in slides: continue
+                if patients[slide] not in rev_patients:
+                    rev_patients[patients[slide]] = [slide]
+                else:
+                    rev_patients[patients[slide]] += [slide]
+            tiles_per_patient = {pt: sum([slide_totals[slide] for slide in slide_list]) for pt, slide_list in rev_patients.items()}
+            clip = min(min(tiles_per_patient.values()), max_tiles) if max_tiles else min(tiles_per_patient.values())
+            ret._clip = {tfr: (clip if slide_totals[sf.util.path_to_name(tfr)] > clip else totals[tfr]) for tfr in manifest}
+
+        elif strategy == 'category':
+            labels, _ = ret.labels(headers, use_float=False, verbose=False)
+            categories, categories_tile_fraction, tfrecord_categories = {}, {}, {}
+            for tfrecord in tfrecords:
+                slide = sf.util.path_to_name(tfrecord)
+                balance_category = labels[slide]
+                if not isinstance(balance_category, list): balance_category = [balance_category]
+                balance_category = '-'.join(map(str, balance_category))
+                tfrecord_categories[tfrecord] = balance_category
+                tiles = totals[tfrecord]
+                if balance_category not in categories:
+                    categories[balance_category] = tiles
+                else:
+                    categories[balance_category] += tiles
+
+            for category in categories:
+                lowest_category_tile_count = min([categories[i] for i in categories])
+                categories_tile_fraction[category] = lowest_category_tile_count / categories[category]
+
+            ret._clip = {tfr: int(totals[tfr] * categories_tile_fraction[tfrecord_categories[tfr]]) for tfr in manifest}
+
+        elif max_tiles:
+            ret._clip = {tfr: (max_tiles if totals[tfr] > max_tiles else totals[tfr]) for tfr in manifest}
+
+        return ret
 
     def extract_tiles(self, save_tiles=False, save_tfrecord=True, source=None, stride_div=1, enable_downsample=False,
                       roi_method='inside', skip_missing_roi=True, skip_extracted=True, tma=False,
@@ -303,7 +493,7 @@ class Dataset:
                 os.makedirs(tiles_dir)
 
             # Prepare list of slides for extraction
-            slide_list = self.get_slide_paths(source=source)
+            slide_list = self.slide_paths(source=source)
 
             # Check for interrupted or already-extracted tfrecords
             if skip_extracted and save_tfrecord:
@@ -452,254 +642,48 @@ class Dataset:
             for tfr in to_extract_tfrecords:
                 sf.io.tensorflow.extract_tiles(tfr, tiles_dir)
 
-    def generate_tfrecords_from_tiles(self, delete_tiles=True):
-        """Create tfrecord files from a collection of raw images, as stored in project tiles directory"""
-        for source in self.sources:
-            log.info(f'Working on dataset source {source}')
-            config = self.sources[source]
-            tfrecord_dir = join(config['tfrecords'], config['label'])
-            tiles_dir = join(config['tiles'], config['label'])
-            if not exists(tiles_dir):
-                log.warn(f'No tiles found for dataset source {sf.util.bold(source)}')
-                continue
+    def filter(self, **kwargs):
+        """Return a filtered dataset.
 
-            # Check to see if subdirectories in the target folders are slide directories (contain images)
-            #  or are further subdirectories (e.g. validation and training)
-            log.info('Scanning tile directory structure...')
-            if sf.util.contains_nested_subdirs(tiles_dir):
-                subdirs = [_dir for _dir in os.listdir(tiles_dir) if isdir(join(tiles_dir, _dir))]
-                for subdir in subdirs:
-                    tfrecord_subdir = join(tfrecord_dir, subdir)
-                    sf.io.tensorflow.write_tfrecords_multi(join(tiles_dir, subdir), tfrecord_subdir)
-            else:
-                sf.io.tensorflow.write_tfrecords_multi(tiles_dir, tfrecord_dir)
-
-            self.update_manifest()
-
-            if delete_tiles:
-                shutil.rmtree(tiles_dir)
-
-    def manifest(self, key='path'):
-        """Generates a manifest of all tfrecords.
-
-        Args:
-            key (str): Either 'path' (default) or 'name'. Determines key format in the manifest dictionary.
+        Keyword Args:
+            filters (dict): Filters dict to use when selecting tfrecords. Defaults to None.
+                See :meth:`get_dataset` documentation for more information on filtering.
+            filter_blank (list): Slides blank in these columns will be excluded. Defaults to None.
+            min_tiles (int): Filter out tfrecords that have less than this minimum number of tiles.
 
         Returns:
-            dict: Dictionary mapping key (path or slide name) to number of total tiles.
-        """
-        if key not in ('path', 'name'):
-            raise DatasetError("'key' must be in ['path, 'name']")
-
-        combined_manifest = {}
-        for source in self.sources:
-            if self.sources[source]['label'] is None: continue
-            tfrecord_dir = join(self.sources[source]['tfrecords'], self.sources[source]['label'])
-            manifest_path = join(tfrecord_dir, "manifest.json")
-            if not exists(manifest_path):
-                log.info(f"No manifest file detected in {tfrecord_dir}; will create now")
-
-                # Import delayed until here in order to avoid importing tensorflow until necessary,
-                # as tensorflow claims a GPU once imported
-                import slideflow.io.tensorflow
-                slideflow.io.tensorflow.update_manifest_at_dir(tfrecord_dir)
-
-            relative_manifest = sf.util.load_json(manifest_path)
-            global_manifest = {}
-            for record in relative_manifest:
-                k = join(tfrecord_dir, record) if key == 'path' else sf.util.path_to_name(record)
-                global_manifest.update({k: relative_manifest[record]})
-            combined_manifest.update(global_manifest)
-
-        # Now filter out any tfrecords that would be excluded by filters
-        if key == 'path':
-            filtered_tfrecords = self.tfrecords()
-        else:
-            filtered_tfrecords = [sf.util.path_to_name(tfr) for tfr in self.tfrecords()]
-        manifest_tfrecords = list(combined_manifest.keys())
-        for tfr in manifest_tfrecords:
-            if tfr not in filtered_tfrecords:
-                del(combined_manifest[tfr])
-
-        return combined_manifest
-
-    def get_rois(self):
-        """Returns a list of all ROIs."""
-        rois_list = []
-        for source in self.sources:
-            rois_list += glob(join(self.sources[source]['roi'], "*.csv"))
-        rois_list = list(set(rois_list))
-        return rois_list
-
-    def get_slides(self):
-        """Returns a list of slide names in this dataset."""
-
-        # Begin filtering slides with annotations
-        slides = []
-        self.filter_blank = [self.filter_blank] if not isinstance(self.filter_blank, list) else self.filter_blank
-        slide_patient_dict = {}
-        if not len(self.annotations):
-            log.error("No annotations loaded; is the annotations file empty?")
-        for ann in self.annotations:
-            skip_annotation = False
-            if TCGA.slide not in ann.keys():
-                err_msg = f"{TCGA.slide} not found in annotations file."
-                log.error(err_msg)
-                raise DatasetError(err_msg)
-
-            # Skip missing or blank slides
-            if ann[TCGA.slide] in sf.util.SLIDE_ANNOTATIONS_TO_IGNORE:
-                continue
-
-            # Ensure slides are only assigned to a single patient
-            if ann[TCGA.slide] not in slide_patient_dict:
-                slide_patient_dict.update({ann[TCGA.slide]: ann[TCGA.patient]})
-            elif slide_patient_dict[ann[TCGA.slide]] != ann[TCGA.patient]:
-                log.error(f"Multiple patients assigned to slide {sf.util.green(ann[TCGA.slide])}.")
-                return None
-
-            # Only return slides with annotation values specified in "filters"
-            if self.filters:
-                for filter_key in self.filters.keys():
-                    if filter_key not in ann.keys():
-                        log.error(f"Filter header {sf.util.bold(filter_key)} not found in annotations file.")
-                        raise IndexError(f"Filter header {filter_key} not found in annotations file.")
-
-                    ann_val = ann[filter_key]
-                    filter_vals = self.filters[filter_key]
-                    filter_vals = [filter_vals] if not isinstance(filter_vals, list) else filter_vals
-
-                    # Allow filtering based on shortnames if the key is a TCGA patient ID
-                    if filter_key == TCGA.patient:
-                        if ((ann_val not in filter_vals) and
-                            (sf.util._shortname(ann_val) not in filter_vals) and
-                            (ann_val not in [sf.util._shortname(fv) for fv in filter_vals]) and
-                            (sf.util._shortname(ann_val) not in [sf.util._shortname(fv) for fv in filter_vals])):
-
-                            skip_annotation = True
-                            break
-                    else:
-                        if ann_val not in filter_vals:
-                            skip_annotation = True
-                            break
-
-            # Filter out slides that are blank in a given annotation column ("filter_blank")
-            if self.filter_blank and self.filter_blank != [None]:
-                for fb in self.filter_blank:
-                    if fb not in ann.keys():
-                        err_msg = f"Unable to filter blank slides from header {fb}; header was not found in annotations."
-                        log.error(err_msg)
-                        raise DatasetError(err_msg)
-
-                    if not ann[fb] or ann[fb] == '':
-                        skip_annotation = True
-                        break
-            if skip_annotation: continue
-            slides += [ann[TCGA.slide]]
-        return slides
-
-    def get_slide_paths(self, source=None, apply_filters=True):
-        """Returns a list of paths to either all slides, or slides matching dataset filters.
-
-        Args:
-            source (str, optional): Dataset source name. Defaults to None (using all sources).
-            filter (bool, optional): Return only slide paths meeting filter criteria. If False, return all slides.
-                Defaults to True.
+            :class:`slideflow.dataset.Dataset` object.
         """
 
-        if source and source not in self.sources.keys():
-            log.error(f"Dataset {source} not found.")
-            return None
+        for kwarg in kwargs:
+            if kwarg not in ('filters', 'filter_blank', 'min_tiles'):
+                raise sf.util.UserError(f'Unknown filtering argument {kwarg}')
+        ret = copy.deepcopy(self)
+        if 'filters' in kwargs and kwargs['filters'] is not None:
+            if not isinstance(kwargs['filters'], dict):
+                raise TypeError("'filters' must be a dict.")
+            ret._filters.update(kwargs['filters'])
+        if 'filter_blank' in kwargs and kwargs['filter_blank'] is not None:
+            if not isinstance(kwargs['filter_blank'], list):
+                kwargs['filter_blank'] = [kwargs['filter_blank']]
+            ret._filter_blank += kwargs['filter_blank']
+        if 'min_tiles' in kwargs and kwargs['min_tiles'] is not None:
+            if not isinstance(kwargs['min_tiles'], int):
+                raise TypeError("'min_tiles' must be an int.")
+            ret._min_tiles = kwargs['min_tiles']
+        return ret
 
-        # Get unfiltered paths
-        if source:
-            paths = sf.util.get_slide_paths(self.sources[source]['slides'])
-        else:
-            paths = []
-            for source in self.sources:
-                paths += sf.util.get_slide_paths(self.sources[source]['slides'])
+    def is_float(self, header):
+        """Returns True if labels in the given header can all be converted to `float`, else False."""
 
-        # Remove any duplicates from shared dataset paths
-        paths = list(set(paths))
-
-        # Filter paths
-        if apply_filters:
-            filtered_slides = self.get_slides()
-            filtered_paths = [path for path in paths if sf.util.path_to_name(path) in filtered_slides]
-            return filtered_paths
-        else:
-            return paths
-
-    def tfrecords(self, source=None):
-        """Returns a list of all tfrecords."""
-        if source and source not in self.sources.keys():
-            log.error(f"Dataset {source} not found.")
-            return None
-
-        sources_to_search = list(self.sources.keys()) if not source else [source]
-
-        tfrecords_list = []
-        folders_to_search = []
-        for source in sources_to_search:
-            tfrecords = self.sources[source]['tfrecords']
-            label = self.sources[source]['label']
-            if label is None: continue
-            tfrecord_path = join(tfrecords, label)
-            if not exists(tfrecord_path):
-                log.warning(f"TFRecords path not found: {sf.util.green(tfrecord_path)}")
-                return []
-            subdirs = [sd for sd in listdir(tfrecord_path) if isdir(join(tfrecord_path, sd))]
-            formatted_subdirs = ', '.join([sf.util.green(s) for s in subdirs])
-            folders_to_search += [tfrecord_path]
-        for folder in folders_to_search:
-            tfrecords_list += glob(join(folder, "*.tfrecords"))
-
-        # Now filter the list
-        if self.annotations:
-            slides = self.get_slides()
-            filtered_tfrecords_list = [tfrecord for tfrecord in tfrecords_list if tfrecord.split('/')[-1][:-10] in slides]
-            return filtered_tfrecords_list
-        else:
-            log.warning("No annotations loaded; unable to filter TFRecords list. Is the annotations file empty?")
-            return tfrecords_list
-
-    def get_tfrecords_by_subfolder(self, subfolder):
-        """Returns a list of tfrecords in a specific subfolder."""
-        tfrecords_list = []
-        folders_to_search = []
-        for source in self.sources:
-            if self.sources[source]['label'] is None: continue
-            base_dir = join(self.sources[source]['tfrecords'], self.sources[source]['label'])
-            tfrecord_path = join(base_dir, subfolder)
-            if not exists(tfrecord_path):
-                err_msg = f"Unable to find subfolder {sf.util.bold(subfolder)} in source {sf.util.bold(source)}, " + \
-                            f"tfrecord directory: {sf.util.green(base_dir)}"
-                log.error(err_msg)
-                raise DatasetError(err_msg)
-            folders_to_search += [tfrecord_path]
-        for folder in folders_to_search:
-            tfrecords_list += glob(join(folder, "*.tfrecords"))
-        return tfrecords_list
-
-    def get_tfrecords_folders(self):
-        """Returns folders containing tfrecords."""
-        folders = []
-        for source in self.sources:
-            if self.sources[source]['label'] is None: continue
-            folders += [join(self.sources[source]['tfrecords'], self.sources[source]['label'])]
-        return folders
-
-    def patients(self):
-        slides = self.get_slides()
-        result = {}
-        for annotation in self.annotations:
-            slide = annotation[TCGA.slide]
-            patient = annotation[TCGA.patient]
-            if slide in result and result[slide] != patient:
-                raise DatasetError(f"Slide {slide} assigned to multiple patients in annotations file ({patient}, {result[slide]})")
-            else:
-                result[slide] = patient
-        return result
+        slides = self.slides()
+        filtered_annotations = [a for a in self.annotations if a[TCGA.slide] in slides]
+        filtered_labels = [a[header] for a in filtered_annotations]
+        try:
+            filtered_labels = [float(o) for o in filtered_labels]
+            return True
+        except ValueError:
+            return False
 
     def labels(self, headers, use_float=False, assigned_labels=None, verbose=True, format='index'):
         """Returns a dictionary of slide names mapping to patient id and [an] label(s).
@@ -727,7 +711,7 @@ class Dataset:
                 with the outcome label id.
         """
 
-        slides = self.get_slides()
+        slides = self.slides()
         filtered_annotations = [a for a in self.annotations if a[TCGA.slide] in slides]
         results = {}
         headers = [headers] if not isinstance(headers, list) else headers
@@ -757,21 +741,14 @@ class Dataset:
             elif type(use_float) == bool:
                 use_float_for_this_header = use_float
             elif use_float == 'auto':
-                try:
-                    filtered_labels = [float(o) for o in filtered_labels]
-                    use_float_for_this_header = True
-                except ValueError:
-                    use_float_for_this_header = False
+                use_float_for_this_header = self.is_float(header)
             else:
                 raise DatasetError(f"Invalid use_float option {use_float}")
 
             # Ensure labels can be converted to desired type, then assign values
-            if use_float_for_this_header:
-                try:
-                    filtered_labels = [float(o) for o in filtered_labels]
-                except ValueError:
-                    raise TypeError(f"Unable to convert all labels of {header} into type 'float' ({','.join(filtered_labels)}).")
-            else:
+            if use_float_for_this_header and not self.is_float(header):
+                raise TypeError(f"Unable to convert all labels of {header} into type 'float' ({','.join(filtered_labels)}).")
+            elif not use_float_for_this_header:
                 if verbose: log.debug(f'Assigning label descriptors in column "{header}" to numerical values')
                 unique_labels_for_this_header = list(set(filtered_labels))
                 unique_labels_for_this_header.sort()
@@ -837,6 +814,103 @@ class Dataset:
             unique_labels = unique_labels[headers[0]]
         return results, unique_labels
 
+    def manifest(self, key='path', filter=True):
+        """Generates a manifest of all tfrecords.
+
+        Args:
+            key (str): Either 'path' (default) or 'name'. Determines key format in the manifest dictionary.
+
+        Returns:
+            dict: Dictionary mapping key (path or slide name) to number of total tiles.
+        """
+        if key not in ('path', 'name'):
+            raise DatasetError("'key' must be in ['path, 'name']")
+
+        combined_manifest = {}
+        for source in self.sources:
+            if self.sources[source]['label'] is None: continue
+            tfrecord_dir = join(self.sources[source]['tfrecords'], self.sources[source]['label'])
+            manifest_path = join(tfrecord_dir, "manifest.json")
+            if not exists(manifest_path):
+                log.info(f"No manifest file detected in {tfrecord_dir}; will create now")
+
+                # Import delayed until here in order to avoid importing tensorflow until necessary,
+                # as tensorflow claims a GPU once imported
+                import slideflow.io.tensorflow
+                slideflow.io.tensorflow.update_manifest_at_dir(tfrecord_dir)
+
+            relative_manifest = sf.util.load_json(manifest_path)
+            global_manifest = {}
+            for record in relative_manifest:
+                k = join(tfrecord_dir, record)
+                global_manifest.update({k: relative_manifest[record]})
+            combined_manifest.update(global_manifest)
+
+        # Now filter out any tfrecords that would be excluded by filters
+        if filter:
+            filtered_tfrecords = self.tfrecords()
+            manifest_tfrecords = list(combined_manifest.keys())
+            for tfr in manifest_tfrecords:
+                if tfr not in filtered_tfrecords:
+                    del(combined_manifest[tfr])
+
+        # Log clipped tile totals if applicable
+        for tfr in combined_manifest:
+            if tfr in self._clip:
+                combined_manifest[tfr]['clipped'] = min(self._clip[tfr], combined_manifest[tfr]['total'])
+            else:
+                combined_manifest[tfr]['clipped'] = combined_manifest[tfr]['total']
+
+        if key == 'path':
+            return combined_manifest
+        else:
+            return {sf.util.path_to_name(t):v for t,v in combined_manifest.items()}
+
+    def patients(self):
+        slides = self.slides()
+        result = {}
+        for annotation in self.annotations:
+            slide = annotation[TCGA.slide]
+            patient = annotation[TCGA.patient]
+            if slide in result and result[slide] != patient:
+                raise DatasetError(f"Slide {slide} assigned to multiple patients in annotations file ({patient}, {result[slide]})")
+            else:
+                result[slide] = patient
+        return result
+
+    def remove_filter(self, **kwargs):
+        """Removes a specific filter from the active filters.
+
+        Keyword Args:
+            filters (list of str): Filter keys. Will remove filters with these keys.
+            filter_blank (list of str): Will remove these headers stored in filter_blank.
+
+        Returns:
+            :class:`slideflow.dataset.Dataset` object.
+        """
+
+        for kwarg in kwargs:
+            if kwarg not in ('filters', 'filter_blank'):
+                raise sf.util.UserError(f'Unknown filtering argument {kwarg}')
+        ret = copy.deepcopy(self)
+        if 'filters' in kwargs:
+            if not isinstance(kwargs['filters'], list):
+                raise TypeError("'filters' must be a list.")
+            for f in kwargs['filters']:
+                if f not in ret._filters:
+                    raise DatasetError(f"Filter {f} not found in dataset (active filters: {','.join(list(ret._filters.keys()))})")
+                else:
+                    del ret._filters[f]
+        if 'filter_blank' in kwargs:
+            if not isinstance(kwargs['filter_blank'], list):
+                kwargs['filter_blank'] = [kwargs['filter_blank']]
+            for f in kwargs['filter_blank']:
+                if f not in ret._filter_blank:
+                    raise DatasetError(f"Filter_blank {f} not found in dataset (active filter_blank: {','.join(ret._filter_blank)})")
+                else:
+                    del ret._filter_blank[ret._filter_blank.index(f)]
+        return ret
+
     def resize_tfrecords(self, tile_px):
         """Resizes images in a set of TFRecords to a given pixel size.
 
@@ -849,6 +923,46 @@ class Dataset:
         log.info(f'Resizing {len(tfrecords_list)} tfrecords')
         for tfr in tfrecords_list:
             sf.io.tensorflow.transform_tfrecord(tfr, tfr+'.transformed', resize=tile_px)
+
+    def rois(self):
+        """Returns a list of all ROIs."""
+        rois_list = []
+        for source in self.sources:
+            rois_list += glob(join(self.sources[source]['roi'], "*.csv"))
+        rois_list = list(set(rois_list))
+        return rois_list
+
+    def slide_paths(self, source=None, apply_filters=True):
+        """Returns a list of paths to either all slides, or slides matching dataset filters.
+
+        Args:
+            source (str, optional): Dataset source name. Defaults to None (using all sources).
+            filter (bool, optional): Return only slide paths meeting filter criteria. If False, return all slides.
+                Defaults to True.
+        """
+
+        if source and source not in self.sources.keys():
+            log.error(f"Dataset {source} not found.")
+            return None
+
+        # Get unfiltered paths
+        if source:
+            paths = sf.util.get_slide_paths(self.sources[source]['slides'])
+        else:
+            paths = []
+            for source in self.sources:
+                paths += sf.util.get_slide_paths(self.sources[source]['slides'])
+
+        # Remove any duplicates from shared dataset paths
+        paths = list(set(paths))
+
+        # Filter paths
+        if apply_filters:
+            filtered_slides = self.slides()
+            filtered_paths = [path for path in paths if sf.util.path_to_name(path) in filtered_slides]
+            return filtered_paths
+        else:
+            return paths
 
     def slide_report(self, stride_div=1, destination='auto', tma=False, enable_downsample=False,
                         roi_method='inside', skip_missing_roi=False, normalizer=None, normalizer_source=None):
@@ -876,7 +990,7 @@ class Dataset:
         reports = []
         for source in self.sources:
             roi_dir = self.sources[source]['roi']
-            slide_list = self.get_slide_paths(source=source)
+            slide_list = self.slide_paths(source=source)
 
             # Function to extract tiles from a slide
             def get_slide_report(slide_path):
@@ -915,6 +1029,72 @@ class Dataset:
         pdf_report.save(filename)
         log.info(f'Slide report saved to {sf.util.green(filename)}')
 
+    def slides(self):
+        """Returns a list of slide names in this dataset."""
+
+        # Begin filtering slides with annotations
+        slides = []
+        slide_patient_dict = {}
+        if not len(self.annotations):
+            log.error("No annotations loaded; is the annotations file empty?")
+        for ann in self.annotations:
+            skip_annotation = False
+            if TCGA.slide not in ann.keys():
+                err_msg = f"{TCGA.slide} not found in annotations file."
+                log.error(err_msg)
+                raise DatasetError(err_msg)
+
+            # Skip missing or blank slides
+            if ann[TCGA.slide] in sf.util.SLIDE_ANNOTATIONS_TO_IGNORE:
+                continue
+
+            # Ensure slides are only assigned to a single patient
+            if ann[TCGA.slide] not in slide_patient_dict:
+                slide_patient_dict.update({ann[TCGA.slide]: ann[TCGA.patient]})
+            elif slide_patient_dict[ann[TCGA.slide]] != ann[TCGA.patient]:
+                log.error(f"Multiple patients assigned to slide {sf.util.green(ann[TCGA.slide])}.")
+                return None
+
+            # Only return slides with annotation values specified in "filters"
+            if self.filters:
+                for filter_key in self.filters.keys():
+                    if filter_key not in ann.keys():
+                        log.error(f"Filter header {sf.util.bold(filter_key)} not found in annotations file.")
+                        raise IndexError(f"Filter header {filter_key} not found in annotations file.")
+
+                    ann_val = ann[filter_key]
+                    filter_vals = self.filters[filter_key]
+                    filter_vals = [filter_vals] if not isinstance(filter_vals, list) else filter_vals
+
+                    # Allow filtering based on shortnames if the key is a TCGA patient ID
+                    if filter_key == TCGA.patient:
+                        if ((ann_val not in filter_vals) and
+                            (sf.util._shortname(ann_val) not in filter_vals) and
+                            (ann_val not in [sf.util._shortname(fv) for fv in filter_vals]) and
+                            (sf.util._shortname(ann_val) not in [sf.util._shortname(fv) for fv in filter_vals])):
+
+                            skip_annotation = True
+                            break
+                    else:
+                        if ann_val not in filter_vals:
+                            skip_annotation = True
+                            break
+
+            # Filter out slides that are blank in a given annotation column ("filter_blank")
+            if self.filter_blank and self.filter_blank != [None]:
+                for fb in self.filter_blank:
+                    if fb not in ann.keys():
+                        err_msg = f"Unable to filter blank slides from header {fb}; header was not found in annotations."
+                        log.error(err_msg)
+                        raise DatasetError(err_msg)
+
+                    if not ann[fb] or ann[fb] == '':
+                        skip_annotation = True
+                        break
+            if skip_annotation: continue
+            slides += [ann[TCGA.slide]]
+        return slides
+
     def split_tfrecords_by_roi(self, destination):
         """Split dataset tfrecords into separate tfrecords according to ROI.
 
@@ -927,8 +1107,8 @@ class Dataset:
         import tensorflow as tf
 
         tfrecords = self.tfrecords()
-        slides = {sf.util.path_to_name(s):s for s in self.get_slide_paths()}
-        rois = self.get_rois()
+        slides = {sf.util.path_to_name(s):s for s in self.slide_paths()}
+        rois = self.rois()
         manifest = self.manifest()
 
         for tfr in tfrecords:
@@ -957,6 +1137,45 @@ class Dataset:
                     outside_roi_writer.write(record_bytes)
             inside_roi_writer.close()
             outside_roi_writer.close()
+
+    def tensorflow(self, label_parser, batch_size, **kwargs):
+        """Returns a Tensorflow Dataset object that interleaves tfrecords from this dataset.
+
+        The returned dataset returns a batch of (image, label) for each tile.
+
+        Args:
+            label_parser (func, optional): Base function to use for parsing labels. Function must accept an image (tensor)
+                and slide name (str), and return an image (tensor) and label. If None is provided, all labels will be None.
+            batch_size (int): Batch size.
+
+        Keyword Args:
+            onehot (bool, optional): Onehot encode labels. Defaults to False.
+            incl_slidenames (bool, optional): Include slidenames as third returned variable. Defaults to False.
+            infinite (bool, optional): Infinitely repeat data. Defaults to False.
+            rank (int, optional): Worker ID to identify which worker this represents. Used to interleave results
+                among workers without duplications. Defaults to 0 (first worker).
+            num_replicas (int, optional): Number of GPUs or unique instances which will have their own DataLoader. Used to
+                interleave results among workers without duplications. Defaults to 1.
+            normalizer (:class:`slideflow.util.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
+            seed (int, optional): Use the following seed when randomly interleaving. Necessary for synchronized
+                multiprocessing distributed reading.
+            chunk_size (int, optional): Chunk size for image decoding. Defaults to 16.
+            preload_factor (int, optional): Number of batches to preload. Defaults to 1.
+            augment (str, optional): Image augmentations to perform. String containing characters designating augmentations.
+                    'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
+                    at random quality levels. Passing either 'xyrj' or True will use all augmentations.
+            standardize (bool, optional): Standardize images to (0,1). Defaults to True.
+            num_workers (int, optional): Number of DataLoader workers. Defaults to 2.
+            pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
+        """
+
+        from slideflow.io.tensorflow import interleave
+
+        return interleave(tfrecords=self.tfrecords(),
+                          label_parser=label_parser,
+                          img_size=self.tile_px,
+                          batch_size=batch_size,
+                          **kwargs)
 
     def tfrecord_report(self, destination, normalizer=None, normalizer_source=None):
 
@@ -1001,6 +1220,97 @@ class Dataset:
         pdf_report.save(filename)
         log.info(f'TFRecord report saved to {sf.util.green(filename)}')
 
+    def tfrecords(self, source=None):
+        """Returns a list of all tfrecords."""
+        if source and source not in self.sources.keys():
+            log.error(f"Dataset {source} not found.")
+            return None
+
+        sources_to_search = list(self.sources.keys()) if not source else [source]
+
+        tfrecords_list = []
+        folders_to_search = []
+        for source in sources_to_search:
+            tfrecords = self.sources[source]['tfrecords']
+            label = self.sources[source]['label']
+            if label is None: continue
+            tfrecord_path = join(tfrecords, label)
+            if not exists(tfrecord_path):
+                log.warning(f"TFRecords path not found: {sf.util.green(tfrecord_path)}")
+                return []
+            folders_to_search += [tfrecord_path]
+        for folder in folders_to_search:
+            tfrecords_list += glob(join(folder, "*.tfrecords"))
+
+        # Filter the list by filters
+        if self.annotations:
+            slides = self.slides()
+            filtered_tfrecords_list = [tfrecord for tfrecord in tfrecords_list if tfrecord.split('/')[-1][:-10] in slides]
+            filtered = filtered_tfrecords_list
+        else:
+            log.warning("No annotations loaded; unable to filter TFRecords list. Is the annotations file empty?")
+            filtered = tfrecords_list
+
+        # Filter by min_tiles
+        if self.min_tiles:
+            manifest = self.manifest(filter=False)
+            return [f for f in filtered if manifest[f]['total'] >= self.min_tiles]
+        else:
+            return filtered
+
+    def tfrecords_by_subfolder(self, subfolder):
+        """Returns a list of all tfrecords in a specific subfolder, ignoring filters."""
+        tfrecords_list = []
+        folders_to_search = []
+        for source in self.sources:
+            if self.sources[source]['label'] is None: continue
+            base_dir = join(self.sources[source]['tfrecords'], self.sources[source]['label'])
+            tfrecord_path = join(base_dir, subfolder)
+            if not exists(tfrecord_path):
+                err_msg = f"Unable to find subfolder {sf.util.bold(subfolder)} in source {sf.util.bold(source)}, " + \
+                            f"tfrecord directory: {sf.util.green(base_dir)}"
+                log.error(err_msg)
+                raise DatasetError(err_msg)
+            folders_to_search += [tfrecord_path]
+        for folder in folders_to_search:
+            tfrecords_list += glob(join(folder, "*.tfrecords"))
+        return tfrecords_list
+
+    def tfrecords_folders(self):
+        """Returns folders containing tfrecords."""
+        folders = []
+        for source in self.sources:
+            if self.sources[source]['label'] is None: continue
+            folders += [join(self.sources[source]['tfrecords'], self.sources[source]['label'])]
+        return folders
+
+    def tfrecords_from_tiles(self, delete_tiles=True):
+        """Create tfrecord files from a collection of raw images, as stored in project tiles directory"""
+        for source in self.sources:
+            log.info(f'Working on dataset source {source}')
+            config = self.sources[source]
+            tfrecord_dir = join(config['tfrecords'], config['label'])
+            tiles_dir = join(config['tiles'], config['label'])
+            if not exists(tiles_dir):
+                log.warn(f'No tiles found for dataset source {sf.util.bold(source)}')
+                continue
+
+            # Check to see if subdirectories in the target folders are slide directories (contain images)
+            #  or are further subdirectories (e.g. validation and training)
+            log.info('Scanning tile directory structure...')
+            if sf.util.contains_nested_subdirs(tiles_dir):
+                subdirs = [_dir for _dir in os.listdir(tiles_dir) if isdir(join(tiles_dir, _dir))]
+                for subdir in subdirs:
+                    tfrecord_subdir = join(tfrecord_dir, subdir)
+                    sf.io.tensorflow.write_tfrecords_multi(join(tiles_dir, subdir), tfrecord_subdir)
+            else:
+                sf.io.tensorflow.write_tfrecords_multi(tiles_dir, tfrecord_dir)
+
+            self.update_manifest()
+
+            if delete_tiles:
+                shutil.rmtree(tiles_dir)
+
     def training_validation_split(self, model_type, labels, val_strategy, patients=None, validation_log=None,
                                   val_fraction=None, val_k_fold=None, k_fold_iter=None, read_only=False):
 
@@ -1026,7 +1336,8 @@ class Dataset:
             read_only (bool): Prevents writing validation plans to log. Defaults to False.
 
         Returns:
-            Two lists:     a list of full paths to training tfrecords, and a list of paths to validation tfrecords.
+            slideflow.dataset.Dataset: training dataset
+            slideflow.dataset.Dataset: validation dataset
         """
 
         if (not k_fold_iter and val_strategy=='k-fold'):
@@ -1037,7 +1348,7 @@ class Dataset:
             log.debug(f"Patients not provided for dataset splitting; assuming 1:1 mapping of slides to patients")
 
         # Prepare dataset
-        tfr_folders = self.get_tfrecords_folders()
+        tfr_folders = self.tfrecords_folders()
         subdirs = []
         for folder in tfr_folders:
             try:
@@ -1220,64 +1531,77 @@ class Dataset:
             # Return list of tfrecords
             val_tfrecords = [tfr for tfr in tfrecord_dir_list if sf.util.path_to_name(tfr) in validation_slides]
             training_tfrecords = [tfr for tfr in tfrecord_dir_list if sf.util.path_to_name(tfr) in training_slides]
+
         train_msg = sf.util.bold(len(training_tfrecords))
         val_msg = sf.util.bold(len(val_tfrecords))
         log.info(f"Using {train_msg} TFRecords for training, {val_msg} for validation")
-        return training_tfrecords, val_tfrecords
 
-    def load_annotations(self, annotations_file):
-        """Load annotations from a given CSV file."""
-        # Verify annotations file exists
-        if not os.path.exists(annotations_file):
-            raise DatasetError(f"Annotations file {sf.util.green(annotations_file)} does not exist, unable to load")
+        assert(len(val_tfrecords) == len(validation_slides))
+        assert(len(training_tfrecords) == len(training_slides))
 
-        header, current_annotations = sf.util.read_annotations(annotations_file)
+        training_dts = copy.deepcopy(self).filter(filters={'slide': training_slides})
+        val_dts = copy.deepcopy(self).filter(filters={'slide': validation_slides})
 
-        # Check for duplicate headers in annotations file
-        if len(header) != len(set(header)):
-            err_msg = "Annotations file containers at least one duplicate header; all headers must be unique"
-            log.error(err_msg)
-            raise DatasetError(err_msg)
+        assert(sorted(training_dts.tfrecords()) == sorted(training_tfrecords))
+        assert(sorted(val_dts.tfrecords()) == sorted(val_tfrecords))
 
-        # Verify there is a patient header
-        try:
-            patient_index = header.index(TCGA.patient)
-        except:
-            print(header)
-            err_msg = f"Check that annotations file is formatted correctly and contains header '{TCGA.patient}'."
-            log.error(err_msg)
-            raise DatasetError(err_msg)
+        return training_dts, val_dts
 
-        # Verify that a slide header exists; if not, offer to make one and
-        # automatically associate slide names with patients
-        try:
-            slide_index = header.index(TCGA.slide)
-        except:
-            log.info(f"Header column '{TCGA.slide}' not found. Attempting to associate patients with slides...")
-            self.update_annotations_with_slidenames(annotations_file)
-            header, current_annotations = sf.util.read_annotations(annotations_file)
-        self.annotations = current_annotations
+    def torch(self, labels, batch_size, **kwargs):
+        """Returns a PyTorch DataLoader object that interleaves tfrecords from this dataset.
 
-    def verify_annotations_slides(self):
-        """Verify that annotations are correctly loaded."""
+        The returned data loader returns a batch of (image, label) for each tile.
 
-        # Verify no duplicate slide names are found
-        slide_list_from_annotations = self.get_slides()
-        if len(slide_list_from_annotations) != len(list(set(slide_list_from_annotations))):
-            log.error("Duplicate slide names detected in the annotation file.")
-            raise DatasetError("Duplicate slide names detected in the annotation file.")
+        Args:
+            labels (dict or str): If a dict is provided, expect a dict mapping slide names to outcome labels. If a str,
+                will intepret as categorical annotation header. For linear outcomes, or outcomes with manually
+                assigned labels, pass the first result of dataset.labels(...).
+                If None, will return slide name instead of label.
+            batch_size (int): Batch size.
 
-        # Verify all slides in the annotation column are valid
-        num_warned = 0
-        warn_threshold = 3
-        for annotation in self.annotations:
-            print_func = print if num_warned < warn_threshold else None
-            slide = annotation[TCGA.slide]
-            if slide == '':
-                log.warning(f"Patient {sf.util.green(annotation[TCGA.patient])} has no slide assigned.")
-                num_warned += 1
-        if num_warned >= warn_threshold:
-            log.warning(f"...{num_warned} total warnings, see project log for details")
+        Keyword Args:
+            onehot (bool, optional): Onehot encode labels. Defaults to False.
+            incl_slidenames (bool, optional): Include slidenames as third returned variable. Defaults to False.
+            infinite (bool, optional): Infinitely repeat data. Defaults to False.
+            rank (int, optional): Worker ID to identify which worker this represents. Used to interleave results
+                among workers without duplications. Defaults to 0 (first worker).
+            num_replicas (int, optional): Number of GPUs or unique instances which will have their own DataLoader. Used to
+                interleave results among workers without duplications. Defaults to 1.
+            normalizer (:class:`slideflow.util.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
+            seed (int, optional): Use the following seed when randomly interleaving. Necessary for synchronized
+                multiprocessing distributed reading.
+            chunk_size (int, optional): Chunk size for image decoding. Defaults to 16.
+            preload_factor (int, optional): Number of batches to preload. Defaults to 1.
+            augment (str, optional): Image augmentations to perform. String containing characters designating augmentations.
+                    'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
+                    at random quality levels. Passing either 'xyrj' or True will use all augmentations.
+            standardize (bool, optional): Standardize images to (0,1). Defaults to True.
+            num_workers (int, optional): Number of DataLoader workers. Defaults to 2.
+            pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
+        """
+
+        from slideflow.io.torch import interleave_dataloader
+
+        if isinstance(labels, str):
+            labels = self.labels(labels)[0]
+
+        return interleave_dataloader(tfrecords=self.tfrecords(),
+                                     img_size=self.tile_px,
+                                     batch_size=batch_size,
+                                     labels=labels,
+                                     num_tiles=self.num_tiles,
+                                     **kwargs)
+
+    def unclip(self):
+        """Returns a dataset object with all clips removed.
+
+        Returns:
+            :class:`slideflow.dataset.Dataset` object.
+        """
+
+        ret = copy.deepcopy(self)
+        ret._clip = {}
+        return ret
 
     def update_manifest(self, force_update=False):
         """Updates tfrecord manifest.
@@ -1290,7 +1614,7 @@ class Dataset:
         # as tensorflow claims a GPU once imported
         import slideflow.io.tensorflow
 
-        tfrecords_folders = self.get_tfrecords_folders()
+        tfrecords_folders = self.tfrecords_folders()
         for tfr_folder in tfrecords_folders:
             slideflow.io.tensorflow.update_manifest_at_dir(directory=tfr_folder,
                                                           force_update=force_update)
@@ -1299,7 +1623,7 @@ class Dataset:
         """Attempts to automatically associate slide names from a directory with patients in a given annotations file,
             skipping any slide names that are already present in the annotations file."""
         header, _ = sf.util.read_annotations(annotations_file)
-        slide_list = self.get_slide_paths(apply_filters=False)
+        slide_list = self.slide_paths(apply_filters=False)
 
         # First, load all patient names from the annotations file
         try:
@@ -1406,3 +1730,24 @@ class Dataset:
             os.remove(backup_file)
         shutil.move(annotations_file, backup_file)
         shutil.move('temp.csv', annotations_file)
+
+    def verify_annotations_slides(self):
+        """Verify that annotations are correctly loaded."""
+
+        # Verify no duplicate slide names are found
+        slide_list_from_annotations = self.slides()
+        if len(slide_list_from_annotations) != len(list(set(slide_list_from_annotations))):
+            log.error("Duplicate slide names detected in the annotation file.")
+            raise DatasetError("Duplicate slide names detected in the annotation file.")
+
+        # Verify all slides in the annotation column are valid
+        num_warned = 0
+        warn_threshold = 3
+        for annotation in self.annotations:
+            print_func = print if num_warned < warn_threshold else None
+            slide = annotation[TCGA.slide]
+            if slide == '':
+                log.warning(f"Patient {sf.util.green(annotation[TCGA.patient])} has no slide assigned.")
+                num_warned += 1
+        if num_warned >= warn_threshold:
+            log.warning(f"...{num_warned} total warnings, see project log for details")

@@ -249,29 +249,23 @@
 <p>While the primary backend for this package is Tensorflow/Keras, it includes a PyTorch TFRecord reader to ensure extracted and saved image tiles can be served to either Tensorflow or PyTorch models in cross-compatible fashion. There is also early support for a PyTorch model Trainer; full backend support is in development.</p>
 <div class="section" id="tfrecord-dataloader">
 <h2>TFRecord DataLoader<a class="headerlink" href="#tfrecord-dataloader" title="Permalink to this headline">¶</a></h2>
-<p>To use existing TFRecords that contain tiles extracted with <code class="docutils literal notranslate"><span class="pre">slideflow</span></code>, use the <a class="reference internal" href="reader.html#module-slideflow.io.torch" title="slideflow.io.torch"><code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.io.torch</span></code></a> module to create a DataLoader class
-that loads and interleaves TFRecords with the same functionality as the Tensorflow backend. To start, load a saved project and select a dataset:</p>
+<p>To use existing TFRecords that contain tiles extracted with <code class="docutils literal notranslate"><span class="pre">slideflow</span></code>, use the <a class="reference internal" href="dataset.html#slideflow.dataset.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a> class and its <code class="xref py py-func docutils literal notranslate"><span class="pre">torch()</span></code> function to create a DataLoader instance that loads and interleaves TFRecords with the same functionality as the Tensorflow backend. To start, load a saved project and select a dataset:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/project/path&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 <span class="n">dts</span> <span class="o">=</span> <span class="n">SFP</span><span class="o">.</span><span class="n">get_dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">,</span> <span class="n">filters</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
-<span class="n">tfrecords</span> <span class="o">=</span> <span class="n">dts</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()</span>
-<span class="n">labels</span> <span class="o">=</span> <span class="n">dts</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="s1">&#39;HPV_status&#39;</span><span class="p">)</span>
-<span class="n">manifest</span> <span class="o">=</span> <span class="n">dts</span><span class="o">.</span><span class="n">get_manifest</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>Next, use the <a class="reference internal" href="reader.html#slideflow.io.torch.interleave_dataloader" title="slideflow.io.torch.interleave_dataloader"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.io.torch.interleave_dataloader</span></code></a> class to create the DataLoader object:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.io.torch</span> <span class="kn">import</span> <span class="n">interleave_dataloader</span>
-
-<span class="n">dataloader</span> <span class="o">=</span> <span class="n">interleave_dataloader</span><span class="p">(</span>
-    <span class="n">tfrecords</span><span class="p">,</span>
-    <span class="n">tile_px</span>      <span class="o">=</span> <span class="mi">299</span><span class="p">,</span>
-    <span class="n">batch_size</span>   <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>
-    <span class="n">labels</span>       <span class="o">=</span> <span class="n">labels</span><span class="p">,</span>   <span class="c1"># Dataset labels</span>
+<p>If you want to perform any balancing, use the <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.dataset.Datset.balance()</span></code> method:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dts</span> <span class="o">=</span> <span class="n">dts</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span><span class="s1">&#39;HPV_status&#39;</span><span class="p">,</span> <span class="n">strategy</span><span class="o">=</span><span class="s1">&#39;category&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Finally, use the <a class="reference internal" href="dataset.html#slideflow.dataset.Dataset.torch" title="slideflow.dataset.Dataset.torch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset.torch()</span></code></a> method to create a DataLoader object:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataloader</span> <span class="o">=</span> <span class="n">dts</span><span class="o">.</span><span class="n">torch</span><span class="p">(</span>
+    <span class="n">labels</span>       <span class="o">=</span> <span class="o">...</span>       <span class="c1"># Your outcome label</span>
+    <span class="n">batch_size</span>   <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>       <span class="c1"># Batch size</span>
     <span class="n">num_workers</span>  <span class="o">=</span> <span class="mi">6</span><span class="p">,</span>        <span class="c1"># Number of workers reading tfrecords</span>
     <span class="n">infinite</span>     <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>     <span class="c1"># True for training, False for validation</span>
     <span class="n">augment</span>      <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>     <span class="c1"># Flip/rotate/compression augmentation</span>
     <span class="n">standardize</span>  <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>     <span class="c1"># Standardize images: mean 0, variance of 1</span>
-    <span class="n">balance</span>      <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>     <span class="c1"># Batch-level balancing, optional</span>
-    <span class="n">manifest</span>     <span class="o">=</span> <span class="n">manifest</span><span class="p">,</span> <span class="c1"># Necessary if balancing</span>
     <span class="n">pin_memory</span>   <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>    <span class="c1"># Pin memory to GPUs</span>
 <span class="p">)</span>
 </pre></div>

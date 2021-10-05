@@ -84,7 +84,7 @@ class SlideMap:
 
     @classmethod
     def from_activations(cls, AV, exclude_slides=None, prediction_filter=None, recalculate=False,
-                         map_slide=None, cache=None, low_memory=False, max_tiles_per_slide=0, umap_dim=2):
+                         map_slide=None, cache=None, low_memory=False, umap_dim=2):
         """Initializes map from an activations visualizer.
 
         Args:
@@ -117,11 +117,10 @@ class SlideMap:
             obj._calculate_from_tiles(prediction_filter=prediction_filter,
                                       recalculate=recalculate,
                                       low_memory=low_memory,
-                                      max_tiles_per_slide=max_tiles_per_slide,
                                       dim=umap_dim)
         return obj
 
-    def _calculate_from_tiles(self, prediction_filter=None, recalculate=False, max_tiles_per_slide=0, **umap_kwargs):
+    def _calculate_from_tiles(self, prediction_filter=None, recalculate=False, **umap_kwargs):
 
         """Internal function to guide calculation of UMAP from final layer activations,
         as provided by ActivationsVisualizer.
@@ -129,8 +128,6 @@ class SlideMap:
         Args:
             prediction_filter (list, optional): Restrict predictions to this list of logits. Default is None.
             recalculate (bool, optional): Recalculate of UMAP despite loading from cache. Defaults to False.
-            max_tiles_per_slide (int, optional): Only include a maximum of this many tiles per slide. Defaults to 0.
-                If 0, includes all tiles.
 
         Keyword Args:
             dim (int): Number of dimensions for UMAP. Defaults to 2.
@@ -162,20 +159,6 @@ class SlideMap:
                 prediction = filtered_prediction(logits, prediction_filter)
                 self.point_meta[i]['logits'] = logits
                 self.point_meta[i]['prediction'] = prediction
-
-            if max_tiles_per_slide:
-                log.info(f"Restricting map to maximum of {max_tiles_per_slide} tiles per slide")
-                new_x, new_y, new_meta = [], [], []
-                slide_tile_count = defaultdict(int)
-                for i, pm in enumerate(self.point_meta):
-                    slide = pm['slide']
-                    slide_tile_count[slide] += 1
-                    if slide_tile_count[slide] < max_tiles_per_slide:
-                        new_x += [self.x[i]]
-                        new_y += [self.y[i]]
-                        new_meta += [pm]
-                        slide_tile_count[slide] += 1
-                self.x, self.y, self.point_meta = np.array(new_x), np.array(new_y), np.array(new_meta)
             return
 
         # Calculate UMAP
@@ -1172,7 +1155,7 @@ def save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end,
     log.info(f"Predictions saved to {sf.util.green(data_dir)}")
 
 def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, model_type, manifest, outcome_names=None,
-                             label=None, min_tiles_per_slide=0, data_dir=None, verbose=True, save_predictions=True,
+                             label=None, data_dir=None, verbose=True, save_predictions=True,
                              histogram=False, plot=True):
 
     """Generates metrics from a set of predictions.
@@ -1190,7 +1173,7 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
         manifest (dict): Number of tiles per tfrecord, as provided by :meth:`slideflow.dataset.Datset.manifest`
         outcome_names (list, optional): List of str, names for outcomes. Defaults to None.
         label (str, optional): Label prefix/suffix for saving. Defaults to None.
-        min_tiles_per_slide (int, optional): Minimum tiles per slide to include in metrics. Defaults to 0.
+        min_tiles (int, optional): Minimum tiles per slide to include in metrics. Defaults to 0.
         data_dir (str, optional): Path to data directory for saving. Defaults to None.
         verbose (bool, optional): Include verbose output. Defaults to True.
         save_predictions (bool, optional): Save tile, slide, and patient-level predictions to CSV. Defaults to True.
@@ -1207,23 +1190,6 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
     tile_to_patients = np.array([patients[slide] for slide in tile_to_slides])
     unique_patients = np.unique(tile_to_patients)
     unique_slides = np.unique(tile_to_slides)
-
-    # Filter out slides not meeting minimum tile number criteria, if specified
-    slides_to_filter = []
-    num_total_slides = len(unique_slides)
-    if manifest:
-        for tfrecord in manifest:
-            tfrecord_name = sf.util.path_to_name(tfrecord)
-            num_tiles_tfrecord = manifest[tfrecord]['total']
-            if num_tiles_tfrecord < min_tiles_per_slide:
-                if verbose:    log.info(f"Filtering out {tfrecord_name}: {num_tiles_tfrecord} tiles")
-                slides_to_filter += [tfrecord_name]
-    else:
-        log.warning("Manifest not provided, unable to filter tfrecords by min_tiles_per_slide")
-    unique_slides = [us for us in unique_slides if us not in slides_to_filter]
-    if verbose:
-        log.debug(f"Filtered out {num_total_slides - len(unique_slides)} of {num_total_slides} slides " + \
-                    f"in evaluation set (minimum tiles per slide: {min_tiles_per_slide})")
 
     # Set up annotations
     y_true_slide = labels
@@ -1486,8 +1452,7 @@ def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_l
     return y_pred
 
 def metrics_from_dataset(model, model_type, labels, patients, manifest, dataset, outcome_names=None, label=None,
-                         min_tiles_per_slide=0, data_dir=None, num_tiles=0, histogram=False, verbose=True,
-                         save_predictions=True):
+                         data_dir=None, num_tiles=0, histogram=False, verbose=True, save_predictions=True):
 
     """Evaluate performance of a given model on a given TFRecord dataset,
     generating a variety of statistical outcomes and graphs.
@@ -1501,7 +1466,6 @@ def metrics_from_dataset(model, model_type, labels, patients, manifest, dataset,
         dataset (tf.data.Dataset): Tensorflow dataset.
         outcome_names (list, optional): List of str, names for outcomes. Defaults to None.
         label (str, optional): Label prefix/suffix for saving. Defaults to None.
-        min_tiles_per_slide (int, optional): Minimum tiles per slide to include in metrics. Defaults to 0.
         data_dir (str, optional): Path to data directory for saving. Defaults to None.
         num_tiles (int, optional): Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.
         histogram (bool, optional): Write histograms to data_dir. Defaults to False.
@@ -1529,7 +1493,6 @@ def metrics_from_dataset(model, model_type, labels, patients, manifest, dataset,
                                         manifest=manifest,
                                         outcome_names=outcome_names,
                                         label=label,
-                                        min_tiles_per_slide=min_tiles_per_slide,
                                         data_dir=data_dir,
                                         verbose=verbose,
                                         save_predictions=save_predictions,
@@ -1539,9 +1502,9 @@ def metrics_from_dataset(model, model_type, labels, patients, manifest, dataset,
     log.debug(f'Validation metrics generated, time: {after_metrics-before_metrics:.2f} s')
     return metrics
 
-def permutation_feature_importance(model, dataset, labels, patients, model_type, data_dir,
-                                   outcome_names=None, label=None, manifest=None, min_tiles_per_slide=0, num_tiles=0,
-                                   feature_names=None, feature_sizes=None, drop_images=False):
+def permutation_feature_importance(model, dataset, labels, patients, model_type, data_dir, outcome_names=None,
+                                   label=None, manifest=None, num_tiles=0, feature_names=None, feature_sizes=None,
+                                   drop_images=False):
 
     """Calculate metrics (tile, slide, and patient AUC) from a given model that accepts clinical, slide-level feature
         inputs, and permute to find relative feature performance.
@@ -1557,7 +1520,6 @@ def permutation_feature_importance(model, dataset, labels, patients, model_type,
         outcome_names (list, optional): List of str, names for outcomes. Defaults to None.
         label (str, optional): Label prefix/suffix for saving. Defaults to None.
         manifest (dict): Number of tiles per tfrecord, as provided by :meth:`slideflow.dataset.Datset.manifest`
-        min_tiles_per_slide (int, optional): Minimum tiles per slide to include in metrics. Defaults to 0.
         num_tiles (int, optional): Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.
         feature_names (list, optional): List of str, names for each of the clinical input features.
         feature_sizes (list, optional): List of int, sizes for each of the clinical input features.
@@ -1646,7 +1608,6 @@ def permutation_feature_importance(model, dataset, labels, patients, model_type,
                                                                       manifest=manifest,
                                                                       outcome_names=outcome_names,
                                                                       label=label,
-                                                                      min_tiles_per_slide=min_tiles_per_slide,
                                                                       data_dir=data_dir,
                                                                       verbose=True,
                                                                       histogram=False,
@@ -1694,7 +1655,6 @@ def permutation_feature_importance(model, dataset, labels, patients, model_type,
                                                 manifest=manifest,
                                                 outcome_names=outcome_names,
                                                 label=None, #label[i] ?
-                                                min_tiles_per_slide=min_tiles_per_slide,
                                                 data_dir=data_dir,
                                                 verbose=False,
                                                 histogram=False,
