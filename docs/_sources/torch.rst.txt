@@ -39,3 +39,11 @@ Next, use the :class:`slideflow.io.torch.interleave_dataloader` class to create 
     )
 
 The returned dataloader can then be used directly with your PyTorch applications.
+
+Training with PyTorch
+*********************
+
+Single-outcome categorical models can be trained with the experimental PyTorch backend by setting the environmental
+variable ``SF_BACKEND`` to "torch". This can be done with either ``os.environ``, or by calling
+``slideflow.set_backend('torch')``. Models are then trained in the same way, using :func:`sf.Project.train`.
+Some options are not yet implemented, and models other than single-outcome categorical models are not yet supported.

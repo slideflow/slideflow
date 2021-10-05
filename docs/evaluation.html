@@ -367,9 +367,7 @@ Example (this would map predictions for label 0 to red, 3 to green, etc): {â€˜râ
 <p>If you would like to directly interact with the calculated heatmap data, create a :class:<code class="docutils literal notranslate"><span class="pre">slideflow.activations.Heatmap</span></code> object by providing a path to a slide, a path to a model, and tile size information:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">heatmap</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">activations</span><span class="o">.</span><span class="n">Heatmap</span><span class="p">(</span>
     <span class="n">slide</span><span class="o">=</span><span class="s1">&#39;/path/to/slide.svs&#39;</span><span class="p">,</span>
-    <span class="n">model</span><span class="o">=</span><span class="s1">&#39;/path/to/model.h5&#39;</span><span class="p">,</span>
-    <span class="n">size_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span>
-    <span class="n">size_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
+    <span class="n">model</span><span class="o">=</span><span class="s1">&#39;/path/to/model.h5&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>The spatial map of logits, as calculated across the input slide, can be accessed through <code class="docutils literal notranslate"><span class="pre">heatmap.logits</span></code>. The spatial map of post-convolution, penultimate activations can be accessed through <code class="docutils literal notranslate"><span class="pre">heatmap.postconv</span></code>. The heatmap can be saved with <code class="docutils literal notranslate"><span class="pre">heatmap.save('/path/')</span></code>.</p>

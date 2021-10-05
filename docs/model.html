@@ -246,12 +246,33 @@
               
   <div class="section" id="slideflow-model">
 <h1>slideflow.model<a class="headerlink" href="#slideflow-model" title="Permalink to this headline">¶</a></h1>
-<p>This module provides a <a class="reference internal" href="#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a> class to organize model and training
-parameters/hyperparameters and assist with model building, as well as <a class="reference internal" href="#slideflow.model.Trainer" title="slideflow.model.Trainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Trainer</span></code></a> class that
-executes model training and evaluation. The <a class="reference internal" href="#slideflow.model.LinearTrainer" title="slideflow.model.LinearTrainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.LinearTrainer</span></code></a> and The
-<a class="reference internal" href="#slideflow.model.CPHTrainer" title="slideflow.model.CPHTrainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.CPHTrainer</span></code></a> are extensions of this class, supporting linear and Cox Proportional Hazards
-outcomes, respectively. The function <a class="reference internal" href="#slideflow.model.trainer_from_hp" title="slideflow.model.trainer_from_hp"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.model.trainer_from_hp()</span></code></a> can choose and return the correct model
-instance based on the provided hyperparameters.</p>
+<p>This module provides the <a class="reference internal" href="#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelParams</span></code></a> class to organize model and training
+parameters/hyperparameters and assist with model building, as well as the <a class="reference internal" href="#slideflow.model.Trainer" title="slideflow.model.Trainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">Trainer</span></code></a> class that
+executes model training and evaluation. <a class="reference internal" href="#slideflow.model.LinearTrainer" title="slideflow.model.LinearTrainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">LinearTrainer</span></code></a> and <a class="reference internal" href="#slideflow.model.CPHTrainer" title="slideflow.model.CPHTrainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">CPHTrainer</span></code></a>
+are extensions of this class, supporting linear and Cox Proportional Hazards outcomes, respectively. The function
+<a class="reference internal" href="#slideflow.model.trainer_from_hp" title="slideflow.model.trainer_from_hp"><code class="xref py py-func docutils literal notranslate"><span class="pre">trainer_from_hp()</span></code></a> can choose and return the correct model instance based on the provided
+hyperparameters.</p>
+<p><a class="reference internal" href="#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelParams</span></code></a> will build models according to a set of model parameters and a given set of
+outcome labels. To change the core image convolutional model to a different architecture, add the custom model class
+to the ModelParams class variable <code class="docutils literal notranslate"><span class="pre">ModelDict</span></code> with a recognizable name. Then, set the <code class="docutils literal notranslate"><span class="pre">model</span></code> variable of the
+instanced ModelParams object to this name. For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">CustomModel</span>
+<span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
+
+<span class="n">ModelParams</span><span class="o">.</span><span class="n">ModelDict</span><span class="p">[</span><span class="s1">&#39;custom&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CustomModel</span>
+<span class="n">mp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s1">&#39;custom&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>To build a completely custom model without utilizing any of the automatic input/output setups according to your
+outcome labels, write a class which inherits the ModelParams class and implements the function <code class="xref py py-func docutils literal notranslate"><span class="pre">build_model()</span></code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In order to support both Tensorflow and PyTorch backends, the <code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.model</span></code> module will import either
+<code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.model.tensorflow</span></code> or <code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.model.torch</span></code> according to the currently active backend,
+indicated by the environmental variable <code class="docutils literal notranslate"><span class="pre">SF_BACKEND</span></code>. As the PyTorch backend is currently under development,
+<code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.model.tensorflow</span></code> will be used by default, and all documentation listed here is reflective of the
+Tensorflow backend.</p>
+</div>
 <p><a class="reference internal" href="#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a> will build models according to a set of model parameters and a given set of
 outcome labels. To change the core image convolutional model to another architecture, add the custom model class
 to the ModelParams class variable ModelDict with a recognizable name. Then, change the instanced ModelParams object

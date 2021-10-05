@@ -247,13 +247,13 @@
   <div class="section" id="slideflow-io-torch">
 <h1>slideflow.io.torch<a class="headerlink" href="#slideflow-io-torch" title="Permalink to this headline">¶</a></h1>
 <p>The purpose of this module is to provide a performant, backend-agnostic TFRecord reader and interleaver to use as
-input for Torch models. It uses a backend-agnostic TFRecord reader based on a modified version of
-the tfrecord reader/writer <a class="reference external" href="https://github.com/vahidk/tfrecord">https://github.com/vahidk/tfrecord</a>, optimized with improved performance. Binary TFRecord file
-reading and interleaving is supervised by <a class="reference internal" href="#slideflow.io.torch.interleave" title="slideflow.io.torch.interleave"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.io.torch.interleave()</span></code></a>, while the
+input for PyTorch models. Its TFRecord reader is a modified and optimized version of
+<a class="reference external" href="https://github.com/vahidk/tfrecord">https://github.com/vahidk/tfrecord</a>, included as the module <code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.tfrecord</span></code>. TFRecord file reading and
+interleaving is supervised by <a class="reference internal" href="#slideflow.io.torch.interleave" title="slideflow.io.torch.interleave"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.io.torch.interleave()</span></code></a>, while the
 <a class="reference internal" href="#slideflow.io.torch.interleave_dataloader" title="slideflow.io.torch.interleave_dataloader"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.io.torch.interleave_dataloader()</span></code></a> function provides a PyTorch DataLoader object which can be directly used.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>PyTorch support is currently in development. The interleaving functions in this module are currently optimized for
+<p>PyTorch support is under development. The interleaving functions in this module are currently optimized for
 throughput at the expense of memory usage; if memory usage becomes excessive with large datasets, consider decreasing
 <cite>num_workers</cite> and <cite>chunk_size</cite>.</p>
 </div>
