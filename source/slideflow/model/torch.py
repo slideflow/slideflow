@@ -316,7 +316,7 @@ class Trainer(_base.Trainer):
                     self.model.train()
 
                     # Setup up mid-training validation
-                    mid_train_val_dts = iter(dataloaders['val']) if (phase == 'train' and val_tfrecords) else None
+                    mid_train_val_dts = iter(dataloaders['val']) if (phase == 'train' and val_dts) else None
 
                     num_steps = steps_per_epoch * self.hp.batch_size
                     dataloader_pb = tqdm(total=num_steps, ncols=100, unit='img', leave=False)
