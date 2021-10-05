@@ -1,17 +1,30 @@
-import os
-if 'SF_BACKEND' not in os.environ:
-    os.environ['SF_BACKEND'] = 'tensorflow'
-from slideflow.project import Project, SlideflowProject # SlideflowProject is deprecated, to be removed
-
-def backend():
-    return os.environ['SF_BACKEND']
-
 # +-----------------------------------------+
 # | Written and maintained by James Dolezal |
 # | james.dolezal@uchospitals.edu           |
 # +-----------------------------------------+
 
+import os
+
 __version__ = "1.12.0-rc1"
+
+if 'SF_BACKEND' not in os.environ:
+    os.environ['SF_BACKEND'] = 'tensorflow'
+from slideflow.project import Project
+
+def backend():
+    return os.environ['SF_BACKEND']
+
+def set_backend(backend):
+    """Sets the slideflow backend to either tensorflow or pytorch using
+    the environmental variable SF_BACKEND
+
+    Args:
+        backend (str): Either 'tensorflow' or 'pytorch'.
+    """
+
+    if backend not in ('tensorflow', 'pytorch'):
+        raise ValueError(f'Unknown backend {backend}')
+    os.environ['SF_BACKEND'] = backend
 
 # Style information
 # =================
@@ -22,12 +35,6 @@ __version__ = "1.12.0-rc1"
 # A pylintrc file is included is the root directory to assist with formatting.
 
 # Version planning (v1.12)
-# DONE - Moving toward unified use of Datasets as input to various project functions
-# DONE - Calling extract_tiles directly on a dataset
-# DONE - Docstring updates to Google format
-# DONE - Refactoring entire codebase
-# IN PROGRESS - Updated documentation with more details in pytorch style
-# DONE - Remove per-tile validation options, as it should never be used
 #TODO: pytorch backend
 #TODO: finish a couple more tutorials
 #       - Tutorial 2: Heatmaps, Mosaic maps, ActivationsVisualizer
@@ -41,7 +48,6 @@ __version__ = "1.12.0-rc1"
 #TODO: benchmark tile extraction against other methods
 #TODO: choose a journal
 #TODO: finish cleaning up dataset_with_slidenames
-#TODO: Trainer => build model during initialization & accept Keras model as input
 #TODO: remove label_parser in tfrecords interleave; just use an annotations dictionary
 
 # Future updates

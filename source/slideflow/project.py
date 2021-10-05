@@ -258,18 +258,6 @@ class Project:
         else:
             log.info(f'Using GPU: {gpu}')
 
-    def set_backend(self, backend):
-        """Sets the slideflow backend to either tensorflow or pytorch using
-        the environmental variable SF_BACKEND
-
-        Args:
-            backend (str): Either 'tensorflow' or 'pytorch'.
-        """
-
-        if backend not in ('tensorflow', 'pytorch'):
-            raise sf.util.UserError(f'Unknown backend {backend}')
-        os.environ['SF_BACKEND'] = backend
-
     def add_source(self, name, slides, roi, tiles, tfrecords, path=None):
         """Adds a dataset source to the dataset configuration file.
 
