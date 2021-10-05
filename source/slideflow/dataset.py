@@ -1315,9 +1315,9 @@ class Dataset:
                                   val_fraction=None, val_k_fold=None, k_fold_iter=None, read_only=False):
 
         """From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
-            If a validation plan has already been prepared (e.g. K-fold iterations were already determined),
-            the previously generated plan will be used. Otherwise, create a new plan and log the result in the
-            TFRecord directory so future models may use the same plan for consistency.
+        If a validation plan has already been prepared (e.g. K-fold iterations were already determined),
+        the previously generated plan will be used. Otherwise, create a new plan and log the result in the
+        TFRecord directory so future models may use the same plan for consistency.
 
         Args:
             model_type (str): Either 'categorical' or 'linear'.
@@ -1336,8 +1336,7 @@ class Dataset:
             read_only (bool): Prevents writing validation plans to log. Defaults to False.
 
         Returns:
-            slideflow.dataset.Dataset: training dataset
-            slideflow.dataset.Dataset: validation dataset
+            (slideflow.dataset.Dataset, slideflow.dataset.Dataset): training dataset, validation dataset
         """
 
         if (not k_fold_iter and val_strategy=='k-fold'):
