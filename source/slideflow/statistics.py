@@ -11,7 +11,6 @@ import pandas as pd
 import multiprocessing as mp
 import slideflow as sf
 
-from collections import defaultdict
 from functools import partial
 from slideflow.util import ProgressBar
 from os.path import join

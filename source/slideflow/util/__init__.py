@@ -109,7 +109,6 @@ ch.setFormatter(LogFormatter())
 log.addHandler(ch)
 multiprocessing_logging.install_mp_handler()
 # ------------------------------------------------------------
-import tensorflow as tf
 
 class StainNormalizer:
     """Object to supervise stain normalization for images and efficiently convert between common image types."""

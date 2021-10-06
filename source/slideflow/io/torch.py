@@ -206,9 +206,14 @@ def _decode_image(img_string, img_type, standardize=False, normalizer=None, augm
     np_data = torch.from_numpy(np.fromstring(img_string, np.uint8))
     image = torchvision.io.decode_image(np_data).permute(1, 2, 0) # CWH => WHC
 
+    def random_jpeg_compression(img):
+        q = random.randrange(50, 100)
+        img = torchvision.io.encode_jpeg(img.permute(2, 0, 1), quality=q) # WHC => CWH
+        return torchvision.io.decode_image(img).permute(1, 2, 0) # CWH => WHC
+
     if augment is True or (isinstance(augment, str) and 'j' in augment):
-        # Not implemented outside of tensorflow's tf.image.adjust_jpeg_quality()
-        pass
+        if np.random.rand() < 0.5:
+            image = random_jpeg_compression(image)
     if augment is True or (isinstance(augment, str) and 'r' in augment):
         # Rotate randomly 0, 90, 180, 270 degrees
         image = torch.rot90(image, np.random.choice(range(5)))

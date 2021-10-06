@@ -47,9 +47,8 @@ def set_backend(backend):
 #       - Tutorial 9: Class-conditional GAN with StyleGAN2
 #TODO: benchmark tile extraction against other methods
 #TODO: choose a journal
-#TODO: finish cleaning up dataset_with_slidenames
-#TODO: remove label_parser in tfrecords interleave; just use an annotations dictionary
 #TODO: implement clipping for tfrecord interleaving
+#TODO: label_parser in dataset.tfrecords()
 
 # Future updates
 # ===============

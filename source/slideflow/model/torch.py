@@ -137,6 +137,7 @@ class Trainer(_base.Trainer):
         self.manifest = manifest
         self.model = None
         self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
+        if normalizer: log.info(f'Using realtime {normalizer} normalization')
         self.mixed_precision = mixed_precision
         self.outcome_names = outcome_names
         outcome_labels = np.array(list(labels.values()))
@@ -163,7 +164,6 @@ class Trainer(_base.Trainer):
 
         # Setup dataloaders
         interleave_args = types.SimpleNamespace(
-            img_size=self.hp.tile_px,
             rank=0,
             num_replicas=1,
             labels=self.labels,
@@ -265,23 +265,21 @@ class Trainer(_base.Trainer):
 
         # Setup dataloaders
         interleave_args = types.SimpleNamespace(
-            img_size=self.hp.tile_px,
             rank=rank,
             num_replicas=num_gpus,
             labels=self.labels,
             seed=seed,
             chunk_size=16,
             normalizer=self.normalizer,
-            balance=self.hp.training_balance,
             pin_memory=True,
-            num_workers=8,
+            num_workers=4,
             onehot=False,
         )
 
         dataloaders = {
             'train': iter(train_dts.torch(infinite=True, batch_size=self.hp.batch_size, augment=True, **vars(interleave_args)))
         }
-        if val_dts:
+        if val_dts is not None:
             dataloaders['val'] = val_dts.torch(infinite=False, batch_size=validation_batch_size, augment=False, incl_slidenames=True, **vars(interleave_args))
             val_log_msg = '' if not validate_on_batch else f'every {str(validate_on_batch)} steps and '
             log.debug(f'Validation during training: {val_log_msg}at epoch end')
@@ -372,8 +370,8 @@ class Trainer(_base.Trainer):
                         step += 1
                     dataloader_pb.close()
 
-                elif val_dts and (skip_metrics or epoch not in self.hp.epochs):
-                    # Perform basic evaluation
+                # Perform basic evaluation at every epoch end
+                if phase == 'val' and (val_dts is not None):
                     self.model.eval()
                     dataloader_pb = tqdm(total=dataloaders['val'].num_tiles, ncols=100, unit='img', leave=False)
                     val_dts = iter(dataloaders['val'])
@@ -401,7 +399,13 @@ class Trainer(_base.Trainer):
                         step += 1
                     dataloader_pb.close()
 
-                elif val_dts and epoch in self.hp.epochs:
+                elapsed = time.strftime('%H:%M:%S', time.gmtime(time.time() - starttime))
+                epoch_loss = running_loss / num_records
+                epoch_acc = running_corrects.double() / num_records
+                log.info(f'{phase} Epoch {epoch} | loss: {epoch_loss:.4f} acc: {epoch_acc:.4f} (Elapsed: {elapsed})')
+
+                # Perform full metrics if the epoch is one of the predetermined epochs at which to save/eval a model
+                if phase == 'val' and (val_dts is not None) and epoch in self.hp.epochs:
                     # Calculate full evaluation metrics
                     self.model.eval()
                     save_path = os.path.join(self.outdir, f'saved_model_epoch{epoch}')
@@ -415,13 +419,6 @@ class Trainer(_base.Trainer):
                                                                 dataset=dataloaders['val'],
                                                                 data_dir=self.outdir,
                                                                 save_predictions=save_predictions)
-
-                if not (val_dts and epoch in self.hp.epochs):
-                    elapsed = time.strftime('%H:%M:%S', time.gmtime(time.time() - starttime))
-                    epoch_loss = running_loss / num_records
-                    epoch_acc = running_corrects.double() / num_records
-                    log.info(f'{phase} Epoch {epoch} | loss: {epoch_loss:.4f} acc: {epoch_acc:.4f} (Elapsed: {elapsed})')
-
         return {}
 
 class LinearTrainer(Trainer):

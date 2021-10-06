@@ -21,7 +21,7 @@ class ModelParams:
                  batch_size=16, hidden_layers=1, hidden_layer_width=500, optimizer='Adam',
                  early_stop=False, early_stop_patience=0, early_stop_method='loss',
                  training_balance='category', validation_balance='none',
-                 trainable_layers=0, L2_weight=0, dropout=0, augment=True, drop_images=False):
+                 trainable_layers=0, L2_weight=0, dropout=0, augment='xyrj', drop_images=False):
 
         """Collection of hyperparameters used for model building and training
 
@@ -85,7 +85,7 @@ class ModelParams:
         assert isinstance(trainable_layers, int)
         assert isinstance(L2_weight, (int, float))
         assert isinstance(dropout, (int, float))
-        assert isinstance(augment, bool)
+        assert isinstance(augment, (bool, str))
         assert isinstance(drop_images, bool)
 
         assert 0 <= learning_rate_decay <= 1
