@@ -32,7 +32,7 @@ To generate a predictive heatmap for a set of slides, use the ``generate_heatmap
 .. autofunction:: slideflow.project.Project.generate_heatmaps
    :noindex:
 
-If you would like to directly interact with the calculated heatmap data, create a :class:``slideflow.activations.Heatmap`` object by providing a path to a slide, a path to a model, and tile size information:
+If you would like to directly interact with the calculated heatmap data, create a :class:`slideflow.activations.Heatmap` object by providing a path to a slide, a path to a model, and tile size information:
 
 .. code-block:: python
 
