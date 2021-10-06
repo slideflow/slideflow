@@ -314,7 +314,7 @@ class Trainer(_base.Trainer):
                     self.model.train()
 
                     # Setup up mid-training validation
-                    mid_train_val_dts = iter(dataloaders['val']) if (phase == 'train' and val_dts) else None
+                    mid_train_val_dts = dataloaders['val'] if (phase == 'train' and val_dts) else None
 
                     num_steps = steps_per_epoch * self.hp.batch_size
                     dataloader_pb = tqdm(total=num_steps, ncols=100, unit='img', leave=False)
@@ -374,12 +374,7 @@ class Trainer(_base.Trainer):
                 if phase == 'val' and (val_dts is not None):
                     self.model.eval()
                     dataloader_pb = tqdm(total=dataloaders['val'].num_tiles, ncols=100, unit='img', leave=False)
-                    val_dts = iter(dataloaders['val'])
-                    while True:
-                        try:
-                            images, labels, slides = next(val_dts)
-                        except StopIteration:
-                            break
+                    for images, labels, slides in dataloaders['val']:
                         images = images.to(device, non_blocking=True)
                         labels = labels.to(device, non_blocking=True)
                         optimizer.zero_grad()

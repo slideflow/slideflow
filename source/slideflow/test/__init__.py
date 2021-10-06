@@ -349,7 +349,7 @@ class TestSuite:
         # Create batch train file
         if sweep:
             self.SFP.create_hyperparameter_sweep(tile_px=299, tile_um=302,
-                                            epochs=[1],
+                                            epochs=[1,2,3],
                                             toplayer_epochs=[0],
                                             model=["Xception"] if sf.backend() == 'tensorflow' else ['xception'],
                                             pooling=["max"],
