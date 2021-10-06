@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.io.tensorflow &mdash; slideflow 1.12.0-rc1 documentation</title>
+  <title>slideflow.io.tensorflow &mdash; slideflow 1.12.0 documentation</title>
   
 
   
@@ -172,6 +172,7 @@
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Using a Trainer</a></li>
 </ul>
 
             
@@ -278,7 +279,7 @@ version of the tfrecord reader/writer at: <a class="reference external" href="ht
 str:  Stored image type, either ‘png’ or ‘jpg’.</p>
 </dd>
 <dt class="field-even">Return type</dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)">dict</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -308,21 +309,21 @@ str:  Stored image type, either ‘png’ or ‘jpg’.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>tfrecord_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Path to tfrecord to parse.</p></li>
-<li><p><strong>features_to_return</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Designates format for how features should be returned from parser.
+<li><p><strong>tfrecord_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to tfrecord to parse.</p></li>
+<li><p><strong>features_to_return</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Designates format for how features should be returned from parser.
 If a list of feature names is provided, the parsing function will return tfrecord features as a list
 in the order provided. If a dictionary of labels (keys) mapping to feature names (values) is provided,
 features will be returned from the parser as a dictionary matching the same format. If None, will
 return all features as a list.</p></li>
-<li><p><strong>to_numpy</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Convert records from tensors to numpy arrays. Defaults to False.</p></li>
-<li><p><strong>decode_images</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Decode raw image strings into image arrays. Defaults to True.</p></li>
-<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images into the range (0,1). Defaults to False.</p></li>
-<li><p><strong>img_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Width of images in pixels. Will call tf.set_shape(…) if provided. Defaults to False.</p></li>
+<li><p><strong>to_numpy</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Convert records from tensors to numpy arrays. Defaults to False.</p></li>
+<li><p><strong>decode_images</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Decode raw image strings into image arrays. Defaults to True.</p></li>
+<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images into the range (0,1). Defaults to False.</p></li>
+<li><p><strong>img_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Width of images in pixels. Will call tf.set_shape(…) if provided. Defaults to False.</p></li>
 <li><p><strong>normalizer</strong> (<a class="reference internal" href="util.html#slideflow.util.StainNormalizer" title="slideflow.util.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.util.StainNormalizer</span></code></a>) – Stain normalizer to use on images. Defaults to None.</p></li>
-<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Image augmentations to perform. String containing characters designating augmentations.
+<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Image augmentations to perform. String containing characters designating augmentations.
 ‘x’ indicates random x-flipping, ‘y’ y-flipping, ‘r’ rotating, and ‘j’ JPEG compression/decompression
 at random quality levels. Passing either ‘xyrj’ or True will use all augmentations.</p></li>
-<li><p><strong>error_if_invalid</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Raise an error if a tfrecord cannot be read. Defaults to True.</p></li>
+<li><p><strong>error_if_invalid</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Raise an error if a tfrecord cannot be read. Defaults to True.</p></li>
 </ul>
 </dd>
 </dl>
@@ -336,22 +337,22 @@ according to balancing if provided. Requires manifest for balancing. Assumes TFR
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>)</em>) – List of paths to TFRecord files.</p></li>
-<li><p><strong>img_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Image width in pixels.</p></li>
-<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Batch size.</p></li>
+<li><p><strong>tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em>) – List of paths to TFRecord files.</p></li>
+<li><p><strong>img_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Image width in pixels.</p></li>
+<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Batch size.</p></li>
 <li><p><strong>label_parser</strong> (<em>func</em><em>, </em><em>optional</em>) – Base function to use for parsing labels. Function must accept an image (tensor)
 and slide name (str), and return an image (tensor) and label. If None is provided, all labels will be None.</p></li>
-<li><p><strong>labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a>) – Dict mapping slide names to labels. If None, will return slide names.</p></li>
-<li><p><strong>infinite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Create an finite dataset. WARNING: If infinite is False &amp;&amp; balancing is used,
+<li><p><strong>labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a>) – Dict mapping slide names to labels. If None, will return slide names.</p></li>
+<li><p><strong>infinite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Create an finite dataset. WARNING: If infinite is False &amp;&amp; balancing is used,
 some tiles will be skipped. Defaults to True.</p></li>
-<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Image augmentations to perform. String containing characters designating augmentations.
+<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Image augmentations to perform. String containing characters designating augmentations.
 ‘x’ indicates random x-flipping, ‘y’ y-flipping, ‘r’ rotating, and ‘j’ JPEG compression/decompression
 at random quality levels. Passing either ‘xyrj’ or True will use all augmentations.</p></li>
-<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images to (0,1). Defaults to True.</p></li>
+<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images to (0,1). Defaults to True.</p></li>
 <li><p><strong>normalizer</strong> (<a class="reference internal" href="util.html#slideflow.util.StainNormalizer" title="slideflow.util.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.util.StainNormalizer</span></code></a>, optional) – Normalizer to use on images. Defaults to None.</p></li>
-<li><p><strong>num_shards</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Shard the tfrecord datasets, used for multiprocessing datasets. Defaults to None.</p></li>
-<li><p><strong>shard_idx</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Index of the tfrecord shard to use. Defaults to None.</p></li>
-<li><p><strong>num_parallel_reads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Number of parallel reads for each TFRecordDataset. Defaults to 4.</p></li>
+<li><p><strong>num_shards</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Shard the tfrecord datasets, used for multiprocessing datasets. Defaults to None.</p></li>
+<li><p><strong>shard_idx</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Index of the tfrecord shard to use. Defaults to None.</p></li>
+<li><p><strong>num_parallel_reads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of parallel reads for each TFRecordDataset. Defaults to 4.</p></li>
 </ul>
 </dd>
 </dl>

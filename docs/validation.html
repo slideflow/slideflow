@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Validation Planning &mdash; slideflow 1.12.0-rc1 documentation</title>
+  <title>Validation Planning &mdash; slideflow 1.12.0 documentation</title>
   
 
   
@@ -172,6 +172,7 @@
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Using a Trainer</a></li>
 </ul>
 
             
@@ -268,7 +269,7 @@
 <p>If <strong>fixed</strong>, a certain percentage of your training data is set aside for testing (determined by <code class="docutils literal notranslate"><span class="pre">fraction</span></code>). The chosen validation subset is saved to a log file and will be re-used for all training iterations.</p>
 <p>If <strong>bootstrap</strong>, validation data will be selected at random (percentage determined by <code class="docutils literal notranslate"><span class="pre">fraction</span></code>), and all training iterations will be repeated a number of times equal to <code class="docutils literal notranslate"><span class="pre">k_fold</span></code>. The saved and reported model training metrics will be an average of all bootstrap iterations.</p>
 <p>If <strong>k-fold</strong>, training data will be automatically separated into <em>k</em> number of groups (where <em>k</em> is equal to <code class="docutils literal notranslate"><span class="pre">k_fold</span></code>), and all training iterations will be repeated <em>k</em> number of times using k-fold cross validation. The saved and reported model training metrics will be an average of all k-fold iterations.</p>
-<p>If you would like to manually separate your data into k-folds, you may do so with the <strong>k-fold-manual</strong> strategy, by indicating which k-fold each slide should be in using the annotations file, and designating the appropriate column header with <code class="docutils literal notranslate"><span class="pre">k_fold_header</span></code></p>
+<p>If you would like to manually separate your data into k-folds, you may do so with the <strong>k-fold-manual</strong> strategy. Assign each slide to a k-fold cohort in the annotations file, and designate the appropriate column header with <code class="docutils literal notranslate"><span class="pre">k_fold_header</span></code></p>
 <p>The <strong>k-fold-preserved-site</strong> strategy is a cross-validation strategy that ensures site is preserved across the training/validation sets, in order to reduce bias from batch effect as described by <a class="reference external" href="https://www.nature.com/articles/s41467-021-24698-1">Howard, et al</a>. This strategy is recommended when using data from The Cancer Genome Atlas (<a class="reference external" href="https://portal.gdc.cancer.gov/">TCGA</a>).</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>

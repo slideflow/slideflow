@@ -474,7 +474,6 @@ class Project:
             _, eval_dts = dataset.training_validation_split(hp.model_type(),
                                                             labels_for_split,
                                                             val_strategy=hp_data['validation_strategy'],
-                                                            patients=dataset.patients(),
                                                             validation_log=validation_log,
                                                             val_fraction=hp_data['validation_fraction'],
                                                             val_k_fold=hp_data['validation_k_fold'],
@@ -1956,7 +1955,6 @@ class Project:
                     train_dts, val_dts = dataset.training_validation_split(hp.model_type(),
                                                                            labels_for_split,
                                                                            val_strategy=val_settings.strategy,
-                                                                           patients=dataset.patients(),
                                                                            validation_log=validation_log,
                                                                            val_fraction=val_settings.fraction,
                                                                            val_k_fold=val_settings.k_fold,
@@ -2193,7 +2191,6 @@ class Project:
                 train_dts, val_dts = dataset.training_validation_split('categorical',
                                                                         labels,
                                                                         val_strategy='k-fold',
-                                                                        patients=dataset.patients(),
                                                                         validation_log=validation_log,
                                                                         val_k_fold=clam_args.k,
                                                                         k_fold_iter=k+1)

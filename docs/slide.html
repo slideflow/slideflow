@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.slide &mdash; slideflow 1.12.0-rc1 documentation</title>
+  <title>slideflow.slide &mdash; slideflow 1.12.0 documentation</title>
   
 
   
@@ -172,6 +172,7 @@
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Using a Trainer</a></li>
 </ul>
 
             
@@ -273,8 +274,8 @@ format TFRecords, with or without data augmentation.</p>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>reports</strong> (list(<a class="reference internal" href="#slideflow.slide.SlideReport" title="slideflow.slide.SlideReport"><code class="xref py py-class docutils literal notranslate"><span class="pre">SlideReport</span></code></a>)) – List of SlideReport objects.</p></li>
-<li><p><strong>tile_px</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Tile size in pixels.</p></li>
-<li><p><strong>tile_um</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Tile size in microns.</p></li>
+<li><p><strong>tile_px</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Tile size in pixels.</p></li>
+<li><p><strong>tile_um</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Tile size in microns.</p></li>
 </ul>
 </dd>
 </dl>
@@ -293,10 +294,10 @@ format TFRecords, with or without data augmentation.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>images</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>)</em>) – List of JPEG image strings (example tiles).</p></li>
-<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Path to slide.</p></li>
-<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – Dictionary of slide extraction report metadata. Defaults to None.</p></li>
-<li><p><strong>compress</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Compresses images to reduce image sizes. Defaults to True.</p></li>
+<li><p><strong>images</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em>) – List of JPEG image strings (example tiles).</p></li>
+<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to slide.</p></li>
+<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Dictionary of slide extraction report metadata. Defaults to None.</p></li>
+<li><p><strong>compress</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Compresses images to reduce image sizes. Defaults to True.</p></li>
 </ul>
 </dd>
 </dl>
@@ -342,20 +343,20 @@ which greatly improves tile extraction speed.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – Shuffle images during extraction.</p></li>
-<li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 1.
+<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Shuffle images during extraction.</p></li>
+<li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 1.
 Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.</p></li>
-<li><p><strong>whitespace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Range 0-255. Defaults to 230.
+<li><p><strong>whitespace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Range 0-255. Defaults to 230.
 Threshold above which a pixel (RGB average) is considered whitespace.</p></li>
-<li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.6.
+<li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.6.
 Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.</p></li>
-<li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.05.
+<li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.05.
 Pixels in HSV format with saturation below this threshold are considered grayspace.
 normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.</p></li>
-<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image. Defaults to None.
+<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image. Defaults to None.
 If None but using a normalizer, will use an internal tile for normalization.
 Internal default tile can be found at slideflow.util.norm_tile.jpg</p></li>
-<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Extract an entire detected core, rather than subdividing into image tiles.
+<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Extract an entire detected core, rather than subdividing into image tiles.
 Defaults to False.</p></li>
 </ul>
 </dd>
@@ -381,21 +382,21 @@ Defaults to False.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Path to slide.</p></li>
-<li><p><strong>tile_px</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Size of tiles to extract, in pixels.</p></li>
-<li><p><strong>tile_um</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Size of tiles to extract, in microns.</p></li>
-<li><p><strong>stride_div</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc).
+<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to slide.</p></li>
+<li><p><strong>tile_px</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Size of tiles to extract, in pixels.</p></li>
+<li><p><strong>tile_um</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Size of tiles to extract, in microns.</p></li>
+<li><p><strong>stride_div</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc).
 Defaults to 1.</p></li>
-<li><p><strong>enable_downsample</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Allow use of downsampled intermediate layers in the slide image pyramid,
+<li><p><strong>enable_downsample</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Allow use of downsampled intermediate layers in the slide image pyramid,
 which greatly improves tile extraction speed. May result in artifacts for slides with incompletely
 generated intermediates pyramid layers. Defaults to False.</p></li>
-<li><p><strong>roi_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Directory in which to search for ROI CSV files. Defaults to None.</p></li>
-<li><p><strong>roi_list</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>)</em>) – Alternatively, a list of ROI paths can be explicitly provided. Defaults to None.</p></li>
-<li><p><strong>roi_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Either ‘inside’, ‘outside’, or ‘ignore’. Determines how ROIs are used to extract tiles.
+<li><p><strong>roi_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Directory in which to search for ROI CSV files. Defaults to None.</p></li>
+<li><p><strong>roi_list</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em>) – Alternatively, a list of ROI paths can be explicitly provided. Defaults to None.</p></li>
+<li><p><strong>roi_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Either ‘inside’, ‘outside’, or ‘ignore’. Determines how ROIs are used to extract tiles.
 Defaults to ‘inside’.</p></li>
-<li><p><strong>skip_missing_roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip tiles that are missing a ROI file. Defaults to False.</p></li>
-<li><p><strong>randomize_origin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Offset the starting grid by a random amount. Defaults to False.</p></li>
-<li><p><strong>buffer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Path to directory. Slides will be copied to the directory as a buffer before extraction.
+<li><p><strong>skip_missing_roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip tiles that are missing a ROI file. Defaults to False.</p></li>
+<li><p><strong>randomize_origin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Offset the starting grid by a random amount. Defaults to False.</p></li>
+<li><p><strong>buffer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to directory. Slides will be copied to the directory as a buffer before extraction.
 Vastly improves extraction speed if an SSD or ramdisk buffer is used. Defaults to None</p></li>
 <li><p><strong>pb</strong> (<a class="reference internal" href="util.html#slideflow.util.ProgressBar" title="slideflow.util.ProgressBar"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.util.ProgressBar</span></code></a>, optional) – Multiprocessing-capable ProgressBar instance; will
 update progress bar during tile extraction if provided. Used for multiprocessing tile extraction.</p></li>
@@ -414,8 +415,8 @@ tile extraction progress. Defaults to None.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>mpp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a><em>, </em><em>optional</em>) – Microns-per-pixel, used to determine thumbnail size.</p></li>
-<li><p><strong>width</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Alternatively, goal thumbnail width may be supplied.</p></li>
+<li><p><strong>mpp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Microns-per-pixel, used to determine thumbnail size.</p></li>
+<li><p><strong>width</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Alternatively, goal thumbnail width may be supplied.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -431,21 +432,21 @@ tile extraction progress. Defaults to None.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – Shuffle images during extraction.</p></li>
-<li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 1.
+<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Shuffle images during extraction.</p></li>
+<li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 1.
 Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.</p></li>
-<li><p><strong>whitespace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Range 0-255. Defaults to 230.
+<li><p><strong>whitespace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Range 0-255. Defaults to 230.
 Threshold above which a pixel (RGB average) is considered whitespace.</p></li>
-<li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.6.
+<li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.6.
 Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.</p></li>
-<li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.05.
+<li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.05.
 Pixels in HSV format with saturation below this threshold are considered grayspace.
 normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.</p></li>
-<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image. Defaults to None.
+<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image. Defaults to None.
 If None but using a normalizer, will use an internal tile for normalization.
 Internal default tile can be found at slideflow.util.norm_tile.jpg</p></li>
-<li><p><strong>include_loc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Return (x,y) origin coordinates for each tile along with tile images.</p></li>
-<li><p><strong>show_progress</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – Show a progress bar for tile extraction.</p></li>
+<li><p><strong>include_loc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Return (x,y) origin coordinates for each tile along with tile images.</p></li>
+<li><p><strong>show_progress</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Show a progress bar for tile extraction.</p></li>
 </ul>
 </dd>
 </dl>

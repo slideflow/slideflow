@@ -31,8 +31,8 @@ To interactively create a new project, initialize a Project with the ``from_prom
 
 .. code-block:: python
 
-	import slideflow as sf
-	SFP = sf.Project.from_prompt('/path/to/project/directory')
+    import slideflow as sf
+    SFP = sf.Project.from_prompt('/path/to/project/directory')
 
 You will then be prompted for each project configuration setting.
 
@@ -40,15 +40,15 @@ Alternatively, you may provide this configuration through keyword arguments:
 
 .. code-block:: python
 
-	import slideflow as sf
-	SFP = sf.Project('/path/to/project/directory', name="MyProject", ...)
+    import slideflow as sf
+    SFP = sf.Project('/path/to/project/directory', name="MyProject", ...)
 
 Once a project has been initialized at a directory, you may then load the project with the following syntax:
 
 .. code-block:: python
 
-	import slideflow as sf
-	SFP = sf.Project('/path/to/project/directory')
+    import slideflow as sf
+    SFP = sf.Project('/path/to/project/directory')
 
 Pipeline functions are then called on ``SFP``.
 
@@ -143,7 +143,7 @@ If you plan to use ``run_project.py``, open the ``actions.py`` file located in t
         #      },
         #      batch_file='batch_train.tsv')
 
-		#model_to_evaluate = '/path_to_model/'
+        #model_to_evaluate = '/path_to_model/'
         #SFP.evaluate(model=model_to_evaluate, outcome_label_headers="category", filters = {'dataset': 'eval'})
         #SFP.generate_heatmaps(model_to_evaluate)
         #SFP.generate_mosaic(model_to_evaluate)

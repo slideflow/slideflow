@@ -48,6 +48,7 @@ The current implementation has been developed and tested in Python 3.7/3.8, usin
    :caption: Tutorials
 
    tutorial1
+   tutorial2
 
 Indices and tables
 ==================

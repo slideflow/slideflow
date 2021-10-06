@@ -33,7 +33,7 @@ If **bootstrap**, validation data will be selected at random (percentage determi
 
 If **k-fold**, training data will be automatically separated into *k* number of groups (where *k* is equal to ``k_fold``), and all training iterations will be repeated *k* number of times using k-fold cross validation. The saved and reported model training metrics will be an average of all k-fold iterations.
 
-If you would like to manually separate your data into k-folds, you may do so with the **k-fold-manual** strategy, by indicating which k-fold each slide should be in using the annotations file, and designating the appropriate column header with ``k_fold_header``
+If you would like to manually separate your data into k-folds, you may do so with the **k-fold-manual** strategy. Assign each slide to a k-fold cohort in the annotations file, and designate the appropriate column header with ``k_fold_header``
 
 The **k-fold-preserved-site** strategy is a cross-validation strategy that ensures site is preserved across the training/validation sets, in order to reduce bias from batch effect as described by `Howard, et al <https://www.nature.com/articles/s41467-021-24698-1>`_. This strategy is recommended when using data from The Cancer Genome Atlas (`TCGA <https://portal.gdc.cancer.gov/>`_).
 

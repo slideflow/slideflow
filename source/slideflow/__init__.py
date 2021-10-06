@@ -5,7 +5,7 @@
 
 import os
 
-__version__ = "1.12.0-rc1"
+__version__ = "1.12.0"
 
 if 'SF_BACKEND' not in os.environ:
     os.environ['SF_BACKEND'] = 'tensorflow'
@@ -47,7 +47,7 @@ def set_backend(backend):
 #       - Tutorial 9: Class-conditional GAN with StyleGAN2
 #TODO: benchmark tile extraction against other methods
 #TODO: choose a journal
-#TODO: implement clipping for tfrecord interleaving
+#TODO: implement clipping for tfrecord interleaving in pytorch
 #TODO: label_parser in dataset.tfrecords()
 
 # Future updates

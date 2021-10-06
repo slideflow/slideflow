@@ -490,7 +490,7 @@ class TestSuite:
         multi_cat_model = self._get_model('category1-category2-TEST-HPSweep0-kfold1')
         multi_lin_model = self._get_model('linear1-linear2-TEST-HPSweep0-kfold1')
         multi_inp_model = self._get_model('category1-multi_input-HP0-kfold1')
-        perf_model = self._get_model('category1-manual_hp-HP0-kfold1')
+        perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
         cph_model = self._get_model('time-cph-HP0-kfold1')
 
         # Performs evaluation in isolated thread to avoid OOM errors with sequential model loading/testing

@@ -1321,7 +1321,7 @@ class Dataset:
             if delete_tiles:
                 shutil.rmtree(tiles_dir)
 
-    def training_validation_split(self, model_type, labels, val_strategy, patients=None, validation_log=None,
+    def training_validation_split(self, model_type, labels, val_strategy, validation_log=None,
                                   val_fraction=None, val_k_fold=None, k_fold_iter=None, read_only=False):
 
         """From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
@@ -1334,15 +1334,13 @@ class Dataset:
             labels (dict):  Dictionary mapping slides to labels. Used for balancing outcome labels in
                 training and validation cohorts.
             val_strategy (str): Either 'k-fold', 'k-fold-preserved-site', 'bootstrap', or 'fixed'.
-            patients (dict): Dictionary mapping slides to patient IDs. If not provided, assumes 1:1 mapping of slides
-                to patients. Defaults to None.
             validation_log (str, optional): Path to .log file containing validation plans. Defaults to None.
             outcome_key (str, optional): Key indicating outcome label in slide_labels_dict. Defaults to 'outcome_label'.
             val_fraction (float, optional): Proportion of data for validation. Not used if strategy is k-fold.
                 Defaults to None
             val_k_fold (int): K, required if using K-fold validation. Defaults to None.
-            k_fold_iter (int, optional): Which K-fold iteration to generate, required if using K-fold validation.
-                Defaults to None.
+            k_fold_iter (int, optional): Which K-fold iteration to generate starting at 1. Fequired if using K-fold
+                validation. Defaults to None.
             read_only (bool): Prevents writing validation plans to log. Defaults to False.
 
         Returns:
@@ -1353,10 +1351,9 @@ class Dataset:
             raise DatasetError("If strategy is 'k-fold', must supply k_fold_iter (int starting at 1)")
         if (not val_k_fold and val_strategy=='k-fold'):
             raise DatasetError("If strategy is 'k-fold', must supply val_k_fold (K)")
-        if not patients:
-            log.debug(f"Patients not provided for dataset splitting; assuming 1:1 mapping of slides to patients")
 
         # Prepare dataset
+        patients = self.patients()
         tfr_folders = self.tfrecords_folders()
         subdirs = []
         for folder in tfr_folders:
