@@ -365,7 +365,7 @@ class TestSuite:
                                             trainable_layers=0,
                                             L2_weight=0.1,
                                             dropout=0.1,
-                                            training_balance=["patient"],
+                                            training_balance=["category"],
                                             validation_balance=["none"],
                                             augment=[True],
                                             label='TEST',

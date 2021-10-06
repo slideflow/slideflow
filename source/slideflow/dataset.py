@@ -331,6 +331,15 @@ class Dataset:
 
         return ret
 
+    def build_index(self, force=True):
+        from slideflow.tfrecord.tools import tfrecord2idx
+
+        # First, create index paths for tfrecords
+        for filename in tqdm(self.tfrecords(), desc='Creating index files...', ncols=80, leave=False):
+            index_name = join(dirname(filename), sf.util.path_to_name(filename)+'.index')
+            if not exists(index_name) or force:
+                tfrecord2idx.create_index(filename, index_name)
+
     def clear_filters(self):
         """Returns a dataset with all filters cleared.
 
@@ -1175,6 +1184,7 @@ class Dataset:
                           label_parser=label_parser,
                           img_size=self.tile_px,
                           batch_size=batch_size,
+                          prob_weights=self.prob_weights,
                           **kwargs)
 
     def tfrecord_report(self, destination, normalizer=None, normalizer_source=None):
@@ -1584,11 +1594,13 @@ class Dataset:
         if isinstance(labels, str):
             labels = self.labels(labels)[0]
 
+        self.build_index()
         return interleave_dataloader(tfrecords=self.tfrecords(),
                                      img_size=self.tile_px,
                                      batch_size=batch_size,
                                      labels=labels,
                                      num_tiles=self.num_tiles,
+                                     prob_weights=self.prob_weights,
                                      **kwargs)
 
     def unclip(self):

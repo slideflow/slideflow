@@ -9,7 +9,7 @@ from os import listdir
 from tqdm import tqdm
 from os.path import isfile, join, dirname, exists
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset, TFRecordDataset
-from slideflow.tfrecord.tools import tfrecord2idx
+from slideflow.statistics import to_onehot
 from slideflow.util import log
 import multiprocessing as mp
 import threading
@@ -31,8 +31,6 @@ class TFRecordsError(Exception):
 
 class EmptyTFRecordsError(Exception):
     pass
-
-import torch
 
 class InterleaveIterator(torch.utils.data.IterableDataset):
     """Pytorch Iterable Dataset that interleaves tfrecords with the interleave() function below, serving as a bridge
@@ -57,6 +55,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         chunk_size              = 16,               # Chunk size for interleaving
         preload                 = 8,                # Preload this many samples for parallelization
         use_labels              = True,             # Enable use of labels (disabled for non-class-conditional GANs)
+        model_type              = 'categorical',    # Used to generate random labels (for StyleGAN2). Not required.
         onehot                  = False,
         **kwargs                                    # Kwargs for Dataset base class
     ):
@@ -77,20 +76,26 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         self.normalizer = normalizer
         self.onehot = onehot
         self.chunk_size = chunk_size
-        self.labels = labels
         self.incl_slidenames = incl_slidenames
         self.num_tiles = num_tiles
+        self.model_type = model_type
 
         # Values for random label generation, for GAN
         if labels is not None:
+            if self.onehot:
+                _all_labels_raw = np.array(list(labels.values()))
+                _unique_raw = np.unique(_all_labels_raw)
+                max_label = np.max(_unique_raw)
+                labels = {k:to_onehot(v, max_label+1) for k,v in labels.items()}
+
             _all_labels = np.array(list(labels.values()))
             self.unique_labels = np.unique(_all_labels)
-            self.max_labels = np.max(self.unique_labels)
             self.label_prob = np.array([np.sum(_all_labels == i) for i in self.unique_labels]) / len(_all_labels)
         else:
             self.unique_labels = None
             self.label_prob = None
-            self.max_labels = 0
+
+        self.labels = labels
 
     @property
     def name(self):
@@ -134,11 +139,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             label = self.labels[slide]
         else:
             label = 0
-        if self.onehot:
-            label = sf.model.utils.to_onehot(label, self.max_labels + 1)
-
         image = image.permute(2, 0, 1) # HWC => CHW
-        #image = torch.tensor(image, dtype=torch.float32)
         label = torch.tensor(label)
         if self.incl_slidenames:
             return image, label, slide
@@ -193,7 +194,12 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             return [np.random.rand()]
         else:
             return np.zeros((1,))'''
-        raise NotImplementedError
+        if self.use_labels and self.model_type == 'categorical':
+            return random.choices(self.unique_labels, weights=self.label_prob, k=1)[0]
+        elif self.use_labels:
+            return [np.random.rand()]
+        else:
+            return np.zeros((1,))
 
 def _get_images_by_dir(directory):
     files = [f for f in listdir(directory) if (isfile(join(directory, f))) and
@@ -364,7 +370,10 @@ def interleave(tfrecords, prob_weights=None, clip=None, infinite=False, augment=
     #  -------  Interleave and batch datasets ---------------------------------
     if prob_weights:
         assert len(prob_weights) == len(tfrecords)
-    multi_loader = iter(MultiTFRecordDataset(tfrecords, index_paths, prob_weights, shard=(rank, num_replicas), infinite=infinite))
+        weights = {sf.util.path_to_name(tfr):v for tfr,v in prob_weights.items()}
+    else:
+        weights = None
+    multi_loader = iter(MultiTFRecordDataset(tfrecords, index_paths, weights, shard=(rank, num_replicas), infinite=infinite))
 
     # Randomly interleaves datasets according to weights, reading parsed records to a buffer
     # And sending parsed results to a queue after reaching a set buffer size
@@ -426,9 +435,9 @@ def interleave(tfrecords, prob_weights=None, clip=None, infinite=False, augment=
 
     return retriever()
 
-def interleave_dataloader(tfrecords, img_size, batch_size, onehot=False, num_tiles=None, incl_slidenames=False,
+def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, onehot=False, num_tiles=None, incl_slidenames=False,
                           infinite=False, rank=0, num_replicas=1, labels=None, normalizer=None, seed=0, chunk_size=16,
-                          preload_factor=1, augment=True, standardize=True, num_workers=2, pin_memory=True):
+                          preload_factor=1, prefetch_factor=1, augment=True, standardize=True, num_workers=2, pin_memory=True):
 
     """Prepares a PyTorch DataLoader with a new InterleaveIterator instance, interleaving tfrecords and processing
     labels and tiles, with support for scaling the dataset across GPUs and dataset workers.
@@ -449,7 +458,8 @@ def interleave_dataloader(tfrecords, img_size, batch_size, onehot=False, num_til
         seed (int, optional): Use the following seed when randomly interleaving. Necessary for synchronized
             multiprocessing distributed reading.
         chunk_size (int, optional): Chunk size for image decoding. Defaults to 16.
-        preload_factor (int, optional): Number of batches to preload. Defaults to 1.
+        preload_factor (int, optional): Number of batches to preload in each SlideflowIterator. Defaults to 1.
+        prefetch_factor (int, optional): Number of batches to prefecth in the DataLoader class. Defaults to 1.
         manifest (dict, optional): Dataset manifest containing number of tiles per tfrecord.
         balance (str, optional): Batch-level balancing. Options: category, patient, and None.
             If infinite is not True, will drop tiles in order to maintain proportions across the interleaved dataset.
@@ -461,15 +471,13 @@ def interleave_dataloader(tfrecords, img_size, batch_size, onehot=False, num_til
         pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
     """
 
-    # First, create index paths for tfrecords
-    for filename in tqdm(tfrecords, desc='Creating index files...', ncols=80, leave=False):
-        index_name = join(dirname(filename), sf.util.path_to_name(filename)+'.index')
-        #if not exists(index_name):
-        tfrecord2idx.create_index(filename, index_name)
-
-    kwargs = {var:val for var,val in locals().items() if var not in ('batch_size', 'num_workers', 'pin_memory', 'preload_factor')}
+    kwargs = {var:val for var,val in locals().items() if var not in ('batch_size', 'num_workers', 'pin_memory', 'preload_factor', 'prefetch_factor')}
     torch.multiprocessing.set_sharing_strategy('file_system')
     iterator = InterleaveIterator(use_labels=(labels is not None), preload=(batch_size//num_replicas)*preload_factor, **kwargs)
-    dataloader = torch.utils.data.DataLoader(iterator, batch_size=batch_size//num_replicas, num_workers=num_workers, pin_memory=pin_memory)
+    dataloader = torch.utils.data.DataLoader(iterator,
+                                             batch_size=batch_size//num_replicas,
+                                             num_workers=num_workers,
+                                             pin_memory=pin_memory,
+                                             prefetch_factor=prefetch_factor)
     dataloader.num_tiles = iterator.num_tiles
     return dataloader

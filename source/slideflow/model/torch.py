@@ -10,6 +10,7 @@ import slideflow.statistics
 
 from slideflow.model import base as _base
 from slideflow.util import log, StainNormalizer
+from slideflow.model import torch_utils
 from tqdm import tqdm
 from vit_pytorch import ViT
 
@@ -231,8 +232,6 @@ class Trainer(_base.Trainer):
 
         # Print hyperparameters
         log.info(f'Hyperparameters: {self.hp}')
-        if steps_per_epoch_override:
-            log.warning("Length of epoch manually defined; entire dataset will not be used!")
 
         # Enable TF32 (should be enabled by default)
         torch.backends.cuda.matmul.allow_tf32 = True  # Allow PyTorch to internally use tf32 for matmul
@@ -262,6 +261,9 @@ class Trainer(_base.Trainer):
 
         # Build model
         self.model = self.hp.build_model(labels=self.labels, pretrain=pretrain)
+        self.model = self.model.to(device)
+        img_batch = torch.empty([self.hp.batch_size, 3, train_dts.tile_px, train_dts.tile_px], device=device)
+        torch_utils.print_module_summary(self.model, [img_batch])
 
         # Setup dataloaders
         interleave_args = types.SimpleNamespace(
@@ -291,8 +293,6 @@ class Trainer(_base.Trainer):
         else:
             log.debug('Validation during training: None')
 
-        #device = torch.device("cuda:0")
-        self.model = self.model.to(device)
         params_to_update = self.model.parameters()
         optimizer = self.hp.get_opt(params_to_update)
         loss_fn = torch.nn.CrossEntropyLoss()

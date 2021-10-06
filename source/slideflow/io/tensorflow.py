@@ -238,6 +238,7 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
                                           augment=augment)
 
         datasets = []
+        weights = [] if prob_weights else None
         for tfr in tqdm(tfrecords, desc='Interleaving...', leave=False):
             tf_dts = tf.data.TFRecordDataset(tfr, num_parallel_reads=num_parallel_reads)
             if num_shards:
@@ -247,9 +248,11 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
             if infinite:
                 tf_dts = tf_dts.repeat()
             datasets += [tf_dts]
+            if prob_weights:
+                weights += [prob_weights[tfr]]
 
         #  -------  Interleave and batch datasets ---------------------------------
-        sampled_dataset = tf.data.experimental.sample_from_datasets(datasets, weights=prob_weights)
+        sampled_dataset = tf.data.experimental.sample_from_datasets(datasets, weights=weights)
         dataset = _get_parsed_datasets(sampled_dataset,
                                        base_parser=base_parser,
                                        label_parser=label_parser,
@@ -472,7 +475,7 @@ def update_tfrecord_dir(directory, old_feature_description=FEATURE_DESCRIPTION, 
     else:
         tfrecord_files = glob(join(directory, "*.tfrecords"))
         for tfr in tfrecord_files:
-            update_tfrecord(tfr, old_feature_description, slide, assign_slide, image_raw)
+            update_tfrecord(tfr, assign_slide, image_raw)
         return len(tfrecord_files)
 
 def update_tfrecord(tfrecord_file, assign_slide=None, image_raw='image_raw'):
