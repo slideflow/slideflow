@@ -89,7 +89,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
                 labels = {k:to_onehot(v, max_label+1) for k,v in labels.items()}
 
             _all_labels = np.array(list(labels.values()))
-            self.unique_labels = np.unique(_all_labels)
+            self.unique_labels = np.unique(_all_labels, axis=0)
             self.label_prob = np.array([np.sum(_all_labels == i) for i in self.unique_labels]) / len(_all_labels)
         else:
             self.unique_labels = None
