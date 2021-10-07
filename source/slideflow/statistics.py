@@ -4,7 +4,6 @@ import csv
 import types
 import time
 import pickle
-
 import seaborn as sns
 import numpy as np
 import pandas as pd
@@ -16,6 +15,7 @@ from slideflow.util import ProgressBar
 from os.path import join
 from slideflow.util import log
 from scipy import stats
+from scipy.special import softmax
 from random import sample
 from sklearn import metrics
 from sklearn.cluster import KMeans
@@ -597,14 +597,13 @@ class SlideMap:
 def _generate_tile_roc(i, y_true, y_pred, data_dir, label_start, histogram=False):
     """Generates tile-level ROC. Defined as a separate function for use with multiprocessing."""
     try:
-        roc_res = generate_roc(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_ROC{i}')
-        roc_auc, average_precision, optimal_threshold = roc_res
+        auc, ap, thresh = generate_roc(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_ROC{i}')
         if histogram:
             save_histogram(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_histogram{i}')
     except IndexError:
         log.warning(f"Unable to generate tile-level stats for outcome {i}")
         return None, None, None
-    return roc_auc, average_precision, optimal_threshold
+    return auc, ap, thresh # ROC AUC, Average Precision, Optimal Threshold
 
 def _get_average_by_group(prediction_array, prediction_label, unique_groups, tile_to_group, y_true_group,
                             num_cat, label_end, save_predictions=False, data_dir=None, label='group'):
@@ -734,6 +733,11 @@ def _categorical_metrics(args, outcome_name, starttime=None):
     args.y_true_slide = {k:to_onehot(v, num_cat) for k,v in args.y_true_slide.items()}
     args.y_true_patient = {k:to_onehot(v, num_cat) for k,v in args.y_true_patient.items()}
 
+    # If this is from a PyTorch model, predictions may not be in softmax form. We will need to enforce softmax encoding
+    # for tile-level statistics.
+    if sf.backend() == 'torch':
+        args.y_pred = softmax(args.y_pred, axis=1)
+
     args.auc['tile'][outcome_name] = []
     args.auc['slide'][outcome_name] = []
     args.auc['patient'][outcome_name] = []
@@ -743,11 +747,12 @@ def _categorical_metrics(args, outcome_name, starttime=None):
         # TODO: this is memory inefficient as it copies y_true / y_pred to each subprocess
         # Furthermore, it copies all categories when only one category is needed for each process
         # Consider implementing shared memory, ideally compatible with python 3.7
-        for i, (auc, ap, thresh) in enumerate(p.imap(partial(_generate_tile_roc, y_true=args.y_true,
-                                                                                y_pred=args.y_pred,
-                                                                                data_dir=args.data_dir,
-                                                                                label_start=args.label_start + outcome_name + "_",
-                                                                                histogram=args.histogram), range(num_cat))):
+        for i, (auc, ap, thresh) in enumerate(p.imap(partial(_generate_tile_roc,
+                                                             y_true=args.y_true,
+                                                             y_pred=args.y_pred,
+                                                             data_dir=args.data_dir,
+                                                             label_start=args.label_start + outcome_name + "_",
+                                                             histogram=args.histogram), range(num_cat))):
             args.auc['tile'][outcome_name] += [auc]
             if args.verbose:
                 log.info(f"Tile-level AUC (cat #{i:>2}): {auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
@@ -771,21 +776,21 @@ def _categorical_metrics(args, outcome_name, starttime=None):
 
     # Generate slide-level percent calls
     percent_calls_by_slide = _get_average_by_group(onehot_predictions,
-                                                  prediction_label="percent_tiles_positive",
-                                                  unique_groups=args.unique_slides,
-                                                  tile_to_group=args.tile_to_slides,
-                                                  y_true_group=args.y_true_slide,
-                                                  num_cat=num_cat,
-                                                  label_end="_" + outcome_name + args.label_end,
-                                                  save_predictions=args.save_slide_predictions,
-                                                  data_dir=args.data_dir,
-                                                  label="slide")
+                                                   prediction_label="percent_tiles_positive",
+                                                   unique_groups=args.unique_slides,
+                                                   tile_to_group=args.tile_to_slides,
+                                                   y_true_group=args.y_true_slide,
+                                                   num_cat=num_cat,
+                                                   label_end="_" + outcome_name + args.label_end,
+                                                   save_predictions=args.save_slide_predictions,
+                                                   data_dir=args.data_dir,
+                                                   label="slide")
 
     # Generate slide-level ROC
     for i in range(num_cat):
         try:
             slide_y_pred = percent_calls_by_slide[:, i]
-            slide_y_true = [args.y_true_slide[slide][i] for slide in args.unique_slides]
+            slide_y_true = np.array([args.y_true_slide[slide][i] for slide in args.unique_slides])
             roc_res = generate_roc(slide_y_true,
                                    slide_y_pred,
                                    args.data_dir, f'{args.label_start}{outcome_name}_slide_ROC{i}')
@@ -943,6 +948,28 @@ def generate_roc(y_true, y_pred, save_dir=None, name='ROC'):
     # Precision recall
     precision, recall, pr_thresholds = metrics.precision_recall_curve(y_true, y_pred)
     average_precision = metrics.average_precision_score(y_true, y_pred)
+
+    # Binomial scores
+    def binomial_p(n1, p1, n2, p2):
+        n=n1+n2
+        p0=(n1*p1+n2*p2)/(n1+n2)
+        z = ((p1-p2)-0)/(np.sqrt(2*(p0*(1-p0)/n)))
+        return z, 1-stats.norm.cdf(abs(z))
+
+    def str_num(n):
+        if n < 0.001: return f"{n:.2e}"
+        else: return f"{n:.4f}"
+
+    # True category = 1
+    n1 = np.sum(y_true)
+    p1 = np.sum(y_pred[np.argwhere(y_true == 1)]) / n1
+
+    # True category = 0
+    n2 = y_true.shape[0] - n1
+    p2 = np.sum(y_pred[np.argwhere(y_true == 0)]) / n2
+
+    binom_z, binom_p = binomial_p(n1, p1, n2, p2)
+    log.debug(sf.util.blue("Binomial Z: ") + f"{binom_z:.3f} {sf.util.blue('P')}: {str_num(binom_p)}")
 
     # Calculate optimal cutoff via maximizing Youden's J statistic (sens+spec-1, or TPR - FPR)
     try:
@@ -1153,9 +1180,8 @@ def save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end,
                 writer.writerow(row)
     log.info(f"Predictions saved to {sf.util.green(data_dir)}")
 
-def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, model_type, manifest, outcome_names=None,
-                             label=None, data_dir=None, verbose=True, save_predictions=True,
-                             histogram=False, plot=True):
+def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, model_type, outcome_names=None,
+                             label=None, data_dir=None, verbose=True, save_predictions=True, histogram=False, plot=True):
 
     """Generates metrics from a set of predictions.
 
@@ -1169,7 +1195,6 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
         labels (dict): Dictionary mapping slidenames to outcomes.
         patients (dict): Dictionary mapping slidenames to patients.
         model_type (str): Either 'linear', 'categorical', or 'cph'.
-        manifest (dict): Number of tiles per tfrecord, as provided by :meth:`slideflow.dataset.Datset.manifest`
         outcome_names (list, optional): List of str, names for outcomes. Defaults to None.
         label (str, optional): Label prefix/suffix for saving. Defaults to None.
         min_tiles (int, optional): Minimum tiles per slide to include in metrics. Defaults to 0.
@@ -1450,7 +1475,7 @@ def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_l
     y_pred = new_model.predict(layer_input)
     return y_pred
 
-def metrics_from_dataset(model, model_type, labels, patients, manifest, dataset, outcome_names=None, label=None,
+def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_names=None, label=None,
                          data_dir=None, num_tiles=0, histogram=False, verbose=True, save_predictions=True):
 
     """Evaluate performance of a given model on a given TFRecord dataset,
@@ -1461,7 +1486,6 @@ def metrics_from_dataset(model, model_type, labels, patients, manifest, dataset,
         model_type (str): 'categorical', 'linear', or 'cph'.
         labels (dict): Dictionary mapping slidenames to outcomes.
         patients (dict): Dictionary mapping slidenames to patients.
-        manifest (dict): Number of tiles per tfrecord, as provided by :meth:`slideflow.dataset.Datset.manifest`
         dataset (tf.data.Dataset): Tensorflow dataset.
         outcome_names (list, optional): List of str, names for outcomes. Defaults to None.
         label (str, optional): Label prefix/suffix for saving. Defaults to None.
@@ -1484,25 +1508,24 @@ def metrics_from_dataset(model, model_type, labels, patients, manifest, dataset,
 
     before_metrics = time.time()
     metrics = metrics_from_predictions(y_true=y_true,
-                                        y_pred=y_pred,
-                                        tile_to_slides=tile_to_slides,
-                                        labels=labels,
-                                        patients=patients,
-                                        model_type=model_type,
-                                        manifest=manifest,
-                                        outcome_names=outcome_names,
-                                        label=label,
-                                        data_dir=data_dir,
-                                        verbose=verbose,
-                                        save_predictions=save_predictions,
-                                        histogram=histogram,
-                                        plot=True)
+                                       y_pred=y_pred,
+                                       tile_to_slides=tile_to_slides,
+                                       labels=labels,
+                                       patients=patients,
+                                       model_type=model_type,
+                                       outcome_names=outcome_names,
+                                       label=label,
+                                       data_dir=data_dir,
+                                       verbose=verbose,
+                                       save_predictions=save_predictions,
+                                       histogram=histogram,
+                                       plot=True)
     after_metrics = time.time()
     log.debug(f'Validation metrics generated, time: {after_metrics-before_metrics:.2f} s')
     return metrics
 
 def permutation_feature_importance(model, dataset, labels, patients, model_type, data_dir, outcome_names=None,
-                                   label=None, manifest=None, num_tiles=0, feature_names=None, feature_sizes=None,
+                                   label=None, num_tiles=0, feature_names=None, feature_sizes=None,
                                    drop_images=False):
 
     """Calculate metrics (tile, slide, and patient AUC) from a given model that accepts clinical, slide-level feature
@@ -1518,7 +1541,6 @@ def permutation_feature_importance(model, dataset, labels, patients, model_type,
         data_dir (str): Path to output data directory.
         outcome_names (list, optional): List of str, names for outcomes. Defaults to None.
         label (str, optional): Label prefix/suffix for saving. Defaults to None.
-        manifest (dict): Number of tiles per tfrecord, as provided by :meth:`slideflow.dataset.Datset.manifest`
         num_tiles (int, optional): Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.
         feature_names (list, optional): List of str, names for each of the clinical input features.
         feature_sizes (list, optional): List of int, sizes for each of the clinical input features.
@@ -1604,7 +1626,6 @@ def permutation_feature_importance(model, dataset, labels, patients, model_type,
                                                                       labels=labels,
                                                                       patients=patients,
                                                                       model_type=model_type,
-                                                                      manifest=manifest,
                                                                       outcome_names=outcome_names,
                                                                       label=label,
                                                                       data_dir=data_dir,
@@ -1651,7 +1672,6 @@ def permutation_feature_importance(model, dataset, labels, patients, model_type,
                                                 labels=labels,
                                                 patients=patients,
                                                 model_type=model_type,
-                                                manifest=manifest,
                                                 outcome_names=outcome_names,
                                                 label=None, #label[i] ?
                                                 data_dir=data_dir,

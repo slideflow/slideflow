@@ -48,7 +48,6 @@ def underline(text):  return '\033[4m' + str(text) + '\033[0m'
 def purple(text):     return '\033[38;5;5m' + str(text) + '\033[0m'
 
 log = logging.getLogger('slideflow')
-log.setLevel(logging.INFO)
 
 class UserError(Exception):
     pass
@@ -104,10 +103,10 @@ class TqdmLoggingHandler(logging.StreamHandler):
             print(f"problems with msg {record}")
             self.handleError(record)
 
+multiprocessing_logging.install_mp_handler(log)
 ch = TqdmLoggingHandler()
 ch.setFormatter(LogFormatter())
 log.addHandler(ch)
-multiprocessing_logging.install_mp_handler()
 # ------------------------------------------------------------
 
 class StainNormalizer:

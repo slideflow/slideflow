@@ -479,7 +479,6 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                                                          model_type=self.hp.model_type(),
                                                          labels=self.parent.labels,
                                                          patients=self.parent.patients,
-                                                         manifest=self.parent.manifest,
                                                          dataset=self.cb_args.validation_data_with_slidenames,
                                                          outcome_names=self.parent.outcome_names,
                                                          label=epoch_label,
@@ -671,7 +670,6 @@ class Trainer(_base.Trainer):
             model_type=self._model_type,
             labels=self.labels,
             patients=self.patients,
-            manifest=self.manifest,
             outcome_names=self.outcome_names,
             data_dir=self.outdir,
             **kwargs

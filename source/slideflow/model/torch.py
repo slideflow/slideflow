@@ -184,7 +184,6 @@ class Trainer(_base.Trainer):
             model_type=self.hp.model_type(),
             labels=self.labels,
             patients=self.patients,
-            manifest=self.manifest,
             outcome_names=self.outcome_names,
             data_dir=self.outdir,
             num_tiles=dataset.num_tiles,
@@ -301,6 +300,7 @@ class Trainer(_base.Trainer):
 
         # Training loop
         for epoch in range(starting_epoch, max(self.hp.epochs)+1):
+            print()
             log.info(sf.util.bold('Epoch ' + str(epoch) + '/' + str(max(self.hp.epochs))))
 
             for phase in dataloaders:
@@ -410,7 +410,6 @@ class Trainer(_base.Trainer):
                                                                 model_type='categorical',
                                                                 labels=self.labels,
                                                                 patients=self.patients,
-                                                                manifest=self.manifest,
                                                                 dataset=dataloaders['val'],
                                                                 data_dir=self.outdir,
                                                                 save_predictions=save_predictions)
