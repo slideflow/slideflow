@@ -1262,11 +1262,11 @@ class Dataset:
             filtered = tfrecords_list
 
         # Filter by min_tiles
+        manifest = self.manifest(filter=False)
         if self.min_tiles:
-            manifest = self.manifest(filter=False)
             return [f for f in filtered if manifest[f]['total'] >= self.min_tiles]
         else:
-            return filtered
+            return [f for f in filtered if manifest[f]['total'] > 0]
 
     def tfrecords_by_subfolder(self, subfolder):
         """Returns a list of all tfrecords in a specific subfolder, ignoring filters."""

@@ -7,7 +7,6 @@ import os
 import struct
 import typing
 import numpy as np
-import threading
 
 import slideflow as sf
 from slideflow.tfrecord import example_pb2
@@ -92,7 +91,10 @@ def tfrecord_iterator(
             log.warn(f"Index files not found for tfrecord; unable to perform sharding {shard} (data will be duplicated).")
         yield from read_records()
     else:
-        index = np.loadtxt(index_path, dtype=np.int64)[:, 0]
+        index = np.loadtxt(index_path, dtype=np.int64)
+        if len(index.shape) == 1: # For the case that there is only a single record in the file
+            index = np.expand_dims(index, axis=0)
+        index = index[:, 0]
         if shard is None and random_start:
             offset = np.random.choice(index)
             yield from read_records(offset)
