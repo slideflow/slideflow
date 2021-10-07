@@ -48,6 +48,12 @@ def underline(text):  return '\033[4m' + str(text) + '\033[0m'
 def purple(text):     return '\033[38;5;5m' + str(text) + '\033[0m'
 
 log = logging.getLogger('slideflow')
+if 'SF_LOGGING_LEVEL' in os.environ:
+    try:
+        intLevel = int(os.environ['SF_LOGGING_LEVEL'])
+        log.setLevel(intLevel)
+    except:
+        pass
 
 class UserError(Exception):
     pass
