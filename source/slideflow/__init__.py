@@ -49,6 +49,7 @@ def set_backend(backend):
 #TODO: choose a journal
 #TODO: implement clipping for tfrecord interleaving in pytorch
 #TODO: label_parser in dataset.tfrecords()
+#TODO: multiprocessing build_index()
 
 # Future updates
 # ===============

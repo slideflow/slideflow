@@ -99,23 +99,37 @@ def _wsi_extraction_worker(c, args):
         elif (args.roi_method == 'outside') and point_in_roi:
             return 'skip'
 
-    # Read the region and resize to target size
-    region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
-    region = region.thumbnail_image(args.tile_px)
-
-    # Read regions into memory and convert to numpy arrays
-    np_image = vips2numpy(region)[:,:,:-1]
+    # If downsampling is enabled, read image from highest level to perform filtering;
+    # Otherwise filter from our target level
+    if args.filter_downsample_ratio > 1:
+        filter_extract_px = args.extract_px // args.filter_downsample_ratio
+        filter_tile_px = args.tile_px // args.filter_downsample_ratio
+        region = slide.read_region((c[0], c[1]), args.filter_downsample_level, [filter_extract_px, filter_extract_px])
+        region = region.thumbnail_image(filter_tile_px)
+        np_image = vips2numpy(region)[:,:,:-1]
+    else:
+        # Read the region and resize to target size
+        filter_tile_px = args.tile_px
+        region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
+        region = region.thumbnail_image(args.tile_px)
+        np_image = vips2numpy(region)[:,:,:-1]  # Read regions into memory and convert to numpy arrays
 
     # Perform whitespace filtering
     if args.whitespace_fraction < 1:
-        fraction = (np.mean(np_image, axis=2) > args.whitespace_threshold).sum() / (args.tile_px**2)
+        fraction = (np.mean(np_image, axis=2) > args.whitespace_threshold).sum() / (filter_tile_px**2)
         if fraction > args.whitespace_fraction: return
 
     # Perform grayspace filtering
     if args.grayspace_fraction < 1:
         hsv_image = mcol.rgb_to_hsv(np_image)
-        fraction = (hsv_image[:,:,1] < args.grayspace_threshold).sum() / (args.tile_px**2)
+        fraction = (hsv_image[:,:,1] < args.grayspace_threshold).sum() / (filter_tile_px**2)
         if fraction > args.grayspace_fraction: return
+
+    # Read the target downsample region now, if we were filtering at a different level
+    if args.filter_downsample_ratio > 1:
+        region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
+        region = region.thumbnail_image(args.tile_px)
+        np_image = vips2numpy(region)[:,:,:-1]  # Read regions into memory and convert to numpy arrays
 
     # Apply normalization
     if normalizer:
@@ -467,9 +481,9 @@ class _BaseLoader:
         self.shape = self.slide.level_dimensions[self.downsample_level]
 
         # Calculate pixel size of extraction window using downsampling
-        self.extract_px = int(self.full_extract_px / self.downsample_factor)
-        self.full_stride = int(self.full_extract_px / stride_div)
-        self.stride = int(self.extract_px / stride_div)
+        self.extract_px = self.full_extract_px // self.downsample_factor
+        self.full_stride = self.full_extract_px // stride_div
+        self.stride = self.extract_px // stride_div
 
         # Calculate filter dimensions (low magnification for filtering out white background and performing edge detection)
         self.filter_dimensions = self.slide.level_dimensions[-1]
@@ -830,6 +844,15 @@ class WSI(_BaseLoader):
         if grayspace_fraction is None:      grayspace_fraction   = DEFAULT_GRAYSPACE_FRACTION
         if grayspace_threshold is None:     grayspace_threshold  = DEFAULT_GRAYSPACE_THRESHOLD
 
+        # Get information about highest level downsample, as we will filter on that layer if downsampling is enabled
+        if self.enable_downsample:
+            filter_downsample_level = len(self.slide.level_downsamples) - 1
+            filter_downsample_factor = self.slide.level_downsamples[filter_downsample_level]
+            filter_downsample_ratio = filter_downsample_factor // self.slide.level_downsamples[self.downsample_level]
+        else:
+            filter_downsample_level = self.downsample_level
+            filter_downsample_ratio = 1
+
         worker_args = {
             'full_extract_px': self.full_extract_px,
             'ROI_SCALE': self.ROI_SCALE,
@@ -837,6 +860,8 @@ class WSI(_BaseLoader):
             'annPolys': self.annPolys,
             'estimated_num_tiles': self.estimated_num_tiles,
             'downsample_level': self.downsample_level,
+            'filter_downsample_level': filter_downsample_level,
+            'filter_downsample_ratio': filter_downsample_ratio,
             'path': self.path,
             'extract_px': self.extract_px,
             'tile_px': self.tile_px,
