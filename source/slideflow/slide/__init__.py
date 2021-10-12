@@ -77,6 +77,16 @@ VIPS_FORMAT_TO_DTYPE = {
 def _polyArea(x, y):
     return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
 
+def _convert_img_to_format(image, img_format):
+    if img_format.lower() == 'png':
+        return cv2.imencode('.png', cv2.cvtColor(image, cv2.COLOR_RGB2BGR))[1].tobytes()
+    elif img_format.lower() in ('jpg', 'jpeg'):
+        return cv2.imencode('.jpg',
+                              cv2.cvtColor(image, cv2.COLOR_RGB2BGR),
+                              [int(cv2.IMWRITE_JPEG_QUALITY), 100])[1].tostring()
+    else:
+        raise ValueError(f"Unknown image format {img_format}")
+
 def _wsi_extraction_worker(c, args):
     '''Multiprocessing working for WSI. Extracts a tile at the given coordinates.'''
     slide = _VIPSWrapper(args.path)
@@ -103,33 +113,30 @@ def _wsi_extraction_worker(c, args):
     # Otherwise filter from our target level
     if args.filter_downsample_ratio > 1:
         filter_extract_px = args.extract_px // args.filter_downsample_ratio
-        filter_tile_px = args.tile_px // args.filter_downsample_ratio
-        region = slide.read_region((c[0], c[1]), args.filter_downsample_level, [filter_extract_px, filter_extract_px])
-        region = region.thumbnail_image(filter_tile_px)
-        np_image = vips2numpy(region)[:,:,:-1]
+        filter_region = slide.read_region((c[0], c[1]), args.filter_downsample_level, [filter_extract_px, filter_extract_px])
     else:
         # Read the region and resize to target size
-        filter_tile_px = args.tile_px
-        region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
-        region = region.thumbnail_image(args.tile_px)
-        np_image = vips2numpy(region)[:,:,:-1]  # Read regions into memory and convert to numpy arrays
+        filter_region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
 
-    # Perform whitespace filtering
+    if filter_region.bands == 4:
+        filter_region = filter_region.flatten() #(removes alpha)
+
+    # Perform whitespace filtering [Libvips]
     if args.whitespace_fraction < 1:
-        fraction = (np.mean(np_image, axis=2) > args.whitespace_threshold).sum() / (filter_tile_px**2)
+        fraction = filter_region.bandmean().relational_const('more', args.whitespace_threshold).avg() / 255
         if fraction > args.whitespace_fraction: return
 
-    # Perform grayspace filtering
+    # Perform grayspace filtering [Libvips]
     if args.grayspace_fraction < 1:
-        hsv_image = mcol.rgb_to_hsv(np_image)
-        fraction = (hsv_image[:,:,1] < args.grayspace_threshold).sum() / (filter_tile_px**2)
+        hsv_region = filter_region.sRGB2HSV()
+        fraction = hsv_region[1].relational_const('less', args.grayspace_threshold*255).avg() / 255
         if fraction > args.grayspace_fraction: return
 
     # Read the target downsample region now, if we were filtering at a different level
-    if args.filter_downsample_ratio > 1:
-        region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
-        region = region.thumbnail_image(args.tile_px)
-        np_image = vips2numpy(region)[:,:,:-1]  # Read regions into memory and convert to numpy arrays
+    region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
+    region = region.thumbnail_image(args.tile_px)
+    if region.bands == 4: region = region.flatten() #(removes alpha)
+    np_image = vips2numpy(region)  # Read regions into memory and convert to numpy arrays
 
     # Apply normalization
     if normalizer:
@@ -139,12 +146,18 @@ def _wsi_extraction_worker(c, args):
             # The image could not be normalized, which happens when a tile is primarily one solid color (background)
             return
 
-    if args.include_loc == 'grid':
-        return {'image': np_image, 'loc': [grid_xi, grid_yi]}, index
-    elif args.include_loc:
-        return {'image': np_image, 'loc': [x_coord, y_coord]}, index
+    # Convert to final format
+    if args.img_format != 'numpy':
+        image = _convert_img_to_format(np_image, args.img_format)
     else:
-        return {'image': np_image}, index
+        image = np_image
+
+    if args.include_loc == 'grid':
+        return {'image': image, 'loc': [grid_xi, grid_yi]}, index
+    elif args.include_loc:
+        return {'image': image, 'loc': [x_coord, y_coord]}, index
+    else:
+        return {'image': image}, index
 
 def vips2numpy(vi):
     '''Converts a VIPS image into a numpy array'''
@@ -610,7 +623,8 @@ class _BaseLoader:
             num_threads (int): Number of threads to allocate to tile extraction workers.
         """
 
-        assert img_format in ('png', 'jpg', 'jpeg')
+        if img_format not in ('png', 'jpg', 'jpeg'):
+            raise ValueError(f"Unknown image format {img_format}, must be either 'png' or 'jpg'")
         if tfrecord_dir is None and tiles_dir is None:
             raise UserError("Must supply either tfrecord_dir or tiles_dir as destination for tile extraction.")
 
@@ -628,7 +642,7 @@ class _BaseLoader:
         if tfrecord_dir:
             tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
 
-        generator = self.build_generator(**kwargs)
+        generator = self.build_generator(show_progress=(self.counter_lock is None), img_format=img_format, **kwargs)
         slidename_bytes = bytes(self.name, 'utf-8')
 
         if not generator:
@@ -638,27 +652,9 @@ class _BaseLoader:
         sample_tiles = []
         generator_iterator = generator()
 
-        # If not using a multiprocessing progress bar, use tqdm
-        if self.counter_lock is None:
-            generator_iterator = tqdm(generator_iterator, total=self.estimated_num_tiles, ncols=80)
-
         for index, tile_dict in enumerate(generator_iterator):
-            # Increase multiprocessing progress bar, if provided
-            if self.counter_lock is not None:
-                with self.counter_lock:
-                    self.pb_counter.value += 1
-
-            tile = tile_dict['image']
+            image_string = tile_dict['image']
             location = tile_dict['loc']
-            # Convert numpy array (in RGB) to jpeg string using CV2 (which first requires BGR format)
-            if img_format.lower() == 'png':
-                image_string = cv2.imencode('.png', cv2.cvtColor(tile, cv2.COLOR_RGB2BGR))[1].tobytes()
-            elif img_format.lower() in ('jpg', 'jpeg'):
-                image_string = cv2.imencode('.jpg',
-                                            cv2.cvtColor(tile, cv2.COLOR_RGB2BGR),
-                                            [int(cv2.IMWRITE_JPEG_QUALITY), 100])[1].tostring()
-            else:
-                raise ValueError(f"Unknown image format {img_format}, must be either 'png' or 'jpg'")
             if len(sample_tiles) < 10:
                 sample_tiles += [image_string]
             elif not tiles_dir and not tfrecord_dir:
@@ -806,7 +802,7 @@ class WSI(_BaseLoader):
 
     def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None,
                         grayspace_fraction=None, grayspace_threshold=None, normalizer=None, normalizer_source=None,
-                        include_loc=True, num_threads=8, show_progress=False, full_core=None):
+                        include_loc=True, num_threads=8, show_progress=False, img_format='numpy', full_core=None):
 
         """Builds tile generator to extract of tiles across the slide.
 
@@ -872,7 +868,8 @@ class WSI(_BaseLoader):
             'whitespace_threshold': whitespace_threshold,
             'grayspace_fraction': grayspace_fraction,
             'grayspace_threshold': grayspace_threshold,
-            'include_loc': include_loc
+            'include_loc': include_loc,
+            'img_format': img_format
         }
         worker_args = types.SimpleNamespace(**worker_args)
 
@@ -886,8 +883,14 @@ class WSI(_BaseLoader):
                 for res in p.imap(partial(_wsi_extraction_worker, args=worker_args), self.coord):
                     if res == 'skip':
                         continue
+
+                    # Increase progress bars, if provided
                     if show_progress:
                         pbar.update(1)
+                    elif self.counter_lock is not None:
+                        with self.counter_lock:
+                            self.pb_counter.value += 1
+
                     if res is None:
                         continue
                     else:
@@ -899,7 +902,8 @@ class WSI(_BaseLoader):
 
             name_msg = sf.util.green(self.shortname)
             num_msg = f'({np.sum(self.tile_mask)} tiles of {len(self.coord)} possible)'
-            log.info(f"Finished tile extraction for {name_msg} {num_msg}")
+            log.debug(f"Finished tile extraction for {name_msg} {num_msg}")
+            print(f"\r\033[KFinished tile extraction for {name_msg} {num_msg}")
 
         return generator
 
@@ -1164,7 +1168,7 @@ class TMA(_BaseLoader):
 
     def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None, grayspace_fraction=None,
                         grayspace_threshold=None, normalizer=None, normalizer_source=None, include_loc=True,
-                        num_threads=8, full_core=False):
+                        num_threads=8, img_format='numpy', full_core=False):
 
         """Builds tile generator to extract of tiles across the slide.
 
@@ -1240,6 +1244,11 @@ class TMA(_BaseLoader):
 
                     if full_core:
                         resized = cv2.resize(image_core, (self.tile_px, self.tile_px))
+
+                        # Convert to final image format
+                        if img_format != 'numpy':
+                            resized = _convert_img_to_format(resized, img_format)
+
                         if include_loc:
                             yield {'image': resized, 'loc': [0, 0]}
                         else:
@@ -1266,6 +1275,11 @@ class TMA(_BaseLoader):
                                     # The image could not be normalized, which happens when
                                     # a tile is primarily one solid color (background)
                                     continue
+
+                            # Convert to final image format
+                            if img_format != 'numpy':
+                                subtile = _convert_img_to_format(subtile, img_format)
+
                             if include_loc:
                                 yield {'image': subtile, 'loc': [0, 0]}
                             else:

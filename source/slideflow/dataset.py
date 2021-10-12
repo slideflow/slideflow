@@ -524,7 +524,7 @@ class Dataset:
             # Verify slides and estimate total number of tiles
             log.info('Verifying slides...')
             total_tiles = 0
-            for slide_path in tqdm(slide_list, leave=False):
+            for slide_path in tqdm(slide_list, leave=False, desc="Verifyingn slides..."):
                 if tma:
                     slide = sf.slide.TMA(slide_path, self.tile_px, self.tile_um, stride_div, silent=True)
                 else:
