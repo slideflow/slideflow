@@ -524,7 +524,7 @@ class Dataset:
             # Verify slides and estimate total number of tiles
             log.info('Verifying slides...')
             total_tiles = 0
-            for slide_path in tqdm(slide_list, leave=False, desc="Verifyingn slides..."):
+            for slide_path in tqdm(slide_list, leave=False, desc="Verifying slides..."):
                 if tma:
                     slide = sf.slide.TMA(slide_path, self.tile_px, self.tile_um, stride_div, silent=True)
                 else:
@@ -1263,6 +1263,9 @@ class Dataset:
 
         # Filter by min_tiles
         manifest = self.manifest(filter=False)
+        if not all ([f in manifest for f in filtered]):
+            self.update_manifest()
+            manifest = self.manifest(filter=False)
         if self.min_tiles:
             return [f for f in filtered if manifest[f]['total'] >= self.min_tiles]
         else:
