@@ -98,7 +98,7 @@ class Project:
             os.makedirs(self.eval_dir)
 
         # Create blank annotations file if one does not exist
-        if not exists(self.annotations):
+        if not exists(self.annotations) and exists(self.dataset_config):
             self.create_blank_annotations()
 
         # Set up logging
@@ -291,6 +291,9 @@ class Project:
             filename = self.annotations
         if exists(filename):
             raise sf.util.UserError(f"Unable to create blank annotations file at {filename}; file already exists.")
+        if not exists(self.dataset_config):
+            raise sf.util.UserError("Unable to create blank annotations file, dataset configuration file " +
+                                    f"{self.dataset_config} does not exist.")
 
         dataset = Dataset(config_file=self.dataset_config,
                           sources=self.sources,
