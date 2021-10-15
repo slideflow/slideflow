@@ -94,14 +94,14 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True, preserve
 
     if balance:
         # Get patient outcome labels
-        patient_outcome_labels = [patients_dict[p][balance] for p in patients_dict]
+        patient_outcome_labels = [patients_dict[p][balance] for p in patient_list]
 
         # Get unique outcomes
         unique_labels = list(set(patient_outcome_labels))
         if preserved_site:
             import slideflow.io.preservedsite.crossfolds as cv
 
-            site_list = [p[5:7] for p in patients_dict]
+            site_list = [p[5:7] for p in patient_list]
             df = pd.DataFrame(list(zip(patient_list, patient_outcome_labels, site_list)),
                               columns = ['patient', 'outcome_label', 'site'])
             df = cv.generate(df,
@@ -1560,7 +1560,7 @@ class Dataset:
 
         return training_dts, val_dts
 
-    def torch(self, labels, batch_size, **kwargs):
+    def torch(self, labels, batch_size, rebuild_index=True, **kwargs):
         """Returns a PyTorch DataLoader object that interleaves tfrecords from this dataset.
 
         The returned data loader returns a batch of (image, label) for each tile.
@@ -1571,6 +1571,7 @@ class Dataset:
                 assigned labels, pass the first result of dataset.labels(...).
                 If None, will return slide name instead of label.
             batch_size (int): Batch size.
+            rebuild_index (bool): Re-build index files even if already present. Defaults to True.
 
         Keyword Args:
             onehot (bool, optional): Onehot encode labels. Defaults to False.
@@ -1598,7 +1599,7 @@ class Dataset:
         if isinstance(labels, str):
             labels = self.labels(labels)[0]
 
-        self.build_index()
+        self.build_index(rebuild_index)
         return interleave_dataloader(tfrecords=self.tfrecords(),
                                      img_size=self.tile_px,
                                      batch_size=batch_size,
