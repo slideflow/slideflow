@@ -162,6 +162,7 @@ class AdvTrainer(_base.Trainer):
             pin_memory=True,
             num_workers=4,
             onehot=False,
+            rebuild_index=False,
         )
 
         dataloaders = {
@@ -330,8 +331,12 @@ class AdvTrainer(_base.Trainer):
         site_loss_fn = torch.nn.CrossEntropyLoss()
 
         # Outcome optimizer
-        outcome_params = list(outcome_D.parameters()) + list(feature_G.parameters())
-        outcome_optimizer = self.hp.get_opt(outcome_params)
+        outcome_D_params = list(outcome_D.parameters())
+        feature_G_params = list(feature_G.parameters())
+        site_D_params = list(site_D.parameters())
+        outcome_params = outcome_D_params + feature_G_params
+        optimizer = self.hp.get_opt(outcome_params)
+        site_optimizer = self.hp.get_opt(site_D_params)
         outcome_loss_fn = torch.nn.CrossEntropyLoss()
         inv_site_loss_fn = torch.nn.CrossEntropyLoss()
 
@@ -382,24 +387,26 @@ class AdvTrainer(_base.Trainer):
                         sites = sites.to(device, non_blocking=True)
 
                         # Accumulate gradients
-                        outcome_optimizer.zero_grad()
+                        optimizer.zero_grad()
                         site_optimizer.zero_grad()
-                        with torch.autograd.set_detect_anomaly(True):
-                            with torch.set_grad_enabled(True):
-                                with torch.cuda.amp.autocast():
-                                    features = feature_G(images)
-                                    outcome_outputs = outcome_D(features)
-                                    site_outputs = site_D(features)
-                                    outcome_loss = outcome_loss_fn(outcome_outputs, labels) - inv_site_loss_fn(site_outputs, sites)
-                                    site_loss = site_loss_fn(site_outputs, sites)
+                        with torch.set_grad_enabled(True):
+                            with torch.cuda.amp.autocast():
+                                features = feature_G(images)
+                                outcome_outputs = outcome_D(features)
+                                site_outputs = site_D(features.detach().requires_grad_(False))
+                                outcome_loss = outcome_loss_fn(outcome_outputs, labels) - inv_site_loss_fn(site_outputs.detach().requires_grad_(False), sites)
+                                site_loss = site_loss_fn(site_outputs, sites)
 
-                                _, outcome_preds = torch.max(outcome_outputs, 1)
-                                _, site_preds = torch.max(site_outputs, 1)
-                                scaler.scale(site_loss).backward(retain_graph=True)
-                                scaler.scale(outcome_loss).backward()
-                                scaler.step(site_optimizer)
-                                scaler.step(outcome_optimizer)
-                                scaler.update()
+                            _, outcome_preds = torch.max(outcome_outputs, 1)
+                            _, site_preds = torch.max(site_outputs, 1)
+
+                            scaler.scale(outcome_loss).backward()
+                            scaler.step(optimizer)
+
+                            scaler.scale(site_loss).backward()
+                            scaler.step(site_optimizer)
+
+                            scaler.update()
 
                         # Update running totals
                         num_site_correct = torch.sum(site_preds == sites.data)
@@ -425,9 +432,8 @@ class AdvTrainer(_base.Trainer):
                         sites = torch.tensor([sites_dict[s] for s in slides])
                         sites = sites.to(device, non_blocking=True)
 
-                        outcome_optimizer.zero_grad()
+                        optimizer.zero_grad()
                         site_optimizer.zero_grad()
-
                         with torch.no_grad():
                             with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.utils.no_scope():
                                 features = feature_G(images)

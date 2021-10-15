@@ -132,6 +132,7 @@ class XceptionFeatures(nn.Module):
 
         self.block1=Block(64,128,2,2,start_with_relu=False,grow_first=True)
         self.block2=Block(128,256,2,2,start_with_relu=True,grow_first=True)
+        self.block3=Block(256,728,2,2,start_with_relu=True,grow_first=True)
 
     def features(self, input):
         x = self.conv1(input)
@@ -144,6 +145,7 @@ class XceptionFeatures(nn.Module):
 
         x = self.block1(x)
         x = self.block2(x)
+        x = self.block3(x)
         return x
 
     def forward(self, input):
@@ -163,8 +165,6 @@ class XceptionClassifier(nn.Module):
         super(XceptionClassifier, self).__init__()
         self.num_classes = num_classes
         self.relu = nn.ReLU(inplace=True)
-
-        self.block3=Block(256,728,2,2,start_with_relu=True,grow_first=True)
 
         self.block4=Block(728,728,3,1,start_with_relu=True,grow_first=True)
         self.block5=Block(728,728,3,1,start_with_relu=True,grow_first=True)
@@ -189,8 +189,7 @@ class XceptionClassifier(nn.Module):
         del self.fc
 
     def features(self, input):
-        x = self.block3(input)
-        x = self.block4(x)
+        x = self.block4(input)
         x = self.block5(x)
         x = self.block6(x)
         x = self.block7(x)
