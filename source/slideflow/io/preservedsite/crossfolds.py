@@ -3,6 +3,7 @@ import numpy as np
 import cvxpy as cp
 import cplex
 from slideflow.util import log
+
 def generate(data, category, values, crossfolds = 3, target_column = 'CV3', patient_column = 'submitter_id', site_column = 'SITE', timelimit = 10):
 
     """Generates 3 site preserved cross folds with optimal stratification of category
@@ -21,6 +22,7 @@ def generate(data, category, values, crossfolds = 3, target_column = 'CV3', pati
     .. _Preserved-site cross-validation:
         https://doi.org/10.1038/s41467-021-24698-1
     """
+
     submitters = data[patient_column].unique()
     newData = pd.merge(pd.DataFrame(submitters, columns=[patient_column]), data[[patient_column, category, site_column]], on=patient_column, how='left')
     newData.drop_duplicates(inplace=True)
