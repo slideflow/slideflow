@@ -334,11 +334,15 @@ class Dataset:
     def build_index(self, force=True):
         from slideflow.tfrecord.tools import tfrecord2idx
 
-        # First, create index paths for tfrecords
-        for filename in tqdm(self.tfrecords(), desc='Creating index files...', ncols=80, leave=False):
+        def create_index(filename):
+            nonlocal force
             index_name = join(dirname(filename), sf.util.path_to_name(filename)+'.index')
             if not exists(index_name) or force:
                 tfrecord2idx.create_index(filename, index_name)
+
+        pool = multiprocessing.dummy.Pool(16)
+        for res in tqdm(pool.imap(create_index, self.tfrecords()), desc='Creating index files...', ncols=80, total=len(self.tfrecords()), leave=False):
+            pass
 
     def clear_filters(self):
         """Returns a dataset with all filters cleared.

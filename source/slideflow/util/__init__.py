@@ -54,6 +54,8 @@ if 'SF_LOGGING_LEVEL' in os.environ:
         log.setLevel(intLevel)
     except:
         pass
+else:
+    log.setLevel(logging.INFO)
 
 class UserError(Exception):
     pass
@@ -112,6 +114,7 @@ class TqdmLoggingHandler(logging.StreamHandler):
 multiprocessing_logging.install_mp_handler(log)
 ch = TqdmLoggingHandler()
 ch.setFormatter(LogFormatter())
+ch.setLevel(log.level)
 log.addHandler(ch)
 # ------------------------------------------------------------
 
