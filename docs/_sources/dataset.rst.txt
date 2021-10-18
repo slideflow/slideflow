@@ -1,5 +1,7 @@
 .. currentmodule:: slideflow.dataset
 
+.. _dataset:
+
 slideflow.dataset
 =====================
 
