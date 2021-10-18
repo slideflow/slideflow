@@ -294,7 +294,7 @@ def chunk_example_loader(
         compression_type=compression_type,
     )
 
-    chunk_size = 2
+    chunk_size = 1
     while True:
         chunk = []
         while len(chunk) < chunk_size:
