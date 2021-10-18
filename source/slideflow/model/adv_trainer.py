@@ -353,6 +353,7 @@ class AdvTrainer(_base.Trainer):
             pin_memory=True,
             num_workers=4,
             onehot=False,
+            rebuild_index=False,
         )
         dataloaders = {
             'train': iter(train_dts.torch(infinite=True, batch_size=32, augment=True, incl_slidenames=True, **vars(interleave_args))),

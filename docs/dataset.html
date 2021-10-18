@@ -246,7 +246,7 @@
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
   <div class="section" id="slideflow-dataset">
-<h1>slideflow.dataset<a class="headerlink" href="#slideflow-dataset" title="Permalink to this headline">¶</a></h1>
+<span id="dataset"></span><h1>slideflow.dataset<a class="headerlink" href="#slideflow-dataset" title="Permalink to this headline">¶</a></h1>
 <p>The <a class="reference internal" href="#slideflow.dataset.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></a> class in this module is used to organize dataset sources, ROI annotations,
 clinical annotations, and dataset processing.</p>
 <div class="section" id="dataset-organization">
@@ -344,8 +344,8 @@ class-aware functions.</p>
 <h2>Tensorflow &amp; PyTorch Datasets<a class="headerlink" href="#tensorflow-pytorch-datasets" title="Permalink to this headline">¶</a></h2>
 <p>Finally, Datasets can also return either a <code class="docutils literal notranslate"><span class="pre">tf.data.Datasets</span></code> or <code class="docutils literal notranslate"><span class="pre">torch.utils.data.Dataloader</span></code> object to quickly and easily create a deep learning dataset ready to be used as model input, with the <a class="reference internal" href="#slideflow.dataset.Dataset.tensorflow" title="slideflow.dataset.Dataset.tensorflow"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.tensorflow()</span></code></a> and <a class="reference internal" href="#slideflow.dataset.Dataset.torch" title="slideflow.dataset.Dataset.torch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.torch()</span></code></a> methods, respectively.</p>
 </div>
-<div class="section" id="dataset">
-<h2>Dataset<a class="headerlink" href="#dataset" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id1">
+<h2>Dataset<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.dataset.Dataset">
 <em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.dataset.</span></span><span class="sig-name descname"><span class="pre">Dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sources</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_um</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset" title="Permalink to this definition">¶</a></dt>
@@ -763,7 +763,7 @@ Internal default tile can be found at slideflow.util.norm_tile.jpg</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.dataset.Dataset.torch">
-<span class="sig-name descname"><span class="pre">torch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.torch" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">torch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rebuild_index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.dataset.Dataset.torch" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns a PyTorch DataLoader object that interleaves tfrecords from this dataset.</p>
 <p>The returned data loader returns a batch of (image, label) for each tile.</p>
 <dl class="field-list simple">
@@ -774,6 +774,7 @@ will intepret as categorical annotation header. For linear outcomes, or outcomes
 assigned labels, pass the first result of dataset.labels(…).
 If None, will return slide name instead of label.</p></li>
 <li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Batch size.</p></li>
+<li><p><strong>rebuild_index</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Re-build index files even if already present. Defaults to True.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Keyword Arguments</dt>
@@ -925,7 +926,7 @@ skipping any slide names that are already present in the annotations file.</p>
 <li><a class="reference internal" href="#training-validation-splitting">Training/Validation Splitting</a></li>
 <li><a class="reference internal" href="#tile-and-tfrecord-processing">Tile and TFRecord Processing</a></li>
 <li><a class="reference internal" href="#tensorflow-pytorch-datasets">Tensorflow &amp; PyTorch Datasets</a></li>
-<li><a class="reference internal" href="#dataset">Dataset</a></li>
+<li><a class="reference internal" href="#id1">Dataset</a></li>
 </ul>
 </li>
 </ul>

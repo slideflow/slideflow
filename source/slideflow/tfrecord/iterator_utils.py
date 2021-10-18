@@ -56,7 +56,7 @@ def sample_iterators(iterators: typing.List[typing.Iterator],
                 ratios = ratios / ratios.sum()
 
 
-def sample_chunk_iterators(iterators: typing.List[typing.Iterator],
+def sample_chunk_iterators_threaded(iterators: typing.List[typing.Iterator],
                            ratios: typing.List[int],
                            infinite: bool = True,
                            shard: typing.Optional[typing.Tuple[int, int]] = None,) -> typing.Iterable[typing.Any]:
@@ -87,6 +87,7 @@ def sample_chunk_iterators(iterators: typing.List[typing.Iterator],
         Decoded bytes of features into its respective data types from
         an iterator (based off their sampling ratio).
     """
+
     if infinite:
         iterators = {str(i):cycle(iterator) for i, iterator in enumerate(iterators)}
     else:
@@ -154,6 +155,59 @@ def sample_chunk_iterators(iterators: typing.List[typing.Iterator],
             #print('Dump:', choice, chunk_counts[choice], choice in chunk_threads, choice in finished_iteration, choice in finished_yield)
             raise IndexError(f"This shouldn't happen!: {choice}")
             #pass
+
+def sample_chunk_iterators(iterators: typing.List[typing.Iterator],
+                           ratios: typing.List[int],
+                           infinite: bool = True,
+                           shard: typing.Optional[typing.Tuple[int, int]] = None,) -> typing.Iterable[typing.Any]:
+    """Retrieve info generated from the iterator(s) according to their
+    sampling ratios.
+
+    Params:
+    -------
+    iterators: list of iterators
+        All iterators (one for each file).
+
+    ratios: list of int
+        The ratios with which to sample each iterator.
+
+    infinite: bool, optional, default=True
+        Whether the returned iterator should be infinite or not
+
+    shard: tuple of ints, optional, default=None
+        A tuple (index, count) representing worker_id and num_workers
+        count. Necessary to evenly split/shard the dataset among many
+        workers (i.e. >1) and synchronize random sampling.
+
+    shard:
+
+    Yields:
+    -------
+    item: Any
+        Decoded bytes of features into its respective data types from
+        an iterator (based off their sampling ratio).
+    """
+
+    if infinite:
+        iterators = [cycle(iterator) for iterator in iterators]
+    else:
+        iterators = [iterator() for iterator in iterators]
+    ratios = np.array(ratios)
+    ratios = ratios / ratios.sum()
+
+    global_idx = -1
+    while iterators:
+        global_idx += 1
+        choice = random.choices(range(len(ratios)), ratios, k=1)[0]
+        if shard is not None and (global_idx % shard[1] != shard[0]):
+            continue
+        try:
+            yield next(iterators[choice])[0]
+        except StopIteration:
+            if iterators:
+                del iterators[choice]
+                ratios = np.delete(ratios, choice)
+                ratios = ratios / ratios.sum()
 
 def shuffle_iterator(iterator: typing.Iterator,
                      queue_size: int) -> typing.Iterable[typing.Any]:
