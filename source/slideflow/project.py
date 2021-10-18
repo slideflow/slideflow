@@ -1713,7 +1713,7 @@ class Project:
     def resize_tfrecords(self, *args, **kwargs):
         """Function moved to :meth:slideflow.dataset.Dataset.resize_tfrecords"""
 
-        raise DeprecationWarning("Function moved to slideflow.dataset.Datset.resize_tfrecords()")
+        raise DeprecationWarning("Function moved to slideflow.dataset.Dataset.resize_tfrecords()")
 
     def save(self):
         """Saves current project configuration as "settings.json"."""
@@ -1723,13 +1723,13 @@ class Project:
 
         """Function moved to :meth:slideflow.dataset.Dataset.slide_report"""
 
-        raise DeprecationWarning("Function moved to slideflow.dataset.Datset.slide_report()")
+        raise DeprecationWarning("Function moved to slideflow.dataset.Dataset.slide_report()")
 
     def tfrecord_report(self, *args, **kwargs):
 
         """Function moved to :meth:slideflow.dataset.Dataset.tfrecord_report"""
 
-        raise DeprecationWarning("Function moved to slideflow.dataset.Datset.tfrecord_report()")
+        raise DeprecationWarning("Function moved to slideflow.dataset.Dataset.tfrecord_report()")
 
     def train(self, outcome_label_headers, hyperparameters='sweep', exp_label=None, filters=None, filter_blank=None,
               input_header=None, resume_training=None, checkpoint=None, pretrain='imagenet', min_tiles=0, max_tiles=0,
