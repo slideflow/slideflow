@@ -220,6 +220,31 @@ class XceptionClassifier(nn.Module):
         x = self.logits(x)
         return x
 
+def load_partial_state_dict(model, state_dict):
+    own_state = model.state_dict()
+    for name, param in state_dict.items():
+        if name not in own_state:
+                continue
+        if isinstance(param, torch.nn.Parameter):
+            # backwards compatibility for serialized parameters
+            param = param.data
+        own_state[name].copy_(param)
+    return model
+
+def xception_features(pretrained='imagenet'):
+    settings = pretrained_settings['xception'][pretrained]
+    pretrained_dict = model_zoo.load_url(settings['url'])
+    model = XceptionFeatures()
+    model = load_partial_state_dict(model, pretrained_dict)
+    return model
+
+def xception_classifier(num_classes, pretrained='imagenet'):
+    settings = pretrained_settings['xception'][pretrained]
+    pretrained_dict = model_zoo.load_url(settings['url'])
+    model = XceptionClassifier(num_classes=num_classes)
+    model = load_partial_state_dict(model, pretrained_dict)
+    return model
+
 '''def xception(num_classes=1000, pretrained='imagenet'):
     model = Xception(num_classes=num_classes)
     if pretrained:

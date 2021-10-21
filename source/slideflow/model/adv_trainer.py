@@ -7,7 +7,7 @@ import numpy as np
 import slideflow.statistics
 
 from slideflow.model import base as _base
-from slideflow.model.adv_exception import XceptionClassifier, XceptionFeatures
+from slideflow.model.adv_xception import xception_classifier, xception_features
 from slideflow.util import log, StainNormalizer
 from slideflow.model import torch_utils
 from tqdm import tqdm
@@ -303,7 +303,7 @@ class AdvTrainer(_base.Trainer):
                                                                 save_predictions=save_predictions)
         return {}
 
-    def train_adv(self, train_dts, val_dts, sites_dict, num_sites, validate_on_batch=512, validation_batch_size=32, validation_steps=100,
+    def train_adv(self, train_dts, val_dts, sites_dict, num_sites, site_lambda=10, validate_on_batch=512, validation_batch_size=32, validation_steps=100,
               save_predictions=True, skip_metrics=False, seed=0, log_frequency=None, starting_epoch=0,
               ema_observations=None, ema_smoothing=None, use_tensorboard=None, steps_per_epoch_override=0,
               multi_gpu=None, resume_training=None, pretrain='imagenet', checkpoint=None):
@@ -321,9 +321,9 @@ class AdvTrainer(_base.Trainer):
 
         # Build models
         num_classes = self.hp._detect_classes_from_labels(self.labels)[0]
-        feature_G = XceptionFeatures().to(device)
-        site_D = XceptionClassifier(num_classes=num_sites).to(device)
-        outcome_D = XceptionClassifier(num_classes=num_classes).to(device)
+        feature_G = xception_features().to(device)
+        site_D = xception_classifier(num_classes=num_sites).to(device)
+        outcome_D = xception_classifier(num_classes=num_classes).to(device)
 
         # Site prediction optimizer
         site_params = site_D.parameters()
@@ -333,10 +333,8 @@ class AdvTrainer(_base.Trainer):
         # Outcome optimizer
         outcome_D_params = list(outcome_D.parameters())
         feature_G_params = list(feature_G.parameters())
-        site_D_params = list(site_D.parameters())
         outcome_params = outcome_D_params + feature_G_params
         optimizer = self.hp.get_opt(outcome_params)
-        site_optimizer = self.hp.get_opt(site_D_params)
         outcome_loss_fn = torch.nn.CrossEntropyLoss()
         inv_site_loss_fn = torch.nn.CrossEntropyLoss()
 
@@ -356,7 +354,7 @@ class AdvTrainer(_base.Trainer):
             rebuild_index=False,
         )
         dataloaders = {
-            'train': iter(train_dts.torch(infinite=True, batch_size=32, augment=True, incl_slidenames=True, **vars(interleave_args))),
+            'train': iter(train_dts.torch(infinite=True, batch_size=self.hp.batch_size, augment=True, incl_slidenames=True, **vars(interleave_args))),
             'val': val_dts.torch(infinite=False, batch_size=validation_batch_size, augment=False, incl_slidenames=True, **vars(interleave_args))
         }
 
@@ -388,33 +386,46 @@ class AdvTrainer(_base.Trainer):
                         sites = sites.to(device, non_blocking=True)
 
                         # Accumulate gradients
+                        if step % 2 == 0:
+                            train_phase = 'site'
+                        else:
+                            train_phase = 'outcome'
+
                         optimizer.zero_grad()
                         site_optimizer.zero_grad()
-                        with torch.set_grad_enabled(True):
+
+                        if train_phase == 'outcome':
                             with torch.cuda.amp.autocast():
-                                features = feature_G(images)
-                                outcome_outputs = outcome_D(features)
-                                site_outputs = site_D(features.detach().requires_grad_(False))
-                                outcome_loss = outcome_loss_fn(outcome_outputs, labels) - inv_site_loss_fn(site_outputs.detach().requires_grad_(False), sites)
-                                site_loss = site_loss_fn(site_outputs, sites)
+                                features = feature_G(images).requires_grad_(True)
+                                outcome_outputs = outcome_D(features).requires_grad_(True)
+                                outcome_loss = outcome_loss_fn(outcome_outputs, labels) - site_lambda * inv_site_loss_fn(site_D(features), sites)
 
                             _, outcome_preds = torch.max(outcome_outputs, 1)
-                            _, site_preds = torch.max(site_outputs, 1)
 
                             scaler.scale(outcome_loss).backward()
                             scaler.step(optimizer)
+                        else:
+                            with torch.cuda.amp.autocast():
+                                features = feature_G(images).detach().requires_grad_(True)
+                                site_outputs = site_D(features).requires_grad_(True)
+                                site_loss = site_loss_fn(site_outputs, sites)
+
+                            _, site_preds = torch.max(site_outputs, 1)
 
                             scaler.scale(site_loss).backward()
                             scaler.step(site_optimizer)
+                        scaler.update()
 
-                            scaler.update()
+                        # Update running totals and losses
+                        if train_phase == 'outcome':
+                            running_loss += outcome_loss.item() * images.size(0)
+                            num_outcome_correct = torch.sum(outcome_preds == labels.data)
+                            running_outcome_corrects += num_outcome_correct
+                        else:
+                            num_site_correct = torch.sum(site_preds == sites.data)
+                            running_site_corrects += num_site_correct
 
-                        # Update running totals
-                        num_site_correct = torch.sum(site_preds == sites.data)
-                        num_outcome_correct = torch.sum(outcome_preds == labels.data)
-                        running_outcome_corrects += num_outcome_correct
-                        running_site_corrects += num_site_correct
-                        num_records = step * self.hp.batch_size
+                        num_records = step * self.hp.batch_size / 2
                         dataloader_pb.set_description(f'{phase} site_acc: {running_site_corrects / num_records:.4f} out_acc: {running_outcome_corrects / num_records:.4f}')
                         dataloader_pb.update(self.hp.batch_size)
                         step += 1
