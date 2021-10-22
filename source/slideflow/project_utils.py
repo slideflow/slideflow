@@ -49,6 +49,7 @@ def _train_worker(training_args, model_kwargs, training_kwargs, results_dict):
                                         labels=training_args.labels,
                                         patients=training_args.patients,
                                         slide_input=training_args.slide_input,
+                                        neptune_run=training_args.neptune_run,
                                         **model_kwargs)
 
     results = trainer.train(training_args.train_dts,
@@ -57,6 +58,11 @@ def _train_worker(training_args, model_kwargs, training_kwargs, results_dict):
                             checkpoint=training_args.checkpoint,
                             multi_gpu=training_args.multi_gpu,
                             **training_kwargs)
+
+    # Log results with neptune
+    if training_args.neptune_run:
+        training_args.neptune_run['results/logged_epochs'] = [int(e[5:] for e in results['epochs'] if e[:5] == 'epoch')]
+        training_args.neptune_run['results/epochs'] = results['epochs']
 
     results_dict.update({model_kwargs['name']: results})
 

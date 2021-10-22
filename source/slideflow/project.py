@@ -50,7 +50,7 @@ class Project:
 
     """
 
-    def __init__(self, project_folder, gpu=None, default_threads=4, **project_kwargs):
+    def __init__(self, project_folder, gpu=None, default_threads=4, use_neptune=False, **project_kwargs):
         """Initializes project at the specified project folder, creating a new project using
         the specified kwargs if one does not already exist. Will create a blank annotations file with
         dataset slide names if one does not exist.
@@ -77,6 +77,7 @@ class Project:
 
         self.default_threads = default_threads
         self.root = project_folder
+        self.use_neptune = use_neptune
 
         if exists(join(project_folder, 'settings.json')) and project_kwargs:
             raise sf.util.UserError(f"Project already exists at {project_folder}. " + \
@@ -213,6 +214,40 @@ class Project:
         if not isinstance(val, str):
             raise sf.util.UserError("'name' must be a str")
         self._settings['name'] = val
+
+    @property
+    def neptune_workspace(self):
+        """Neptune workspace name."""
+
+        if 'neptune_workspace' in self._settings:
+            return self._settings['neptune_workspace']
+        else:
+            return None
+
+    @name.setter
+    def neptune_workspace(self, name):
+        """Neptune workspace name."""
+
+        if not isinstance(name, str):
+            raise sf.util.UserError('Neptune workspace name must be a string.')
+        self._settings['neptune_workspace'] = name
+
+    @property
+    def neptune_api(self):
+        """Neptune API token."""
+
+        if 'neptune_api' in self._settings:
+            return self._settings['neptune_api']
+        else:
+            return None
+
+    @name.setter
+    def neptune_api(self, api_token):
+        """Neptune API token."""
+
+        if not isinstance(api_token, str):
+            raise sf.util.UserError('API token must be a string.')
+        self._settings['neptune_api'] = api_token
 
     @property
     def sources(self):
@@ -551,6 +586,13 @@ class Project:
         assert not os.path.exists(model_dir)
         os.makedirs(model_dir)
 
+        # Log experiment with neptune
+        if self.use_neptune:
+            neptune_logger = self.neptune_logger()
+            run = neptune_logger.run(model_name, self.name, eval_dts, tags='eval')
+            run['eval/labels'] = labels
+            run['eval/tfrecords'] = eval_dts.tfrecords()
+
         # Log model settings and hyperparameters
         outcome_labels = None if hp.model_type() != 'categorical' else dict(zip(range(len(unique_labels)), unique_labels))
 
@@ -580,7 +622,10 @@ class Project:
             'pretrain': None,
             'resume_training': None,
             'checkpoint': checkpoint,
-            'hp': hp.get_dict()
+            'hp': hp.get_dict(),
+            'max_tiles': max_tiles,
+            'min_tiles': min_tiles,
+            'neptune_run': (None if not self.use_neptune else run['sys/id'].fetch())
         }
         sf.util.write_json(hp_data, hp_file)
 
@@ -611,6 +656,11 @@ class Project:
                                    permutation_importance=permutation_importance,
                                    histogram=histogram,
                                    save_predictions=save_predictions)
+
+        if self.use_neptune:
+            neptune_logger.log(hp_data, 'eval')
+            run['eval/results'] = results
+
         return results
 
     def evaluate_clam(self, exp_name, pt_files, outcome_label_headers, tile_px, tile_um, k=0, eval_tag=None,
@@ -1578,6 +1628,9 @@ class Project:
         # Enable logging
         #log.logfile = join(self.root, 'log.log')
 
+    def neptune_logger(self):
+        return sf.util.neptune_utils.NeptuneLog(self.neptune_api, self.neptune_workspace)
+
     def predict_wsi(self, model, outdir, dataset=None, filters=None, filter_blank=None, stride_div=1,
                     enable_downsample=False, roi_method='inside', skip_missing_roi=False, source=None,
                     randomize_origin=False, buffer=None, **kwargs):
@@ -2036,6 +2089,17 @@ class Project:
                 assert not os.path.exists(model_dir)
                 os.makedirs(model_dir)
 
+                # Log experiment with neptune
+                if self.use_neptune:
+                    tags = ['train']
+                    if 'k-fold' in val_settings.strategy:
+                        tags += [f'k-fold{k}']
+                    neptune_logger = self.neptune_logger()
+                    run = neptune_logger.run(model_name, self.name, train_dts, tags=tags)
+                    run['data/labels'] = labels
+                    run['data/train_tfrecords'] = train_dts.tfrecords()
+                    run['data/val_tfrecords'] = val_dts.tfrecords()
+
                 # Log model settings and hyperparameters
                 hp_file = join(model_dir, 'hyperparameters.json')
                 hp_data = {
@@ -2044,6 +2108,8 @@ class Project:
                     'stage': 'training',
                     'tile_px': hp.tile_px,
                     'tile_um': hp.tile_um,
+                    'max_tiles': max_tiles,
+                    'min_tiles': min_tiles,
                     'model_type': hp.model_type(),
                     'outcome_label_headers': outcome_label_headers,
                     'input_features': input_header,
@@ -2062,8 +2128,13 @@ class Project:
                     'resume_training': resume_training,
                     'checkpoint': checkpoint,
                     'hp': hp.get_dict(),
+                    'neptune_run': (None if not self.use_neptune else run['sys/id'].fetch())
                 }
                 sf.util.write_json(hp_data, hp_file)
+
+                # Record hyperparameters to neptune
+                if self.use_neptune:
+                    neptune_logger.log(hp_data, 'train')
 
                 training_args = types.SimpleNamespace(
                     model_dir=model_dir,
@@ -2077,7 +2148,8 @@ class Project:
                     pretrain=pretrain,
                     resume_training=resume_training,
                     multi_gpu=multi_gpu,
-                    checkpoint=checkpoint
+                    checkpoint=checkpoint,
+                    neptune_run=(None if not self.use_neptune else run)
                 )
 
                 model_kwargs = {

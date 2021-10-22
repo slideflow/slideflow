@@ -594,12 +594,12 @@ class SlideMap:
             log.info(f"No UMAP cache found at {sf.util.green(self.cache)}")
         return False
 
-def _generate_tile_roc(i, y_true, y_pred, data_dir, label_start, histogram=False):
+def _generate_tile_roc(i, y_true, y_pred, data_dir, label_start, histogram=False, neptune_run=None):
     """Generates tile-level ROC. Defined as a separate function for use with multiprocessing."""
     try:
-        auc, ap, thresh = generate_roc(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_ROC{i}')
+        auc, ap, thresh = generate_roc(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_ROC{i}', neptune_run)
         if histogram:
-            save_histogram(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_histogram{i}')
+            save_histogram(y_true[:, i], y_pred[:, i], data_dir, f'{label_start}tile_histogram{i}', neptune_run)
     except IndexError:
         log.warning(f"Unable to generate tile-level stats for outcome {i}")
         return None, None, None
@@ -681,7 +681,12 @@ def _linear_metrics(args):
 
     # Main loop
     # Generate R-squared
-    args.r_squared['tile'] = generate_scatter(args.y_true, args.y_pred, args.data_dir, args.label_end, plot=args.plot)
+    args.r_squared['tile'] = generate_scatter(args.y_true,
+                                              args.y_pred,
+                                              args.data_dir,
+                                              args.label_end,
+                                              plot=args.plot,
+                                              neptune_run=args.neptune_run)
 
     # Generate and save slide-level averages of each outcome
     averages_by_slide = _get_average_by_group(args.y_pred,
@@ -698,7 +703,8 @@ def _linear_metrics(args):
     args.r_squared['slide'] = generate_scatter(y_true_by_slide,
                                                averages_by_slide,
                                                args.data_dir,
-                                               args.label_end+"_by_slide")
+                                               args.label_end+"_by_slide",
+                                               neptune_run=args.neptune_run)
     if not args.patient_error:
         # Generate and save patient-level averages of each outcome
         averages_by_patient = _get_average_by_group(args.y_pred,
@@ -716,7 +722,8 @@ def _linear_metrics(args):
         args.r_squared['patient'] = generate_scatter(y_true_by_patient,
                                                      averages_by_patient,
                                                      args.data_dir,
-                                                     args.label_end+"_by_patient")
+                                                     args.label_end+"_by_patient",
+                                                     neptune_run=args.neptune_run)
 
 def _categorical_metrics(args, outcome_name, starttime=None):
     """Internal function to calculate tile, slide, and patient level metrics for a categorical outcome."""
@@ -793,7 +800,8 @@ def _categorical_metrics(args, outcome_name, starttime=None):
             slide_y_true = np.array([args.y_true_slide[slide][i] for slide in args.unique_slides])
             roc_res = generate_roc(slide_y_true,
                                    slide_y_pred,
-                                   args.data_dir, f'{args.label_start}{outcome_name}_slide_ROC{i}')
+                                   args.data_dir, f'{args.label_start}{outcome_name}_slide_ROC{i}',
+                                   neptune_run=args.neptune_run)
             roc_auc, ap, thresh = roc_res
             args.auc['slide'][outcome_name] += [roc_auc]
             if args.verbose:
@@ -822,7 +830,8 @@ def _categorical_metrics(args, outcome_name, starttime=None):
                 roc_res = generate_roc(patient_y_true,
                                        patient_y_pred,
                                        args.data_dir,
-                                       f'{args.label_start}{outcome_name}_patient_ROC{i}')
+                                       f'{args.label_start}{outcome_name}_patient_ROC{i}',
+                                       neptune_run=args.neptune_run)
                 roc_auc, ap, thresh = roc_res
                 args.auc['patient'][outcome_name] += [roc_auc]
                 if args.verbose:
@@ -910,7 +919,7 @@ def gen_umap(array, dim=2, n_neighbors=50, min_dist=0.1, metric='cosine', low_me
 
     return normalize_layout(layout)
 
-def save_histogram(y_true, y_pred, outdir, name='histogram'):
+def save_histogram(y_true, y_pred, outdir, name='histogram', neptune_run=None):
     """Generates histogram of y_pred, labeled by y_true, saving to outdir."""
     #TODO: switch from distplot (deprecated) to displot or histplot (neither working during last test)
 
@@ -926,6 +935,8 @@ def save_histogram(y_true, y_pred, outdir, name='histogram'):
         log.warning("Unable to generate histogram, insufficient data")
     plt.legend()
     plt.savefig(os.path.join(outdir, f'{name}.png'))
+    if neptune_run:
+        neptune_run[f'results/graphs/{name}'].upload(os.path.join(outdir, f'{name}.png'))
 
 def to_onehot(val, num_cat):
     """Converts value to one-hot encoding
@@ -939,7 +950,7 @@ def to_onehot(val, num_cat):
     onehot[val] = 1
     return onehot
 
-def generate_roc(y_true, y_pred, save_dir=None, name='ROC'):
+def generate_roc(y_true, y_pred, save_dir=None, name='ROC', neptune_run=None):
     """Generates and saves an ROC with a given set of y_true, y_pred values."""
     # ROC
     fpr, tpr, threshold = metrics.roc_curve(y_true, y_pred)
@@ -1002,9 +1013,14 @@ def generate_roc(y_true, y_pred, save_dir=None, name='ROC'):
         plt.ylabel('Recall')
         plt.xlabel('Precision')
         plt.savefig(os.path.join(save_dir, f'{name}-PRC.png'))
+
+        if neptune_run:
+            neptune_run[f'results/graphs/{name}'].upload(os.path.join(save_dir, f'{name}.png'))
+            neptune_run[f'results/graphs/{name}-PRC'].upload(os.path.join(save_dir, f'{name}-PRC.png'))
+
     return roc_auc, average_precision, optimal_threshold
 
-def generate_combined_roc(y_true, y_pred, save_dir, labels, name='ROC'):
+def generate_combined_roc(y_true, y_pred, save_dir, labels, name='ROC', neptune_run=None):
     """Generates and saves overlapping ROCs with a given combination of y_true and y_pred."""
     # Plot
     plt.clf()
@@ -1027,6 +1043,10 @@ def generate_combined_roc(y_true, y_pred, save_dir, labels, name='ROC'):
     plt.xlabel('FPR')
 
     plt.savefig(os.path.join(save_dir, f'{name}.png'))
+
+    if neptune_run:
+        neptune_run[f'results/graphs/{name}'].upload(os.path.join(save_dir, f'{name}.png'))
+
     return rocs
 
 def read_predictions(predictions_file, level):
@@ -1050,7 +1070,7 @@ def read_predictions(predictions_file, level):
                 predictions[label]['y_pred'] += [float(row[ypi])]
     return predictions
 
-def generate_scatter(y_true, y_pred, data_dir, name='_plot', plot=True):
+def generate_scatter(y_true, y_pred, data_dir, name='_plot', plot=True, neptune_run=None):
     '''Generate and save scatter plots and calculate R2 statistic for each outcome variable.
         y_true and y_pred are both 2D arrays; the first dimension is each observation,
         the second dimension is each outcome variable.'''
@@ -1078,6 +1098,9 @@ def generate_scatter(y_true, y_pred, data_dir, name='_plot', plot=True):
             p.set_axis_labels('y_true', 'y_pred')
             plt.savefig(os.path.join(data_dir, f'Scatter{name}-{i}.png'))
 
+            if neptune_run:
+                neptune_run[f'results/graphs/Scatter{name}-{i}'].upload(os.path.join(data_dir, f'Scatter{name}-{i}.png'))
+
     return r_squared
 
 def basic_metrics(y_true, y_pred):
@@ -1102,17 +1125,15 @@ def basic_metrics(y_true, y_pred):
         elif yt == 0 and yp == 0:
             TN += 1
 
-    accuracy = (TP + TN) / (TP + TN + FP + FN)
-    sensitivity = TP / (TP + FN)
-    specificity = TN / (TN + FP)
-
-    # Additional metrics with sklearn
-    precision = metrics.precision_score(y_true, y_pred)
-    recall = metrics.recall_score(y_true, y_pred)
-    f1_score = metrics.f1_score(y_true, y_pred)
-    kappa = metrics.cohen_kappa_score(y_true, y_pred)
-
-    return accuracy, sensitivity, specificity, precision, recall, f1_score, kappa
+    metrics = {}
+    metrics['accuracy'] = (TP + TN) / (TP + TN + FP + FN)
+    metrics['sensitivity'] = TP / (TP + FN)
+    metrics['specificity'] = TN / (TN + FP)
+    metrics['precision'] = metrics.precision_score(y_true, y_pred)
+    metrics['recall'] = metrics.recall_score(y_true, y_pred)
+    metrics['f1_score'] = metrics.f1_score(y_true, y_pred)
+    metrics['kappa'] = metrics.cohen_kappa_score(y_true, y_pred)
+    return metrics
 
 def concordance_index(y_true, y_pred):
     '''Calculates concordance index from a given y_true and y_pred.'''
@@ -1181,7 +1202,8 @@ def save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end,
     log.info(f"Predictions saved to {sf.util.green(data_dir)}")
 
 def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, model_type, outcome_names=None,
-                             label=None, data_dir=None, verbose=True, save_predictions=True, histogram=False, plot=True):
+                             label=None, data_dir=None, verbose=True, save_predictions=True, histogram=False, plot=True,
+                             neptune_run=None):
 
     """Generates metrics from a set of predictions.
 
@@ -1205,6 +1227,7 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
         histogram (bool, optional): Write histograms to data_dir. Defaults to False.
             Takes a substantial amount of time for large datasets, potentially hours.
         plot (bool, optional): Save scatterplot for linear outcomes. Defaults to True.
+        neptune_run (:class:`neptune.Run`, optional): Neptune run in which to log results. Defaults to None.
     """
 
     start = time.time()
@@ -1253,6 +1276,7 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
         plot = plot,
         histogram = histogram,
         verbose = verbose,
+        neptune_run = neptune_run
     )
 
     if model_type == 'categorical':
@@ -1475,8 +1499,8 @@ def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_l
     y_pred = new_model.predict(layer_input)
     return y_pred
 
-def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_names=None, label=None,
-                         data_dir=None, num_tiles=0, histogram=False, verbose=True, save_predictions=True):
+def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_names=None, label=None, data_dir=None,
+                         num_tiles=0, histogram=False, verbose=True, save_predictions=True, neptune_run=None):
 
     """Evaluate performance of a given model on a given TFRecord dataset,
     generating a variety of statistical outcomes and graphs.
@@ -1496,6 +1520,7 @@ def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_n
         verbose (bool, optional): Include verbose output. Defaults to True.
         save_predictions (bool, optional): Save tile, slide, and patient-level predictions to CSV. Defaults to True.
             May take a substantial amount of time for very large datasets.
+        neptune_run (:class:`neptune.Run`, optional): Neptune run in which to log results. Defaults to None.
 
     Returns:
         auc, r_squared, c_index
@@ -1519,14 +1544,15 @@ def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_n
                                        verbose=verbose,
                                        save_predictions=save_predictions,
                                        histogram=histogram,
-                                       plot=True)
+                                       plot=True,
+                                       neptune_run=neptune_run)
     after_metrics = time.time()
     log.debug(f'Validation metrics generated, time: {after_metrics-before_metrics:.2f} s')
     return metrics
 
 def permutation_feature_importance(model, dataset, labels, patients, model_type, data_dir, outcome_names=None,
                                    label=None, num_tiles=0, feature_names=None, feature_sizes=None,
-                                   drop_images=False):
+                                   drop_images=False, neptune_run=None):
 
     """Calculate metrics (tile, slide, and patient AUC) from a given model that accepts clinical, slide-level feature
         inputs, and permute to find relative feature performance.
@@ -1545,6 +1571,7 @@ def permutation_feature_importance(model, dataset, labels, patients, model_type,
         feature_names (list, optional): List of str, names for each of the clinical input features.
         feature_sizes (list, optional): List of int, sizes for each of the clinical input features.
         drop_images (bool, optional): Exclude images (predict from clinical features alone). Defaults to False.
+        neptune_run (:class:`neptune.Run`, optional): Neptune run in which to log results. Defaults to None.
 
     Returns:
         Dictiory of AUCs with keys 'tile', 'slide', and 'patient'
@@ -1631,7 +1658,8 @@ def permutation_feature_importance(model, dataset, labels, patients, model_type,
                                                                       data_dir=data_dir,
                                                                       verbose=True,
                                                                       histogram=False,
-                                                                      plot=False)
+                                                                      plot=False,
+                                                                      neptune_run=neptune_run)
     base_auc_list = np.array([base_auc['tile'], base_auc['slide'], base_auc['patient']])
     base_r_squared_list = np.array([base_r_squared['tile'], base_r_squared['slide'], base_r_squared['patient']])
     base_c_index_list = np.array([base_c_index['tile'], base_c_index['slide'], base_c_index['patient']])
@@ -1677,7 +1705,8 @@ def permutation_feature_importance(model, dataset, labels, patients, model_type,
                                                 data_dir=data_dir,
                                                 verbose=False,
                                                 histogram=False,
-                                                plot=False)
+                                                plot=False,
+                                                neptune_run=neptune_run)
 
         if model_type == 'categorical':
             metrics[feature] = base_auc_list - np.array([new_auc['tile'], new_auc['slide'], new_auc['patient']])

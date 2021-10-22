@@ -221,10 +221,7 @@ class ModelParams(_base.ModelParams):
             log.info(f'Loading checkpoint weights from {sf.util.green(checkpoint)}')
             model.load_weights(checkpoint)
 
-        # Print model summary
-        if log.getEffectiveLevel() <= 20:
-            print()
-            model.summary()
+        self.log_summary(model)
 
         return model
 
@@ -295,10 +292,7 @@ class ModelParams(_base.ModelParams):
             log.info(f'Loading checkpoint weights from {sf.util.green(checkpoint)}')
             model.load_weights(checkpoint)
 
-        # Print model summary
-        if log.getEffectiveLevel() <= 20:
-            print()
-            model.summary()
+        self.log_summary(model)
 
         return model
 
@@ -372,6 +366,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.epoch_count = cb_args.starting_epoch
         self.model_type = self.hp.model_type()
         self.results = {'epochs': {}}
+        self.neptune_run = self.parent.neptune_run
 
     def on_epoch_end(self, epoch, logs={}):
         if log.getEffectiveLevel() <= 20: print('\r\033[K', end='')
@@ -420,6 +415,15 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             if log.getEffectiveLevel() <= 20: print('\r\033[K', end='')
             self.moving_average += [early_stop_value]
 
+            # Log to neptune
+            if self.neptune_run:
+                self.neptune_run["metrics/batch/batch"].log(batch)
+                self.neptune_run["metrics/batch/epoch"].log(self.epoch_count)
+                self.neptune_run["metrics/batch/val_loss"].log(round(val_loss, 3))
+                self.neptune_run["metrics/batch/val_acc"].log(round(val_acc, 3))
+                self.neptune_run["metrics/batch/exp_moving_average"].log(round(self.last_ema, 3))
+                self.neptune_run["early_stop/stopped_early"] = False
+
             # Base logging message
             batch_msg = sf.util.blue(f'Batch {batch:<5}')
             loss_msg = f"{sf.util.green('loss')}: {logs['loss']:.3f}"
@@ -464,12 +468,22 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                         log.info(f'Early stop triggered: epoch {self.epoch_count+1}, batch {batch}')
                         self.model.stop_training = True
                         self.early_stop = True
+
+                        # Log early stop to neptune
+                        if self.neptune_run:
+                            self.neptune_run["early_stop/early_stop_epoch"] = self.epoch_count
+                            self.neptune_run["early_stop/early_stop_batch"] = batch
+                            self.neptune_run["early_stop/method"] = hp.early_stop_method
+                            self.neptune_run["early_stop/stopped_early"] = self.early_stop
+                            self.neptune_run["sys/tags"].add("early_stopped")
                     else:
                         self.ema_two_checks_prior = self.ema_one_check_prior
                         self.ema_one_check_prior = self.last_ema
 
     def on_train_end(self, logs={}):
         if log.getEffectiveLevel() <= 20: print('\r\033[K')
+        if self.neptune_run:
+            self.neptune_run['sys/tags'].add('training_complete')
 
     def evaluate_model(self, logs={}):
         epoch = self.epoch_count
@@ -517,7 +531,8 @@ class Trainer(_base.Trainer):
     _model_type = 'categorical'
 
     def __init__(self, hp, outdir, labels, patients, slide_input=None, name=None, manifest=None, feature_sizes=None,
-                 feature_names=None, normalizer=None, normalizer_source=None, outcome_names=None, mixed_precision=True):
+                 feature_names=None, normalizer=None, normalizer_source=None, outcome_names=None, mixed_precision=True,
+                 neptune_run=None):
 
         """Sets base configuration, preparing model inputs and outputs.
 
@@ -540,6 +555,7 @@ class Trainer(_base.Trainer):
                 Internal default tile can be found at slideflow.util.norm_tile.jpg
             outcome_names (list, optional): Name of each outcome. Defaults to "Outcome {X}" for each outcome.
             mixed_precision (bool, optional): Use FP16 mixed precision (rather than FP32). Defaults to True.
+            neptune_run (:class:`neptune.Run`, optional): Neptune run in which to log results. Defaults to None.
         """
 
         self.outdir = outdir
@@ -555,6 +571,8 @@ class Trainer(_base.Trainer):
         self.outcome_names = outcome_names
         self.mixed_precision = mixed_precision
         self.name = name
+        self.neptune_run = neptune_run
+
         if patients:
             self.patients = patients
         else:
@@ -672,6 +690,7 @@ class Trainer(_base.Trainer):
             patients=self.patients,
             outcome_names=self.outcome_names,
             data_dir=self.outdir,
+            neptune_run=self.neptune_run,
             **kwargs
         )
         return vars(args)
@@ -850,7 +869,7 @@ class Trainer(_base.Trainer):
                 validation_data_with_slidenames=val_data_w_slidenames,
                 num_val_tiles=val_dts.num_tiles,
                 save_predictions=save_predictions,
-                results_log=results_log
+                results_log=results_log,
             )
 
             # Create callbacks for early stopping, checkpoint saving, summaries, and history
@@ -868,6 +887,10 @@ class Trainer(_base.Trainer):
             callbacks = [history_callback, evaluation_callback, cp_callback]
             if use_tensorboard:
                 callbacks += [tensorboard_callback]
+            if self.neptune_run:
+                from neptune.new.integrations.tensorflow_keras import NeptuneCallback
+                neptune_cb = NeptuneCallback(run=self.neptune_run, base_namespace='metrics')
+                callbacks += [neptune_cb]
 
             # Retrain top layer only, if using transfer learning and not resuming training
             if self.hp.toplayer_epochs:

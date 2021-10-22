@@ -150,6 +150,7 @@ class Dataset:
         self.tile_px = tile_px
         self.tile_um = tile_um
         self.annotations = []
+        self.annotations_file = None
         self._filters = filters if filters else {}
         self._filter_blank = filter_blank if filter_blank else []
         self._filter_blank = [self.filter_blank] if not isinstance(self._filter_blank, list) else self._filter_blank
@@ -238,6 +239,7 @@ class Dataset:
             self.update_annotations_with_slidenames(annotations_file)
             header, current_annotations = sf.util.read_annotations(annotations_file)
         self.annotations = current_annotations
+        self.annotations_file = annotations_file
 
     def balance(self, headers=None, strategy='category', force=False):
         """Returns a dataset with prob_weights reflecting balancing per tile, slide, patient, or category.

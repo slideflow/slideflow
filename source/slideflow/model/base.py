@@ -200,3 +200,15 @@ class Trainer:
                             slide = tfrecord.split('/')[-1][:-10]
                             outcome_label = self.labels[slide]
                             writer.writerow([slide, 'validation', outcome_label])
+
+    def log_summary(self, model):
+        # Print to terminal
+        if log.getEffectiveLevel() <= 20:
+            print()
+            model.summary()
+
+        # Log to neptune
+        if self.neptune_run:
+            summary_string = []
+            model.summary(print_fn=lambda x: summary_string.append(x))
+            self.neptune_run['model_info/summary'] = "\n".join(summary_string)
