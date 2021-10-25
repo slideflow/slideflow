@@ -1560,7 +1560,7 @@ class Dataset:
 
         return training_dts, val_dts
 
-    def torch(self, labels, batch_size, rebuild_index=True, **kwargs):
+    def torch(self, labels, batch_size, rebuild_index=False, **kwargs):
         """Returns a PyTorch DataLoader object that interleaves tfrecords from this dataset.
 
         The returned data loader returns a batch of (image, label) for each tile.

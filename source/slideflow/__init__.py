@@ -19,10 +19,10 @@ def set_backend(backend):
     the environmental variable SF_BACKEND
 
     Args:
-        backend (str): Either 'tensorflow' or 'pytorch'.
+        backend (str): Either 'tensorflow' or 'torch'.
     """
 
-    if backend not in ('tensorflow', 'pytorch'):
+    if backend not in ('tensorflow', 'torch'):
         raise ValueError(f'Unknown backend {backend}')
     os.environ['SF_BACKEND'] = backend
 
@@ -45,11 +45,12 @@ def set_backend(backend):
 #       - Tutorial 7: Clinical models, CPH outcome, permutation feature importance
 #       - Tutorial 8: Hyperparameter sweeps
 #       - Tutorial 9: Class-conditional GAN with StyleGAN2
-#TODO: benchmark tile extraction against other methods
-#TODO: choose a journal
 #TODO: implement clipping for tfrecord interleaving in pytorch
 #TODO: label_parser in dataset.tfrecords()
-#TODO: multiprocessing build_index()
+#TODO: consistent model name strings in tensorflow and pytorch versions
+#TODO: fix pytorch validate_on_batch (should skip if == 0, and should use val_steps not the whole dataset)
+#TODO: easier validation plan sharing
+#TODO: more clear logging information regarding validation plans
 
 # Future updates
 # ===============
