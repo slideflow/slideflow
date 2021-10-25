@@ -17,6 +17,7 @@ from tqdm import tqdm
 
 import slideflow as sf
 import slideflow.io
+import slideflow.util.neptune_utils
 
 from slideflow import project_utils
 from slideflow.dataset import Dataset
@@ -77,7 +78,6 @@ class Project:
 
         self.default_threads = default_threads
         self.root = project_folder
-        self.use_neptune = use_neptune
 
         if exists(join(project_folder, 'settings.json')) and project_kwargs:
             raise sf.util.UserError(f"Project already exists at {project_folder}. " + \
@@ -110,11 +110,14 @@ class Project:
         fh.setLevel(logging.DEBUG)
         logger.addHandler(fh)
 
+        # Neptune
+        self.use_neptune = use_neptune
+
         if gpu is not None:
             self.select_gpu(gpu)
 
     @classmethod
-    def from_prompt(cls, project_folder, gpu=None, default_threads=4):
+    def from_prompt(cls, project_folder, **kwargs):
         """Initializes project by creating project folder, prompting user for project settings, and
         saves settings to "settings.json" within the project directory.
 
@@ -127,7 +130,7 @@ class Project:
         if not exists(join(project_folder, 'settings.json')):
             log.info(f'Project at "{project_folder}" does not exist; will set up new project.')
             project_utils.interactive_project_setup(project_folder)
-        obj = cls(project_folder, gpu=gpu, default_threads=default_threads)
+        obj = cls(project_folder, **kwargs)
         return obj
 
     @property
@@ -224,7 +227,7 @@ class Project:
         else:
             return None
 
-    @name.setter
+    @neptune_workspace.setter
     def neptune_workspace(self, name):
         """Neptune workspace name."""
 
@@ -241,13 +244,21 @@ class Project:
         else:
             return None
 
-    @name.setter
+    @neptune_api.setter
     def neptune_api(self, api_token):
         """Neptune API token."""
 
         if not isinstance(api_token, str):
             raise sf.util.UserError('API token must be a string.')
         self._settings['neptune_api'] = api_token
+
+    @property
+    def use_neptune(self):
+        return (self.neptune_api is not None and self.neptune_workspace is not None and self._use_neptune)
+
+    @use_neptune.setter
+    def use_neptune(self, b):
+        self._use_neptune = b
 
     @property
     def sources(self):
