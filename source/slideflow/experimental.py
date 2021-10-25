@@ -247,8 +247,8 @@ def visualize_tiles(model, node, tfrecord_dict=None, directory=None, mask_width=
         '''
         from slideflow.activations import TileVisualizer
 
-        hp_data = sf.util.get_model_params(model)
-        tile_px = hp_data['hp']['tile_px']
+        config = sf.util.get_model_config(model)
+        tile_px = config['hp']['tile_px']
         TV = TileVisualizer(model=model,
                             node=node,
                             tile_px=tile_px,

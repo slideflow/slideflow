@@ -78,7 +78,7 @@ class ActivationsInterface:
         if layers and not isinstance(layers, list): layers = [layers]
         self.path = path
         try:
-            self.hp = sf.util.get_model_params(path)
+            self.hp = sf.util.get_model_config(path)
         except:
             self.hp = None
         self.num_logits = 0
@@ -251,7 +251,7 @@ class ActivationsVisualizer:
         self.dataset = dataset
         self.tfrecords = np.array(dataset.tfrecords())
         self.slides = sorted([sf.util.path_to_name(tfr) for tfr in self.tfrecords])
-        self.tile_px = sf.util.get_model_params(model)['tile_px']
+        self.tile_px = sf.util.get_model_config(model)['tile_px']
 
         if annotations:
             self.categories = list(set(self.annotations.values()))
@@ -803,7 +803,7 @@ class Heatmap:
             roi_method = 'ignore'
 
         interface = ActivationsInterface(model, layers=None, include_logits=True)
-        model_hyperparameters = sf.util.get_model_params(model)
+        model_hyperparameters = sf.util.get_model_config(model)
         self.tile_px = model_hyperparameters['tile_px']
         self.tile_um = model_hyperparameters['tile_um']
         self.num_classes = interface.num_logits

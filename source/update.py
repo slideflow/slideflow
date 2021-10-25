@@ -16,7 +16,7 @@ def update_project_models(project_folder):
         model_folders = [mf for mf in os.listdir(join(project_folder, 'models')) if isdir(join(project_folder, 'models', mf))]
         for model_folder in model_folders:
             full_model_folder = join(project_folder, 'models', model_folder)
-            hyperparameters = sf.util.get_model_params(full_model_folder)
+            hyperparameters = sf.util.get_model_config(full_model_folder)
             if hyperparameters is None:
                 print(f"Unable to find hyperparameters file for model {folder} > {model_folder}, skipping")
                 continue

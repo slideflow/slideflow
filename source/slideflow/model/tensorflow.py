@@ -17,6 +17,7 @@ import slideflow as sf
 import slideflow.io.tensorflow
 import slideflow.statistics
 import slideflow.model.base as _base
+import slideflow.util.neptune_utils
 
 from slideflow.util import log
 from slideflow.model.utils import *
@@ -528,7 +529,7 @@ class Trainer(_base.Trainer):
 
     def __init__(self, hp, outdir, labels, patients, slide_input=None, name=None, manifest=None, feature_sizes=None,
                  feature_names=None, normalizer=None, normalizer_source=None, outcome_names=None, mixed_precision=True,
-                 neptune_run=None):
+                 config=None, neptune_api=None, neptune_workspace=None):
 
         """Sets base configuration, preparing model inputs and outputs.
 
@@ -551,7 +552,9 @@ class Trainer(_base.Trainer):
                 Internal default tile can be found at slideflow.util.norm_tile.jpg
             outcome_names (list, optional): Name of each outcome. Defaults to "Outcome {X}" for each outcome.
             mixed_precision (bool, optional): Use FP16 mixed precision (rather than FP32). Defaults to True.
-            neptune_run (:class:`neptune.Run`, optional): Neptune run in which to log results. Defaults to None.
+            config (dict, optional): Training configuration dictionary, used for logging. Defaults to None.
+            neptune_api (str, optional): Neptune API token, used for logging. Defaults to None.
+            neptune_workspace (str, optional): Neptune workspace, used for logging. Defaults to None.
         """
 
         self.outdir = outdir
@@ -567,7 +570,8 @@ class Trainer(_base.Trainer):
         self.outcome_names = outcome_names
         self.mixed_precision = mixed_precision
         self.name = name
-        self.neptune_run = neptune_run
+        self.config = config
+        self.neptune_run = None
 
         if patients:
             self.patients = patients
@@ -607,6 +611,11 @@ class Trainer(_base.Trainer):
                 self.annotations_tables += [tf.lookup.StaticHashTable(
                     tf.lookup.KeyValueTensorInitializer(self.slides, outcome_labels[:,oi]), -1
                 )]
+
+        # Initialize Neptune
+        self.use_neptune = (neptune_api and neptune_workspace)
+        if self.use_neptune:
+            self.neptune_logger = sf.util.neptune_utils.NeptuneLog(neptune_api, neptune_workspace)
 
     def _setup_inputs(self):
         # Setup slide-level input
@@ -793,6 +802,17 @@ class Trainer(_base.Trainer):
             raise ModelError(f"Incomptable model types: {self.hp.model_type()} (hp) and {self._model_type} (model)")
         tf.keras.backend.clear_session() # Clear prior Tensorflow graph to free memory
 
+        # Neptune logging
+        if self.use_neptune:
+            tags = ['train']
+            if 'k-fold' in self.config['validation_strategy']:
+                tags += [f'k-fold{self.config["k_fold_i"]}']
+            self.neptune_run = self.neptune_logger.start_run(self.name, self.config['project'], train_dts, tags=tags)
+            self.neptune_logger.log_config(self.config, 'train')
+            self.neptune_run['data/labels'] = self.labels
+            self.neptune_run['data/train_tfrecords'] = train_dts.tfrecords()
+            self.neptune_run['data/val_tfrecords'] = val_dts.tfrecords()
+
         if multi_gpu:
             strategy = tf.distribute.MirroredStrategy()
             log.info(f'Multi-GPU training with {strategy.num_replicas_in_sync} devices')
@@ -912,6 +932,10 @@ class Trainer(_base.Trainer):
                 print()
                 print(e)
                 log.error(f"Training failed for {sf.util.bold(self.name)}, GPU memory exceeded.")
+
+            if self.use_neptune:
+                self.neptune_run['results/logged_epochs'] = [int(e[5:] for e in results['epochs'] if e[:5] == 'epoch')]
+                self.neptune_run['results/epochs'] = results['epochs']
 
             return evaluation_callback.results
 

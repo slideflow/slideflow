@@ -411,7 +411,7 @@ class Project:
                 writer.writerow(row)
         log.info(f'Wrote {len(sweep)} combinations for sweep to {sf.util.green(filename)}')
 
-    def evaluate(self, model, outcome_label_headers, dataset=None, filters=None, checkpoint=None, hyperparameters=None,
+    def evaluate(self, model, outcome_label_headers, dataset=None, filters=None, checkpoint=None, model_config=None,
                  eval_k_fold=None, max_tiles=0, min_tiles=0, normalizer=None, normalizer_source=None, batch_size=64,
                  input_header=None, permutation_importance=False, histogram=False, save_predictions=False):
 
@@ -426,7 +426,7 @@ class Project:
             filters (dict, optional): Filters dict to use when selecting tfrecords. Defaults to None.
                 See :meth:`get_dataset` documentation for more information on filtering.
             checkpoint (str, optional): Path to cp.ckpt file, if evaluating a saved checkpoint. Defaults to None.
-            hyperparameters (str, optional): Path to model's hyperparameters.json file. Defaults to None.
+            model_config (str, optional): Path to model's config.json file. Defaults to None.
                 If None (default), searches in the model directory.
             eval_k_fold (int, optional): K-fold iteration number to evaluate. Defaults to None.
                 If None, will evaluate all tfrecords irrespective of K-fold.
@@ -464,14 +464,14 @@ class Project:
         log.setLevel(self.verbosity)
 
         # Load hyperparameters from saved model
-        if hyperparameters:
-            hp_data = sf.util.load_json(hyperparameters)
+        if model_config:
+            config = sf.util.load_json(model_config)
         else:
-            hp_data = sf.util.get_model_params(model)
-            if not hp_data:
-                raise OSError(f"Unable to find mode parameters file for model {model}.")
+            config = sf.util.get_model_config(model)
+            if not config:
+                raise OSError(f"Unable to find configuration file for model {model}.")
         hp = sf.model.ModelParams()
-        hp.load_dict(hp_data['hp'])
+        hp.load_dict(config['hp'])
         model_name = f"eval-{basename(model)}"
 
         # Filter out slides that are blank in the outcome label, or blank in any of the input_header categories
@@ -495,12 +495,12 @@ class Project:
 
         # Set up outcome labels
         if hp.model_type() == 'categorical':
-            if len(outcome_label_headers) == 1 and outcome_label_headers[0] not in hp_data['outcome_labels']:
-                outcome_label_to_int = {outcome_label_headers[0]: {v: int(k) for k, v in hp_data['outcome_labels'].items()}}
+            if len(outcome_label_headers) == 1 and outcome_label_headers[0] not in config['outcome_labels']:
+                outcome_label_to_int = {outcome_label_headers[0]: {v: int(k) for k, v in config['outcome_labels'].items()}}
             else:
                 outcome_label_to_int = {o:
-                                            { v: int(k) for k, v in hp_data['outcome_labels'][o].items() }
-                                        for o in hp_data['outcome_labels']}
+                                            { v: int(k) for k, v in config['outcome_labels'][o].items() }
+                                        for o in config['outcome_labels']}
         else:
             outcome_label_to_int = None
 
@@ -522,10 +522,10 @@ class Project:
             validation_log = join(self.root, 'validation_plans.json')
             _, eval_dts = dataset.training_validation_split(hp.model_type(),
                                                             labels_for_split,
-                                                            val_strategy=hp_data['validation_strategy'],
+                                                            val_strategy=config['validation_strategy'],
                                                             validation_log=validation_log,
-                                                            val_fraction=hp_data['validation_fraction'],
-                                                            val_k_fold=hp_data['validation_k_fold'],
+                                                            val_fraction=config['validation_fraction'],
+                                                            val_k_fold=config['validation_k_fold'],
                                                             k_fold_iter=eval_k_fold)
         # Otherwise use all TFRecords
         else:
@@ -562,12 +562,12 @@ class Project:
                     feature_len_dict[input_var] = 1
                 else:
                     # Read categorical variable assignments from hyperparameter file
-                    input_label_to_int = {v: int(k) for k, v in hp_data['input_feature_labels'][input_var].items()}
+                    input_label_to_int = {v: int(k) for k, v in config['input_feature_labels'][input_var].items()}
                     input_labels, _ = dataset.labels(input_var,
                                                      use_float=is_float,
                                                      assigned_labels=input_label_to_int)
                     feature_len_dict[input_var] = len(input_label_to_int)
-                    input_labels_dict[input_var] = hp_data['input_feature_labels'][input_var]
+                    input_labels_dict[input_var] = config['input_feature_labels'][input_var]
 
                     for slide in labels:
                         model_inputs[slide] += to_onehot(input_labels[slide], feature_len_dict[input_var])
@@ -578,13 +578,13 @@ class Project:
             input_labels_dict = None
             feature_sizes = None
 
-        if feature_sizes and (sum(feature_sizes) != sum(hp_data['input_feature_sizes'])):
+        if feature_sizes and (sum(feature_sizes) != sum(config['input_feature_sizes'])):
             #TODO: consider using training matrix
             raise Exception(f'Patient-level feature matrix (size {sum(feature_sizes)}) not equal to what was used ' + \
-                            f'for model training (size {sum(hp_data["input_feature_sizes"])}).')
-            #feature_sizes = hp_data['feature_sizes']
-            #feature_names = hp_data['feature_names']
-            #num_slide_features = sum(hp_data['feature_sizes'])
+                            f'for model training (size {sum(config["input_feature_sizes"])}).')
+            #feature_sizes = config['feature_sizes']
+            #feature_names = config['feature_names']
+            #num_slide_features = sum(config['feature_sizes'])
 
         # Set up model for evaluation
         # Using the project annotation file, assemble list of slides for training,
@@ -600,7 +600,7 @@ class Project:
         # Log experiment with neptune
         if self.use_neptune:
             neptune_logger = self.neptune_logger()
-            run = neptune_logger.run(model_name, self.name, eval_dts, tags='eval')
+            run = neptune_logger.start_run(model_name, self.name, eval_dts, tags='eval')
             run['eval/labels'] = labels
             run['eval/tfrecords'] = eval_dts.tfrecords()
 
@@ -609,8 +609,9 @@ class Project:
 
         hp_file = join(model_dir, 'hyperparameters.json')
 
-        hp_data = {
+        config = {
             'slideflow_version': sf.__version__,
+            'project': self.name,
             'model_name': model_name,
             'model_path': model,
             'stage': 'evaluation',
@@ -625,9 +626,9 @@ class Project:
             'dataset_config': self.dataset_config,
             'sources': self.sources,
             'annotations': self.annotations,
-            'validation_strategy': hp_data['validation_strategy'],
-            'validation_fraction': hp_data['validation_fraction'],
-            'validation_k_fold': hp_data['validation_k_fold'],
+            'validation_strategy': config['validation_strategy'],
+            'validation_fraction': config['validation_fraction'],
+            'validation_k_fold': config['validation_k_fold'],
             'k_fold_i': eval_k_fold,
             'filters': filters,
             'pretrain': None,
@@ -638,7 +639,7 @@ class Project:
             'min_tiles': min_tiles,
             'neptune_run': (None if not self.use_neptune else run['sys/id'].fetch())
         }
-        sf.util.write_json(hp_data, hp_file)
+        sf.util.write_json(config, hp_file)
 
         # Perform evaluation
         log.info(f'Evaluating {sf.util.bold(len(eval_dts.tfrecords()))} tfrecords')
@@ -669,7 +670,7 @@ class Project:
                                    save_predictions=save_predictions)
 
         if self.use_neptune:
-            neptune_logger.log(hp_data, 'eval')
+            neptune_logger.log_config(config, 'eval')
             run['eval/results'] = results
 
         return results
@@ -905,18 +906,18 @@ class Project:
         if not exists(stats_root): os.makedirs(stats_root)
 
         # Load dataset for evaluation
-        hp_data = sf.util.get_model_params(model)
+        config = sf.util.get_model_config(model)
         if dataset is None:
-            tile_px = hp_data['hp']['tile_px']
-            tile_um = hp_data['hp']['tile_um']
+            tile_px = config['hp']['tile_px']
+            tile_um = config['hp']['tile_um']
             dataset = self.get_dataset(tile_px=tile_px,
                                        tile_um=tile_um,
                                        filters=filters,
                                        filter_blank=filter_blank)
         else:
-            if hp_data and (dataset.tile_px != hp_data['hp']['tile_px'] or dataset.tile_um != hp_data['hp']['tile_um']):
+            if config and (dataset.tile_px != config['hp']['tile_px'] or dataset.tile_um != config['hp']['tile_um']):
                 raise ValueError(f"Dataset tile size ({dataset.tile_px}px, {dataset.tile_um}um) does not match " + \
-                                 f"model ({hp_data['hp']['tile_px']}px, {hp_data['hp']['tile_um']}um)")
+                                 f"model ({config['hp']['tile_px']}px, {config['hp']['tile_um']}um)")
             if filters is not None or filter_blank is not None:
                 log.warning("Dataset supplied; ignoring provided filters and filter_blank")
             tile_px = dataset.tile_px
@@ -965,16 +966,16 @@ class Project:
         assert min_tiles >= 8, 'Slides must have at least 8 tiles to train CLAM.'
 
         # First, ensure the model is valid with a hyperparameters file
-        hp_data = sf.util.get_model_params(model)
-        if not hp_data:
+        config = sf.util.get_model_config(model)
+        if not config:
             raise Exception('Unable to find model hyperparameters file.')
-        tile_px = hp_data['tile_px']
-        tile_um = hp_data['tile_um']
+        tile_px = config['tile_px']
+        tile_um = config['tile_um']
 
         # Set up the pt_files directory for storing model activations
         if outdir.lower() == 'auto':
-            model_name_end = '' if 'k_fold_i' not in hp_data else f"_kfold{hp_data['k_fold_i']}"
-            outdir = join(self.root, 'pt_files', hp_data['model_name']+model_name_end)
+            model_name_end = '' if 'k_fold_i' not in config else f"_kfold{config['k_fold_i']}"
+            outdir = join(self.root, 'pt_files', config['model_name']+model_name_end)
         if not exists(outdir):
             os.makedirs(outdir)
 
@@ -1067,11 +1068,11 @@ class Project:
         del heatmap_args.self
 
         # Prepare dataset1
-        hp_data = sf.util.get_model_params(model)
+        config = sf.util.get_model_config(model)
         heatmaps_dataset = self.get_dataset(filters=filters,
                                             filter_blank=filter_blank,
-                                            tile_px=hp_data['hp']['tile_px'],
-                                            tile_um=hp_data['hp']['tile_um'])
+                                            tile_px=config['hp']['tile_px'],
+                                            tile_um=config['hp']['tile_um'])
         slide_list = heatmaps_dataset.slide_paths()
         roi_list = heatmaps_dataset.rois()
         heatmap_args.roi_list = roi_list
@@ -1086,11 +1087,11 @@ class Project:
         heatmap_args.stride_div = stride_div
 
         # Attempt to auto-detect supplied model name
-        hp_data = sf.util.get_model_params(model)
+        config = sf.util.get_model_config(model)
         detected_model_name = os.path.basename(model)
-        hp_data = sf.util.get_model_params(model)
-        if hp_data and 'model_name' in hp_data:
-            detected_model_name = hp_data['model_name']
+        config = sf.util.get_model_config(model)
+        if config and 'model_name' in config:
+            detected_model_name = config['model_name']
 
         # Make output directory
         outdir = outdir if outdir else os.path.join(self.root, 'heatmaps', detected_model_name)
@@ -1176,17 +1177,17 @@ class Project:
         if not exists(mosaic_root): os.makedirs(mosaic_root)
 
         # Prepare dataset & model
-        hp_data = sf.util.get_model_params(AV.model)
+        config = sf.util.get_model_config(AV.model)
         if dataset is None:
-            tile_px, tile_um = hp_data['hp']['tile_px'], hp_data['hp']['tile_um']
+            tile_px, tile_um = config['hp']['tile_px'], config['hp']['tile_um']
             dataset = self.get_dataset(tile_px=tile_px,
                                        tile_um=tile_um,
                                        filters=filters,
                                        filter_blank=filter_blank)
         else:
-            if hp_data and (dataset.tile_px != hp_data['hp']['tile_px'] or dataset.tile_um != hp_data['hp']['tile_um']):
+            if config and (dataset.tile_px != config['hp']['tile_px'] or dataset.tile_um != config['hp']['tile_um']):
                 raise ValueError(f"Dataset tile size ({dataset.tile_px}px, {dataset.tile_um}um) does not match " + \
-                                 f"model ({hp_data['hp']['tile_px']}px, {hp_data['hp']['tile_um']}um)")
+                                 f"model ({config['hp']['tile_px']}px, {config['hp']['tile_um']}um)")
             if filters is not None or filter_blank is not None:
                 log.warning("Dataset supplied; ignoring provided filters and filter_blank")
             tile_px = dataset.tile_px
@@ -1200,7 +1201,7 @@ class Project:
 
         # If a header category is supplied and we are not showing predictions,
         # then assign slide labels from annotations
-        model_type = hp_data['model_type']
+        model_type = config['model_type']
         if model_type == 'linear':
             use_float = True
         if outcome_label_headers and (show_prediction is None):
@@ -1210,7 +1211,7 @@ class Project:
 
         # If showing predictions, try to automatically load prediction labels
         if (show_prediction is not None) and (not use_float):
-            model_hp = sf.util.get_model_params(AV.model)
+            model_hp = sf.util.get_model_config(AV.model)
             if model_hp:
                 outcome_labels = model_hp['outcome_labels']
                 model_type = model_type if model_type else model_hp['model_type']
@@ -1700,18 +1701,18 @@ class Project:
         else:        sources = self.sources
 
         # Prepare dataset & model
-        hp_data = sf.util.get_model_params(model)
+        config = sf.util.get_model_config(model)
         if dataset is None:
-            tile_px, tile_um = hp_data['hp']['tile_px'], hp_data['hp']['tile_um']
+            tile_px, tile_um = config['hp']['tile_px'], config['hp']['tile_um']
             dataset = self.get_dataset(tile_px=tile_px,
                                        tile_um=tile_um,
                                        filters=filters,
                                        filter_blank=filter_blank,
                                        verification='slides')
         else:
-            if hp_data and (dataset.tile_px != hp_data['hp']['tile_px'] or dataset.tile_um != hp_data['hp']['tile_um']):
+            if config and (dataset.tile_px != config['hp']['tile_px'] or dataset.tile_um != config['hp']['tile_um']):
                 raise ValueError(f"Dataset tile size ({dataset.tile_px}px, {dataset.tile_um}um) does not match " + \
-                                 f"model ({hp_data['hp']['tile_px']}px, {hp_data['hp']['tile_um']}um)")
+                                 f"model ({config['hp']['tile_px']}px, {config['hp']['tile_um']}um)")
             if filters is not None or filter_blank is not None:
                 log.warning("Dataset supplied; ignoring provided filters and filter_blank")
             tile_px = dataset.tile_px
@@ -2100,22 +2101,13 @@ class Project:
                 assert not os.path.exists(model_dir)
                 os.makedirs(model_dir)
 
-                # Log experiment with neptune
-                if self.use_neptune:
-                    tags = ['train']
-                    if 'k-fold' in val_settings.strategy:
-                        tags += [f'k-fold{k}']
-                    neptune_logger = self.neptune_logger()
-                    run = neptune_logger.run(model_name, self.name, train_dts, tags=tags)
-                    run['data/labels'] = labels
-                    run['data/train_tfrecords'] = train_dts.tfrecords()
-                    run['data/val_tfrecords'] = val_dts.tfrecords()
-
                 # Log model settings and hyperparameters
-                hp_file = join(model_dir, 'hyperparameters.json')
-                hp_data = {
+                config_file = join(model_dir, 'hyperparameters.json')
+                config = {
                     'slideflow_version': sf.__version__,
+                    'project': self.name,
                     'model_name': model_name,
+                    'full_model_name': full_model_name,
                     'stage': 'training',
                     'tile_px': hp.tile_px,
                     'tile_um': hp.tile_um,
@@ -2139,17 +2131,13 @@ class Project:
                     'resume_training': resume_training,
                     'checkpoint': checkpoint,
                     'hp': hp.get_dict(),
-                    'neptune_run': (None if not self.use_neptune else run['sys/id'].fetch())
                 }
-                sf.util.write_json(hp_data, hp_file)
-
-                # Record hyperparameters to neptune
-                if self.use_neptune:
-                    neptune_logger.log(hp_data, 'train')
+                sf.util.write_json(config, config_file)
 
                 training_args = types.SimpleNamespace(
                     model_dir=model_dir,
                     hp=hp,
+                    config=config,
                     labels=labels,
                     patients=dataset.patients(),
                     slide_input=model_inputs,
@@ -2160,7 +2148,8 @@ class Project:
                     resume_training=resume_training,
                     multi_gpu=multi_gpu,
                     checkpoint=checkpoint,
-                    neptune_run=(None if not self.use_neptune else run)
+                    neptune_api=self.neptune_api,
+                    neptune_workspace=self.neptune_workspace
                 )
 
                 model_kwargs = {
