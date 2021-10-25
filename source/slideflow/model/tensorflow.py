@@ -221,8 +221,6 @@ class ModelParams(_base.ModelParams):
             log.info(f'Loading checkpoint weights from {sf.util.green(checkpoint)}')
             model.load_weights(checkpoint)
 
-        self.log_summary(model)
-
         return model
 
     def _build_cph_model(self, num_classes, num_slide_features=1, pretrain=None, checkpoint=None):
@@ -291,8 +289,6 @@ class ModelParams(_base.ModelParams):
         if checkpoint:
             log.info(f'Loading checkpoint weights from {sf.util.green(checkpoint)}')
             model.load_weights(checkpoint)
-
-        self.log_summary(model)
 
         return model
 
@@ -813,6 +809,7 @@ class Trainer(_base.Trainer):
                                             pretrain=pretrain,
                                             checkpoint=checkpoint)
                 self.model = model
+                self.log_summary(model)
 
             self._save_manifest(train_dts.tfrecords(), val_dts.tfrecords())
             with tf.name_scope('input'):
