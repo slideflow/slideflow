@@ -933,11 +933,12 @@ class Trainer(_base.Trainer):
                 print(e)
                 log.error(f"Training failed for {sf.util.bold(self.name)}, GPU memory exceeded.")
 
+            results = evaluation_callback.results
             if self.use_neptune:
-                self.neptune_run['results/logged_epochs'] = [int(e[5:] for e in results['epochs'] if e[:5] == 'epoch')]
+                self.neptune_run['results/logged_epochs'] = [int(e[5:]) for e in results['epochs'] if e[:5] == 'epoch']
                 self.neptune_run['results/epochs'] = results['epochs']
 
-            return evaluation_callback.results
+            return results
 
 class LinearTrainer(Trainer):
 
