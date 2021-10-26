@@ -88,7 +88,8 @@ def _convert_img_to_format(image, img_format):
         raise ValueError(f"Unknown image format {img_format}")
 
 def _wsi_extraction_worker(c, args):
-    '''Multiprocessing working for WSI. Extracts a tile at the given coordinates.'''
+    '''Multiprocessing worker for WSI. Extracts a tile at the given coordinates.'''
+
     slide = _VIPSWrapper(args.path)
     normalizer = None if not args.normalizer else StainNormalizer(method=args.normalizer, source=args.normalizer_source)
 
@@ -118,8 +119,9 @@ def _wsi_extraction_worker(c, args):
         # Read the region and resize to target size
         filter_region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
 
+    # Remove alpha channel if present
     if filter_region.bands == 4:
-        filter_region = filter_region.flatten() #(removes alpha)
+        filter_region = filter_region.flatten()
 
     # Perform whitespace filtering [Libvips]
     if args.whitespace_fraction < 1:
@@ -135,7 +137,7 @@ def _wsi_extraction_worker(c, args):
     # Read the target downsample region now, if we were filtering at a different level
     region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
     region = region.thumbnail_image(args.tile_px)
-    if region.bands == 4: region = region.flatten() #(removes alpha)
+    if region.bands == 4: region = region.flatten() # removes alpha
     np_image = vips2numpy(region)  # Read regions into memory and convert to numpy arrays
 
     # Apply normalization
@@ -436,7 +438,7 @@ class _ROI:
 
 class _BaseLoader:
     '''Object that loads an SVS slide and makes preparations for tile extraction.
-    Should not be used directly; this class must be inherited and extended by a child class.'''
+    Should not be used directly; this class must be inherited and extended by either WSI or TMA child classes.'''
 
     def __init__(self, path, tile_px, tile_um, stride_div, enable_downsample=False,
                     buffer=None, pb=None, pb_counter=None, counter_lock=None):
@@ -596,7 +598,8 @@ class _BaseLoader:
         return loaded_correctly
 
     def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, img_format='png', **kwargs):
-        """Extractes tiles from slide and saves into a TFRecord file or as loose JPG tiles in a directory.
+        """Extracts tiles from slide using the build_generator() method,
+        saving tiles into a TFRecord file or as loose JPG tiles in a directory.
 
         Args:
             tfrecord_dir (str): If provided, saves tiles into a TFRecord file (named according to slide name) here.
@@ -804,7 +807,7 @@ class WSI(_BaseLoader):
                         grayspace_fraction=None, grayspace_threshold=None, normalizer=None, normalizer_source=None,
                         include_loc=True, num_threads=8, show_progress=False, img_format='numpy', full_core=None):
 
-        """Builds tile generator to extract of tiles across the slide.
+        """Builds tile generator to extract tiles from this slide.
 
         Args:
             shuffle (bool): Shuffle images during extraction.
@@ -822,6 +825,9 @@ class WSI(_BaseLoader):
                 Internal default tile can be found at slideflow.util.norm_tile.jpg
             include_loc (bool, optional): Return (x,y) origin coordinates for each tile along with tile images.
             show_progress (bool, optional): Show a progress bar for tile extraction.
+
+        Returns:
+            generator that yields extracted image tiles
         """
 
         super().build_generator()

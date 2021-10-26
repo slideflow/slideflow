@@ -14,7 +14,7 @@ from slideflow.project import Project
 def backend():
     return os.environ['SF_BACKEND']
 
-def set_backend(backend):
+def set_backend(b):
     """Sets the slideflow backend to either tensorflow or pytorch using
     the environmental variable SF_BACKEND
 
@@ -22,9 +22,9 @@ def set_backend(backend):
         backend (str): Either 'tensorflow' or 'torch'.
     """
 
-    if backend not in ('tensorflow', 'torch'):
-        raise ValueError(f'Unknown backend {backend}')
-    os.environ['SF_BACKEND'] = backend
+    if b not in ('tensorflow', 'torch'):
+        raise ValueError(f'Unknown backend {b}')
+    os.environ['SF_BACKEND'] = b
 
 # Style information
 # =================

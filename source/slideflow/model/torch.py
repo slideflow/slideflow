@@ -405,6 +405,7 @@ class Trainer(_base.Trainer):
                     # Calculate full evaluation metrics
                     self.model.eval()
                     save_path = os.path.join(self.outdir, f'saved_model_epoch{epoch}')
+                    results_log = os.path.join(self.outdir, 'results_log.csv')
                     torch.save(self.model.state_dict(), save_path)
                     log.info(f"Model saved to {sf.util.green(save_path)}")
                     metrics = sf.statistics.metrics_from_dataset(self.model,
@@ -414,6 +415,15 @@ class Trainer(_base.Trainer):
                                                                 dataset=dataloaders['val'],
                                                                 data_dir=self.outdir,
                                                                 save_predictions=save_predictions)
+                    # Log results
+                    epoch_results = {'train_metrics': None, 'val_metrics': metrics }
+                    for metric in metrics:
+                        if metrics[metric]['tile'] is None: continue
+                        epoch_results['tile'] = metrics[metric]['tile']
+                        epoch_results['slide'] = metrics[metric]['slide']
+                        epoch_results['patient'] = metrics[metric]['patient']
+                    sf.util.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
+
         return {}
 
 class LinearTrainer(Trainer):

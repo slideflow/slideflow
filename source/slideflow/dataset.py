@@ -7,7 +7,6 @@ import csv
 import shutil
 import multiprocessing
 import shapely.geometry as sg
-from sklearn.utils import validation
 import slideflow as sf
 import numpy as np
 import pandas as pd
@@ -142,7 +141,7 @@ class DatasetError(Exception):
 
 class Dataset:
     """Object to supervise organization of slides, tfrecords, and tiles
-    across a one or more sources in a stored configuration file."""
+    across one or more sources in a stored configuration file."""
 
     def __init__(self, config_file, sources, tile_px, tile_um, annotations=None, filters=None, filter_blank=None,
                  min_tiles=0):
@@ -334,6 +333,8 @@ class Dataset:
         return ret
 
     def build_index(self, force=True):
+        """Builds index files for TFRecords, required for PyTorch dataloader."""
+
         from slideflow.tfrecord.tools import tfrecord2idx
 
         def create_index(filename):
@@ -882,6 +883,8 @@ class Dataset:
             return {sf.util.path_to_name(t):v for t,v in combined_manifest.items()}
 
     def patients(self):
+        """Returns a list of patient IDs from this dataset."""
+
         slides = self.slides()
         result = {}
         for annotation in self.annotations:
@@ -1156,7 +1159,7 @@ class Dataset:
     def tensorflow(self, label_parser, batch_size, **kwargs):
         """Returns a Tensorflow Dataset object that interleaves tfrecords from this dataset.
 
-        The returned dataset returns a batch of (image, label) for each tile.
+        The returned dataset yields a batch of (image, label) for each tile.
 
         Args:
             label_parser (func, optional): Base function to use for parsing labels. Function must accept an image (tensor)
@@ -1181,7 +1184,6 @@ class Dataset:
                     at random quality levels. Passing either 'xyrj' or True will use all augmentations.
             standardize (bool, optional): Standardize images to (0,1). Defaults to True.
             num_workers (int, optional): Number of DataLoader workers. Defaults to 2.
-            pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
         """
 
         from slideflow.io.tensorflow import interleave
@@ -1565,7 +1567,7 @@ class Dataset:
     def torch(self, labels, batch_size, rebuild_index=False, **kwargs):
         """Returns a PyTorch DataLoader object that interleaves tfrecords from this dataset.
 
-        The returned data loader returns a batch of (image, label) for each tile.
+        The returned data loader yields a batch of (image, label) for each tile.
 
         Args:
             labels (dict or str): If a dict is provided, expect a dict mapping slide names to outcome labels. If a str,
@@ -1640,6 +1642,7 @@ class Dataset:
     def update_annotations_with_slidenames(self, annotations_file):
         """Attempts to automatically associate slide names from a directory with patients in a given annotations file,
             skipping any slide names that are already present in the annotations file."""
+
         header, _ = sf.util.read_annotations(annotations_file)
         slide_list = self.slide_paths(apply_filters=False)
 

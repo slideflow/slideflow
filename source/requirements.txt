@@ -20,4 +20,5 @@ torch>=1.9.1
 torch-vision
 dareblopy
 pyspng
+gitpython
 multiprocessing_logging

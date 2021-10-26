@@ -11,16 +11,16 @@ import csv
 
 import numpy as np
 import matplotlib.pyplot as plt
-
 import slideflow as sf
 import slideflow.io
+
 from random import shuffle
 from matplotlib import patches
-from slideflow.util import log, StainNormalizer
-from slideflow.statistics import get_centroid_index
 from multiprocessing.dummy import Pool as DPool
 from functools import partial
 from tqdm import tqdm
+from slideflow.util import log, StainNormalizer
+from slideflow.statistics import get_centroid_index
 
 class MosaicError(Exception):
     pass
