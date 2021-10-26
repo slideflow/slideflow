@@ -78,18 +78,18 @@ def _decode_image(img_string, img_type, size=None, standardize=False, normalizer
         if size: image.set_shape([size, size, 3])
     if augment is True or (isinstance(augment, str) and 'j' in augment):
         # Augment with random compession
-        image = tf.cond(tf.random.uniform(shape=[],
+        image = tf.cond(tf.random.uniform(shape=[], # pylint: disable=unexpected-keyword-arg
                                           minval=0,
                                           maxval=1,
                                           dtype=tf.float32) < 0.5,
-                        true_fn=lambda: tf.image.adjust_jpeg_quality(image, tf.random.uniform(shape=[],
+                        true_fn=lambda: tf.image.adjust_jpeg_quality(image, tf.random.uniform(shape=[], # pylint: disable=unexpected-keyword-arg
                                                                                               minval=50,
                                                                                               maxval=100,
                                                                                               dtype=tf.int32)),
                         false_fn=lambda: image)
     if augment is True or (isinstance(augment, str) and 'r' in augment):
         # Rotate randomly 0, 90, 180, 270 degrees
-        image = tf.image.rot90(image, tf.random.uniform(shape=[], minval=0, maxval=4, dtype=tf.int32))
+        image = tf.image.rot90(image, tf.random.uniform(shape=[], minval=0, maxval=4, dtype=tf.int32)) # pylint: disable=unexpected-keyword-arg
         # Random flip and rotation
     if augment is True or (isinstance(augment, str) and 'x' in augment):
         image = tf.image.random_flip_left_right(image)

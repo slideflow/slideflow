@@ -201,6 +201,23 @@ class Trainer:
                             outcome_label = self.labels[slide]
                             writer.writerow([slide, 'validation', outcome_label])
 
+    def slide_manifest(self, train_tfrecords=None, val_tfrecords=None):
+        """Returns a string containing a list of training and validation tfrecords with associated outcomes labels."""
+
+        out = ''
+        if train_tfrecords or val_tfrecords:
+            if train_tfrecords:
+                for tfrecord in train_tfrecords:
+                    slide = tfrecord.split('/')[-1][:-10]
+                    outcome_label = self.labels[slide]
+                    out += ' '.join([slide, 'training', outcome_label])
+            if val_tfrecords:
+                for tfrecord in val_tfrecords:
+                    slide = tfrecord.split('/')[-1][:-10]
+                    outcome_label = self.labels[slide]
+                    out += ' '.join([slide, 'validation', outcome_label])
+        return out
+
     def log_summary(self, model):
         # Print to terminal
         if log.getEffectiveLevel() <= 20:

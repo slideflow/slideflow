@@ -597,13 +597,6 @@ class Project:
         assert not os.path.exists(model_dir)
         os.makedirs(model_dir)
 
-        # Log experiment with neptune
-        if self.use_neptune:
-            neptune_logger = self.neptune_logger()
-            run = neptune_logger.start_run(model_name, self.name, eval_dts, tags='eval')
-            run['eval/labels'] = labels
-            run['eval/tfrecords'] = eval_dts.tfrecords()
-
         # Log model settings and hyperparameters
         outcome_labels = None if hp.model_type() != 'categorical' else dict(zip(range(len(unique_labels)), unique_labels))
 
@@ -637,7 +630,6 @@ class Project:
             'hp': hp.get_dict(),
             'max_tiles': max_tiles,
             'min_tiles': min_tiles,
-            'neptune_run': (None if not self.use_neptune else run['sys/id'].fetch())
         }
         sf.util.write_json(config, hp_file)
 
@@ -668,10 +660,6 @@ class Project:
                                    permutation_importance=permutation_importance,
                                    histogram=histogram,
                                    save_predictions=save_predictions)
-
-        if self.use_neptune:
-            neptune_logger.log_config(config, 'eval')
-            run['eval/results'] = results
 
         return results
 
