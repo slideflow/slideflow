@@ -22,9 +22,6 @@ class NeptuneLog:
         run_id = self.run['sys/id'].fetch()
         for t in tags:
             self.run['sys/tags'].add(t)
-
-        # Dataset info
-        self.run['eval/dataset_filters'] = dataset.filters
         self.run['eval/annotations'] = dataset.annotations_file
 
         return self.run

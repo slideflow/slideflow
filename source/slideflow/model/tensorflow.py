@@ -725,6 +725,13 @@ class Trainer(_base.Trainer):
         if not self.model:
             raise sf.util.UserError("Model has not been loaded, unable to evaluate.")
         self._save_manifest(val_tfrecords=dataset.tfrecords())
+
+        # Neptune logging
+        if self.use_neptune:
+            self.neptune_run = self.neptune_logger.start_run(self.name, self.config['project'], dataset, tags='eval')
+            self.neptune_logger.log_config(self.config, 'eval')
+            self.neptune_run['data/slide_manifest'].upload(os.path.join(self.outdir, 'slide_manifest.log'))
+
         if not batch_size: batch_size = self.hp.batch_size
         with tf.name_scope('input'):
             interleave_kwargs = self._interleave_kwargs(batch_size=batch_size, infinite=False, augment=False)
@@ -765,6 +772,10 @@ class Trainer(_base.Trainer):
             log.info(f'{m}: {val_metrics[m]:.4f}')
         results_dict['eval'].update(val_metrics)
         sf.util.update_results_log(results_log, 'eval_model', results_dict)
+
+        # Update neptune log
+        self.neptune_run['eval/results'] = val_metrics
+
         return val_metrics
 
     def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=512, validation_batch_size=32,
@@ -802,6 +813,9 @@ class Trainer(_base.Trainer):
             raise ModelError(f"Incomptable model types: {self.hp.model_type()} (hp) and {self._model_type} (model)")
         tf.keras.backend.clear_session() # Clear prior Tensorflow graph to free memory
 
+        # Save training / validation manifest
+        self._save_manifest(train_dts.tfrecords(), val_dts.tfrecords())
+
         # Neptune logging
         if self.use_neptune:
             tags = ['train']
@@ -809,9 +823,7 @@ class Trainer(_base.Trainer):
                 tags += [f'k-fold{self.config["k_fold_i"]}']
             self.neptune_run = self.neptune_logger.start_run(self.name, self.config['project'], train_dts, tags=tags)
             self.neptune_logger.log_config(self.config, 'train')
-            self.neptune_run['data/labels'] = self.labels
-            self.neptune_run['data/train_tfrecords'] = train_dts.tfrecords()
-            self.neptune_run['data/val_tfrecords'] = val_dts.tfrecords()
+            self.neptune_run['data/slide_manifest'].upload(os.path.join(self.outdir, 'slide_manifest.log'))
 
         if multi_gpu:
             strategy = tf.distribute.MirroredStrategy()
@@ -831,7 +843,6 @@ class Trainer(_base.Trainer):
                 self.model = model
                 self.log_summary(model)
 
-            self._save_manifest(train_dts.tfrecords(), val_dts.tfrecords())
             with tf.name_scope('input'):
                 t_kwargs = self._interleave_kwargs(batch_size=self.hp.batch_size, infinite=True, augment=self.hp.augment)
                 train_data = train_dts.tensorflow(**t_kwargs)
