@@ -5,6 +5,7 @@ import json
 import logging
 import itertools
 import csv
+import git
 import pickle
 import numpy as np
 import multiprocessing
@@ -607,11 +608,18 @@ class Project:
         # Log model settings and hyperparameters
         outcome_labels = None if hp.model_type() != 'categorical' else dict(zip(range(len(unique_labels)), unique_labels))
 
+        # Check git commit if running from source
+        try:
+            git_commit = git.Repo(search_parent_directories=True).head.object.hexsha
+        except:
+            git_commit = None
+
         hp_file = join(model_dir, 'hyperparameters.json')
 
         config = {
             'slideflow_version': sf.__version__,
             'project': self.name,
+            'git_commit': git_commit,
             'model_name': model_name,
             'model_path': model,
             'stage': 'evaluation',
@@ -2101,11 +2109,18 @@ class Project:
                 assert not os.path.exists(model_dir)
                 os.makedirs(model_dir)
 
+                # Check git commit if running from source
+                try:
+                    git_commit = git.Repo(search_parent_directories=True).head.object.hexsha
+                except:
+                    git_commit = None
+
                 # Log model settings and hyperparameters
                 config_file = join(model_dir, 'hyperparameters.json')
                 config = {
                     'slideflow_version': sf.__version__,
                     'project': self.name,
+                    'git_commit': git_commit,
                     'model_name': model_name,
                     'full_model_name': full_model_name,
                     'stage': 'training',

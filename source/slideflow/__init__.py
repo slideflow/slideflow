@@ -51,6 +51,7 @@ def set_backend(backend):
 #TODO: fix pytorch validate_on_batch (should skip if == 0, and should use val_steps not the whole dataset)
 #TODO: easier validation plan sharing
 #TODO: more clear logging information regarding validation plans
+#TODO: pytorch implementation does not log results to results_log
 
 # Future updates
 # ===============

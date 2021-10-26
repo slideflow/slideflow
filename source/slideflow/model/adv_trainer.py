@@ -386,7 +386,7 @@ class AdvTrainer(_base.Trainer):
                         sites = sites.to(device, non_blocking=True)
 
                         # Accumulate gradients
-                        if step % 2 == 0:
+                        if (step + epoch) % 2 == 0:
                             train_phase = 'site'
                         else:
                             train_phase = 'outcome'

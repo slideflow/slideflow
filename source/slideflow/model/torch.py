@@ -128,7 +128,8 @@ class ModelParams(_base.ModelParams):
 
 class Trainer(_base.Trainer):
     def __init__(self, hp, outdir, labels, patients, name=None, manifest=None, slide_input=None, feature_sizes=None,
-                 feature_names=None, outcome_names=None, normalizer=None, normalizer_source=None, mixed_precision=True):
+                 feature_names=None, outcome_names=None, normalizer=None, normalizer_source=None, mixed_precision=True,
+                 config=None, neptune_api=None, neptune_workspace=None):
 
         self.hp = hp
         self.outdir = outdir
