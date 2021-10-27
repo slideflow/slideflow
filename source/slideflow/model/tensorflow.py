@@ -19,6 +19,7 @@ import slideflow.statistics
 import slideflow.model.base as _base
 import slideflow.util.neptune_utils
 
+from os.path import join
 from slideflow.util import log
 from slideflow.model.utils import *
 from slideflow.model.tensorflow_utils import *
@@ -377,10 +378,10 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             try:
                 shutil.copy(os.path.join(os.path.dirname(model_path), 'hyperparameters.json'),
                             os.path.join(model_path, 'hyperparameters.json'), )
-                shutil.copy(os.path.join(os.path.dirname(model_path), 'slide_manifest.log'),
-                            os.path.join(model_path, 'slide_manifest.log'), )
+                shutil.copy(os.path.join(os.path.dirname(model_path), 'slide_manifest.csv'),
+                            os.path.join(model_path, 'slide_manifest.csv'), )
             except:
-                log.warning('Unable to copy hyperparameters.json/slide_manifest.log files into model folder.')
+                log.warning('Unable to copy hyperparameters.json/slide_manifest.csv files into model folder.')
 
             log.info(f'Trained model saved to {sf.util.green(model_path)}')
             if self.cb_args.using_validation:
@@ -470,7 +471,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                         if self.neptune_run:
                             self.neptune_run["early_stop/early_stop_epoch"] = self.epoch_count
                             self.neptune_run["early_stop/early_stop_batch"] = batch
-                            self.neptune_run["early_stop/method"] = hp.early_stop_method
+                            self.neptune_run["early_stop/method"] = self.hp.early_stop_method
                             self.neptune_run["early_stop/stopped_early"] = self.early_stop
                             self.neptune_run["sys/tags"].add("early_stopped")
                     else:
@@ -515,7 +516,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         epoch_results = self.results['epochs'][f'epoch{epoch}']
         sf.util.update_results_log(self.cb_args.results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
 
-class Trainer(_base.Trainer):
+class Trainer:
     """Base trainer class containing functionality for model building, input processing, training, and evaluation.
 
     This base class requires categorical outcome(s). Additional outcome types are supported by
@@ -724,13 +725,13 @@ class Trainer(_base.Trainer):
         # Load and initialize model
         if not self.model:
             raise sf.util.UserError("Model has not been loaded, unable to evaluate.")
-        self._save_manifest(val_tfrecords=dataset.tfrecords())
+        log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
 
         # Neptune logging
         if self.use_neptune:
             self.neptune_run = self.neptune_logger.start_run(self.name, self.config['project'], dataset, tags='eval')
             self.neptune_logger.log_config(self.config, 'eval')
-            self.neptune_run['data/slide_manifest'].upload(os.path.join(self.outdir, 'slide_manifest.log'))
+            self.neptune_run['data/slide_manifest'].upload(os.path.join(self.outdir, 'slide_manifest.csv'))
 
         if not batch_size: batch_size = self.hp.batch_size
         with tf.name_scope('input'):
@@ -814,7 +815,7 @@ class Trainer(_base.Trainer):
         tf.keras.backend.clear_session() # Clear prior Tensorflow graph to free memory
 
         # Save training / validation manifest
-        self._save_manifest(train_dts.tfrecords(), val_dts.tfrecords())
+        log_manifest(train_dts.tfrecords(), val_dts.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
 
         # Neptune logging
         if self.use_neptune:
@@ -823,7 +824,7 @@ class Trainer(_base.Trainer):
                 tags += [f'k-fold{self.config["k_fold_i"]}']
             self.neptune_run = self.neptune_logger.start_run(self.name, self.config['project'], train_dts, tags=tags)
             self.neptune_logger.log_config(self.config, 'train')
-            self.neptune_run['data/slide_manifest'].upload(os.path.join(self.outdir, 'slide_manifest.log'))
+            self.neptune_run['data/slide_manifest'].upload(os.path.join(self.outdir, 'slide_manifest.csv'))
 
         if multi_gpu:
             strategy = tf.distribute.MirroredStrategy()
@@ -841,7 +842,7 @@ class Trainer(_base.Trainer):
                                             pretrain=pretrain,
                                             checkpoint=checkpoint)
                 self.model = model
-                self.log_summary(model)
+                log_summary(model, self.neptune_run)
 
             with tf.name_scope('input'):
                 t_kwargs = self._interleave_kwargs(batch_size=self.hp.batch_size, infinite=True, augment=self.hp.augment)

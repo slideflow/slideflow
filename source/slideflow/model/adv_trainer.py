@@ -6,14 +6,16 @@ import slideflow as sf
 import numpy as np
 import slideflow.statistics
 
+from os.path import join, exists
 from slideflow.model import base as _base
 from slideflow.model.adv_xception import xception_classifier, xception_features
 from slideflow.util import log, StainNormalizer
 from slideflow.model import torch_utils
+from slideflow.model.utils import log_manifest
 from tqdm import tqdm
 
 
-class AdvTrainer(_base.Trainer):
+class AdvTrainer:
     def __init__(self, hp, outdir, labels, patients, name=None, manifest=None, slide_input=None, feature_sizes=None,
                  feature_names=None, outcome_names=None, normalizer=None, normalizer_source=None, mixed_precision=True):
 
@@ -33,7 +35,7 @@ class AdvTrainer(_base.Trainer):
             outcome_labels = np.expand_dims(outcome_labels, axis=1)
         if not self.outcome_names:
             self.outcome_names = [f'Outcome {i}' for i in range(outcome_labels.shape[1])]
-        if not os.path.exists(outdir): os.makedirs(outdir)
+        if not exists(outdir): os.makedirs(outdir)
 
     def load(self, model):
         self.model = self.hp.build_model(labels=self.labels)
@@ -47,7 +49,7 @@ class AdvTrainer(_base.Trainer):
         device = torch.device('cuda')
         self.model.to(device)
         self.model.eval()
-        self._save_manifest(val_tfrecords=dataset.tfrecords())
+        log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
         if not batch_size: batch_size = self.hp.batch_size
 
         # Setup dataloaders
@@ -102,7 +104,7 @@ class AdvTrainer(_base.Trainer):
                     f'patient_{metric}': metrics[metric]['patient']
                 })
 
-        results_log = os.path.join(self.outdir, 'results_log.csv')
+        results_log = join(self.outdir, 'results_log.csv')
         sf.util.update_results_log(results_log, 'eval_model', results_dict)
         return results_dict
 
@@ -136,7 +138,7 @@ class AdvTrainer(_base.Trainer):
             raise NotImplementedError
 
         # Training preparation
-        self._save_manifest(train_dts.tfrecords(), val_dts.tfrecords())
+        log_manifest(train_dts.tfrecords(), val_dts.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
         device = torch.device("cuda")
         if steps_per_epoch_override:
             steps_per_epoch = steps_per_epoch_override
@@ -291,7 +293,7 @@ class AdvTrainer(_base.Trainer):
                 if phase == 'val' and (val_dts is not None) and epoch in self.hp.epochs:
                     # Calculate full evaluation metrics
                     self.model.eval()
-                    save_path = os.path.join(self.outdir, f'saved_model_epoch{epoch}')
+                    save_path = join(self.outdir, f'saved_model_epoch{epoch}')
                     torch.save(self.model.state_dict(), save_path)
                     log.info(f"Model saved to {sf.util.green(save_path)}")
                     metrics = sf.statistics.metrics_from_dataset(self.model,
@@ -309,7 +311,7 @@ class AdvTrainer(_base.Trainer):
               multi_gpu=None, resume_training=None, pretrain='imagenet', checkpoint=None):
 
         # Training preparation
-        self._save_manifest(train_dts.tfrecords(), val_dts.tfrecords())
+        log_manifest(train_dts.tfrecords(), val_dts.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
         device = torch.device("cuda")
         starting_epoch = max(starting_epoch, 1)
         if steps_per_epoch_override:
@@ -480,7 +482,7 @@ class AdvTrainer(_base.Trainer):
                     outcome_D.eval()
                     model = torch.nn.Sequential(feature_G, outcome_D)
 
-                    save_path = os.path.join(self.outdir, f'saved_model_epoch{epoch}')
+                    save_path = join(self.outdir, f'saved_model_epoch{epoch}')
                     torch.save(model.state_dict(), save_path)
                     log.info(f"Model saved to {sf.util.green(save_path)}")
                     metrics = sf.statistics.metrics_from_dataset(model,

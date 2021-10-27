@@ -57,6 +57,10 @@ def set_backend(b):
 #TODO: show tile extraction grid on thumbnail, optional
 #TODO: merge annotated_thumb and thumb
 
+# PyTorch implementation
+# ======================
+#TODO: full Trainer features
+
 # Future updates
 # ===============
 #TODO: implement native TF normalizers to improve realtime normalization speed

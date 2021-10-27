@@ -119,3 +119,40 @@ def get_hp_from_row(row, header):
         else:
             log.error(f"Unknown argument '{arg}' found in training config file.", 0)
     return hp, model_name
+
+def log_summary(model, neptune_run=None):
+    # Print to terminal
+    if log.getEffectiveLevel() <= 20:
+        print()
+        model.summary()
+
+    # Log to neptune
+    if neptune_run:
+        summary_string = []
+        model.summary(print_fn=lambda x: summary_string.append(x))
+        neptune_run['model_info/summary'] = "\n".join(summary_string)
+
+def log_manifest(train_tfrecords=None, val_tfrecords=None, labels=None, save_loc=None):
+    out = ''
+    if save_loc:
+        save_file = open(os.path.join(save_loc), 'w')
+        writer = csv.writer(save_file)
+        writer.writerow(['slide', 'dataset', 'outcome_label'])
+    if train_tfrecords or val_tfrecords:
+        if train_tfrecords:
+            for tfrecord in train_tfrecords:
+                slide = tfrecord.split('/')[-1][:-10]
+                outcome_label = labels[slide] if labels else 'NA'
+                out += ' '.join([slide, 'training', outcome_label])
+                if save_loc:
+                    writer.writerow([slide, 'training', outcome_label])
+        if val_tfrecords:
+            for tfrecord in val_tfrecords:
+                slide = tfrecord.split('/')[-1][:-10]
+                outcome_label = labels[slide] if labels else 'NA'
+                out += ' '.join([slide, 'validation', outcome_label])
+                if save_loc:
+                    writer.writerow([slide, 'training', outcome_label])
+    if save_loc:
+        save_file.close()
+    return out
