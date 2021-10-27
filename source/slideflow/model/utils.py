@@ -1,5 +1,4 @@
 """Backend-agnostic model utility functions."""
-import tensorflow as tf
 import os
 import csv
 import tempfile

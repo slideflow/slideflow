@@ -855,7 +855,7 @@ class Dataset:
                 import slideflow.io.tensorflow
                 slideflow.io.tensorflow.update_manifest_at_dir(tfrecord_dir)
 
-            relative_manifest = sf.util.load_json(manifest_path)
+            relative_manifest = {} if not exists(manifest_path) else sf.util.load_json(manifest_path)
             global_manifest = {}
             for record in relative_manifest:
                 k = join(tfrecord_dir, record)
@@ -1632,6 +1632,7 @@ class Dataset:
 
         # Import delayed until here in order to avoid importing tensorflow until necessary,
         # as tensorflow claims a GPU once imported
+
         import slideflow.io.tensorflow
 
         tfrecords_folders = self.tfrecords_folders()
