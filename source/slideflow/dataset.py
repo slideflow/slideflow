@@ -848,7 +848,7 @@ class Dataset:
             tfrecord_dir = join(self.sources[source]['tfrecords'], self.sources[source]['label'])
             manifest_path = join(tfrecord_dir, "manifest.json")
             if not exists(manifest_path):
-                log.info(f"No manifest file detected in {tfrecord_dir}; will create now")
+                log.debug(f"No manifest file detected in {tfrecord_dir}; will create now")
 
                 # Import delayed until here in order to avoid importing tensorflow until necessary,
                 # as tensorflow claims a GPU once imported
