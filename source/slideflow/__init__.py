@@ -5,7 +5,7 @@
 
 import os
 
-__version__ = "1.12.2"
+__version__ = "1.12.3"
 
 if 'SF_BACKEND' not in os.environ:
     os.environ['SF_BACKEND'] = 'tensorflow'
@@ -52,6 +52,10 @@ def set_backend(b):
 #TODO: easier validation plan sharing
 #TODO: more clear logging information regarding validation plans
 #TODO: pytorch implementation does not log results to results_log
+#TODO: remove tensorflow requirement from slideflow.io.tensorflow.update_manifest_at_dir() and dataset.update_manifest()
+#TODO: make thumbnail caching optional
+#TODO: show tile extraction grid on thumbnail, optional
+#TODO: merge annotated_thumb and thumb
 
 # Future updates
 # ===============

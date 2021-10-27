@@ -616,7 +616,7 @@ class _BaseLoader:
                 Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.
             grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
                 Pixels in HSV format with saturation below this threshold are considered grayspace.
-                normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
                 Internal default tile can be found at slideflow.util.norm_tile.jpg
@@ -819,7 +819,7 @@ class WSI(_BaseLoader):
                 Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.
             grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
                 Pixels in HSV format with saturation below this threshold are considered grayspace.
-                normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
                 Internal default tile can be found at slideflow.util.norm_tile.jpg
@@ -913,7 +913,7 @@ class WSI(_BaseLoader):
 
         return generator
 
-    def annotated_thumb(self, mpp=None, width=None):
+    def annotated_thumb(self, mpp=None, width=None, linewidth=2):
         """Returns PIL Image of thumbnail with ROI overlay.
 
         Args:
@@ -934,7 +934,7 @@ class WSI(_BaseLoader):
         for poly in annPolys:
             x,y = poly.exterior.coords.xy
             zipped = list(zip(x.tolist(),y.tolist()))
-            draw.polygon(zipped, outline="#000000")
+            draw.line(zipped, joint='curve', fill='black', width=linewidth)
         return annotated_thumb
 
     def load_csv_roi(self, path):
@@ -1188,7 +1188,7 @@ class TMA(_BaseLoader):
                 Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.
             grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
                 Pixels in HSV format with saturation below this threshold are considered grayspace.
-                normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
                 Internal default tile can be found at slideflow.util.norm_tile.jpg
