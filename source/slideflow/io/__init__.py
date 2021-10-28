@@ -36,7 +36,7 @@ def update_manifest_at_dir(directory, force_update=False):
     try:
         relative_tfrecord_paths = sf.util.get_relative_tfrecord_paths(directory)
     except FileNotFoundError:
-        log.warning(f"Unable to find TFRecords in the directory {directory}")
+        log.debug(f"Unable to update manifest at {directory}; TFRecords not found")
         return
 
     # Verify all tfrecords in manifest exist

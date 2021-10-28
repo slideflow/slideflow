@@ -1254,8 +1254,8 @@ class Dataset:
             if label is None: continue
             tfrecord_path = join(tfrecords, label)
             if not exists(tfrecord_path):
-                log.warning(f"TFRecords path not found: {sf.util.green(tfrecord_path)}")
-                return []
+                log.debug(f"TFRecords path not found: {sf.util.green(tfrecord_path)}")
+                continue
             folders_to_search += [tfrecord_path]
         for folder in folders_to_search:
             tfrecords_list += glob(join(folder, "*.tfrecords"))
@@ -1365,20 +1365,6 @@ class Dataset:
 
         # Prepare dataset
         patients = self.patients()
-        tfr_folders = self.tfrecords_folders()
-        subdirs = []
-        for folder in tfr_folders:
-            try:
-                detected_subdirs = [sd for sd in os.listdir(folder) if isdir(join(folder, sd))]
-            except:
-                err_msg = f"Unable to find TFRecord location {sf.util.green(folder)}"
-                log.error(err_msg)
-                raise DatasetError(err_msg)
-            subdirs = detected_subdirs if not subdirs else subdirs
-            if detected_subdirs != subdirs:
-                log.error("Unable to combine TFRecords from datasets; subdirectory structures do not match.")
-                raise DatasetError("Unable to combine TFRecords from datasets; subdirectory structures do not match.")
-
         k_fold = val_k_fold
         training_tfrecords = []
         val_tfrecords = []

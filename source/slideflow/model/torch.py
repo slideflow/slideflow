@@ -9,9 +9,10 @@ import numpy as np
 import slideflow.statistics
 
 from os.path import join
-from slideflow.model import base as _base
 from slideflow.util import log, StainNormalizer
-from slideflow.model import torch_utils, log_manifest
+from slideflow.model import base as _base
+from slideflow.model import torch_utils
+from slideflow.model.base import log_manifest
 from tqdm import tqdm
 from vit_pytorch import ViT
 
@@ -230,9 +231,6 @@ class Trainer:
         rank = 0
         num_gpus = 1
         starting_epoch = max(starting_epoch, 1)
-
-        # Print hyperparameters
-        log.info(f'Hyperparameters: {self.hp}')
 
         # Enable TF32 (should be enabled by default)
         torch.backends.cuda.matmul.allow_tf32 = True  # Allow PyTorch to internally use tf32 for matmul
