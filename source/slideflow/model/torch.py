@@ -11,8 +11,7 @@ import slideflow.statistics
 from os.path import join
 from slideflow.model import base as _base
 from slideflow.util import log, StainNormalizer
-from slideflow.model import torch_utils
-from slideflow.model.utils import log_manifest
+from slideflow.model import torch_utils, log_manifest
 from tqdm import tqdm
 from vit_pytorch import ViT
 
@@ -330,7 +329,7 @@ class Trainer:
                         # Training step
                         optimizer.zero_grad()
                         with torch.set_grad_enabled(True):
-                            with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.utils.no_scope():
+                            with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.no_scope():
                                 outputs = self.model(images)
                                 loss = loss_fn(outputs, labels)
                             _, preds = torch.max(outputs, 1)
@@ -383,7 +382,7 @@ class Trainer:
                         optimizer.zero_grad()
 
                         with torch.no_grad():
-                            with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.utils.no_scope():
+                            with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.no_scope():
                                 outputs = self.model(images)
                                 loss = loss_fn(outputs, labels)
                             _, preds = torch.max(outputs, 1)

@@ -850,10 +850,10 @@ class Dataset:
             if not exists(manifest_path):
                 log.debug(f"No manifest file detected in {tfrecord_dir}; will create now")
 
-                # Import delayed until here in order to avoid importing tensorflow until necessary,
-                # as tensorflow claims a GPU once imported
-                import slideflow.io.tensorflow
-                slideflow.io.tensorflow.update_manifest_at_dir(tfrecord_dir)
+                # Import delayed until here in order to avoid importing backend until necessary,
+                # as tensorflow/torch claims a GPU once imported
+                import slideflow.io
+                slideflow.io.update_manifest_at_dir(tfrecord_dir)
 
             relative_manifest = {} if not exists(manifest_path) else sf.util.load_json(manifest_path)
             global_manifest = {}
@@ -1630,15 +1630,15 @@ class Dataset:
             forced_update (bool, optional): Force regeneration of the manifest from scratch.
         """
 
-        # Import delayed until here in order to avoid importing tensorflow until necessary,
-        # as tensorflow claims a GPU once imported
+        # Import delayed until here in order to avoid importing tensorflow/torch until necessary,
+        # as tensorflow/torch claims a GPU once imported
 
-        import slideflow.io.tensorflow
+        import slideflow.io
 
         tfrecords_folders = self.tfrecords_folders()
         for tfr_folder in tfrecords_folders:
-            slideflow.io.tensorflow.update_manifest_at_dir(directory=tfr_folder,
-                                                          force_update=force_update)
+            slideflow.io.update_manifest_at_dir(directory=tfr_folder,
+                                                force_update=force_update)
 
     def update_annotations_with_slidenames(self, annotations_file):
         """Attempts to automatically associate slide names from a directory with patients in a given annotations file,

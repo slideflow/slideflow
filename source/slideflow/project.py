@@ -453,7 +453,6 @@ class Project:
 
         log.info(f'Evaluating model {sf.util.green(model)}...')
         import slideflow.model
-        from slideflow.statistics import to_onehot
 
         if not isinstance(outcome_label_headers, list):
             outcome_label_headers = [outcome_label_headers]
@@ -571,7 +570,7 @@ class Project:
                     input_labels_dict[input_var] = config['input_feature_labels'][input_var]
 
                     for slide in labels:
-                        model_inputs[slide] += to_onehot(input_labels[slide], feature_len_dict[input_var])
+                        model_inputs[slide] += sf.util.to_onehot(input_labels[slide], feature_len_dict[input_var])
 
             feature_sizes = [feature_len_dict[i] for i in input_header]
 
@@ -2076,7 +2075,7 @@ class Project:
                         else:
                             feature_len_dict[input_var] = num_features = len(unique_inp_labels)
                             for slide in labels:
-                                onehot_label = sf.statistics.to_onehot(inp_labels_dict[slide], num_features)
+                                onehot_label = sf.util.to_onehot(inp_labels_dict[slide], num_features)
                                 model_inputs[slide] += onehot_label # We are concatenating the onehot labels together
                             input_labels_dict[input_var] = dict(zip(range(len(unique_inp_labels)), unique_inp_labels))
 

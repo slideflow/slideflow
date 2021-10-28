@@ -17,7 +17,6 @@ from __future__ import print_function
 import os
 import io
 import types
-import tensorflow as tf
 import numpy as np
 import csv
 import pyvips as vips
@@ -35,11 +34,23 @@ import multiprocessing as mp
 from os.path import join, exists
 from PIL import Image, ImageDraw, UnidentifiedImageError
 from slideflow.util import log, StainNormalizer, SUPPORTED_FORMATS, UserError
-from slideflow.io.tensorflow import tfrecord_example
 from datetime import datetime
 from functools import partial
 from tqdm import tqdm
 from fpdf import FPDF
+
+# --- Backend-specific import -------------------------------------------------
+if os.environ['SF_BACKEND'] == 'tensorflow':
+    from tensorflow.io import TFRecordWriter
+    from slideflow.io.tensorflow import serialized_record
+
+elif os.environ['SF_BACKEND'] == 'torch':
+    from slideflow.tfrecord import TFRecordWriter
+    from slideflow.io.torch import serialized_record
+
+else:
+    raise ValueError(f"Unknown backend {os.environ['SF_BACKEND']}")
+# -----------------------------------------------------------------------------
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -643,7 +654,7 @@ class _BaseLoader:
         with open(unfinished_marker, 'w') as marker_file:
             marker_file.write(' ')
         if tfrecord_dir:
-            tfrecord_writer = tf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
+            writer = TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
 
         generator = self.build_generator(show_progress=(self.counter_lock is None), img_format=img_format, **kwargs)
         slidename_bytes = bytes(self.name, 'utf-8')
@@ -666,9 +677,8 @@ class _BaseLoader:
                 with open(join(tiles_dir, f'{self.shortname}_{index}.{img_format}'), 'wb') as outfile:
                     outfile.write(image_string)
             if tfrecord_dir:
-                writer = tfrecord_writer
-                tf_example = tfrecord_example(slidename_bytes, image_string, location[0], location[1])
-                writer.write(tf_example.SerializeToString())
+                record = serialized_record(slidename_bytes, image_string, location[0], location[1])
+                writer.write(record)
         if self.counter_lock is None:
             generator_iterator.close()
 

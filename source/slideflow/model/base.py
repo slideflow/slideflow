@@ -3,7 +3,7 @@ import os
 import csv
 import numpy as np
 from slideflow.util import log
-from slideflow.model.utils import HyperParameterError
+from slideflow.model import HyperParameterError
 
 """Base classes to be extended by framework-specific implementations."""
 

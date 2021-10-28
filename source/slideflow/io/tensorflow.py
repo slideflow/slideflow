@@ -18,8 +18,6 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import tensorflow as tf
 
-FEATURE_TYPES = (tf.int64, tf.string, tf.string)
-
 FEATURE_DESCRIPTION_LEGACY =  {'slide':    tf.io.FixedLenFeature([], tf.string),
                                'image_raw':tf.io.FixedLenFeature([], tf.string)}
 
@@ -291,6 +289,12 @@ def tfrecord_example(slide, image_raw, loc_x=0, loc_y=0):
     }
     return tf.train.Example(features=tf.train.Features(feature=feature))
 
+def serialized_record(slide, image_raw, loc_x=0, loc_y=0):
+    '''Returns a serialized example for TFRecord storage, ready to be written
+    by a TFRecordWriter.'''
+
+    return tfrecord_example(slide, image_raw, loc_x, loc_y).SerializeToString()
+
 def multi_image_example(slide, image_dict):
     '''Returns a Tensorflow Data example for TFRecord storage with multiple images.'''
     feature = {
@@ -467,7 +471,6 @@ def checkpoint_to_tf_model(models_dir, model_name):
 
 def update_tfrecord_dir(directory, old_feature_description=FEATURE_DESCRIPTION, slide='slide', assign_slide=None,
                         image_raw='image_raw'):
-
     '''Updates tfrecords in a directory from an old format to a new format.'''
 
     if not exists(directory):
@@ -479,7 +482,6 @@ def update_tfrecord_dir(directory, old_feature_description=FEATURE_DESCRIPTION, 
         return len(tfrecord_files)
 
 def update_tfrecord(tfrecord_file, assign_slide=None, image_raw='image_raw'):
-
     '''Updates a single tfrecord from an old format to a new format.'''
 
     shutil.move(tfrecord_file, tfrecord_file+".old")
@@ -493,7 +495,6 @@ def update_tfrecord(tfrecord_file, assign_slide=None, image_raw='image_raw'):
     os.remove(tfrecord_file+'.old')
 
 def transform_tfrecord(origin,target, assign_slide=None, hue_shift=None, resize=None, silent=False):
-
     '''Transforms images in a single tfrecord. Can perform hue shifting, resizing, or re-assigning slide label.'''
 
     print_func = None if silent else print
@@ -534,7 +535,6 @@ def transform_tfrecord(origin,target, assign_slide=None, hue_shift=None, resize=
     writer.close()
 
 def shuffle_tfrecord(target):
-
     '''Shuffles records in a TFRecord, saving the original to a .old file.'''
 
     old_tfrecord = target+".old"
@@ -555,7 +555,6 @@ def shuffle_tfrecord(target):
     writer.close()
 
 def shuffle_tfrecords_by_dir(directory):
-
     '''For each TFRecord in a directory, shuffles records in the TFRecord, saving the original to a .old file.'''
 
     records = [tfr for tfr in listdir(directory) if tfr[-10:] == ".tfrecords"]
@@ -564,7 +563,6 @@ def shuffle_tfrecords_by_dir(directory):
         shuffle_tfrecord(join(directory, record))
 
 def get_tfrecord_by_index(tfrecord, index, decode=True):
-
     '''Reads and returns an individual record from a tfrecord by index, including slide name and processed image data.'''
 
     if type(index) != int:
@@ -587,7 +585,6 @@ def get_tfrecord_by_index(tfrecord, index, decode=True):
     return False, False
 
 def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION, feature_label='image_raw'):
-
     '''Reads and saves images from a TFRecord to a destination folder.'''
 
     if not exists(destination):
@@ -608,66 +605,3 @@ def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION, featur
         image_string = open(join(dest_folder, tile_filename), 'wb')
         image_string.write(image_raw)
         image_string.close()
-
-def update_manifest_at_dir(directory, force_update=False):
-
-    '''Log number of tiles in each TFRecord file present in the given directory and all subdirectories,
-    saving manifest to file within the parent directory.'''
-
-    manifest_path = join(directory, "manifest.json")
-    manifest = {} if not exists(manifest_path) else sf.util.load_json(manifest_path)
-    prior_manifest = copy.deepcopy(manifest)
-    try:
-        relative_tfrecord_paths = sf.util.get_relative_tfrecord_paths(directory)
-    except FileNotFoundError:
-        log.warning(f"Unable to find TFRecords in the directory {directory}")
-        return
-
-    # Verify all tfrecords in manifest exist
-    for rel_tfr in prior_manifest.keys():
-        tfr = join(directory, rel_tfr)
-        if not exists(tfr):
-            log.warning(f"TFRecord in manifest was not found at {tfr}; removing")
-            del(manifest[rel_tfr])
-
-    for rel_tfr in relative_tfrecord_paths:
-        tfr = join(directory, rel_tfr)
-
-        if (not force_update) and (rel_tfr in manifest) and ('total' in manifest[rel_tfr]):
-            continue
-
-        manifest.update({rel_tfr: {}})
-        try:
-            raw_dataset = tf.data.TFRecordDataset(tfr)
-        except Exception as e:
-            log.error(f"Unable to open TFRecords file with Tensorflow: {str(e)}")
-            return
-        if log.getEffectiveLevel() <= 20: print(f"\r\033[K + Verifying tiles in {sf.util.green(rel_tfr)}...", end="")
-        total = 0
-        try:
-            #TODO: consider updating this to use sf.io.tensorflow.get_tfrecord_parser()
-            for raw_record in raw_dataset:
-                example = tf.train.Example()
-                example.ParseFromString(raw_record.numpy())
-                slide = example.features.feature['slide'].bytes_list.value[0].decode('utf-8')
-                if slide not in manifest[rel_tfr]:
-                    manifest[rel_tfr][slide] = 1
-                else:
-                    manifest[rel_tfr][slide] += 1
-                total += 1
-        except tf.errors.DataLossError:
-            print('\r\033[K', end="")
-            log.error(f"Corrupt or incomplete TFRecord at {tfr}")
-            log.info(f"Deleting and removing corrupt TFRecord from manifest...")
-            del(raw_dataset)
-            os.remove(tfr)
-            del(manifest[rel_tfr])
-            continue
-        manifest[rel_tfr]['total'] = total
-        print('\r\033[K', end="")
-
-    # Write manifest file
-    if (manifest != prior_manifest) or (manifest == {}):
-        sf.util.write_json(manifest, manifest_path)
-
-    return manifest

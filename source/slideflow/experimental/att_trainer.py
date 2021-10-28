@@ -14,10 +14,9 @@ import slideflow.statistics
 from os.path import join
 from PIL import Image
 from slideflow.model import base as _base
-from slideflow.model.adv_xception import xception_fc
+from slideflow.experimental.adv_xception import xception_fc
 from slideflow.util import log, StainNormalizer
-from slideflow.model import torch_utils
-from slideflow.model.utils import log_manifest
+from slideflow.model import torch_utils, log_manifest
 from tqdm import tqdm
 from slideflow.clam.models.model_clam import Attn_Net_Gated
 
@@ -254,7 +253,7 @@ class AttentionTrainer:
 
                         optimizer.zero_grad()
                         with torch.no_grad():
-                            with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.utils.no_scope():
+                            with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.no_scope():
                                 features = feature_G(images)
                                 outputs, A = att_D(features)
                                 loss = loss_fn(outputs, labels)

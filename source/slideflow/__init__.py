@@ -35,7 +35,6 @@ def set_backend(b):
 # A pylintrc file is included is the root directory to assist with formatting.
 
 # Version planning (v1.12)
-#TODO: pytorch backend
 #TODO: finish a couple more tutorials
 #       - Tutorial 2: Heatmaps, Mosaic maps, ActivationsVisualizer
 #       - Tutorial 3: CLAM
@@ -45,25 +44,41 @@ def set_backend(b):
 #       - Tutorial 7: Clinical models, CPH outcome, permutation feature importance
 #       - Tutorial 8: Hyperparameter sweeps
 #       - Tutorial 9: Class-conditional GAN with StyleGAN2
-#TODO: implement clipping for tfrecord interleaving in pytorch
 #TODO: label_parser in dataset.tfrecords()
 #TODO: consistent model name strings in tensorflow and pytorch versions
-#TODO: fix pytorch validate_on_batch (should skip if == 0, and should use val_steps not the whole dataset)
 #TODO: easier validation plan sharing
 #TODO: more clear logging information regarding validation plans
-#TODO: pytorch implementation does not log results to results_log
-#TODO: remove tensorflow requirement from slideflow.io.tensorflow.update_manifest_at_dir() and dataset.update_manifest()
 #TODO: make thumbnail caching optional
 #TODO: show tile extraction grid on thumbnail, optional
 #TODO: merge annotated_thumb and thumb
 
 # PyTorch implementation
 # ======================
-#TODO: full Trainer features
+#
+# Core features / high priority updates
+# -------------------------------------
+#TODO: full Trainer features, parameters, etc
+#TODO: ActivationsInterface
+#TODO: statistics.permutation_feature_importance (-> ActivationsInterface)
+#TODO: statistics.predict_from_layer (used for permutation_feature_importance)
+#TODO: fix pytorch validate_on_batch (should skip if == 0, and should use val_steps not the whole dataset)
+#TODO: implement clipping for tfrecord interleaving in pytorch
+#TODO: pytorch implementation does not log results to results_log
+#TODO: test suite GPU availability test
+#
+# Slide processing (tf.data.TFRecordDataset & tf.data.TFRecordWriter)
+# -------------------------------------------------------------------
+#TODO: dataset.split_tfrecords_by_roi()
+#TODO: dataset.tfrecord_report()
+#TODO: Verify torch & tensorflow tile extraction are the same
+#
+# Low priority updates:
+# ---------------------
+#TODO: filter.py script
+#TODO: update.py script
 
 # Future updates
 # ===============
 #TODO: implement native TF normalizers to improve realtime normalization speed
 #TODO: put tfrecord report in tfrecord directories & include information
 #         on normalization, filtering, slideflow version, etc
-#TODO: neptune integration

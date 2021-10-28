@@ -370,6 +370,18 @@ class ThreadSafeList:
             items, self.items = self.items, []
         return items
 
+def to_onehot(val, max):
+    """Converts value to one-hot encoding
+
+    Args:
+        val (int): Value to encode
+        max (int): Maximum value (length of onehot encoding)
+    """
+
+    onehot = np.zeros(max, dtype=np.int64)
+    onehot[val] = 1
+    return onehot
+
 def clear_console():
     sys.stdout.write("\r\033[K")
     sys.stdout.flush()
