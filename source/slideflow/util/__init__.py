@@ -370,6 +370,18 @@ class ThreadSafeList:
             items, self.items = self.items, []
         return items
 
+def to_onehot(val, max):
+    """Converts value to one-hot encoding
+
+    Args:
+        val (int): Value to encode
+        max (int): Maximum value (length of onehot encoding)
+    """
+
+    onehot = np.zeros(max, dtype=np.int64)
+    onehot[val] = 1
+    return onehot
+
 def clear_console():
     sys.stdout.write("\r\033[K")
     sys.stdout.flush()
@@ -510,12 +522,12 @@ def get_slides_from_model_manifest(model_path, dataset=None):
     """
 
     slides = []
-    if exists(join(model_path, 'slide_manifest.log')):
-        manifest = join(model_path, 'slide_manifest.log')
-    elif exists(join(dirname(model_path), 'slide_manifest.log')):
+    if exists(join(model_path, 'slide_manifest.csv')):
+        manifest = join(model_path, 'slide_manifest.csv')
+    elif exists(join(dirname(model_path), 'slide_manifest.csv')):
         log.warning("Slide manifest file not found in model directory; loading from parent directory. " + \
-                    "Please move slide_manifest.log into model folder.")
-        manifest = join(dirname(model_path), 'slide_manifest.log')
+                    "Please move slide_manifest.csv into model folder.")
+        manifest = join(dirname(model_path), 'slide_manifest.csv')
     else:
         log.error("Slide manifest file not found.")
         return None

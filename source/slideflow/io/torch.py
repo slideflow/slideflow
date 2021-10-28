@@ -9,8 +9,7 @@ from os import listdir
 from tqdm import tqdm
 from os.path import isfile, join, dirname, exists
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset, TFRecordDataset
-from slideflow.statistics import to_onehot
-from slideflow.util import log
+from slideflow.util import log, to_onehot
 import multiprocessing as mp
 import threading
 from collections import deque
@@ -20,11 +19,6 @@ FEATURE_DESCRIPTION = {'image_raw':    'byte',
                        'slide':        'byte',
                        'loc_x':        'int',
                        'loc_y':        'int'}
-
-#IMAGE_BYTES     = b'\n\timage_raw\x12' #starts with '\n' + 3 bytes
-#SLIDE_BYTES     = b'\nI\n\x05slide\x12' # sometimes has @\n>\n< before slidename starts
-#LOC_X_BYTES     = b'\n\x05loc_x\x12'
-#LOC_Y_BYTES     = b'\n\x05loc_y\x12'
 
 class TFRecordsError(Exception):
     pass
@@ -206,6 +200,27 @@ def _get_images_by_dir(directory):
                 (sf.util.path_to_ext(f) in ("jpg", "png"))]
     return files
 
+def _read_and_return_record(record, parser, assign_slide=None):
+    # Parser should be:
+    # parser = sf.io.torch.get_tfrecord_parser(tfr, decode_images=False)
+    parsed = parser(record)
+    if assign_slide:
+        parsed['slide'] = assign_slide
+    parsed['slide'] = parsed['slide'].encode('utf-8')
+    return {k:(v, FEATURE_DESCRIPTION[k]) for k,v in parsed.items()}
+
+def serialized_record(slide, image_raw, loc_x=0, loc_y=0):
+    '''Returns a serialized example for TFRecord storage, ready to be written
+    by a TFRecordWriter.'''
+
+    example = {
+        'image_raw': (image_raw, FEATURE_DESCRIPTION['image_raw']),
+        'slide': (slide, FEATURE_DESCRIPTION['slide']),
+        'loc_x': (loc_x, FEATURE_DESCRIPTION['loc_x']),
+        'loc_y': (loc_y, FEATURE_DESCRIPTION['loc_y']),
+    }
+    return example
+
 def _decode_image(img_string, img_type, standardize=False, normalizer=None, augment=False):
     '''Decodes image. Torch implementation; different than sf.io.tensorflow'''
 
@@ -286,7 +301,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=Tr
     '''
     img_type, detected_features = detect_tfrecord_format(tfrecord_path)
     if features_to_return is None:
-        features_to_return = detected_features
+        features_to_return = {k:k for k in detected_features.keys()}
     elif not all(f in detected_features for f in features_to_return):
         raise TFRecordsError(f'Not all designated features {",".join(list(features_to_return.keys()))} were found ' + \
                              f'in the tfrecord {",".join(list(detected_features.keys()))}')
@@ -310,7 +325,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=Tr
         else:
             return [features[f] for f in features_to_return]
 
-    return parser, detected_features
+    return parser
 
 def interleave(tfrecords, prob_weights=None, clip=None, infinite=False, augment=True, standardize=True,
                normalizer=None, seed=None, num_threads=16, chunk_size=16, num_replicas=1, rank=0):
@@ -356,7 +371,7 @@ def interleave(tfrecords, prob_weights=None, clip=None, infinite=False, augment=
 
     # -------- Get the base TFRecord parser, based on the first tfrecord ------
     img_type, _ = detect_tfrecord_format(tfrecords[0])
-    base_parser, _ = get_tfrecord_parser(tfrecords[0], ('image_raw', 'slide'), decode_images=False)
+    base_parser = get_tfrecord_parser(tfrecords[0], ('image_raw', 'slide'), decode_images=False)
 
     # -------- Set up TFRecord indexes for sharding ---------------------------
     # Index files not created in this interleave function, as there may be multiple instances of this function

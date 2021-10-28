@@ -8,9 +8,10 @@ import slideflow as sf
 import numpy as np
 import slideflow.statistics
 
+from os.path import join
 from slideflow.model import base as _base
 from slideflow.util import log, StainNormalizer
-from slideflow.model import torch_utils
+from slideflow.model import torch_utils, log_manifest
 from tqdm import tqdm
 from vit_pytorch import ViT
 
@@ -126,7 +127,7 @@ class ModelParams(_base.ModelParams):
         else:
             return 'categorical'
 
-class Trainer(_base.Trainer):
+class Trainer:
     def __init__(self, hp, outdir, labels, patients, name=None, manifest=None, slide_input=None, feature_sizes=None,
                  feature_names=None, outcome_names=None, normalizer=None, normalizer_source=None, mixed_precision=True,
                  config=None, neptune_api=None, neptune_workspace=None):
@@ -161,7 +162,7 @@ class Trainer(_base.Trainer):
         device = torch.device('cuda')
         self.model.to(device)
         self.model.eval()
-        self._save_manifest(val_tfrecords=dataset.tfrecords())
+        log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
         if not batch_size: batch_size = self.hp.batch_size
 
         # Setup dataloaders
@@ -250,7 +251,7 @@ class Trainer(_base.Trainer):
             raise NotImplementedError
 
         # Training preparation
-        self._save_manifest(train_dts.tfrecords(), val_dts.tfrecords())
+        log_manifest(train_dts.tfrecords(), val_dts.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
         device = torch.device("cuda")
         if steps_per_epoch_override:
             steps_per_epoch = steps_per_epoch_override
@@ -328,7 +329,7 @@ class Trainer(_base.Trainer):
                         # Training step
                         optimizer.zero_grad()
                         with torch.set_grad_enabled(True):
-                            with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.utils.no_scope():
+                            with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.no_scope():
                                 outputs = self.model(images)
                                 loss = loss_fn(outputs, labels)
                             _, preds = torch.max(outputs, 1)
@@ -381,7 +382,7 @@ class Trainer(_base.Trainer):
                         optimizer.zero_grad()
 
                         with torch.no_grad():
-                            with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.utils.no_scope():
+                            with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.no_scope():
                                 outputs = self.model(images)
                                 loss = loss_fn(outputs, labels)
                             _, preds = torch.max(outputs, 1)

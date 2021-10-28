@@ -415,7 +415,7 @@ class Model:
                     self.k_fold_i = self.hyperparameters["k_fold_i"]
                     self.k_fold = self.hyperparameters["validation_k_fold"]
                     self.filters = self.hyperparameters['filters']
-                    self.manifest = SlideManifest(join(self.dir, "slide_manifest.log"))
+                    self.manifest = SlideManifest(join(self.dir, "slide_manifest.csv"))
                     self.load_results(join(self.dir, "results_log.csv"))
                     params = {i:self.hyperparameters['hp'][i] for i in self.hyperparameters['hp'] if i!='epochs'}
                     self.hp_key = tuple(sorted(params.items()))

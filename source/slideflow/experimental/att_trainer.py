@@ -11,11 +11,12 @@ import numpy as np
 import slideflow.slide
 import slideflow.statistics
 
+from os.path import join
 from PIL import Image
 from slideflow.model import base as _base
-from slideflow.model.adv_xception import xception_fc
+from slideflow.experimental.adv_xception import xception_fc
 from slideflow.util import log, StainNormalizer
-from slideflow.model import torch_utils
+from slideflow.model import torch_utils, log_manifest
 from tqdm import tqdm
 from slideflow.clam.models.model_clam import Attn_Net_Gated
 
@@ -109,7 +110,7 @@ class SlideDetector:
         time.sleep(10000)
         return np.array(batch)
 
-class AttentionTrainer(_base.Trainer):
+class AttentionTrainer:
     def __init__(self, hp, outdir, labels, patients, name=None, manifest=None, slide_input=None, feature_sizes=None,
                  feature_names=None, outcome_names=None, normalizer=None, normalizer_source=None, mixed_precision=True):
 
@@ -141,7 +142,7 @@ class AttentionTrainer(_base.Trainer):
               multi_gpu=None, resume_training=None, pretrain='imagenet', checkpoint=None):
 
         # Training preparation
-        self._save_manifest(train_dts.tfrecords(), val_dts.tfrecords())
+        log_manifest(train_dts.tfrecords(), val_dts.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
         device = torch.device("cuda")
         starting_epoch = max(starting_epoch, 1)
         if steps_per_epoch_override:
@@ -252,7 +253,7 @@ class AttentionTrainer(_base.Trainer):
 
                         optimizer.zero_grad()
                         with torch.no_grad():
-                            with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.utils.no_scope():
+                            with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.no_scope():
                                 features = feature_G(images)
                                 outputs, A = att_D(features)
                                 loss = loss_fn(outputs, labels)

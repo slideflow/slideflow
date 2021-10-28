@@ -11,7 +11,7 @@ import multiprocessing as mp
 import slideflow as sf
 
 from functools import partial
-from slideflow.util import ProgressBar
+from slideflow.util import ProgressBar, to_onehot
 from os.path import join
 from slideflow.util import log
 from scipy import stats
@@ -937,18 +937,6 @@ def save_histogram(y_true, y_pred, outdir, name='histogram', neptune_run=None):
     plt.savefig(os.path.join(outdir, f'{name}.png'))
     if neptune_run:
         neptune_run[f'results/graphs/{name}'].upload(os.path.join(outdir, f'{name}.png'))
-
-def to_onehot(val, num_cat):
-    """Converts value to one-hot encoding
-
-    Args:
-        val (int): Value to encode
-        num_cat (int): Maximum value (length of onehot encoding)
-    """
-
-    onehot = [0] * num_cat
-    onehot[val] = 1
-    return onehot
 
 def generate_roc(y_true, y_pred, save_dir=None, name='ROC', neptune_run=None):
     """Generates and saves an ROC with a given set of y_true, y_pred values."""

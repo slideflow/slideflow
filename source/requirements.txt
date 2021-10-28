@@ -18,7 +18,5 @@ cvxpy>=1.1.15
 lifelines
 torch>=1.9.1
 torch-vision
-dareblopy
-pyspng
 gitpython
 multiprocessing_logging
