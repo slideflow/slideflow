@@ -529,7 +529,7 @@ def get_slides_from_model_manifest(model_path, dataset=None):
                     "Please move slide_manifest.csv into model folder.")
         manifest = join(dirname(model_path), 'slide_manifest.csv')
     else:
-        log.error("Slide manifest file not found.")
+        log.error('Slide manifest file not found (could not find "slide_manifest.csv" in model folder)')
         return None
     with open(manifest, 'r') as manifest_file:
         reader = csv.reader(manifest_file)

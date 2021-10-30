@@ -775,7 +775,8 @@ class Trainer:
         sf.util.update_results_log(results_log, 'eval_model', results_dict)
 
         # Update neptune log
-        self.neptune_run['eval/results'] = val_metrics
+        if self.neptune_run:
+            self.neptune_run['eval/results'] = val_metrics
 
         return val_metrics
 

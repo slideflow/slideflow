@@ -22,7 +22,7 @@ def main(outdir, source, model):
 
     pb = tqdm(wsi_tfrecords, ncols=80)
     for tfr in pb:
-        pb.set_description(f"Working...")
+        pb.set_description("Working...")
         num_wrote = 0
         tfr_path = join(source, tfr)
 

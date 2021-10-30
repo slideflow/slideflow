@@ -21,6 +21,7 @@ import numpy as np
 import csv
 import pyvips as vips
 import shapely.geometry as sg
+import shapely.affinity as sa
 import cv2
 import json
 import random
@@ -98,6 +99,59 @@ def _convert_img_to_format(image, img_format):
     else:
         raise ValueError(f"Unknown image format {img_format}")
 
+def _draw_roi(img, coords):
+    # Draw ROIs
+    annPolys = [sg.Polygon(b) for b in coords]
+    annotated_img = Image.fromarray(img)
+    draw = ImageDraw.Draw(annotated_img)
+    for poly in annPolys:
+        x,y = poly.exterior.coords.xy
+        zipped = list(zip(x.tolist(),y.tolist()))
+        draw.line(zipped, joint='curve', fill='red', width=5)
+    return np.asarray(annotated_img)
+
+def _roi_coords_from_image(c, args):
+    # Scale ROI according to downsample level
+    extract_scale = (args.extract_px / args.full_extract_px)
+
+    # Scale ROI according to image resizing
+    resize_scale = (args.tile_px / args.extract_px)
+
+    def proc_ann(ann):
+        coord = ann.coordinates                                    # Scale to full image size
+        coord = np.add(coord, np.array([-1*c[0], -1*c[1]]))        # Offset coordinates to extraction window
+        coord = np.multiply(coord, (extract_scale * resize_scale)) # Rescale according to downsampling and resizing
+        return coord
+
+    # Filter out ROIs not in this tile
+    coords = []
+    ll = np.array([0, 0])
+    ur = np.array([args.tile_px, args.tile_px])
+    for roi in args.rois:
+        coord = proc_ann(roi)
+
+        if np.any(np.all(np.logical_and(ll <= coord, coord <= ur), axis=1)):
+            coords += [coord]
+
+    # Convert ROI to bounding box that fits within tile
+    boxes = []
+    yolo_anns = []
+    for coord in coords:
+        max_vals = np.max(coord, axis=0)
+        min_vals = np.min(coord, axis=0)
+        max_x, max_y = min(max_vals[0], args.tile_px), min(max_vals[1], args.tile_px)
+        min_x, min_y = max(min_vals[0], 0), max(0, min_vals[1])
+
+        width = (max_x - min_x) / args.tile_px
+        height = (max_y - min_y) / args.tile_px
+        x_center = ((max_x + min_x) / 2) / args.tile_px
+        y_center = ((max_y + min_y) / 2) / args.tile_px
+        yolo_anns += [[x_center, y_center, width, height]]
+
+        boxes += [np.array([[min_x, min_y], [min_x, max_y], [max_x, max_y], [max_x, min_y]])]
+
+    return coords, boxes, yolo_anns
+
 def _wsi_extraction_worker(c, args):
     '''Multiprocessing worker for WSI. Extracts a tile at the given coordinates.'''
 
@@ -109,8 +163,8 @@ def _wsi_extraction_worker(c, args):
     grid_yi = c[5]
 
     # Check if the center of the current window lies within any annotation; if not, skip
-    x_coord = int((c[0]+args.full_extract_px/2)/args.ROI_SCALE)
-    y_coord = int((c[1]+args.full_extract_px/2)/args.ROI_SCALE)
+    x_coord = int((c[0]+args.full_extract_px/2)/args.roi_scale)
+    y_coord = int((c[1]+args.full_extract_px/2)/args.roi_scale)
 
     if args.roi_method != 'ignore' and bool(args.annPolys):
         point_in_roi = any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in args.annPolys])
@@ -159,18 +213,27 @@ def _wsi_extraction_worker(c, args):
             # The image could not be normalized, which happens when a tile is primarily one solid color (background)
             return
 
+    # Include ROI / bounding box processing.
+    # Used to visualize ROIs on extracted tiles, or to generate YoloV5 labels.
+    if args.yolo or args.draw_roi:
+        coords, boxes, yolo_anns = _roi_coords_from_image(c, args)
+    if args.draw_roi:
+        np_image = _draw_roi(np_image, coords)
+
     # Convert to final format
     if args.img_format != 'numpy':
         image = _convert_img_to_format(np_image, args.img_format)
     else:
         image = np_image
 
+    return_dict = {'image': image}
+    if args.yolo:
+        return_dict.update({'yolo': yolo_anns})
     if args.include_loc == 'grid':
-        return {'image': image, 'loc': [grid_xi, grid_yi]}, index
+        return_dict.update({'loc': [grid_xi, grid_yi]})
     elif args.include_loc:
-        return {'image': image, 'loc': [x_coord, y_coord]}, index
-    else:
-        return {'image': image}, index
+        return_dict.update({'loc': [x_coord, y_coord]})
+    return return_dict, index
 
 def vips2numpy(vi):
     '''Converts a VIPS image into a numpy array'''
@@ -573,15 +636,11 @@ class _BaseLoader:
             mpp = (self.MPP * self.full_shape[0]) / width
         # Calculate appropriate height
         height = int((self.MPP * self.full_shape[1]) / mpp)
-        # Only regenerate thumbnail if not regenerated previously
-        if not self.thumb_image:
-            # Get thumbnail image and dimensions via fastest method available
-            thumbnail = vips.Image.thumbnail(self.path, width)
 
-            # Convert thumb image to PIL
-            np_thumb = vips2numpy(thumbnail)
-            self.thumb_image = Image.fromarray(np_thumb).resize((width, height))
-        return self.thumb_image
+        # Get thumb via libvips & convert PIL Image
+        thumbnail = vips.Image.thumbnail(self.path, width)
+        np_thumb = vips2numpy(thumbnail)
+        return Image.fromarray(np_thumb).resize((width, height))
 
     def build_generator(self, **kwargs):
         lead_msg = f'Extracting {self.tile_um}um tiles'
@@ -635,6 +694,9 @@ class _BaseLoader:
                 Defaults to False.
             shuffle (bool): Shuffle images during extraction.
             num_threads (int): Number of threads to allocate to tile extraction workers.
+            yolo (bool, optional): Export yolo-formatted tile-level ROI annotations (.txt) in the tile directory.
+                Requires that tiles_dir is set. Defaults to False.
+            draw_roi (bool, optional): Draws ROIs onto extracted tiles. Defaults to False.
         """
 
         if img_format not in ('png', 'jpg', 'jpeg'):
@@ -676,6 +738,10 @@ class _BaseLoader:
             if tiles_dir:
                 with open(join(tiles_dir, f'{self.shortname}_{index}.{img_format}'), 'wb') as outfile:
                     outfile.write(image_string)
+                if 'yolo' in tile_dict and len(tile_dict['yolo']):
+                    with open(join(tiles_dir, f'{self.shortname}_{index}.txt'), 'w') as outfile:
+                        for ann in tile_dict['yolo']:
+                            outfile.write("0 {:.3f} {:.3f} {:.3f} {:.3f}\n".format(ann[0], ann[1], ann[2], ann[3]))
             if tfrecord_dir:
                 record = serialized_record(slidename_bytes, image_string, location[0], location[1])
                 writer.write(record)
@@ -736,7 +802,7 @@ class WSI(_BaseLoader):
         self.estimated_num_tiles = 0
         self.coord = []
         self.annPolys = []
-        self.ROI_SCALE = 10
+        self.roi_scale = 10
         self.rois = []
         self.roi_method = roi_method
 
@@ -815,7 +881,8 @@ class WSI(_BaseLoader):
 
     def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None,
                         grayspace_fraction=None, grayspace_threshold=None, normalizer=None, normalizer_source=None,
-                        include_loc=True, num_threads=8, show_progress=False, img_format='numpy', full_core=None):
+                        include_loc=True, num_threads=8, show_progress=False, img_format='numpy', full_core=None,
+                        yolo=False, draw_roi=False):
 
         """Builds tile generator to extract tiles from this slide.
 
@@ -835,9 +902,17 @@ class WSI(_BaseLoader):
                 Internal default tile can be found at slideflow.util.norm_tile.jpg
             include_loc (bool, optional): Return (x,y) origin coordinates for each tile along with tile images.
             show_progress (bool, optional): Show a progress bar for tile extraction.
+            img_format (str, optional): Image format. Either 'numpy', 'jpg', or 'png'. Defaults to 'numpy'.
+            yolo (bool, optional): Include yolo-formatted tile-level ROI annotations in the return dictionary,
+                under the key 'yolo'. Defaults to False.
+            draw_roi (bool, optional): Draws ROIs onto extracted tiles. Defaults to False.
 
         Returns:
-            generator that yields extracted image tiles
+            dict: {
+                'image': image data, formatted according to `img_format`
+                'yolo':  optional, yolo-formatted annotations in list format (x_center, y_center, width, height)
+                'grid':  [x, y] slide coordinates (include_loc==True), or [x, y] grid coordinates (include_loc=='grid').
+            }
         """
 
         super().build_generator()
@@ -867,8 +942,9 @@ class WSI(_BaseLoader):
 
         worker_args = {
             'full_extract_px': self.full_extract_px,
-            'ROI_SCALE': self.ROI_SCALE,
+            'roi_scale': self.roi_scale,
             'roi_method': self.roi_method,
+            'rois': self.rois,
             'annPolys': self.annPolys,
             'estimated_num_tiles': self.estimated_num_tiles,
             'downsample_level': self.downsample_level,
@@ -885,7 +961,9 @@ class WSI(_BaseLoader):
             'grayspace_fraction': grayspace_fraction,
             'grayspace_threshold': grayspace_threshold,
             'include_loc': include_loc,
-            'img_format': img_format
+            'img_format': img_format,
+            'yolo': yolo,
+            'draw_roi': draw_roi
         }
         worker_args = types.SimpleNamespace(**worker_args)
 
@@ -923,28 +1001,31 @@ class WSI(_BaseLoader):
 
         return generator
 
-    def annotated_thumb(self, mpp=None, width=None, linewidth=2):
+    def annotated_thumb(self, mpp=None, width=None, linewidth=2, color='black'):
         """Returns PIL Image of thumbnail with ROI overlay.
 
         Args:
             mpp (float, optional): Microns-per-pixel, used to determine thumbnail size.
             width (int, optional): Alternatively, goal thumbnail width may be supplied.
+            linewidth (int, optional): Width of ROI overlay line. Defaults to 2.
+            color (str, optional): Color of ROI overlay. Defaults to black.
 
         Returns:
             PIL image
         """
 
+        assert (mpp is None or width is None), "Either mpp must be supplied or width, but not both"
         if mpp is not None:
-            ROI_SCALE = self.full_shape[0] / (int((self.MPP * self.full_shape[0]) / mpp))
+            roi_scale = self.full_shape[0] / (int((self.MPP * self.full_shape[0]) / mpp))
         else:
-            ROI_SCALE = self.full_shape[0] / width
-        annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.rois]
+            roi_scale = self.full_shape[0] / width
+        annPolys = [sg.Polygon(annotation.scaled_area(roi_scale)) for annotation in self.rois]
         annotated_thumb = self.thumb(mpp=mpp, width=width).copy()
         draw = ImageDraw.Draw(annotated_thumb)
         for poly in annPolys:
             x,y = poly.exterior.coords.xy
             zipped = list(zip(x.tolist(),y.tolist()))
-            draw.line(zipped, joint='curve', fill='black', width=linewidth)
+            draw.line(zipped, joint='curve', fill=color, width=linewidth)
         return annotated_thumb
 
     def load_csv_roi(self, path):
@@ -981,14 +1062,14 @@ class WSI(_BaseLoader):
             self.annPolys = []
             for i, annotation in enumerate(self.rois):
                 try:
-                    self.annPolys += [sg.Polygon(annotation.scaled_area(self.ROI_SCALE))]
+                    self.annPolys += [sg.Polygon(annotation.scaled_area(self.roi_scale))]
                 except ValueError:
                     log.warning(f"Unable to use ROI {i} in slide {sf.util.green(self.name)}, at least 3 points required " + \
                                 "to create a geometric shape.")
             roi_area = sum([poly.area for poly in self.annPolys])
         else:
             roi_area = 1
-        total_area = (self.full_shape[0]/self.ROI_SCALE) * (self.full_shape[1]/self.ROI_SCALE)
+        total_area = (self.full_shape[0]/self.roi_scale) * (self.full_shape[1]/self.roi_scale)
         roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
 
         if self.roi_method == 'inside':

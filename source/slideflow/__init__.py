@@ -51,6 +51,14 @@ def set_backend(b):
 #TODO: make thumbnail caching optional
 #TODO: show tile extraction grid on thumbnail, optional
 #TODO: merge annotated_thumb and thumb
+#TODO: consistent "decode" for get_tfrecord_parser in tensorflow/torch (decode should decode images + slide name)
+#TODO: ActivationsInterface compatibility for multiple outcomes
+#TODO: implement __repr__ methods for CLI usability
+#TODO: log normalization as hyperparameter
+#TODO: custom models in Tensorflow & PyTorch (attention to ActivationsInterface)
+#TODO: improved module loading. Look into importlib lazy loading
+#TODO: remove as many calls to sf.backend() as possible. Ideally the API should be unified/consistent
+#TODO: improve tile verification speech in PyTorch
 
 # PyTorch implementation
 # ======================
@@ -58,19 +66,24 @@ def set_backend(b):
 # Core features / high priority updates
 # -------------------------------------
 #TODO: full Trainer features, parameters, etc
-#TODO: ActivationsInterface
+#    - multiple outcomes
+#    - CPH outcomes
+#    - slide-level input
+#    - multi-GPU support
+#    - log_frequency, ema_observations, ema_smoothing, use_tensorboard, skip_metrics, resume_training, checkpoint
+#TODO: results_dict from torch training
 #TODO: statistics.permutation_feature_importance (-> ActivationsInterface)
 #TODO: statistics.predict_from_layer (used for permutation_feature_importance)
 #TODO: fix pytorch validate_on_batch (should skip if == 0, and should use val_steps not the whole dataset)
 #TODO: implement clipping for tfrecord interleaving in pytorch
 #TODO: pytorch implementation does not log results to results_log
 #TODO: test suite GPU availability test
+#TODO: move hyperparameters file into model ZIP or suppress warning
 #
 # Slide processing (tf.data.TFRecordDataset & tf.data.TFRecordWriter)
 # -------------------------------------------------------------------
 #TODO: dataset.split_tfrecords_by_roi()
 #TODO: dataset.tfrecord_report()
-#TODO: Verify torch & tensorflow tile extraction are the same
 #
 # Low priority updates:
 # ---------------------

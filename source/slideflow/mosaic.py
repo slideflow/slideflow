@@ -73,7 +73,7 @@ class Mosaic:
         self.tfrecords = tfrecords
 
         # Detect tfrecord image format
-        _, self.img_format = sf.io.tensorflow.detect_tfrecord_format(self.tfrecords[0])
+        _, self.img_format = sf.io.detect_tfrecord_format(self.tfrecords[0])
 
         # Setup normalization
         if normalizer: log.info(f'Using realtime {normalizer} normalization')
@@ -238,13 +238,15 @@ class Mosaic:
                 if not point['tfrecord']:
                     log.error(f"TFRecord {point['slide']} not found in slide_map; verify that the TFRecord exists.")
                     continue
-                _, tile_image = sf.io.tensorflow.get_tfrecord_by_index(point['tfrecord'],
-                                                                     point['tfrecord_index'],
-                                                                     decode=False)
+                _, tile_image = sf.io.get_tfrecord_by_index(point['tfrecord'],
+                                                            point['tfrecord_index'],
+                                                            decode=False)
                 if not tile_image: continue
 
                 self.mapped_tiles.update({point['tfrecord']: point['tfrecord_index']})
-                tile_image = self._decode_image_string(tile_image.numpy())
+                if sf.backend() == 'tensorflow':
+                    tile_image = tile_image.numpy()
+                tile_image = self._decode_image_string(tile_image)
 
                 tile_alpha, num_slide, num_other = 1, 0, 0
                 display_size = tile_size
@@ -276,16 +278,18 @@ class Mosaic:
                 point = self.points[distance_pair['point_index']]
                 tile = self.GRID[distance_pair['grid_index']]
                 if not (point['paired_tile'] or tile['paired_point']):
-                    _, tile_image = sf.io.tensorflow.get_tfrecord_by_index(point['tfrecord'],
-                                                                         point['tfrecord_index'],
-                                                                         decode=False)
+                    _, tile_image = sf.io.get_tfrecord_by_index(point['tfrecord'],
+                                                                point['tfrecord_index'],
+                                                                decode=False)
                     if not tile_image: continue
 
                     point['paired_tile'] = True
                     tile['paired_point'] = True
 
                     self.mapped_tiles.update({point['tfrecord']: point['tfrecord_index']})
-                    tile_image = self._decode_image_string(tile_image.numpy())
+                    if sf.backend() == 'tensorflow':
+                        tile_image = tile_image.numpy()
+                    tile_image = self._decode_image_string(tile_image)
 
                     image = ax.imshow(tile_image,
                                       aspect='equal',

@@ -102,8 +102,8 @@ def _wsi_prediction_tester(project, model):
         slide_paths = dataset.slide_paths(source='TEST')
         patient_name = sf.util.path_to_name(slide_paths[0])
         project.predict_wsi(model,
-                                join(project.root, 'wsi'),
-                                filters={sf.util.TCGA.patient: [patient_name]})
+                            join(project.root, 'wsi'),
+                            filters={sf.util.TCGA.patient: [patient_name]})
 
 def wsi_prediction_tester(project, model):
     ctx = multiprocessing.get_context('spawn')
@@ -417,22 +417,25 @@ class TestSuite:
         process.start()
         process.join()
 
+    def train_perf_model(self, **train_kwargs):
+        with TaskWrapper("Training to single categorical outcome from hyperparameter sweep...") as test:
+            self.setup_hp('categorical', sweep=True)
+            results_dict = self.SFP.train(exp_label='manual_hp',
+                                            outcome_label_headers='category1',
+                                            val_k=1,
+                                            validate_on_batch=50,
+                                            save_predictions=True,
+                                            steps_per_epoch_override=20,
+                                            **train_kwargs)
+
+            if not results_dict:
+                log.error("Results object not received from training")
+                test.fail()
+
     def test_training(self, categorical=True, linear=True, multi_input=True, cph=True, multi_cph=True, **train_kwargs):
         if categorical:
             # Test categorical outcome
-            with TaskWrapper("Training to single categorical outcome from hyperparameter sweep...") as test:
-                self.setup_hp('categorical', sweep=True)
-                results_dict = self.SFP.train(exp_label='manual_hp',
-                                              outcome_label_headers='category1',
-                                              val_k=1,
-                                              validate_on_batch=50,
-                                              save_predictions=True,
-                                              steps_per_epoch_override=20,
-                                              **train_kwargs)
-
-                if not results_dict:
-                    log.error("Results object not received from training")
-                    test.fail()
+            self.train_perf_model(**train_kwargs)
 
             # Test multiple sequential categorical outcome models
             with TaskWrapper("Training to multiple outcomes...") as test:
@@ -537,7 +540,7 @@ class TestSuite:
         # Code to lookup excel sheet of predictions and verify they match known baseline
 
     def test_heatmap(self, slide='auto', **heatmap_kwargs):
-        perf_model = self._get_model('category1-manual_hp-HP0-kfold1')
+        perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1') #self._get_model('category1-manual_hp-HP0-kfold1')
         assert os.path.exists(perf_model)
 
         with TaskWrapper("Testing heatmap generation...") as test:
@@ -551,7 +554,7 @@ class TestSuite:
                                        **heatmap_kwargs)
 
     def test_activations_and_mosaic(self, **act_kwargs):
-        perf_model = self._get_model('category1-manual_hp-HP0-kfold1')
+        perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
         assert os.path.exists(perf_model)
 
         with TaskWrapper("Testing activations...") as test:
@@ -588,12 +591,12 @@ class TestSuite:
             mosaic.save(os.path.join(self.SFP.root, "mosaic_test.png"))
 
     def test_predict_wsi(self):
-        perf_model = self._get_model('category1-manual_hp-HP0-kfold1')
+        perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1') #self._get_model('category1-manual_hp-HP0-kfold1')
         assert os.path.exists(perf_model)
         wsi_prediction_tester(self.SFP, perf_model)
 
     def test_clam(self):
-        perf_model = self._get_model('category1-manual_hp-HP0-kfold1')
+        perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1') #self._get_model('category1-manual_hp-HP0-kfold1')
         assert os.path.exists(perf_model)
 
         with TaskWrapper("Testing CLAM feature export...") as test:

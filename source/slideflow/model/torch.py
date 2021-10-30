@@ -37,7 +37,7 @@ class ModelParams(_base.ModelParams):
         'resnet18': torchvision.models.resnet18,
         'resnet50': torchvision.models.resnet50,
         'alexnet': torchvision.models.alexnet,
-        'squeezenet': torchvision.models.squeezenet,
+        'squeezenet': torchvision.models.squeezenet.squeezenet1_1,
         'densenet': torchvision.models.densenet161,
         'inception': torchvision.models.inception_v3,
         'googlenet': torchvision.models.googlenet,
@@ -76,6 +76,12 @@ class ModelParams(_base.ModelParams):
         'MultiMarginLoss': torch.nn.MultiMarginLoss,
         'TripletMarginLoss': torch.nn.TripletMarginLoss,
         'TripletMarginWithDistanceLoss': torch.nn.TripletMarginWithDistanceLoss,
+        'L1Loss': torch.nn.L1Loss,
+        'MSELoss': torch.nn.MSELoss,
+        'NLLLoss': torch.nn.NLLLoss, #negative log likelihood
+        'HingeEmbeddingLoss': torch.nn.HingeEmbeddingLoss,
+        'SmoothL1Loss': torch.nn.SmoothL1Loss,
+        'CosineEmbeddingLoss': torch.nn.CosineEmbeddingLoss,
     }
 
     def __init__(self, model='xception', loss='CrossEntropyLoss', **kwargs):
@@ -91,12 +97,13 @@ class ModelParams(_base.ModelParams):
         assert num_classes is not None or labels is not None
         if num_classes is None:
             num_classes = self._detect_classes_from_labels(labels)
-        outcomes = list(num_classes.keys())
 
-        if len(outcomes) > 1:
-            raise NotImplementedError
-        else:
-            num_classes = num_classes[outcomes[0]] # Forces single categorical model for now
+        if isinstance(num_classes, dict):
+            outcomes = list(num_classes.keys())
+            if len(outcomes) > 1:
+                raise NotImplementedError
+            else:
+                num_classes = num_classes[outcomes[0]] # Forces single categorical model for now
 
         if self.model == 'ViT':
             return ViT(image_size=self.tile_px,
@@ -408,7 +415,7 @@ class Trainer:
                     torch.save(self.model.state_dict(), save_path)
                     log.info(f"Model saved to {sf.util.green(save_path)}")
                     metrics = sf.statistics.metrics_from_dataset(self.model,
-                                                                model_type='categorical',
+                                                                model_type=self.hp.model_type(),
                                                                 labels=self.labels,
                                                                 patients=self.patients,
                                                                 dataset=dataloaders['val'],
@@ -422,12 +429,11 @@ class Trainer:
                         epoch_results['slide'] = metrics[metric]['slide']
                         epoch_results['patient'] = metrics[metric]['patient']
                     sf.util.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
-
         return {}
 
 class LinearTrainer(Trainer):
-    def __init__(self):
-        raise NotImplementedError
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 class CPHTrainer(Trainer):
     def __init__(self):

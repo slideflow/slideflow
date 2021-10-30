@@ -433,7 +433,7 @@ class Dataset:
 
         return ret
 
-    def extract_tiles(self, save_tiles=False, save_tfrecord=True, source=None, stride_div=1, enable_downsample=False,
+    def extract_tiles(self, save_tiles=False, save_tfrecords=True, source=None, stride_div=1, enable_downsample=False,
                       roi_method='inside', skip_missing_roi=True, skip_extracted=True, tma=False,
                       randomize_origin=False, buffer=None, num_workers=4, **kwargs):
 
@@ -442,7 +442,7 @@ class Dataset:
 
         Args:
             save_tiles (bool, optional): Save images of extracted tiles to project tile directory. Defaults to False.
-            save_tfrecord (bool, optional): Save compressed image data from extracted tiles into TFRecords
+            save_tfrecords (bool, optional): Save compressed image data from extracted tiles into TFRecords
                 in the corresponding TFRecord directory. Defaults to True.
             source (str, optional): Name of dataset source from which to select slides for extraction. Defaults to None.
                 If not provided, will default to all sources in project.
@@ -486,8 +486,8 @@ class Dataset:
 
         import slideflow.slide
 
-        if not save_tiles and not save_tfrecord:
-            log.error('Either save_tiles or save_tfrecord must be true to extract tiles.')
+        if not save_tiles and not save_tfrecords:
+            log.error('Either save_tiles or save_tfrecords must be true to extract tiles.')
             return
 
         if source:  sources = [source] if not isinstance(source, list) else source
@@ -503,7 +503,7 @@ class Dataset:
             source_config = self.sources[source]
             tfrecord_dir = join(source_config['tfrecords'], source_config['label'])
             tiles_dir = join(source_config['tiles'], source_config['label'])
-            if save_tfrecord and not exists(tfrecord_dir):
+            if save_tfrecords and not exists(tfrecord_dir):
                 os.makedirs(tfrecord_dir)
             if save_tiles and not os.path.exists(tiles_dir):
                 os.makedirs(tiles_dir)
@@ -512,7 +512,7 @@ class Dataset:
             slide_list = self.slide_paths(source=source)
 
             # Check for interrupted or already-extracted tfrecords
-            if skip_extracted and save_tfrecord:
+            if skip_extracted and save_tfrecords:
                 already_done = [sf.util.path_to_name(tfr) for tfr in self.tfrecords(source=source)]
                 interrupted = [sf.util.path_to_name(marker) for marker in glob(join((tfrecord_dir
                                                            if tfrecord_dir else tiles_dir), '*.unfinished'))]

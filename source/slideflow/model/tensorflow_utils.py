@@ -16,8 +16,8 @@ def negative_log_likelihood(y_true, y_pred):
     time = tf.reshape(y_true, [-1])           # y_true
 
     order = tf.argsort(time) #direction='DESCENDING'
-    sorted_events = tf.gather(events, order)         # E
-    sorted_predictions = tf.gather(pred_hr, order)     # y_pred
+    sorted_events = tf.gather(events, order)            # pylint: disable=no-value-for-parameter
+    sorted_predictions = tf.gather(pred_hr, order)      # pylint: disable=no-value-for-parameter
 
     # Finds maximum HR in predictions
     gamma = tf.math.reduce_max(sorted_predictions)
@@ -28,7 +28,7 @@ def negative_log_likelihood(y_true, y_pred):
     log_cumsum_h = tf.math.add(
                     tf.math.log(
                         tf.math.add(
-                            tf.math.cumsum(
+                            tf.math.cumsum(             # pylint: disable=no-value-for-parameter
                                 tf.math.exp(
                                     tf.math.subtract(sorted_predictions, gamma))),
                             eps)),
@@ -50,9 +50,9 @@ def negative_log_likelihood_breslow(y_true, y_pred):
     time = tf.reshape(y_true, [-1])
 
     order = tf.argsort(time, direction='DESCENDING')
-    sorted_time = tf.gather(time, order)
-    sorted_events = tf.gather(events, order)
-    sorted_pred = tf.gather(pred, order)
+    sorted_time = tf.gather(time, order)                # pylint: disable=no-value-for-parameter
+    sorted_events = tf.gather(events, order)            # pylint: disable=no-value-for-parameter
+    sorted_pred = tf.gather(pred, order)                # pylint: disable=no-value-for-parameter
 
     Y_hat_c = sorted_pred
     Y_label_T = sorted_time
@@ -64,7 +64,7 @@ def negative_log_likelihood_breslow(y_true, y_pred):
     Y_hat_c_shift = tf.subtract(Y_hat_c, amax)
     #Y_hat_c_shift = tf.debugging.check_numerics(Y_hat_c_shift, message="checking y_hat_c_shift")
     Y_hat_hr = tf.exp(Y_hat_c_shift)
-    Y_hat_cumsum = tf.math.log(tf.cumsum(Y_hat_hr)) + amax
+    Y_hat_cumsum = tf.math.log(tf.cumsum(Y_hat_hr)) + amax # pylint: disable=no-value-for-parameter
 
     unique_values, segment_ids = tf.unique(Y_label_T)
     loss_s2_v = tf.math.segment_max(Y_hat_cumsum, segment_ids)

@@ -206,9 +206,12 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
         tfrecords (list(str)): List of paths to TFRecord files.
         img_size (int): Image width in pixels.
         batch_size (int): Batch size.
+        prob_weights (dict, optional): Dict mapping tfrecords to probability of including in batch. Defaults to None.
+        clip (dict, optional): Dict mapping tfrecords to number of tiles to take per tfrecord. Defaults to None.
         label_parser (func, optional): Base function to use for parsing labels. Function must accept an image (tensor)
             and slide name (str), and return an image (tensor) and label. If None is provided, all labels will be None.
-        labels (dict): Dict mapping slide names to labels. If None, will return slide names.
+        incl_slidenames (bool, optional): Include slidenames as third returned variable. Defaults to False.
+        incl_loc (bool, optional): Include loc_x and loc_y as additional returned variables. Defaults to False.
         infinite (bool, optional): Create an finite dataset. WARNING: If infinite is False && balancing is used,
             some tiles will be skipped. Defaults to True.
         augment (str, optional): Image augmentations to perform. String containing characters designating augmentations.
@@ -561,28 +564,6 @@ def shuffle_tfrecords_by_dir(directory):
     for record in records:
         log.info(f'Working on {record}')
         shuffle_tfrecord(join(directory, record))
-
-def get_tfrecord_by_index(tfrecord, index, decode=True):
-    '''Reads and returns an individual record from a tfrecord by index, including slide name and processed image data.'''
-
-    if type(index) != int:
-        try:
-            index = int(index)
-        except:
-            raise IndexError(f"index must be an integer, not {type(index)} (provided {index}).")
-
-    dataset = tf.data.TFRecordDataset(tfrecord)
-    parser = get_tfrecord_parser(tfrecord, ('slide', 'image_raw'), decode_images=decode)
-
-    total = 0
-    for i, record in enumerate(dataset):
-        total += 1
-        if i == index:
-            return parser(record)
-        else: continue
-
-    log.error(f"Unable to find record at index {index} in {sf.util.green(tfrecord)} ({total} total records)")
-    return False, False
 
 def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION, feature_label='image_raw'):
     '''Reads and saves images from a TFRecord to a destination folder.'''

@@ -1,4 +1,4 @@
-"""TFRecord reading/writing utilities."""
+"""TFRecord reading/writing utilities for both Tensorflow and PyTorch."""
 
 import os
 import copy
@@ -10,13 +10,13 @@ from os.path import join, exists
 # Backend-specific imports and configuration
 if os.environ['SF_BACKEND'] == 'tensorflow':
     import tensorflow as tf
-    from slideflow.io.tensorflow import get_tfrecord_parser, TFRecordsError
+    from slideflow.io.tensorflow import get_tfrecord_parser, detect_tfrecord_format, TFRecordsError
     from tensorflow.data import TFRecordDataset
     dataloss_errors = (tf.errors.DataLossError, TFRecordsError)
     parser_kwargs = {'to_numpy': True}
 
 elif os.environ['SF_BACKEND'] == 'torch':
-    from slideflow.io.torch import get_tfrecord_parser, TFRecordsError
+    from slideflow.io.torch import get_tfrecord_parser, detect_tfrecord_format, TFRecordsError
     from slideflow.tfrecord.torch.dataset import TFRecordDataset
     dataloss_errors = (TFRecordsError,)
     parser_kwargs = {}
@@ -54,7 +54,7 @@ def update_manifest_at_dir(directory, force_update=False):
 
         manifest.update({rel_tfr: {}})
         try:
-            raw_dataset = TFRecordDataset(tfr, None, None)
+            raw_dataset = TFRecordDataset(tfr)
             parser = get_tfrecord_parser(tfr, ('slide',), **parser_kwargs)
         except Exception as e:
             log.error(f"Unable to open TFRecords file with {os.environ['SF_BACKEND']}: {str(e)}")
@@ -87,3 +87,25 @@ def update_manifest_at_dir(directory, force_update=False):
         sf.util.write_json(manifest, manifest_path)
 
     return manifest
+
+def get_tfrecord_by_index(tfrecord, index, decode=True):
+    '''Reads and returns an individual record from a tfrecord by index, including slide name and processed image data.'''
+
+    if type(index) != int:
+        try:
+            index = int(index)
+        except:
+            raise IndexError(f"index must be an integer, not {type(index)} (provided {index}).")
+
+    dataset = TFRecordDataset(tfrecord)
+    parser = get_tfrecord_parser(tfrecord, ('slide', 'image_raw'), decode_images=decode)
+
+    total = 0
+    for i, record in enumerate(dataset):
+        total += 1
+        if i == index:
+            return parser(record)
+        else: continue
+
+    log.error(f"Unable to find record at index {index} in {sf.util.green(tfrecord)} ({total} total records)")
+    return False, False

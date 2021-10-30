@@ -797,7 +797,7 @@ class Project:
 
         Args:
             save_tiles (bool, optional): Save images of extracted tiles to project tile directory. Defaults to False.
-            save_tfrecord (bool, optional): Save compressed image data from extracted tiles into TFRecords
+            save_tfrecords (bool, optional): Save compressed image data from extracted tiles into TFRecords
                 in the corresponding TFRecord directory. Defaults to True.
             source (str, optional): Name of dataset source from which to select slides for extraction. Defaults to None.
                 If not provided, will default to all sources in project.
@@ -1499,8 +1499,8 @@ class Project:
         print('\nLoaded tile values')
         print(f'Min: {min(vals)}\t Max:{max(vals)}')
 
-        scaled_x = [(xi * slide.ROI_SCALE) - slide.full_extract_px/2 for xi in x]
-        scaled_y = [(yi * slide.ROI_SCALE) - slide.full_extract_px/2 for yi in y]
+        scaled_x = [(xi * slide.roi_scale) - slide.full_extract_px/2 for xi in x]
+        scaled_y = [(yi * slide.roi_scale) - slide.full_extract_px/2 for yi in y]
 
         print('\nLoaded CSV coordinates:')
         print(f'Min x: {min(x)}\t Max x: {max(x)}')
@@ -2075,7 +2075,7 @@ class Project:
                         else:
                             feature_len_dict[input_var] = num_features = len(unique_inp_labels)
                             for slide in labels:
-                                onehot_label = sf.util.to_onehot(inp_labels_dict[slide], num_features)
+                                onehot_label = sf.util.to_onehot(inp_labels_dict[slide], num_features).tolist()
                                 model_inputs[slide] += onehot_label # We are concatenating the onehot labels together
                             input_labels_dict[input_var] = dict(zip(range(len(unique_inp_labels)), unique_inp_labels))
 
@@ -2363,6 +2363,6 @@ class Project:
                                                 tile_um=dataset.tile_um)
 
 class SlideflowProject(Project):
-    def __init__(self, args, **kwargs):
+    def __init__(self, *args, **kwargs):
         log.warn("sf.SlideflowProject is deprecated; please use sf.Project")
-        super().__init__(args, **kwargs)
+        super().__init__(*args, **kwargs)

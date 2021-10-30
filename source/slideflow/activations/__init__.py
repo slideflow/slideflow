@@ -7,12 +7,6 @@ import time
 import logging
 import queue
 import threading
-from collections import defaultdict
-
-logging.getLogger('tensorflow').setLevel(logging.ERROR)
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
-import tensorflow as tf
 import slideflow as sf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,190 +14,29 @@ import matplotlib.colors as mcol
 import seaborn as sns
 import scipy.stats as stats
 import shapely.geometry as sg
-import slideflow.slide
 
+from collections import defaultdict
 from slideflow.util import log
 from slideflow.util.fastim import FastImshow
 from os.path import join, exists
 from math import isnan
 from matplotlib.widgets import Slider
-from functools import partial
 from multiprocessing.dummy import Process as DProcess
 from tqdm import tqdm
 
+# --- Backend-specific imports ------------------------------------------------
+
+if os.environ['SF_BACKEND'] == 'tensorflow':
+    from slideflow.activations.tensorflow import ActivationsInterface
+elif os.environ['SF_BACKEND'] == 'torch':
+    from slideflow.activations.torch import ActivationsInterface
+else:
+    raise ValueError(f"Unknown backend {os.environ['SF_BACKEND']}")
+
+# -----------------------------------------------------------------------------
+
 class ActivationsError(Exception):
     pass
-
-class ActivationsInterface:
-    """Interface for obtaining logits and intermediate layer activations from Slideflow models.
-
-    Use by calling on either a batch of images (returning outputs for a single batch), or by calling on a
-    :class:`slideflow.slide.WSI` object, which will generate an array of spatially-mapped activations matching
-    the slide.
-
-    Examples
-        *Calling on batch of images:*
-
-        .. code-block:: python
-
-            interface = ActivationsInterface('/model/path', layers='postconv')
-            for image_batch in train_data:
-                # Return shape: (batch_size, num_features)
-                batch_activations = interface(image_batch)
-
-        *Calling on a slide:*
-
-        .. code-block:: python
-
-            slide = sf.slide.WSI(...)
-            interface = ActivationsInterface('/model/path', layers='postconv')
-            # Return shape: (slide.grid.shape[0], slide.grid.shape[1], num_features):
-            activations_grid = interface(slide)
-
-    """
-
-    def __init__(self, path, layers='postconv', include_logits=False):
-        """Creates an activations interface from a saved slideflow model which outputs feature activations
-        at the designated layers.
-
-        Intermediate layers are returned in the order of layers. Logits are returned last.
-
-        Args:
-            path (str): Path to saved Slideflow model.
-            layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation layer
-                is accessed via 'postconv'. Defaults to 'postconv'.
-            include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
-        """
-
-        if layers and not isinstance(layers, list): layers = [layers]
-        self.path = path
-        try:
-            self.hp = sf.util.get_model_config(path)
-        except:
-            self.hp = None
-        self.num_logits = 0
-        self.num_features = 0
-        self._model = tf.keras.models.load_model(self.path)
-        self._build(layers=layers, include_logits=include_logits)
-
-    def from_model(self, model, layers='postconv', include_logits=False):
-        """Creates an activations interface from a loaded slideflow model which outputs feature activations
-        at the designated layers.
-
-        Intermediate layers are returned in the order of layers. Logits are returned last.
-
-        Args:
-            model (:class:`tensorflow.keras.models.Model` or :class:`slideflow.model.Trainer`): Loaded model.
-            layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation layer
-                is accessed via 'postconv'. Defaults to 'postconv'.
-            include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
-        """
-        if isinstance(model, tf.keras.models.Model):
-            self._model = model
-        elif isinstance(model, sf.model.Trainer):
-            if not model.model:
-                raise sf.util.UserError("Provided model has not yet been built or loaded.")
-            self._model = model.model
-        else:
-            raise TypeError("Provided model is not a valid Tensorflow model.")
-        self.hp = None
-        self.num_logits = 0
-        self.num_features = 0
-        self._build(layers=layers, include_logits=include_logits)
-
-    def __call__(self, inp, **kwargs):
-        """Process a given input and return activations and/or logits. Expects either a batch of images or
-        a :class:`slideflow.slide.WSI` object."""
-
-        if isinstance(inp, sf.slide.WSI):
-            return self._predict_slide(inp, **kwargs)
-        else:
-            return self._predict(inp)
-
-    def _predict_slide(self, slide, batch_size=128, dtype=np.float16, **kwargs):
-        """Generate activations from slide => activation grid array."""
-        total_out = self.num_features + self.num_logits
-        activations_grid = np.zeros((slide.grid.shape[1], slide.grid.shape[0], total_out), dtype=dtype)
-        generator = slide.build_generator(shuffle=False, include_loc='grid', show_progress=True, **kwargs)
-
-        if not generator:
-            log.error(f"No tiles extracted from slide {sf.util.green(slide.name)}")
-            return
-
-        def _parse_function(record):
-            image = record['image']
-            loc = record['loc']
-            parsed_image = tf.image.per_image_standardization(image)
-            parsed_image.set_shape([slide.tile_px, slide.tile_px, 3])
-            return parsed_image, loc
-
-        # Generate dataset from the generator
-        with tf.name_scope('dataset_input'):
-            output_signature={'image':tf.TensorSpec(shape=(slide.tile_px,slide.tile_px,3), dtype=tf.uint8),
-                              'loc':tf.TensorSpec(shape=(2), dtype=tf.uint32)}
-            tile_dataset = tf.data.Dataset.from_generator(generator, output_signature=output_signature)
-            tile_dataset = tile_dataset.map(_parse_function, num_parallel_calls=8)
-            tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
-            tile_dataset = tile_dataset.prefetch(8)
-
-        act_arr = []
-        loc_arr = []
-        for i, (batch_images, batch_loc) in enumerate(tile_dataset):
-            model_out = self._predict(batch_images)
-            if not isinstance(model_out, list): model_out = [model_out]
-            concatenated_arr = np.concatenate([m.numpy() for m in model_out])
-            act_arr += [concatenated_arr]
-            loc_arr += [batch_loc.numpy()]
-
-        act_arr = np.concatenate(act_arr)
-        loc_arr = np.concatenate(loc_arr)
-
-        for i, act in enumerate(act_arr):
-            xi = loc_arr[i][0]
-            yi = loc_arr[i][1]
-            activations_grid[yi][xi] = act
-
-        return activations_grid
-
-    @tf.function
-    def _predict(self, inp):
-        """Return activations for a single batch of images."""
-        return self.model(inp, training=False)
-
-    def _build(self, layers, include_logits=True):
-        """Builds the interface model that outputs feature activations at the designated layers and/or logits.
-            Intermediate layers are returned in the order of layers. Logits are returned last."""
-
-        if layers:
-            log.debug(f"Setting up interface to return activations from layers {', '.join(layers)}")
-            other_layers = [l for l in layers if l != 'postconv']
-        else:
-            other_layers = []
-        outputs = {}
-        if layers:
-            intermediate_core = tf.keras.models.Model(inputs=self._model.layers[1].input,
-                                                      outputs=[self._model.layers[1].get_layer(l).output for l in other_layers])
-            if len(other_layers) > 1:
-                int_out = intermediate_core(self._model.input)
-                for l, layer in enumerate(other_layers):
-                    outputs[layer] = int_out[l]
-            elif len(other_layers):
-                outputs[other_layers[0]] = intermediate_core(self._model.input)
-            if 'postconv' in layers:
-                outputs['postconv'] = self._model.layers[1].get_output_at(0)
-        outputs_list = [] if not layers else [outputs[l] for l in layers]
-        if include_logits:
-            outputs_list += [self._model.output]
-        self.model = tf.keras.models.Model(inputs=self._model.input, outputs=outputs_list)
-        self.num_features = sum([outputs[o].shape[1] for o in outputs])
-        if isinstance(self._model.output, list):
-            log.warning("Multi-categorical outcomes not yet supported for this interface.")
-            self.num_logits = 0
-        else:
-            self.num_logits = 0 if not include_logits else self._model.output.shape[1]
-        if include_logits:
-            log.debug(f'Number of logits: {self.num_logits}')
-        log.debug(f'Number of activation features: {self.num_features}')
 
 class ActivationsVisualizer:
 
@@ -344,16 +177,22 @@ class ActivationsVisualizer:
 
         # Calculate final layer activations for each tfrecord
         fla_start_time = time.time()
-        include_tfrecord_loc = True
 
         # Interleave tfrecord datasets
         estimated_tiles = self.dataset.num_tiles
-        tf_dataset = self.dataset.tensorflow(label_parser=None,
-                                             infinite=False,
-                                             batch_size=batch_size,
-                                             augment=False,
-                                             incl_slidenames=True,
-                                             incl_loc=True)
+
+        # Get backend-specific dataloader/dataset
+        dataset_kwargs = {
+            'infinite': False,
+            'batch_size': batch_size,
+            'augment': False,
+            'incl_slidenames': True,
+            'incl_loc': True
+        }
+        if sf.backend() == 'tensorflow':
+            dataloader = self.dataset.tensorflow(label_parser=None, **dataset_kwargs)
+        elif sf.backend() == 'torch':
+            dataloader = self.dataset.torch(labels=None, **dataset_kwargs)
 
         # Worker to process activations/logits, for more efficient GPU throughput
         q = queue.Queue()
@@ -362,33 +201,38 @@ class ActivationsVisualizer:
                 model_out, batch_slides, batch_loc = q.get()
                 if model_out == None:
                     return
-                decoded_slides = [bs.decode('utf-8') for bs in batch_slides.numpy()]
                 if not isinstance(model_out, list):
                     model_out = [model_out]
-                model_out = [m.numpy() if not isinstance(m, list) else m for m in model_out]
+
+                if sf.backend() == 'tensorflow':
+                    decoded_slides = [bs.decode('utf-8') for bs in batch_slides.numpy()]
+                    model_out = [m.numpy() if not isinstance(m, list) else m for m in model_out]
+                    batch_loc = np.stack([batch_loc[0].numpy(), batch_loc[1].numpy()], axis=1)
+                elif sf.backend() == 'torch':
+                    decoded_slides = batch_slides
+                    model_out = [m.cpu().numpy() if not isinstance(m, list) else m for m in model_out]
+                    batch_loc = np.stack([batch_loc[0], batch_loc[1]], axis=1)
 
                 if include_logits:
                     logits = model_out[-1]
                     activations = model_out[:-1]
                 else:
                     activations = model_out
+
                 # Concatenate activations if we have activations from more than one layer
                 batch_act = np.concatenate(activations)
 
-                if include_tfrecord_loc:
-                    batch_loc = np.stack([batch_loc[0].numpy(), batch_loc[1].numpy()], axis=1)
                 for d, slide in enumerate(decoded_slides):
                     self.activations[slide].append(batch_act[d])
                     if include_logits:
                         self.logits[slide].append(logits[d])
-                    if include_tfrecord_loc:
-                        self.locations[slide].append(batch_loc[d])
+                    self.locations[slide].append(batch_loc[d])
 
         batch_processing_thread = threading.Thread(target=batch_worker, daemon=True)
         batch_processing_thread.start()
 
         pb = tqdm(total=estimated_tiles, ncols=80, leave=False)
-        for i, (batch_img, _, batch_slides, batch_loc_x, batch_loc_y) in enumerate(tf_dataset):
+        for i, (batch_img, _, batch_slides, batch_loc_x, batch_loc_y) in enumerate(dataloader):
             model_output = combined_model(batch_img)
             q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
             pb.update(batch_size)
@@ -762,7 +606,7 @@ class ActivationsVisualizer:
                         tfr_dir = tfr
                 if not tfr_dir:
                     log.warning(f"TFRecord location not found for slide {g['slide']}")
-                slide, image = sf.io.tensorflow.get_tfrecord_by_index(tfr_dir, g['index'], decode=False)
+                slide, image = sf.io.get_tfrecord_by_index(tfr_dir, g['index'], decode=False)
                 tile_filename = f"{i}-tfrecord{g['slide']}-{g['index']}-{g['val']:.2f}.jpg"
                 image_string = open(join(outdir, str(f), tile_filename), 'wb')
                 image_string.write(image.numpy())
@@ -778,7 +622,7 @@ class Heatmap:
 
         Args:
             slide (str): Path to slide.
-            model (str): Path to Tensorflow model.
+            model (str): Path to Tensorflow or PyTorch model.
             stride_div (int, optional): Divisor for stride when convoluting across slide. Defaults to 2.
             roi_dir (str, optional): Directory in which slide ROI is contained. Defaults to None.
             roi_list (list, optional): List of paths to slide ROIs. Defaults to None. Alternative to providing roi_dir.
@@ -853,8 +697,8 @@ class Heatmap:
         # Plot ROIs
         if show_roi:
             print('\r\033[KPlotting ROIs...', end='')
-            ROI_SCALE = self.slide.full_shape[0]/2048
-            annPolys = [sg.Polygon(annotation.scaled_area(ROI_SCALE)) for annotation in self.slide.rois]
+            roi_scale = self.slide.full_shape[0]/2048
+            annPolys = [sg.Polygon(annotation.scaled_area(roi_scale)) for annotation in self.slide.rois]
             for poly in annPolys:
                 x,y = poly.exterior.xy
                 plt.plot(x, y, zorder=20, color='k', linewidth=5)
