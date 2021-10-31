@@ -278,10 +278,18 @@ class TestSuite:
         self.SFP.save()
 
         # Check if GPU available
-        import tensorflow as tf
+
         with TaskWrapper("Checking GPU availability...") as gpu_test:
-            if not tf.config.list_physical_devices('GPU'):
-                gpu_test.fail()
+            if sf.backend() == 'tensorflow':
+                import tensorflow as tf
+                if not tf.config.list_physical_devices('GPU'):
+                    gpu_test.fail()
+            elif sf.backend() == 'torch':
+                import torch
+                if not torch.cuda.is_available():
+                    gpu_test.fail()
+            else:
+                raise ValueError(f"Unrecognized backend {sf.backend()} (Must be 'tensorflow' or 'torch')")
 
         # Configure datasets (input)
         self.configure_sources()

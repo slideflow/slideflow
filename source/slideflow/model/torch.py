@@ -300,11 +300,12 @@ class Trainer:
 
         if self.num_outcomes > 1:
             acc_desc = ''
+            acc_list = [running_corrects[r] / num_records for r in running_corrects]
             for o in range(len(running_corrects)):
                 acc_desc += f"out-{o} acc: {running_corrects[f'out-{o}'] / num_records:.4f} "
-            return acc_desc
+            return acc_desc, acc_list
         else:
-            return f'acc: {running_corrects / num_records:.4f}'
+            return f'acc: {running_corrects / num_records:.4f}', running_corrects / num_records
 
     def update_acc(self, outputs, labels, running_corrects):
         '''Updates running accuracy in a manner compatible with multiple outcomes.'''
@@ -327,6 +328,7 @@ class Trainer:
         rank = 0
         num_gpus = 1
         starting_epoch = max(starting_epoch, 1)
+        results = {'epochs': {}}
 
         # Enable TF32 (should be enabled by default)
         torch.backends.cuda.matmul.allow_tf32 = True  # Allow PyTorch to internally use tf32 for matmul
@@ -441,9 +443,9 @@ class Trainer:
                                 optimizer.step()
 
                         num_records = step * self.hp.batch_size
-                        if self.hp.model_type == 'categorical':
+                        if self.hp.model_type() == 'categorical':
                             running_corrects = self.update_acc(outputs, labels, running_corrects)
-                            acc_desc = self.acc_desc(running_corrects, num_records)
+                            acc_desc, _ = self.acc_desc(running_corrects, num_records)
                         else:
                             acc_desc = ''
                         running_loss += loss.item() * images.size(0)
@@ -494,7 +496,7 @@ class Trainer:
                         num_records = (step+1) * dataloaders['val'].batch_size
                         if self.hp.model_type() == 'categorical':
                             running_corrects = self.update_acc(outputs, labels, running_corrects)
-                            acc_desc = self.acc_desc(running_corrects, num_records)
+                            acc_desc, _ = self.acc_desc(running_corrects, num_records)
                         else:
                             acc_desc = ''
                         running_loss += loss.item() * images.size(0)
@@ -506,10 +508,24 @@ class Trainer:
                 elapsed = time.strftime('%H:%M:%S', time.gmtime(time.time() - starttime))
                 epoch_loss = running_loss / num_records
                 if self.hp.model_type() == 'categorical':
-                    epoch_acc_desc = self.acc_desc(running_corrects, num_records)
+                    epoch_acc_desc, epoch_accuracy = self.acc_desc(running_corrects, num_records)
                 else:
                     epoch_acc_desc = ''
+                    epoch_accuracy = 0
                 log.info(f'{sf.util.bold(sf.util.green(phase))} Epoch {epoch} | loss: {epoch_loss:.4f} {epoch_acc_desc} (Elapsed: {elapsed})')
+
+                # Update results
+                if f'epoch{epoch}' not in results['epochs']:
+                    results['epochs'][f'epoch{epoch}'] = {}
+                epoch_metrics = {'loss': epoch_loss}
+                if self.hp.model_type() == 'categorical':
+                    if isinstance(epoch_accuracy, (float, int)):
+                        epoch_metrics.update({'accuracy': epoch_accuracy})
+                    elif isinstance(epoch_accuracy, (list)):
+                        epoch_metrics.update({'accuracy': [e.cpu().numpy().tolist() for e in epoch_accuracy]})
+                    else:
+                        epoch_metrics.update({'accuracy': epoch_accuracy.cpu().numpy().tolist()})
+                results['epochs'][f'epoch{epoch}'].update({f'{phase}_metrics': epoch_metrics})
 
                 # Perform full metrics if the epoch is one of the predetermined epochs at which to save/eval a model
                 if phase == 'val' and (val_dts is not None) and epoch in self.hp.epochs:
@@ -519,22 +535,26 @@ class Trainer:
                     results_log = os.path.join(self.outdir, 'results_log.csv')
                     torch.save(self.model.state_dict(), save_path)
                     log.info(f"Model saved to {sf.util.green(save_path)}")
-                    metrics = sf.statistics.metrics_from_dataset(self.model,
-                                                                 model_type=self.hp.model_type(),
-                                                                 labels=self.labels,
-                                                                 patients=self.patients,
-                                                                 dataset=dataloaders['val'],
-                                                                 data_dir=self.outdir,
-                                                                 save_predictions=save_predictions)
-                    # Log results
-                    epoch_results = {'train_metrics': None, 'val_metrics': metrics }
-                    for metric in metrics:
-                        if metrics[metric]['tile'] is None: continue
-                        epoch_results['tile'] = metrics[metric]['tile']
-                        epoch_results['slide'] = metrics[metric]['slide']
-                        epoch_results['patient'] = metrics[metric]['patient']
-                    sf.util.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
-        return {}
+
+                    epoch_results = {}
+                    if not skip_metrics:
+                        metrics = sf.statistics.metrics_from_dataset(self.model,
+                                                                    model_type=self.hp.model_type(),
+                                                                    labels=self.labels,
+                                                                    patients=self.patients,
+                                                                    dataset=dataloaders['val'],
+                                                                    data_dir=self.outdir,
+                                                                    save_predictions=save_predictions)
+                        # Log results
+                        for metric in metrics:
+                            if metrics[metric]['tile'] is None: continue
+                            epoch_results['tile'] = metrics[metric]['tile']
+                            epoch_results['slide'] = metrics[metric]['slide']
+                            epoch_results['patient'] = metrics[metric]['patient']
+                    results['epochs'][f'epoch{epoch}'].update(epoch_results)
+                    sf.util.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': results['epochs'][f'epoch{epoch}']})
+
+        return results
 
 class LinearTrainer(Trainer):
     def __init__(self, *args, **kwargs):

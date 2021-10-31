@@ -1983,6 +1983,7 @@ class Project:
             for k in valid_k:
                 # Log current model name and k-fold iteration, if applicable
                 k_fold_msg = '' if not k else f' ({val_settings.strategy} iteration {k})'
+                print()
                 log.info(f'Training model {sf.util.bold(model_name)}{k_fold_msg}...')
                 log.info(f'Hyperparameters: {hp}')
                 log.info(f'Validation settings: {json.dumps(vars(val_settings), indent=2)}')

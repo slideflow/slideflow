@@ -9,7 +9,7 @@ from slideflow.model.base import HyperParameterError
 if os.environ['SF_BACKEND'] == 'tensorflow':
     from slideflow.model.tensorflow import ModelParams, Trainer, LinearTrainer, CPHTrainer
 elif os.environ['SF_BACKEND'] == 'torch':
-    from slideflow.model.torch import ModelParams, Trainer, LinearTrainer
+    from slideflow.model.torch import ModelParams, Trainer, LinearTrainer, CPHTrainer
 else:
     raise ValueError(f"Unknown backend {os.environ['SF_BACKEND']}")
 
