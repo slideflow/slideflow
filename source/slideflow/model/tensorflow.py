@@ -202,7 +202,7 @@ class ModelParams(_base.ModelParams):
         merged_model = self._add_hidden_layers(merged_model, regularizer)
 
         # Multi-categorical outcomes
-        if type(num_classes) == dict:
+        if isinstance(num_classes, dict):
             outputs = []
             for c in num_classes:
                 final_dense_layer = tf.keras.layers.Dense(num_classes[c],

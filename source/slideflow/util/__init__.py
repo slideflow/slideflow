@@ -11,6 +11,7 @@ import cv2
 import multiprocessing_logging
 import importlib
 
+import slideflow as sf
 from glob import glob
 from os.path import join, isdir, exists, dirname
 from PIL import Image
@@ -549,8 +550,9 @@ def get_model_config(model_path):
     if exists(join(model_path, 'hyperparameters.json')):
         return load_json(join(model_path, 'hyperparameters.json'))
     elif exists(join(dirname(model_path), 'hyperparameters.json')):
-        log.warning("Hyperparameters file not found in model directory; loading from parent directory. " + \
-                    "Please move hyperparameters.json into model folder.")
+        if sf.backend() == 'tensorflow':
+            log.warning("Hyperparameters file not found in model directory; loading from parent directory. " + \
+                        "Please move hyperparameters.json into model folder.")
         return load_json(join(dirname(model_path), 'hyperparameters.json'))
     else:
         log.warning("Hyperparameters file not found.")

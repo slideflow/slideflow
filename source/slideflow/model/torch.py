@@ -16,6 +16,35 @@ from slideflow.model.base import log_manifest
 from tqdm import tqdm
 from vit_pytorch import ViT
 
+class ModelWrapper(torch.nn.Module):
+    def __init__(self, model, n_classes):
+        super().__init__()
+        self.model = model
+        if model.__class__.__name__ == 'Xception':
+            num_ftrs = model.last_linear.in_features
+            model.last_linear = torch.nn.Identity()
+
+        else:
+            num_ftrs = model.fc.in_features
+            model.fc = torch.nn.Identity()
+        self.out_layers = []
+        for i, n in enumerate(n_classes):
+            setattr(model, f'fc{i}', torch.nn.Linear(num_ftrs, n))
+            self.out_layers += [getattr(model, f'fc{i}')]
+
+    def forward(self, x):
+        last_linear = self.model(x)
+        out = [l(last_linear) for l in self.out_layers]
+        return out
+
+    def __getattr__(self, name):
+        try:
+            return super().__getattr__(name)
+        except AttributeError:
+            if name == 'model':
+                raise AttributeError()
+            return getattr(self.model, name)
+
 class ModelParams(_base.ModelParams):
     """Build a set of hyperparameters."""
 
@@ -97,35 +126,29 @@ class ModelParams(_base.ModelParams):
         assert num_classes is not None or labels is not None
         if num_classes is None:
             num_classes = self._detect_classes_from_labels(labels)
+        if not isinstance(num_classes, dict):
+            num_classes = {'out-0': num_classes}
 
-        if isinstance(num_classes, dict):
-            outcomes = list(num_classes.keys())
-            if len(outcomes) > 1:
-                raise NotImplementedError
-            else:
-                num_classes = num_classes[outcomes[0]] # Forces single categorical model for now
-
+        # Build base model
         if self.model == 'ViT':
-            return ViT(image_size=self.tile_px,
-                        patch_size=32,
-                        num_classes=num_classes,
-                        dim=1024,
-                        depth=6,
-                        heads=16,
-                        mlp_dim=2048,
-                        dropout=0.1,
-                        emb_dropout=0.1)
+            _model = ViT(image_size=self.tile_px,
+                         patch_size=32,
+                         num_classes=num_classes,
+                         dim=1024,
+                         depth=6,
+                         heads=16,
+                         mlp_dim=2048,
+                         dropout=0.1,
+                         emb_dropout=0.1)
         elif self.model in ('xception',):
             _model = self.ModelDict[self.model](num_classes=1000, pretrained=pretrain)
-            num_ftrs = _model.last_linear.in_features
-            _model.last_linear = torch.nn.Linear(num_ftrs, num_classes)
-            return _model
         else:
             _model = self.ModelDict[self.model](pretrained=pretrain)
-            if self.model in ('resnet18', 'resnet50', 'resnext50_32x4d'):
-                num_ftrs = _model.fc.in_features
-                _model.fc = torch.nn.Linear(num_ftrs, num_classes)
-            return _model
+
+        # Add final layers to models
+        _model = ModelWrapper(_model, num_classes.values())
+
+        return _model
 
     def model_type(self):
         if self.loss == 'NLLLoss':
@@ -156,6 +179,9 @@ class Trainer:
             outcome_labels = np.expand_dims(outcome_labels, axis=1)
         if not self.outcome_names:
             self.outcome_names = [f'Outcome {i}' for i in range(outcome_labels.shape[1])]
+        if not len(self.outcome_names) == outcome_labels.shape[1]:
+            raise sf.util.UserError(f"Number of provided outcome names ({len(self.outcome_names)}) does not match " + \
+                                    f"the number of outcomes ({outcome_labels.shape[1]})")
         if not os.path.exists(outdir): os.makedirs(outdir)
 
     def load(self, model):
@@ -311,9 +337,7 @@ class Trainer:
             log.info(sf.util.bold('Epoch ' + str(epoch) + '/' + str(max(self.hp.epochs))))
 
             for phase in dataloaders:
-                num_records = 0
-                running_loss = 0.0
-                running_corrects = 0
+                num_records, running_loss, running_corrects = 0, 0.0, 0
                 step = 1
                 starttime = time.time()
 
@@ -355,7 +379,7 @@ class Trainer:
                         dataloader_pb.update(self.hp.batch_size)
 
                         # Mid-training validation
-                        if mid_train_val_dts is not None and (step % validate_on_batch == 0) and step > 0:
+                        if mid_train_val_dts is not None and validate_on_batch and (step % validate_on_batch == 0) and step > 0:
                             self.model.eval()
                             running_val_loss = 0
                             running_val_correct = 0
@@ -364,6 +388,7 @@ class Trainer:
                                 val_img = val_img.to(device)
                                 val_label = val_label.to(device)
                                 if validation_steps and v > validation_steps: break
+
                                 val_outputs = self.model(val_img)
                                 _, val_preds = torch.max(val_outputs, 1)
                                 running_val_loss += loss.item() * val_img.size(0)

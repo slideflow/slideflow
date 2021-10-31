@@ -129,9 +129,10 @@ def _roi_coords_from_image(c, args):
     ur = np.array([args.tile_px, args.tile_px])
     for roi in args.rois:
         coord = proc_ann(roi)
+        coords_in_tile = coord[np.all(np.logical_and(ll <= coord, coord <= ur), axis=1)]
+        if len(coords_in_tile) > 3:
+            coords += [coords_in_tile]
 
-        if np.any(np.all(np.logical_and(ll <= coord, coord <= ur), axis=1)):
-            coords += [coord]
 
     # Convert ROI to bounding box that fits within tile
     boxes = []

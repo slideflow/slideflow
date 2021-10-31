@@ -28,7 +28,7 @@ def set_backend(b):
 
 # Style information
 # =================
-# General style format should conform to Google Python best-practices
+# General style format should conform to Google Python best practices
 # (http://google.github.io/styleguide/pyguide.html), with the exception of a
 # maximum line length of 120. Docstrings should also conform with Google Style.
 # (https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html)
@@ -48,7 +48,6 @@ def set_backend(b):
 #TODO: consistent model name strings in tensorflow and pytorch versions
 #TODO: easier validation plan sharing
 #TODO: more clear logging information regarding validation plans
-#TODO: make thumbnail caching optional
 #TODO: show tile extraction grid on thumbnail, optional
 #TODO: merge annotated_thumb and thumb
 #TODO: consistent "decode" for get_tfrecord_parser in tensorflow/torch (decode should decode images + slide name)
@@ -58,7 +57,7 @@ def set_backend(b):
 #TODO: custom models in Tensorflow & PyTorch (attention to ActivationsInterface)
 #TODO: improved module loading. Look into importlib lazy loading
 #TODO: remove as many calls to sf.backend() as possible. Ideally the API should be unified/consistent
-#TODO: improve tile verification speech in PyTorch
+#TODO: improve tile verification speed in PyTorch
 
 # PyTorch implementation
 # ======================
@@ -74,11 +73,9 @@ def set_backend(b):
 #TODO: results_dict from torch training
 #TODO: statistics.permutation_feature_importance (-> ActivationsInterface)
 #TODO: statistics.predict_from_layer (used for permutation_feature_importance)
-#TODO: fix pytorch validate_on_batch (should skip if == 0, and should use val_steps not the whole dataset)
 #TODO: implement clipping for tfrecord interleaving in pytorch
 #TODO: pytorch implementation does not log results to results_log
 #TODO: test suite GPU availability test
-#TODO: move hyperparameters file into model ZIP or suppress warning
 #
 # Slide processing (tf.data.TFRecordDataset & tf.data.TFRecordWriter)
 # -------------------------------------------------------------------

@@ -417,7 +417,7 @@ class TestSuite:
         process.start()
         process.join()
 
-    def train_perf_model(self, **train_kwargs):
+    def train_perf(self, **train_kwargs):
         with TaskWrapper("Training to single categorical outcome from hyperparameter sweep...") as test:
             self.setup_hp('categorical', sweep=True)
             results_dict = self.SFP.train(exp_label='manual_hp',
@@ -435,7 +435,7 @@ class TestSuite:
     def test_training(self, categorical=True, linear=True, multi_input=True, cph=True, multi_cph=True, **train_kwargs):
         if categorical:
             # Test categorical outcome
-            self.train_perf_model(**train_kwargs)
+            self.train_perf(**train_kwargs)
 
             # Test multiple sequential categorical outcome models
             with TaskWrapper("Training to multiple outcomes...") as test:
