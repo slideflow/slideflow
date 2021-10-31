@@ -58,6 +58,8 @@ def set_backend(b):
 #TODO: improved module loading. Look into importlib lazy loading
 #TODO: remove as many calls to sf.backend() as possible. Ideally the API should be unified/consistent
 #TODO: improve tile verification speed in PyTorch
+#TODO: ensure that epochs can be a number and not a list
+#TODO: pytorch dataloader memory efficiency & performance
 
 # PyTorch implementation
 # ======================
@@ -65,7 +67,6 @@ def set_backend(b):
 # Core features / high priority updates
 # -------------------------------------
 #TODO: full Trainer features, parameters, etc
-#    - multiple outcomes
 #    - CPH outcomes
 #    - slide-level input
 #    - multi-GPU support

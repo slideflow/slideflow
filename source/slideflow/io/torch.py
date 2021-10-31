@@ -83,6 +83,9 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
                 _unique_raw = np.unique(_all_labels_raw)
                 max_label = np.max(_unique_raw)
                 labels = {k:to_onehot(v, max_label+1) for k,v in labels.items()}
+                self.num_outcomes = 1
+            else:
+                self.num_outcomes = len(list(labels.values())[0])
 
             _all_labels = np.array(list(labels.values()))
             self.unique_labels = np.unique(_all_labels, axis=0)
@@ -135,9 +138,16 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             label = self.labels[slide]
         else:
             label = 0
+
         image = image.permute(2, 0, 1) # HWC => CHW
-        label = torch.tensor(label)
-        to_return = [image, label]
+        to_return = [image]
+
+        # Support for multiple outcome labels
+        if self.num_outcomes > 1:
+            to_return += [{f'out-{i}': torch.tensor(l) for i, l in enumerate(label)}]
+        else:
+            to_return += [torch.tensor(label)]
+
         if self.incl_slidenames:
             to_return += [slide]
         if self.incl_loc:

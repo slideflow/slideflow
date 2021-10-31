@@ -30,7 +30,6 @@ except:
     pass
 # ------
 
-# Set the backend
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs', 'tiff', 'svslide', 'bif', 'jpg']
 SLIDE_ANNOTATIONS_TO_IGNORE = ['', ' ']
 LOGGING_PREFIXES = ['', ' + ', '    - ']

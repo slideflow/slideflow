@@ -682,7 +682,7 @@ class Trainer:
 
     def _interleave_kwargs(self, **kwargs):
         args = types.SimpleNamespace(
-            label_parser = self._parse_tfrecord_labels,
+            label_parser=self._parse_tfrecord_labels,
             normalizer=self.normalizer,
             **kwargs
         )

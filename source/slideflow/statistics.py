@@ -1352,7 +1352,11 @@ def predict_from_torch(model, dataset):
 
         with torch.cuda.amp.autocast():
             with torch.no_grad():
-                res = model(img).cpu().numpy().copy()
+                res = model(img)
+                if isinstance(res, list):
+                    res = [r.cpu().numpy().copy() for r in res]
+                else:
+                    res = res.cpu().numpy().copy()
                 y_pred += [res]
 
         if type(yt) == dict:
