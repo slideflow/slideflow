@@ -125,6 +125,7 @@ class ModelParams:
                                                                             'model_type',
                                                                             'validate',
                                                                             'get_dict',
+                                                                            'get_loss',
                                                                             'load_dict',
                                                                             'OptDict',
                                                                             'ModelDict',

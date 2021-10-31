@@ -132,6 +132,9 @@ class ModelParams(_base.ModelParams):
     def get_opt(self, params_to_update):
         return self.OptDict[self.optimizer](params_to_update, lr=self.learning_rate)
 
+    def get_loss(self):
+        return self.AllLossDict[self.loss]()
+
     def build_model(self, labels=None, num_classes=None, num_slide_features=0, pretrain=None, checkpoint=None):
         assert num_classes is not None or labels is not None
         if num_classes is None:
@@ -193,6 +196,13 @@ class Trainer:
             raise sf.util.UserError(f"Number of provided outcome names ({len(self.outcome_names)}) does not match " + \
                                     f"the number of outcomes ({outcome_labels.shape[1]})")
         if not os.path.exists(outdir): os.makedirs(outdir)
+
+    @property
+    def num_outcomes(self):
+        if self.hp.model_type() == 'categorical':
+            return len(self.outcome_names)
+        else:
+            return 1
 
     def load(self, model):
         self.model = self.hp.build_model(labels=self.labels)
@@ -268,8 +278,10 @@ class Trainer:
     def labels_to_device(self, labels, device):
         '''Moves a set of outcome labels to the given device.'''
 
-        if len(self.outcome_names) > 1:
+        if self.num_outcomes > 1:
             labels = {k: l.to(device, non_blocking=True) for k,l in labels.items()}
+        elif isinstance(labels, dict):
+            return torch.stack(list(labels.values()), dim=1).to(device, non_blocking=True)
         else:
             labels = labels.to(device, non_blocking=True)
         return labels
@@ -277,7 +289,7 @@ class Trainer:
     def calculate_loss(self, outputs, labels, loss_fn):
         '''Calculates loss in a manner compatible with multiple outcomes.'''
 
-        if len(self.outcome_names) > 1:
+        if self.num_outcomes > 1:
             loss = sum([loss_fn(out, labels[f'out-{o}']) for o, out in enumerate(outputs)])
         else:
             loss = loss_fn(outputs, labels)
@@ -286,7 +298,7 @@ class Trainer:
     def acc_desc(self, running_corrects, num_records):
         '''Reports accuracy of each outcome.'''
 
-        if len(self.outcome_names) > 1:
+        if self.num_outcomes > 1:
             acc_desc = ''
             for o in range(len(running_corrects)):
                 acc_desc += f"out-{o} acc: {running_corrects[f'out-{o}'] / num_records:.4f} "
@@ -297,7 +309,7 @@ class Trainer:
     def update_acc(self, outputs, labels, running_corrects):
         '''Updates running accuracy in a manner compatible with multiple outcomes.'''
 
-        if len(self.outcome_names) > 1:
+        if self.num_outcomes > 1:
             for o, out in enumerate(outputs):
                 _, preds = torch.max(out, 1)
                 running_corrects[f'out-{o}'] += torch.sum(preds == labels[f'out-{o}'].data)
@@ -341,7 +353,7 @@ class Trainer:
         else:
             steps_per_epoch = train_dts.num_tiles // self.hp.batch_size
             log.info(f"Steps per epoch = {steps_per_epoch}")
-        multi_outcome = (len(self.outcome_names) > 1)
+        multi_outcome = (self.num_outcomes > 1)
 
         # Build model
         self.model = self.hp.build_model(labels=self.labels, pretrain=pretrain)
@@ -379,7 +391,7 @@ class Trainer:
 
         params_to_update = self.model.parameters()
         optimizer = self.hp.get_opt(params_to_update)
-        loss_fn = torch.nn.CrossEntropyLoss()
+        loss_fn = self.hp.get_loss()
         if self.mixed_precision:
             scaler = torch.cuda.amp.GradScaler()
 
@@ -392,7 +404,7 @@ class Trainer:
                 num_records, running_loss = 0, 0.0
 
                 if multi_outcome:
-                    running_corrects = {f'out-{o}':0 for o in range(len(self.outcome_names))}
+                    running_corrects = {f'out-{o}':0 for o in range(self.num_outcomes)}
                 else:
                     running_corrects = 0
 
@@ -429,8 +441,11 @@ class Trainer:
                                 optimizer.step()
 
                         num_records = step * self.hp.batch_size
-                        running_corrects = self.update_acc(outputs, labels, running_corrects)
-                        acc_desc = self.acc_desc(running_corrects, num_records)
+                        if self.hp.model_type == 'categorical':
+                            running_corrects = self.update_acc(outputs, labels, running_corrects)
+                            acc_desc = self.acc_desc(running_corrects, num_records)
+                        else:
+                            acc_desc = ''
                         running_loss += loss.item() * images.size(0)
                         dataloader_pb.set_description(f'{sf.util.bold(sf.util.green(phase))} loss: {running_loss / num_records:.4f} {acc_desc}')
                         dataloader_pb.update(self.hp.batch_size)
@@ -477,8 +492,11 @@ class Trainer:
                                 loss = self.calculate_loss(outputs, labels, loss_fn)
 
                         num_records = (step+1) * dataloaders['val'].batch_size
-                        running_corrects = self.update_acc(outputs, labels, running_corrects)
-                        acc_desc = self.acc_desc(running_corrects, num_records)
+                        if self.hp.model_type() == 'categorical':
+                            running_corrects = self.update_acc(outputs, labels, running_corrects)
+                            acc_desc = self.acc_desc(running_corrects, num_records)
+                        else:
+                            acc_desc = ''
                         running_loss += loss.item() * images.size(0)
                         dataloader_pb.set_description(f'{sf.util.bold(sf.util.green(phase))} loss: {running_loss / num_records:.4f} {acc_desc}')
                         dataloader_pb.update(dataloaders['val'].batch_size)
@@ -487,7 +505,10 @@ class Trainer:
 
                 elapsed = time.strftime('%H:%M:%S', time.gmtime(time.time() - starttime))
                 epoch_loss = running_loss / num_records
-                epoch_acc_desc = self.acc_desc(running_corrects, num_records)
+                if self.hp.model_type() == 'categorical':
+                    epoch_acc_desc = self.acc_desc(running_corrects, num_records)
+                else:
+                    epoch_acc_desc = ''
                 log.info(f'{sf.util.bold(sf.util.green(phase))} Epoch {epoch} | loss: {epoch_loss:.4f} {epoch_acc_desc} (Elapsed: {elapsed})')
 
                 # Perform full metrics if the epoch is one of the predetermined epochs at which to save/eval a model

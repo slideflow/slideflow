@@ -87,6 +87,7 @@ def set_backend(b):
 # ---------------------
 #TODO: filter.py script
 #TODO: update.py script
+#TODO: PyTorch ModelParams get_loss -> @property
 
 # Future updates
 # ===============

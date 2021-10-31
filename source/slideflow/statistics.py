@@ -1323,13 +1323,15 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
 
     return combined_metrics
 
-def predict_from_torch(model, dataset):
+def predict_from_torch(model, dataset, model_type='categorical'):
     """Generates predictions (y_true, y_pred, tile_to_slide) from a given PyTorch model and dataset.
 
     Args:
         model (str): Path to PyTorch model.
         dataset (tf.data.Dataset): PyTorch dataloader.
         num_tiles (int, optional): Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.
+        model_type (str, optional): 'categorical', 'linear', or 'cph'. If multiple linear outcomes are present,
+            y_true is stacked into a single vector for each image. Defaults to 'categorical'.
 
     Returns:
         y_true, y_pred, tile_to_slides
@@ -1382,6 +1384,10 @@ def predict_from_torch(model, dataset):
         y_true = [np.concatenate(yt) for yt in zip(*y_true)]
     else:
         y_true = np.concatenate(y_true)
+
+    # Merge multiple linear outcomes into a single vector
+    if model_type == 'linear' and isinstance(y_true, list):
+        y_true = np.stack(y_true, axis=1)
 
     end = time.time()
     log.debug(f"Prediction complete. Time to completion: {int(end-start)} s")
@@ -1521,7 +1527,7 @@ def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_n
     if sf.backend() == 'tensorflow':
         y_true, y_pred, tile_to_slides = predict_from_tensorflow(model, dataset, num_tiles=num_tiles)
     else:
-        y_true, y_pred, tile_to_slides = predict_from_torch(model, dataset)
+        y_true, y_pred, tile_to_slides = predict_from_torch(model, dataset, model_type=model_type)
 
     before_metrics = time.time()
     metrics = metrics_from_predictions(y_true=y_true,
