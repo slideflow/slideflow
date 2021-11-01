@@ -1437,6 +1437,7 @@ class Project:
                               stride_div=1,
                               enable_downsample=enable_downsample,
                               roi_list=roi_list,
+                              roi_method='inside',
                               skip_missing_roi=roi,
                               buffer=None)
             if roi:

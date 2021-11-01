@@ -37,10 +37,10 @@ def main(outdir, source, model):
 
         writer = tf.io.TFRecordWriter(join(outdir, tfr))
         dataset = tf.data.TFRecordDataset(tfr_path)
-        feature_description, _ = tfrecords.detect_tfrecord_format(tfr_path)
+        parser = tfrecords.get_tfrecord_parser(tfr_path, decode_images=False, to_numpy=True)
         for i, record in enumerate(dataset):
             if roi_pred[i][1] > 0.5:
-                writer.write(tfrecords._read_and_return_record(record, feature_description))
+                writer.write(tfrecords.read_and_return_record(record, parser))
                 num_wrote += 1
         tqdm.write(f'Finished {tfr} : wrote {num_wrote}')
         writer.close()

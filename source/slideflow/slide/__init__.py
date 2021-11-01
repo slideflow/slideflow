@@ -29,6 +29,7 @@ import tempfile
 import warnings
 
 import slideflow as sf
+import slideflow.io
 import matplotlib.colors as mcol
 import multiprocessing as mp
 
@@ -39,19 +40,6 @@ from datetime import datetime
 from functools import partial
 from tqdm import tqdm
 from fpdf import FPDF
-
-# --- Backend-specific import -------------------------------------------------
-if os.environ['SF_BACKEND'] == 'tensorflow':
-    from tensorflow.io import TFRecordWriter
-    from slideflow.io.tensorflow import serialized_record
-
-elif os.environ['SF_BACKEND'] == 'torch':
-    from slideflow.tfrecord import TFRecordWriter
-    from slideflow.io.torch import serialized_record
-
-else:
-    raise ValueError(f"Unknown backend {os.environ['SF_BACKEND']}")
-# -----------------------------------------------------------------------------
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -541,6 +529,8 @@ class _BaseLoader:
         filetype = sf.util.path_to_ext(path)
 
         # Initiate supported slide reader
+        if not os.path.exists(path):
+            raise OSError(f"Could not find slide {path}; file does not exist.")
         if filetype.lower() in sf.util.SUPPORTED_FORMATS:
             if filetype.lower() == 'jpg':
                 self.slide = _JPGslideToVIPS(path)
@@ -709,6 +699,7 @@ class _BaseLoader:
         if tfrecord_dir:
             if not exists(tfrecord_dir): os.makedirs(tfrecord_dir)
         if tiles_dir:
+            tiles_dir = os.path.join(tiles_dir, self.name)
             if not os.path.exists(tiles_dir): os.makedirs(tiles_dir)
 
         # Log to keep track of when tiles have finished extracting
@@ -717,7 +708,7 @@ class _BaseLoader:
         with open(unfinished_marker, 'w') as marker_file:
             marker_file.write(' ')
         if tfrecord_dir:
-            writer = TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
+            writer = sf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
 
         generator = self.build_generator(show_progress=(self.counter_lock is None), img_format=img_format, **kwargs)
         slidename_bytes = bytes(self.name, 'utf-8')
@@ -744,8 +735,9 @@ class _BaseLoader:
                         for ann in tile_dict['yolo']:
                             outfile.write("0 {:.3f} {:.3f} {:.3f} {:.3f}\n".format(ann[0], ann[1], ann[2], ann[3]))
             if tfrecord_dir:
-                record = serialized_record(slidename_bytes, image_string, location[0], location[1])
+                record = sf.io.serialized_record(slidename_bytes, image_string, location[0], location[1])
                 writer.write(record)
+        writer.close()
         if self.counter_lock is None:
             generator_iterator.close()
 
@@ -766,7 +758,7 @@ class WSI(_BaseLoader):
     '''Loads a slide and its annotated region of interest (ROI).'''
 
     def __init__(self, path, tile_px, tile_um, stride_div=1, enable_downsample=False, roi_dir=None, roi_list=None,
-                 roi_method='ignore', skip_missing_roi=False, randomize_origin=False, buffer=None, pb=None,
+                 roi_method='inside', skip_missing_roi=False, randomize_origin=False, buffer=None, pb=None,
                  pb_counter=None, counter_lock=None):
 
         """Loads slide and ROI(s).
@@ -831,14 +823,18 @@ class WSI(_BaseLoader):
             self.load_csv_roi(matching_rois[0])
 
         # Handle missing ROIs
+        if not len(self.rois) and roi_method != 'ignore' and not (roi_list or roi_dir):
+            # No ROIs found because the user did not provide roi_list or roi_dir, but the roi_method is not set to 'ignore',
+            # indicating that this may be user error.
+            log.warning(f"No ROIs provided for {self.name} (suppress this warning with roi_method='ignore')")
         if not len(self.rois) and skip_missing_roi and roi_method != 'ignore':
-            log.error(f"No ROI found for {sf.util.green(self.name)}, skipping slide")
+            log.error(f"No ROI found for, skipping slide")
             self.shape = None
             self.load_error = True
             return None
         elif not len(self.rois):
             self.estimated_num_tiles = int(len(self.coord))
-            log.info(f"[{sf.util.green(self.shortname)}] No ROI found in {roi_dir}, using whole slide.")
+            log.info(f"No ROI found for {sf.util.green(self.name)}, using whole slide.")
             self.roi_method = 'ignore'
 
         mpp_roi_msg = f'{self.MPP} um/px | {len(self.rois)} ROI(s)'

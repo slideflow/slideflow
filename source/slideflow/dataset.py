@@ -656,7 +656,7 @@ class Dataset:
                 if not exists(tiles_dir):
                     os.makedirs(tiles_dir)
             for tfr in to_extract_tfrecords:
-                sf.io.tensorflow.extract_tiles(tfr, tiles_dir)
+                sf.io.extract_tiles(tfr, tiles_dir)
 
     def filter(self, **kwargs):
         """Return a filtered dataset.
@@ -936,6 +936,9 @@ class Dataset:
             tile_px (int): Target pixel size for resizing TFRecord images.
         """
 
+        if sf.backend() == 'torch':
+            raise NotImplementedError("This function has not yet been implemented for the PyTorch backend.")
+
         log.info(f'Resizing TFRecord tiles to ({tile_px}, {tile_px})')
         tfrecords_list = self.tfrecords()
         log.info(f'Resizing {len(tfrecords_list)} tfrecords')
@@ -947,8 +950,8 @@ class Dataset:
         rois_list = []
         for source in self.sources:
             rois_list += glob(join(self.sources[source]['roi'], "*.csv"))
-        rois_list = list(set(rois_list))
-        return rois_list
+        slides = self.slides()
+        return [l for l in list(set(rois_list)) if sf.util.path_to_name(l) in slides]
 
     def slide_paths(self, source=None, apply_filters=True):
         """Returns a list of paths to either all slides, or slides matching dataset filters.
@@ -1120,9 +1123,8 @@ class Dataset:
         outside the ROIs. Will skip any tfrecords that are missing ROIs. Requires slides to be available.
         """
 
+        import slideflow.io
         from slideflow.slide import WSI
-        import slideflow.io.tensorflow
-        import tensorflow as tf
 
         tfrecords = self.tfrecords()
         slides = {sf.util.path_to_name(s):s for s in self.slide_paths()}
@@ -1136,19 +1138,19 @@ class Dataset:
             slide = WSI(slides[slidename], self.tile_px, self.tile_um, roi_list=rois, skip_missing_roi=True)
             if slide.load_error:
                 continue
-            feature_description, _ = sf.io.tensorflow.detect_tfrecord_format(tfr)
-            parser = sf.io.tensorflow.get_tfrecord_parser(tfr, ('loc_x', 'loc_y'), to_numpy=True)
-            reader = tf.data.TFRecordDataset(tfr)
+            parser = sf.io.get_tfrecord_parser(tfr, decode_images=False, to_numpy=True)
+            reader = sf.io.TFRecordDataset(tfr)
             if not exists(join(destination, 'inside')):
                 os.makedirs(join(destination, 'inside'))
             if not exists(join(destination, 'outside')):
                 os.makedirs(join(destination, 'outside'))
-            inside_roi_writer = tf.io.TFRecordWriter(join(destination, 'inside', f'{slidename}.tfrecords'))
-            outside_roi_writer = tf.io.TFRecordWriter(join(destination, 'outside', f'{slidename}.tfrecords'))
+            inside_roi_writer = sf.io.TFRecordWriter(join(destination, 'inside', f'{slidename}.tfrecords'))
+            outside_roi_writer = sf.io.TFRecordWriter(join(destination, 'outside', f'{slidename}.tfrecords'))
             for record in tqdm(reader, total=manifest[tfr]['total']):
-                loc_x, loc_y = parser(record)
+                parsed = parser(record)
+                loc_x, loc_y = parsed['loc_x'], parsed['loc_y']
                 tile_in_roi = any([annPoly.contains(sg.Point(loc_x, loc_y)) for annPoly in slide.annPolys])
-                record_bytes = sf.io.tensorflow._read_and_return_record(record, feature_description)
+                record_bytes = sf.io.read_and_return_record(record, parser)
                 if tile_in_roi:
                     inside_roi_writer.write(record_bytes)
                 else:
@@ -1193,6 +1195,7 @@ class Dataset:
                           img_size=self.tile_px,
                           batch_size=batch_size,
                           prob_weights=self.prob_weights,
+                          clip=self._clip,
                           **kwargs)
 
     def tfrecord_report(self, destination, normalizer=None, normalizer_source=None):
@@ -1208,7 +1211,7 @@ class Dataset:
         """
 
         from slideflow.slide import ExtractionReport, SlideReport
-        import tensorflow as tf
+        import slideflow.io
 
         if normalizer: log.info(f'Using realtime {normalizer} normalization')
         normalizer = None if not normalizer else sf.util.StainNormalizer(method=normalizer, source=normalizer_source)
@@ -1218,8 +1221,8 @@ class Dataset:
         log.info('Generating TFRecords report...')
         for tfr in tfrecord_list:
             print(f'\r\033[KGenerating report for tfrecord {sf.util.green(sf.util.path_to_name(tfr))}...', end='')
-            dataset = tf.data.TFRecordDataset(tfr)
-            parser = sf.io.tensorflow.get_tfrecord_parser(tfr, ('image_raw',), to_numpy=True, decode_images=False)
+            dataset = sf.io.TFRecordDataset(tfr)
+            parser = sf.io.get_tfrecord_parser(tfr, ('image_raw',), to_numpy=True, decode_images=False)
             if not parser: continue
             sample_tiles = []
             for i, record in enumerate(dataset):
@@ -1234,7 +1237,12 @@ class Dataset:
         log.info('Generating PDF (this may take some time)...')
         pdf_report = ExtractionReport(reports, tile_px=self.tile_px, tile_um=self.tile_um)
         timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
-        filename = join(destination, f'tfrecord_report-{timestring}.pdf')
+        if os.path.exists(destination) and os.path.isdir(destination):
+            filename = join(destination, f'tfrecord_report-{timestring}.pdf')
+        elif sf.util.path_to_ext(destination) == 'pdf':
+            filename = join(destination)
+        else:
+            raise ValueError(f"Could not find destination directory {destination}.")
         pdf_report.save(filename)
         log.info(f'TFRecord report saved to {sf.util.green(filename)}')
 
@@ -1305,7 +1313,7 @@ class Dataset:
             folders += [join(self.sources[source]['tfrecords'], self.sources[source]['label'])]
         return folders
 
-    def tfrecords_from_tiles(self, delete_tiles=True):
+    def tfrecords_from_tiles(self, delete_tiles=False):
         """Create tfrecord files from a collection of raw images, as stored in project tiles directory"""
         for source in self.sources:
             log.info(f'Working on dataset source {source}')
@@ -1315,20 +1323,8 @@ class Dataset:
             if not exists(tiles_dir):
                 log.warn(f'No tiles found for dataset source {sf.util.bold(source)}')
                 continue
-
-            # Check to see if subdirectories in the target folders are slide directories (contain images)
-            #  or are further subdirectories (e.g. validation and training)
-            log.info('Scanning tile directory structure...')
-            if sf.util.contains_nested_subdirs(tiles_dir):
-                subdirs = [_dir for _dir in os.listdir(tiles_dir) if isdir(join(tiles_dir, _dir))]
-                for subdir in subdirs:
-                    tfrecord_subdir = join(tfrecord_dir, subdir)
-                    sf.io.tensorflow.write_tfrecords_multi(join(tiles_dir, subdir), tfrecord_subdir)
-            else:
-                sf.io.tensorflow.write_tfrecords_multi(tiles_dir, tfrecord_dir)
-
+            sf.io.write_tfrecords_multi(tiles_dir, tfrecord_dir)
             self.update_manifest()
-
             if delete_tiles:
                 shutil.rmtree(tiles_dir)
 
@@ -1596,6 +1592,7 @@ class Dataset:
                                      labels=labels,
                                      num_tiles=self.num_tiles,
                                      prob_weights=self.prob_weights,
+                                     clip=self._clip,
                                      **kwargs)
 
     def unclip(self):

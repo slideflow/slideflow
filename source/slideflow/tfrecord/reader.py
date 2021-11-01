@@ -19,6 +19,7 @@ def tfrecord_iterator(
     data_path: str,
     index_path: typing.Optional[str] = None,
     shard: typing.Optional[typing.Tuple[int, int]] = None,
+    clip: typing.Optional[int] = None,
     compression_type: typing.Optional[str] = None,
     random_start: bool = False,
 ) -> typing.Iterable[memoryview]:
@@ -87,27 +88,30 @@ def tfrecord_iterator(
             yield datum_bytes_view
 
     if index_path is None:
-        if shard is not None:
-            log.warn(f"Index files not found for tfrecord; unable to perform sharding {shard} (data will be duplicated).")
+        if shard is not None or clip is not None:
+            log.warning(f"Index files not found for tfrecord; unable to perform clipping or sharding (data will be duplicated).")
         yield from read_records()
     else:
         index = np.loadtxt(index_path, dtype=np.int64)
         if len(index.shape) == 1: # For the case that there is only a single record in the file
             index = np.expand_dims(index, axis=0)
         index = index[:, 0]
+        if clip:
+            clip_offset = None if clip == len(index) else index[clip]
+            index = index[:clip]
         if shard is None and random_start:
             offset = np.random.choice(index)
-            yield from read_records(offset)
+            yield from read_records(offset, clip_offset)
             yield from read_records(0, offset)
         elif shard is None:
-            yield from read_records()
+            yield from read_records(0, clip_offset)
         else:
             num_records = len(index)
             shard_idx, shard_count = shard
             start_index = (num_records * shard_idx) // shard_count
             end_index = (num_records * (shard_idx + 1)) // shard_count
             start_byte = index[start_index]
-            end_byte = index[end_index] if end_index < num_records else None
+            end_byte = index[end_index] if end_index < num_records else clip_offset
             yield from read_records(start_byte, end_byte)
 
     file.close()
@@ -178,6 +182,7 @@ def example_loader(
     index_path: typing.Union[str, None],
     description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
     shard: typing.Optional[typing.Tuple[int, int]] = None,
+    clip: typing.Optional[int] = None,
     compression_type: typing.Optional[str] = None,
 ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator over the (decoded) examples contained within
@@ -228,6 +233,7 @@ def example_loader(
         data_path=data_path,
         index_path=index_path,
         shard=shard,
+        clip=clip,
         compression_type=compression_type,
     )
 
@@ -241,6 +247,7 @@ def chunk_example_loader(
     index_path: typing.Union[str, None],
     description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
     shard: typing.Optional[typing.Tuple[int, int]] = None,
+    clip: typing.Optional[int] = None,
     compression_type: typing.Optional[str] = None,
 ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator over the (decoded) examples contained within
@@ -291,6 +298,7 @@ def chunk_example_loader(
         data_path=data_path,
         index_path=index_path,
         shard=shard,
+        clip=clip,
         compression_type=compression_type,
     )
 
@@ -320,6 +328,7 @@ def sequence_loader(
         typing.List[str], typing.Dict[str, str], None
     ] = None,
     shard: typing.Optional[typing.Tuple[int, int]] = None,
+    clip: typing.Optional[int] = None,
     compression_type: typing.Optional[str] = None,
 ) -> typing.Iterable[
     typing.Tuple[
@@ -383,6 +392,7 @@ def sequence_loader(
         data_path=data_path,
         index_path=index_path,
         shard=shard,
+        clip=clip,
         compression_type=compression_type,
     )
 
@@ -401,6 +411,7 @@ def tfrecord_loader(
     index_path: typing.Union[str, None],
     description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
     shard: typing.Optional[typing.Tuple[int, int]] = None,
+    clip: typing.Optional[int] = None,
     chunks: bool = False,
     sequence_description: typing.Union[
         typing.List[str], typing.Dict[str, str], None
@@ -468,6 +479,7 @@ def tfrecord_loader(
             context_description=description,
             features_description=sequence_description,
             shard=shard,
+            clip=clip,
             compression_type=compression_type
         )
     loading_fn = chunk_example_loader if chunks else example_loader
@@ -476,6 +488,7 @@ def tfrecord_loader(
         index_path=index_path,
         description=description,
         shard=shard,
+        clip=clip,
         compression_type=compression_type
     )
 
@@ -487,13 +500,12 @@ def multi_tfrecord_loader(paths: typing.List[str],
                           sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                           compression_type: typing.Optional[str] = None,
                           shard: typing.Optional[typing.Tuple[int, int]] = None,
+                          clip: typing.Optional[typing.Dict[str, int]] = None,
                           infinite: bool = True,
                           ) -> typing.Iterable[typing.Union[typing.Dict[str, np.ndarray],
                                                             typing.Tuple[typing.Dict[str, np.ndarray],
                                                                          typing.Dict[str, typing.List[np.ndarray]]]]]:
     """Create an iterator by reading and merging multiple tfrecord datasets.
-
-    NOTE: Sharding is currently unavailable for the multi tfrecord loader.
 
     Params:
     -------
@@ -541,6 +553,7 @@ def multi_tfrecord_loader(paths: typing.List[str],
                                  description=description,
                                  chunks=True,
                                  shard=shard,
+                                 clip=(None if not clip else clip[tfr_path]),
                                  sequence_description=sequence_description,
                                  compression_type=compression_type,
                                  )

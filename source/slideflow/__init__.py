@@ -68,19 +68,7 @@ def set_backend(b):
 # -------------------------------------
 #TODO: full Trainer features, parameters, etc
 #    - log_frequency, ema_observations, ema_smoothing, use_tensorboard, resume_training, checkpoint
-#TODO: implement clipping for tfrecord interleaving in pytorch
-#
-# Slide processing (tf.data.TFRecordDataset & tf.data.TFRecordWriter)
-# -------------------------------------------------------------------
-#TODO: dataset.split_tfrecords_by_roi()
-#TODO: dataset.tfrecord_report()
-#
-# Low priority updates:
-# ---------------------
-#TODO: filter.py script
-#TODO: update.py script
-#TODO: PyTorch ModelParams get_loss -> @property
-#
+
 # May be delayed:
 # ---------------
 #TODO: CPH outcomes
@@ -88,6 +76,15 @@ def set_backend(b):
 #   - TODO: statistics.permutation_feature_importance (-> ActivationsInterface)
 #   - TODO: statistics.predict_from_layer (used for permutation_feature_importance)
 #TODO: multi-GPU support
+#
+# Low priority consistency/style changes:
+# ---------------------
+#TODO: PyTorch ModelParams get_loss -> @property
+#TODO: consider pytorch to_numpy=False returns tensor objects
+#TODO: for tfrecord parser, combine utf-8 and image decoding into single `decode` argument (rather than decode_images)
+#TODO: filter.py script
+#TODO: update.py script
+#TODO: resize_tfrecords()
 
 # Future updates
 # ===============

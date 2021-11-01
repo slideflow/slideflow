@@ -1,6 +1,5 @@
 import imghdr
 import os
-import copy
 import shutil
 import logging
 import slideflow as sf
@@ -11,7 +10,6 @@ from os.path import isfile, isdir, join, exists
 from random import shuffle, randint
 from slideflow.util import log
 from glob import glob
-from functools import partial
 
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -41,17 +39,11 @@ def _int64_feature(value):
     """Returns an int64_list from a bool / enum / int / uint."""
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-def _get_images_by_dir(directory):
-    files = [f for f in listdir(directory) if (isfile(join(directory, f))) and
-                (sf.util.path_to_ext(f) in ("jpg", "png"))]
-    return files
-
-def _read_and_return_record(record, feature_description, assign_slide=None):
-    features = tf.io.parse_single_example(record, feature_description)
-    read_features = {f:v.numpy() for f,v in features.items()}
+def read_and_return_record(record, parser, assign_slide=None):
+    features = parser(record)
     if assign_slide:
-        read_features['slide'] = assign_slide
-    tf_example = tfrecord_example(**read_features)
+        features['slide'] = assign_slide
+    tf_example = tfrecord_example(**features)
     return tf_example.SerializeToString()
 
 def _print_record(filename):
@@ -115,7 +107,7 @@ def detect_tfrecord_format(path):
     try:
         record = next(iter(tf.data.TFRecordDataset(path)))
     except StopIteration:
-        log.warning(f"TFRecord {path} is empty.")
+        log.debug(f"TFRecord {path} is empty.")
         return None, None
     try:
         features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
@@ -160,7 +152,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False, 
         log.warning(f"Unable to read tfrecord at {tfrecord_path} - is it empty?")
         return None
     if features_to_return is None:
-        features_to_return = list(feature_description.keys())
+        features_to_return = {k:k for k in feature_description.keys()}
 
     def parser(record):
         features = tf.io.parse_single_example(record, feature_description)
@@ -196,8 +188,8 @@ def get_locations_from_tfrecord(filename):
     return loc_dict
 
 def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, label_parser=None, incl_slidenames=False,
-                incl_loc=False, infinite=True, augment=True, standardize=True, normalizer=None, num_shards=None,
-                shard_idx=None, num_parallel_reads=4):
+               incl_loc=False, infinite=True, augment=True, standardize=True, normalizer=None, num_shards=None,
+               shard_idx=None, num_parallel_reads=4):
 
     """Generates an interleaved dataset from a collection of tfrecord files, sampling from tfrecord files randomly
     according to balancing if provided. Requires manifest for balancing. Assumes TFRecord files are named by slide.
@@ -245,7 +237,7 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
             if num_shards:
                 tf_dts = tf_dts.shard(num_shards, index=shard_idx)
             if clip:
-                tf_dts = tf_dts.take(clip[tfr] // num_shards)
+                tf_dts = tf_dts.take(clip[tfr] // (num_shards if num_shards else 1))
             if infinite:
                 tf_dts = tf_dts.repeat()
             datasets += [tf_dts]
@@ -326,6 +318,7 @@ def merge_split_tfrecords(source, destination):
         writer = tf.io.TFRecordWriter(join(destination, f'{tfrecord_name}.tfrecords'))
         datasets = []
         feature_description, img_type = detect_tfrecord_format(tfrecords.values()[0])
+        parser = get_tfrecord_parser(tfrecords.values()[0], decode_images=False, to_numpy=True)
         for tfrecord in tfrecords[tfrecord_name]:
             n_feature_description, n_img_type = detect_tfrecord_format(tfrecord)
             if n_feature_description != feature_description or n_img_type != img_type:
@@ -341,7 +334,7 @@ def merge_split_tfrecords(source, destination):
             except StopIteration:
                 del(datasets[index])
                 continue
-            writer.write(_read_and_return_record(record, feature_description, None))
+            writer.write(read_and_return_record(record, parser, None))
 
 def join_tfrecord(input_folder, output_file, assign_slide=None):
     '''Randomly samples from tfrecords in the input folder with shuffling,
@@ -351,6 +344,7 @@ def join_tfrecord(input_folder, output_file, assign_slide=None):
     datasets = []
     if assign_slide: assign_slide = assign_slide.encode('utf-8')
     feature_description, img_type = detect_tfrecord_format(tfrecord_files[0])
+    parser = get_tfrecord_parser(tfrecord_files[0], decode_images=False, to_numpy=True)
     for tfrecord in tfrecord_files:
         n_feature_description, n_img_type = detect_tfrecord_format(tfrecord)
         if n_feature_description != feature_description or n_img_type != img_type:
@@ -366,13 +360,14 @@ def join_tfrecord(input_folder, output_file, assign_slide=None):
         except StopIteration:
             del(datasets[index])
             continue
-        writer.write(_read_and_return_record(record, feature_description, assign_slide))
+        writer.write(read_and_return_record(record, parser, assign_slide))
 
 def split_tfrecord(tfrecord_file, output_folder):
     '''Splits records from a single tfrecord file into individual tfrecord files by slide.'''
     dataset = tf.data.TFRecordDataset(tfrecord_file)
     feature_description, _ = detect_tfrecord_format(tfrecord_file)
     parser = get_tfrecord_parser(tfrecord_file, ['slide'], to_numpy=True)
+    full_parser = get_tfrecord_parser(tfrecord_file, decode_images=False, to_numpy=True)
     writers = {}
     for record in dataset:
         slide = parser(record)
@@ -384,7 +379,7 @@ def split_tfrecord(tfrecord_file, output_folder):
             writers.update({shortname: writer})
         else:
             writer = writers[shortname]
-        writer.write(_read_and_return_record(record, feature_description))
+        writer.write(read_and_return_record(record, full_parser))
 
     for slide in writers.keys():
         writers[slide].close()
@@ -397,66 +392,6 @@ def print_tfrecord(target):
         tfrecord_files = glob(join(target, "*.tfrecords"))
         for tfr in tfrecord_files:
             _print_record(tfr)
-
-def write_tfrecords_merge(input_directory, output_directory, filename):
-    '''Scans a folder for subfolders, assumes subfolders are slide names. Assembles all image tiles within
-    subfolders and labels using the provided annotation_dict, assuming the subfolder is the slide name.
-    Collects all image tiles and exports into a single tfrecord file.'''
-    tfrecord_path = join(output_directory, filename)
-    if not exists(output_directory):
-        os.makedirs(output_directory)
-    image_labels = {}
-    slide_dirs = [_dir for _dir in listdir(input_directory) if isdir(join(input_directory, _dir))]
-    for slide_dir in slide_dirs:
-        files = _get_images_by_dir(join(input_directory, slide_dir))
-        for tile in files:
-            image_labels.update({join(input_directory, slide_dir, tile): bytes(slide_dir, 'utf-8')})
-    keys = list(image_labels.keys())
-    shuffle(keys)
-    with tf.io.TFRecordWriter(tfrecord_path) as writer:
-        for filename in keys:
-            label = image_labels[filename]
-            image_string = open(filename, 'rb').read()
-            tf_example = tfrecord_example(label, image_string)
-            writer.write(tf_example.SerializeToString())
-    log.info(f"Wrote {len(keys)} image tiles to {sf.util.green(tfrecord_path)}")
-    return len(keys)
-
-def write_tfrecords_multi(input_directory, output_directory):
-    '''Scans a folder for subfolders, assumes subfolders are slide names. Assembles all image tiles within
-    subfolders and labels using the provided annotation_dict, assuming the subfolder is the slide name.
-    Collects all image tiles and exports into multiple tfrecord files, one for each slide.'''
-    slide_dirs = [_dir for _dir in listdir(input_directory) if isdir(join(input_directory, _dir))]
-    total_tiles = 0
-    for slide_dir in slide_dirs:
-        total_tiles += write_tfrecords_single(join(input_directory, slide_dir),
-                                              output_directory,
-                                              f'{slide_dir}.tfrecords',
-                                              slide_dir)
-    msg_num_tiles = sf.util.bold(total_tiles)
-    msg_num_tfr = sf.util.bold(len(slide_dirs))
-    log.info(f"Wrote {msg_num_tiles} tiles across {msg_num_tfr} tfrecords in {sf.util.green(output_directory)}")
-
-def write_tfrecords_single(input_directory, output_directory, filename, slide):
-    '''Scans a folder for image tiles, annotates using the provided slide, exports
-    into a single tfrecord file.'''
-    if not exists(output_directory):
-        os.makedirs(output_directory)
-    tfrecord_path = join(output_directory, filename)
-    image_labels = {}
-    files = _get_images_by_dir(input_directory)
-    for tile in files:
-        image_labels.update({join(input_directory, tile): bytes(slide, 'utf-8')})
-    keys = list(image_labels.keys())
-    shuffle(keys)
-    with tf.io.TFRecordWriter(tfrecord_path) as writer:
-        for filename in keys:
-            label = image_labels[filename]
-            image_string = open(filename, 'rb').read()
-            tf_example = tfrecord_example(label, image_string)
-            writer.write(tf_example.SerializeToString())
-    log.info(f"Wrote {len(keys)} image tiles to {sf.util.green(tfrecord_path)}")
-    return len(keys)
 
 def checkpoint_to_tf_model(models_dir, model_name):
     '''Converts a checkpoint file into a saved model.'''
@@ -484,16 +419,16 @@ def update_tfrecord_dir(directory, old_feature_description=FEATURE_DESCRIPTION, 
             update_tfrecord(tfr, assign_slide, image_raw)
         return len(tfrecord_files)
 
-def update_tfrecord(tfrecord_file, assign_slide=None, image_raw='image_raw'):
+def update_tfrecord(tfrecord_file, assign_slide=None):
     '''Updates a single tfrecord from an old format to a new format.'''
 
     shutil.move(tfrecord_file, tfrecord_file+".old")
     dataset = tf.data.TFRecordDataset(tfrecord_file+".old")
     writer = tf.io.TFRecordWriter(tfrecord_file)
-    feature_description, _ = detect_tfrecord_format(tfrecord_file+'.old')
+    parser = get_tfrecord_parser(tfrecord_file+'.old', decode_images=False, to_numpy=True)
     for record in dataset:
         slidename = bytes(assign_slide, 'utf-8') if assign_slide else None
-        writer.write(_read_and_return_record(record, feature_description, assign_slide=slidename))
+        writer.write(read_and_return_record(record, parser, assign_slide=slidename))
     writer.close()
     os.remove(tfrecord_file+'.old')
 
@@ -564,25 +499,3 @@ def shuffle_tfrecords_by_dir(directory):
     for record in records:
         log.info(f'Working on {record}')
         shuffle_tfrecord(join(directory, record))
-
-def extract_tiles(tfrecord, destination, description=FEATURE_DESCRIPTION, feature_label='image_raw'):
-    '''Reads and saves images from a TFRecord to a destination folder.'''
-
-    if not exists(destination):
-        os.makedirs(destination)
-    log.info(f"Extracting tiles from tfrecord {sf.util.green(tfrecord)}")
-    log.info(f"Saving tiles to directory {sf.util.green(destination)}")
-
-    dataset = tf.data.TFRecordDataset(tfrecord)
-    _, img_type = detect_tfrecord_format(tfrecord)
-    parser = get_tfrecord_parser(tfrecord, ('slide', 'image_raw'), to_numpy=True, decode_images=False)
-    for i, record in enumerate(dataset):
-        slide, image_raw = parser(record)
-        slidename = slide.decode('utf-8')
-        dest_folder = join(destination, slidename)
-        if not exists(dest_folder):
-            os.makedirs(dest_folder)
-        tile_filename = f"tile{i}.{img_type}"
-        image_string = open(join(dest_folder, tile_filename), 'wb')
-        image_string.write(image_raw)
-        image_string.close()

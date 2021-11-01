@@ -97,6 +97,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         else:
             self.unique_labels = None
             self.label_prob = None
+            self.num_outcomes = 1
 
         self.labels = labels
 
@@ -219,9 +220,7 @@ def _get_images_by_dir(directory):
                 (sf.util.path_to_ext(f) in ("jpg", "png"))]
     return files
 
-def _read_and_return_record(record, parser, assign_slide=None):
-    # Parser should be:
-    # parser = sf.io.torch.get_tfrecord_parser(tfr, decode_images=False)
+def read_and_return_record(record, parser, assign_slide=None):
     parsed = parser(record)
     if assign_slide:
         parsed['slide'] = assign_slide
@@ -290,13 +289,16 @@ def detect_tfrecord_format(tfr):
             record = next(it)
         except KeyError:
             raise TFRecordsError(f"Unable to detect TFRecord format for record: {tfr}")
+    except StopIteration:
+        log.debug(f"Unable to detect tfrecord format for {tfr}; file is empty.")
+        raise StopIteration
 
     img = bytes(next(it)['image_raw'])
     img_type = imghdr.what('', img)
     return feature_description, img_type
 
-def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=True, standardize=False, normalizer=None,
-                        augment=False):
+def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=True, standardize=False,
+                        normalizer=None, augment=False, **kwargs):
 
     '''Gets tfrecord parser using dareblopy reader. Torch implementation; different than sf.io.tensorflow
 
@@ -392,7 +394,7 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
     # -------- Get the base TFRecord parser, based on the first tfrecord ------
     features_to_return = ('image_raw', 'slide') if not incl_loc else ('image_raw', 'slide', 'loc_x', 'loc_y')
     _, img_type = detect_tfrecord_format(tfrecords[0])
-    base_parser = get_tfrecord_parser(tfrecords[0], features_to_return, decode_images=False)
+    base_parser = get_tfrecord_parser(tfrecords[0], features_to_return, decode_images=False, to_numpy=False)
 
     # -------- Set up TFRecord indexes for sharding ---------------------------
     # Index files not created in this interleave function, as there may be multiple instances of this function
@@ -410,7 +412,12 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
         weights = {sf.util.path_to_name(tfr):v for tfr,v in prob_weights.items()}
     else:
         weights = None
-    multi_loader = iter(MultiTFRecordDataset(tfrecords, index_paths, weights, shard=(rank, num_replicas), infinite=infinite))
+    multi_loader = iter(MultiTFRecordDataset(tfrecords,
+                                             index_paths,
+                                             weights,
+                                             shard=(rank, num_replicas),
+                                             clip=clip,
+                                             infinite=infinite))
 
     # Randomly interleaves datasets according to weights, reading parsed records to a buffer
     # And sending parsed results to a queue after reaching a set buffer size
@@ -474,7 +481,7 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
 
     return retriever()
 
-def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, onehot=False, num_tiles=None,
+def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, clip=None, onehot=False, num_tiles=None,
                           incl_slidenames=False, incl_loc=False, infinite=False, rank=0, num_replicas=1, labels=None,
                           normalizer=None, seed=0, chunk_size=16, preload_factor=1, prefetch_factor=1, augment=True,
                           standardize=True, num_workers=2, pin_memory=True):
@@ -486,6 +493,8 @@ def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, on
         tfrecords (list(str)): List of paths to TFRecord files.
         img_size (int): Tile size in pixels.
         batch_size (int): Batch size.
+        prob_weights (dict, optional): Dict mapping tfrecords to probability of including in batch. Defaults to None.
+        clip (dict, optional): Dict mapping tfrecords to number of tiles to take per tfrecord. Defaults to None.
         onehot (bool, optional): Onehot encode labels. Defaults to False.
         incl_slidenames (bool, optional): Include slidenames as third returned variable. Defaults to False.
         incl_loc (bool, optional): Include loc_x and loc_y as additional returned variables. Defaults to False.

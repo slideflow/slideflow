@@ -62,6 +62,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
                  sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                  compression_type: typing.Optional[str] = None,
                  autoshard: bool = True,
+                 clip: typing.Optional[int] = None,
                  ) -> None:
         super(TFRecordDataset, self).__init__()
         self.data_path = data_path
@@ -72,6 +73,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
         self.transform = transform or (lambda x: x)
         self.compression_type = compression_type
         self.autoshard = autoshard
+        self.clip = clip
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
@@ -84,6 +86,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
                                     index_path=self.index_path,
                                     description=self.description,
                                     shard=shard,
+                                    clip=self.clip,
                                     sequence_description=self.sequence_description,
                                     compression_type=self.compression_type)
         if self.shuffle_queue_size:
@@ -154,6 +157,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
                  shuffle_queue_size: typing.Optional[int] = None,
                  transform: typing.Callable[[dict], typing.Any] = None,
                  shard: typing.Optional[typing.Tuple[int, int]] = None,
+                 clip: typing.Optional[typing.Dict[str, int]] = None,
                  sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                  compression_type: typing.Optional[str] = None,
                  infinite: bool = True
@@ -171,6 +175,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         self.compression_type = compression_type
         self.infinite = infinite
         self.shard = shard
+        self.clip = clip
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
@@ -183,6 +188,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
                                           sequence_description=self.sequence_description,
                                           compression_type=self.compression_type,
                                           shard=self.shard,
+                                          clip=self.clip,
                                           infinite=self.infinite,
                                          )
         if self.shuffle_queue_size:

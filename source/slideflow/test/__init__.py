@@ -405,7 +405,7 @@ class TestSuite:
                                    tile_um=302,
                                    buffer=self.buffer,
                                    source=['TEST'],
-                                   skip_missing_roi=False,
+                                   roi_method='ignore',
                                    skip_extracted=False,
                                    enable_downsample=enable_downsample,
                                    **kwargs)
