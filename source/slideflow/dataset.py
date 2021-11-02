@@ -842,7 +842,7 @@ class Dataset:
 
         pool = multiprocessing.dummy.Pool(16)
         tfrecords = self.tfrecords()
-        for tfr_name, index in tqdm(pool.imap(load_index, tfrecords), desc="Loading indices...", total=len(tfrecords)):
+        for tfr_name, index in tqdm(pool.imap(load_index, tfrecords), desc="Loading indices...", total=len(tfrecords), leave=False):
             indices[tfr_name] = index
 
         return indices
@@ -1288,7 +1288,7 @@ class Dataset:
         # Filter the list by filters
         if self.annotations:
             slides = self.slides()
-            filtered_tfrecords_list = [tfrecord for tfrecord in tfrecords_list if tfrecord.split('/')[-1][:-10] in slides]
+            filtered_tfrecords_list = [tfrecord for tfrecord in tfrecords_list if sf.util.path_to_name(tfrecord) in slides]
             filtered = filtered_tfrecords_list
         else:
             log.warning("No annotations loaded; unable to filter TFRecords list. Is the annotations file empty?")
@@ -1603,14 +1603,18 @@ class Dataset:
             labels = self.labels(labels)[0]
 
         self.build_index(rebuild_index)
-        return interleave_dataloader(tfrecords=self.tfrecords(),
+        tfrecords = self.tfrecords()
+        prob_weights = [self.prob_weights[tfr] for tfr in tfrecords] if self.prob_weights else None
+        indices = self.load_indices()
+        indices = [indices[sf.util.path_to_name(tfr)] for tfr in tfrecords]
+        return interleave_dataloader(tfrecords=tfrecords,
                                      img_size=self.tile_px,
                                      batch_size=batch_size,
                                      labels=labels,
                                      num_tiles=self.num_tiles,
-                                     prob_weights=self.prob_weights,
+                                     prob_weights=prob_weights,
                                      clip=self._clip,
-                                     indices=self.load_indices(),
+                                     indices=indices,
                                      **kwargs)
 
     def unclip(self):
@@ -1767,7 +1771,6 @@ class Dataset:
         num_warned = 0
         warn_threshold = 3
         for annotation in self.annotations:
-            print_func = print if num_warned < warn_threshold else None
             slide = annotation[TCGA.slide]
             if slide == '':
                 log.warning(f"Patient {sf.util.green(annotation[TCGA.patient])} has no slide assigned.")

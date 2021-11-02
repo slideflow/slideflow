@@ -57,9 +57,7 @@ def set_backend(b):
 #TODO: improved module loading. Look into importlib lazy loading
 #TODO: remove as many calls to sf.backend() as possible. Ideally the API should be unified/consistent
 #TODO: improve tile verification speed in PyTorch
-#TODO: pytorch dataloader memory efficiency & performance
 #TODO: ensure format of results_log is the same for train(), evaluate(), tensorflow & pytorch
-
 #TODO: consider multithreading sf.tfrecord.reader:255-258 (parsing of records)
 
 # PyTorch implementation

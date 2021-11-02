@@ -18,7 +18,8 @@ def cycle(iterator_fn: typing.Callable) -> typing.Iterable[typing.Any]:
 
 def sample_iterators(iterators: typing.List[typing.Iterator],
                      ratios: typing.List[int],
-                     infinite: bool = True) -> typing.Iterable[typing.Any]:
+                     infinite: bool = True,
+                     shard: typing.Optional[typing.Tuple[int, int]] = None) -> typing.Iterable[typing.Any]:
     """Retrieve info generated from the iterator(s) according to their
     sampling ratios.
 
@@ -33,6 +34,11 @@ def sample_iterators(iterators: typing.List[typing.Iterator],
     infinite: bool, optional, default=True
         Whether the returned iterator should be infinite or not
 
+    shard: tuple of ints, optional, default=None
+        A tuple (index, count) representing worker_id and num_workers
+        count. Necessary to evenly split/shard the dataset among many
+        workers (i.e. >1) and synchronize random sampling.
+
     Yields:
     -------
     item: Any
@@ -46,8 +52,12 @@ def sample_iterators(iterators: typing.List[typing.Iterator],
     ratios = np.array(ratios)
     ratios = ratios / ratios.sum()
     ratio_indices = np.array(range(len(ratios)))
+    global_idx = -1
     while iterators:
+        global_idx += 1
         choice = np.random.choice(ratio_indices[:ratios.shape[0]], p=ratios)
+        if shard is not None and (global_idx % shard[1] != shard[0]):
+            continue
         try:
             yield next(iterators[choice])
         except StopIteration:

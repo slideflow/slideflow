@@ -54,10 +54,13 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         use_labels              = True,             # Enable use of labels (disabled for non-class-conditional GANs)
         model_type              = 'categorical',    # Used to generate random labels (for StyleGAN2). Not required.
         onehot                  = False,
-        indices = None,
+        indices                 = None,
         **kwargs                                    # Kwargs for Dataset base class
     ):
         self.tfrecords = np.array(tfrecords).astype(np.string_)
+        self.prob_weights = np.array(prob_weights) if prob_weights is not None else None
+        self.clip = np.array(clip) if clip is not None else None
+        self.indices = indices
         self.img_size = img_size
         self.rank = rank
         self.num_replicas = num_replicas
@@ -65,8 +68,6 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         self.standardize = standardize
         self.infinite = infinite
         self.max_size = max_size
-        self.prob_weights = prob_weights###
-        self.clip = clip###
         self.use_labels = use_labels
         self.seed = seed
         self.chunk_size = chunk_size
@@ -77,7 +78,6 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         self.incl_loc = incl_loc
         self.num_tiles = num_tiles
         self.model_type = model_type
-        self.indices = indices###
 
         # Values for random label generation, for GAN
         if labels is not None:
@@ -374,11 +374,10 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
         rank (int, optional): Worker ID to identify which worker this represents. Used to interleave results
             among workers without duplications. Defaults to 0 (first worker).
     """
-
     if seed is not None:
         if rank == 0:
             log.debug(f"Initializing with random seed {seed}")
-        random.seed(seed)
+        np.random.seed(seed)
     if rank == 0:
         log.debug(f'Interleaving {len(tfrecords)} tfrecords: infinite={infinite}, num_replicas={num_replicas}')
 
@@ -390,29 +389,33 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
     # -------- Set up TFRecord indexes for sharding ---------------------------
     # Index files not created in this interleave function, as there may be multiple instances of this function
     # running across processes, and having each create index files would result in conflicts / corruption.
-    if not indices:
-        indices = {}
+    if indices is None:
+        indices = []
 
         def load_index(tfr):
+            tfr = tfr.decode('utf-8')
             index_name = join(dirname(tfr), sf.util.path_to_name(tfr)+'.index')
-            tfr_name = sf.util.path_to_name(tfr)
             if not exists(index_name):
                 raise TFRecordsError(f"Could not find index path for TFRecord {tfr}")
-            return tfr_name, np.loadtxt(index_name, dtype=np.int64)
+            return np.loadtxt(index_name, dtype=np.int64)
 
         pool = mp.dummy.Pool(16)
-        for tfr_name, index in tqdm(pool.imap(load_index, tfrecords), desc="Loading indices...", total=len(tfrecords)):
-            indices[tfr_name] = index
+        if rank == 0:
+            pb = tqdm(desc='Loading indices...', total=len(tfrecords), leave=False)
+        for index in pool.imap(load_index, tfrecords):
+            indices += [index]
+            if rank == 0:
+                pb.update()
 
     #  -------  Interleave and batch datasets ---------------------------------
-    if prob_weights:
+    if prob_weights is not None:
         assert len(prob_weights) == len(tfrecords)
-        weights = {sf.util.path_to_name(tfr):v for tfr,v in prob_weights.items()}
     else:
-        weights = None
+        prob_weights = None
+
     multi_loader = iter(MultiTFRecordDataset(tfrecords,
                                              indices,
-                                             weights,
+                                             prob_weights,
                                              shard=(rank, num_replicas),
                                              clip=clip,
                                              infinite=infinite))
@@ -421,10 +424,10 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
     def threading_worker(record):
         record = base_parser(record)
         record[0] = _decode_image(record[0], # Image is the first returned variable
-                                img_type=img_type,
-                                standardize=standardize,
-                                normalizer=normalizer,
-                                augment=augment)
+                                  img_type=img_type,
+                                  standardize=standardize,
+                                  normalizer=normalizer,
+                                  augment=augment)
         return record
 
     # Randomly interleaves datasets according to weights, reading parsed records to a buffer

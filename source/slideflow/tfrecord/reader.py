@@ -425,7 +425,7 @@ def tfrecord_loader(
 
 
 def multi_tfrecord_loader(paths: typing.List[str],
-                          indices: typing.Dict[str, str],
+                          indices,
                           splits: typing.Dict[str, float],
                           description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                           sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
@@ -480,15 +480,15 @@ def multi_tfrecord_loader(paths: typing.List[str],
     """
     datum_bytes = bytearray(1024 * 1024)
     loaders = [functools.partial(tfrecord_loader, data_path=tfr_path.decode('utf-8'),
-                                 index=indices[sf.util.path_to_name(tfr_path.decode('utf-8'))] \
+                                 index=indices[i] \
                                      if indices is not None else None,
                                  description=description,
                                  shard=shard,
-                                 clip=(None if not clip else clip[tfr_path]),
+                                 clip=(None if not clip else clip[i]),
                                  sequence_description=sequence_description,
                                  compression_type=compression_type,
                                  datum_bytes=datum_bytes,
                                  )
-               for tfr_path in paths]
-    splits_list = [splits[sf.util.path_to_name(tfr)] for tfr in paths] if splits is not None else [0.5 for t in range(len(paths))]
-    return iterator_utils.sample_iterators(loaders, splits_list, infinite=infinite)#, shard=shard)
+               for i, tfr_path in enumerate(paths)]
+    splits_list = splits if splits is not None else np.array([0.5 for t in range(len(paths))])
+    return iterator_utils.sample_iterators(loaders, splits_list, infinite=infinite, shard=shard)

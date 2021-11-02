@@ -151,20 +151,18 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
 
     def __init__(self,
                  paths: typing.List[str],
-                 indices: typing.Dict[str, str],
+                 indices: typing.List[str],
                  splits: typing.Dict[str, float],
                  description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                  shuffle_queue_size: typing.Optional[int] = None,
                  transform: typing.Callable[[dict], typing.Any] = None,
                  shard: typing.Optional[typing.Tuple[int, int]] = None,
-                 clip: typing.Optional[typing.Dict[str, int]] = None,
+                 clip: typing.Optional[typing.List[int]] = None,
                  sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                  compression_type: typing.Optional[str] = None,
                  infinite: bool = True
                  ) -> None:
         super(MultiTFRecordDataset, self).__init__()
-        if indices is not None and not isinstance(indices, dict):
-            raise TypeError(f"Invalid type {type(indices)}; must be a dict mapping tfrecord names to index paths")
         self.paths = paths
         self.indices = indices
         self.splits = splits
@@ -179,8 +177,8 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
-        if worker_info is not None:
-            np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
+        #if worker_info is not None:
+        #    np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
         it = reader.multi_tfrecord_loader(paths=self.paths,
                                           indices=self.indices,
                                           splits=self.splits,
