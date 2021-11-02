@@ -12,8 +12,12 @@ from collections import deque
 def cycle(iterator_fn: typing.Callable) -> typing.Iterable[typing.Any]:
     """Create a repeating iterator from an iterator generator."""
     while True:
+        has_element=False
         for element in iterator_fn():
+            if not has_element: has_element=True
             yield element
+        if not has_element: # Condition for an empty generator
+            break
 
 
 def sample_iterators(iterators: typing.List[typing.Iterator],

@@ -17,6 +17,7 @@ from os import listdir
 from datetime import datetime
 from tqdm import tqdm
 from os.path import isdir, join, exists, dirname
+from multiprocessing.dummy import Pool as DPool
 from slideflow.util import log, TCGA, _shortname, ProgressBar
 
 def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, skip_missing_roi, randomize_origin,
@@ -343,7 +344,7 @@ class Dataset:
             if not exists(index_name) or force:
                 tfrecord2idx.create_index(filename, index_name)
 
-        pool = multiprocessing.dummy.Pool(16)
+        pool = DPool(16)
         for res in tqdm(pool.imap(create_index, self.tfrecords()), desc='Creating index files...', ncols=80, total=len(self.tfrecords()), leave=False):
             pass
 
@@ -840,7 +841,7 @@ class Dataset:
                 raise OSError(f"Could not find index path for TFRecord {tfr}")
             return tfr_name, np.loadtxt(index_name, dtype=np.int64)
 
-        pool = multiprocessing.dummy.Pool(16)
+        pool = DPool(16)
         tfrecords = self.tfrecords()
         for tfr_name, index in tqdm(pool.imap(load_index, tfrecords), desc="Loading indices...", total=len(tfrecords), leave=False):
             indices[tfr_name] = index

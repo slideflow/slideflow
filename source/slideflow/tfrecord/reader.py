@@ -8,12 +8,8 @@ import struct
 import typing
 import numpy as np
 
-import slideflow as sf
 from slideflow.tfrecord import example_pb2
 from slideflow.tfrecord import iterator_utils
-from slideflow.util import log
-from collections import deque
-from multiprocessing.dummy import Pool as DPool
 
 def tfrecord_iterator(
     data_path: str,

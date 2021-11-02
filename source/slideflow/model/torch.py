@@ -369,7 +369,7 @@ class Trainer:
             num_replicas=num_gpus,
             labels=self.labels,
             seed=seed,
-            chunk_size=16,
+            chunk_size=8,
             normalizer=self.normalizer,
             pin_memory=True,
             num_workers=4,
