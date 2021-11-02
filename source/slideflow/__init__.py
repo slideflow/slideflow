@@ -49,7 +49,6 @@ def set_backend(b):
 #TODO: easier validation plan sharing
 #TODO: more clear logging information regarding validation plans
 #TODO: show tile extraction grid on thumbnail, optional
-#TODO: merge annotated_thumb and thumb
 #TODO: consistent "decode" for get_tfrecord_parser in tensorflow/torch (decode should decode images + slide name)
 #TODO: ActivationsInterface compatibility for multiple outcomes
 #TODO: implement __repr__ methods for CLI usability
@@ -60,6 +59,8 @@ def set_backend(b):
 #TODO: improve tile verification speed in PyTorch
 #TODO: pytorch dataloader memory efficiency & performance
 #TODO: ensure format of results_log is the same for train(), evaluate(), tensorflow & pytorch
+
+#TODO: consider multithreading sf.tfrecord.reader:255-258 (parsing of records)
 
 # PyTorch implementation
 # ======================
@@ -85,6 +86,7 @@ def set_backend(b):
 #TODO: filter.py script
 #TODO: update.py script
 #TODO: resize_tfrecords()
+#TODO: merge annotated_thumb and thumb
 
 # Future updates
 # ===============

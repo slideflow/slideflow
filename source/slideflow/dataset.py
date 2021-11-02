@@ -830,6 +830,23 @@ class Dataset:
             unique_labels = unique_labels[headers[0]]
         return results, unique_labels
 
+    def load_indices(self):
+        indices = {}
+
+        def load_index(tfr):
+            index_name = join(dirname(tfr), sf.util.path_to_name(tfr)+'.index')
+            tfr_name = sf.util.path_to_name(tfr)
+            if not exists(index_name):
+                raise OSError(f"Could not find index path for TFRecord {tfr}")
+            return tfr_name, np.loadtxt(index_name, dtype=np.int64)
+
+        pool = multiprocessing.dummy.Pool(16)
+        tfrecords = self.tfrecords()
+        for tfr_name, index in tqdm(pool.imap(load_index, tfrecords), desc="Loading indices...", total=len(tfrecords)):
+            indices[tfr_name] = index
+
+        return indices
+
     def manifest(self, key='path', filter=True):
         """Generates a manifest of all tfrecords.
 
@@ -1593,6 +1610,7 @@ class Dataset:
                                      num_tiles=self.num_tiles,
                                      prob_weights=self.prob_weights,
                                      clip=self._clip,
+                                     indices=self.load_indices(),
                                      **kwargs)
 
     def unclip(self):

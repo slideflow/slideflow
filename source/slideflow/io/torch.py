@@ -4,14 +4,16 @@ import numpy as np
 import random
 import torchvision
 import torch
+import threading
+import multiprocessing as mp
 import slideflow as sf
+
 from os import listdir
 from tqdm import tqdm
 from os.path import isfile, join, dirname, exists
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset, TFRecordDataset
 from slideflow.util import log, to_onehot
-import multiprocessing as mp
-import threading
+from tqdm import tqdm
 from collections import deque
 from queue import Queue
 
@@ -52,9 +54,10 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         use_labels              = True,             # Enable use of labels (disabled for non-class-conditional GANs)
         model_type              = 'categorical',    # Used to generate random labels (for StyleGAN2). Not required.
         onehot                  = False,
+        indices = None,
         **kwargs                                    # Kwargs for Dataset base class
     ):
-        self.tfrecords = tfrecords
+        self.tfrecords = np.array(tfrecords).astype(np.string_)
         self.img_size = img_size
         self.rank = rank
         self.num_replicas = num_replicas
@@ -62,19 +65,19 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         self.standardize = standardize
         self.infinite = infinite
         self.max_size = max_size
-        self.prob_weights = prob_weights
-        self.clip = clip
+        self.prob_weights = prob_weights###
+        self.clip = clip###
         self.use_labels = use_labels
         self.seed = seed
         self.chunk_size = chunk_size
         self.preload = preload
-        self.normalizer = normalizer
+        self.normalizer = normalizer###
         self.onehot = onehot
-        self.chunk_size = chunk_size
         self.incl_slidenames = incl_slidenames
         self.incl_loc = incl_loc
         self.num_tiles = num_tiles
         self.model_type = model_type
+        self.indices = indices###
 
         # Values for random label generation, for GAN
         if labels is not None:
@@ -98,8 +101,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             self.unique_labels = None
             self.label_prob = None
             self.num_outcomes = 1
-
-        self.labels = labels
+        self.labels = labels###
 
     @property
     def name(self):
@@ -164,8 +166,6 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         worker_id = 0 if not worker_info else worker_info.id
         num_workers = 1 if not worker_info else worker_info.num_workers
 
-        preload_q = Queue(self.preload)
-
         dataset = interleave(self.tfrecords,
                              incl_loc=self.incl_loc,
                              standardize=self.standardize,
@@ -177,21 +177,11 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
                              num_replicas=self.num_replicas * num_workers,
                              rank=self.rank + worker_id,
                              chunk_size=self.chunk_size,
+                             indices=self.indices,
                              seed=self.seed)
-        def chunk_yielder(dts):
-            nonlocal preload_q
-            for record in dts:
-                preload_q.put(self._parser(*record))
-            preload_q.put(None)
 
-        test_thread = threading.Thread(target=chunk_yielder, args=(dataset,))
-        test_thread.start()
-
-        while True:
-            record = preload_q.get()
-            if record is None: return
-            else:
-                yield record
+        for record in dataset:
+            yield self._parser(*record)
 
     def close(self):
         pass
@@ -242,8 +232,9 @@ def serialized_record(slide, image_raw, loc_x=0, loc_y=0):
 def _decode_image(img_string, img_type, standardize=False, normalizer=None, augment=False):
     '''Decodes image. Torch implementation; different than sf.io.tensorflow'''
 
-    np_data = torch.from_numpy(np.fromstring(img_string, np.uint8))
+    np_data = torch.from_numpy(np.fromstring(img_string, dtype=np.uint8))# np.frombuffer(s, dtype='int8')
     image = torchvision.io.decode_image(np_data).permute(1, 2, 0) # CWH => WHC
+    #image = np.array(Image.open(BytesIO(img_string)))
 
     def random_jpeg_compression(img):
         q = random.randrange(50, 100)
@@ -263,7 +254,7 @@ def _decode_image(img_string, img_type, standardize=False, normalizer=None, augm
         if np.random.random() < 0.5:
             image = torch.flipud(image)
     if normalizer:
-        image = torch.from_numpy(normalizer.rgb_to_rgb(image.numpy()))
+        image = normalizer.rgb_to_rgb(image.numpy())
     if standardize:
         # Not the same as tensorflow's per_image_standardization
         # Convert back: image = (image + 1) * (255/2)
@@ -350,7 +341,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=Tr
     return parser
 
 def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite=False, augment=True, standardize=True,
-               normalizer=None, seed=None, num_threads=16, chunk_size=16, num_replicas=1, rank=0):
+               normalizer=None, seed=None, num_threads=16, chunk_size=8, num_replicas=1, rank=0, indices=None):
 
     """Returns a generator that interleaves records from a collection of tfrecord files, sampling from tfrecord files
     randomly according to balancing if provided (requires manifest). Assumes TFRecord files are named by slide.
@@ -399,12 +390,19 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
     # -------- Set up TFRecord indexes for sharding ---------------------------
     # Index files not created in this interleave function, as there may be multiple instances of this function
     # running across processes, and having each create index files would result in conflicts / corruption.
-    index_paths = {}
-    for filename in tfrecords:
-        index_name = join(dirname(filename), sf.util.path_to_name(filename)+'.index')
-        index_paths[sf.util.path_to_name(filename)] = index_name
-        if not exists(index_name):
-            raise TFRecordsError(f"Could not find index path for TFRecord {filename}")
+    if not indices:
+        indices = {}
+
+        def load_index(tfr):
+            index_name = join(dirname(tfr), sf.util.path_to_name(tfr)+'.index')
+            tfr_name = sf.util.path_to_name(tfr)
+            if not exists(index_name):
+                raise TFRecordsError(f"Could not find index path for TFRecord {tfr}")
+            return tfr_name, np.loadtxt(index_name, dtype=np.int64)
+
+        pool = mp.dummy.Pool(16)
+        for tfr_name, index in tqdm(pool.imap(load_index, tfrecords), desc="Loading indices...", total=len(tfrecords)):
+            indices[tfr_name] = index
 
     #  -------  Interleave and batch datasets ---------------------------------
     if prob_weights:
@@ -413,25 +411,33 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
     else:
         weights = None
     multi_loader = iter(MultiTFRecordDataset(tfrecords,
-                                             index_paths,
+                                             indices,
                                              weights,
                                              shard=(rank, num_replicas),
                                              clip=clip,
                                              infinite=infinite))
 
+    # Worker to decode images and process records
+    def threading_worker(record):
+        record = base_parser(record)
+        record[0] = _decode_image(record[0], # Image is the first returned variable
+                                img_type=img_type,
+                                standardize=standardize,
+                                normalizer=normalizer,
+                                augment=augment)
+        return record
+
     # Randomly interleaves datasets according to weights, reading parsed records to a buffer
     # And sending parsed results to a queue after reaching a set buffer size
-    raw_q = Queue(2)
-    proc_q = Queue(2)
+    raw_q = Queue(1)
+    proc_q = Queue(1)
 
     def interleaver():
         msg = []
-        global_idx = -1
         while True:
-            global_idx += 1
             try:
                 record = next(multi_loader)
-                msg += [base_parser(record)]
+                msg += [record]
                 if len(msg) < chunk_size:
                     continue
                 else:
@@ -443,33 +449,24 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
         raw_q.put(msg)
         raw_q.put(None)
 
-    # Reads a buffer batch of images/labels, processing images using thread pools.
+    # Reads a buffer batch of images/labels and processes images
     def decoder():
-        def threading_worker(record):
-                record[0] = _decode_image(record[0], # Image is the first returned variable
-                                          img_type=img_type,
-                                          standardize=standardize,
-                                          normalizer=normalizer,
-                                          augment=augment)
-                return record
-
         while True:
             records = raw_q.get()
             if records is None:
                 proc_q.put(None)
                 return
-            pool = mp.dummy.Pool(num_threads)
-            decoded_images = pool.map(threading_worker, records)
-            proc_q.put(decoded_images)
+            decoded = [threading_worker(record) for record in records]
+            proc_q.put(decoded)
 
     # Parallelize the tfrecord reading interleaver, and the image processing decoder
     thread = threading.Thread(target=interleaver)
     thread.start()
-    procs = threading.Thread(target=decoder)
-    procs.start()
+    procs = [threading.Thread(target=decoder) for t in range(4)]
+    for proc in procs:
+        proc.start()
 
     def retriever():
-        total_yielded = 0
         got = 0
         while True:
             record = proc_q.get()
@@ -477,14 +474,13 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
             if record is None: return
             for item in record:
                 yield item
-            total_yielded += len(record)
 
     return retriever()
 
 def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, clip=None, onehot=False, num_tiles=None,
                           incl_slidenames=False, incl_loc=False, infinite=False, rank=0, num_replicas=1, labels=None,
                           normalizer=None, seed=0, chunk_size=16, preload_factor=1, prefetch_factor=1, augment=True,
-                          standardize=True, num_workers=2, pin_memory=True):
+                          standardize=True, num_workers=2, pin_memory=True, indices=None):
 
     """Prepares a PyTorch DataLoader with a new InterleaveIterator instance, interleaving tfrecords and processing
     labels and tiles, with support for scaling the dataset across GPUs and dataset workers.
@@ -522,7 +518,6 @@ def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, cl
     """
 
     kwargs = {var:val for var,val in locals().items() if var not in ('batch_size', 'num_workers', 'pin_memory', 'preload_factor', 'prefetch_factor')}
-    torch.multiprocessing.set_sharing_strategy('file_system')
     iterator = InterleaveIterator(use_labels=(labels is not None), preload=(batch_size//num_replicas)*preload_factor, **kwargs)
     dataloader = torch.utils.data.DataLoader(iterator,
                                              batch_size=batch_size//num_replicas,

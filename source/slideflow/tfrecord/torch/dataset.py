@@ -83,7 +83,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
         else:
             shard = None
         it = reader.tfrecord_loader(data_path=self.data_path,
-                                    index_path=self.index_path,
+                                    index=self.index_path,
                                     description=self.description,
                                     shard=shard,
                                     clip=self.clip,
