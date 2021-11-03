@@ -451,8 +451,8 @@ class Project:
             Dict: Dictionary of keras training results, nested by epoch.
         """
 
-        log.info(f'Evaluating model {sf.util.green(model)}...')
         import slideflow.model
+        log.info(f'Evaluating model {sf.util.green(model)}...')
 
         if not isinstance(outcome_label_headers, list):
             outcome_label_headers = [outcome_label_headers]
@@ -570,7 +570,8 @@ class Project:
                     input_labels_dict[input_var] = config['input_feature_labels'][input_var]
 
                     for slide in labels:
-                        model_inputs[slide] += sf.util.to_onehot(input_labels[slide], feature_len_dict[input_var])
+                        onehot_label = sf.util.to_onehot(input_labels[slide], feature_len_dict[input_var]).tolist()
+                        model_inputs[slide] += onehot_label
 
             feature_sizes = [feature_len_dict[i] for i in input_header]
 
@@ -1997,7 +1998,7 @@ class Project:
                     train_dts = dataset
                     val_dts = Dataset(tile_px=hp.tile_px,
                                       tile_um=hp.tile_um,
-                                      config_file=self.dataset_config,
+                                      config=self.dataset_config,
                                       sources=val_settings.source,
                                       annotations=val_settings.annotations,
                                       filters=val_settings.filters,

@@ -1,5 +1,5 @@
-Tutorial 1: Quick Start
-=======================
+Tutorial 1: Model training (simple)
+=====================================
 
 In this first tutorial, we will walk through the steps needed to take an example project from start to finish, using
 the bundled ``run_project.py`` script to execute pipeline functions. As with all of these tutorials, we will use

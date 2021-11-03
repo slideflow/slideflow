@@ -132,6 +132,15 @@ def reader_tester(project):
     assert len(tfrecords)
 
     with TaskWrapper("Testing tensorflow and torch readers...") as test:
+        # Torch backend
+        from slideflow.io.torch import interleave_dataloader
+        torch_results = []
+        torch_dts = dataset.torch(labels=None, batch_size=batch_size, infinite=False, augment=False, standardize=False, num_workers=4, pin_memory=False)
+        if project.verbosity < logging.WARNING: torch_dts = tqdm(torch_dts, leave=False, ncols=80, unit_scale=batch_size, total=dataset.num_tiles // batch_size)
+        for images, labels in torch_dts:
+            torch_results += [hash(str(img.numpy().transpose(1, 2, 0))) for img in images] # CWH -> WHC
+        torch_results = sorted(torch_results)
+
         # Tensorflow backend
         from slideflow.io.tensorflow import interleave
         tf_results = []
@@ -141,14 +150,7 @@ def reader_tester(project):
             tf_results += [hash(str(img.numpy())) for img in images]
         tf_results = sorted(tf_results)
 
-        # Torch backend
-        from slideflow.io.torch import interleave_dataloader
-        torch_results = []
-        torch_dts = dataset.torch(labels=None, batch_size=batch_size, infinite=False, augment=False, standardize=False, num_workers=6)
-        if project.verbosity < logging.WARNING: torch_dts = tqdm(torch_dts, leave=False, ncols=80, unit_scale=batch_size, total=dataset.num_tiles // batch_size)
-        for images, labels in torch_dts:
-            torch_results += [hash(str(img.numpy().transpose(1, 2, 0))) for img in images] # CWH -> WHC
-        torch_results = sorted(torch_results)
+        print(len(torch_results), len(tf_results), dataset.num_tiles)
 
         assert len(torch_results)
         assert len(torch_results) == len(tf_results) == dataset.num_tiles
@@ -296,6 +298,9 @@ class TestSuite:
         # Setup buffering
         self.buffer = buffer
 
+        # Rebuild tfrecord indices
+        self.SFP.get_dataset(299, 302).build_index(True)
+
     def _get_model(self, name, epoch=1):
         prev_run_dirs = [x for x in os.listdir(self.SFP.models_dir) if os.path.isdir(join(self.SFP.models_dir, x))]
         for run in sorted(prev_run_dirs, reverse=True):
@@ -304,6 +309,7 @@ class TestSuite:
                     return join(self.SFP.models_dir, run, f'{name}_epoch{epoch}')
                 else:
                     return join(self.SFP.models_dir, run, f'saved_model_epoch{epoch}')
+        raise OSError(f"Unable to find trained model {name}")
 
     def configure_sources(self):
         with TaskWrapper("Dataset configuration...") as test:
@@ -324,7 +330,7 @@ class TestSuite:
             project_dataset = Dataset(tile_px=299,
                                       tile_um=302,
                                       sources='TEST',
-                                      config_file=self.SFP.dataset_config,
+                                      config=self.SFP.dataset_config,
                                       annotations=self.SFP.annotations)
             project_dataset.update_annotations_with_slidenames(self.SFP.annotations)
             loaded_slides = project_dataset.slides()
@@ -496,8 +502,8 @@ class TestSuite:
                                 **train_kwargs)
 
     def test_evaluation(self, **eval_kwargs):
-        multi_cat_model = self._get_model('category1-category2-TEST-HPSweep0-kfold1')
-        multi_lin_model = self._get_model('linear1-linear2-TEST-HPSweep0-kfold1')
+        multi_cat_model = self._get_model('category1-category2-HP0-kfold1')
+        multi_lin_model = self._get_model('linear1-linear2-HP0-kfold1')
         multi_inp_model = self._get_model('category1-multi_input-HP0-kfold1')
         perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
         cph_model = self._get_model('time-cph-HP0-kfold1')

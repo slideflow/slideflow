@@ -42,16 +42,15 @@ def backend():
 #       - Tutorial 9: Class-conditional GAN with StyleGAN2
 #TODO: label_parser in dataset.tfrecords()
 #TODO: consistent model name strings in tensorflow and pytorch versions
-#TODO: easier validation plan sharing
-#TODO: more clear logging information regarding validation plans
+#TODO: easier validation plan sharing, & clearer logging information regarding validation plans
 #TODO: show tile extraction grid on thumbnail, optional
 #TODO: consistent "decode" for get_tfrecord_parser in tensorflow/torch (decode should decode images + slide name)
 #TODO: ActivationsInterface compatibility for multiple outcomes
 #TODO: log normalization as hyperparameter
 #TODO: custom models in Tensorflow & PyTorch (attention to ActivationsInterface)
-#TODO: remove as many calls to sf.backend() as possible. Ideally the API should be unified/consistent
 #TODO: improve tile verification speed in PyTorch
 #TODO: ensure format of results_log is the same for train(), evaluate(), tensorflow & pytorch
+#TODO: fix pytorch reader (TS.test_readers(); works with num_workers=4)
 
 # PyTorch implementation
 # ======================

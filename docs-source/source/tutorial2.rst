@@ -1,5 +1,5 @@
-Tutorial 2: Using a Trainer
-==================================
+Tutorial 2: Model training (advanced)
+=======================================
 
 In this next tutorial, we'll take a more hands-on approach by working with some of the base slideflow classes directly. We will train the same model as the first tutorial, but rather than using the project method :meth:`slideflow.project.Project.train`, we will use the :class:`slideflow.dataset.Datset` and :class:`slideflow.model.Trainer` classes directly in an interactive python session.
 

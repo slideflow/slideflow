@@ -1469,7 +1469,7 @@ class Dataset:
             # If no plan found, create a new one
             if not accepted_plan:
                 if validation_log:
-                    log.info(f"No suitable validation plan found; will log plan at {sf.util.green(validation_log)}")
+                    log.info(f"No compatible training/validation split found in cache; will log new split at {sf.util.green(validation_log)}")
                 else:
                     log.info(f"No validation log provided; unable to save or load validation plans.")
                 new_plan = {
