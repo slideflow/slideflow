@@ -4,6 +4,8 @@ import os
 import copy
 import slideflow as sf
 
+from tqdm import tqdm
+from multiprocessing.dummy import Pool as DPool
 from random import shuffle
 from slideflow.util import log
 from os.path import join, exists, isdir, isfile
@@ -47,43 +49,54 @@ def update_manifest_at_dir(directory, force_update=False):
             log.warning(f"TFRecord in manifest was not found at {tfr}; removing")
             del(manifest[rel_tfr])
 
-    for rel_tfr in relative_tfrecord_paths:
+    def process_tfr(rel_tfr):
         tfr = join(directory, rel_tfr)
 
         if (not force_update) and (rel_tfr in manifest) and ('total' in manifest[rel_tfr]):
-            continue
+            return None
 
-        manifest.update({rel_tfr: {}})
+        rel_tfr_manifest = {rel_tfr: {}}
         try:
             raw_dataset = TFRecordDataset(tfr)
             parser = get_tfrecord_parser(tfr, ('slide',), to_numpy=True)
         except StopIteration:
-            continue
+            return None
         except Exception as e:
             log.error(f"Unable to open TFRecords file with {os.environ['SF_BACKEND']}: {str(e)}")
-            return
-        if log.getEffectiveLevel() <= 20: print(f"\r\033[K + Verifying tiles in {sf.util.green(rel_tfr)}...", end="")
+            return None
         total = 0
         try:
             for raw_record in raw_dataset:
                 slide = parser(raw_record)[0]
                 if hasattr(slide, 'decode'):
                     slide = slide.decode('utf-8')
-                if slide not in manifest[rel_tfr]:
-                    manifest[rel_tfr][slide] = 1
+                if slide not in rel_tfr_manifest[rel_tfr]:
+                    rel_tfr_manifest[rel_tfr][slide] = 1
                 else:
-                    manifest[rel_tfr][slide] += 1
+                    rel_tfr_manifest[rel_tfr][slide] += 1
                 total += 1
         except dataloss_errors:
-            print('\r\033[K', end="")
-            log.error(f"Corrupt or incomplete TFRecord at {tfr}")
-            log.info(f"Deleting and removing corrupt TFRecord from manifest...")
             del(raw_dataset)
-            os.remove(tfr)
-            del(manifest[rel_tfr])
+            return 'delete'
+        rel_tfr_manifest[rel_tfr]['total'] = total
+        del(raw_dataset)
+        return rel_tfr_manifest
+
+    pool = DPool(8)
+    if log.getEffectiveLevel() <= 20:
+        pb = tqdm(desc='Verifying tfrecords...', total=len(relative_tfrecord_paths), leave=False)
+    else:
+        pb = None
+    for m in pool.imap(process_tfr, relative_tfrecord_paths):
+        if pb is not None:
+            pb.update()
+        if m is None:
             continue
-        manifest[rel_tfr]['total'] = total
-        print('\r\033[K', end="")
+        if m == 'delete':
+            print('\r\033[K', end="")
+            log.error(f"Corrupt or incomplete TFRecord at {tfr}; removing")
+            os.remove(tfr)
+            continue
 
     # Write manifest file
     if (manifest != prior_manifest) or (manifest == {}):
