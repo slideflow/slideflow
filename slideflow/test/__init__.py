@@ -131,11 +131,11 @@ def reader_tester(project):
     batch_size = 128
     assert len(tfrecords)
 
-    with TaskWrapper("Testing tensorflow and torch readers...") as test:
+    with TaskWrapper("Testing torch and tensorflow readers...") as test:
         # Torch backend
         from slideflow.io.torch import interleave_dataloader
         torch_results = []
-        torch_dts = dataset.torch(labels=None, batch_size=batch_size, infinite=False, augment=False, standardize=False, num_workers=4, pin_memory=False)
+        torch_dts = dataset.torch(labels=None, batch_size=batch_size, infinite=False, augment=False, standardize=False, num_workers=6, pin_memory=False)
         if project.verbosity < logging.WARNING: torch_dts = tqdm(torch_dts, leave=False, ncols=80, unit_scale=batch_size, total=dataset.num_tiles // batch_size)
         for images, labels in torch_dts:
             torch_results += [hash(str(img.numpy().transpose(1, 2, 0))) for img in images] # CWH -> WHC
@@ -149,8 +149,6 @@ def reader_tester(project):
         for images, labels in tf_dts:
             tf_results += [hash(str(img.numpy())) for img in images]
         tf_results = sorted(tf_results)
-
-        print(len(torch_results), len(tf_results), dataset.num_tiles)
 
         assert len(torch_results)
         assert len(torch_results) == len(tf_results) == dataset.num_tiles

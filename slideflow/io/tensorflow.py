@@ -432,7 +432,7 @@ def update_tfrecord(tfrecord_file, assign_slide=None):
     writer.close()
     os.remove(tfrecord_file+'.old')
 
-def transform_tfrecord(origin,target, assign_slide=None, hue_shift=None, resize=None, silent=False):
+def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None, resize=None, silent=False):
     '''Transforms images in a single tfrecord. Can perform hue shifting, resizing, or re-assigning slide label.'''
 
     print_func = None if silent else print

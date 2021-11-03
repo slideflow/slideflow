@@ -816,7 +816,8 @@ class Trainer:
         tf.keras.backend.clear_session() # Clear prior Tensorflow graph to free memory
 
         # Save training / validation manifest
-        log_manifest(train_dts.tfrecords(), val_dts.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
+        val_tfrecords = None if val_dts is None else val_dts.tfrecords()
+        log_manifest(train_dts.tfrecords(), val_tfrecords, self.labels, join(self.outdir, 'slide_manifest.csv'))
 
         # Neptune logging
         if self.use_neptune:
@@ -869,6 +870,8 @@ class Trainer:
             else:
                 log.debug('Validation during training: None')
                 validation_data_for_training = None
+                val_data = None
+                val_data_w_slidenames = None
                 validation_steps = 0
 
             # Calculate parameters
@@ -897,7 +900,7 @@ class Trainer:
                 steps_per_epoch=steps_per_epoch,
                 skip_metrics=skip_metrics,
                 validation_data_with_slidenames=val_data_w_slidenames,
-                num_val_tiles=val_dts.num_tiles,
+                num_val_tiles=(0 if val_dts is None else val_dts.num_tiles),
                 save_predictions=save_predictions,
                 results_log=results_log,
             )

@@ -50,7 +50,6 @@ def backend():
 #TODO: custom models in Tensorflow & PyTorch (attention to ActivationsInterface)
 #TODO: improve tile verification speed in PyTorch
 #TODO: ensure format of results_log is the same for train(), evaluate(), tensorflow & pytorch
-#TODO: fix pytorch reader (TS.test_readers(); works with num_workers=4)
 
 # PyTorch implementation
 # ======================

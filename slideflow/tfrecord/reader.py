@@ -8,12 +8,13 @@ import struct
 import typing
 import numpy as np
 
+from slideflow.util import log
 from slideflow.tfrecord import example_pb2
 from slideflow.tfrecord import iterator_utils
 
 def tfrecord_iterator(
     data_path: str,
-    index: None,#typing.Optional[str] = None,
+    index = None,
     shard: typing.Optional[typing.Tuple[int, int]] = None,
     clip: typing.Optional[int] = None,
     compression_type: typing.Optional[str] = None,
@@ -31,8 +32,8 @@ def tfrecord_iterator(
     data_path: str
         TFRecord file path.
 
-    index_path: str, optional, default=None
-        Index file path. Can be set to None if no file is available.
+    index: optional, default=None
+        np.loadtxt(index_path, dtype=np.int64)
 
     shard: tuple of ints, optional, default=None
         A tuple (index, count) representing worker_id and num_workers
@@ -86,11 +87,8 @@ def tfrecord_iterator(
             yield datum_bytes_view
 
     if index is None: #index_path
-        #if shard is not None or clip is not None:
-        #    #log.warning(f"Index files not found for tfrecord; unable to perform clipping or sharding (data will be duplicated).")
         yield from read_records()
     else:
-        #index = np.loadtxt(index_path, dtype=np.int64)
         if len(index.shape) == 1: # For the case that there is only a single record in the file
             index = np.expand_dims(index, axis=0)
         index = index[:, 0]
@@ -106,12 +104,19 @@ def tfrecord_iterator(
         elif shard is None:
             yield from read_records(0, clip_offset)
         else:
-            num_records = len(index)
+            print(index.shape[0])
             shard_idx, shard_count = shard
-            start_index = (num_records * shard_idx) // shard_count
-            end_index = (num_records * (shard_idx + 1)) // shard_count
-            start_byte = index[start_index]
-            end_byte = index[end_index] if end_index < num_records else clip_offset
+            all_shard_indices = np.array_split(index, shard_count)
+            start_byte = all_shard_indices[shard_idx][0]
+            if shard_idx < (shard_count-1):
+                end_byte = all_shard_indices[shard_idx + 1][0]
+            else:
+                end_byte = clip_offset
+
+            #start_index = (num_records * shard_idx) // shard_count
+            #end_index = (num_records * (shard_idx + 1)) // shard_count
+            #start_byte = index[start_index]
+            #end_byte = index[end_index] if end_index < num_records else clip_offset
             yield from read_records(start_byte, end_byte)
 
     file.close()
@@ -232,7 +237,6 @@ def example_loader(
 
     record_iterator = tfrecord_iterator(
         data_path=data_path,
-        #index_path=index_path,
         index=index,
         shard=shard,
         clip=clip,
@@ -474,6 +478,10 @@ def multi_tfrecord_loader(paths: typing.List[str],
     it: iterator
         A repeating iterator that generates batches of data.
     """
+
+    if indices is None and (shard is not None or clip is not None):
+        log.debug(f"Index files not found for tfrecord; unable to perform clipping or sharding (data will be duplicated).")
+
     datum_bytes = bytearray(1024 * 1024)
     loaders = [functools.partial(tfrecord_loader, data_path=tfr_path.decode('utf-8'),
                                  index=indices[i] \

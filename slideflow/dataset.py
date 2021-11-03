@@ -1553,10 +1553,6 @@ class Dataset:
             val_tfrecords = [tfr for tfr in tfrecord_dir_list if sf.util.path_to_name(tfr) in validation_slides]
             training_tfrecords = [tfr for tfr in tfrecord_dir_list if sf.util.path_to_name(tfr) in training_slides]
 
-        train_msg = sf.util.bold(len(training_tfrecords))
-        val_msg = sf.util.bold(len(val_tfrecords))
-        log.info(f"Using {train_msg} TFRecords for training, {val_msg} for validation")
-
         assert(len(val_tfrecords) == len(validation_slides))
         assert(len(training_tfrecords) == len(training_slides))
 

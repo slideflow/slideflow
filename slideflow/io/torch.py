@@ -531,6 +531,7 @@ def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, cl
                                              batch_size=batch_size//num_replicas,
                                              num_workers=num_workers,
                                              pin_memory=pin_memory,
-                                             prefetch_factor=prefetch_factor)
+                                             prefetch_factor=prefetch_factor,
+                                             drop_last=False)
     dataloader.num_tiles = iterator.num_tiles
     return dataloader
