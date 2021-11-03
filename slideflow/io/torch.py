@@ -327,13 +327,16 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=Tr
         '''Each item in args is an array with one item, as the dareblopy reader returns items in batches
         and we have set our batch_size = 1 for interleaving.'''
 
-        slide = bytes(record['slide']).decode('utf-8')
-        img = bytes(record['image_raw'])
-
-        features = {
-            'slide': slide,
-            'image_raw': _decode_image(img, img_type, standardize, normalizer, augment) if decode_images else img
-        }
+        features = {}
+        if ('slide' in features_to_return):
+            slide = bytes(record['slide']).decode('utf-8')
+            features['slide'] = slide
+        if ('image_raw' in features_to_return):
+            img = bytes(record['image_raw'])
+            if decode_images:
+                features['image_raw'] = _decode_image(img, img_type, standardize, normalizer, augment)
+            else:
+                features['image_raw'] = img
         if ('loc_x' in features_to_return):
             features['loc_x'] = record['loc_x'][0]
         if ('loc_y' in features_to_return):
