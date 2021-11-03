@@ -119,6 +119,13 @@ class ModelParams:
         # Perform check to ensure combination of HPs are valid
         self.validate()
 
+    def __repr__(self):
+        base = "ModelParams("
+        for arg in self._get_args():
+            base += "\n  {} = {!r},".format(arg, getattr(self, arg))
+        base += "\n)"
+        return base
+
     def _get_args(self):
         return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt',
                                                                             'build_model',

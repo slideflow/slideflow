@@ -76,7 +76,7 @@ class TileVisualizer:
         self.NODE = node
         self.IMAGE_SHAPE = (tile_px, tile_px, 3)
         self.MASK_WIDTH = mask_width if mask_width else int(self.IMAGE_SHAPE[0]/6)
-        self.normalizer = None if not normalizer else sf.util.StainNormalizer(method=normalizer, source=normalizer_source)
+        self.normalizer = None if not normalizer else sf.slide.StainNormalizer(method=normalizer, source=normalizer_source)
 
         log.info('Initializing tile visualizer')
         log.info(f'Node: {sf.util.bold(str(node))} | Shape: ({self.IMAGE_SHAPE}) | Window size: {self.MASK_WIDTH}')

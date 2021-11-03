@@ -15,7 +15,8 @@ from os.path import join
 from PIL import Image
 from slideflow.model import base as _base
 from slideflow.experimental.adv_xception import xception_fc
-from slideflow.util import log, StainNormalizer
+from slideflow.util import log
+from slideflow.slide import StainNormalizer
 from slideflow.model import torch_utils, log_manifest
 from tqdm import tqdm
 from slideflow.clam.models.model_clam import Attn_Net_Gated

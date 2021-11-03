@@ -9,7 +9,8 @@ import slideflow.statistics
 from os.path import join, exists
 from slideflow.model import base as _base
 from slideflow.experimental.adv_xception import xception_classifier, xception_features
-from slideflow.util import log, StainNormalizer
+from slideflow.util import log
+from slideflow.slide import StainNormalizer
 from slideflow.model import torch_utils, log_manifest
 from tqdm import tqdm
 

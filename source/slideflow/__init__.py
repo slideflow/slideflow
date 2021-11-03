@@ -9,22 +9,18 @@ __version__ = "1.12.3"
 
 if 'SF_BACKEND' not in os.environ:
     os.environ['SF_BACKEND'] = 'tensorflow'
+
+import slideflow.io
+import slideflow.model
+from slideflow.activations import ActivationsInterface, ActivationsVisualizer, Heatmap
+from slideflow.dataset import Dataset
+from slideflow.mosaic import Mosaic
 from slideflow.project import Project
+from slideflow.slide import WSI, TMA
+from slideflow.statistics import SlideMap
 
 def backend():
     return os.environ['SF_BACKEND']
-
-def set_backend(b):
-    """Sets the slideflow backend to either tensorflow or pytorch using
-    the environmental variable SF_BACKEND
-
-    Args:
-        backend (str): Either 'tensorflow' or 'torch'.
-    """
-
-    if b not in ('tensorflow', 'torch'):
-        raise ValueError(f'Unknown backend {b}')
-    os.environ['SF_BACKEND'] = b
 
 # Style information
 # =================
@@ -51,14 +47,11 @@ def set_backend(b):
 #TODO: show tile extraction grid on thumbnail, optional
 #TODO: consistent "decode" for get_tfrecord_parser in tensorflow/torch (decode should decode images + slide name)
 #TODO: ActivationsInterface compatibility for multiple outcomes
-#TODO: implement __repr__ methods for CLI usability
 #TODO: log normalization as hyperparameter
 #TODO: custom models in Tensorflow & PyTorch (attention to ActivationsInterface)
-#TODO: improved module loading. Look into importlib lazy loading
 #TODO: remove as many calls to sf.backend() as possible. Ideally the API should be unified/consistent
 #TODO: improve tile verification speed in PyTorch
 #TODO: ensure format of results_log is the same for train(), evaluate(), tensorflow & pytorch
-#TODO: consider multithreading sf.tfrecord.reader:255-258 (parsing of records)
 
 # PyTorch implementation
 # ======================
@@ -91,3 +84,4 @@ def set_backend(b):
 #TODO: implement native TF normalizers to improve realtime normalization speed
 #TODO: put tfrecord report in tfrecord directories & include information
 #         on normalization, filtering, slideflow version, etc
+#TODO: consider multithreading sf.tfrecord.reader:255-258 (parsing of records)

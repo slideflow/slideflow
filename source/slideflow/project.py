@@ -17,7 +17,6 @@ from statistics import mean, median
 from tqdm import tqdm
 
 import slideflow as sf
-import slideflow.io
 import slideflow.util.neptune_utils
 
 from slideflow import project_utils
@@ -52,15 +51,14 @@ class Project:
 
     """
 
-    def __init__(self, project_folder, gpu=None, default_threads=4, use_neptune=False, **project_kwargs):
+    def __init__(self, root, gpu=None, use_neptune=False, **project_kwargs):
         """Initializes project at the specified project folder, creating a new project using
         the specified kwargs if one does not already exist. Will create a blank annotations file with
         dataset slide names if one does not exist.
 
         Args:
-            project_folder (str): Path to project directory.
+            root (str): Path to project directory.
             gpu (str, optional): Manually assign GPU. Comma separated int. Defaults to None.
-            default_threads (int, optional): Default threads available for multithreaded functions. Defaults to 4.
 
         Keyword Args:
             name (str): Project name. Defaults to 'MyProject'.
@@ -77,21 +75,20 @@ class Project:
                 kwargs are provided.
         """
 
-        self.default_threads = default_threads
-        self.root = project_folder
+        self.root = root
 
-        if exists(join(project_folder, 'settings.json')) and project_kwargs:
-            raise sf.util.UserError(f"Project already exists at {project_folder}. " + \
+        if exists(join(root, 'settings.json')) and project_kwargs:
+            raise sf.util.UserError(f"Project already exists at {root}. " + \
                                    f"Unable to override user-provided settings: {', '.join(project_kwargs.keys())}")
-        elif exists(join(project_folder, 'settings.json')):
-            self.load_project(project_folder)
+        elif exists(join(root, 'settings.json')):
+            self.load_project(root)
         elif project_kwargs:
-            log.info(f"Creating project at {project_folder}...")
+            log.info(f"Creating project at {root}...")
             self._settings = project_utils._project_config(**project_kwargs)
-            if not exists(project_folder):
-                os.makedirs(project_folder)
+            if not exists(root):
+                os.makedirs(root)
         else:
-            raise sf.util.UserError(f"Project folder {project_folder} does not exist.")
+            raise sf.util.UserError(f"Project folder {root} does not exist.")
 
         # Create directories, if not already made
         if not exists(self.models_dir):
@@ -106,7 +103,7 @@ class Project:
         # Set up logging
         logger = logging.getLogger('slideflow')
         self.verbosity = logger.getEffectiveLevel()
-        fh = logging.FileHandler(join(project_folder, 'log.txt'))
+        fh = logging.FileHandler(join(root, 'log.txt'))
         fh.setFormatter(sf.util.FileFormatter())
         fh.setLevel(logging.DEBUG)
         logger.addHandler(fh)
@@ -118,21 +115,24 @@ class Project:
             self.select_gpu(gpu)
 
     @classmethod
-    def from_prompt(cls, project_folder, **kwargs):
+    def from_prompt(cls, root, **kwargs):
         """Initializes project by creating project folder, prompting user for project settings, and
         saves settings to "settings.json" within the project directory.
 
         Args:
-            project_folder (str): Path to project directory.
+            root (str): Path to project directory.
             gpu (str, optional): Manually assign GPU. Comma separated int. Defaults to None.
-            default_threads (int, optional): Default threads available for multithreaded functions. Defaults to 4.
         """
 
-        if not exists(join(project_folder, 'settings.json')):
-            log.info(f'Project at "{project_folder}" does not exist; will set up new project.')
-            project_utils.interactive_project_setup(project_folder)
-        obj = cls(project_folder, **kwargs)
+        if not exists(join(root, 'settings.json')):
+            log.info(f'Project at "{root}" does not exist; will set up new project.')
+            project_utils.interactive_project_setup(root)
+        obj = cls(root, **kwargs)
         return obj
+
+    def __repr__(self):
+        with_neptune = '' if not self.use_neptune else ", use_neptune={!r}".format(self.use_neptune)
+        return "Project(root={!r}{})".format(self.root, with_neptune)
 
     @property
     def annotations(self):
@@ -342,7 +342,7 @@ class Project:
             raise sf.util.UserError("Unable to create blank annotations file, dataset configuration file " +
                                     f"{self.dataset_config} does not exist.")
 
-        dataset = Dataset(config_file=self.dataset_config,
+        dataset = Dataset(config=self.dataset_config,
                           sources=self.sources,
                           tile_px=None,
                           tile_um=None,
@@ -1604,7 +1604,7 @@ class Project:
         """
 
         try:
-            dataset = Dataset(config_file=self.dataset_config,
+            dataset = Dataset(config=self.dataset_config,
                               sources=self.sources,
                               tile_px=tile_px,
                               tile_um=tile_um,
@@ -2363,8 +2363,3 @@ class Project:
                                                 heatmaps_dir,
                                                 tile_px=dataset.tile_px,
                                                 tile_um=dataset.tile_um)
-
-class SlideflowProject(Project):
-    def __init__(self, *args, **kwargs):
-        log.warn("sf.SlideflowProject is deprecated; please use sf.Project")
-        super().__init__(*args, **kwargs)

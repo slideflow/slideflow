@@ -23,7 +23,7 @@ from os.path import join
 from slideflow.util import log
 from slideflow.model.base import ModelError, no_scope, log_summary, log_manifest
 from slideflow.model.tensorflow_utils import *
-from slideflow.util import StainNormalizer
+from slideflow.slide import StainNormalizer
 
 #TODO: Fix ActivationsInterface for multiple categorical outcomes
 

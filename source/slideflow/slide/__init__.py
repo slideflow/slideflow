@@ -35,7 +35,8 @@ import multiprocessing as mp
 
 from os.path import join, exists
 from PIL import Image, ImageDraw, UnidentifiedImageError
-from slideflow.util import log, StainNormalizer, SUPPORTED_FORMATS, UserError
+from slideflow.util import log, SUPPORTED_FORMATS, UserError
+from slideflow.slide.normalizers import StainNormalizer
 from datetime import datetime
 from functools import partial
 from tqdm import tqdm
@@ -847,6 +848,17 @@ class WSI(_BaseLoader):
             log.error(f'Skipping slide {sf.util.green(self.name)} due to loading error')
             return None
 
+    def __repr__(self):
+        base = "WSI(\n"
+        base += "  path = {!r},\n".format(self.path)
+        base += "  tile_px = {!r},\n".format(self.tile_px)
+        base += "  tile_um = {!r},\n".format(self.tile_um)
+        base += "  stride_div = {!r},\n".format(self.stride_div)
+        base += "  enable_downsample = {!r},\n".format(self.enable_downsample)
+        base += "  roi_method = {!r},\n".format(self.roi_method)
+        base += ")"
+        return base
+
     def _build_coord(self, randomize_origin):
         '''Set up coordinate grid.'''
 
@@ -1012,10 +1024,15 @@ class WSI(_BaseLoader):
         """
 
         assert (mpp is None or width is None), "Either mpp must be supplied or width, but not both"
+        # If no values provided, create thumbnail of width 1024
+        if mpp is None and width is None:
+            width = 1024
+
         if mpp is not None:
             roi_scale = self.full_shape[0] / (int((self.MPP * self.full_shape[0]) / mpp))
         else:
             roi_scale = self.full_shape[0] / width
+
         annPolys = [sg.Polygon(annotation.scaled_area(roi_scale)) for annotation in self.rois]
         annotated_thumb = self.thumb(mpp=mpp, width=width).copy()
         draw = ImageDraw.Draw(annotated_thumb)

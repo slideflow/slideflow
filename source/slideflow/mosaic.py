@@ -19,7 +19,8 @@ from matplotlib import patches
 from multiprocessing.dummy import Pool as DPool
 from functools import partial
 from tqdm import tqdm
-from slideflow.util import log, StainNormalizer
+from slideflow.util import log
+from slideflow.slide import StainNormalizer
 from slideflow.statistics import get_centroid_index
 
 class MosaicError(Exception):

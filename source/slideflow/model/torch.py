@@ -9,7 +9,8 @@ import numpy as np
 import slideflow.statistics
 
 from os.path import join
-from slideflow.util import log, StainNormalizer
+from slideflow.util import log
+from slideflow.slide import StainNormalizer
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest

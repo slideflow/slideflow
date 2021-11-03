@@ -18,6 +18,7 @@ import shapely.geometry as sg
 from collections import defaultdict
 from slideflow.util import log
 from slideflow.util.fastim import FastImshow
+from slideflow.slide import StainNormalizer
 from os.path import join, exists
 from math import isnan
 from matplotlib.widgets import Slider
@@ -173,7 +174,7 @@ class ActivationsVisualizer:
         # Prepare normalizer
         if normalizer:
             log.info(f'Using realtime {normalizer} normalization')
-            normalizer = sf.util.StainNormalizer(method=normalizer, source=normalizer_source)
+            normalizer = StainNormalizer(method=normalizer, source=normalizer_source)
 
         # Calculate final layer activations for each tfrecord
         fla_start_time = time.time()

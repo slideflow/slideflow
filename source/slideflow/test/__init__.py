@@ -268,12 +268,10 @@ class TestSuite:
             shutil.rmtree(self.project_root)
         if os.path.exists(join(self.project_root, 'settings.json')):
             self.SFP = sf.Project(self.project_root,
-                                  gpu=gpu,
-                                  default_threads=num_threads)
+                                  gpu=gpu)
         else:
             self.SFP = sf.Project(self.project_root,
                                   gpu=gpu,
-                                  default_threads=num_threads,
                                   **self.config.project_settings)
         self.SFP.save()
 

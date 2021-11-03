@@ -144,8 +144,7 @@ class Dataset:
     """Object to supervise organization of slides, tfrecords, and tiles
     across one or more sources in a stored configuration file."""
 
-    def __init__(self, config_file, sources, tile_px, tile_um, annotations=None, filters=None, filter_blank=None,
-                 min_tiles=0):
+    def __init__(self, config, sources, tile_px, tile_um, annotations=None, filters=None, filter_blank=None, min_tiles=0):
 
         self.tile_px = tile_px
         self.tile_um = tile_um
@@ -157,15 +156,17 @@ class Dataset:
         self._min_tiles = min_tiles
         self._clip = {}
         self.prob_weights = None
+        self._config = config
 
-        config = sf.util.load_json(config_file)
+        loaded_config = sf.util.load_json(config)
         sources = sources if isinstance(sources, list) else [sources]
 
         try:
-            self.sources = {k:v for (k,v) in config.items() if k in sources}
+            self.sources = {k:v for (k,v) in loaded_config.items() if k in sources}
+            self.sources_names = list(self.sources.keys())
         except KeyError:
             sources_list = ", ".join(sources)
-            err_msg = f"Unable to find source '{sf.util.bold(sources_list)}' in config file {sf.util.green(config_file)}"
+            err_msg = f"Unable to find source '{sf.util.bold(sources_list)}' in config file {sf.util.green(config)}"
             log.error(err_msg)
             raise DatasetError(err_msg)
 
@@ -182,6 +183,9 @@ class Dataset:
                 self._load_annotations(annotations)
             else:
                 log.warning(f"Unable to load annotations from {sf.util.green(annotations)}; file does not exist.")
+
+    def __repr__(self):
+        return "Dataset(config={!r}, sources={!r}, tile_px={!r}, tile_um={!r})".format(self._config, self.sources_names, self.tile_px, self.tile_um)
 
     @property
     def num_tiles(self):
@@ -1194,7 +1198,7 @@ class Dataset:
                 among workers without duplications. Defaults to 0 (first worker).
             num_replicas (int, optional): Number of GPUs or unique instances which will have their own DataLoader. Used to
                 interleave results among workers without duplications. Defaults to 1.
-            normalizer (:class:`slideflow.util.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
+            normalizer (:class:`slideflow.slide.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
             seed (int, optional): Use the following seed when randomly interleaving. Necessary for synchronized
                 multiprocessing distributed reading.
             chunk_size (int, optional): Chunk size for image decoding. Defaults to 16.
@@ -1232,7 +1236,7 @@ class Dataset:
         import slideflow.io
 
         if normalizer: log.info(f'Using realtime {normalizer} normalization')
-        normalizer = None if not normalizer else sf.util.StainNormalizer(method=normalizer, source=normalizer_source)
+        normalizer = None if not normalizer else sf.slide.StainNormalizer(method=normalizer, source=normalizer_source)
 
         tfrecord_list = self.tfrecords()
         reports = []
@@ -1585,7 +1589,7 @@ class Dataset:
                 among workers without duplications. Defaults to 0 (first worker).
             num_replicas (int, optional): Number of GPUs or unique instances which will have their own DataLoader. Used to
                 interleave results among workers without duplications. Defaults to 1.
-            normalizer (:class:`slideflow.util.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
+            normalizer (:class:`slideflow.slide.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
             seed (int, optional): Use the following seed when randomly interleaving. Necessary for synchronized
                 multiprocessing distributed reading.
             chunk_size (int, optional): Chunk size for image decoding. Defaults to 16.
