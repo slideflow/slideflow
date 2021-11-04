@@ -29,11 +29,10 @@ if __name__=='__main__':
         logging.getLogger('slideflow').setLevel(logging.DEBUG)
 
     print()
-    print(f'=================================')
+    print(f'+-------------------------------+')
     print(f'|      Slideflow v{sf.__version__:<13} |')
-    print(f'|       by James Dolezal        |')
-    print(f'| james.dolezal@uchospitals.edu |')
-    print(f'=================================')
+    print(f'|     https://slideflow.dev     |')
+    print(f'+-------------------------------+')
     print()
 
     finished_dir = os.path.join(args.queue, "finished")

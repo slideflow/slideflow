@@ -1352,27 +1352,27 @@ class Dataset:
             if delete_tiles:
                 shutil.rmtree(tiles_dir)
 
-    def training_validation_split(self, model_type, labels, val_strategy, validation_log=None,
+    def training_validation_split(self, model_type, labels, val_strategy, splits=None,
                                   val_fraction=None, val_k_fold=None, k_fold_iter=None, read_only=False):
 
         """From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
-        If a validation plan has already been prepared (e.g. K-fold iterations were already determined),
-        the previously generated plan will be used. Otherwise, create a new plan and log the result in the
-        TFRecord directory so future models may use the same plan for consistency.
+        If a validation split has already been prepared (e.g. K-fold iterations were already determined),
+        the previously generated split will be used. Otherwise, create a new split and log the result in the
+        TFRecord directory so future models may use the same split for consistency.
 
         Args:
             model_type (str): Either 'categorical' or 'linear'.
             labels (dict):  Dictionary mapping slides to labels. Used for balancing outcome labels in
                 training and validation cohorts.
             val_strategy (str): Either 'k-fold', 'k-fold-preserved-site', 'bootstrap', or 'fixed'.
-            validation_log (str, optional): Path to .log file containing validation plans. Defaults to None.
+            splits (str, optional): Path to JSON file containing validation splits. Defaults to None.
             outcome_key (str, optional): Key indicating outcome label in slide_labels_dict. Defaults to 'outcome_label'.
             val_fraction (float, optional): Proportion of data for validation. Not used if strategy is k-fold.
                 Defaults to None
             val_k_fold (int): K, required if using K-fold validation. Defaults to None.
             k_fold_iter (int, optional): Which K-fold iteration to generate starting at 1. Fequired if using K-fold
                 validation. Defaults to None.
-            read_only (bool): Prevents writing validation plans to log. Defaults to False.
+            read_only (bool): Prevents writing validation splits to file. Defaults to False.
 
         Returns:
             (slideflow.dataset.Dataset, slideflow.dataset.Dataset): training dataset, validation dataset
@@ -1385,10 +1385,11 @@ class Dataset:
 
         # Prepare dataset
         patients = self.patients()
+        splits_file = splits
         k_fold = val_k_fold
         training_tfrecords = []
         val_tfrecords = []
-        accepted_plan = None
+        accepted_split = None
         slide_list = list(labels.keys())
 
         # Assemble dictionary of patients linking to list of slides and outcome labels
@@ -1444,37 +1445,37 @@ class Dataset:
             training_slides = np.concatenate([patients_dict[patient]['slides']
                                                 for patient in training_patients]).tolist()
         else:
-            # Try to load validation plan
-            validation_plans = [] if (not validation_log or not exists(validation_log)) else sf.util.load_json(validation_log)
-            for plan in validation_plans:
-                # First, see if plan type is the same
-                if plan['strategy'] != val_strategy:
+            # Try to load validation split
+            loaded_splits = [] if (not splits_file or not exists(splits_file)) else sf.util.load_json(splits_file)
+            for split in loaded_splits:
+                # First, see if strategy is the same
+                if split['strategy'] != val_strategy:
                     continue
                 # If k-fold, check that k-fold length is the same
                 if (val_strategy == 'k-fold' or val_strategy == 'k-fold-preserved-site') \
-                    and len(list(plan['tfrecords'].keys())) != k_fold:
+                    and len(list(split['tfrecords'].keys())) != k_fold:
 
                     continue
 
                 # Then, check if patient lists are the same
-                plan_patients = list(plan['patients'].keys())
-                plan_patients.sort()
-                if plan_patients == sorted_patients:
+                split_patients = list(split['patients'].keys())
+                split_patients.sort()
+                if split_patients == sorted_patients:
                     # Finally, check if outcome variables are the same
-                    if [patients_dict[p]['outcome_label'] for p in plan_patients] == \
-                        [plan['patients'][p]['outcome_label']for p in plan_patients]:
+                    if [patients_dict[p]['outcome_label'] for p in split_patients] == \
+                        [split['patients'][p]['outcome_label']for p in split_patients]:
 
-                        log.info(f"Using {val_strategy} validation plan detected at {sf.util.green(validation_log)}")
-                        accepted_plan = plan
+                        log.info(f"Using {val_strategy} validation split detected at {sf.util.green(splits_file)}")
+                        accepted_split = split
                         break
 
-            # If no plan found, create a new one
-            if not accepted_plan:
-                if validation_log:
-                    log.info(f"No compatible training/validation split found in cache; will log new split at {sf.util.green(validation_log)}")
+            # If no split found, create a new one
+            if not accepted_split:
+                if splits_file:
+                    log.info(f"No compatible training/validation split found; will log new split at {sf.util.green(splits_file)}")
                 else:
-                    log.info(f"No validation log provided; unable to save or load validation plans.")
-                new_plan = {
+                    log.info(f"No training/validation splits file provided; unable to save or load validation splits.")
+                new_split = {
                     'strategy':        val_strategy,
                     'patients':        patients_dict,
                     'tfrecords':    {}
@@ -1491,8 +1492,8 @@ class Dataset:
                                                         for patient in validation_patients]).tolist()
                     training_slides = np.concatenate([patients_dict[patient]['slides']
                                                         for patient in training_patients]).tolist()
-                    new_plan['tfrecords']['validation'] = validation_slides
-                    new_plan['tfrecords']['training'] = training_slides
+                    new_split['tfrecords']['validation'] = validation_slides
+                    new_split['tfrecords']['training'] = training_slides
                 elif val_strategy == 'k-fold' or val_strategy == 'k-fold-preserved-site':
                     balance = 'outcome_label' if model_type == 'categorical' else None
                     k_fold_patients = split_patients_list(patients_dict,
@@ -1507,7 +1508,7 @@ class Dataset:
                         raise DatasetError(err_msg)
                     training_patients = []
                     for k in range(1, k_fold+1):
-                        new_plan['tfrecords'][f'k-fold-{k}'] = np.concatenate([patients_dict[patient]['slides']
+                        new_split['tfrecords'][f'k-fold-{k}'] = np.concatenate([patients_dict[patient]['slides']
                                                                                     for patient in k_fold_patients[k-1]]).tolist()
                         if k == k_fold_iter:
                             validation_patients = k_fold_patients[k-1]
@@ -1521,18 +1522,18 @@ class Dataset:
                     err_msg = f"Unknown validation strategy {val_strategy} requested."
                     log.error(err_msg)
                     raise DatasetError(err_msg)
-                # Write the new plan to log
-                validation_plans += [new_plan]
-                if not read_only and validation_log:
-                    sf.util.write_json(validation_plans, validation_log)
+                # Write the new split to log
+                loaded_splits += [new_split]
+                if not read_only and splits_file:
+                    sf.util.write_json(loaded_splits, splits_file)
             else:
-                # Use existing plan
+                # Use existing split
                 if val_strategy == 'fixed':
-                    validation_slides = accepted_plan['tfrecords']['validation']
-                    training_slides = accepted_plan['tfrecords']['training']
+                    validation_slides = accepted_split['tfrecords']['validation']
+                    training_slides = accepted_split['tfrecords']['training']
                 elif val_strategy == 'k-fold' or val_strategy == 'k-fold-preserved-site':
-                    validation_slides = accepted_plan['tfrecords'][f'k-fold-{k_fold_iter}']
-                    training_slides = np.concatenate([accepted_plan['tfrecords'][f'k-fold-{ki}']
+                    validation_slides = accepted_split['tfrecords'][f'k-fold-{k_fold_iter}']
+                    training_slides = np.concatenate([accepted_split['tfrecords'][f'k-fold-{ki}']
                                                         for ki in range(1, k_fold+1)
                                                         if ki != k_fold_iter]).tolist()
                 else:

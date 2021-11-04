@@ -355,8 +355,8 @@ class Project:
                 root directory. Defaults to "sweep.json".
         """
 
-        pdict = copy.deepcopy(kwargs)
-        args = [arg for arg in list(pdict.keys()) if arg != 'epochs']
+        pdict = copy.deepcopy({k:v for k,v in kwargs.items() if k != 'epochs'})
+        args = list(pdict.keys())
         for arg in args:
             if not isinstance(pdict[arg], list):
                 pdict[arg] = [pdict[arg]]
@@ -375,7 +375,7 @@ class Project:
         log.info(f'Wrote {len(sweep)} combinations for sweep to {sf.util.green(filename)}')
 
     def evaluate(self, model, outcome_label_headers, dataset=None, filters=None, checkpoint=None, model_config=None,
-                 eval_k_fold=None, max_tiles=0, min_tiles=0, batch_size=64, input_header=None,
+                 eval_k_fold=None, splits="splits.json", max_tiles=0, min_tiles=0, batch_size=64, input_header=None,
                  permutation_importance=False, histogram=False, save_predictions=False):
 
         """Evaluates a saved model on a given set of tfrecords.
@@ -393,6 +393,8 @@ class Project:
                 If None (default), searches in the model directory.
             eval_k_fold (int, optional): K-fold iteration number to evaluate. Defaults to None.
                 If None, will evaluate all tfrecords irrespective of K-fold.
+            splits (str, optional): Filename of JSON file in which to log training/validation splits. Looks for
+                filename in project root directory. Defaults to "splits.json".
             max_tiles (int, optional): Maximum number of tiles from each slide to evaluate. Defaults to 0.
                 If zero, will include all tiles.
             min_tiles (int, optional): Minimum number of tiles a slide must have to be included in evaluation.
@@ -431,6 +433,7 @@ class Project:
         hp = sf.model.ModelParams()
         hp.load_dict(config['hp'])
         model_name = f"eval-{basename(model)}"
+        splits_file = join(self.root, splits)
 
         # Filter out slides that are blank in the outcome label, or blank in any of the input_header categories
         filter_blank = [o for o in outcome_label_headers]
@@ -477,11 +480,10 @@ class Project:
         # If using a specific k-fold, load validation plan
         if eval_k_fold:
             log.info(f"Using {sf.util.bold('k-fold iteration ' + str(eval_k_fold))}")
-            validation_log = join(self.root, 'validation_plans.json')
             _, eval_dts = dataset.training_validation_split(hp.model_type(),
                                                             labels_for_split,
                                                             val_strategy=config['validation_strategy'],
-                                                            validation_log=validation_log,
+                                                            splits=splits_file,
                                                             val_fraction=config['validation_fraction'],
                                                             val_k_fold=config['validation_k_fold'],
                                                             k_fold_iter=eval_k_fold)
@@ -552,8 +554,8 @@ class Project:
         prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
         prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
         cur_run_id = max(prev_run_ids, default=-1) + 1
-        model_dir = os.path.join(self.eval_dir, f'{cur_run_id:05d}-{model_name}')
-        assert not os.path.exists(model_dir)
+        model_dir = join(self.eval_dir, f'{cur_run_id:05d}-{model_name}')
+        assert not exists(model_dir)
         os.makedirs(model_dir)
 
         # Log model settings and hyperparameters
@@ -1036,7 +1038,7 @@ class Project:
             detected_model_name = config['model_name']
 
         # Make output directory
-        outdir = outdir if outdir else os.path.join(self.root, 'heatmaps', detected_model_name)
+        outdir = outdir if outdir else join(self.root, 'heatmaps', detected_model_name)
         if not exists(outdir): os.makedirs(outdir)
         heatmap_args.outdir = outdir
 
@@ -1736,7 +1738,7 @@ class Project:
 
     def train(self, outcome_label_headers, hyperparameters, exp_label=None, filters=None, filter_blank=None,
               input_header=None, resume_training=None, checkpoint=None, pretrain='imagenet', min_tiles=0, max_tiles=0,
-              multi_gpu=False, **training_kwargs):
+              multi_gpu=False, splits="splits.json", **training_kwargs):
 
         """Train model(s) using a given set of hyperparameters, outcomes, and inputs.
 
@@ -1759,6 +1761,8 @@ class Project:
             max_tiles (int): Only use up to this many tiles from each slide for training. Defaults to 0.
                 If zero, will include all tiles.
             multi_gpu (bool): Train using multiple GPUs using Keras MirroredStrategy when available. Defaults to True.
+            splits (str, optional): Filename of JSON file in which to log training/validation splits. Looks for
+                filename in project root directory. Defaults to "splits.json".
 
         Keyword Args:
             val_strategy (str): Validation dataset selection strategy. Defaults to 'k-fold'.
@@ -1825,7 +1829,12 @@ class Project:
 
         # Prepare hyperparameters
         if isinstance(hyperparameters, str):
-            hp_dict = sf.model.get_hp_from_batch_file(hyperparameters)
+            if exists(hyperparameters):
+                hp_dict = sf.model.get_hp_from_batch_file(hyperparameters)
+            elif exists(join(self.root, hyperparameters)):
+                hp_dict = sf.model.get_hp_from_batch_file(join(self.root, hyperparameters))
+            else:
+                raise OSError(f"Unable to find hyperparameters file {hyperparameters}")
         elif isinstance(hyperparameters, sf.model.ModelParams):
             hp_dict = {'HP0': hyperparameters}
         elif isinstance(hyperparameters, list):
@@ -1840,11 +1849,10 @@ class Project:
             hp_dict = hyperparameters
 
         # Get default validation settings from kwargs
-        validation_log = join(self.root, 'validation_plans.json')
-
         val_kwargs = {k[4:]:v for k,v in training_kwargs.items() if k[:4] == 'val_'}
         training_kwargs = {k:v for k,v in training_kwargs.items() if k[:4] != 'val_'}
         val_settings = get_validation_settings(**val_kwargs)
+        splits_file = join(self.root, splits)
         if (val_settings.strategy in ('k-fold-manual', 'k-fold-preserved-site', 'k-fold', 'bootstrap')
             and val_settings.source):
 
@@ -1917,7 +1925,7 @@ class Project:
             for k in valid_k:
                 # Log current model name and k-fold iteration, if applicable
                 k_fold_msg = '' if not k else f' ({val_settings.strategy} iteration {k})'
-                print()
+                if log.getEffectiveLevel() <= 20: print()
                 log.info(f'Training model {sf.util.bold(model_name)}{k_fold_msg}...')
                 log.info(f'Hyperparameters: {hp}')
                 log.info(f'Validation settings: {json.dumps(vars(val_settings), indent=2)}')
@@ -1953,7 +1961,7 @@ class Project:
                     train_dts, val_dts = dataset.training_validation_split(hp.model_type(),
                                                                            labels_for_split,
                                                                            val_strategy=val_settings.strategy,
-                                                                           validation_log=validation_log,
+                                                                           splits=splits_file,
                                                                            val_fraction=val_settings.fraction,
                                                                            val_k_fold=val_settings.k_fold,
                                                                            k_fold_iter=k)
@@ -2114,7 +2122,7 @@ class Project:
                     return {}
                 else:
                     sf.util.update_results_log(results_log_path, mi, results_dict[mi]['epochs'])
-            log.info(f'Training complete for model {model_name}, results saved to {sf.util.green(results_log_path)}')
+            log.info(f'Training complete, results saved to {sf.util.green(results_log_path)}')
 
         # Print summary of all models
         log.info('Training complete; validation accuracies:')
@@ -2136,7 +2144,7 @@ class Project:
         return results_dict
 
     def train_clam(self, exp_name, pt_files, outcome_label_headers, dataset, train_slides='auto',
-                   validation_slides='auto', clam_args=None, attention_heatmaps=True):
+                   validation_slides='auto', splits='splits.json', clam_args=None, attention_heatmaps=True):
 
         """Train a CLAM model from layer activations exported with :meth:`slideflow.project.generate_features_for_clam`.
 
@@ -2149,6 +2157,8 @@ class Project:
                 If 'auto' (default), will auto-generate training/validation split.
             validation_slides (str, optional): List of slide names for validation. Defaults to 'auto'.
                 If 'auto' (default), will auto-generate training/validation split.
+            splits (str, optional): Filename of JSON file in which to log training/validation splits. Looks for
+                filename in project root directory. Defaults to "splits.json".
             clam_args (optional): Namespace with clam arguments, as provided by :func:`slideflow.clam.get_args`.
             attention_heatmaps (bool, optional): Save attention heatmaps of validation dataset.
 
@@ -2181,6 +2191,7 @@ class Project:
         # Set up CLAM experiment data directory
         clam_dir = join(self.root, 'clam', exp_name)
         results_dir = join(clam_dir, 'results')
+        splits_file = join(self.root, splits)
         if not exists(results_dir): os.makedirs(results_dir)
 
         # Get base CLAM args/settings if not provided.
@@ -2198,11 +2209,10 @@ class Project:
         if train_slides == validation_slides == 'auto':
             train_slides, validation_slides = {}, {}
             for k in range(clam_args.k):
-                validation_log = join(self.root, 'validation_plans.json')
                 train_dts, val_dts = dataset.training_validation_split('categorical',
                                                                         labels,
                                                                         val_strategy='k-fold',
-                                                                        validation_log=validation_log,
+                                                                        splits=splits_file,
                                                                         val_k_fold=clam_args.k,
                                                                         k_fold_iter=k+1)
 

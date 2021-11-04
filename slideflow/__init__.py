@@ -5,7 +5,7 @@
 
 import os
 
-__version__ = "1.12.3"
+__version__ = "1.13.0-dev1"
 
 if 'SF_BACKEND' not in os.environ:
     os.environ['SF_BACKEND'] = 'tensorflow'
@@ -30,7 +30,7 @@ def backend():
 # (https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html)
 # A pylintrc file is included is the root directory to assist with formatting.
 
-# Version planning (v1.12)
+# Version planning (v1.13)
 #TODO: finish a couple more tutorials
 #       - Tutorial 2: Heatmaps, Mosaic maps, ActivationsVisualizer
 #       - Tutorial 3: CLAM
@@ -41,21 +41,9 @@ def backend():
 #       - Tutorial 8: Hyperparameter sweeps
 #       - Tutorial 9: Class-conditional GAN with StyleGAN2
 #TODO: ActivationsInterface compatibility for multiple outcomes
-#TODO: custom models in Tensorflow & PyTorch (attention to ActivationsInterface)
-#
-#TODO: ensure format of results_log is the same for train(), evaluate(), tensorflow & pytorch
-#TODO: easier validation plan sharing, & clearer logging information regarding validation plans
 
 # PyTorch implementation
 # ======================
-#
-# Core features / high priority updates
-# -------------------------------------
-#TODO: full Trainer features, parameters, etc
-#    - log_frequency, ema_observations, ema_smoothing, use_tensorboard, resume_training, checkpoint
-
-# May be delayed:
-# ---------------
 #TODO: CPH outcomes
 #TODO: slide-level input
 #   - TODO: statistics.permutation_feature_importance (-> ActivationsInterface)
@@ -74,6 +62,7 @@ def backend():
 
 # Future updates
 # ===============
+#TODO: custom models in Tensorflow & PyTorch (attention to ActivationsInterface)
 #TODO: implement native TF normalizers to improve realtime normalization speed
 #TODO: put tfrecord report in tfrecord directories & include information
 #         on normalization, filtering, slideflow version, etc

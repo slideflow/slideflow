@@ -304,10 +304,7 @@ class TestSuite:
         prev_run_dirs = [x for x in os.listdir(self.SFP.models_dir) if os.path.isdir(join(self.SFP.models_dir, x))]
         for run in sorted(prev_run_dirs, reverse=True):
             if run[6:] == name:
-                if sf.backend() == 'tensorflow':
-                    return join(self.SFP.models_dir, run, f'{name}_epoch{epoch}')
-                else:
-                    return join(self.SFP.models_dir, run, f'saved_model_epoch{epoch}')
+                return join(self.SFP.models_dir, run, f'{name}_epoch{epoch}')
         raise OSError(f"Unable to find trained model {name}")
 
     def configure_sources(self):
@@ -360,7 +357,6 @@ class TestSuite:
                                                  epochs=[1,2,3],
                                                  toplayer_epochs=[0],
                                                  model=["xception"],
-                                                 pooling=["max"],
                                                  loss=[loss],
                                                  learning_rate=[0.001],
                                                  batch_size=[64],
@@ -441,11 +437,12 @@ class TestSuite:
                 log.error("Results object not received from training")
                 test.fail()
 
-    def test_training(self, categorical=True, linear=True, multi_input=True, cph=True, multi_cph=True, **train_kwargs):
+    def test_training(self, categorical=True, multi_categorical=True, linear=True, multi_input=True, cph=True, multi_cph=True, **train_kwargs):
         if categorical:
             # Test categorical outcome
             self.train_perf(**train_kwargs)
 
+        if multi_categorical:
             # Test multiple sequential categorical outcome models
             with TaskWrapper("Training to multiple outcomes...") as test:
                 self.SFP.train(outcome_label_headers=['category1', 'category2'],

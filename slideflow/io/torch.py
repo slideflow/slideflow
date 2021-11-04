@@ -489,8 +489,8 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
 
 def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, clip=None, onehot=False, num_tiles=None,
                           incl_slidenames=False, incl_loc=False, infinite=False, rank=0, num_replicas=1, labels=None,
-                          normalizer=None, seed=0, chunk_size=16, preload_factor=1, prefetch_factor=1, augment=True,
-                          standardize=True, num_workers=2, pin_memory=True, indices=None):
+                          normalizer=None, seed=0, chunk_size=16, preload_factor=1, augment=True, standardize=True,
+                          num_workers=2, persistent_workers=True, pin_memory=True, indices=None):
 
     """Prepares a PyTorch DataLoader with a new InterleaveIterator instance, interleaving tfrecords and processing
     labels and tiles, with support for scaling the dataset across GPUs and dataset workers.
@@ -515,7 +515,6 @@ def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, cl
             multiprocessing distributed reading.
         chunk_size (int, optional): Chunk size for image decoding. Defaults to 16.
         preload_factor (int, optional): Number of batches to preload in each SlideflowIterator. Defaults to 1.
-        prefetch_factor (int, optional): Number of batches to prefecth in the DataLoader class. Defaults to 1.
         manifest (dict, optional): Dataset manifest containing number of tiles per tfrecord.
         balance (str, optional): Batch-level balancing. Options: category, patient, and None.
             If infinite is not True, will drop tiles in order to maintain proportions across the interleaved dataset.
@@ -524,16 +523,18 @@ def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, cl
                 at random quality levels. Passing either 'xyrj' or True will use all augmentations.
         standardize (bool, optional): Standardize images to (0,1). Defaults to True.
         num_workers (int, optional): Number of DataLoader workers. Defaults to 2.
+        persistent_workers (bool, optional): Sets the DataLoader persistent_workers flag. Defaults to True.
         pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
     """
 
     kwargs = {var:val for var,val in locals().items() if var not in ('batch_size', 'num_workers', 'pin_memory', 'preload_factor', 'prefetch_factor')}
     iterator = InterleaveIterator(use_labels=(labels is not None), preload=(batch_size//num_replicas)*preload_factor, **kwargs)
+    torch.multiprocessing.set_sharing_strategy('file_system')
     dataloader = torch.utils.data.DataLoader(iterator,
                                              batch_size=batch_size//num_replicas,
                                              num_workers=num_workers,
                                              pin_memory=pin_memory,
-                                             prefetch_factor=prefetch_factor,
+                                             persistent_workers=persistent_workers,
                                              drop_last=False)
     dataloader.num_tiles = iterator.num_tiles
     return dataloader

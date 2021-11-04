@@ -430,50 +430,46 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             else:
                 log_message = f"{batch_msg} {loss_msg} | {val_loss_msg}"
 
-            # First, skip moving average calculations if using an invalid metric
-            if self.model_type != 'categorical' and self.hp.early_stop_method == 'accuracy':
+            # Calculate exponential moving average of validation accuracy
+            if len(self.moving_average) <= self.cb_args.ema_observations:
                 log.info(log_message)
             else:
-                # Calculate exponential moving average of validation accuracy
-                if len(self.moving_average) <= self.cb_args.ema_observations:
-                    log.info(log_message)
+                # Only keep track of the last [ema_observations] validation accuracies
+                self.moving_average.pop(0)
+                if self.last_ema == -1:
+                    # Calculate simple moving average
+                    self.last_ema = sum(self.moving_average) / len(self.moving_average)
+                    log.info(log_message +  f' (SMA: {self.last_ema:.3f})')
                 else:
-                    # Only keep track of the last [ema_observations] validation accuracies
-                    self.moving_average.pop(0)
-                    if self.last_ema == -1:
-                        # Calculate simple moving average
-                        self.last_ema = sum(self.moving_average) / len(self.moving_average)
-                        log.info(log_message +  f' (SMA: {self.last_ema:.3f})')
-                    else:
-                        # Update exponential moving average
-                        self.last_ema = (early_stop_value * (self.cb_args.ema_smoothing/(1+self.cb_args.ema_observations))) + \
-                                        (self.last_ema * (1-(self.cb_args.ema_smoothing/(1+self.cb_args.ema_observations))))
-                        log.info(log_message + f' (EMA: {self.last_ema:.3f})')
+                    # Update exponential moving average
+                    self.last_ema = (early_stop_value * (self.cb_args.ema_smoothing/(1+self.cb_args.ema_observations))) + \
+                                    (self.last_ema * (1-(self.cb_args.ema_smoothing/(1+self.cb_args.ema_observations))))
+                    log.info(log_message + f' (EMA: {self.last_ema:.3f})')
 
-                # If early stopping and our patience criteria has been met,
-                #   check if validation accuracy is still improving
-                if (self.hp.early_stop and
-                    (self.last_ema != -1) and
-                    (float(batch)/self.cb_args.steps_per_epoch)+self.epoch_count > self.hp.early_stop_patience):
+            # If early stopping and our patience criteria has been met,
+            #   check if validation accuracy is still improving
+            if (self.hp.early_stop and
+                (self.last_ema != -1) and
+                (float(batch)/self.cb_args.steps_per_epoch)+self.epoch_count > self.hp.early_stop_patience):
 
-                    if (self.ema_two_checks_prior != -1 and
-                        ((self.hp.early_stop_method == 'accuracy' and self.last_ema <= self.ema_two_checks_prior) or
-                            (self.hp.early_stop_method == 'loss' and self.last_ema >= self.ema_two_checks_prior))):
+                if (self.ema_two_checks_prior != -1 and
+                    ((self.hp.early_stop_method == 'accuracy' and self.last_ema <= self.ema_two_checks_prior) or
+                     (self.hp.early_stop_method == 'loss'     and self.last_ema >= self.ema_two_checks_prior))):
 
-                        log.info(f'Early stop triggered: epoch {self.epoch_count+1}, batch {batch}')
-                        self.model.stop_training = True
-                        self.early_stop = True
+                    log.info(f'Early stop triggered: epoch {self.epoch_count+1}, batch {batch}')
+                    self.model.stop_training = True
+                    self.early_stop = True
 
-                        # Log early stop to neptune
-                        if self.neptune_run:
-                            self.neptune_run["early_stop/early_stop_epoch"] = self.epoch_count
-                            self.neptune_run["early_stop/early_stop_batch"] = batch
-                            self.neptune_run["early_stop/method"] = self.hp.early_stop_method
-                            self.neptune_run["early_stop/stopped_early"] = self.early_stop
-                            self.neptune_run["sys/tags"].add("early_stopped")
-                    else:
-                        self.ema_two_checks_prior = self.ema_one_check_prior
-                        self.ema_one_check_prior = self.last_ema
+                    # Log early stop to neptune
+                    if self.neptune_run:
+                        self.neptune_run["early_stop/early_stop_epoch"] = self.epoch_count
+                        self.neptune_run["early_stop/early_stop_batch"] = batch
+                        self.neptune_run["early_stop/method"] = self.hp.early_stop_method
+                        self.neptune_run["early_stop/stopped_early"] = self.early_stop
+                        self.neptune_run["sys/tags"].add("early_stopped")
+                else:
+                    self.ema_two_checks_prior = self.ema_one_check_prior
+                    self.ema_one_check_prior = self.last_ema
 
     def on_train_end(self, logs={}):
         if log.getEffectiveLevel() <= 20: print('\r\033[K')
@@ -501,8 +497,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         log.info(f'Validation metrics:')
         for m in val_metrics:
             log.info(f'{m}: {val_metrics[m]:.4f}')
-        self.results['epochs'][f'epoch{epoch}'] = {'train_metrics': logs,
-                                                'val_metrics': val_metrics }
+        self.results['epochs'][f'epoch{epoch}'] = {'train_metrics': {k:v for k,v in logs.items() if k[:3] != 'val'},
+                                                   'val_metrics': val_metrics }
         if not self.cb_args.skip_metrics:
             for metric in metrics:
                 if metrics[metric]['tile'] is None: continue

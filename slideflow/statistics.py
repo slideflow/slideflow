@@ -10,6 +10,7 @@ import pandas as pd
 import multiprocessing as mp
 import slideflow as sf
 
+from tqdm import tqdm
 from functools import partial
 from slideflow.util import ProgressBar, to_onehot
 from os.path import join
@@ -921,7 +922,6 @@ def gen_umap(array, dim=2, n_neighbors=50, min_dist=0.1, metric='cosine', low_me
 
 def save_histogram(y_true, y_pred, outdir, name='histogram', neptune_run=None):
     """Generates histogram of y_pred, labeled by y_true, saving to outdir."""
-    #TODO: switch from distplot (deprecated) to displot or histplot (neither working during last test)
 
     cat_false = [yp for i, yp in enumerate(y_pred) if y_true[i] == 0]
     cat_true = [yp for i, yp in enumerate(y_pred) if y_true[i] == 1]
@@ -929,8 +929,8 @@ def save_histogram(y_true, y_pred, outdir, name='histogram', neptune_run=None):
     plt.clf()
     plt.title('Tile-level Predictions')
     try:
-        sns.distplot( cat_false , color="skyblue", label="Negative") # Despite the deprecation warning, I have not found
-        sns.distplot( cat_true , color="red", label="Positive")      # a good substitute for distplot that actually works
+        sns.histplot(cat_false, kde=True, stat="density", linewidth=0, color="skyblue", label="Negative")
+        sns.histplot(cat_true, kde=True, stat="density", linewidth=0, color="red", label="Positive")
     except np.linalg.LinAlgError:
         log.warning("Unable to generate histogram, insufficient data")
     plt.legend()
@@ -1082,7 +1082,7 @@ def generate_scatter(y_true, y_pred, data_dir, name='_plot', plot=True, neptune_
 
         if plot:
             # Plot
-            p = sns.jointplot(y_true[:,i], y_pred[:,i], kind="reg")
+            p = sns.jointplot(x=y_true[:,i], y=y_pred[:,i], kind="reg")
             p.set_axis_labels('y_true', 'y_pred')
             plt.savefig(os.path.join(data_dir, f'Scatter{name}-{i}.png'))
 
@@ -1187,7 +1187,7 @@ def save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end,
                 y_pred_str_list = [str(y_pred[i])] if y_pred_is_reduced else [str(ypi) for ypi in y_pred[i]]
                 row = np.concatenate([[tile_to_slides[i]], y_true_str_list, y_pred_str_list])
                 writer.writerow(row)
-    log.info(f"Predictions saved to {sf.util.green(data_dir)}")
+    log.debug(f"Predictions saved to {sf.util.green(data_dir)}")
 
 def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, model_type, outcome_names=None,
                              label=None, data_dir=None, verbose=True, save_predictions=True, histogram=False, plot=True,
@@ -1323,7 +1323,7 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
 
     return combined_metrics
 
-def predict_from_torch(model, dataset, model_type='categorical'):
+def predict_from_torch(model, dataset, pred_args, model_type='categorical'):
     """Generates predictions (y_true, y_pred, tile_to_slide) from a given PyTorch model and dataset.
 
     Args:
@@ -1338,23 +1338,26 @@ def predict_from_torch(model, dataset, model_type='categorical'):
     """
 
     import torch
-    from tqdm import tqdm
     start = time.time()
     y_true, y_pred, tile_to_slides = [], [], []
-    detected_batch_size = 0
+    running_corrects = pred_args.running_corrects
+    running_loss = 0
+    total = 0
 
-    log.info("Generating predictions from torch model")
+    log.debug("Generating predictions from torch model")
 
     # Get predictions and performance metrics
     model.eval()
     device = torch.device('cuda:0')
-    pb = tqdm(total=dataset.num_tiles, ncols=100, unit='img', leave=False)
+    pb = tqdm(desc='Evaluating...', total=dataset.num_tiles, ncols=100, unit='img', leave=False)
     for img, yt, slide in dataset:
         img = img.to(device, non_blocking=True)
 
         with torch.cuda.amp.autocast():
             with torch.no_grad():
                 res = model(img)
+                running_corrects = pred_args.update_corrects(res, yt, running_corrects)
+                running_loss = pred_args.update_loss(res, yt, running_loss, img.size(0))
                 if isinstance(res, list):
                     res = [r.cpu().numpy().copy() for r in res]
                 else:
@@ -1368,8 +1371,8 @@ def predict_from_torch(model, dataset, model_type='categorical'):
             y_true += [yt]
 
         tile_to_slides += slide
-        if not detected_batch_size: detected_batch_size = len(slide)
-        pb.update(dataset.batch_size)
+        total += img.shape[0]
+        pb.update(img.shape[0])
 
     if log.getEffectiveLevel() <= 20: sf.util.clear_console()
 
@@ -1389,10 +1392,16 @@ def predict_from_torch(model, dataset, model_type='categorical'):
     if model_type == 'linear' and isinstance(y_true, list):
         y_true = np.stack(y_true, axis=1)
 
+    # Calculate final accuracy and loss
+    loss = running_loss / total
+    if isinstance(running_corrects, dict): acc = {k:v.cpu().numpy()/total for k,v in running_corrects.items()}
+    elif isinstance(running_corrects, (int, float)): acc = running_corrects / total
+    else: acc = running_corrects.cpu().numpy() / total
+
     end = time.time()
     log.debug(f"Prediction complete. Time to completion: {int(end-start)} s")
 
-    return y_true, y_pred, tile_to_slides
+    return y_true, y_pred, tile_to_slides, acc, loss
 
 def predict_from_tensorflow(model, dataset, num_tiles=0):
     """Generates predictions (y_true, y_pred, tile_to_slide) from a given Tensorflow model and dataset.
@@ -1498,7 +1507,7 @@ def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_l
     return y_pred
 
 def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_names=None, label=None, data_dir=None,
-                         num_tiles=0, histogram=False, verbose=True, save_predictions=True, neptune_run=None):
+                         num_tiles=0, pred_args=None, histogram=False, verbose=True, save_predictions=True, neptune_run=None):
 
     """Evaluate performance of a given model on a given TFRecord dataset,
     generating a variety of statistical outcomes and graphs.
@@ -1525,9 +1534,9 @@ def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_n
     """
 
     if sf.backend() == 'tensorflow':
-        y_true, y_pred, tile_to_slides = predict_from_tensorflow(model, dataset, num_tiles=num_tiles)
+        y_true, y_pred, tile_to_slides, acc, loss = predict_from_tensorflow(model, dataset, num_tiles=num_tiles)
     else:
-        y_true, y_pred, tile_to_slides = predict_from_torch(model, dataset, model_type=model_type)
+        y_true, y_pred, tile_to_slides, acc, loss = predict_from_torch(model, dataset, pred_args, model_type=model_type)
 
     before_metrics = time.time()
     metrics = metrics_from_predictions(y_true=y_true,
@@ -1546,7 +1555,7 @@ def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_n
                                        neptune_run=neptune_run)
     after_metrics = time.time()
     log.debug(f'Validation metrics generated, time: {after_metrics-before_metrics:.2f} s')
-    return metrics
+    return metrics, acc, loss
 
 def permutation_feature_importance(model, dataset, labels, patients, model_type, data_dir, outcome_names=None,
                                    label=None, num_tiles=0, feature_names=None, feature_sizes=None,

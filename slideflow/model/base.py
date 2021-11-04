@@ -191,6 +191,8 @@ class ModelParams:
         if (self.model_type() != 'categorical' and ((self.training_balance == 'category') or
                                                     (self.validation_balance == 'category'))):
             raise HyperParameterError(f'Cannot combine category-level balancing with model type "{self.model_type()}".')
+        if (self.model_type() != 'categorical' and self.early_stop_method == 'accuracy'):
+            raise HyperParameterError(f'Model type "{self.model_type()}" is not compatible with early stopping method "accuracy"')
         return True
 
     def model_type(self):

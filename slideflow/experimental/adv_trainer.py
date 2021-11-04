@@ -151,7 +151,8 @@ class AdvTrainer:
         self.model = self.hp.build_model(labels=self.labels, pretrain=pretrain)
         self.model = self.model.to(device)
         img_batch = torch.empty([self.hp.batch_size, 3, train_dts.tile_px, train_dts.tile_px], device=device)
-        torch_utils.print_module_summary(self.model, [img_batch])
+        if log.getEffectiveLevel() <= 20:
+            torch_utils.print_module_summary(self.model, [img_batch])
 
         # Setup dataloaders
         interleave_args = types.SimpleNamespace(

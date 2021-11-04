@@ -14,6 +14,7 @@ from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest
 from tqdm import tqdm
 from vit_pytorch import ViT
+from torch.utils.tensorboard import SummaryWriter
 
 class ModelWrapper(torch.nn.Module):
     def __init__(self, model, n_classes):
@@ -215,6 +216,7 @@ class Trainer:
         device = torch.device('cuda')
         self.model.to(device)
         self.model.eval()
+        loss_fn = self.hp.get_loss()
         log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
         if not batch_size: batch_size = self.hp.batch_size
 
@@ -245,6 +247,23 @@ class Trainer:
             label='eval'
         )
 
+        # Preparations for calculating accuracy/loss in metrics_from_dataset()
+        def update_corrects(pred, labels, running_corrects):
+            labels = self.labels_to_device(labels, device)
+            return self.update_corrects(pred, labels, running_corrects)
+
+        def update_loss(pred, labels, running_loss, size):
+            labels = self.labels_to_device(labels, device)
+            loss = self.calculate_loss(pred, labels, loss_fn)
+            return running_loss + (loss.item() * size)
+
+        pred_args = types.SimpleNamespace(
+            multi_outcome=(self.num_outcomes > 1),
+            update_corrects=update_corrects,
+            update_loss=update_loss,
+            running_corrects=(0 if not (self.num_outcomes > 1) else {f'out-{o}':0 for o in range(self.num_outcomes)})
+        )
+
         # Generate performance metrics
         log.info('Calculating performance metrics...')
         if permutation_importance:
@@ -254,11 +273,14 @@ class Trainer:
                                                                    drop_images=drop_images,
                                                                    **vars(metric_kwargs))
         else:
-            metrics = sf.statistics.metrics_from_dataset(histogram=histogram,
-                                                         verbose=True,
-                                                         save_predictions=save_predictions,
-                                                         **vars(metric_kwargs))
-        results_dict = { 'eval': {} }
+            metrics, acc, loss = sf.statistics.metrics_from_dataset(histogram=histogram,
+                                                                    verbose=True,
+                                                                    save_predictions=save_predictions,
+                                                                    pred_args=pred_args,
+                                                                    **vars(metric_kwargs))
+        results_dict = { 'eval': {'loss': loss} }
+        if self.hp.model_type() == 'categorical':
+            results_dict['eval'].update({'accuracy': acc})
         for metric in metrics:
             if metrics[metric]:
                 log.info(f"Tile {metric}: {metrics[metric]['tile']}")
@@ -294,60 +316,69 @@ class Trainer:
             loss = loss_fn(outputs, labels)
         return loss
 
-    def acc_desc(self, running_corrects, num_records):
+    def accuracy_description(self, running_corrects, num_records=1):
         '''Reports accuracy of each outcome.'''
 
-        if self.num_outcomes > 1:
-            acc_desc = ''
-            acc_list = [running_corrects[r] / num_records for r in running_corrects]
-            for o in range(len(running_corrects)):
-                acc_desc += f"out-{o} acc: {running_corrects[f'out-{o}'] / num_records:.4f} "
-            return acc_desc, acc_list
+        if self.hp.model_type() == 'categorical':
+            if self.num_outcomes > 1:
+                acc_desc = ''
+                acc_list = [running_corrects[r] / num_records for r in running_corrects]
+                for o in range(len(running_corrects)):
+                    acc_desc += f"out-{o} acc: {running_corrects[f'out-{o}'] / num_records:.4f} "
+                return acc_desc, acc_list
+            else:
+                return f'acc: {running_corrects / num_records:.4f}', running_corrects / num_records
         else:
-            return f'acc: {running_corrects / num_records:.4f}', running_corrects / num_records
+            return '', running_corrects
 
-    def update_acc(self, outputs, labels, running_corrects):
+    def update_corrects(self, outputs, labels, running_corrects):
         '''Updates running accuracy in a manner compatible with multiple outcomes.'''
 
-        if self.num_outcomes > 1:
-            for o, out in enumerate(outputs):
-                _, preds = torch.max(out, 1)
-                running_corrects[f'out-{o}'] += torch.sum(preds == labels[f'out-{o}'].data)
+        if self.hp.model_type() == 'categorical':
+            if self.num_outcomes > 1:
+                for o, out in enumerate(outputs):
+                    _, preds = torch.max(out, 1)
+                    running_corrects[f'out-{o}'] += torch.sum(preds == labels[f'out-{o}'].data)
+            else:
+                _, preds = torch.max(outputs, 1)
+                running_corrects += torch.sum(preds == labels.data)
+            return running_corrects
         else:
-            _, preds = torch.max(outputs, 1)
-            running_corrects += torch.sum(preds == labels.data)
-        return running_corrects
+            return 0
 
-    def train(self, train_dts, val_dts, validate_on_batch=512, validation_batch_size=32, validation_steps=100,
-              save_predictions=False, skip_metrics=False, seed=0, log_frequency=None, starting_epoch=0,
-              ema_observations=None, ema_smoothing=None, use_tensorboard=None, steps_per_epoch_override=0,
-              multi_gpu=None, resume_training=None, pretrain='imagenet', checkpoint=None):
+    def log_epoch(self, phase, epoch, loss, accuracy_description, starttime):
+        elapsed = time.strftime('%H:%M:%S', time.gmtime(time.time() - starttime))
+        log.info(f'{sf.util.bold(sf.util.blue(phase))} Epoch {epoch} | loss: {loss:.4f} {accuracy_description} (Elapsed: {elapsed})')
+
+    def train(self, train_dts, val_dts, validate_on_batch=512, validation_batch_size=32, validation_steps=50,
+              save_predictions=False, skip_metrics=False, seed=0, log_frequency=20, starting_epoch=0,
+              ema_observations=20, ema_smoothing=2, use_tensorboard=True, steps_per_epoch_override=0,
+              multi_gpu=None, pretrain='imagenet', checkpoint=None, resume_training=None):
 
         # Temporary arguments; to be replaced once in a multi-GPU training loop
         rank = 0
         num_gpus = 1
         starting_epoch = max(starting_epoch, 1)
         results = {'epochs': {}}
+        device = torch.device("cuda")
+        global_step = 0
+        early_stop = False
+        last_ema, ema_one_check_prior, ema_two_checks_prior = -1, -1, -1
+        moving_average = []
 
         # Enable TF32 (should be enabled by default)
         torch.backends.cuda.matmul.allow_tf32 = True  # Allow PyTorch to internally use tf32 for matmul
         torch.backends.cudnn.allow_tf32 = True        # Allow PyTorch to internally use tf32 for convolutions
 
         # Not implemented errors
-        if log_frequency is not None:
-            raise NotImplementedError
-        if ema_observations is not None:
-            raise NotImplementedError
-        if ema_smoothing is not None:
-            raise NotImplementedError
-        if use_tensorboard is not None:
-            raise NotImplementedError
         if multi_gpu:
             raise NotImplementedError
+        if resume_training is not None:
+            raise NotImplementedError("PyTorch backend does not support `resume_training`; please use `checkpoint`")
 
         # Training preparation
-        log_manifest(train_dts.tfrecords(), val_dts.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
-        device = torch.device("cuda")
+        val_tfr = val_dts.tfrecords() if val_dts else None
+        log_manifest(train_dts.tfrecords(), val_tfr, self.labels, join(self.outdir, 'slide_manifest.csv'))
         if steps_per_epoch_override:
             steps_per_epoch = steps_per_epoch_override
             log.info(f"Overriding steps per epoch = {steps_per_epoch_override}")
@@ -355,12 +386,19 @@ class Trainer:
             steps_per_epoch = train_dts.num_tiles // self.hp.batch_size
             log.info(f"Steps per epoch = {steps_per_epoch}")
         multi_outcome = (self.num_outcomes > 1)
+        if use_tensorboard:
+            writer = SummaryWriter(self.outdir, flush_secs=60)
 
         # Build model
-        self.model = self.hp.build_model(labels=self.labels, pretrain=pretrain)
+        if checkpoint:
+            log.info(f"Loading checkpoint at {sf.util.green(checkpoint)}")
+            self.load(checkpoint)
+        else:
+            self.model = self.hp.build_model(labels=self.labels, pretrain=pretrain)
         self.model = self.model.to(device)
         img_batch = torch.empty([self.hp.batch_size, 3, train_dts.tile_px, train_dts.tile_px], device=device)
-        torch_utils.print_module_summary(self.model, [img_batch])
+        if log.getEffectiveLevel() <= 20:
+            torch_utils.print_module_summary(self.model, [img_batch])
 
         # Setup dataloaders
         interleave_args = types.SimpleNamespace(
@@ -390,6 +428,7 @@ class Trainer:
         else:
             log.debug('Validation during training: None')
 
+        # Model parameters and loss
         params_to_update = self.model.parameters()
         optimizer = self.hp.get_opt(params_to_update)
         loss_fn = self.hp.get_loss()
@@ -398,29 +437,26 @@ class Trainer:
 
         # Training loop
         for epoch in range(starting_epoch, max(self.hp.epochs)+1):
-            print()
+            if early_stop: break
+            if log.getEffectiveLevel() <= 20: print()
             log.info(sf.util.bold('Epoch ' + str(epoch) + '/' + str(max(self.hp.epochs))))
 
             for phase in dataloaders:
-                num_records, running_loss = 0, 0.0
-
-                if multi_outcome:
-                    running_corrects = {f'out-{o}':0 for o in range(self.num_outcomes)}
-                else:
-                    running_corrects = 0
-
+                num_records = 0
+                running_loss = 0.0
                 step = 1
                 starttime = time.time()
+
+                if multi_outcome:   running_corrects = {f'out-{o}':0 for o in range(self.num_outcomes)}
+                else:               running_corrects = 0
 
                 if phase == 'train':
                     self.model.train()
 
                     # Setup up mid-training validation
-                    mid_train_val_dts = dataloaders['val'] if (phase == 'train' and val_dts) else None
+                    mid_train_val_dts = iter(dataloaders['val']) if (phase == 'train' and val_dts) else None
 
-                    num_steps = steps_per_epoch * self.hp.batch_size
-                    dataloader_pb = tqdm(total=num_steps, unit='img', leave=False)
-
+                    dataloader_pb = tqdm(total=(steps_per_epoch * self.hp.batch_size), unit='img', leave=False)
                     while step < steps_per_epoch:
                         images, labels = next(dataloaders['train'])
                         images = images.to(device, non_blocking=True)
@@ -441,24 +477,31 @@ class Trainer:
                                 loss.backward()
                                 optimizer.step()
 
-                        num_records = step * self.hp.batch_size
-                        if self.hp.model_type() == 'categorical':
-                            running_corrects = self.update_acc(outputs, labels, running_corrects)
-                            acc_desc, _ = self.acc_desc(running_corrects, num_records)
-                        else:
-                            acc_desc = ''
+                        num_records += images.size(0)
+                        running_corrects = self.update_corrects(outputs, labels, running_corrects)
+                        acc_desc, _ = self.accuracy_description(running_corrects, num_records)
                         running_loss += loss.item() * images.size(0)
-                        dataloader_pb.set_description(f'{sf.util.bold(sf.util.green(phase))} loss: {running_loss / num_records:.4f} {acc_desc}')
-                        dataloader_pb.update(self.hp.batch_size)
+                        dataloader_pb.set_description(f'{sf.util.bold(sf.util.blue(phase))} loss: {running_loss / num_records:.4f} {acc_desc}')
+                        dataloader_pb.update(images.size(0))
 
-                        # Mid-training validation
-                        if mid_train_val_dts is not None and validate_on_batch and (step % validate_on_batch == 0) and step > 0:
+                        # Log to tensorboard
+                        if use_tensorboard and global_step % log_frequency == 0:
+                            writer.add_scalar('Loss/train', loss.item(), global_step)
+                            writer.add_scalar('Accuracy/train', running_corrects / num_records, global_step)
+
+                        # === Mid-training validation =================================================================
+                        if val_dts and validate_on_batch and (step % validate_on_batch == 0) and step > 0:
                             self.model.eval()
                             running_val_loss = 0
                             running_val_correct = 0
                             num_val = 0
-                            for v, (val_img, val_label, _) in enumerate(mid_train_val_dts):
-                                if validation_steps and v > validation_steps: break
+                            for _ in range(validation_steps):
+                                try:
+                                    val_img, val_label, _ = next(mid_train_val_dts)
+                                except StopIteration:
+                                    del mid_train_val_dts
+                                    mid_train_val_dts = iter(dataloaders['val'])
+                                    val_img, val_label, _ = next(mid_train_val_dts)
                                 with torch.no_grad():
                                     with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.no_scope():
                                         val_img = val_img.to(device)
@@ -469,82 +512,112 @@ class Trainer:
                                 _, val_preds = torch.max(val_outputs, 1)
                                 running_val_loss += val_loss.item() * val_img.size(0)
                                 running_val_correct += torch.sum(val_preds == val_label.data)
-                                num_val += validation_batch_size
+                                num_val += val_img.size(0)
                             val_loss = running_val_loss / num_val
                             val_acc = running_val_correct / num_val
-                            log.info(f'Batch {step}: val loss: {val_loss:.4f} val acc: {val_acc:.4f}')
+                            log_msg = f'Batch {step}: val loss: {val_loss:.4f} val acc: {val_acc:.4f}'
+
+                            # EMA & early stopping --------------------------------------------------------------------
+                            early_stop_val = val_acc if self.hp.early_stop_method == 'accuracy' else val_loss
+                            moving_average += [early_stop_val]
+                            if len(moving_average) >= ema_observations:
+                                moving_average.pop(0) # Only keep track of the last [ema_observations]
+                                if last_ema == -1:
+                                    last_ema = sum(moving_average) / len(moving_average) # Simple moving average
+                                    log_msg += f' (SMA: {last_ema:.3f})'
+                                else:
+                                    last_ema = (early_stop_val * (ema_smoothing / (1 + ema_observations))) + \
+                                               (last_ema * (1 - (ema_smoothing / (1 + ema_observations))))
+                                    log_msg += f' (EMA: {last_ema:.3f})'
+
+                                if self.hp.early_stop and ema_two_checks_prior != -1 and epoch > self.hp.early_stop_patience:
+                                    if ((self.hp.early_stop_method == 'accuracy' and last_ema <= ema_two_checks_prior) or
+                                        (self.hp.early_stop_method == 'loss'     and last_ema >= ema_two_checks_prior)):
+
+                                        log.info(f'Early stop triggered: epoch {epoch}, step {step}')
+                                        if epoch not in self.hp.epochs:
+                                            self.hp.epochs += [epoch]
+                                            early_stop = True
+                                            break
+
+                                ema_two_checks_prior = ema_one_check_prior
+                                ema_one_check_prior = last_ema
+                            # -----------------------------------------------------------------------------------------
+                            log.info(log_msg)
+                            if use_tensorboard:
+                                writer.add_scalar('Loss/test', val_loss, global_step)
+                                writer.add_scalar('Accuracy/test', val_acc, global_step)
                             self.model.train()
+                        # =============================================================================================
 
                         step += 1
+                        global_step += 1
+
                     dataloader_pb.close()
+                    del mid_train_val_dts
+                    epoch_loss = running_loss / num_records
+                    epoch_acc_desc, epoch_accuracy = self.accuracy_description(running_corrects, num_records)
+                    self.log_epoch('train', epoch, epoch_loss, epoch_acc_desc, starttime)
 
-                # Perform basic evaluation at every epoch end
-                if phase == 'val' and (val_dts is not None):
-                    self.model.eval()
-                    dataloader_pb = tqdm(total=dataloaders['val'].num_tiles, unit='img', leave=False)
-                    for images, labels, slides in dataloaders['val']:
-                        images = images.to(device, non_blocking=True)
-                        labels = self.labels_to_device(labels, device)
-
-                        optimizer.zero_grad()
-                        with torch.no_grad():
-                            with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.no_scope():
-                                outputs = self.model(images)
-                                loss = self.calculate_loss(outputs, labels, loss_fn)
-
-                        num_records = (step+1) * dataloaders['val'].batch_size
-                        if self.hp.model_type() == 'categorical':
-                            running_corrects = self.update_acc(outputs, labels, running_corrects)
-                            acc_desc, _ = self.acc_desc(running_corrects, num_records)
+                    if f'epoch{epoch}' not in results['epochs']:
+                        results['epochs'][f'epoch{epoch}'] = {}
+                    epoch_metrics = {'loss': epoch_loss}
+                    if self.hp.model_type() == 'categorical':
+                        if isinstance(epoch_accuracy, (float, int)):
+                            epoch_metrics.update({'accuracy': epoch_accuracy})
+                        elif isinstance(epoch_accuracy, (list)):
+                            epoch_metrics.update({'accuracy': [e.cpu().numpy().tolist() for e in epoch_accuracy]})
                         else:
-                            acc_desc = ''
-                        running_loss += loss.item() * images.size(0)
-                        dataloader_pb.set_description(f'{sf.util.bold(sf.util.green(phase))} loss: {running_loss / num_records:.4f} {acc_desc}')
-                        dataloader_pb.update(dataloaders['val'].batch_size)
-                        step += 1
-                    dataloader_pb.close()
+                            epoch_metrics.update({'accuracy': epoch_accuracy.cpu().numpy().tolist()})
+                    results['epochs'][f'epoch{epoch}'].update({f'train_metrics': epoch_metrics})
 
-                elapsed = time.strftime('%H:%M:%S', time.gmtime(time.time() - starttime))
-                epoch_loss = running_loss / num_records
-                if self.hp.model_type() == 'categorical':
-                    epoch_acc_desc, epoch_accuracy = self.acc_desc(running_corrects, num_records)
-                else:
-                    epoch_acc_desc = ''
-                    epoch_accuracy = 0
-                log.info(f'{sf.util.bold(sf.util.green(phase))} Epoch {epoch} | loss: {epoch_loss:.4f} {epoch_acc_desc} (Elapsed: {elapsed})')
-
-                # Update results
-                if f'epoch{epoch}' not in results['epochs']:
-                    results['epochs'][f'epoch{epoch}'] = {}
-                epoch_metrics = {'loss': epoch_loss}
-                if self.hp.model_type() == 'categorical':
-                    if isinstance(epoch_accuracy, (float, int)):
-                        epoch_metrics.update({'accuracy': epoch_accuracy})
-                    elif isinstance(epoch_accuracy, (list)):
-                        epoch_metrics.update({'accuracy': [e.cpu().numpy().tolist() for e in epoch_accuracy]})
-                    else:
-                        epoch_metrics.update({'accuracy': epoch_accuracy.cpu().numpy().tolist()})
-                results['epochs'][f'epoch{epoch}'].update({f'{phase}_metrics': epoch_metrics})
-
-                # Perform full metrics if the epoch is one of the predetermined epochs at which to save/eval a model
+                # Perform full evaluation if the epoch is one of the predetermined epochs at which to save/eval a model
                 if phase == 'val' and (val_dts is not None) and epoch in self.hp.epochs:
-                    # Calculate full evaluation metrics
+                    optimizer.zero_grad()
                     self.model.eval()
-                    save_path = os.path.join(self.outdir, f'saved_model_epoch{epoch}')
+                    model_name = self.name if self.name else 'trained_model'
                     results_log = os.path.join(self.outdir, 'results_log.csv')
+                    save_path = os.path.join(self.outdir, f'{model_name}_epoch{epoch}')
                     torch.save(self.model.state_dict(), save_path)
                     log.info(f"Model saved to {sf.util.green(save_path)}")
 
                     epoch_results = {}
                     if not skip_metrics:
-                        metrics = sf.statistics.metrics_from_dataset(self.model,
-                                                                    model_type=self.hp.model_type(),
-                                                                    labels=self.labels,
-                                                                    patients=self.patients,
-                                                                    dataset=dataloaders['val'],
-                                                                    data_dir=self.outdir,
-                                                                    save_predictions=save_predictions)
-                        # Log results
+                        # Preparations for calculating accuracy/loss in metrics_from_dataset()
+                        def update_corrects(pred, labels, running_corrects):
+                            labels = self.labels_to_device(labels, device)
+                            return self.update_corrects(pred, labels, running_corrects)
+
+                        def update_loss(pred, labels, running_loss, size):
+                            labels = self.labels_to_device(labels, device)
+                            loss = self.calculate_loss(pred, labels, loss_fn)
+                            return running_loss + (loss.item() * size)
+
+                        pred_args = types.SimpleNamespace(
+                            multi_outcome=(self.num_outcomes > 1),
+                            update_corrects=update_corrects,
+                            update_loss=update_loss,
+                            running_corrects=(0 if not multi_outcome else {f'out-{o}':0 for o in range(self.num_outcomes)})
+                        )
+
+                        # Calculate patient/slide/tile - level metrics (AUC, C-index, R-squared, etc)
+                        metrics, acc, loss = sf.statistics.metrics_from_dataset(self.model,
+                                                                                model_type=self.hp.model_type(),
+                                                                                labels=self.labels,
+                                                                                patients=self.patients,
+                                                                                dataset=dataloaders['val'],
+                                                                                data_dir=self.outdir,
+                                                                                outcome_names=self.outcome_names,
+                                                                                save_predictions=save_predictions,
+                                                                                pred_args=pred_args)
+
+                        epoch_metrics = {'loss': epoch_loss}
+                        if self.hp.model_type() == 'categorical':
+                            epoch_metrics.update({'accuracy': acc})
+                        results['epochs'][f'epoch{epoch}'].update({f'val_metrics': epoch_metrics})
+
+                        self.log_epoch('val', epoch, loss, self.accuracy_description(acc)[0], starttime)
+
                         for metric in metrics:
                             if metrics[metric]['tile'] is None: continue
                             epoch_results['tile'] = metrics[metric]['tile']
@@ -560,5 +633,5 @@ class LinearTrainer(Trainer):
         super().__init__(*args, **kwargs)
 
 class CPHTrainer(Trainer):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         raise NotImplementedError
