@@ -5,7 +5,7 @@
 
 import os
 
-__version__ = "1.12.2"
+__version__ = "1.12.3"
 
 if 'SF_BACKEND' not in os.environ:
     os.environ['SF_BACKEND'] = 'tensorflow'

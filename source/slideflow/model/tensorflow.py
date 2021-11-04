@@ -795,7 +795,7 @@ class Trainer(_base.Trainer):
                                             checkpoint=checkpoint)
                 self.model = model
 
-            self._save_manifest(train_dts.tfrecords(), val_dts.tfrecords())
+            self._save_manifest(train_dts.tfrecords(), (val_dts.tfrecords() if val_dts else None))
             with tf.name_scope('input'):
                 t_kwargs = self._interleave_kwargs(batch_size=self.hp.batch_size, infinite=True, augment=self.hp.augment)
                 train_data = train_dts.tensorflow(**t_kwargs)
@@ -821,6 +821,8 @@ class Trainer(_base.Trainer):
                 log.debug('Validation during training: None')
                 validation_data_for_training = None
                 validation_steps = 0
+                val_data = None
+                val_data_w_slidenames = None
 
             # Calculate parameters
             if max(self.hp.epochs) <= starting_epoch:
@@ -848,7 +850,7 @@ class Trainer(_base.Trainer):
                 steps_per_epoch=steps_per_epoch,
                 skip_metrics=skip_metrics,
                 validation_data_with_slidenames=val_data_w_slidenames,
-                num_val_tiles=val_dts.num_tiles,
+                num_val_tiles=(0 if val_dts is None else val_dts.num_tiles),
                 save_predictions=save_predictions,
                 results_log=results_log
             )

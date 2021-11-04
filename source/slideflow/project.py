@@ -1965,7 +1965,8 @@ class Project:
 
                 # ---- Balance and clip datasets ---------------------------------------------------------------------
                 train_dts = train_dts.balance(outcome_label_headers, hp.training_balance).clip(max_tiles)
-                val_dts = val_dts.balance(outcome_label_headers, hp.validation_balance).clip(max_tiles)
+                if val_dts:
+                    val_dts = val_dts.balance(outcome_label_headers, hp.validation_balance).clip(max_tiles)
 
                 num_train = len(train_dts.tfrecords())
                 num_val = 0 if not val_dts else len(val_dts.tfrecords())
