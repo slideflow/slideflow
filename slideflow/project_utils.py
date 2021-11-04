@@ -26,7 +26,7 @@ def _heatmap_worker(slide, heatmap_args, kwargs):
     heatmap = Heatmap(slide,
                       model=heatmap_args.model,
                       stride_div=heatmap_args.stride_div,
-                      roi_list=heatmap_args.roi_list,
+                      rois=heatmap_args.rois,
                       roi_method=heatmap_args.roi_method,
                       buffer=heatmap_args.buffer,
                       batch_size=heatmap_args.batch_size,

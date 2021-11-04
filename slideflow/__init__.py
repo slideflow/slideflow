@@ -40,8 +40,6 @@ def backend():
 #       - Tutorial 7: Clinical models, CPH outcome, permutation feature importance
 #       - Tutorial 8: Hyperparameter sweeps
 #       - Tutorial 9: Class-conditional GAN with StyleGAN2
-#
-#TODO: show tile extraction grid on thumbnail, optional
 #TODO: ActivationsInterface compatibility for multiple outcomes
 #TODO: custom models in Tensorflow & PyTorch (attention to ActivationsInterface)
 #
@@ -72,7 +70,6 @@ def backend():
 #TODO: filter.py script
 #TODO: update.py script
 #TODO: resize_tfrecords()
-#TODO: merge annotated_thumb and thumb
 #TODO: consistent "decode" for get_tfrecord_parser in tensorflow/torch (decode should decode images + slide name)
 
 # Future updates

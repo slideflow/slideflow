@@ -1017,8 +1017,7 @@ class Project:
                                             tile_px=config['hp']['tile_px'],
                                             tile_um=config['hp']['tile_um'])
         slide_list = heatmaps_dataset.slide_paths()
-        roi_list = heatmaps_dataset.rois()
-        heatmap_args.roi_list = roi_list
+        heatmap_args.rois = heatmaps_dataset.rois()
 
         # Set resolution / stride
         resolutions = {'low': 1, 'medium': 2, 'high': 4}
@@ -1372,7 +1371,7 @@ class Project:
         if dataset is None:
             dataset = self.get_dataset(filters=filters, filter_blank=filter_blank, tile_px=0, tile_um=0)
         slide_list = dataset.slide_paths()
-        roi_list = dataset.rois()
+        rois = dataset.rois()
         log.info(f'Saving thumbnails to {sf.util.green(thumb_folder)}')
 
         for slide_path in slide_list:
@@ -1382,12 +1381,12 @@ class Project:
                               tile_um=1000,
                               stride_div=1,
                               enable_downsample=enable_downsample,
-                              roi_list=roi_list,
+                              rois=rois,
                               roi_method='inside',
                               skip_missing_roi=roi,
                               buffer=None)
             if roi:
-                thumb = whole_slide.annotated_thumb()
+                thumb = whole_slide.thumb(rois=True)
             else:
                 thumb = whole_slide.square_thumb(size)
             thumb.save(join(thumb_folder, f'{whole_slide.name}.png'))

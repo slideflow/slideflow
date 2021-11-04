@@ -188,6 +188,10 @@ def _wsi_extraction_worker(c, args):
         fraction = hsv_region[1].relational_const('less', args.grayspace_threshold*255).avg() / 255
         if fraction > args.grayspace_fraction: return
 
+    # If dry run, return the current coordinates only
+    if args.dry_run:
+        return {'loc': [x_coord, y_coord]}, index
+
     # Read the target downsample region now, if we were filtering at a different level
     region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
     region = region.thumbnail_image(args.tile_px)
@@ -483,12 +487,14 @@ class _JPGslideToVIPS(_VIPSWrapper):
                 log.info(f"Setting MPP to default {DEFAULT_JPG_MPP}")
                 self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
 
-class _ROI:
+class ROI:
     '''Object container for ROI annotations.'''
 
     def __init__(self, name):
         self.name = name
         self.coordinates = []
+    def __repr__(self):
+        return f"<ROI (coords={len(self.coordinates)})>"
     def add_coord(self, coord):
         self.coordinates.append(coord)
     def scaled_area(self, scale):
@@ -570,6 +576,10 @@ class _BaseLoader:
         self.filter_magnification = self.filter_dimensions[0] / self.full_shape[0]
         self.filter_px = int(self.full_extract_px * self.filter_magnification)
 
+    @property
+    def dimensions(self):
+        return self.slide.dimensions
+
     def mpp_to_dim(self, mpp):
         width = int((self.MPP * self.full_shape[0]) / mpp)
         height = int((self.MPP * self.full_shape[1]) / mpp)
@@ -603,12 +613,14 @@ class _BaseLoader:
         square_thumb.paste(thumb, (0, int((width-height)/2)))
         return square_thumb
 
-    def thumb(self, mpp=None, width=None):
+    def thumb(self, mpp=None, width=None, coords=None):
         '''Returns PIL thumbnail of the slide.
 
         Args:
             mpp (float, optional): Microns-per-pixel, used to determine thumbnail size.
             width (int, optional): Alternatively, goal thumbnail width may be supplied.
+            coords (list(int), optional): List of tile extraction coordinates to show as rectangles
+                on the thumbnail, in [(x_center, y_center), ...] format. Defaults to None.
 
         Returns:
             PIL image
@@ -631,7 +643,19 @@ class _BaseLoader:
         # Get thumb via libvips & convert PIL Image
         thumbnail = vips.Image.thumbnail(self.path, width)
         np_thumb = vips2numpy(thumbnail)
-        return Image.fromarray(np_thumb).resize((width, height))
+        image = Image.fromarray(np_thumb).resize((width, height))
+
+        if coords:
+            draw = ImageDraw.Draw(image)
+            ratio = width / self.dimensions[0]
+            wh = (self.full_extract_px * ratio) / 2
+            for (x, y) in coords:
+                x, y = x * ratio * self.roi_scale, y * ratio * self.roi_scale
+                coords = (x-wh, y-wh, x+wh, y+wh)
+                draw.rectangle(coords, outline='black', width=2)
+            return image
+        else:
+            return image
 
     def build_generator(self, **kwargs):
         lead_msg = f'Extracting {self.tile_um}um tiles'
@@ -719,10 +743,12 @@ class _BaseLoader:
 
         sample_tiles = []
         generator_iterator = generator()
+        locations = []
 
         for index, tile_dict in enumerate(generator_iterator):
             image_string = tile_dict['image']
             location = tile_dict['loc']
+            locations += [location]
             if len(sample_tiles) < 10:
                 sample_tiles += [image_string]
             elif not tiles_dir and not tfrecord_dir:
@@ -754,10 +780,41 @@ class _BaseLoader:
         report = SlideReport(sample_tiles, self.slide.path)
         return report
 
+    def preview(self, rois=True, **kwargs):
+        """Performs a dry run of tile extraction without saving any images, returning a PIL image of the slide
+        thumbnail annotated with a grid of tiles that were marked for extraction.
+
+        Args:
+            rois (bool, optional): Draw ROI annotation(s) onto the image. Defaults to True.
+
+        Keyword Args:
+            whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
+                Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.
+            whitespace_threshold (int, optional): Range 0-255. Defaults to 230.
+                Threshold above which a pixel (RGB average) is considered whitespace.
+            grayspace_fraction (float, optional): Range 0-1. Defaults to 0.6.
+                Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.
+            grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
+                Pixels in HSV format with saturation below this threshold are considered grayspace.
+            full_core (bool, optional): Extract an entire detected core, rather than subdividing into image tiles.
+                Defaults to False.
+            num_threads (int): Number of threads to allocate to tile extraction workers.
+            yolo (bool, optional): Export yolo-formatted tile-level ROI annotations (.txt) in the tile directory.
+                Requires that tiles_dir is set. Defaults to False.
+        """
+
+        generator = self.build_generator(show_progress=(self.counter_lock is None), dry_run=True, **kwargs)
+        locations = []
+
+        for index, tile_dict in enumerate(generator()):
+            locations += [tile_dict['loc']]
+
+        return self.thumb(coords=locations, rois=rois)
+
 class WSI(_BaseLoader):
     '''Loads a slide and its annotated region of interest (ROI).'''
 
-    def __init__(self, path, tile_px, tile_um, stride_div=1, enable_downsample=False, roi_dir=None, roi_list=None,
+    def __init__(self, path, tile_px, tile_um, stride_div=1, enable_downsample=False, roi_dir=None, rois=None,
                  roi_method='inside', skip_missing_roi=False, randomize_origin=False, buffer=None, pb=None,
                  pb_counter=None, counter_lock=None):
 
@@ -773,7 +830,7 @@ class WSI(_BaseLoader):
                 which greatly improves tile extraction speed. May result in artifacts for slides with incompletely
                 generated intermediates pyramid layers. Defaults to False.
             roi_dir (str, optional): Directory in which to search for ROI CSV files. Defaults to None.
-            roi_list (list(str)): Alternatively, a list of ROI paths can be explicitly provided. Defaults to None.
+            rois (list(str)): Alternatively, a list of ROI paths can be explicitly provided. Defaults to None.
             roi_method (str): Either 'inside', 'outside', or 'ignore'. Determines how ROIs are used to extract tiles.
                 Defaults to 'inside'.
             skip_missing_roi (bool, optional): Skip tiles that are missing a ROI file. Defaults to False.
@@ -812,9 +869,9 @@ class WSI(_BaseLoader):
         # Else try loading ROI from same folder as slide
         elif exists(self.name + ".csv"):
             self.load_csv_roi(sf.util.path_to_name(path) + ".csv")
-        elif roi_list and self.name in [sf.util.path_to_name(r) for r in roi_list]:
+        elif rois and self.name in [sf.util.path_to_name(r) for r in rois]:
             matching_rois = []
-            for rp in roi_list:
+            for rp in rois:
                 rn = sf.util.path_to_name(rp)
                 if rn == self.name:
                     matching_rois += [rp]
@@ -823,8 +880,8 @@ class WSI(_BaseLoader):
             self.load_csv_roi(matching_rois[0])
 
         # Handle missing ROIs
-        if not len(self.rois) and roi_method != 'ignore' and not (roi_list or roi_dir):
-            # No ROIs found because the user did not provide roi_list or roi_dir, but the roi_method is not set to 'ignore',
+        if not len(self.rois) and roi_method != 'ignore' and not (rois or roi_dir):
+            # No ROIs found because the user did not provide rois or roi_dir, but the roi_method is not set to 'ignore',
             # indicating that this may be user error.
             log.warning(f"No ROIs provided for {self.name} (suppress this warning with roi_method='ignore')")
         if not len(self.rois) and skip_missing_roi and roi_method != 'ignore':
@@ -890,7 +947,7 @@ class WSI(_BaseLoader):
     def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None,
                         grayspace_fraction=None, grayspace_threshold=None, normalizer=None, normalizer_source=None,
                         include_loc=True, num_threads=8, show_progress=False, img_format='numpy', full_core=None,
-                        yolo=False, draw_roi=False):
+                        yolo=False, draw_roi=False, dry_run=False):
 
         """Builds tile generator to extract tiles from this slide.
 
@@ -914,6 +971,8 @@ class WSI(_BaseLoader):
             yolo (bool, optional): Include yolo-formatted tile-level ROI annotations in the return dictionary,
                 under the key 'yolo'. Defaults to False.
             draw_roi (bool, optional): Draws ROIs onto extracted tiles. Defaults to False.
+            dry_run (bool, optional): Determine tiles that would be extracted, but do not export any images.
+                Defaults to None.
 
         Returns:
             dict: {
@@ -971,7 +1030,8 @@ class WSI(_BaseLoader):
             'include_loc': include_loc,
             'img_format': img_format,
             'yolo': yolo,
-            'draw_roi': draw_roi
+            'draw_roi': draw_roi,
+            'dry_run': dry_run
         }
         worker_args = types.SimpleNamespace(**worker_args)
 
@@ -1005,16 +1065,20 @@ class WSI(_BaseLoader):
             name_msg = sf.util.green(self.shortname)
             num_msg = f'({np.sum(self.tile_mask)} tiles of {len(self.coord)} possible)'
             log.debug(f"Finished tile extraction for {name_msg} {num_msg}")
-            print(f"\r\033[KFinished tile extraction for {name_msg} {num_msg}")
+            if not dry_run:
+                print(f"\r\033[KFinished tile extraction for {name_msg} {num_msg}")
 
         return generator
 
-    def annotated_thumb(self, mpp=None, width=None, linewidth=2, color='black'):
+    def thumb(self, mpp=None, width=None, coords=None, rois=False, linewidth=2, color='black'):
         """Returns PIL Image of thumbnail with ROI overlay.
 
         Args:
             mpp (float, optional): Microns-per-pixel, used to determine thumbnail size.
             width (int, optional): Alternatively, goal thumbnail width may be supplied.
+            coords (list(int), optional): List of tile extraction coordinates to show as rectangles
+                on the thumbnail, in [(x_center, y_center), ...] format. Defaults to None.
+            rois (bool, optional): Draw ROIs onto thumbnail. Defaults to False.
             linewidth (int, optional): Width of ROI overlay line. Defaults to 2.
             color (str, optional): Color of ROI overlay. Defaults to black.
 
@@ -1022,24 +1086,28 @@ class WSI(_BaseLoader):
             PIL image
         """
 
-        assert (mpp is None or width is None), "Either mpp must be supplied or width, but not both"
-        # If no values provided, create thumbnail of width 1024
-        if mpp is None and width is None:
-            width = 1024
+        if rois:
+            assert (mpp is None or width is None), "Either mpp must be supplied or width, but not both"
+            # If no values provided, create thumbnail of width 1024
+            if mpp is None and width is None:
+                width = 1024
+            if mpp is not None:
+                roi_scale = self.full_shape[0] / (int((self.MPP * self.full_shape[0]) / mpp))
+            else:
+                roi_scale = self.full_shape[0] / width
 
-        if mpp is not None:
-            roi_scale = self.full_shape[0] / (int((self.MPP * self.full_shape[0]) / mpp))
+        thumb = super().thumb(mpp=mpp, width=width, coords=coords)
+
+        if rois:
+            annPolys = [sg.Polygon(annotation.scaled_area(roi_scale)) for annotation in self.rois]
+            draw = ImageDraw.Draw(thumb)
+            for poly in annPolys:
+                x,y = poly.exterior.coords.xy
+                zipped = list(zip(x.tolist(),y.tolist()))
+                draw.line(zipped, joint='curve', fill=color, width=linewidth)
+            return thumb
         else:
-            roi_scale = self.full_shape[0] / width
-
-        annPolys = [sg.Polygon(annotation.scaled_area(roi_scale)) for annotation in self.rois]
-        annotated_thumb = self.thumb(mpp=mpp, width=width).copy()
-        draw = ImageDraw.Draw(annotated_thumb)
-        for poly in annPolys:
-            x,y = poly.exterior.coords.xy
-            zipped = list(zip(x.tolist(),y.tolist()))
-            draw.line(zipped, joint='curve', fill=color, width=linewidth)
-        return annotated_thumb
+            return thumb
 
     def load_csv_roi(self, path):
         '''Loads CSV ROI from a given path.'''
@@ -1064,7 +1132,7 @@ class WSI(_BaseLoader):
                 y_coord = int(float(row[index_y]))
 
                 if roi_name not in roi_dict:
-                    roi_dict.update({roi_name: _ROI(roi_name)})
+                    roi_dict.update({roi_name: ROI(roi_name)})
                 roi_dict[roi_name].add_coord((x_coord, y_coord))
 
             for roi_object in roi_dict.values():
@@ -1099,7 +1167,7 @@ class WSI(_BaseLoader):
             json_data = json.load(json_file)['shapes']
         for shape in json_data:
             area_reduced = np.multiply(shape['points'], scale)
-            self.rois.append(_ROI(f"Object{len(self.rois)}"))
+            self.rois.append(ROI(f"Object{len(self.rois)}"))
             self.rois[-1].add_shape(area_reduced)
         return len(self.rois)
 

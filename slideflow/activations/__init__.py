@@ -615,7 +615,7 @@ class ActivationsVisualizer:
 class Heatmap:
     """Generates heatmap by calculating predictions from a sliding scale window across a slide."""
 
-    def __init__(self, slide, model, stride_div=2, roi_dir=None, roi_list=None, roi_method='inside', batch_size=32,
+    def __init__(self, slide, model, stride_div=2, roi_dir=None, rois=None, roi_method='inside', batch_size=32,
                  num_threads=8, buffer=None):
 
         """Convolutes across a whole slide, calculating logits and saving predictions internally for later use.
@@ -625,7 +625,7 @@ class Heatmap:
             model (str): Path to Tensorflow or PyTorch model.
             stride_div (int, optional): Divisor for stride when convoluting across slide. Defaults to 2.
             roi_dir (str, optional): Directory in which slide ROI is contained. Defaults to None.
-            roi_list (list, optional): List of paths to slide ROIs. Defaults to None. Alternative to providing roi_dir.
+            rois (list, optional): List of paths to slide ROIs. Defaults to None. Alternative to providing roi_dir.
             roi_method (str, optional): Either 'inside', 'outside', or 'ignore'. Defaults to 'inside'.
                 If inside, tiles will be extracted inside ROI region.
                 If outside, tiles will be extracted outside ROI region.
@@ -638,7 +638,7 @@ class Heatmap:
         from slideflow.slide import WSI
 
         self.logits = None
-        if (roi_dir is None and roi_list is None) and roi_method != 'ignore':
+        if (roi_dir is None and rois is None) and roi_method != 'ignore':
             log.info("No ROIs provided; will generate whole-slide heatmap")
             roi_method = 'ignore'
 
@@ -665,7 +665,7 @@ class Heatmap:
                          stride_div,
                          enable_downsample=False,
                          roi_dir=roi_dir,
-                         roi_list=roi_list,
+                         rois=rois,
                          roi_method=roi_method,
                          buffer=buffer,
                          skip_missing_roi=(roi_method == 'inside'))
@@ -718,8 +718,7 @@ class Heatmap:
         self._prepare_figure(show_roi=False)
         heatmap_dict = {}
 
-        if show_roi: thumb = self.slide.annotated_thumb()
-        else: thumb = self.slide.thumb()
+        thumb = self.slide.thumb(rois=show_roi)
         implot = FastImshow(thumb, self.ax, extent=None, tgt_res=1024)
 
         def slider_func(val):
@@ -787,14 +786,13 @@ class Heatmap:
 
         # Save thumbnail + ROI as separate figure
         self._prepare_figure(show_roi=False)
-        self.ax.imshow(self.slide.annotated_thumb(width=2048), zorder=0)
+        self.ax.imshow(self.slide.thumb(width=2048, rois=True), zorder=0)
         plt.savefig(os.path.join(outdir, f'{self.slide.name}-raw+roi.png'), bbox_inches='tight')
         plt.clf()
 
         # Now prepare base image for the the heatmap overlay
         self._prepare_figure(show_roi=False)
-        thumb_func = self.slide.annotated_thumb if show_roi else self.slide.thumb
-        implot = self.ax.imshow(thumb_func(width=2048), zorder=0)
+        implot = self.ax.imshow(self.slide.thumb(width=2048, rois=show_roi), zorder=0)
 
         if logit_cmap:
             if callable(logit_cmap):

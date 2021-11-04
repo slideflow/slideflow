@@ -1157,7 +1157,7 @@ class Dataset:
             slidename = sf.util.path_to_name(tfr)
             if slidename not in slides:
                 continue
-            slide = WSI(slides[slidename], self.tile_px, self.tile_um, roi_list=rois, skip_missing_roi=True)
+            slide = WSI(slides[slidename], self.tile_px, self.tile_um, rois=rois, skip_missing_roi=True)
             if slide.load_error:
                 continue
             parser = sf.io.get_tfrecord_parser(tfr, decode_images=False, to_numpy=True)
