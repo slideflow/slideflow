@@ -14,8 +14,6 @@ warnings.filterwarnings('ignore')
 import numpy as np
 import tensorflow as tf
 import slideflow as sf
-import slideflow.io.tensorflow
-import slideflow.statistics
 import slideflow.model.base as _base
 import slideflow.util.neptune_utils
 
@@ -23,7 +21,6 @@ from os.path import join
 from slideflow.util import log
 from slideflow.model.base import ModelError, no_scope, log_summary, log_manifest
 from slideflow.model.tensorflow_utils import *
-from slideflow.slide import StainNormalizer
 
 #TODO: Fix ActivationsInterface for multiple categorical outcomes
 
@@ -40,22 +37,22 @@ class ModelParams(_base.ModelParams):
         'Nadam': tf.keras.optimizers.Nadam
     }
     ModelDict = {
-        'Xception': tf.keras.applications.Xception,
-        'VGG16': tf.keras.applications.VGG16,
-        'VGG19': tf.keras.applications.VGG19,
-        'ResNet50': tf.keras.applications.ResNet50,
-        'ResNet101': tf.keras.applications.ResNet101,
-        'ResNet152': tf.keras.applications.ResNet152,
-        'ResNet50V2': tf.keras.applications.ResNet50V2,
-        'ResNet101V2': tf.keras.applications.ResNet101V2,
-        'ResNet152V2': tf.keras.applications.ResNet152V2,
+        'xception': tf.keras.applications.Xception,
+        'vgg16': tf.keras.applications.VGG16,
+        'vgg19': tf.keras.applications.VGG19,
+        'resnet50': tf.keras.applications.ResNet50,
+        'resnet101': tf.keras.applications.ResNet101,
+        'resnet152': tf.keras.applications.ResNet152,
+        'resnet50_v2': tf.keras.applications.ResNet50V2,
+        'resnet101_v2': tf.keras.applications.ResNet101V2,
+        'resnet152_v2': tf.keras.applications.ResNet152V2,
         #'ResNeXt50': tf.keras.applications.ResNeXt50,
         #'ResNeXt101': tf.keras.applications.ResNeXt101,
-        'InceptionV3': tf.keras.applications.InceptionV3,
-        'NASNetLarge': tf.keras.applications.NASNetLarge,
-        'InceptionResNetV2': tf.keras.applications.InceptionResNetV2,
-        'MobileNet': tf.keras.applications.MobileNet,
-        'MobileNetV2': tf.keras.applications.MobileNetV2,
+        'inception': tf.keras.applications.InceptionV3,
+        'nasnet_large': tf.keras.applications.NASNetLarge,
+        'inception_resnet_v2': tf.keras.applications.InceptionResNetV2,
+        'mobilenet': tf.keras.applications.MobileNet,
+        'mobilenet_v2': tf.keras.applications.MobileNetV2,
         #'DenseNet': tf.keras.applications.DenseNet,
         #'NASNet': tf.keras.applications.NASNet
     }
@@ -529,8 +526,8 @@ class Trainer:
     _model_type = 'categorical'
 
     def __init__(self, hp, outdir, labels, patients, slide_input=None, name=None, manifest=None, feature_sizes=None,
-                 feature_names=None, normalizer=None, normalizer_source=None, outcome_names=None, mixed_precision=True,
-                 config=None, neptune_api=None, neptune_workspace=None):
+                 feature_names=None, outcome_names=None, mixed_precision=True, config=None, neptune_api=None,
+                 neptune_workspace=None):
 
         """Sets base configuration, preparing model inputs and outputs.
 
@@ -547,10 +544,6 @@ class Trainer:
             feature_sizes (list, optional): List of sizes of input features. Required if providing additional
                 input features as input to the model.
             feature_names (list, optional): List of names for input features. Used when permuting feature importance.
-            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
-                If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
             outcome_names (list, optional): Name of each outcome. Defaults to "Outcome {X}" for each outcome.
             mixed_precision (bool, optional): Use FP16 mixed precision (rather than FP32). Defaults to True.
             config (dict, optional): Training configuration dictionary, used for logging. Defaults to None.
@@ -598,8 +591,8 @@ class Trainer:
         self.num_classes = self.hp._detect_classes_from_labels(labels)
 
         # Normalization setup
-        if normalizer: log.info(f'Using realtime {normalizer} normalization')
-        self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
+        self.normalizer = self.hp.get_normalizer()
+        if self.normalizer: log.info(f'Using realtime {self.hp.normalizer} normalization')
 
         if self.mixed_precision:
             log.debug('Enabling mixed precision')
@@ -682,7 +675,7 @@ class Trainer:
 
     def _interleave_kwargs(self, **kwargs):
         args = types.SimpleNamespace(
-            label_parser=self._parse_tfrecord_labels,
+            labels=self._parse_tfrecord_labels,
             normalizer=self.normalizer,
             **kwargs
         )

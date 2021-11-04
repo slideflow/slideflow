@@ -4,7 +4,6 @@ import shutil
 import csv
 import pickle
 import time
-import logging
 import queue
 import threading
 import slideflow as sf
@@ -71,7 +70,7 @@ class ActivationsVisualizer:
             normalizer (str): Normalization strategy to use on image tiles. Defaults to None.
             normalizer_source (str): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
+                Internal default tile can be found at slideflow.slide.norm_tile.jpg
         """
 
         self.activations = defaultdict(list)
@@ -85,7 +84,10 @@ class ActivationsVisualizer:
         self.dataset = dataset
         self.tfrecords = np.array(dataset.tfrecords())
         self.slides = sorted([sf.util.path_to_name(tfr) for tfr in self.tfrecords])
-        self.tile_px = sf.util.get_model_config(model)['tile_px']
+        model_config = sf.util.get_model_config(model)
+        self.tile_px = model_config['tile_px']
+        self.normalizer = model_config['hp']['normalizer']
+        self.normalizer_source = model_config['hp']['normalizer_source']
 
         if annotations:
             self.categories = list(set(self.annotations.values()))
@@ -145,18 +147,13 @@ class ActivationsVisualizer:
             self.num_features = self.activations[self.slides[0]].shape[-1]
         log.debug(f'Number of activation features: {self.num_features}')
 
-    def _generate_from_model(self, model, layers='postconv', normalizer=None, normalizer_source=None,
-                            include_logits=True, batch_size=32, cache=None):
+    def _generate_from_model(self, model, layers='postconv', include_logits=True, batch_size=32, cache=None):
 
         """Calculates activations from a given model, saving to self.activations
 
         Args:
             model (str): Path to Tensorflow model from which to calculate final layer activations.
             layers (str, optional): Layers from which to generate activations. Defaults to 'postconv'.
-            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
-                If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
             include_logits (bool, optional): Include logit predictions. Defaults to True.
             batch_size (int, optional): Batch size to use during activations calculations. Defaults to 32.
             cache (str, optional): File in which to store activations PKL cache.
@@ -172,9 +169,11 @@ class ActivationsVisualizer:
         self.num_logits = 0 if not include_logits else combined_model.num_logits
 
         # Prepare normalizer
-        if normalizer:
-            log.info(f'Using realtime {normalizer} normalization')
-            normalizer = StainNormalizer(method=normalizer, source=normalizer_source)
+        if self.normalizer:
+            log.info(f'Using realtime {self.normalizer} normalization')
+            normalizer = StainNormalizer(method=self.normalizer, source=self.normalizer_source)
+        else:
+            normalizer = None
 
         # Calculate final layer activations for each tfrecord
         fla_start_time = time.time()
@@ -191,9 +190,9 @@ class ActivationsVisualizer:
             'incl_loc': True
         }
         if sf.backend() == 'tensorflow':
-            dataloader = self.dataset.tensorflow(label_parser=None, **dataset_kwargs)
+            dataloader = self.dataset.tensorflow(None, normalizer=normalizer, **dataset_kwargs)
         elif sf.backend() == 'torch':
-            dataloader = self.dataset.torch(labels=None, **dataset_kwargs)
+            dataloader = self.dataset.torch(None, normalizer=normalizer, **dataset_kwargs)
 
         # Worker to process activations/logits, for more efficient GPU throughput
         q = queue.Queue()
@@ -616,8 +615,8 @@ class ActivationsVisualizer:
 class Heatmap:
     """Generates heatmap by calculating predictions from a sliding scale window across a slide."""
 
-    def __init__(self, slide, model, stride_div=2, roi_dir=None, roi_list=None, roi_method='inside',
-                 normalizer=None, normalizer_source=None, batch_size=32, num_threads=8, buffer=None):
+    def __init__(self, slide, model, stride_div=2, roi_dir=None, roi_list=None, roi_method='inside', batch_size=32,
+                 num_threads=8, buffer=None):
 
         """Convolutes across a whole slide, calculating logits and saving predictions internally for later use.
 
@@ -630,10 +629,6 @@ class Heatmap:
             roi_method (str, optional): Either 'inside', 'outside', or 'ignore'. Defaults to 'inside'.
                 If inside, tiles will be extracted inside ROI region.
                 If outside, tiles will be extracted outside ROI region.
-            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
-                If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
             batch_size (int, optional): Batch size when calculating predictions. Defaults to 32.
             num_threads (int, optional): Number of tile extraction worker threads. Defaults to 8.
             buffer (str): Either 'vmtouch' or path to directory to use for buffering slides. Defaults to None.
@@ -648,9 +643,9 @@ class Heatmap:
             roi_method = 'ignore'
 
         interface = ActivationsInterface(model, layers=None, include_logits=True)
-        model_hyperparameters = sf.util.get_model_config(model)
-        self.tile_px = model_hyperparameters['tile_px']
-        self.tile_um = model_hyperparameters['tile_um']
+        model_config = sf.util.get_model_config(model)
+        self.tile_px = model_config['tile_px']
+        self.tile_um = model_config['tile_um']
         self.num_classes = interface.num_logits
         self.num_features = interface.num_features
 
@@ -679,8 +674,8 @@ class Heatmap:
             raise ActivationsError(f'Unable to load slide {self.slide.name} for heatmap generation')
 
         self.logits = interface(self.slide,
-                                normalizer=normalizer,
-                                normalizer_source=normalizer_source,
+                                normalizer=model_config['hp']['normalizer'],
+                                normalizer_source=model_config['hp']['normalizer_source'],
                                 num_threads=num_threads,
                                 dtype=np.float32)
 

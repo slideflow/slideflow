@@ -6,11 +6,9 @@ import torchvision
 import pretrainedmodels
 import slideflow as sf
 import numpy as np
-import slideflow.statistics
 
 from os.path import join
 from slideflow.util import log
-from slideflow.slide import StainNormalizer
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest
@@ -93,38 +91,38 @@ class ModelParams(_base.ModelParams):
         'xception': pretrainedmodels.xception
     }
     LinearLossDict = {
-        'L1Loss': torch.nn.L1Loss,
-        'MSELoss': torch.nn.MSELoss,
-        'NLLLoss': torch.nn.NLLLoss, #negative log likelihood
-        'HingeEmbeddingLoss': torch.nn.HingeEmbeddingLoss,
-        'SmoothL1Loss': torch.nn.SmoothL1Loss,
-        'CosineEmbeddingLoss': torch.nn.CosineEmbeddingLoss,
+        'L1': torch.nn.L1Loss,
+        'MSE': torch.nn.MSELoss,
+        'NLL': torch.nn.NLLLoss, #negative log likelihood
+        'HingeEmbedding': torch.nn.HingeEmbeddingLoss,
+        'SmoothL1': torch.nn.SmoothL1Loss,
+        'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
     }
     AllLossDict = {
-        'CrossEntropyLoss': torch.nn.CrossEntropyLoss,
-        'CTCLoss': torch.nn.CTCLoss,
-        'PoissonNLLLoss': torch.nn.PoissonNLLLoss,
-        'GaussianNLLLoss': torch.nn.GaussianNLLLoss,
-        'KLDivLoss': torch.nn.KLDivLoss,
-        'BCELoss': torch.nn.BCELoss,
-        'BCEWithLogitsLoss': torch.nn.BCEWithLogitsLoss,
-        'MarginRankingLoss': torch.nn.MarginRankingLoss,
-        'MultiLabelMarginLoss': torch.nn.MultiLabelMarginLoss,
-        'HuberLoss': torch.nn.HuberLoss,
-        'SoftMarginLoss': torch.nn.SoftMarginLoss,
-        'MultiLabelSoftMarginLoss': torch.nn.MultiLabelSoftMarginLoss,
-        'MultiMarginLoss': torch.nn.MultiMarginLoss,
-        'TripletMarginLoss': torch.nn.TripletMarginLoss,
-        'TripletMarginWithDistanceLoss': torch.nn.TripletMarginWithDistanceLoss,
-        'L1Loss': torch.nn.L1Loss,
-        'MSELoss': torch.nn.MSELoss,
-        'NLLLoss': torch.nn.NLLLoss, #negative log likelihood
-        'HingeEmbeddingLoss': torch.nn.HingeEmbeddingLoss,
-        'SmoothL1Loss': torch.nn.SmoothL1Loss,
-        'CosineEmbeddingLoss': torch.nn.CosineEmbeddingLoss,
+        'CrossEntropy': torch.nn.CrossEntropyLoss,
+        'CTC': torch.nn.CTCLoss,
+        'PoissonNLL': torch.nn.PoissonNLLLoss,
+        'GaussianNLL': torch.nn.GaussianNLLLoss,
+        'KLDiv': torch.nn.KLDivLoss,
+        'BCE': torch.nn.BCELoss,
+        'BCEWithLogits': torch.nn.BCEWithLogitsLoss,
+        'MarginRanking': torch.nn.MarginRankingLoss,
+        'MultiLabelMargin': torch.nn.MultiLabelMarginLoss,
+        'Huber': torch.nn.HuberLoss,
+        'SoftMargin': torch.nn.SoftMarginLoss,
+        'MultiLabelSoftMargin': torch.nn.MultiLabelSoftMarginLoss,
+        'MultiMargin': torch.nn.MultiMarginLoss,
+        'TripletMargin': torch.nn.TripletMarginLoss,
+        'TripletMarginWithDistance': torch.nn.TripletMarginWithDistanceLoss,
+        'L1': torch.nn.L1Loss,
+        'MSE': torch.nn.MSELoss,
+        'NLL': torch.nn.NLLLoss, #negative log likelihood
+        'HingeEmbedding': torch.nn.HingeEmbeddingLoss,
+        'SmoothL1': torch.nn.SmoothL1Loss,
+        'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
     }
 
-    def __init__(self, model='xception', loss='CrossEntropyLoss', **kwargs):
+    def __init__(self, model='xception', loss='CrossEntropy', **kwargs):
         super().__init__(model=model, loss=loss, **kwargs)
         assert self.model in self.ModelDict.keys()
         assert self.optimizer in self.OptDict.keys()
@@ -165,7 +163,7 @@ class ModelParams(_base.ModelParams):
         return _model
 
     def model_type(self):
-        if self.loss == 'NLLLoss':
+        if self.loss == 'NLL':
             return 'cph'
         elif self.loss in self.LinearLossDict:
             return 'linear'
@@ -174,7 +172,7 @@ class ModelParams(_base.ModelParams):
 
 class Trainer:
     def __init__(self, hp, outdir, labels, patients, name=None, manifest=None, slide_input=None, feature_sizes=None,
-                 feature_names=None, outcome_names=None, normalizer=None, normalizer_source=None, mixed_precision=True,
+                 feature_names=None, outcome_names=None, mixed_precision=True,
                  config=None, neptune_api=None, neptune_workspace=None):
 
         self.hp = hp
@@ -184,8 +182,8 @@ class Trainer:
         self.name = name
         self.manifest = manifest
         self.model = None
-        self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
-        if normalizer: log.info(f'Using realtime {normalizer} normalization')
+        self.normalizer = self.hp.get_normalizer()
+        if self.normalizer: log.info(f'Using realtime {self.hp.normalizer} normalization')
         self.mixed_precision = mixed_precision
         self.outcome_names = outcome_names
         outcome_labels = np.array(list(labels.values()))

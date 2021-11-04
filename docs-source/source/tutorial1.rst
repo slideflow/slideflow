@@ -147,7 +147,7 @@ hyperparameters, which we can configure with :class:`slideflow.model.ModelParams
         hp = ModelParams(
             tile_px=256,
             tile_um=128,
-            model='Xception',
+            model='xception',
             batch_size=32,
             epochs=[3]
         )
@@ -202,7 +202,7 @@ Now, it's time to start our pipeline. To review, our ``actions.py`` file at this
         hp = ModelParams(
             tile_px=256,
             tile_um=128,
-            model='Xception',
+            model='xception',
             batch_size=32,
             epochs=[3, 5, 10]
         )

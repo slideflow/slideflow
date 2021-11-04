@@ -6,6 +6,7 @@ import logging
 import itertools
 import csv
 import git
+import copy
 import pickle
 import numpy as np
 import multiprocessing
@@ -68,7 +69,6 @@ class Project:
             models_dir (str): Path to directory in which to save models. Defaults to './models'.
             eval_dir (str): Path to directory in which to save evaluations. Defaults to './eval'.
             mixed_precision (bool): Use mixed precision for training. Defaults to True.
-            batch_train_config (str): Path to batch train configuration CSV file. Defaults to './batch_train.tsv'.
 
         Raises:
             slideflow.util.UserError: if the project folder does not exist, or the folder exists but
@@ -144,17 +144,6 @@ class Project:
         if not isinstance(val, str):
             raise sf.util.UserError("'annotations' must be a str (path to annotations file)")
         self._settings['annotations'] = val
-
-    @property
-    def batch_train_config(self):
-        """Path to batch training configuration file, for hyperparameters sweeps."""
-        return self._read_relative_path(self._settings['batch_train_config'])
-
-    @batch_train_config.setter
-    def batch_train_config(self, val):
-        if not isinstance(val, str):
-            raise sf.util.UserError("'batch_train_config' must be a str (path to batch_train_config file)")
-        self._settings['batch_train_config'] = val
 
     @property
     def dataset_config(self):
@@ -357,69 +346,42 @@ class Project:
                 csv_writer.writerow([slide, '', ''])
         log.info(f"Wrote blank annotations file to {sf.util.green(filename)}")
 
-    def create_blank_train_config(self, filename=None):
-        """Creates a CSV file with the batch training hyperparameter structure.
-
-        Args:
-            filename (str, optional): Path to where batch train configuration should be saved. Defaults to None.
-                If not provided, uses project default.
-        """
-
-        if not filename:
-            filename = self.batch_train_config
-        project_utils.create_blank_train_config(filename)
-
-    def create_hyperparameter_sweep(self, tile_px, tile_um, epochs, label=None, filename=None, **kwargs):
+    def create_hyperparameter_sweep(self, filename='sweep.json', label=None, **kwargs):
         """Prepares a hyperparameter sweep, saving to a batch train TSV file.
 
         Args:
-            tile_px (int): Tile width, in pixels.
-            tile_um (int): Tile width, in microns.
-            epochs (int): Number of epochs to train.
             label (str, optional): Label to use when naming models in sweep. Defaults to None.
-            filename (str, optional): Path to save hyperparameter sweep. If None, uses project default.
+            filename (str, optional): Filename for hyperparameter sweep. Overwrites existing files. Saves in project
+                root directory. Defaults to "sweep.json".
         """
 
-        pdict = kwargs
-        pdict.update({'tile_px': tile_px, 'tile_um': tile_um})
-
-        args = list(pdict.keys())
+        pdict = copy.deepcopy(kwargs)
+        args = [arg for arg in list(pdict.keys()) if arg != 'epochs']
         for arg in args:
             if not isinstance(pdict[arg], list):
                 pdict[arg] = [pdict[arg]]
         argsv = list(pdict.values())
         sweep = list(itertools.product(*argsv))
 
-        from slideflow.model import ModelParams
-
-        if not filename:
-            filename = self.batch_train_config
         label = '' if not label else f'{label}-'
-        with open(filename, 'w') as csv_outfile:
-            writer = csv.writer(csv_outfile, delimiter='\t')
-            # Create headers
-            header = ['model_name', 'epochs']
-            for arg in args:
-                header += [arg]
-            writer.writerow(header)
-            # Iterate through sweep
-            for i, params in enumerate(sweep):
-                row = [f'{label}HPSweep{i}', ','.join([str(f) for f in epochs])]
-                full_params = dict(zip(['epochs'] + args, [epochs] + list(params)))
-                mp = ModelParams(**full_params)
-                for arg in args:
-                    row += [getattr(mp, arg)]
-                writer.writerow(row)
+        hp_list = []
+        for i, params in enumerate(sweep):
+            full_params = dict(zip(args, list(params)))
+            if 'epochs' in kwargs:
+                full_params['epochs'] = kwargs['epochs']
+            mp = sf.model.ModelParams(**full_params)
+            hp_list += [{ f'{label}HPSweep{i}': mp.get_dict() }]
+        sf.util.write_json(hp_list, os.path.join(self.root, filename))
         log.info(f'Wrote {len(sweep)} combinations for sweep to {sf.util.green(filename)}')
 
     def evaluate(self, model, outcome_label_headers, dataset=None, filters=None, checkpoint=None, model_config=None,
-                 eval_k_fold=None, max_tiles=0, min_tiles=0, normalizer=None, normalizer_source=None, batch_size=64,
-                 input_header=None, permutation_importance=False, histogram=False, save_predictions=False):
+                 eval_k_fold=None, max_tiles=0, min_tiles=0, batch_size=64, input_header=None,
+                 permutation_importance=False, histogram=False, save_predictions=False):
 
         """Evaluates a saved model on a given set of tfrecords.
 
         Args:
-            model (str): Path to Tensorflow model to evaluate.
+            model (str): Path to model to evaluate.
             outcome_label_headers (str): Str or list of str. Annotation column header specifying the outcome label(s).
             dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset object from which to generate activations.
                 If not supplied, will calculate activations for all project tfrecords at the tile_px/tile_um
@@ -435,10 +397,6 @@ class Project:
                 If zero, will include all tiles.
             min_tiles (int, optional): Minimum number of tiles a slide must have to be included in evaluation.
                 Defaults to 0. Recommend considering a minimum of at least 10 tiles per slide.
-            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
-                If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
             input_header (str, optional): Annotation column header to use as additional input. Defaults to None.
             permutation_importance (bool, optional): Calculate the permutation feature importance. Defaults to False.
                 Used to determine relative importance when using multiple model inputs.
@@ -652,8 +610,6 @@ class Project:
                                            slide_input=model_inputs,
                                            manifest=dataset.manifest(),
                                            mixed_precision=self.mixed_precision,
-                                           normalizer=normalizer,
-                                           normalizer_source=normalizer_source,
                                            feature_names=input_header,
                                            feature_sizes=feature_sizes,
                                            outcome_names=outcome_label_headers)
@@ -823,7 +779,7 @@ class Project:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
+                Internal default tile can be found at slideflow.slide.norm_tile.jpg
             whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
                 Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.
             whitespace_threshold (int, optional): Range 0-255. Defaults to 230.
@@ -864,7 +820,7 @@ class Project:
         """Calculate final layer activations and provide interface for calculating statistics.
 
         Args:
-            model (str): Path to Tensorflow model
+            model (str): Path to model
             dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset object from which to generate activations.
                 If not supplied, will calculate activations for all project tfrecords at the tile_px/tile_um
                 matching the supplied model, optionally using provided filters and filter_blank.
@@ -884,10 +840,6 @@ class Project:
             layers (list(str)): Layers from which to generate activations. Defaults to 'postconv'.
             export (str): Path to CSV file. Save activations in CSV format to this file. Defaults to None.
             cache (str): Path to PKL file. Cache activations at this location. Defaults to None.
-            normalizer (str): Normalization strategy to use on image tiles. Defaults to None.
-            normalizer_source (str): Path to normalizer source image. Defaults to None.
-                If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
             include_logits (bool): Generate and store logit predictions along with layer activations.
             batch_size (int): Batch size to use when calculating activations. Defaults to 32.
 
@@ -1011,8 +963,7 @@ class Project:
         return outdir
 
     def generate_heatmaps(self, model, filters=None, filter_blank=None, outdir=None, resolution='low', batch_size=64,
-                          roi_method='inside', normalizer=None, normalizer_source=None, buffer=None, num_threads=8,
-                          skip_completed=False, **kwargs):
+                          roi_method='inside', buffer=None, num_threads=8, skip_completed=False, **kwargs):
 
         """Creates predictive heatmap overlays on a set of slides.
 
@@ -1029,10 +980,6 @@ class Project:
             batch_size (int, optional): Batch size when calculating logits for heatmap. Defaults to 64.
             roi_method (str, optional): 'inside', 'outside', or 'none'. Defaults to 'inside'.
                 Determines where heatmap should be made with respect to annotated ROI.
-            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
-                If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
             buffer (str, optional): Path to which slides are copied prior to heatmap generation. Defaults to None.
                 This vastly improves extraction speed when using SSD or ramdisk buffer.
             num_threads (int, optional): Number of threads to assign to tile extraction. Defaults to 8.
@@ -1109,9 +1056,8 @@ class Project:
             process.join()
 
     def generate_mosaic(self, AV, dataset=None, filters=None, filter_blank=None, outcome_label_headers=None,
-                        normalizer=None, normalizer_source=None, map_slide=None, show_prediction=None,
-                        restrict_pred=None, predict_on_axes=None, max_tiles=0, umap_cache=None,
-                        use_float=False, low_memory=False, **kwargs):
+                        map_slide=None, show_prediction=None, restrict_pred=None, predict_on_axes=None, max_tiles=0,
+                        umap_cache=None, use_float=False, low_memory=False, **kwargs):
 
         """Generates a mosaic map by overlaying images onto a set of mapped tiles.
             Image tiles are extracted from the provided set of TFRecords, and predictions + post-convolutional
@@ -1130,10 +1076,6 @@ class Project:
             filter_blank (list, optional): Slides blank in these columns will be excluded. Defaults to None.
                 Ignored if dataset is supplied.
             outcome_label_headers (list, optional): Column name in annotations file from which to read category labels.
-            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
-                If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
             map_slide (str, optional): None (default), 'centroid', or 'average'.
                 If provided, will map slides using slide-level calculations, either mapping
                 centroid tiles if 'centroid', or calculating node averages across all tiles
@@ -1278,7 +1220,7 @@ class Project:
             umap.label_by_tile_meta('prediction', translation_dict=outcome_labels)
         umap.filter(dataset.slides())
 
-        mosaic = Mosaic(umap, dataset.tfrecords(), normalizer=normalizer, normalizer_source=normalizer_source, **kwargs)
+        mosaic = Mosaic(umap, dataset.tfrecords(), normalizer=AV.normalizer, normalizer_source=AV.normalizer_source, **kwargs)
         return mosaic
 
     def generate_mosaic_from_annotations(self, header_x, header_y, dataset, model=None, mosaic_filename=None,
@@ -1312,7 +1254,7 @@ class Project:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
+                Internal default tile can be found at slideflow.slide.norm_tile.jpg
             batch_size (int, optional): Batch size for model. Defaults to 64.
 
         Keyword Args:
@@ -1348,6 +1290,11 @@ class Project:
         umap_x = np.array([labels[slide][0] for slide in slides])
         umap_y = np.array([labels[slide][1] for slide in slides])
 
+        # Ensure normalization strategy is consistent
+        if model is not None and sf.util.get_model_config['hp']['normalizer'] != normalizer:
+            m_normalizer = sf.util.get_model_config['hp']['normalizer']
+            log.warning(f'Model trained with {m_normalizer} normalizer, but normalizer set to "{normalizer}"!')
+
         if use_optimal_tile and not model:
             log.error('Unable to calculate optimal tile if no model is specified.')
             return
@@ -1355,8 +1302,6 @@ class Project:
             # Calculate most representative tile in each slide/TFRecord for display
             AV = ActivationsVisualizer(model=model,
                                        dataset=dataset,
-                                       normalizer=normalizer,
-                                       normalizer_source=normalizer_source,
                                        batch_size=batch_size,
                                        cache=activations_cache)
 
@@ -1382,9 +1327,9 @@ class Project:
             umap_meta = [{'slide': slide, 'index': 0} for slide in slides]
 
         umap = sf.statistics.SlideMap.from_precalculated(slides=slides,
-                                                            x=umap_x,
-                                                            y=umap_y,
-                                                            meta=umap_meta)
+                                                         x=umap_x,
+                                                         y=umap_y,
+                                                         meta=umap_meta)
 
         mosaic_map = Mosaic(umap,
                             dataset.tfrecords(),
@@ -1673,10 +1618,6 @@ class Project:
                 Using an SSD or ramdisk buffer vastly improves tile extraction speed.
 
         Keyword Args:
-            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
-                If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
             whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
                 Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.
             whitespace_threshold (int, optional): Range 0-255. Defaults to 230.
@@ -1759,7 +1700,8 @@ class Project:
                     continue
 
                 try:
-                    wsi_grid = ActivationsInterface(model, include_logits=False)(whole_slide, num_threads=12)
+                    interface = ActivationsInterface(model, include_logits=False)
+                    wsi_grid = interface(whole_slide, num_threads=12)
 
                     with open (join(outdir, whole_slide.name+'.pkl'), 'wb') as pkl_file:
                         pickle.dump(wsi_grid, pkl_file)
@@ -1793,9 +1735,9 @@ class Project:
 
         raise DeprecationWarning("Function moved to slideflow.dataset.Dataset.tfrecord_report()")
 
-    def train(self, outcome_label_headers, hyperparameters='sweep', exp_label=None, filters=None, filter_blank=None,
+    def train(self, outcome_label_headers, hyperparameters, exp_label=None, filters=None, filter_blank=None,
               input_header=None, resume_training=None, checkpoint=None, pretrain='imagenet', min_tiles=0, max_tiles=0,
-              normalizer=None, normalizer_source=None, multi_gpu=False, **training_kwargs):
+              multi_gpu=False, **training_kwargs):
 
         """Train model(s) using a given set of hyperparameters, outcomes, and inputs.
 
@@ -1817,10 +1759,6 @@ class Project:
             min_tiles (int): Minimum number of tiles a slide must have to include in training. Defaults to 0.
             max_tiles (int): Only use up to this many tiles from each slide for training. Defaults to 0.
                 If zero, will include all tiles.
-            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
-                If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
             multi_gpu (bool): Train using multiple GPUs using Keras MirroredStrategy when available. Defaults to True.
 
         Keyword Args:
@@ -1852,29 +1790,24 @@ class Project:
             A dictionary containing model names mapped to train_acc, val_loss, and val_acc
 
         Examples
-            Method 1 (hyperparameter sweep from project batch train configuration file):
-
-                >>> SFP.train('outcome', hyperparameters='sweep')
-
-            Method 2 (hyperparameter sweep from other batch train configuration file):
+            Method 1 (hyperparameter sweep from a configuration file):
 
                 >>> import slideflow.model
-                >>> hp = slideflow.model.get_hp_from_batch_file('./batch_train.tsv')
-                >>> SFP.train('outcome', hyperparameters=hp, ...)
+                >>> SFP.train('outcome', hyperparameters='sweep.json', ...)
 
-            Method 3 (manually specified hyperparameters):
+            Method 2 (manually specified hyperparameters):
 
                 >>> from slideflow.model import ModelParams
                 >>> hp = ModelParams(...)
                 >>> SFP.train('outcome', hyperparameters=hp, ...)
 
-            Method 4 (list of hyperparameters):
+            Method 3 (list of hyperparameters):
 
                 >>> from slideflow.model import ModelParams
                 >>> hp = [ModelParams(...), ModelParams(...)]
                 >>> SFP.train('outcome', hyperparameters=hp, ...)
 
-            Method 5 (dict of hyperparameters):
+            Method 4 (dict of hyperparameters):
 
                 >>> from slideflow.model import ModelParams
                 >>> hp = {'HP0': ModelParams(...), 'HP1': ModelParams(...)}
@@ -1892,8 +1825,8 @@ class Project:
             log.info(f'Training with {num_o} variables as simultaneous outcomes: {", ".join(outcome_label_headers)}')
 
         # Prepare hyperparameters
-        if hyperparameters == 'sweep':
-            hp_dict = sf.model.get_hp_from_batch_file(self.batch_train_config)
+        if isinstance(hyperparameters, str):
+            hp_dict = sf.model.get_hp_from_batch_file(hyperparameters)
         elif isinstance(hyperparameters, sf.model.ModelParams):
             hp_dict = {'HP0': hyperparameters}
         elif isinstance(hyperparameters, list):
@@ -2162,8 +2095,6 @@ class Project:
                     'name': full_model_name,
                     'manifest': manifest,
                     'mixed_precision': self.mixed_precision,
-                    'normalizer': normalizer,
-                    'normalizer_source': normalizer_source,
                     'feature_names': input_header,
                     'feature_sizes': feature_sizes,
                     'outcome_names': outcome_label_headers

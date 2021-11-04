@@ -12,7 +12,6 @@ import csv
 import numpy as np
 import matplotlib.pyplot as plt
 import slideflow as sf
-import slideflow.io
 
 from random import shuffle
 from matplotlib import patches
@@ -62,7 +61,7 @@ class Mosaic:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
+                Internal default tile can be found at slideflow.slide.norm_tile.jpg
         """
 
         tile_point_distances = []

@@ -7,7 +7,6 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import tensorflow as tf
 import slideflow as sf
-import slideflow.slide
 
 from slideflow.util import log
 
@@ -37,6 +36,14 @@ class ActivationsInterface:
             # Return shape: (slide.grid.shape[0], slide.grid.shape[1], num_features):
             activations_grid = interface(slide)
 
+    Note:
+        When this interface is called on a batch of images, no image processing or stain normalization will be
+        performed, as it is assumed that normalization will occur during data loader image processing.
+        When the interface is called on a `slideflow.WSI`, the normalization strategy will be read from the model
+        configuration file, and normalization will be performed on image tiles extracted from the WSI. If this interface
+        was created from an existing model and there is no model configuration file to read, a
+        slideflow.slide.StainNormalizer object may be passed during initialization via the argument `wsi_normalizer`.
+
     """
 
     def __init__(self, path, layers='postconv', include_logits=False):
@@ -58,10 +65,19 @@ class ActivationsInterface:
         self.num_features = 0
         if path is not None:
             self._model = tf.keras.models.load_model(self.path)
+            try:
+                config = sf.util.get_model_config(path)
+            except:
+                log.warning(f"Unable to find configuration for model {path}; unable to determine normalization " + \
+                            "strategy for WSI processing.")
+
+            self.hp = sf.model.ModelParams()
+            self.hp.load_dict(config['hp'])
+            self.wsi_normalizer = self.hp.get_normalizer()
             self._build(layers=layers, include_logits=include_logits)
 
     @classmethod
-    def from_model(cls, model, layers='postconv', include_logits=False):
+    def from_model(cls, model, layers='postconv', include_logits=False, wsi_normalizer=None):
         """Creates an activations interface from a loaded slideflow model which outputs feature activations
         at the designated layers.
 
@@ -72,13 +88,17 @@ class ActivationsInterface:
             layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation layer
                 is accessed via 'postconv'. Defaults to 'postconv'.
             include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
+            wsi_normalizer (:class:`slideflow.slide.StainNormalizer`): Stain normalizer to use on whole-slide images.
+                Is not used on individual tile datasets via __call__. Defaults to None.
         """
+
         obj = cls(None, layers, include_logits)
         if isinstance(model, tf.keras.models.Model):
             obj._model = model
         else:
             raise TypeError("Provided model is not a valid Tensorflow model.")
         obj._build(layers=layers, include_logits=include_logits)
+        obj.wsi_normalizer = wsi_normalizer
         return obj
 
     def __call__(self, inp, **kwargs):
@@ -105,6 +125,8 @@ class ActivationsInterface:
             loc = record['loc']
             parsed_image = tf.image.per_image_standardization(image)
             parsed_image.set_shape([slide.tile_px, slide.tile_px, 3])
+            if self.wsi_normalizer:
+                image = tf.py_function(self.wsi_normalizer.tf_to_rgb, [image], tf.int32)
             return parsed_image, loc
 
         # Generate dataset from the generator

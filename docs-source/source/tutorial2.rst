@@ -111,7 +111,7 @@ Now that our dataset is prepared, we can begin setting up our model and trainer.
     >>> hp = ModelParams(
     ...     tile_px=256,
     ...     tile_um=128,
-    ...     model='Xception',
+    ...     model='xception',
     ...     batch_size=32,
     ...     epochs=[3]
     ... )

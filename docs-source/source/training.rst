@@ -10,7 +10,7 @@ There are two methods for configuring model hyperparameters. If you intend to tr
 
     hp = sf.model.ModelParams(
         epochs=[1, 5],
-        model='Xception',
+        model='xception',
         loss='sparse_categorical_crossentropy',
         learning_rate=0.00001,
         batch_size=8)
@@ -22,7 +22,7 @@ Alternatively, if you intend to perform a sweep across multiple hyperparameter c
     SFP.create_hyperparameter_sweep(
         epochs=[5],
         toplayer_epochs=0,
-        model=['Xception'],
+        model=['xception'],
         pooling=['avg'],
         loss='sparse_categorical_crossentropy',
         learning_rate=[0.01, 0.001],

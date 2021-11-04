@@ -3,14 +3,12 @@ import os
 import csv
 import types
 import slideflow as sf
-import slideflow.io
 import importlib.util
 from os.path import join, exists
 from slideflow.util import log
 
 def _project_config(name='MyProject', annotations='./annotations.csv', dataset_config='./datasets.json',
-                    sources='source1', models_dir='./models', eval_dir='./eval', mixed_precision=True,
-                    batch_train_config='batch_train.tsv'):
+                    sources='source1', models_dir='./models', eval_dir='./eval', mixed_precision=True):
     args = locals()
     args['slideflow_version'] = sf.__version__
     return args
@@ -31,8 +29,6 @@ def _heatmap_worker(slide, heatmap_args, kwargs):
                       roi_list=heatmap_args.roi_list,
                       roi_method=heatmap_args.roi_method,
                       buffer=heatmap_args.buffer,
-                      normalizer=heatmap_args.normalizer,
-                      normalizer_source=heatmap_args.normalizer_source,
                       batch_size=heatmap_args.batch_size,
                       num_threads=heatmap_args.num_threads)
     heatmap.save(heatmap_args.outdir, **kwargs)
@@ -135,21 +131,6 @@ def load_sources(path):
         sources = []
     return sources_data, sources
 
-def create_blank_train_config(filename):
-    """Creates a TSV file with the batch training hyperparameter structure."""
-    from slideflow.model import ModelParams
-    with open(filename, 'w') as csv_outfile:
-        writer = csv.writer(csv_outfile, delimiter='\t')
-        # Create headers and first row
-        header = ['model_name']
-        firstrow = ['model1']
-        default_hp = ModelParams()
-        for arg in default_hp._get_args():
-            header += [arg]
-            firstrow += [getattr(default_hp, arg)]
-        writer.writerow(header)
-        writer.writerow(firstrow)
-
 def interactive_project_setup(project_folder):
     """Guides user through project creation at the given folder, saving configuration to "settings.json"."""
 
@@ -225,15 +206,6 @@ def interactive_project_setup(project_folder):
                                                 create_on_invalid=True)
 
     project['mixed_precision'] = sf.util.yes_no_input('Use mixed precision? [Y/n] ', default='yes')
-    project['batch_train_config'] = sf.util.path_input('Batch training TSV location [./batch_train.tsv] ',
-                                                        root=project_folder,
-                                                        default='./batch_train.tsv',
-                                                        filetype='tsv',
-                                                        verify=False)
-
-    if not exists(project['batch_train_config']):
-        print('Batch training file not found, creating blank')
-        create_blank_train_config(project['batch_train_config'])
 
     # Save settings as relative paths
     settings = _project_config(**project)

@@ -26,7 +26,7 @@ def backend():
 # =================
 # General style format should conform to Google Python best practices
 # (http://google.github.io/styleguide/pyguide.html), with the exception of a
-# maximum line length of 120. Docstrings should also conform with Google Style.
+# maximum line length of 120 where possible. Docstrings should also conform with Google Style.
 # (https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html)
 # A pylintrc file is included is the root directory to assist with formatting.
 
@@ -40,16 +40,13 @@ def backend():
 #       - Tutorial 7: Clinical models, CPH outcome, permutation feature importance
 #       - Tutorial 8: Hyperparameter sweeps
 #       - Tutorial 9: Class-conditional GAN with StyleGAN2
-#TODO: label_parser in dataset.tfrecords()
-#TODO: consistent model name strings in tensorflow and pytorch versions
-#TODO: easier validation plan sharing, & clearer logging information regarding validation plans
+#
 #TODO: show tile extraction grid on thumbnail, optional
-#TODO: consistent "decode" for get_tfrecord_parser in tensorflow/torch (decode should decode images + slide name)
 #TODO: ActivationsInterface compatibility for multiple outcomes
-#TODO: log normalization as hyperparameter
 #TODO: custom models in Tensorflow & PyTorch (attention to ActivationsInterface)
-#TODO: improve tile verification speed in PyTorch
+#
 #TODO: ensure format of results_log is the same for train(), evaluate(), tensorflow & pytorch
+#TODO: easier validation plan sharing, & clearer logging information regarding validation plans
 
 # PyTorch implementation
 # ======================
@@ -76,6 +73,7 @@ def backend():
 #TODO: update.py script
 #TODO: resize_tfrecords()
 #TODO: merge annotated_thumb and thumb
+#TODO: consistent "decode" for get_tfrecord_parser in tensorflow/torch (decode should decode images + slide name)
 
 # Future updates
 # ===============

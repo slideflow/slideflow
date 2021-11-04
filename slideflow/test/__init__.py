@@ -82,7 +82,8 @@ def random_annotations(slides_path):
 
 # ---------------------------------------
 
-def _evaluation_tester(project, **kwargs):
+def _evaluation_tester(project, verbosity, **kwargs):
+    logging.getLogger("slideflow").setLevel(verbosity)
     project.evaluate(**kwargs)
 
 def evaluation_tester(project, **kwargs):
@@ -90,7 +91,8 @@ def evaluation_tester(project, **kwargs):
     after evaluation has completed, due to the need for sequential testing of multiple models."""
 
     ctx = multiprocessing.get_context('spawn')
-    process = ctx.Process(target=_evaluation_tester, args=(project,), kwargs=kwargs)
+    verbosity = logging.getLogger('slideflow').level
+    process = ctx.Process(target=_evaluation_tester, args=(project, verbosity), kwargs=kwargs)
     process.start()
     process.join()
 
@@ -144,7 +146,7 @@ def reader_tester(project):
         # Tensorflow backend
         from slideflow.io.tensorflow import interleave
         tf_results = []
-        tf_dts = dataset.tensorflow(label_parser=None, batch_size=batch_size, infinite=False, augment=False, standardize=False)
+        tf_dts = dataset.tensorflow(labels=None, batch_size=batch_size, infinite=False, augment=False, standardize=False)
         if project.verbosity < logging.WARNING: tf_dts = tqdm(tf_dts, leave=False, ncols=80, unit_scale=batch_size, total=dataset.num_tiles // batch_size)
         for images, labels in tf_dts:
             tf_results += [hash(str(img.numpy())) for img in images]
@@ -183,7 +185,6 @@ class TestConfigurator:
             'models_dir': './models',
             'eval_dir': './eval',
             'mixed_precision': True,
-            'batch_train_config': './batch_train.csv',
         }
         if slides == RANDOM_TCGA:
             tcga_slides = get_random_tcga_slides()
@@ -341,63 +342,61 @@ class TestSuite:
                     test.fail()
                     return
 
-    def setup_hp(self, model_type, sweep=False):
+    def setup_hp(self, model_type, sweep=False, normalizer=None):
         import slideflow.model
-        # Remove old batch train file
-        try:
-            os.remove(self.SFP.batch_train_config)
-        except:
-            pass
+
         # Setup loss function
         if model_type == 'categorical':
-            loss = 'sparse_categorical_crossentropy' if sf.backend() == 'tensorflow' else 'CrossEntropyLoss'
+            loss = 'sparse_categorical_crossentropy' if sf.backend() == 'tensorflow' else 'CrossEntropy'
         elif model_type == 'linear':
-            loss = 'mean_squared_error' if sf.backend() == 'tensorflow' else 'MSELoss'
+            loss = 'mean_squared_error' if sf.backend() == 'tensorflow' else 'MSE'
         elif model_type == 'cph':
-            loss = 'negative_log_likelihood' if sf.backend() == 'tensorflow' else 'NLLLoss'
+            loss = 'negative_log_likelihood' if sf.backend() == 'tensorflow' else 'NLL'
 
         # Create batch train file
         if sweep:
-            self.SFP.create_hyperparameter_sweep(tile_px=299, tile_um=302,
-                                            epochs=[1,2,3],
-                                            toplayer_epochs=[0],
-                                            model=["Xception"] if sf.backend() == 'tensorflow' else ['xception'],
-                                            pooling=["max"],
-                                            loss=[loss],
-                                            learning_rate=[0.001],
-                                            batch_size=[64],
-                                            hidden_layers=[0,1],
-                                            optimizer=["Adam"],
-                                            early_stop=[False],
-                                            early_stop_patience=[15],
-                                            early_stop_method='loss',
-                                            hidden_layer_width=500,
-                                            trainable_layers=0,
-                                            L2_weight=0.1,
-                                            dropout=0.1,
-                                            training_balance=["category"],
-                                            validation_balance=["none"],
-                                            augment=[True],
-                                            label='TEST',
-                                            filename=self.SFP.batch_train_config)
+            self.SFP.create_hyperparameter_sweep(tile_px=299,
+                                                 tile_um=302,
+                                                 epochs=[1,2,3],
+                                                 toplayer_epochs=[0],
+                                                 model=["xception"],
+                                                 pooling=["max"],
+                                                 loss=[loss],
+                                                 learning_rate=[0.001],
+                                                 batch_size=[64],
+                                                 hidden_layers=[0,1],
+                                                 optimizer=["Adam"],
+                                                 early_stop=[False],
+                                                 early_stop_patience=[15],
+                                                 early_stop_method='loss',
+                                                 hidden_layer_width=500,
+                                                 trainable_layers=0,
+                                                 L2_weight=0.1,
+                                                 dropout=0.1,
+                                                 training_balance=["category"],
+                                                 validation_balance=["none"],
+                                                 augment=[True],
+                                                 normalizer=normalizer,
+                                                 label='TEST',
+                                                 filename='sweep.json')
 
         # Create single hyperparameter combination
         hp = sf.model.ModelParams(epochs=1,
-                                toplayer_epochs=0,
-                                model="Xception" if sf.backend() == 'tensorflow' else 'xception',
-                                pooling='max',
-                                loss=loss,
-                                learning_rate=0.001,
-                                batch_size=64,
-                                hidden_layers=1,
-                                optimizer='Adam',
-                                early_stop=False,
-                                dropout=0.1,
-                                L2_weight=0.1,
-                                early_stop_patience=0,
-                                training_balance='patient',
-                                validation_balance='none',
-                                augment=True)
+                                  toplayer_epochs=0,
+                                  model="xception",
+                                  pooling='max',
+                                  loss=loss,
+                                  learning_rate=0.001,
+                                  batch_size=64,
+                                  hidden_layers=1,
+                                  optimizer='Adam',
+                                  early_stop=False,
+                                  dropout=0.1,
+                                  L2_weight=0.1,
+                                  early_stop_patience=0,
+                                  training_balance='patient',
+                                  validation_balance='none',
+                                  augment=True)
         return hp
 
     def test_extraction(self, enable_downsample=True, **kwargs):
@@ -416,8 +415,7 @@ class TestSuite:
         with TaskWrapper("Testing realtime normalization, using Reinhard...") as test:
             self.SFP.train(outcome_label_headers='category1',
                            val_k=1,
-                           hyperparameters=self.setup_hp('categorical'),
-                           normalizer='reinhard',
+                           hyperparameters=self.setup_hp('categorical', normalizer='reinhard'),
                            steps_per_epoch_override=5,
                            **train_kwargs)
 
@@ -431,12 +429,13 @@ class TestSuite:
         with TaskWrapper("Training to single categorical outcome from hyperparameter sweep...") as test:
             self.setup_hp('categorical', sweep=True)
             results_dict = self.SFP.train(exp_label='manual_hp',
-                                            outcome_label_headers='category1',
-                                            val_k=1,
-                                            validate_on_batch=50,
-                                            save_predictions=True,
-                                            steps_per_epoch_override=20,
-                                            **train_kwargs)
+                                          outcome_label_headers='category1',
+                                          val_k=1,
+                                          validate_on_batch=50,
+                                          save_predictions=True,
+                                          steps_per_epoch_override=20,
+                                          hyperparameters='sweep.json',
+                                          **train_kwargs)
 
             if not results_dict:
                 log.error("Results object not received from training")

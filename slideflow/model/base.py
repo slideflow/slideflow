@@ -3,6 +3,7 @@ import os
 import csv
 import numpy as np
 from slideflow.util import log
+from slideflow.slide import StainNormalizer
 
 """Base classes to be extended by framework-specific implementations."""
 
@@ -14,13 +15,12 @@ class ModelParams:
     _LinearLoss = []
     _AllLoss = []
 
-    def __init__(self, tile_px=299, tile_um=302, epochs=10, toplayer_epochs=0,
-                 model='Xception', pooling='max', loss='sparse_categorical_crossentropy',
-                 learning_rate=0.0001, learning_rate_decay=0, learning_rate_decay_steps=100000,
-                 batch_size=16, hidden_layers=1, hidden_layer_width=500, optimizer='Adam',
-                 early_stop=False, early_stop_patience=0, early_stop_method='loss',
-                 training_balance='category', validation_balance='none',
-                 trainable_layers=0, L2_weight=0, dropout=0, augment='xyrj', drop_images=False):
+    def __init__(self, tile_px=299, tile_um=302, epochs=10, toplayer_epochs=0, model='xception', pooling='max',
+                 loss='sparse_categorical_crossentropy', learning_rate=0.0001, learning_rate_decay=0,
+                 learning_rate_decay_steps=100000, batch_size=16, hidden_layers=1, hidden_layer_width=500,
+                 optimizer='Adam', early_stop=False, early_stop_patience=0, early_stop_method='loss',
+                 training_balance='category', validation_balance='none', trainable_layers=0, L2_weight=0, dropout=0,
+                 augment='xyrj', normalizer=None, normalizer_source=None, drop_images=False):
 
         """Collection of hyperparameters used for model building and training
 
@@ -29,7 +29,7 @@ class ModelParams:
             tile_um (int, optional): Tile width in microns. Defaults to 302.
             epochs (int, optional): Number of epochs to train the full model. Defaults to 10.
             toplayer_epochs (int, optional): Number of epochs to only train the fully-connected layers. Defaults to 0.
-            model (str, optional): Base model architecture name. Defaults to 'Xception'.
+            model (str, optional): Base model architecture name. Defaults to 'xception'.
             pooling (str, optional): Post-convolution pooling. 'max', 'avg', or 'none'. Defaults to 'max'.
             loss (str, optional): Loss function. Defaults to 'sparse_categorical_crossentropy'.
             learning_rate (float, optional): Learning rate. Defaults to 0.0001.
@@ -52,6 +52,10 @@ class ModelParams:
             augment (str): Image augmentations to perform. String containing characters designating augmentations.
                 'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
                 at random quality levels. Passing either 'xyrj' or True will use all augmentations.
+            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
+                If None but using a normalizer, will use an internal tile for normalization.
+                Internal default tile can be found at slideflow.slide.norm_tile.jpg
             drop_images (bool, optional): Drop images, using only other slide-level features as input. Defaults to False.
         """
 
@@ -74,7 +78,6 @@ class ModelParams:
         assert isinstance(learning_rate_decay_steps, (int))
         assert isinstance(batch_size, int)
         assert isinstance(hidden_layers, int)
-
         assert isinstance(early_stop, bool)
         assert isinstance(early_stop_patience, int)
         assert early_stop_method in ['loss', 'accuracy']
@@ -109,11 +112,13 @@ class ModelParams:
         self.hidden_layers = hidden_layers
         self.training_balance = training_balance
         self.validation_balance = validation_balance
-        self.augment = augment
         self.hidden_layer_width = hidden_layer_width
         self.trainable_layers = trainable_layers
         self.L2_weight = float(L2_weight)
         self.dropout = dropout
+        self.normalizer = normalizer
+        self.normalizer_source = normalizer_source
+        self.augment = augment
         self.drop_images = drop_images
 
         # Perform check to ensure combination of HPs are valid
@@ -126,13 +131,21 @@ class ModelParams:
         base += "\n)"
         return base
 
+    @classmethod
+    def from_dict(cls, hp_dict):
+        obj = cls()
+        obj.load_dict(hp_dict)
+        return obj
+
     def _get_args(self):
         return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt',
                                                                             'build_model',
                                                                             'model_type',
                                                                             'validate',
+                                                                            'from_dict',
                                                                             'get_dict',
                                                                             'get_loss',
+                                                                            'get_normalizer',
                                                                             'load_dict',
                                                                             'OptDict',
                                                                             'ModelDict',
@@ -144,6 +157,9 @@ class ModelParams:
         for arg in self._get_args():
             d.update({arg: getattr(self, arg)})
         return d
+
+    def get_normalizer(self):
+        return None if not self.normalizer else StainNormalizer(method=self.normalizer, source=self.normalizer_source)
 
     def load_dict(self, hp_dict):
         for key, value in hp_dict.items():
@@ -232,7 +248,7 @@ def log_manifest(train_tfrecords=None, val_tfrecords=None, labels=None, save_loc
                 outcome_label = labels[slide] if labels else 'NA'
                 out += ' '.join([slide, 'validation', str(outcome_label)])
                 if save_loc:
-                    writer.writerow([slide, 'training', outcome_label])
+                    writer.writerow([slide, 'validation', outcome_label])
     if save_loc:
         save_file.close()
     return out

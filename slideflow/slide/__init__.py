@@ -29,7 +29,6 @@ import tempfile
 import warnings
 
 import slideflow as sf
-import slideflow.io
 import matplotlib.colors as mcol
 import multiprocessing as mp
 
@@ -681,7 +680,7 @@ class _BaseLoader:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
+                Internal default tile can be found at slideflow.slide.norm_tile.jpg
             full_core (bool, optional): Extract an entire detected core, rather than subdividing into image tiles.
                 Defaults to False.
             shuffle (bool): Shuffle images during extraction.
@@ -908,7 +907,7 @@ class WSI(_BaseLoader):
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
+                Internal default tile can be found at slideflow.slide.norm_tile.jpg
             include_loc (bool, optional): Return (x,y) origin coordinates for each tile along with tile images.
             show_progress (bool, optional): Show a progress bar for tile extraction.
             img_format (str, optional): Image format. Either 'numpy', 'jpg', or 'png'. Defaults to 'numpy'.
@@ -1296,7 +1295,7 @@ class TMA(_BaseLoader):
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
+                Internal default tile can be found at slideflow.slide.norm_tile.jpg
             full_core (bool, optional): Extract an entire detected core, rather than subdividing into image tiles.
                 Defaults to False.
         """

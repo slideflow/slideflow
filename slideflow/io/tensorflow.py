@@ -3,6 +3,7 @@ import os
 import shutil
 import logging
 import slideflow as sf
+import numpy as np
 
 from tqdm import tqdm
 from os import listdir
@@ -187,7 +188,30 @@ def get_locations_from_tfrecord(filename):
         loc_dict.update({ i: (loc_x, loc_y)    })
     return loc_dict
 
-def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, label_parser=None, incl_slidenames=False,
+def parser_from_labels(labels):
+    '''Returns a label parsing function used for parsing slides into single or multi-outcome labels.'''
+
+    outcome_labels = np.array(list(labels.values()))
+    slides = list(labels.keys())
+    if len(outcome_labels.shape) == 1:
+        outcome_labels = np.expand_dims(outcome_labels, axis=1)
+    with tf.device('/cpu'):
+        annotations_tables = []
+        for oi in range(outcome_labels.shape[1]):
+            annotations_tables += [tf.lookup.StaticHashTable(
+                tf.lookup.KeyValueTensorInitializer(slides, outcome_labels[:,oi]), -1
+            )]
+
+    def label_parser(image, slide):
+        if outcome_labels.shape[1] > 1:
+            label = [annotations_tables[oi].lookup(slide) for oi in range(outcome_labels.shape[1])]
+        else:
+            label = annotations_tables[0].lookup(slide)
+        return image, label
+
+    return label_parser
+
+def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, labels=None, incl_slidenames=False,
                incl_loc=False, infinite=True, augment=True, standardize=True, normalizer=None, num_shards=None,
                shard_idx=None, num_parallel_reads=4):
 
@@ -200,8 +224,9 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
         batch_size (int): Batch size.
         prob_weights (dict, optional): Dict mapping tfrecords to probability of including in batch. Defaults to None.
         clip (dict, optional): Dict mapping tfrecords to number of tiles to take per tfrecord. Defaults to None.
-        label_parser (func, optional): Base function to use for parsing labels. Function must accept an image (tensor)
-            and slide name (str), and return an image (tensor) and label. If None is provided, all labels will be None.
+        labels (dict or str, optional): Dict or function. If dict, must map slide names to outcome labels.
+                If function, function must accept an image (tensor) and slide name (str), and return a dict
+                {'image_raw': image (tensor)} and label (int or float). If not provided,  all labels will be None.
         incl_slidenames (bool, optional): Include slidenames as third returned variable. Defaults to False.
         incl_loc (bool, optional): Include loc_x and loc_y as additional returned variables. Defaults to False.
         infinite (bool, optional): Create an finite dataset. WARNING: If infinite is False && balancing is used,
@@ -219,6 +244,13 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
     log.debug(f'Interleaving {len(tfrecords)} tfrecords: infinite={infinite}')
     if num_shards:
         log.debug(f'num_shards={num_shards}, shard_idx={shard_idx}')
+
+    if isinstance(labels, dict):
+        label_parser = parser_from_labels(labels)
+    elif callable(labels) or labels is None:
+        label_parser = labels
+    else:
+        raise ValueError(f"Unrecognized type for labels: {type(labels)} (must be dict or function)")
 
     with tf.device('cpu'):
         # -------- Get the base TFRecord parser, based on the first tfrecord ------

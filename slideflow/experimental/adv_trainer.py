@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 class AdvTrainer:
     def __init__(self, hp, outdir, labels, patients, name=None, manifest=None, slide_input=None, feature_sizes=None,
-                 feature_names=None, outcome_names=None, normalizer=None, normalizer_source=None, mixed_precision=True):
+                 feature_names=None, outcome_names=None, mixed_precision=True):
 
         self.hp = hp
         self.outdir = outdir
@@ -26,8 +26,8 @@ class AdvTrainer:
         self.name = name
         self.manifest = manifest
         self.model = None
-        self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
-        if normalizer: log.info(f'Using realtime {normalizer} normalization')
+        self.normalizer = self.hp.get_normalizer()
+        if self.normalizer: log.info(f'Using realtime {self.hp.normalizer} normalization')
         self.mixed_precision = mixed_precision
         self.outcome_names = outcome_names
         outcome_labels = np.array(list(labels.values()))

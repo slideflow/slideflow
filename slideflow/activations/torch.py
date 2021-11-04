@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 import slideflow as sf
-import slideflow.slide
 from slideflow.model.torch import ModelParams
 from slideflow.util import log
 
@@ -12,7 +11,7 @@ class ActivationsInterface:
     """Interface for obtaining logits and intermediate layer activations from Slideflow models.
 
     Use by calling on either a batch of images (returning outputs for a single batch), or by calling on a
-    :class:`slideflow.slide.WSI` object, which will generate an array of spatially-mapped activations matching
+    :class:`slideflow.WSI` object, which will generate an array of spatially-mapped activations matching
     the slide.
 
     Examples
@@ -33,6 +32,14 @@ class ActivationsInterface:
             interface = ActivationsInterface('/model/path', layers='postconv')
             # Return shape: (slide.grid.shape[0], slide.grid.shape[1], num_features):
             activations_grid = interface(slide)
+
+    Note:
+        When this interface is called on a batch of images, no image processing or stain normalization will be
+        performed, as it is assumed that normalization will occur during data loader image processing.
+        When the interface is called on a `slideflow.WSI`, the normalization strategy will be read from the model
+        configuration file, and normalization will be performed on image tiles extracted from the WSI. If this interface
+        was created from an existing model and there is no model configuration file to read, a
+        slideflow.slide.StainNormalizer object may be passed during initialization via the argument `wsi_normalizer`.
 
     """
 
@@ -69,6 +76,7 @@ class ActivationsInterface:
 
             self.hp = ModelParams()
             self.hp.load_dict(config['hp'])
+            self.wsi_normalizer = self.hp.get_normalizer()
             self.tile_px = self.hp.tile_px
             self._model = self.hp.build_model(num_classes=len(config['outcome_labels'])) #labels=
             self._model.load_state_dict(torch.load(path))
@@ -78,7 +86,8 @@ class ActivationsInterface:
             self._model.eval()
 
     @classmethod
-    def from_model(cls, model, layers='postconv', include_logits=False, mixed_precision=True, tile_px=None, device=None):
+    def from_model(cls, model, tile_px, layers='postconv', include_logits=False, mixed_precision=True,
+                   wsi_normalizer=None, device=None):
         """Creates an activations interface from a loaded slideflow model which outputs feature activations
         at the designated layers.
 
@@ -86,9 +95,12 @@ class ActivationsInterface:
 
         Args:
             model (:class:`tensorflow.keras.models.Model`): Loaded model.
+            tile_px (int): Width/height of input image size.
             layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation layer
                 is accessed via 'postconv'. Defaults to 'postconv'.
             include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
+            wsi_normalizer (:class:`slideflow.slide.StainNormalizer`): Stain normalizer to use on whole-slide images.
+                Is not used on individual tile datasets via __call__. Defaults to None.
             device (:class:`torch.device`, optional): Device for model. Defaults to torch.device('cuda')
         """
 
@@ -101,6 +113,7 @@ class ActivationsInterface:
         obj.hp = None
         obj.model_type = obj._model.__class__.__name__
         obj.tile_px = tile_px
+        obj.wsi_normalizer = wsi_normalizer
         obj._build()
         return obj
 
@@ -129,6 +142,8 @@ class ActivationsInterface:
             def __iter__(self):
                 for image_dict in generator():
                     np_image = torch.from_numpy(image_dict['image'])
+                    if self.wsi_normalizer:
+                        np_image = self.wsi_normalizer.rgb_to_rgb(np_image)
                     np_image = np_image.permute(2, 0, 1) # WHC => CWH
                     loc = np.array(image_dict['loc'])
                     np_image = np_image / 127.5 - 1

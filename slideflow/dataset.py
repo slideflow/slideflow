@@ -229,7 +229,6 @@ class Dataset:
         try:
             patient_index = header.index(TCGA.patient)
         except:
-            print(header)
             err_msg = f"Check that annotations file is formatted correctly and contains header '{TCGA.patient}'."
             log.error(err_msg)
             raise DatasetError(err_msg)
@@ -472,7 +471,7 @@ class Dataset:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
+                Internal default tile can be found at slideflow.slide.norm_tile.jpg
             whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
                 Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.
             whitespace_threshold (int, optional): Range 0-255. Defaults to 230.
@@ -642,8 +641,9 @@ class Dataset:
                 timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
                 pdf_report.save(join(tfrecord_dir, f'tile_extraction_report-{timestring}.pdf'))
 
-            # Update manifest
+            # Update manifest & rebuild indices
             self.update_manifest()
+            self.build_index(True)
 
     def extract_tiles_from_tfrecords(self, dest):
         """Extracts tiles from a set of TFRecords.
@@ -1024,7 +1024,7 @@ class Dataset:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
+                Internal default tile can be found at slideflow.slide.norm_tile.jpg
         """
 
         from slideflow.slide import TMA, WSI, ExtractionReport
@@ -1180,14 +1180,17 @@ class Dataset:
             inside_roi_writer.close()
             outside_roi_writer.close()
 
-    def tensorflow(self, label_parser, batch_size, **kwargs):
+    def tensorflow(self, labels=None, batch_size=None, **kwargs):
         """Returns a Tensorflow Dataset object that interleaves tfrecords from this dataset.
 
-        The returned dataset yields a batch of (image, label) for each tile.
+        The returned dataset yields a batch of (image, label) for each tile. Labels may be specified either via
+        a dict mapping slide names to outcomes, or a parsing function which accept and image and slide name and returns
+        a dict {'image_raw': image (tensor)} and a label (int or float).
 
         Args:
-            label_parser (func, optional): Base function to use for parsing labels. Function must accept an image (tensor)
-                and slide name (str), and return an image (tensor) and label. If None is provided, all labels will be None.
+            labels (dict or str, optional): Dict or function. If dict, must map slide names to outcome labels.
+                If function, function must accept an image (tensor) and slide name (str), and return a dict
+                {'image_raw': image (tensor)} and label (int or float). If not provided,  all labels will be None.
             batch_size (int): Batch size.
 
         Keyword Args:
@@ -1213,7 +1216,7 @@ class Dataset:
         from slideflow.io.tensorflow import interleave
 
         return interleave(tfrecords=self.tfrecords(),
-                          label_parser=label_parser,
+                          labels=labels,
                           img_size=self.tile_px,
                           batch_size=batch_size,
                           prob_weights=self.prob_weights,
@@ -1229,11 +1232,10 @@ class Dataset:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.util.norm_tile.jpg
+                Internal default tile can be found at slideflow.slide.norm_tile.jpg
         """
 
         from slideflow.slide import ExtractionReport, SlideReport
-        import slideflow.io
 
         if normalizer: log.info(f'Using realtime {normalizer} normalization')
         normalizer = None if not normalizer else sf.slide.StainNormalizer(method=normalizer, source=normalizer_source)
@@ -1564,7 +1566,7 @@ class Dataset:
 
         return training_dts, val_dts
 
-    def torch(self, labels, batch_size, rebuild_index=False, **kwargs):
+    def torch(self, labels, batch_size=None, rebuild_index=False, **kwargs):
         """Returns a PyTorch DataLoader object that interleaves tfrecords from this dataset.
 
         The returned data loader yields a batch of (image, label) for each tile.

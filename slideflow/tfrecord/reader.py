@@ -104,7 +104,6 @@ def tfrecord_iterator(
         elif shard is None:
             yield from read_records(0, clip_offset)
         else:
-            print(index.shape[0])
             shard_idx, shard_count = shard
             all_shard_indices = np.array_split(index, shard_count)
             start_byte = all_shard_indices[shard_idx][0]
