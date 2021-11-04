@@ -1355,7 +1355,13 @@ def predict_from_torch(model, dataset, pred_args, model_type='categorical'):
 
         with torch.cuda.amp.autocast():
             with torch.no_grad():
-                res = model(img)
+                # Slide-level features
+                if pred_args.num_slide_features:
+                    inp = (img, torch.tensor([pred_args.slide_input[s] for s in slide]).to(device))
+                else:
+                    inp = (img,)
+
+                res = model(*inp)
                 running_corrects = pred_args.update_corrects(res, yt, running_corrects)
                 running_loss = pred_args.update_loss(res, yt, running_loss, img.size(0))
                 if isinstance(res, list):

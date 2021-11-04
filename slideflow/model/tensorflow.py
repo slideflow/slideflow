@@ -115,13 +115,13 @@ class ModelParams(_base.ModelParams):
 
     def _get_core(self, weights=None):
         """Returns a Keras model of the appropriate architecture, input shape, pooling, and initial weights."""
-        if self.model == 'NASNetLarge':
+        if self.model in ('nasnet_large', 'vgg16'):
             input_shape = (self.tile_px, self.tile_px, 3)
         else:
             input_shape = None
         return self.ModelDict[self.model](
             input_shape=input_shape,
-            include_top=False,
+            include_top=self.include_top,
             pooling=self.pooling,
             weights=weights
         )
@@ -148,6 +148,8 @@ class ModelParams(_base.ModelParams):
                 base_model = pretrained_model.get_layer(index=0)
         else:
             base_model = self._get_core(weights=pretrain)
+            if self.include_top:
+                base_model = tf.keras.Model(inputs=base_model.input, outputs=base_model.layers[-2].output, name=base_model.name)
 
         # Add regularization
         base_model, regularizer = self._add_regularization(base_model)

@@ -16,24 +16,60 @@ from tqdm import tqdm
 from vit_pytorch import ViT
 from torch.utils.tensorboard import SummaryWriter
 
+class LinearBlock(torch.nn.Module):
+    def __init__(self, in_ftrs, out_ftrs):
+        super().__init__()
+        self.in_ftrs = in_ftrs
+        self.out_ftrs = out_ftrs
+
+        self.linear = torch.nn.Linear(in_ftrs, out_ftrs)
+        self.relu = torch.nn.ReLU(inplace=True)
+        self.bn = torch.nn.BatchNorm1d(out_ftrs)
+
+    def forward(self, x):
+        x = self.linear(x)
+        x = self.relu(x)
+        x = self.bn(x)
+        return x
+
 class ModelWrapper(torch.nn.Module):
-    def __init__(self, model, n_classes):
+    def __init__(self, model, n_classes, num_slide_features=0, hidden_layers=None, drop_images=False):
         super().__init__()
         self.model = model
+        self.drop_images = drop_images
+        self.num_slide_features = num_slide_features
+        self.num_hidden_layers = 0 if not hidden_layers else len(hidden_layers)
 
-        # Get the last linear layer prior to the logits layer
-        if model.__class__.__name__ == 'Xception':
-            num_ftrs = model.last_linear.in_features
-            model.last_linear = torch.nn.Identity()
+        if not drop_images:
+            # Get the last linear layer prior to the logits layer
+            if model.__class__.__name__ == 'Xception':
+                num_ftrs = self.model.last_linear.in_features
+                self.model.last_linear = torch.nn.Identity()
+            elif model.__class__.__name__ == 'VGG':
+                last_linear_name, last_linear = list(self.model.classifier.named_children())[-1]
+                num_ftrs = last_linear.in_features
+                setattr(self.model.classifier, last_linear_name, torch.nn.Identity())
+            else:
+                num_ftrs = self.model.fc.in_features
+                self.model.fc = torch.nn.Identity()
         else:
-            num_ftrs = model.fc.in_features
-            model.fc = torch.nn.Identity()
+            num_ftrs = 0
+
+        # Add slide-level features
+        num_ftrs += num_slide_features
+
+        # Add hidden layers
+        if hidden_layers:
+            hl_ftrs = [num_ftrs] + hidden_layers
+            for i in range(len(hidden_layers)):
+                setattr(self, f'h{i}', LinearBlock(hl_ftrs[i], hl_ftrs[i+1]))
+            num_ftrs = hidden_layers[-1]
 
         # Add the outcome/logits layers for each outcome, if multiple outcomes
         self.out_layers = []
         for i, n in enumerate(n_classes):
-            setattr(model, f'fc{i}', torch.nn.Linear(num_ftrs, n))
-            self.out_layers += [getattr(model, f'fc{i}')]
+            setattr(self.model, f'fc{i}', torch.nn.Linear(num_ftrs, n))
+            self.out_layers += [getattr(self.model, f'fc{i}')]
 
     def __getattr__(self, name):
         try:
@@ -43,16 +79,33 @@ class ModelWrapper(torch.nn.Module):
                 raise AttributeError()
             return getattr(self.model, name)
 
-    def forward(self, x):
-        last_linear = self.model(x)
+    def forward(self, img, slide_features=None):
+        if slide_features is None and self.num_slide_features:
+            raise ValueError(f"Expected 2 inputs, got 1")
+
+        # Last linear of core convolutional model
+        if not self.drop_images:
+            x = self.model(img)
+
+        # Merging image data with any slide-level input data
+        if self.num_slide_features and not self.drop_images:
+            x = torch.cat([x, slide_features], dim=1)
+        elif self.num_slide_features:
+            x = slide_features
+
+        # Hidden layers
+        if self.num_hidden_layers:
+            x = self.h0(x)
+        if self.num_hidden_layers > 1:
+            for h in range(1, self.num_hidden_layers):
+                x = getattr(self, f'h{h}')(x)
 
         # Return a list of outputs if we have multiple outcomes
         if len(self.out_layers) > 1:
-            out = [l(last_linear) for l in self.out_layers]
-
+            out = [l(x) for l in self.out_layers]
         # Otherwise, return the single output
         else:
-            out = self.out_layers[0](last_linear)
+            out = self.out_layers[0](x)
 
         return out
 
@@ -83,7 +136,7 @@ class ModelParams(_base.ModelParams):
         'googlenet': torchvision.models.googlenet,
         'shufflenet': torchvision.models.shufflenet_v2_x1_0,
         'resnext50_32x4d': torchvision.models.resnext50_32x4d,
-        'vgg16': torchvision.models.vgg16,                              # needs support added
+        'vgg16': torchvision.models.vgg16, # needs support added
         'mobilenet_v2': torchvision.models.mobilenet_v2,
         'mobilenet_v3_small': torchvision.models.mobilenet_v3_small,
         'mobilenet_v3_large': torchvision.models.mobilenet_v3_large,
@@ -128,6 +181,8 @@ class ModelParams(_base.ModelParams):
         assert self.model in self.ModelDict.keys()
         assert self.optimizer in self.OptDict.keys()
         assert self.loss in self.AllLossDict
+        if not self.include_top:
+            raise _base.HyperParameterError("PyTorch backend does not currently support include_top=False.")
 
     def get_opt(self, params_to_update):
         return self.OptDict[self.optimizer](params_to_update, lr=self.learning_rate)
@@ -159,7 +214,8 @@ class ModelParams(_base.ModelParams):
             _model = self.ModelDict[self.model](pretrained=pretrain)
 
         # Add final layers to models
-        _model = ModelWrapper(_model, num_classes.values())
+        hidden_layers = [self.hidden_layer_width for h in range(self.hidden_layers)]
+        _model = ModelWrapper(_model, num_classes.values(), num_slide_features, hidden_layers, self.drop_images)
 
         return _model
 
@@ -183,9 +239,16 @@ class Trainer:
         self.name = name
         self.manifest = manifest
         self.model = None
+        self.mixed_precision = mixed_precision
+
+        # Slide-level input args
+        self.slide_input = {k:[float(vi) for vi in v] for k,v in slide_input.items()}
+        self.feature_names = feature_names
+        self.feature_sizes = feature_sizes
+        self.num_slide_features = 0 if not feature_sizes else sum(feature_sizes)
+
         self.normalizer = self.hp.get_normalizer()
         if self.normalizer: log.info(f'Using realtime {self.hp.normalizer} normalization')
-        self.mixed_precision = mixed_precision
         self.outcome_names = outcome_names
         outcome_labels = np.array(list(labels.values()))
         if len(outcome_labels.shape) == 1:
@@ -205,7 +268,7 @@ class Trainer:
             return 1
 
     def load(self, model):
-        self.model = self.hp.build_model(labels=self.labels)
+        self.model = self.hp.build_model(labels=self.labels, num_slide_features=self.num_slide_features)
         self.model.load_state_dict(torch.load(model))
 
     def evaluate(self, dataset, batch_size=None, permutation_importance=False, histogram=False, save_predictions=False):
@@ -394,11 +457,14 @@ class Trainer:
             log.info(f"Loading checkpoint at {sf.util.green(checkpoint)}")
             self.load(checkpoint)
         else:
-            self.model = self.hp.build_model(labels=self.labels, pretrain=pretrain)
+            self.model = self.hp.build_model(labels=self.labels, pretrain=pretrain, num_slide_features=self.num_slide_features)
         self.model = self.model.to(device)
-        img_batch = torch.empty([self.hp.batch_size, 3, train_dts.tile_px, train_dts.tile_px], device=device)
+
+        empty_inp = [torch.empty([self.hp.batch_size, 3, train_dts.tile_px, train_dts.tile_px], device=device)]
+        if self.num_slide_features:
+            empty_inp += [torch.empty([self.hp.batch_size, self.num_slide_features], device=device)]
         if log.getEffectiveLevel() <= 20:
-            torch_utils.print_module_summary(self.model, [img_batch])
+            torch_utils.print_module_summary(self.model, empty_inp)
 
         # Setup dataloaders
         interleave_args = types.SimpleNamespace(
@@ -411,13 +477,14 @@ class Trainer:
             pin_memory=True,
             num_workers=4,
             onehot=False,
+            incl_slidenames=True
         )
 
         dataloaders = {
             'train': iter(train_dts.torch(infinite=True, batch_size=self.hp.batch_size, augment=True, **vars(interleave_args)))
         }
         if val_dts is not None:
-            dataloaders['val'] = val_dts.torch(infinite=False, batch_size=validation_batch_size, augment=False, incl_slidenames=True, **vars(interleave_args))
+            dataloaders['val'] = val_dts.torch(infinite=False, batch_size=validation_batch_size, augment=False, **vars(interleave_args))
             val_log_msg = '' if not validate_on_batch else f'every {str(validate_on_batch)} steps and '
             log.debug(f'Validation during training: {val_log_msg}at epoch end')
             if validation_steps:
@@ -458,7 +525,7 @@ class Trainer:
 
                     dataloader_pb = tqdm(total=(steps_per_epoch * self.hp.batch_size), unit='img', leave=False)
                     while step < steps_per_epoch:
-                        images, labels = next(dataloaders['train'])
+                        images, labels, slides = next(dataloaders['train'])
                         images = images.to(device, non_blocking=True)
                         labels = self.labels_to_device(labels, device)
 
@@ -466,7 +533,12 @@ class Trainer:
                         optimizer.zero_grad()
                         with torch.set_grad_enabled(True):
                             with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.no_scope():
-                                outputs = self.model(images)
+                                # Slide-level features
+                                if self.num_slide_features:
+                                    inp = (images, torch.tensor([self.slide_input[s] for s in slides]).to(device))
+                                else:
+                                    inp = (images,)
+                                outputs = self.model(*inp)
                                 loss = self.calculate_loss(outputs, labels, loss_fn)
 
                             if self.mixed_precision:
@@ -497,15 +569,20 @@ class Trainer:
                             num_val = 0
                             for _ in range(validation_steps):
                                 try:
-                                    val_img, val_label, _ = next(mid_train_val_dts)
+                                    val_img, val_label, slides = next(mid_train_val_dts)
                                 except StopIteration:
                                     del mid_train_val_dts
                                     mid_train_val_dts = iter(dataloaders['val'])
-                                    val_img, val_label, _ = next(mid_train_val_dts)
+                                    val_img, val_label, slides = next(mid_train_val_dts)
+                                val_img = val_img.to(device)
+
                                 with torch.no_grad():
                                     with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.no_scope():
-                                        val_img = val_img.to(device)
-                                        val_outputs = self.model(val_img)
+                                        if self.num_slide_features:
+                                            inp = (val_img, torch.tensor([self.slide_input[s] for s in slides]).to(device))
+                                        else:
+                                            inp = (val_img,)
+                                        val_outputs = self.model(*inp)
                                         val_label = self.labels_to_device(val_label, device)
                                         val_loss = self.calculate_loss(val_outputs, val_label, loss_fn)
 
@@ -597,7 +674,9 @@ class Trainer:
                             multi_outcome=(self.num_outcomes > 1),
                             update_corrects=update_corrects,
                             update_loss=update_loss,
-                            running_corrects=(0 if not multi_outcome else {f'out-{o}':0 for o in range(self.num_outcomes)})
+                            running_corrects=(0 if not multi_outcome else {f'out-{o}':0 for o in range(self.num_outcomes)}),
+                            num_slide_features=self.num_slide_features,
+                            slide_input=self.slide_input
                         )
 
                         # Calculate patient/slide/tile - level metrics (AUC, C-index, R-squared, etc)

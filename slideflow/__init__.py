@@ -41,14 +41,13 @@ def backend():
 #       - Tutorial 8: Hyperparameter sweeps
 #       - Tutorial 9: Class-conditional GAN with StyleGAN2
 #TODO: ActivationsInterface compatibility for multiple outcomes
+#TODO: test all models
 
 # PyTorch implementation
 # ======================
 #TODO: CPH outcomes
-#TODO: slide-level input
-#   - TODO: statistics.permutation_feature_importance (-> ActivationsInterface)
-#   - TODO: statistics.predict_from_layer (used for permutation_feature_importance)
-#TODO: multi-GPU support
+#TODO: statistics.permutation_feature_importance (-> ActivationsInterface)
+#TODO: statistics.predict_from_layer (used for permutation_feature_importance)
 #
 # Low priority consistency/style changes:
 # ---------------------
@@ -62,6 +61,7 @@ def backend():
 
 # Future updates
 # ===============
+#TODO: PyTorch multi-GPU support
 #TODO: custom models in Tensorflow & PyTorch (attention to ActivationsInterface)
 #TODO: implement native TF normalizers to improve realtime normalization speed
 #TODO: put tfrecord report in tfrecord directories & include information

@@ -17,10 +17,10 @@ class ModelParams:
 
     def __init__(self, tile_px=299, tile_um=302, epochs=10, toplayer_epochs=0, model='xception', pooling='max',
                  loss='sparse_categorical_crossentropy', learning_rate=0.0001, learning_rate_decay=0,
-                 learning_rate_decay_steps=100000, batch_size=16, hidden_layers=1, hidden_layer_width=500,
+                 learning_rate_decay_steps=100000, batch_size=16, hidden_layers=0, hidden_layer_width=500,
                  optimizer='Adam', early_stop=False, early_stop_patience=0, early_stop_method='loss',
                  training_balance='category', validation_balance='none', trainable_layers=0, L2_weight=0, dropout=0,
-                 augment='xyrj', normalizer=None, normalizer_source=None, drop_images=False):
+                 augment='xyrj', normalizer=None, normalizer_source=None, include_top=True, drop_images=False):
 
         """Collection of hyperparameters used for model building and training
 
@@ -36,7 +36,7 @@ class ModelParams:
             learning_rate_decay (int, optional): Learning rate decay rate. Defaults to 0.
             learning_rate_decay_steps (int, optional): Learning rate decay steps. Defaults to 100000.
             batch_size (int, optional): Batch size. Defaults to 16.
-            hidden_layers (int, optional): Number of post-convolutional fully-connected hidden layers. Defaults to 1.
+            hidden_layers (int, optional): Number of fully-connected hidden layers after core model. Defaults to 0.
             hidden_layer_width (int, optional): Width of fully-connected hidden layers. Defaults to 500.
             optimizer (str, optional): Name of optimizer. Defaults to 'Adam'.
             early_stop (bool, optional): Use early stopping. Defaults to False.
@@ -46,7 +46,8 @@ class ModelParams:
                 Defaults to 'category'.
             validation_balance ([type], optional): Type of batch-level balancing to use during validation.
                 Defaults to 'none'.
-            trainable_layers (int, optional): Number of layers which are traininable. If 0, trains all layers. Defaults to 0.
+            trainable_layers (int, optional): Number of layers which are traininable. If 0, trains all layers.
+                Defaults to 0.
             L2_weight (int, optional): L2 regularization weight. Defaults to 0.
             dropout (int, optional): Post-convolution dropout rate. Defaults to 0.
             augment (str): Image augmentations to perform. String containing characters designating augmentations.
@@ -56,6 +57,8 @@ class ModelParams:
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
                 Internal default tile can be found at slideflow.slide.norm_tile.jpg
+            include_top (bool, optional): Include post-convolution fully-connected layers from the core model. Defaults
+                to True. include_top=False is not currently compatible with the PyTorch backend.
             drop_images (bool, optional): Drop images, using only other slide-level features as input. Defaults to False.
         """
 
@@ -89,6 +92,7 @@ class ModelParams:
         assert isinstance(dropout, (int, float))
         assert isinstance(augment, (bool, str))
         assert isinstance(drop_images, bool)
+        assert isinstance(include_top, bool)
 
         assert 0 <= learning_rate_decay <= 1
         assert 0 <= L2_weight <= 1
@@ -120,6 +124,7 @@ class ModelParams:
         self.normalizer_source = normalizer_source
         self.augment = augment
         self.drop_images = drop_images
+        self.include_top = include_top
 
         # Perform check to ensure combination of HPs are valid
         self.validate()
