@@ -84,10 +84,12 @@ def update_manifest_at_dir(directory, force_update=False):
 
     pool = DPool(8)
     if log.getEffectiveLevel() <= 20:
-        pb = tqdm(desc='Verifying tiles...', total=len(relative_tfrecord_paths), leave=False)
+        pb = tqdm(desc='Verifying tfrecords...', total=len(relative_tfrecord_paths), leave=False)
     else:
         pb = None
     for m in pool.imap(process_tfr, relative_tfrecord_paths):
+        if pb is not None:
+            pb.update()
         if m is None:
             continue
         if m == 'delete':
@@ -95,8 +97,6 @@ def update_manifest_at_dir(directory, force_update=False):
             log.error(f"Corrupt or incomplete TFRecord at {tfr}; removing")
             os.remove(tfr)
             continue
-        if pb is not None:
-            pb.update()
 
     # Write manifest file
     if (manifest != prior_manifest) or (manifest == {}):
