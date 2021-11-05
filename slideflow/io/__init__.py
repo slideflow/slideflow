@@ -93,7 +93,6 @@ def update_manifest_at_dir(directory, force_update=False):
         if m is None:
             continue
         if m == 'delete':
-            print('\r\033[K', end="")
             log.error(f"Corrupt or incomplete TFRecord at {tfr}; removing")
             os.remove(tfr)
             continue

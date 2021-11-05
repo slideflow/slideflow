@@ -313,7 +313,7 @@ class Project:
 
     def associate_slide_names(self):
         """Automatically associate patient names with slide filenames in the annotations file."""
-        dataset = self.get_dataset(tile_px=0, tile_um=0, verification=None)
+        dataset = self.dataset(tile_px=0, tile_um=0, verification=None)
         dataset.update_annotations_with_slidenames(self.annotations)
 
     def create_blank_annotations(self, filename=None):
@@ -443,7 +443,7 @@ class Project:
 
         # Load dataset and annotations for evaluation
         if dataset is None:
-            dataset = self.get_dataset(tile_px=hp.tile_px,
+            dataset = self.dataset(tile_px=hp.tile_px,
                                         tile_um=hp.tile_um,
                                         filters=filters,
                                         filter_blank=filter_blank,
@@ -690,7 +690,7 @@ class Project:
         args = types.SimpleNamespace(**args_dict)
         args.save_dir = eval_dir
 
-        dataset = self.get_dataset(tile_px=tile_px,
+        dataset = self.dataset(tile_px=tile_px,
                                    tile_um=tile_um,
                                    filters=filters,
                                    filter_blank=filter_blank)
@@ -798,7 +798,7 @@ class Project:
             num_threads (int, optional): Number of workers threads for each tile extractor. Defaults to 4.
         """
 
-        dataset = self.get_dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank, verification='slides')
+        dataset = self.dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank, verification='slides')
         dataset.extract_tiles(**kwargs)
 
     def extract_tiles_from_tfrecords(self, tile_px, tile_um, filters=None, filter_blank=None, dest=None):
@@ -813,7 +813,7 @@ class Project:
             filter_blank (list, optional): Slides blank in these columns will be excluded. Defaults to None.
             dest (str): Path to directory in which to save tile images. Defaults to None. If None, uses dataset default.
         """
-        dataset = self.get_dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank)
+        dataset = self.dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank)
         dataset.extract_tiles_from_tfrecords(dest)
 
     def generate_activations(self, model, dataset=None, filters=None, filter_blank=None, min_tiles=0, max_tiles=0,
@@ -860,7 +860,7 @@ class Project:
         if dataset is None:
             tile_px = config['hp']['tile_px']
             tile_um = config['hp']['tile_um']
-            dataset = self.get_dataset(tile_px=tile_px,
+            dataset = self.dataset(tile_px=tile_px,
                                        tile_um=tile_um,
                                        filters=filters,
                                        filter_blank=filter_blank)
@@ -935,7 +935,7 @@ class Project:
         if force_regenerate or not len(already_generated):
             activation_filters = filters
         else:
-            pt_dataset = self.get_dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank)
+            pt_dataset = self.dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank)
             all_slides = pt_dataset.slides()
             slides_to_generate = [s for s in all_slides if s not in already_generated]
             if len(slides_to_generate) != len(all_slides):
@@ -947,7 +947,7 @@ class Project:
                 return outdir
             activation_filters = {} if filters is None else filters.copy()
             activation_filters['slide'] = slides_to_generate
-            filtered_dataset = self.get_dataset(tile_px, tile_um, filters=activation_filters, filter_blank=filter_blank)
+            filtered_dataset = self.dataset(tile_px, tile_um, filters=activation_filters, filter_blank=filter_blank)
             filtered_slides_to_generate = filtered_dataset.slides()
             log.info(f'Activations already generated for {len(already_generated)} files, will not regenerate.')
             log.info(f'Attempting to generate for {len(filtered_slides_to_generate)} slides')
@@ -1014,7 +1014,7 @@ class Project:
 
         # Prepare dataset1
         config = sf.util.get_model_config(model)
-        heatmaps_dataset = self.get_dataset(filters=filters,
+        heatmaps_dataset = self.dataset(filters=filters,
                                             filter_blank=filter_blank,
                                             tile_px=config['hp']['tile_px'],
                                             tile_um=config['hp']['tile_um'])
@@ -1119,7 +1119,7 @@ class Project:
         config = sf.util.get_model_config(AV.model)
         if dataset is None:
             tile_px, tile_um = config['hp']['tile_px'], config['hp']['tile_um']
-            dataset = self.get_dataset(tile_px=tile_px,
+            dataset = self.dataset(tile_px=tile_px,
                                        tile_um=tile_um,
                                        filters=filters,
                                        filter_blank=filter_blank)
@@ -1371,7 +1371,7 @@ class Project:
         thumb_folder = join(self.root, 'thumbs')
         if not exists(thumb_folder): os.makedirs(thumb_folder)
         if dataset is None:
-            dataset = self.get_dataset(filters=filters, filter_blank=filter_blank, tile_px=0, tile_um=0)
+            dataset = self.dataset(filters=filters, filter_blank=filter_blank, tile_px=0, tile_um=0)
         slide_list = dataset.slide_paths()
         rois = dataset.rois()
         log.info(f'Saving thumbnails to {sf.util.green(thumb_folder)}')
@@ -1413,7 +1413,7 @@ class Project:
 
         slide_name = sf.util.path_to_name(tfrecord)
         loc_dict = get_locations_from_tfrecord(tfrecord)
-        dataset = self.get_dataset(tile_px=tile_px, tile_um=tile_um)
+        dataset = self.dataset(tile_px=tile_px, tile_um=tile_um)
         slide_paths = {sf.util.path_to_name(sp):sp for sp in dataset.slide_paths()}
 
         try:
@@ -1537,8 +1537,8 @@ class Project:
         del thumb
         return stats
 
-    def get_dataset(self, tile_px=None, tile_um=None, filters=None, filter_blank=None, min_tiles=0, verification='both'):
-        """Returns :class:`slideflow.dataset.Dataset` object using project settings.
+    def dataset(self, tile_px=None, tile_um=None, filters=None, filter_blank=None, min_tiles=0, verification='both'):
+        """Returns :class:`slideflow.Dataset` object using project settings.
 
         Args:
             tile_px (int): Tile size in pixels
@@ -1643,7 +1643,7 @@ class Project:
         config = sf.util.get_model_config(model)
         if dataset is None:
             tile_px, tile_um = config['hp']['tile_px'], config['hp']['tile_um']
-            dataset = self.get_dataset(tile_px=tile_px,
+            dataset = self.dataset(tile_px=tile_px,
                                        tile_um=tile_um,
                                        filters=filters,
                                        filter_blank=filter_blank,
@@ -1877,7 +1877,7 @@ class Project:
             if input_header:
                 input_header = [input_header] if not isinstance(input_header, list) else input_header
                 filter_blank += input_header
-            dataset = self.get_dataset(hp.tile_px, hp.tile_um)
+            dataset = self.dataset(hp.tile_px, hp.tile_um)
             dataset = dataset.filter(filters=filters, filter_blank=filter_blank, min_tiles=min_tiles)
 
             # --- Load labels -----------------------------------------------------------------------------------------
@@ -2168,7 +2168,7 @@ class Project:
         Examples
             Train with basic settings:
 
-                >>> dataset = SFP.get_dataset(tile_px=299, tile_um=302)
+                >>> dataset = SFP.dataset(tile_px=299, tile_um=302)
                 >>> SFP.generate_features_for_clam('/model/', outdir='/pt_files/')
                 >>> SFP.train_clam('NAME', '/pt_files', 'category1', dataset)
 

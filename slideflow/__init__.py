@@ -40,8 +40,9 @@ def backend():
 #       - Tutorial 7: Clinical models, CPH outcome, permutation feature importance
 #       - Tutorial 8: Hyperparameter sweeps
 #       - Tutorial 9: Class-conditional GAN with StyleGAN2
-#TODO: ActivationsInterface compatibility for multiple outcomes
 #TODO: test all models, test custom models (attention to ActivationsInterface)
+#TODO: pandas df for project annotations
+#TODO: pytorch neptune integration
 
 # Low priority consistency/style changes:
 # ---------------------
@@ -55,6 +56,7 @@ def backend():
 
 # Future updates
 # ===============
+#TODO: ActivationsInterface compatibility for multiple outcomes
 #TODO: PyTorch CPH outcomes
 #TODO: statistics.permutation_feature_importance (-> ActivationsInterface)
 #TODO: statistics.predict_from_layer (used for permutation_feature_importance)

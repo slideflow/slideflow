@@ -100,7 +100,7 @@ def evaluation_tester(project, **kwargs):
 
 def _wsi_prediction_tester(project, model):
     with TaskWrapper("Testing WSI prediction...") as test:
-        dataset = project.get_dataset()
+        dataset = project.dataset()
         slide_paths = dataset.slide_paths(source='TEST')
         patient_name = sf.util.path_to_name(slide_paths[0])
         project.predict_wsi(model,
@@ -128,7 +128,7 @@ def clam_feature_generator(project, model):
 # ----------------------------------------
 
 def reader_tester(project):
-    dataset = project.SFP.get_dataset(299, 302)
+    dataset = project.project.dataset(299, 302)
     tfrecords = dataset.tfrecords()
     batch_size = 128
     assert len(tfrecords)
@@ -268,13 +268,13 @@ class TestSuite:
         if os.path.exists(join(self.project_root, 'settings.json')) and reset:
             shutil.rmtree(self.project_root)
         if os.path.exists(join(self.project_root, 'settings.json')):
-            self.SFP = sf.Project(self.project_root,
+            self.project = sf.Project(self.project_root,
                                   gpu=gpu)
         else:
-            self.SFP = sf.Project(self.project_root,
+            self.project = sf.Project(self.project_root,
                                   gpu=gpu,
                                   **self.config.project_settings)
-        self.SFP.save()
+        self.project.save()
 
         # Check if GPU available
 
@@ -298,27 +298,27 @@ class TestSuite:
         self.buffer = buffer
 
         # Rebuild tfrecord indices
-        self.SFP.get_dataset(299, 302).build_index(True)
+        self.project.dataset(299, 302).build_index(True)
 
     def _get_model(self, name, epoch=1):
-        prev_run_dirs = [x for x in os.listdir(self.SFP.models_dir) if os.path.isdir(join(self.SFP.models_dir, x))]
+        prev_run_dirs = [x for x in os.listdir(self.project.models_dir) if os.path.isdir(join(self.project.models_dir, x))]
         for run in sorted(prev_run_dirs, reverse=True):
             if run[6:] == name:
-                return join(self.SFP.models_dir, run, f'{name}_epoch{epoch}')
+                return join(self.project.models_dir, run, f'{name}_epoch{epoch}')
         raise OSError(f"Unable to find trained model {name}")
 
     def configure_sources(self):
         with TaskWrapper("Dataset configuration...") as test:
             for source in self.config.sources.keys():
-                self.SFP.add_source(source, slides=self.config.sources[source]['slides'],
+                self.project.add_source(source, slides=self.config.sources[source]['slides'],
                                             roi=self.config.sources[source]['roi'],
                                             tiles=self.config.sources[source]['tiles'],
                                             tfrecords=self.config.sources[source]['tfrecords'],
-                                            path=self.SFP.dataset_config)
+                                            path=self.project.dataset_config)
 
     def configure_annotations(self):
         with TaskWrapper("Annotation configuration...") as test:
-            outfile = self.SFP.annotations
+            outfile = self.project.annotations
             with open(outfile, 'w') as csv_outfile:
                 csv_writer = csv.writer(csv_outfile, delimiter=',')
                 for an in self.config.annotations:
@@ -326,9 +326,9 @@ class TestSuite:
             project_dataset = Dataset(tile_px=299,
                                       tile_um=302,
                                       sources='TEST',
-                                      config=self.SFP.dataset_config,
-                                      annotations=self.SFP.annotations)
-            project_dataset.update_annotations_with_slidenames(self.SFP.annotations)
+                                      config=self.project.dataset_config,
+                                      annotations=self.project.annotations)
+            project_dataset.update_annotations_with_slidenames(self.project.annotations)
             loaded_slides = project_dataset.slides()
             for slide in [row[0] for row in self.config.annotations[1:]]:
                 if slide not in loaded_slides:
@@ -352,7 +352,7 @@ class TestSuite:
 
         # Create batch train file
         if sweep:
-            self.SFP.create_hyperparameter_sweep(tile_px=299,
+            self.project.create_hyperparameter_sweep(tile_px=299,
                                                  tile_um=302,
                                                  epochs=[1,2,3],
                                                  toplayer_epochs=[0],
@@ -398,7 +398,7 @@ class TestSuite:
     def test_extraction(self, enable_downsample=True, **kwargs):
         # Test tile extraction, default parameters, for regular slides
         with TaskWrapper("Testing slide extraction...") as test:
-            self.SFP.extract_tiles(tile_px=299,
+            self.project.extract_tiles(tile_px=299,
                                    tile_um=302,
                                    buffer=self.buffer,
                                    source=['TEST'],
@@ -409,7 +409,7 @@ class TestSuite:
 
     def test_realtime_normalizer(self, **train_kwargs):
         with TaskWrapper("Testing realtime normalization, using Reinhard...") as test:
-            self.SFP.train(outcome_label_headers='category1',
+            self.project.train(outcome_label_headers='category1',
                            val_k=1,
                            hyperparameters=self.setup_hp('categorical', normalizer='reinhard'),
                            steps_per_epoch_override=5,
@@ -424,7 +424,7 @@ class TestSuite:
     def train_perf(self, **train_kwargs):
         with TaskWrapper("Training to single categorical outcome from hyperparameter sweep...") as test:
             self.setup_hp('categorical', sweep=True)
-            results_dict = self.SFP.train(exp_label='manual_hp',
+            results_dict = self.project.train(exp_label='manual_hp',
                                           outcome_label_headers='category1',
                                           val_k=1,
                                           validate_on_batch=50,
@@ -445,7 +445,7 @@ class TestSuite:
         if multi_categorical:
             # Test multiple sequential categorical outcome models
             with TaskWrapper("Training to multiple outcomes...") as test:
-                self.SFP.train(outcome_label_headers=['category1', 'category2'],
+                self.project.train(outcome_label_headers=['category1', 'category2'],
                                val_k=1,
                                hyperparameters=self.setup_hp('categorical'),
                                validate_on_batch=50,
@@ -455,7 +455,7 @@ class TestSuite:
         if linear:
             # Test multiple linear outcome
             with TaskWrapper("Training to multiple linear outcomes...") as test:
-                self.SFP.train(outcome_label_headers=['linear1', 'linear2'],
+                self.project.train(outcome_label_headers=['linear1', 'linear2'],
                                val_k=1,
                                hyperparameters=self.setup_hp('linear'),
                                validate_on_batch=50,
@@ -464,7 +464,7 @@ class TestSuite:
 
         if multi_input:
             with TaskWrapper("Training with multiple inputs (image + annotation feature)...") as test:
-                self.SFP.train(exp_label='multi_input',
+                self.project.train(exp_label='multi_input',
                                outcome_label_headers='category1',
                                input_header='category2',
                                hyperparameters=self.setup_hp('categorical'),
@@ -475,7 +475,7 @@ class TestSuite:
 
         if cph:
             with TaskWrapper("Training a CPH model...") as test:
-                self.SFP.train(exp_label='cph',
+                self.project.train(exp_label='cph',
                                 outcome_label_headers='time',
                                 input_header='event',
                                 hyperparameters=self.setup_hp('cph'),
@@ -486,7 +486,7 @@ class TestSuite:
 
         if multi_cph:
             with TaskWrapper("Training a multi-input CPH model...") as test:
-                self.SFP.train(exp_label='multi_cph',
+                self.project.train(exp_label='multi_cph',
                                 outcome_label_headers='time',
                                 input_header=['event', 'category1'],
                                 hyperparameters=self.setup_hp('cph'),
@@ -504,7 +504,7 @@ class TestSuite:
 
         # Performs evaluation in isolated thread to avoid OOM errors with sequential model loading/testing
         with TaskWrapper("Testing evaluation of single categorical outcome model...") as test:
-            evaluation_tester(project=self.SFP,
+            evaluation_tester(project=self.project,
                               model=perf_model,
                               outcome_label_headers='category1',
                               histogram=True,
@@ -512,7 +512,7 @@ class TestSuite:
                               **eval_kwargs)
 
         with TaskWrapper("Testing evaluation of multi-categorical outcome model...") as test:
-            evaluation_tester(project=self.SFP,
+            evaluation_tester(project=self.project,
                               model=multi_cat_model,
                               outcome_label_headers=['category1', 'category2'],
                               histogram=True,
@@ -520,7 +520,7 @@ class TestSuite:
                               **eval_kwargs)
 
         with TaskWrapper("Testing evaluation of multi-linear outcome model...") as test:
-            evaluation_tester(project=self.SFP,
+            evaluation_tester(project=self.project,
                               model=multi_lin_model,
                               outcome_label_headers=['linear1', 'linear2'],
                               histogram=True,
@@ -528,7 +528,7 @@ class TestSuite:
                               **eval_kwargs)
 
         with TaskWrapper("Testing evaluation of multi-input (image + annotation feature) model...") as test:
-            evaluation_tester(project=self.SFP,
+            evaluation_tester(project=self.project,
                               model=multi_inp_model,
                               outcome_label_headers='category1',
                               input_header='category2',
@@ -536,7 +536,7 @@ class TestSuite:
 
         if sf.backend() == 'tensorflow':
             with TaskWrapper("Testing evaluation of CPH model...") as test:
-                evaluation_tester(project=self.SFP,
+                evaluation_tester(project=self.project,
                                 model=cph_model,
                                 outcome_label_headers='time',
                                 input_header='event',
@@ -548,10 +548,10 @@ class TestSuite:
 
         with TaskWrapper("Testing heatmap generation...") as test:
             if slide.lower() == 'auto':
-                dataset = self.SFP.get_dataset()
+                dataset = self.project.dataset()
                 slide_paths = dataset.slide_paths(source='TEST')
                 patient_name = sf.util.path_to_name(slide_paths[0])
-            self.SFP.generate_heatmaps(perf_model,
+            self.project.generate_heatmaps(perf_model,
                                        filters={sf.util.TCGA.patient: [patient_name]},
                                        roi_method='ignore',
                                        **heatmap_kwargs)
@@ -561,10 +561,10 @@ class TestSuite:
         assert os.path.exists(perf_model)
 
         with TaskWrapper("Testing activations...") as test:
-            dataset = self.SFP.get_dataset(299, 302)
+            dataset = self.project.dataset(299, 302)
             test_slide = dataset.slides()[0]
 
-            AV = self.SFP.generate_activations(model=perf_model, outcome_label_headers='category1', **act_kwargs)
+            AV = self.project.generate_activations(model=perf_model, outcome_label_headers='category1', **act_kwargs)
             assert AV.num_features == 2048
             assert AV.num_logits == 2
             assert len(AV.activations) == len(dataset.tfrecords())
@@ -582,32 +582,32 @@ class TestSuite:
             assert len(l_pred) == len(AV.activations)
 
             umap = SlideMap.from_activations(AV)
-            umap.save(join(self.SFP.root, 'stats', '2d_umap.png'))
+            umap.save(join(self.project.root, 'stats', '2d_umap.png'))
             tile_stats, pt_stats, cat_stats = AV.feature_stats()
             top_features_by_tile = sorted(range(AV.num_features), key=lambda f: tile_stats[f]['p'])
             for feature in top_features_by_tile[:5]:
-                umap.save_3d_plot(join(self.SFP.root, 'stats', f'3d_feature{feature}.png'), feature=feature)
-            AV.box_plots(top_features_by_tile[:5], join(self.SFP.root, 'box_plots'))
+                umap.save_3d_plot(join(self.project.root, 'stats', f'3d_feature{feature}.png'), feature=feature)
+            AV.box_plots(top_features_by_tile[:5], join(self.project.root, 'box_plots'))
 
         with TaskWrapper("Testing mosaic generation...") as test:
-            mosaic = self.SFP.generate_mosaic(AV)
-            mosaic.save(os.path.join(self.SFP.root, "mosaic_test.png"))
+            mosaic = self.project.generate_mosaic(AV)
+            mosaic.save(os.path.join(self.project.root, "mosaic_test.png"))
 
     def test_predict_wsi(self):
         perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1') #self._get_model('category1-manual_hp-HP0-kfold1')
         assert os.path.exists(perf_model)
-        wsi_prediction_tester(self.SFP, perf_model)
+        wsi_prediction_tester(self.project, perf_model)
 
     def test_clam(self):
         perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1') #self._get_model('category1-manual_hp-HP0-kfold1')
         assert os.path.exists(perf_model)
 
         with TaskWrapper("Testing CLAM feature export...") as test:
-            clam_feature_generator(self.SFP, perf_model)
+            clam_feature_generator(self.project, perf_model)
 
         with TaskWrapper("Testing CLAM training...") as test:
-            dataset = self.SFP.get_dataset(299, 302)
-            self.SFP.train_clam('TEST_CLAM', join(self.SFP.root, 'clam'), 'category1', dataset)
+            dataset = self.project.dataset(299, 302)
+            self.project.train_clam('TEST_CLAM', join(self.project.root, 'clam'), 'category1', dataset)
 
         with TaskWrapper('Evaluating CLAM...') as test:
             pass

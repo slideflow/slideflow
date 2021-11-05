@@ -22,14 +22,14 @@ class NeptuneLog:
         run_id = self.run['sys/id'].fetch()
         for t in tags:
             self.run['sys/tags'].add(t)
-        self.run['eval/annotations'] = dataset.annotations_file
+        self.run['data/annotations_file'] = dataset.annotations_file
 
         return self.run
 
     def log_config(self, hp_data, stage):
         '''Logs model hyperparameter data according to the given stage ('train' or 'eval')'''
 
-        proj_info_keys = ['dataset_config', 'sources', 'annotations']
+        proj_info_keys = ['dataset_config', 'sources']
         model_info_keys = ['model_name', 'model_type', 'k_fold_i', 'outcome_label_headers']
 
         if not hasattr(self, 'run'):

@@ -41,7 +41,7 @@ Next, create a :class:`slideflow.dataset.Dataset` instance to indicate which sli
 
 .. code-block:: python
 
-    >>> dataset = SFP.get_dataset(
+    >>> dataset = SFP.dataset(
     ...     tile_px=256,
     ...     tile_um=128,
     ...     filters={

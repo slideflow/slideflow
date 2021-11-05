@@ -23,7 +23,7 @@ To train a CLAM model, use the project function :func:`slideflow.project.Project
 
 .. code-block:: python
 
-    dataset = SFP.get_dataset(tile_px=299, tile_um=302)
+    dataset = SFP.dataset(tile_px=299, tile_um=302)
     SFP.generate_features_for_clam(..., outdir='/clam/path')
 
     clam_args = sf.clam.get_args(k=3, bag_loss='svm', ...)

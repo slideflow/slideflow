@@ -148,8 +148,6 @@ class Dataset:
 
         self.tile_px = tile_px
         self.tile_um = tile_um
-        self.annotations = []
-        self.annotations_file = None
         self._filters = filters if filters else {}
         self._filter_blank = filter_blank if filter_blank else []
         self._filter_blank = [self.filter_blank] if not isinstance(self._filter_blank, list) else self._filter_blank
@@ -157,6 +155,7 @@ class Dataset:
         self._clip = {}
         self.prob_weights = None
         self._config = config
+        self.annotations = None
 
         loaded_config = sf.util.load_json(config)
         sources = sources if isinstance(sources, list) else [sources]
@@ -178,11 +177,7 @@ class Dataset:
         for source in self.sources:
             self.sources[source]['label'] = label
 
-        if annotations:
-            if os.path.exists(annotations):
-                self._load_annotations(annotations)
-            else:
-                log.warning(f"Unable to load annotations from {sf.util.green(annotations)}; file does not exist.")
+        self.load_annotations(annotations)
 
     def __repr__(self):
         return "Dataset(config={!r}, sources={!r}, tile_px={!r}, tile_um={!r})".format(self._config, self.sources_names, self.tile_px, self.tile_um)
@@ -211,38 +206,33 @@ class Dataset:
         """Returns the active min_tiles filter, if any (defaults to 0)."""
         return self._min_tiles
 
-    def _load_annotations(self, annotations_file):
-        """Load annotations from a given CSV file."""
-        # Verify annotations file exists
-        if not os.path.exists(annotations_file):
-            raise DatasetError(f"Annotations file {sf.util.green(annotations_file)} does not exist, unable to load")
+    @property
+    def filtered_annotations(self):
+        return self.annotations[self.annotations[TCGA.slide].isin(self.slides())]
 
-        header, current_annotations = sf.util.read_annotations(annotations_file)
+    def load_annotations(self, annotations):
+        # Load annotations
+        if isinstance(annotations, str):
+            if not os.path.exists(annotations):
+                raise DatasetError(f"Could not find annotations file {annotations}")
+            try:
+                self.annotations = pd.read_csv(annotations)
+            except pd.errors.EmptyDataError:
+                log.error(f"Unable to load annotations from {annotations}; empty file.")
+        elif isinstance(annotations, pd.core.frame.DataFrame):
+            self.annotations = annotations
+        else:
+            raise DatasetError(f"Unrecognized annotations format {type(annotations)}; expected path (str) or DataFrame")
 
-        # Check for duplicate headers in annotations file
-        if len(header) != len(set(header)):
-            err_msg = "Annotations file containers at least one duplicate header; all headers must be unique"
-            log.error(err_msg)
-            raise DatasetError(err_msg)
-
-        # Verify there is a patient header
-        try:
-            patient_index = header.index(TCGA.patient)
-        except:
-            err_msg = f"Check that annotations file is formatted correctly and contains header '{TCGA.patient}'."
-            log.error(err_msg)
-            raise DatasetError(err_msg)
-
-        # Verify that a slide header exists; if not, offer to make one and
-        # automatically associate slide names with patients
-        try:
-            slide_index = header.index(TCGA.slide)
-        except:
-            log.info(f"Header column '{TCGA.slide}' not found. Attempting to associate patients with slides...")
-            self.update_annotations_with_slidenames(annotations_file)
-            header, current_annotations = sf.util.read_annotations(annotations_file)
-        self.annotations = current_annotations
-        self.annotations_file = annotations_file
+        # Check annotations
+        if len(self.annotations.columns) != len(set(self.annotations.columns)):
+            raise DatasetError("Annotations file containers at least one duplicate header; all headers must be unique")
+        if TCGA.patient not in self.annotations.columns:
+            raise DatasetError(f"Patient identifier {TCGA.patient} not found in annotations.")
+        if TCGA.slide not in self.annotations.columns:
+            log.info(f"Column '{TCGA.slide}' not found in annotations. Attempting to associate patients with slides...")
+            self.update_annotations_with_slidenames(annotations)
+            self.load_annotations(annotations)
 
     def balance(self, headers=None, strategy='category', force=False):
         """Returns a dataset with prob_weights reflecting balancing per tile, slide, patient, or category.
@@ -697,9 +687,7 @@ class Dataset:
     def is_float(self, header):
         """Returns True if labels in the given header can all be converted to `float`, else False."""
 
-        slides = self.slides()
-        filtered_annotations = [a for a in self.annotations if a[TCGA.slide] in slides]
-        filtered_labels = [a[header] for a in filtered_annotations]
+        filtered_labels = self.filtered_annotations[header]
         try:
             filtered_labels = [float(o) for o in filtered_labels]
             return True
@@ -733,7 +721,6 @@ class Dataset:
         """
 
         slides = self.slides()
-        filtered_annotations = [a for a in self.annotations if a[TCGA.slide] in slides]
         results = {}
         headers = [headers] if not isinstance(headers, list) else headers
         assigned_headers = {}
@@ -749,7 +736,7 @@ class Dataset:
             unique_labels_for_this_header = []
             assigned_headers[header] = {}
             try:
-                filtered_labels = [a[header] for a in filtered_annotations]
+                filtered_labels = self.filtered_annotations[header]
             except KeyError:
                 log.error(f"Unable to find column {header} in annotation file.")
                 raise DatasetError(f"Unable to find column {header} in annotation file.")
@@ -802,7 +789,7 @@ class Dataset:
             patient_labels = {}
             num_warned = 0
             warn_threshold = 3
-            for annotation in filtered_annotations:
+            for annotation in self.filtered_annotations.to_dict(orient="records"):
                 slide = annotation[TCGA.slide]
                 patient = annotation[TCGA.patient]
                 annotation_label = _process_label(annotation[header])
@@ -907,11 +894,9 @@ class Dataset:
     def patients(self):
         """Returns a list of patient IDs from this dataset."""
 
-        slides = self.slides()
         result = {}
-        for annotation in self.annotations:
-            slide = annotation[TCGA.slide]
-            patient = annotation[TCGA.patient]
+        pairs = list(zip(self.filtered_annotations[TCGA.slide], self.filtered_annotations[TCGA.patient]))
+        for slide, patient in pairs:
             if slide in result and result[slide] != patient:
                 raise DatasetError(f"Slide {slide} assigned to multiple patients in annotations file ({patient}, {result[slide]})")
             else:
@@ -1078,9 +1063,9 @@ class Dataset:
         # Begin filtering slides with annotations
         slides = []
         slide_patient_dict = {}
-        if not len(self.annotations):
+        if self.annotations is None:
             log.error("No annotations loaded; is the annotations file empty?")
-        for ann in self.annotations:
+        for ann in self.annotations.to_dict(orient="records"):
             skip_annotation = False
             if TCGA.slide not in ann.keys():
                 err_msg = f"{TCGA.slide} not found in annotations file."
@@ -1293,7 +1278,7 @@ class Dataset:
             tfrecords_list += glob(join(folder, "*.tfrecords"))
 
         # Filter the list by filters
-        if self.annotations:
+        if self.annotations is not None:
             slides = self.slides()
             filtered_tfrecords_list = [tfrecord for tfrecord in tfrecords_list if sf.util.path_to_name(tfrecord) in slides]
             filtered = filtered_tfrecords_list
@@ -1774,7 +1759,7 @@ class Dataset:
         # Verify all slides in the annotation column are valid
         num_warned = 0
         warn_threshold = 3
-        for annotation in self.annotations:
+        for annotation in self.annotations.to_dict(orient="records"):
             slide = annotation[TCGA.slide]
             if slide == '':
                 log.warning(f"Patient {sf.util.green(annotation[TCGA.patient])} has no slide assigned.")

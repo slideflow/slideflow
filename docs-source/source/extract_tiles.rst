@@ -80,7 +80,7 @@ In addition to viewing reports after tile extraction, you may generate new repor
 
 .. code-block:: python
 
-    dataset = SFP.get_dataset(tile_px=299, tile_um=302)
+    dataset = SFP.dataset(tile_px=299, tile_um=302)
     dataset.tfrecord_report("/path/to/dest")
 
 You can also generate reports for slides that have not yet been extracted with :func:`slideflow.dataset.Dataset.slide_report`.

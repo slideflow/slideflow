@@ -86,7 +86,7 @@ Alternatively, you can create an instance of this class directly:
 
 .. code-block:: python
 
-    dataset = SFP.get_dataset(299, 302)
+    dataset = SFP.dataset(299, 302)
 
     AV = sf.activations.ActivationsVisualizer(
         model='/path/to/trained_model',

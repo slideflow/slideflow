@@ -30,7 +30,7 @@ index in the slide TFRecord.
 
 .. code-block:: python
 
-    dataset = project.get_dataset(tile_px=299, tile_um=302)
+    dataset = project.dataset(tile_px=299, tile_um=302)
     slides = dataset.slides()
     x = np.array(...)
     y = np.array(...)

@@ -17,7 +17,7 @@ import slideflow as sf
 import slideflow.model.base as _base
 import slideflow.util.neptune_utils
 
-from os.path import join
+from os.path import join, exists, dirname
 from slideflow.util import log
 from slideflow.model.base import ModelError, no_scope, log_summary, log_manifest
 from slideflow.model.tensorflow_utils import *
@@ -374,13 +374,19 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             self.model.save(model_path)
 
             # Try to copy model settings/hyperparameters file into the model folder
-            try:
-                shutil.copy(os.path.join(os.path.dirname(model_path), 'hyperparameters.json'),
-                            os.path.join(model_path, 'hyperparameters.json'), )
-                shutil.copy(os.path.join(os.path.dirname(model_path), 'slide_manifest.csv'),
-                            os.path.join(model_path, 'slide_manifest.csv'), )
-            except:
-                log.warning('Unable to copy hyperparameters.json/slide_manifest.csv files into model folder.')
+            if not exists(join(model_path, 'hyperparameters.json')):
+                try:
+                    config_path = join(dirname(model_path), 'hyperparameters.json')
+                    if self.neptune_run:
+                        config = sf.util.load_json(config_path)
+                        config['neptune_id'] = self.neptune_run['sys/id'].fetch()
+                        sf.util.write_json(config, config_path)
+                    shutil.copy(config_path,
+                                join(model_path, 'hyperparameters.json'), )
+                    shutil.copy(os.path.join(dirname(model_path), 'slide_manifest.csv'),
+                                join(model_path, 'slide_manifest.csv'), )
+                except:
+                    log.warning('Unable to copy hyperparameters.json/slide_manifest.csv files into model folder.')
 
             log.info(f'Trained model saved to {sf.util.green(model_path)}')
             if self.cb_args.using_validation:
