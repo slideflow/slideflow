@@ -61,7 +61,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
                  transform: typing.Callable[[dict], typing.Any] = None,
                  sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                  compression_type: typing.Optional[str] = None,
-                 autoshard: bool = True,
+                 autoshard: bool = False,
                  clip: typing.Optional[int] = None,
                  ) -> None:
         super(TFRecordDataset, self).__init__()
@@ -176,9 +176,6 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         self.clip = clip
 
     def __iter__(self):
-        worker_info = torch.utils.data.get_worker_info()
-        #if worker_info is not None:
-        #    np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
         it = reader.multi_tfrecord_loader(paths=self.paths,
                                           indices=self.indices,
                                           splits=self.splits,

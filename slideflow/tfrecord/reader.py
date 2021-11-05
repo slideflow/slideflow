@@ -111,11 +111,6 @@ def tfrecord_iterator(
                 end_byte = all_shard_indices[shard_idx + 1][0]
             else:
                 end_byte = clip_offset
-
-            #start_index = (num_records * shard_idx) // shard_count
-            #end_index = (num_records * (shard_idx + 1)) // shard_count
-            #start_byte = index[start_index]
-            #end_byte = index[end_index] if end_index < num_records else clip_offset
             yield from read_records(start_byte, end_byte)
 
     file.close()

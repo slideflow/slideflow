@@ -534,16 +534,13 @@ class TestSuite:
                               input_header='category2',
                               **eval_kwargs)
 
-        with TaskWrapper("Testing evaluation of CPH model...") as test:
-            evaluation_tester(project=self.SFP,
-                              model=cph_model,
-                              outcome_label_headers='time',
-                              input_header='event',
-                              **eval_kwargs)
-
-        #print("Testing that evaluation matches known baseline...")
-        #self.SFP.evaluate(outcome_label_headers='category1', model=self.reference_model, filters={'submitter_id': '234839'})
-        # Code to lookup excel sheet of predictions and verify they match known baseline
+        if sf.backend() == 'tensorflow':
+            with TaskWrapper("Testing evaluation of CPH model...") as test:
+                evaluation_tester(project=self.SFP,
+                                model=cph_model,
+                                outcome_label_headers='time',
+                                input_header='event',
+                                **eval_kwargs)
 
     def test_heatmap(self, slide='auto', **heatmap_kwargs):
         perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1') #self._get_model('category1-manual_hp-HP0-kfold1')

@@ -400,8 +400,8 @@ class Project:
             min_tiles (int, optional): Minimum number of tiles a slide must have to be included in evaluation.
                 Defaults to 0. Recommend considering a minimum of at least 10 tiles per slide.
             input_header (str, optional): Annotation column header to use as additional input. Defaults to None.
-            permutation_importance (bool, optional): Calculate the permutation feature importance. Defaults to False.
-                Used to determine relative importance when using multiple model inputs.
+            permutation_importance (bool, optional): Calculate the permutation feature importance.  Determine relative
+                importance when using multiple model inputs. Only available for Tensorflow backend. Defaults to False.
             histogram (bool, optional): Create tile-level histograms for each class. Defaults to False.
             save_predictions (bool or str, optional): Either True, False, or any combination of 'tile', 'patient',
                 or 'slide', either as string or list of strings. Save tile-level, patient-level, and/or

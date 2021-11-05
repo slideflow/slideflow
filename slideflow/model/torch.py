@@ -36,6 +36,7 @@ class ModelWrapper(torch.nn.Module):
     def __init__(self, model, n_classes, num_slide_features=0, hidden_layers=None, drop_images=False):
         super().__init__()
         self.model = model
+        self.n_classes = len(n_classes)
         self.drop_images = drop_images
         self.num_slide_features = num_slide_features
         self.num_hidden_layers = 0 if not hidden_layers else len(hidden_layers)
@@ -66,10 +67,8 @@ class ModelWrapper(torch.nn.Module):
             num_ftrs = hidden_layers[-1]
 
         # Add the outcome/logits layers for each outcome, if multiple outcomes
-        self.out_layers = []
         for i, n in enumerate(n_classes):
-            setattr(self.model, f'fc{i}', torch.nn.Linear(num_ftrs, n))
-            self.out_layers += [getattr(self.model, f'fc{i}')]
+            setattr(self, f'fc{i}', torch.nn.Linear(num_ftrs, n))
 
     def __getattr__(self, name):
         try:
@@ -101,11 +100,12 @@ class ModelWrapper(torch.nn.Module):
                 x = getattr(self, f'h{h}')(x)
 
         # Return a list of outputs if we have multiple outcomes
-        if len(self.out_layers) > 1:
-            out = [l(x) for l in self.out_layers]
+        if self.n_classes > 1:
+            out = [getattr(self, f'fc{i}')(x) for i in range(self.n_classes)]
+
         # Otherwise, return the single output
         else:
-            out = self.out_layers[0](x)
+            out = self.fc0(x)
 
         return out
 
@@ -271,12 +271,14 @@ class Trainer:
         self.model = self.hp.build_model(labels=self.labels, num_slide_features=self.num_slide_features)
         self.model.load_state_dict(torch.load(model))
 
-    def evaluate(self, dataset, batch_size=None, permutation_importance=False, histogram=False, save_predictions=False):
+    def evaluate(self, dataset, batch_size=None, histogram=False, save_predictions=False, permutation_importance=False):
 
         # Load and initialize model
+        if permutation_importance:
+            raise NotImplementedError("permutation_importance not yet implemented for PyTorch backend.")
         if not self.model:
             raise sf.util.UserError("Model has not been loaded, unable to evaluate.")
-        device = torch.device('cuda')
+        device = torch.device('cuda:0')
         self.model.to(device)
         self.model.eval()
         loss_fn = self.hp.get_loss()
@@ -288,7 +290,6 @@ class Trainer:
             rank=0,
             num_replicas=1,
             labels=self.labels,
-            seed=0,
             chunk_size=16,
             normalizer=self.normalizer,
             pin_memory=True,
@@ -329,18 +330,11 @@ class Trainer:
 
         # Generate performance metrics
         log.info('Calculating performance metrics...')
-        if permutation_importance:
-            drop_images = ((self.hp.tile_px == 0) or self.hp.drop_images)
-            metrics = sf.statistics.permutation_feature_importance(feature_names=self.feature_names,
-                                                                   feature_sizes=self.feature_sizes,
-                                                                   drop_images=drop_images,
-                                                                   **vars(metric_kwargs))
-        else:
-            metrics, acc, loss = sf.statistics.metrics_from_dataset(histogram=histogram,
-                                                                    verbose=True,
-                                                                    save_predictions=save_predictions,
-                                                                    pred_args=pred_args,
-                                                                    **vars(metric_kwargs))
+        metrics, acc, loss = sf.statistics.metrics_from_dataset(histogram=histogram,
+                                                                verbose=True,
+                                                                save_predictions=save_predictions,
+                                                                pred_args=pred_args,
+                                                                **vars(metric_kwargs))
         results_dict = { 'eval': {'loss': loss} }
         if self.hp.model_type() == 'categorical':
             results_dict['eval'].update({'accuracy': acc})
@@ -416,14 +410,14 @@ class Trainer:
     def train(self, train_dts, val_dts, validate_on_batch=512, validation_batch_size=32, validation_steps=50,
               save_predictions=False, skip_metrics=False, seed=0, log_frequency=20, starting_epoch=0,
               ema_observations=20, ema_smoothing=2, use_tensorboard=True, steps_per_epoch_override=0,
-              multi_gpu=None, pretrain='imagenet', checkpoint=None, resume_training=None):
+              multi_gpu=True, pretrain='imagenet', checkpoint=None, resume_training=None):
 
-        # Temporary arguments; to be replaced once in a multi-GPU training loop
-        rank = 0
-        num_gpus = 1
+        if resume_training is not None:
+            raise NotImplementedError("PyTorch backend does not support `resume_training`; please use `checkpoint`")
+
         starting_epoch = max(starting_epoch, 1)
         results = {'epochs': {}}
-        device = torch.device("cuda")
+        device = torch.device('cuda:0')
         global_step = 0
         early_stop = False
         last_ema, ema_one_check_prior, ema_two_checks_prior = -1, -1, -1
@@ -432,12 +426,6 @@ class Trainer:
         # Enable TF32 (should be enabled by default)
         torch.backends.cuda.matmul.allow_tf32 = True  # Allow PyTorch to internally use tf32 for matmul
         torch.backends.cudnn.allow_tf32 = True        # Allow PyTorch to internally use tf32 for convolutions
-
-        # Not implemented errors
-        if multi_gpu:
-            raise NotImplementedError
-        if resume_training is not None:
-            raise NotImplementedError("PyTorch backend does not support `resume_training`; please use `checkpoint`")
 
         # Training preparation
         val_tfr = val_dts.tfrecords() if val_dts else None
@@ -458,20 +446,26 @@ class Trainer:
             self.load(checkpoint)
         else:
             self.model = self.hp.build_model(labels=self.labels, pretrain=pretrain, num_slide_features=self.num_slide_features)
-        self.model = self.model.to(device)
 
-        empty_inp = [torch.empty([self.hp.batch_size, 3, train_dts.tile_px, train_dts.tile_px], device=device)]
+        # Print model summary
+        empty_inp = [torch.empty([self.hp.batch_size, 3, train_dts.tile_px, train_dts.tile_px])]
         if self.num_slide_features:
-            empty_inp += [torch.empty([self.hp.batch_size, self.num_slide_features], device=device)]
+            empty_inp += [torch.empty([self.hp.batch_size, self.num_slide_features])]
         if log.getEffectiveLevel() <= 20:
             torch_utils.print_module_summary(self.model, empty_inp)
 
+        # Multi-GPU
+        inference_model = self.model
+        if multi_gpu:
+            self.model = torch.nn.DataParallel(self.model)
+
+        self.model = self.model.to(device)
+
         # Setup dataloaders
         interleave_args = types.SimpleNamespace(
-            rank=rank,
-            num_replicas=num_gpus,
+            rank=0,
+            num_replicas=1,
             labels=self.labels,
-            seed=seed,
             chunk_size=8,
             normalizer=self.normalizer,
             pin_memory=True,
@@ -502,8 +496,9 @@ class Trainer:
         if self.mixed_precision:
             scaler = torch.cuda.amp.GradScaler()
 
-        # Training loop
+        # Epoch loop
         for epoch in range(starting_epoch, max(self.hp.epochs)+1):
+            np.random.seed(seed+epoch)
             if early_stop: break
             if log.getEffectiveLevel() <= 20: print()
             log.info(sf.util.bold('Epoch ' + str(epoch) + '/' + str(max(self.hp.epochs))))
@@ -523,7 +518,8 @@ class Trainer:
                     # Setup up mid-training validation
                     mid_train_val_dts = iter(dataloaders['val']) if (phase == 'train' and val_dts) else None
 
-                    dataloader_pb = tqdm(total=(steps_per_epoch * self.hp.batch_size), unit='img', leave=False)
+                    # === Loop through training dataset ===============================================================
+                    pb = tqdm(total=(steps_per_epoch * self.hp.batch_size), unit='img', leave=False)
                     while step < steps_per_epoch:
                         images, labels, slides = next(dataloaders['train'])
                         images = images.to(device, non_blocking=True)
@@ -541,6 +537,7 @@ class Trainer:
                                 outputs = self.model(*inp)
                                 loss = self.calculate_loss(outputs, labels, loss_fn)
 
+                            # Update weights
                             if self.mixed_precision:
                                 scaler.scale(loss).backward()
                                 scaler.step(optimizer)
@@ -549,12 +546,13 @@ class Trainer:
                                 loss.backward()
                                 optimizer.step()
 
+                        # Record accuracy and loss
                         num_records += images.size(0)
                         running_corrects = self.update_corrects(outputs, labels, running_corrects)
                         acc_desc, _ = self.accuracy_description(running_corrects, num_records)
                         running_loss += loss.item() * images.size(0)
-                        dataloader_pb.set_description(f'{sf.util.bold(sf.util.blue(phase))} loss: {running_loss / num_records:.4f} {acc_desc}')
-                        dataloader_pb.update(images.size(0))
+                        pb.set_description(f'{sf.util.bold(sf.util.blue(phase))} loss: {running_loss / num_records:.4f} {acc_desc}')
+                        pb.update(images.size(0))
 
                         # Log to tensorboard
                         if use_tensorboard and global_step % log_frequency == 0:
@@ -582,7 +580,7 @@ class Trainer:
                                             inp = (val_img, torch.tensor([self.slide_input[s] for s in slides]).to(device))
                                         else:
                                             inp = (val_img,)
-                                        val_outputs = self.model(*inp)
+                                        val_outputs = inference_model(*inp)
                                         val_label = self.labels_to_device(val_label, device)
                                         val_loss = self.calculate_loss(val_outputs, val_label, loss_fn)
 
@@ -630,7 +628,10 @@ class Trainer:
                         step += 1
                         global_step += 1
 
-                    dataloader_pb.close()
+                    pb.close()
+                    # === [end training loop] =========================================================================
+
+                    # Calculate epoch-level accuracy and loss
                     del mid_train_val_dts
                     epoch_loss = running_loss / num_records
                     epoch_acc_desc, epoch_accuracy = self.accuracy_description(running_corrects, num_records)
@@ -648,6 +649,7 @@ class Trainer:
                             epoch_metrics.update({'accuracy': epoch_accuracy.cpu().numpy().tolist()})
                     results['epochs'][f'epoch{epoch}'].update({f'train_metrics': epoch_metrics})
 
+                # === Full dataset validation =========================================================================
                 # Perform full evaluation if the epoch is one of the predetermined epochs at which to save/eval a model
                 if phase == 'val' and (val_dts is not None) and epoch in self.hp.epochs:
                     optimizer.zero_grad()
@@ -679,8 +681,8 @@ class Trainer:
                             slide_input=self.slide_input
                         )
 
-                        # Calculate patient/slide/tile - level metrics (AUC, C-index, R-squared, etc)
-                        metrics, acc, loss = sf.statistics.metrics_from_dataset(self.model,
+                        # Calculate patient/slide/tile - level metrics (AUC, R-squared, C-index, etc)
+                        metrics, acc, loss = sf.statistics.metrics_from_dataset(inference_model,
                                                                                 model_type=self.hp.model_type(),
                                                                                 labels=self.labels,
                                                                                 patients=self.patients,
@@ -704,6 +706,7 @@ class Trainer:
                             epoch_results['patient'] = metrics[metric]['patient']
                     results['epochs'][f'epoch{epoch}'].update(epoch_results)
                     sf.util.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': results['epochs'][f'epoch{epoch}']})
+                # =====================================================================================================
 
         return results
 
