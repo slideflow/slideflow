@@ -82,13 +82,13 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
             np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
         else:
             shard = None
-        it = reader.tfrecord_loader(data_path=self.data_path,
-                                    index=self.index_path,
-                                    description=self.description,
-                                    shard=shard,
-                                    clip=self.clip,
-                                    sequence_description=self.sequence_description,
-                                    compression_type=self.compression_type)
+        it = iter(reader.tfrecord_loader(data_path=self.data_path,
+                                        index=self.index_path,
+                                        description=self.description,
+                                        shard=shard,
+                                        clip=self.clip,
+                                        sequence_description=self.sequence_description,
+                                        compression_type=self.compression_type))
         if self.shuffle_queue_size:
             it = iterator_utils.shuffle_iterator(it, self.shuffle_queue_size)
         if self.transform:
@@ -174,20 +174,26 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         self.infinite = infinite
         self.shard = shard
         self.clip = clip
+        self.loader = None
 
     def __iter__(self):
-        it = reader.multi_tfrecord_loader(paths=self.paths,
-                                          indices=self.indices,
-                                          splits=self.splits,
-                                          description=self.description,
-                                          sequence_description=self.sequence_description,
-                                          compression_type=self.compression_type,
-                                          shard=self.shard,
-                                          clip=self.clip,
-                                          infinite=self.infinite,
-                                         )
+        self.loader = reader.multi_tfrecord_loader(paths=self.paths,
+                                                indices=self.indices,
+                                                splits=self.splits,
+                                                description=self.description,
+                                                sequence_description=self.sequence_description,
+                                                compression_type=self.compression_type,
+                                                shard=self.shard,
+                                                clip=self.clip,
+                                                infinite=self.infinite,
+                                                )
+        it = iter(self.loader)
         if self.shuffle_queue_size:
             it = iterator_utils.shuffle_iterator(it, self.shuffle_queue_size)
         if self.transform:
             it = map(self.transform, it)
         return it
+
+    def close(self):
+        if self.loader is not None:
+            self.loader.close()

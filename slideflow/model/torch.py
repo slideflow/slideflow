@@ -479,6 +479,7 @@ class Trainer:
         }
         if val_dts is not None:
             dataloaders['val'] = val_dts.torch(infinite=False, batch_size=validation_batch_size, augment=False, **vars(interleave_args))
+            mid_train_val_dts = torch_utils.cycle(dataloaders['val'])
             val_log_msg = '' if not validate_on_batch else f'every {str(validate_on_batch)} steps and '
             log.debug(f'Validation during training: {val_log_msg}at epoch end')
             if validation_steps:
@@ -487,6 +488,7 @@ class Trainer:
             else:
                 log.debug(f'Using entire validation set each validation check')
         else:
+            mid_train_val_dts = None
             log.debug('Validation during training: None')
 
         # Model parameters and loss
@@ -516,8 +518,6 @@ class Trainer:
                     self.model.train()
 
                     # Setup up mid-training validation
-                    mid_train_val_dts = iter(dataloaders['val']) if (phase == 'train' and val_dts) else None
-
                     # === Loop through training dataset ===============================================================
                     pb = tqdm(total=(steps_per_epoch * self.hp.batch_size), unit='img', leave=False)
                     while step < steps_per_epoch:
@@ -566,12 +566,7 @@ class Trainer:
                             running_val_correct = 0
                             num_val = 0
                             for _ in range(validation_steps):
-                                try:
-                                    val_img, val_label, slides = next(mid_train_val_dts)
-                                except StopIteration:
-                                    del mid_train_val_dts
-                                    mid_train_val_dts = iter(dataloaders['val'])
-                                    val_img, val_label, slides = next(mid_train_val_dts)
+                                val_img, val_label, slides = next(mid_train_val_dts)
                                 val_img = val_img.to(device)
 
                                 with torch.no_grad():
@@ -632,7 +627,6 @@ class Trainer:
                     # === [end training loop] =========================================================================
 
                     # Calculate epoch-level accuracy and loss
-                    del mid_train_val_dts
                     epoch_loss = running_loss / num_records
                     epoch_acc_desc, epoch_accuracy = self.accuracy_description(running_corrects, num_records)
                     self.log_epoch('train', epoch, epoch_loss, epoch_acc_desc, starttime)

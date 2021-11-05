@@ -1,6 +1,11 @@
 import torch
 import types
 
+def cycle(iterable):
+    while True:
+        for i in iterable:
+            yield i
+
 def print_module_summary(module, inputs, max_nesting=3, skip_redundant=True):
     assert isinstance(module, torch.nn.Module)
     assert not isinstance(module, torch.jit.ScriptModule)

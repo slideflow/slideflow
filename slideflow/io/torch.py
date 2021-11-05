@@ -168,21 +168,26 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         worker_id = 0 if not worker_info else worker_info.id
         num_workers = 1 if not worker_info else worker_info.num_workers
 
-        dataset = interleave(self.tfrecords,
-                             incl_loc=self.incl_loc,
-                             standardize=self.standardize,
-                             augment=self.augment,
-                             prob_weights=self.prob_weights,
-                             clip=self.clip,
-                             infinite=self.infinite,
-                             normalizer=self.normalizer,
-                             num_replicas=self.num_replicas * num_workers,
-                             rank=self.rank + worker_id,
-                             chunk_size=self.chunk_size,
-                             indices=self.indices)
+        dataloader = interleave(self.tfrecords,
+                                incl_loc=self.incl_loc,
+                                standardize=self.standardize,
+                                augment=self.augment,
+                                prob_weights=self.prob_weights,
+                                clip=self.clip,
+                                infinite=self.infinite,
+                                normalizer=self.normalizer,
+                                num_replicas=self.num_replicas * num_workers,
+                                rank=self.rank + worker_id,
+                                chunk_size=self.chunk_size,
+                                indices=self.indices)
 
-        for record in dataset:
-            yield self._parser(*record)
+        try:
+            for record in dataloader:
+                yield self._parser(*record)
+        except GeneratorExit as e:  # Closes open files if iterator terminated early
+            dataloader.close()
+            del(dataloader)
+            raise e
 
     def close(self):
         pass
@@ -274,22 +279,23 @@ def detect_tfrecord_format(tfr):
     '''
 
     try:
-        it = iter(TFRecordDataset(tfr, None, FEATURE_DESCRIPTION, autoshard=False))
-        record = next(it)
+        for record in TFRecordDataset(tfr, None, FEATURE_DESCRIPTION, autoshard=False):
+            img = bytes(record['image_raw'])
+            img_type = imghdr.what('', img)
+            break
         feature_description = FEATURE_DESCRIPTION
     except KeyError:
         feature_description = {k:v for k,v in FEATURE_DESCRIPTION.items() if k in ('slide', 'image_raw')}
         try:
-            it = iter(TFRecordDataset(tfr, None, feature_description, autoshard=False))
-            record = next(it)
+            for record in TFRecordDataset(tfr, None, feature_description, autoshard=False):
+                img = bytes(record['image_raw'])
+                img_type = imghdr.what('', img)
         except KeyError:
             raise TFRecordsError(f"Unable to detect TFRecord format for record: {tfr}")
     except StopIteration:
         log.debug(f"Unable to detect tfrecord format for {tfr}; file is empty.")
         raise StopIteration
 
-    img = bytes(next(it)['image_raw'])
-    img_type = imghdr.what('', img)
     return feature_description, img_type
 
 def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=True, standardize=False,
@@ -414,12 +420,14 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
     else:
         prob_weights = None
 
-    multi_loader = iter(MultiTFRecordDataset(tfrecords,
-                                             indices,
-                                             prob_weights,
-                                             shard=(rank, num_replicas),
-                                             clip=clip,
-                                             infinite=infinite))
+    random_sampler = MultiTFRecordDataset(tfrecords,
+                                          indices,
+                                          prob_weights,
+                                          shard=(rank, num_replicas),
+                                          clip=clip,
+                                          infinite=infinite)
+    sampler_iter = iter(random_sampler)
+
 
     # Worker to decode images and process records
     def threading_worker(record):
@@ -433,56 +441,79 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
 
     # Randomly interleaves datasets according to weights, reading parsed records to a buffer
     # And sending parsed results to a queue after reaching a set buffer size
-    raw_q = Queue(1)
-    proc_q = Queue(1)
+    class QueueRetriever:
+        def __init__(self, sampler, num_threads):
+            self.sampler = sampler
+            self.closed = False
+            self.raw_q = Queue(1)
+            self.proc_q = Queue(1)
+            self.n_threads = num_threads
+            self.n_closed = 0
+            self.il_closed = False
 
-    def interleaver():
-        msg = []
-        while True:
-            try:
-                record = next(multi_loader)
-                msg += [record]
-                if len(msg) < chunk_size:
-                    continue
+            def interleaver():
+                msg = []
+                while not self.closed:
+                    try:
+                        record = next(sampler_iter)
+                        msg += [record]
+                        if len(msg) < chunk_size:
+                            continue
+                        else:
+                            self.raw_q.put(msg)
+                            msg = []
+                    except (StopIteration):
+                        break
+                    except (ValueError, OSError): # Occurs when files are closed
+                        break
+
+                self.raw_q.put(msg)
+                for _ in range(self.n_threads):
+                    self.raw_q.put(None)
+                self.il_closed = True
+
+            # Reads a buffer batch of images/labels and processes images
+            def decoder():
+                while True:
+                    records = self.raw_q.get()
+                    if records is None:
+                        break
+                    decoded = [threading_worker(record) for record in records]
+                    self.proc_q.put(decoded)
+                self.proc_q.put(None)
+
+            # Parallelize the tfrecord reading interleaver, and the image processing decoder
+            self.il_thread = threading.Thread(target=interleaver)
+            self.il_thread.start()
+            self.proc_threads = [threading.Thread(target=decoder) for t in range(self.n_threads)]
+            for proc in self.proc_threads:
+                proc.start()
+
+        def __iter__(self):
+            while True:
+                record = self.proc_q.get()
+                if record is None:
+                    self.n_closed += 1
+                    if self.n_closed == self.n_threads:
+                        break
                 else:
-                    raw_q.put(msg)
-                    msg = []
-            except (StopIteration):
-                break
-        raw_q.put(msg)
-        for _ in range(num_threads):
-            raw_q.put(None)
+                    for item in record:
+                        yield item
 
-    # Reads a buffer batch of images/labels and processes images
-    def decoder():
-        while True:
-            records = raw_q.get()
-            if records is None:
-                proc_q.put(None)
-                break
-            decoded = [threading_worker(record) for record in records]
-            proc_q.put(decoded)
+        def close(self):
+            self.closed = True
 
-    # Parallelize the tfrecord reading interleaver, and the image processing decoder
-    thread = threading.Thread(target=interleaver)
-    thread.start()
-    procs = [threading.Thread(target=decoder) for t in range(num_threads)]
-    for proc in procs:
-        proc.start()
+            # Clear out the queue
+            while self.n_closed < self.n_threads:
+                record = self.proc_q.get()
+                if record is None:
+                    self.n_closed += 1
 
-    def retriever():
-        done = 0
-        while True:
-            record = proc_q.get()
-            if record is None:
-                done += 1
-                if done == num_threads:
-                    return
-            else:
-                for item in record:
-                    yield item
+            self.sampler.close()
+            del self.proc_q
+            del self.raw_q
 
-    return retriever()
+    return QueueRetriever(random_sampler, num_threads)
 
 def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, clip=None, onehot=False, num_tiles=None,
                           incl_slidenames=False, incl_loc=False, infinite=False, rank=0, num_replicas=1, labels=None,
@@ -534,4 +565,5 @@ def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, cl
                                              worker_init_fn=worker_init_fn,
                                              drop_last=False)
     dataloader.num_tiles = iterator.num_tiles
+    dataloader.close = iterator.close # Gives a closing function to the DataLoader to cleanup open files from iter()
     return dataloader
