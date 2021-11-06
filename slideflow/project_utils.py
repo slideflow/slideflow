@@ -8,9 +8,11 @@ from os.path import join, exists
 from slideflow.util import log
 
 def _project_config(name='MyProject', annotations='./annotations.csv', dataset_config='./datasets.json',
-                    sources='source1', models_dir='./models', eval_dir='./eval', mixed_precision=True):
+                    sources=None, models_dir='./models', eval_dir='./eval', mixed_precision=True):
     args = locals()
     args['slideflow_version'] = sf.__version__
+    if sources is None:
+        args['sources'] = []
     return args
 
 def _heatmap_worker(slide, heatmap_args, kwargs):
@@ -22,15 +24,14 @@ def _heatmap_worker(slide, heatmap_args, kwargs):
     sequentially is a functional workaround, hence the process-isolated worker.
     """
 
-    from slideflow.activations import Heatmap
-    heatmap = Heatmap(slide,
-                      model=heatmap_args.model,
-                      stride_div=heatmap_args.stride_div,
-                      rois=heatmap_args.rois,
-                      roi_method=heatmap_args.roi_method,
-                      buffer=heatmap_args.buffer,
-                      batch_size=heatmap_args.batch_size,
-                      num_threads=heatmap_args.num_threads)
+    heatmap = sf.Heatmap(slide,
+                        model=heatmap_args.model,
+                        stride_div=heatmap_args.stride_div,
+                        rois=heatmap_args.rois,
+                        roi_method=heatmap_args.roi_method,
+                        buffer=heatmap_args.buffer,
+                        batch_size=heatmap_args.batch_size,
+                        num_threads=heatmap_args.num_threads)
     heatmap.save(heatmap_args.outdir, **kwargs)
 
 def _train_worker(training_args, model_kwargs, training_kwargs, results_dict):

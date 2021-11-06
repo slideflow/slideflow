@@ -4,24 +4,24 @@ slideflow.statistics
 ====================
 
 In addition to containing functions used during model training and evaluation, this module provides
-the :class:`slideflow.statistics.SlideMap` class designed to assist with visualizing tiles and slides
+the :class:`slideflow.SlideMap` class designed to assist with visualizing tiles and slides
 in two-dimensional space.
 
 Once a model has been trained, tile-level predictions and intermediate layer activations can be calculated
-across an entire dataset with :class:`slideflow.activations.ActivationsVisualizer`.
-The :class:`slideflow.statistics.SlideMap` class can then perform dimensionality reduction on these dataset-wide
+across an entire dataset with :class:`slideflow.model.DatasetFeatures`.
+The :class:`slideflow.SlideMap` class can then perform dimensionality reduction on these dataset-wide
 activations, plotting tiles and slides in two-dimensional space. Visualizing the distribution and clustering
 of tile-level and slide-level layer activations can help reveal underlying structures in the dataset and shared
 visual features among classes.
 
-The primary method of use is first generating an :class:`slideflow.activations.ActivationsVisualizer` from a trained
-model, then creating an instance of a :class:`slideflow.statistics.SlideMap` by using the ``from_activations`` class
+The primary method of use is first generating an :class:`slideflow.model.DatasetFeatures` from a trained
+model, then creating an instance of a :class:`slideflow.SlideMap` by using the ``from_features`` class
 method:
 
 .. code-block:: python
 
-    AV = sf.activations.ActivationsVisualizer(model='/path/', ...)
-    slide_map = sf.statistics.SlideMap.from_activations(AV)
+    df = sf.activations.DatasetFeatures(model='/path/', ...)
+    slide_map = sf.SlideMap.from_features(df)
 
 Alternatively, if you would like to map slides from a dataset in two-dimensional space using pre-calculated *x* and *y*
 coordinates, you can use the ``from_precalculated`` class method. In addition to X and Y, this method requires supplying
@@ -35,13 +35,13 @@ index in the slide TFRecord.
     x = np.array(...)
     y = np.array(...)
     meta = [{'slide': ..., 'index': ...} for i in range(len(x))]
-    slide_map = sf.statistics.SlideMap.from_precalculated(slides, x, y, meta)
+    slide_map = sf.SlideMap.from_precalculated(slides, x, y, meta)
 
 .. automodule: slideflow.statistics
     :imported-members:
 
 SlideMap
----------------
+--------
 
 .. autoclass:: SlideMap
     :inherited-members:

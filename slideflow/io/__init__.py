@@ -61,9 +61,9 @@ def update_manifest_at_dir(directory, force_update=False):
             parser = get_tfrecord_parser(tfr, ('slide',), to_numpy=True)
         except StopIteration:
             return None
-        except Exception as e:
-            log.error(f"Unable to open TFRecords file with {os.environ['SF_BACKEND']}: {str(e)}")
-            return None
+        #except Exception as e:
+        #    log.error(f"Unable to open TFRecords file with {os.environ['SF_BACKEND']}: {str(e)}")
+        #    return None
         total = 0
         try:
             for raw_record in raw_dataset:
@@ -96,6 +96,7 @@ def update_manifest_at_dir(directory, force_update=False):
             log.error(f"Corrupt or incomplete TFRecord at {tfr}; removing")
             os.remove(tfr)
             continue
+        manifest.update(m)
 
     # Write manifest file
     if (manifest != prior_manifest) or (manifest == {}):

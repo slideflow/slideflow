@@ -150,7 +150,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False, 
 
     feature_description, img_type = detect_tfrecord_format(tfrecord_path)
     if feature_description is None:
-        log.warning(f"Unable to read tfrecord at {tfrecord_path} - is it empty?")
+        log.debug(f"Unable to read tfrecord at {tfrecord_path} - is it empty?")
         return None
     if features_to_return is None:
         features_to_return = {k:k for k in feature_description.keys()}

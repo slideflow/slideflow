@@ -278,6 +278,7 @@ def detect_tfrecord_format(tfr):
         dict: Feature description dictionary (including or excluding location data as supported)
     '''
 
+    img_type = None
     try:
         for record in TFRecordDataset(tfr, None, FEATURE_DESCRIPTION, autoshard=False):
             img = bytes(record['image_raw'])
@@ -290,6 +291,7 @@ def detect_tfrecord_format(tfr):
             for record in TFRecordDataset(tfr, None, feature_description, autoshard=False):
                 img = bytes(record['image_raw'])
                 img_type = imghdr.what('', img)
+                break
         except KeyError:
             raise TFRecordsError(f"Unable to detect TFRecord format for record: {tfr}")
     except StopIteration:

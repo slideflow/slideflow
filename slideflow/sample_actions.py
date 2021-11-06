@@ -1,15 +1,15 @@
-def main(SFP):
+def main(P):
     # First run only: automatically associate slide names in the annotations file
     # ---------------------------------------------------------------------------
-    #SFP.associate_slide_names()
+    #P.associate_slide_names()
 
     # Perform tile extraction
     # -----------------------
-    #SFP.extract_tiles(tile_px=299, tile_um=302)
+    #P.extract_tiles(tile_px=299, tile_um=302)
 
     # Train with a hyperparameter sweep
     # ---------------------------------
-    #SFP.create_hyperparameter_sweep(tile_px=[299, 331],
+    #P.create_hyperparameter_sweep(tile_px=[299, 331],
     #                                tile_um=[302],
     #                                epochs=[5],
     #                                toplayer_epochs=0,
@@ -30,9 +30,9 @@ def main(SFP):
     #                                early_stop_method='loss',
     #                                augment=True,
     #                                filename=None)
-    #SFP.train(
+    #P.train(
     #      outcome_label_headers='category',
-    #      hyperparameters='sweep',
+    #      params='sweep',
     #      filters = {
     #          'dataset': 'train',
     #          'category': ['negative', 'positive']
@@ -40,24 +40,24 @@ def main(SFP):
 
     # Evaluate model performance with separate data
     # ---------------------------------------------
-    #SFP.evaluate(model='/path/to/trained_model',
+    #P.evaluate(model='/path/to/trained_model',
     #             outcome_label_headers='category',
     #             filters = {'dataset': ['eval']})
 
     # Create heatmaps of predictions with a certain model
     # ---------------------------------------------------
-    #SFP.generate_heatmaps(model='/path/to/trained_model',
+    #P.generate_heatmaps(model='/path/to/trained_model',
     #                      filters = {'dataset': ['eval']})
 
     # Visualize and analyze layer activations
     # ---------------------------------------------------
-    #AV = SFP.generate_activations(model='/path/to/trained_model',
-    #                              outcome_label_header="HPV",
-    #                              filters={"HPV": ["HPV+", "HPV-"]})
+    #df = P.generate_features(model='/path/to/trained_model',
+#                               outcome_label_header="HPV",
+#                               filters={"HPV": ["HPV+", "HPV-"]})
 
     # Generate a mosaic map of tiles using a certain model
     # ----------------------------------------------------
-    #mosaic = SFP.generate_mosaic(AV, resolution='high')
+    #mosaic = P.generate_mosaic(df, resolution='high')
     #mosaic.save('/path.png')
     #mosaic.slide_map.save('/path.png')
     pass

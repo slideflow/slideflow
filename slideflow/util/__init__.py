@@ -484,13 +484,13 @@ def get_slides_from_model_manifest(model_path, dataset=None):
 def get_model_config(model_path):
     """Loads model configuration JSON file."""
 
-    if exists(join(model_path, 'hyperparameters.json')):
-        return load_json(join(model_path, 'hyperparameters.json'))
-    elif exists(join(dirname(model_path), 'hyperparameters.json')):
+    if exists(join(model_path, 'params.json')):
+        return load_json(join(model_path, 'params.json'))
+    elif exists(join(dirname(model_path), 'params.json')):
         if sf.backend() == 'tensorflow':
             log.warning("Hyperparameters file not found in model directory; loading from parent directory. " + \
-                        "Please move hyperparameters.json into model folder.")
-        return load_json(join(dirname(model_path), 'hyperparameters.json'))
+                        "Please move params.json into model folder.")
+        return load_json(join(dirname(model_path), 'params.json'))
     else:
         log.warning("Hyperparameters file not found.")
         return None

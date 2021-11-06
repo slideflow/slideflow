@@ -119,6 +119,8 @@ class TFRecordIterator:
             else:
                 shard_idx, shard_count = self.shard
                 all_shard_indices = np.array_split(self.index, shard_count)
+                if shard_count >= self.index.shape[0]:
+                    return
                 start_byte = all_shard_indices[shard_idx][0]
                 if shard_idx < (shard_count-1):
                     end_byte = all_shard_indices[shard_idx + 1][0]

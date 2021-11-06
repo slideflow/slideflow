@@ -59,16 +59,16 @@ if __name__=='__main__':
         actions_name = actions_file.split('/')[-1].replace('.py', '')
         actions = __import__(actions_name)
         # Create project
-        SFP = sf.Project(actions.project,
+        P = sf.Project(actions.project,
                                   gpu=args.gpu,
                                   gpu_pool=args.gpu_pool)
         # Auto-update slidenames for newly added slides
-        SFP.associate_slide_names()
+        P.associate_slide_names()
         # Execute actions
-        actions.main(SFP)
+        actions.main(P)
         # Move actions file into finished category
         shutil.move(actions_file, finished_dir)
     # Release GPU
-        SFP.release_gpu()
+        P.release_gpu()
         # Delete old project
-        del(SFP)
+        del(P)

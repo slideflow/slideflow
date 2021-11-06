@@ -11,8 +11,8 @@ To use existing TFRecords that contain tiles extracted with ``slideflow``, use t
 
 .. code-block:: python
 
-    SFP = sf.Project('/project/path', ...)
-    dts = SFP.dataset(tile_px=299, tile_um=302, filters=None)
+    P = sf.Project('/project/path', ...)
+    dts = P.dataset(tile_px=299, tile_um=302, filters=None)
 
 If you want to perform any balancing, use the :meth:`slideflow.dataset.Datset.balance` method:
 

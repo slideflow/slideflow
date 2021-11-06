@@ -40,7 +40,7 @@ class Project:
     .. code-block:: python
 
         >>> import slideflow as sf
-        >>> SFP = sf.Project.from_prompt('/project/path')
+        >>> P = sf.Project.from_prompt('/project/path')
         What is the project name?
 
     *Manual configuration:*
@@ -48,7 +48,7 @@ class Project:
     .. code-block:: python
 
         >>> import slideflow as sf
-        >>> SFP = sf.Project('/project/path', name=..., ...)
+        >>> P = sf.Project('/project/path', name=..., ...)
 
     """
 
@@ -310,6 +310,8 @@ class Project:
         if not path:
             path = self.dataset_config
         project_utils.add_source(name, slides, roi, tiles, tfrecords, path)
+        if name not in self.sources:
+            self.sources += [name]
 
     def associate_slide_names(self):
         """Automatically associate patient names with slide filenames in the annotations file."""
@@ -567,7 +569,7 @@ class Project:
         except:
             git_commit = None
 
-        hp_file = join(model_dir, 'hyperparameters.json')
+        hp_file = join(model_dir, 'params.json')
 
         config = {
             'slideflow_version': sf.__version__,
@@ -816,10 +818,10 @@ class Project:
         dataset = self.dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank)
         dataset.extract_tiles_from_tfrecords(dest)
 
-    def generate_activations(self, model, dataset=None, filters=None, filter_blank=None, min_tiles=0, max_tiles=0,
-                             outcome_label_headers=None, torch_export=None, **kwargs):
+    def generate_features(self, model, dataset=None, filters=None, filter_blank=None, min_tiles=0, max_tiles=0,
+                         outcome_label_headers=None, torch_export=None, **kwargs):
 
-        """Calculate final layer activations and provide interface for calculating statistics.
+        """Calculate layer features / activations and provide interface for calculating statistics.
 
         Args:
             model (str): Path to model
@@ -846,10 +848,8 @@ class Project:
             batch_size (int): Batch size to use when calculating activations. Defaults to 32.
 
         Returns:
-            :class:`slideflow.activations.ActivationsVisualizer`: Activations visualizer.
+            :class:`slideflow.model.DatasetFeatures`:
         """
-
-        from slideflow.activations import ActivationsVisualizer
 
         # Setup directories
         stats_root = join(self.root, 'stats')
@@ -877,15 +877,15 @@ class Project:
         outcome_annotations = dataset.labels(outcome_label_headers, format='name')[0] if outcome_label_headers else None
         log.info(f'Visualizing activations from {len(dataset.tfrecords())} slides')
 
-        AV = ActivationsVisualizer(model=model,
-                                   dataset=dataset,
-                                   annotations=outcome_annotations,
-                                   manifest=dataset.manifest(),
-                                   **kwargs)
+        df = sf.model.DatasetFeatures(model=model,
+                                      dataset=dataset,
+                                      annotations=outcome_annotations,
+                                      manifest=dataset.manifest(),
+                                      **kwargs)
         if torch_export:
-            AV.export_to_torch(torch_export)
+            df.export_to_torch(torch_export)
 
-        return AV
+        return df
 
     def generate_features_for_clam(self, model, outdir='auto', layers=['postconv'], max_tiles=0, min_tiles=16,
                                    filters=None, filter_blank=None, force_regenerate=False):
@@ -949,19 +949,19 @@ class Project:
             activation_filters['slide'] = slides_to_generate
             filtered_dataset = self.dataset(tile_px, tile_um, filters=activation_filters, filter_blank=filter_blank)
             filtered_slides_to_generate = filtered_dataset.slides()
-            log.info(f'Activations already generated for {len(already_generated)} files, will not regenerate.')
+            log.info(f'Features already generated for {len(already_generated)} files, will not regenerate.')
             log.info(f'Attempting to generate for {len(filtered_slides_to_generate)} slides')
 
         # Set up activations interface
-        self.generate_activations(model,
-                                  filters=activation_filters,
-                                  filter_blank=filter_blank,
-                                  layers=layers,
-                                  max_tiles=max_tiles,
-                                  min_tiles=min_tiles,
-                                  torch_export=outdir,
-                                  include_logits=False,
-                                  cache=None)
+        self.generate_features(model,
+                               filters=activation_filters,
+                               filter_blank=filter_blank,
+                               layers=layers,
+                               max_tiles=max_tiles,
+                               min_tiles=min_tiles,
+                               torch_export=outdir,
+                               include_logits=False,
+                               cache=None)
         return outdir
 
     def generate_heatmaps(self, model, filters=None, filter_blank=None, outdir=None, resolution='low', batch_size=64,
@@ -1056,18 +1056,18 @@ class Project:
             process.start()
             process.join()
 
-    def generate_mosaic(self, AV, dataset=None, filters=None, filter_blank=None, outcome_label_headers=None,
+    def generate_mosaic(self, df, dataset=None, filters=None, filter_blank=None, outcome_label_headers=None,
                         map_slide=None, show_prediction=None, restrict_pred=None, predict_on_axes=None, max_tiles=0,
                         umap_cache=None, use_float=False, low_memory=False, **kwargs):
 
         """Generates a mosaic map by overlaying images onto a set of mapped tiles.
-            Image tiles are extracted from the provided set of TFRecords, and predictions + post-convolutional
-            node activations are calculated using the specified model. Tiles are mapped either with dimensionality
-            reduction on post-convolutional layer activations (default behavior), or by using outcome predictions
-            for two categories, mapped to X- and Y-axis (via predict_on_axes).
+            Image tiles are extracted from the provided set of TFRecords, and predictions + features from
+            post-convolutional layer activations are calculated using the specified model. Tiles are mapped either
+            with dimensionality reduction on post-convolutional layer activations (default behavior), or by using
+            outcome predictions for two categories, mapped to X- and Y-axis (via predict_on_axes).
 
         Args:
-            AV (:class:`slideflow.activations.ActivationsVisualizer`): ActivationsVisualizer containing model activations.
+            df (:class:`slideflow.model.DatasetFeatures`): DatasetFeatures containing model features.
             dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset object from which to generate mosaic.
                 If not supplied, will generate mosaic for all project tfrecords at the tile_px/tile_um
                 matching the supplied model, optionally using provided filters and filter_blank.
@@ -1107,8 +1107,6 @@ class Project:
             :class:`slideflow.mosaic.Mosaic`: Mosaic object.
         """
 
-        from slideflow.mosaic import Mosaic
-
         # Set up paths
         stats_root = join(self.root, 'stats')
         mosaic_root = join(self.root, 'mosaic')
@@ -1116,7 +1114,7 @@ class Project:
         if not exists(mosaic_root): os.makedirs(mosaic_root)
 
         # Prepare dataset & model
-        config = sf.util.get_model_config(AV.model)
+        config = sf.util.get_model_config(df.model)
         if dataset is None:
             tile_px, tile_um = config['hp']['tile_px'], config['hp']['tile_um']
             dataset = self.dataset(tile_px=tile_px,
@@ -1150,11 +1148,11 @@ class Project:
 
         # If showing predictions, try to automatically load prediction labels
         if (show_prediction is not None) and (not use_float):
-            model_hp = sf.util.get_model_config(AV.model)
+            model_hp = sf.util.get_model_config(df.model)
             if model_hp:
                 outcome_labels = model_hp['outcome_labels']
                 model_type = model_type if model_type else model_hp['model_type']
-                log.info(f'Automatically loaded prediction labels found at {sf.util.green(AV.model)}')
+                log.info(f'Automatically loaded prediction labels found at {sf.util.green(df.model)}')
             else:
                 log.info(f'Unable to auto-detect prediction labels from model hyperparameters file')
 
@@ -1163,18 +1161,18 @@ class Project:
 
         if predict_on_axes:
             # Create mosaic using x- and y- axis corresponding to label predictions
-            umap_x, umap_y, umap_meta = AV.map_to_predictions(predict_on_axes[0], predict_on_axes[1])
+            umap_x, umap_y, umap_meta = df.map_to_predictions(predict_on_axes[0], predict_on_axes[1])
             umap = sf.statistics.SlideMap.from_precalculated(slides=dataset.slides(),
                                                              x=umap_x,
                                                              y=umap_y,
                                                              meta=umap_meta)
         else:
             # Create mosaic map from dimensionality reduction on post-convolutional layer activations
-            umap = sf.statistics.SlideMap.from_activations(AV,
-                                                           map_slide=map_slide,
-                                                           prediction_filter=restrict_pred,
-                                                           cache=umap_cache,
-                                                           low_memory=low_memory)
+            umap = sf.statistics.SlideMap.from_features(df,
+                                                        map_slide=map_slide,
+                                                        prediction_filter=restrict_pred,
+                                                        cache=umap_cache,
+                                                        low_memory=low_memory)
 
         # If displaying centroid AND predictions, then show slide-level predictions rather than tile-level predictions
         if (map_slide=='centroid') and show_prediction is not None:
@@ -1185,10 +1183,10 @@ class Project:
 
             # Get predictions
             if model_type == 'categorical':
-                slide_pred = AV.logits_predict(restrict_pred)
-                slide_percent = AV.logits_percent(restrict_pred)
+                slide_pred = df.logits_predict(restrict_pred)
+                slide_percent = df.logits_percent(restrict_pred)
             else:
-                slide_pred = slide_percent = AV.logits_mean()
+                slide_pred = slide_percent = df.logits_mean()
 
             # If show_prediction is provided (either a number or string),
             # then display ONLY the prediction for the provided category, as a colormap
@@ -1221,7 +1219,11 @@ class Project:
             umap.label_by_tile_meta('prediction', translation_dict=outcome_labels)
         umap.filter(dataset.slides())
 
-        mosaic = Mosaic(umap, dataset.tfrecords(), normalizer=AV.normalizer, normalizer_source=AV.normalizer_source, **kwargs)
+        mosaic = sf.Mosaic(umap,
+                           dataset.tfrecords(),
+                           normalizer=df.normalizer,
+                           normalizer_source=df.normalizer_source,
+                           **kwargs)
         return mosaic
 
     def generate_mosaic_from_annotations(self, header_x, header_y, dataset, model=None, mosaic_filename=None,
@@ -1268,9 +1270,6 @@ class Project:
             tile_zoom (int): Tile zoom level. Defaults to 15.
         """
 
-        from slideflow.activations import ActivationsVisualizer
-        from slideflow.mosaic import Mosaic
-
         # Setup paths
         stats_root = join(self.root, 'stats')
         mosaic_root = join(self.root, 'mosaic')
@@ -1301,19 +1300,18 @@ class Project:
             return
         elif use_optimal_tile:
             # Calculate most representative tile in each slide/TFRecord for display
-            AV = ActivationsVisualizer(model=model,
-                                       dataset=dataset,
-                                       batch_size=batch_size,
-                                       cache=activations_cache)
+            df = sf.model.DatasetFeatures(model=model,
+                                                dataset=dataset,
+                                                batch_size=batch_size,
+                                                cache=activations_cache)
 
-            optimal_slide_indices, _ = sf.statistics.calculate_centroid(AV.activations)
+            optimal_slide_indices, _ = sf.statistics.calculate_centroid(df.activations)
 
             # Restrict mosaic to only slides that had enough tiles to calculate an optimal index from centroid
             successful_slides = list(optimal_slide_indices.keys())
             num_warned = 0
             warn_threshold = 3
             for slide in slides:
-                print_func = print if num_warned < warn_threshold else None
                 if slide not in successful_slides:
                     log.warn(f'Unable to calculate optimal tile for {sf.util.green(slide)}; will skip')
                     num_warned += 1
@@ -1332,12 +1330,12 @@ class Project:
                                                          y=umap_y,
                                                          meta=umap_meta)
 
-        mosaic_map = Mosaic(umap,
-                            dataset.tfrecords(),
-                            tile_select='centroid' if use_optimal_tile else 'nearest',
-                            normalizer=normalizer,
-                            normalizer_source=normalizer_source,
-                            **kwargs)
+        mosaic_map = sf.Mosaic(umap,
+                               dataset.tfrecords(),
+                               tile_select='centroid' if use_optimal_tile else 'nearest',
+                               normalizer=normalizer,
+                               normalizer_source=normalizer_source,
+                               **kwargs)
         if mosaic_filename:
             mosaic_map.save(join(mosaic_root, mosaic_filename))
             mosaic_map.save_report(join(stats_root, sf.util.path_to_name(mosaic_filename)+'-mosaic_report.csv'))
@@ -1629,9 +1627,6 @@ class Project:
                 Pixels in HSV format with saturation below this threshold are considered grayspace.
         """
 
-        from slideflow.slide import WSI, TileCorruptionError
-        from slideflow.activations import ActivationsInterface
-
         log.info('Generating WSI prediction / activation maps...')
         if not exists(outdir):
             os.makedirs(outdir)
@@ -1671,14 +1666,14 @@ class Project:
             log.info('Verifying slides...')
             total_tiles = 0
             for slide_path in tqdm(slide_list, leave=False):
-                slide = WSI(slide_path,
-                            tile_px,
-                            tile_um,
-                            stride_div,
-                            roi_dir=roi_dir,
-                            roi_method=roi_method,
-                            skip_missing_roi=False,
-                            buffer=None)
+                slide = sf.slide.WSI(slide_path,
+                                    tile_px,
+                                    tile_um,
+                                    stride_div,
+                                    roi_dir=roi_dir,
+                                    roi_method=roi_method,
+                                    skip_missing_roi=False,
+                                    buffer=None)
                 log.debug(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
                 total_tiles += slide.estimated_num_tiles
                 del slide
@@ -1686,28 +1681,28 @@ class Project:
 
             for slide_path in slide_list:
                 log.info(f'Working on slide {sf.util.path_to_name(slide_path)}')
-                whole_slide = WSI(slide_path,
-                                  tile_px,
-                                  tile_um,
-                                  stride_div,
-                                  enable_downsample=enable_downsample,
-                                  roi_dir=roi_dir,
-                                  roi_method=roi_method,
-                                  randomize_origin=randomize_origin,
-                                  skip_missing_roi=skip_missing_roi,
-                                  buffer=buffer)
+                whole_slide = sf.slide.WSI(slide_path,
+                                        tile_px,
+                                        tile_um,
+                                        stride_div,
+                                        enable_downsample=enable_downsample,
+                                        roi_dir=roi_dir,
+                                        roi_method=roi_method,
+                                        randomize_origin=randomize_origin,
+                                        skip_missing_roi=skip_missing_roi,
+                                        buffer=buffer)
 
                 if not whole_slide.loaded_correctly():
                     continue
 
                 try:
-                    interface = ActivationsInterface(model, include_logits=False)
+                    interface = sf.model.Features(model, include_logits=False)
                     wsi_grid = interface(whole_slide, num_threads=12)
 
                     with open (join(outdir, whole_slide.name+'.pkl'), 'wb') as pkl_file:
                         pickle.dump(wsi_grid, pkl_file)
 
-                except TileCorruptionError:
+                except sf.slide.TileCorruptionError:
                     formatted_slide = sf.util.green(sf.util.path_to_name(slide_path))
                     if enable_downsample:
                         log.warn(f'Corrupt tile in {formatted_slide}; consider disabling downsampling')
@@ -1736,7 +1731,7 @@ class Project:
 
         raise DeprecationWarning("Function moved to slideflow.dataset.Dataset.tfrecord_report()")
 
-    def train(self, outcome_label_headers, hyperparameters, exp_label=None, filters=None, filter_blank=None,
+    def train(self, outcome_label_headers, params, exp_label=None, filters=None, filter_blank=None,
               input_header=None, resume_training=None, checkpoint=None, pretrain='imagenet', min_tiles=0, max_tiles=0,
               multi_gpu=False, splits="splits.json", **training_kwargs):
 
@@ -1744,7 +1739,7 @@ class Project:
 
         Args:
             outcome_label_headers (str): Str or list of str. Annotation column header specifying the outcome label(s).
-            hyperparameters (:class:`slideflow.model.ModelParams`, list, dict, or str): Defaults to 'sweep'.
+            params (:class:`slideflow.model.ModelParams`, list, dict, or str): Defaults to 'sweep'.
                 If 'sweep', will use project batch train configuration file to sweep through all HP combinations.
                 Additionally, a :class:`slideflow.model.ModelParams` may be provided, either individually,
                 as a list, or as a dictionary mapping model names to HP objects. Please see examples below for use.
@@ -1796,25 +1791,25 @@ class Project:
             Method 1 (hyperparameter sweep from a configuration file):
 
                 >>> import slideflow.model
-                >>> SFP.train('outcome', hyperparameters='sweep.json', ...)
+                >>> P.train('outcome', params='sweep.json', ...)
 
             Method 2 (manually specified hyperparameters):
 
                 >>> from slideflow.model import ModelParams
                 >>> hp = ModelParams(...)
-                >>> SFP.train('outcome', hyperparameters=hp, ...)
+                >>> P.train('outcome', params=hp, ...)
 
             Method 3 (list of hyperparameters):
 
                 >>> from slideflow.model import ModelParams
                 >>> hp = [ModelParams(...), ModelParams(...)]
-                >>> SFP.train('outcome', hyperparameters=hp, ...)
+                >>> P.train('outcome', params=hp, ...)
 
             Method 4 (dict of hyperparameters):
 
                 >>> from slideflow.model import ModelParams
                 >>> hp = {'HP0': ModelParams(...), 'HP1': ModelParams(...)}
-                >>> SFP.train('outcome', hyperparameters=hp, ...)
+                >>> P.train('outcome', params=hp, ...)
 
         """
 
@@ -1828,25 +1823,25 @@ class Project:
             log.info(f'Training with {num_o} variables as simultaneous outcomes: {", ".join(outcome_label_headers)}')
 
         # Prepare hyperparameters
-        if isinstance(hyperparameters, str):
-            if exists(hyperparameters):
-                hp_dict = sf.model.get_hp_from_batch_file(hyperparameters)
-            elif exists(join(self.root, hyperparameters)):
-                hp_dict = sf.model.get_hp_from_batch_file(join(self.root, hyperparameters))
+        if isinstance(params, str):
+            if exists(params):
+                hp_dict = sf.model.get_hp_from_batch_file(params)
+            elif exists(join(self.root, params)):
+                hp_dict = sf.model.get_hp_from_batch_file(join(self.root, params))
             else:
-                raise OSError(f"Unable to find hyperparameters file {hyperparameters}")
-        elif isinstance(hyperparameters, sf.model.ModelParams):
-            hp_dict = {'HP0': hyperparameters}
-        elif isinstance(hyperparameters, list):
-            if not all([isinstance(hp, sf.model.ModelParams) for hp in hyperparameters]):
+                raise OSError(f"Unable to find hyperparameters file {params}")
+        elif isinstance(params, sf.model.ModelParams):
+            hp_dict = {'HP0': params}
+        elif isinstance(params, list):
+            if not all([isinstance(hp, sf.model.ModelParams) for hp in params]):
                 raise sf.util.UserError('If supplying list of hyperparameters, items must be sf.model.ModelParams')
-            hp_dict = {f'HP{i}':hp for i,hp in enumerate(hyperparameters)}
-        elif isinstance(hyperparameters, dict):
-            if not all([isinstance(hp, str) for hp in hyperparameters.keys()]):
+            hp_dict = {f'HP{i}':hp for i,hp in enumerate(params)}
+        elif isinstance(params, dict):
+            if not all([isinstance(hp, str) for hp in params.keys()]):
                 raise sf.util.UserError('If supplying dict of hyperparameters, keys must be of type str')
-            if not all([isinstance(hp, sf.model.ModelParams) for hp in hyperparameters.values()]):
+            if not all([isinstance(hp, sf.model.ModelParams) for hp in params.values()]):
                 raise sf.util.UserError('If supplying dict of hyperparameters, values must be sf.model.ModelParams')
-            hp_dict = hyperparameters
+            hp_dict = params
 
         # Get default validation settings from kwargs
         val_kwargs = {k[4:]:v for k,v in training_kwargs.items() if k[:4] == 'val_'}
@@ -2047,7 +2042,7 @@ class Project:
                     git_commit = None
 
                 # Log model settings and hyperparameters
-                config_file = join(model_dir, 'hyperparameters.json')
+                config_file = join(model_dir, 'params.json')
                 config = {
                     'slideflow_version': sf.__version__,
                     'project': self.name,
@@ -2168,20 +2163,20 @@ class Project:
         Examples
             Train with basic settings:
 
-                >>> dataset = SFP.dataset(tile_px=299, tile_um=302)
-                >>> SFP.generate_features_for_clam('/model/', outdir='/pt_files/')
-                >>> SFP.train_clam('NAME', '/pt_files', 'category1', dataset)
+                >>> dataset = P.dataset(tile_px=299, tile_um=302)
+                >>> P.generate_features_for_clam('/model/', outdir='/pt_files/')
+                >>> P.train_clam('NAME', '/pt_files', 'category1', dataset)
 
             Specify a specific layer from which to generate activations:
 
-                >>> SFP.generate_features_for_clam(..., layers=['postconv'])
+                >>> P.generate_features_for_clam(..., layers=['postconv'])
 
             Manually configure CLAM settings, with 5-fold validation and SVM bag loss:
 
                 >>> import slideflow.clam as clam
                 >>> clam_args = clam.get_args(k=5, bag_loss='svm')
-                >>> SFP.generate_features_for_clam(...)
-                >>> SFP.train_clam(..., clam_args=clam_args)
+                >>> P.generate_features_for_clam(...)
+                >>> P.train_clam(..., clam_args=clam_args)
         """
 
         import slideflow.clam as clam

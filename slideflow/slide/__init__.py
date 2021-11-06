@@ -816,7 +816,7 @@ class WSI(_BaseLoader):
 
     def __init__(self, path, tile_px, tile_um, stride_div=1, enable_downsample=False, roi_dir=None, rois=None,
                  roi_method='inside', skip_missing_roi=False, randomize_origin=False, buffer=None, pb=None,
-                 pb_counter=None, counter_lock=None):
+                 pb_counter=None, counter_lock=None, silent=False):
 
         """Loads slide and ROI(s).
 
@@ -842,6 +842,7 @@ class WSI(_BaseLoader):
             pb_counter (obj): Multiprocessing counter (a multiprocessing Value, from Progress Bar) used to follow
                 tile extraction progress. Defaults to None.
             counter_lock (obj): Lock object for updating pb_counter, if provided. Defaults to None.
+            silent (bool, optional): Suppresses warnings about slide skipping if ROIs are missing. Defaults to False.
         """
 
         super().__init__(path, tile_px, tile_um, stride_div, enable_downsample, buffer, pb, pb_counter, counter_lock)
@@ -883,15 +884,21 @@ class WSI(_BaseLoader):
         if not len(self.rois) and roi_method != 'ignore' and not (rois or roi_dir):
             # No ROIs found because the user did not provide rois or roi_dir, but the roi_method is not set to 'ignore',
             # indicating that this may be user error.
-            log.warning(f"No ROIs provided for {self.name} (suppress this warning with roi_method='ignore')")
+            warn_msg = f"No ROIs provided for {self.name} (suppress this warning with roi_method='ignore')"
+            if not silent:  log.warning(warn_msg)
+            else:           log.debug(warn_msg)
         if not len(self.rois) and skip_missing_roi and roi_method != 'ignore':
-            log.error(f"No ROI found for, skipping slide")
+            warn_msg = f"No ROI found for {sf.util.green(self.name)}, skipping slide"
+            if not silent:  log.warning(warn_msg)
+            else:           log.debug(warn_msg)
             self.shape = None
             self.load_error = True
             return None
         elif not len(self.rois):
+            info_msg = f"No ROI found for {sf.util.green(self.name)}, using whole slide."
+            if not silent:  log.info(info_msg)
+            else:           log.debug(info_msg)
             self.estimated_num_tiles = int(len(self.coord))
-            log.info(f"No ROI found for {sf.util.green(self.name)}, using whole slide.")
             self.roi_method = 'ignore'
 
         mpp_roi_msg = f'{self.MPP} um/px | {len(self.rois)} ROI(s)'

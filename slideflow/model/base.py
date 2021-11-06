@@ -7,6 +7,9 @@ from slideflow.slide import StainNormalizer
 
 """Base classes to be extended by framework-specific implementations."""
 
+class FeatureError(Exception):
+    pass
+
 class ModelParams:
     """Build a set of hyperparameters."""
 

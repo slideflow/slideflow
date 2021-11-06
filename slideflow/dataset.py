@@ -177,7 +177,8 @@ class Dataset:
         for source in self.sources:
             self.sources[source]['label'] = label
 
-        self.load_annotations(annotations)
+        if annotations is not None:
+            self.load_annotations(annotations)
 
     def __repr__(self):
         return "Dataset(config={!r}, sources={!r}, tile_px={!r}, tile_um={!r})".format(self._config, self.sources_names, self.tile_px, self.tile_um)
@@ -535,7 +536,8 @@ class Dataset:
                                          stride_div,
                                          roi_dir=roi_dir,
                                          roi_method=roi_method,
-                                         skip_missing_roi=skip_missing_roi)
+                                         skip_missing_roi=skip_missing_roi,
+                                         silent=True)
                 log.debug(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
                 total_tiles += slide.estimated_num_tiles
                 del slide
@@ -653,7 +655,7 @@ class Dataset:
             for tfr in to_extract_tfrecords:
                 sf.io.extract_tiles(tfr, tiles_dir)
 
-    def filter(self, **kwargs):
+    def filter(self, *args, **kwargs):
         """Return a filtered dataset.
 
         Keyword Args:
@@ -665,7 +667,11 @@ class Dataset:
         Returns:
             :class:`slideflow.dataset.Dataset` object.
         """
-
+        if len(args) == 1 and 'filters' not in kwargs:
+            kwargs['filters'] = args[0]
+        elif len(args):
+            raise DatasetError("filter() accepts either only one argument (filters), or any combination of keyword" + \
+                               "arguments (filters, filter_blank, min_tiles)")
         for kwarg in kwargs:
             if kwarg not in ('filters', 'filter_blank', 'min_tiles'):
                 raise sf.util.UserError(f'Unknown filtering argument {kwarg}')

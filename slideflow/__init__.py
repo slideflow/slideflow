@@ -12,7 +12,7 @@ if 'SF_BACKEND' not in os.environ:
 
 import slideflow.io
 import slideflow.model
-from slideflow.activations import ActivationsInterface, ActivationsVisualizer, Heatmap
+from slideflow.heatmap import Heatmap
 from slideflow.dataset import Dataset
 from slideflow.mosaic import Mosaic
 from slideflow.project import Project
@@ -32,7 +32,7 @@ def backend():
 
 # Version planning (v1.13)
 #TODO: finish a couple more tutorials
-#       - Tutorial 2: Heatmaps, Mosaic maps, ActivationsVisualizer
+#       - Tutorial 2: Heatmaps, Mosaic maps, DatasetFeatures
 #       - Tutorial 3: CLAM
 #       - Tutorial 4: Cancer non-cancer
 #       - Tutorial 5: Comparing normalizers
@@ -44,6 +44,18 @@ def backend():
 #TODO: pytorch neptune integration
 #TODO: tensorflow metrics from predictions backend
 #TODO: better extraction reports
+
+#DONE:
+# sf.activations.ActivationsVisualizer -> sf.model.DatasetFeatures
+# sf.activations.tensorflow/torch.ActivationsInterface -> Features
+# SFP.SlideMap.from_activations -> from_features
+# DatasetFeatures.feature_stats() -> stats()
+# ActivationsError -> FeatureError
+# sf.activations.Heatmap -> sf.heatmap.Heatmap
+# SFP.generate_activations -> generate_features
+# SFP -> project
+# train(hyperparameters=) -> train(params=)
+# hyperparameters.json -> params.json
 
 # Low priority consistency/style changes:
 # ---------------------

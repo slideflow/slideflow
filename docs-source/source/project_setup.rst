@@ -32,7 +32,7 @@ To interactively create a new project, initialize a Project with the ``from_prom
 .. code-block:: python
 
     import slideflow as sf
-    SFP = sf.Project.from_prompt('/path/to/project/directory')
+    P = sf.Project.from_prompt('/path/to/project/directory')
 
 You will then be prompted for each project configuration setting.
 
@@ -41,16 +41,16 @@ Alternatively, you may provide this configuration through keyword arguments:
 .. code-block:: python
 
     import slideflow as sf
-    SFP = sf.Project('/path/to/project/directory', name="MyProject", ...)
+    P = sf.Project('/path/to/project/directory', name="MyProject", ...)
 
 Once a project has been initialized at a directory, you may then load the project with the following syntax:
 
 .. code-block:: python
 
     import slideflow as sf
-    SFP = sf.Project('/path/to/project/directory')
+    P = sf.Project('/path/to/project/directory')
 
-Pipeline functions are then called on ``SFP``.
+Pipeline functions are then called on ``P``.
 
 Alternatively, you can use the bundled ``run_project.py`` script to execute project functions. This script helps by setting some useful environmental variables and can be used to easily manage GPU allocations. It initializes a ``Project`` object at a given directory, then looks for and loads an ``actions.py`` file in this directory, executing functions contained therein.
 
@@ -85,7 +85,7 @@ Datasets are configured either interactively at the time of project initializati
 
 .. code-block:: python
 
-    SFP.add_dataset( name="NAME",
+    P.add_dataset( name="NAME",
                      slides="/slides/directory",
                      roi="/roi/directory",
                      tiles="/tiles/directory",
@@ -119,7 +119,7 @@ An example annotations file is generated each time a new project is initialized.
 
 .. code-block:: python
 
-    SFP.create_blank_annotations()
+    P.create_blank_annotations()
 
 Slide names do not need to be explicitly set in the annotations file by the user. Rather, once a dataset has been set up, slideflow will search through the linked slide directories and attempt to match slides to entries in the annotations file using **submitter_id**. Entries that are blank in the **slide** column will be auto-populated with any detected and matching slides, if available.
 
@@ -132,10 +132,10 @@ If you plan to use ``run_project.py``, open the ``actions.py`` file located in t
 
 .. code-block:: python
 
-    def main(SFP):
-        #SFP.extract_tiles(filters = {'to_extract': 'yes'})
+    def main(P):
+        #P.extract_tiles(filters = {'to_extract': 'yes'})
 
-        #SFP.train(
+        #P.train(
         #      outcome_label_headers="category",
         #      filters = {
         #          'dataset': 'train',
@@ -144,9 +144,9 @@ If you plan to use ``run_project.py``, open the ``actions.py`` file located in t
         #      batch_file='batch_train.tsv')
 
         #model_to_evaluate = '/path_to_model/'
-        #SFP.evaluate(model=model_to_evaluate, outcome_label_headers="category", filters = {'dataset': 'eval'})
-        #SFP.generate_heatmaps(model_to_evaluate)
-        #SFP.generate_mosaic(model_to_evaluate)
+        #P.evaluate(model=model_to_evaluate, outcome_label_headers="category", filters = {'dataset': 'eval'})
+        #P.generate_heatmaps(model_to_evaluate)
+        #P.generate_mosaic(model_to_evaluate)
         pass
 
 The ``main()`` function contains several example functions. These serve as examples to help remind you of functions and arguments you can use on projects.

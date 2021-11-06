@@ -82,7 +82,7 @@ class TileVisualizer:
         log.info(f'Node: {sf.util.bold(str(node))} | Shape: ({self.IMAGE_SHAPE}) | Window size: {self.MASK_WIDTH}')
         log.info(f'Loading Tensorflow model at {sf.util.green(model)}...')
 
-        self.interface = ActivationsInterface(model)
+        self.interface = sf.model.Features(model)
 
     def _calculate_activation_map(self, stride_div=4):
         '''Creates map of importance through convolutional masking and
@@ -150,7 +150,7 @@ class TileVisualizer:
             interactive:        If true, will display as interactive map using matplotlib
         '''
         if not (image_jpg or tfrecord):
-            raise ActivationsError('Must supply either tfrecord or image_jpg')
+            raise FeatureError('Must supply either tfrecord or image_jpg')
 
         if image_jpg:
             log.info(f'Processing tile at {sf.util.green(image_jpg)}...')
@@ -270,12 +270,12 @@ def visualize_tiles(model, node, tfrecord_dict=None, directory=None, mask_width=
                 TV.visualize_tile(image_jpg=tile_loc, export_folder=directory)
 
 def neighbors(AV, n_AV, neighbor_slides, n_neighbors=5, algorithm='ball_tree'):
-    '''Finds neighboring tiles for a given ActivationsVisualizer and list of slides.
+    '''Finds neighboring tiles for a given DatasetFeatures and list of slides.
     WARNING: not confirmed to be working after a refactor. In need of further testing.
 
     Args:
-        n_AV (:class:`slideflow.activations.ActivationsVisualizer`): Neighboring ActivationsVisualizer.
-            Search neighboring activations in ActivationsVisualizer for neighbors.
+        n_AV (:class:`slideflow.model.DatasetFeatures`): Neighboring DatasetFeatures.
+            Search neighboring activations in DatasetFeatures for neighbors.
         neighbor_slides (list(str)): Either a single slide name or a list of slide names.
             Corresponds to slides in the provided neighboring AV. Look for neighbors to all tiles in these slides.
         n_neighbors (int, optional): Number of neighbors to find for each tile. Defaults to 5.
@@ -289,7 +289,7 @@ def neighbors(AV, n_AV, neighbor_slides, n_neighbors=5, algorithm='ball_tree'):
 
     if not isinstance(neighbor_slides, list): neighbor_slides = [neighbor_slides]
     if not all(slide in n_AV.activations for slide in neighbor_slides):
-        raise ActivationsError(f'Not all neighbor slides exist in neighboring activations.')
+        raise FeatureError(f'Not all neighbor slides exist in neighboring activations.')
 
     tiles = [(slide, ti) for slide in AV.activations for ti in range(len(AV.activations[slide]))]
     X = np.stack([AV.activations[slide][ti] for slide, ti in tiles]) #stack -> array

@@ -3,10 +3,8 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import csv
 import warnings
 import shutil
-import json
 import types
 
 warnings.filterwarnings('ignore')
@@ -19,10 +17,8 @@ import slideflow.util.neptune_utils
 
 from os.path import join, exists, dirname
 from slideflow.util import log
-from slideflow.model.base import ModelError, no_scope, log_summary, log_manifest
+from slideflow.model.base import ModelError, FeatureError, no_scope, log_summary, log_manifest
 from slideflow.model.tensorflow_utils import *
-
-#TODO: Fix ActivationsInterface for multiple categorical outcomes
 
 class ModelParams(_base.ModelParams):
     """Build a set of hyperparameters."""
@@ -374,19 +370,19 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             self.model.save(model_path)
 
             # Try to copy model settings/hyperparameters file into the model folder
-            if not exists(join(model_path, 'hyperparameters.json')):
+            if not exists(join(model_path, 'params.json')):
                 try:
-                    config_path = join(dirname(model_path), 'hyperparameters.json')
+                    config_path = join(dirname(model_path), 'params.json')
                     if self.neptune_run:
                         config = sf.util.load_json(config_path)
                         config['neptune_id'] = self.neptune_run['sys/id'].fetch()
                         sf.util.write_json(config, config_path)
                     shutil.copy(config_path,
-                                join(model_path, 'hyperparameters.json'), )
+                                join(model_path, 'params.json'), )
                     shutil.copy(join(dirname(model_path), 'slide_manifest.csv'),
                                 join(model_path, 'slide_manifest.csv'), )
                 except:
-                    log.warning('Unable to copy hyperparameters.json/slide_manifest.csv files into model folder.')
+                    log.warning('Unable to copy params.json/slide_manifest.csv files into model folder.')
 
             log.info(f'Trained model saved to {sf.util.green(model_path)}')
             if self.cb_args.using_validation:
@@ -1045,3 +1041,189 @@ class CPHTrainer(LinearTrainer):
             if not (self.num_slide_features == 1):
                 image_dict.update({'slide_feature_input': slide_feature_input_val})
         return image_dict, label
+
+class Features:
+    """Interface for obtaining logits and features from intermediate layer activations from Slideflow models.
+
+    Use by calling on either a batch of images (returning outputs for a single batch), or by calling on a
+    :class:`slideflow.WSI` object, which will generate an array of spatially-mapped activations matching
+    the slide.
+
+    Examples
+        *Calling on batch of images:*
+
+        .. code-block:: python
+
+            interface = Features('/model/path', layers='postconv')
+            for image_batch in train_data:
+                # Return shape: (batch_size, num_features)
+                batch_features = interface(image_batch)
+
+        *Calling on a slide:*
+
+        .. code-block:: python
+
+            slide = sf.slide.WSI(...)
+            interface = Features('/model/path', layers='postconv')
+            # Return shape: (slide.grid.shape[0], slide.grid.shape[1], num_features):
+            activations_grid = interface(slide)
+
+    Note:
+        When this interface is called on a batch of images, no image processing or stain normalization will be
+        performed, as it is assumed that normalization will occur during data loader image processing.
+        When the interface is called on a `slideflow.WSI`, the normalization strategy will be read from the model
+        configuration file, and normalization will be performed on image tiles extracted from the WSI. If this interface
+        was created from an existing model and there is no model configuration file to read, a
+        slideflow.slide.StainNormalizer object may be passed during initialization via the argument `wsi_normalizer`.
+
+    """
+
+    def __init__(self, path, layers='postconv', include_logits=False):
+        """Creates a features interface from a saved slideflow model which outputs feature activations
+        at the designated layers.
+
+        Intermediate layers are returned in the order of layers. Logits are returned last.
+
+        Args:
+            path (str): Path to saved Slideflow model.
+            layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation layer
+                is accessed via 'postconv'. Defaults to 'postconv'.
+            include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
+        """
+
+        if layers and not isinstance(layers, list): layers = [layers]
+        self.path = path
+        self.num_logits = 0
+        self.num_features = 0
+        if path is not None:
+            self._model = tf.keras.models.load_model(self.path)
+            try:
+                config = sf.util.get_model_config(path)
+            except:
+                log.warning(f"Unable to find configuration for model {path}; unable to determine normalization " + \
+                            "strategy for WSI processing.")
+
+            self.hp = sf.model.ModelParams()
+            self.hp.load_dict(config['hp'])
+            self.wsi_normalizer = self.hp.get_normalizer()
+            self._build(layers=layers, include_logits=include_logits)
+
+    @classmethod
+    def from_model(cls, model, layers='postconv', include_logits=False, wsi_normalizer=None):
+        """Creates a features interface from a loaded slideflow model which outputs feature activations
+        at the designated layers.
+
+        Intermediate layers are returned in the order of layers. Logits are returned last.
+
+        Args:
+            model (:class:`tensorflow.keras.models.Model`): Loaded model.
+            layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation layer
+                is accessed via 'postconv'. Defaults to 'postconv'.
+            include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
+            wsi_normalizer (:class:`slideflow.slide.StainNormalizer`): Stain normalizer to use on whole-slide images.
+                Is not used on individual tile datasets via __call__. Defaults to None.
+        """
+
+        obj = cls(None, layers, include_logits)
+        if isinstance(model, tf.keras.models.Model):
+            obj._model = model
+        else:
+            raise TypeError("Provided model is not a valid Tensorflow model.")
+        obj._build(layers=layers, include_logits=include_logits)
+        obj.wsi_normalizer = wsi_normalizer
+        return obj
+
+    def __call__(self, inp, **kwargs):
+        """Process a given input and return features and/or logits. Expects either a batch of images or
+        a :class:`slideflow.slide.WSI` object."""
+
+        if isinstance(inp, sf.slide.WSI):
+            return self._predict_slide(inp, **kwargs)
+        else:
+            return self._predict(inp)
+
+    def _predict_slide(self, slide, batch_size=128, dtype=np.float16, **kwargs):
+        """Generate activations from slide => activation grid array."""
+        total_out = self.num_features + self.num_logits
+        features_grid = np.zeros((slide.grid.shape[1], slide.grid.shape[0], total_out), dtype=dtype)
+        generator = slide.build_generator(shuffle=False, include_loc='grid', show_progress=True, **kwargs)
+
+        if not generator:
+            log.error(f"No tiles extracted from slide {sf.util.green(slide.name)}")
+            return
+
+        def _parse_function(record):
+            image = record['image']
+            loc = record['loc']
+            parsed_image = tf.image.per_image_standardization(image)
+            parsed_image.set_shape([slide.tile_px, slide.tile_px, 3])
+            if self.wsi_normalizer:
+                image = tf.py_function(self.wsi_normalizer.tf_to_rgb, [image], tf.int32)
+            return parsed_image, loc
+
+        # Generate dataset from the generator
+        with tf.name_scope('dataset_input'):
+            output_signature={'image':tf.TensorSpec(shape=(slide.tile_px,slide.tile_px,3), dtype=tf.uint8),
+                              'loc':tf.TensorSpec(shape=(2), dtype=tf.uint32)}
+            tile_dataset = tf.data.Dataset.from_generator(generator, output_signature=output_signature)
+            tile_dataset = tile_dataset.map(_parse_function, num_parallel_calls=8)
+            tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
+            tile_dataset = tile_dataset.prefetch(8)
+
+        act_arr = []
+        loc_arr = []
+        for i, (batch_images, batch_loc) in enumerate(tile_dataset):
+            model_out = self._predict(batch_images)
+            if not isinstance(model_out, list): model_out = [model_out]
+            act_arr += [np.concatenate([m.numpy() for m in model_out])]
+            loc_arr += [batch_loc.numpy()]
+
+        act_arr = np.concatenate(act_arr)
+        loc_arr = np.concatenate(loc_arr)
+
+        for i, act in enumerate(act_arr):
+            xi = loc_arr[i][0]
+            yi = loc_arr[i][1]
+            features_grid[yi][xi] = act
+
+        return features_grid
+
+    @tf.function
+    def _predict(self, inp):
+        """Return activations for a single batch of images."""
+        return self.model(inp, training=False)
+
+    def _build(self, layers, include_logits=True):
+        """Builds the interface model that outputs feature activations at the designated layers and/or logits.
+            Intermediate layers are returned in the order of layers. Logits are returned last."""
+
+        if layers:
+            log.debug(f"Setting up interface to return activations from layers {', '.join(layers)}")
+            other_layers = [l for l in layers if l != 'postconv']
+        else:
+            other_layers = []
+        outputs = {}
+        if layers:
+            intermediate_core = tf.keras.models.Model(inputs=self._model.layers[1].input,
+                                                      outputs=[self._model.layers[1].get_layer(l).output for l in other_layers])
+            if len(other_layers) > 1:
+                int_out = intermediate_core(self._model.input)
+                for l, layer in enumerate(other_layers):
+                    outputs[layer] = int_out[l]
+            elif len(other_layers):
+                outputs[other_layers[0]] = intermediate_core(self._model.input)
+            if 'postconv' in layers:
+                outputs['postconv'] = self._model.layers[1].get_output_at(0)
+        outputs_list = [] if not layers else [outputs[l] for l in layers]
+        if include_logits:
+            outputs_list += [self._model.output]
+        self.model = tf.keras.models.Model(inputs=self._model.input, outputs=outputs_list)
+        self.num_features = sum([outputs[o].shape[1] for o in outputs])
+        if isinstance(self._model.output, list):
+            log.warning("Multi-categorical outcomes not yet supported for this interface.")
+            self.num_logits = 0
+        else:
+            self.num_logits = 0 if not include_logits else self._model.output.shape[1]
+        if include_logits:
+            log.debug(f'Number of logits: {self.num_logits}')
+        log.debug(f'Number of activation features: {self.num_features}')

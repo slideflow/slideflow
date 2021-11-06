@@ -104,33 +104,33 @@ def _activations_tester(project, model, verbosity, **kwargs):
         dataset = project.dataset(299, 302)
         test_slide = dataset.slides()[0]
 
-        AV = project.generate_activations(model=model, outcome_label_headers='category1', **kwargs)
-        assert AV.num_features == 2048
-        assert AV.num_logits == 2
-        assert len(AV.activations) == len(dataset.tfrecords())
-        assert len(AV.locations) == len(AV.activations) == len(AV.logits)
-        assert all([len(AV.activations[slide]) == len(AV.logits[slide]) == len(AV.locations[slide]) for slide in AV.activations])
-        assert len(AV.activations_by_category(0)) == 2
-        assert sum([len(a) for a in AV.activations_by_category(0).values()]) == sum([len(AV.activations[s]) for s in AV.slides])
-        lm = AV.logits_mean()
-        l_perc = AV.logits_percent()
-        l_pred = AV.logits_predict()
-        assert len(lm) == len(AV.activations)
-        assert len(lm[test_slide]) == AV.num_logits
-        assert len(l_perc) == len(AV.activations)
-        assert len(l_perc[test_slide]) == AV.num_logits
-        assert len(l_pred) == len(AV.activations)
+        df = project.generate_features(model=model, outcome_label_headers='category1', **kwargs)
+        assert df.num_features == 2048
+        assert df.num_logits == 2
+        assert len(df.activations) == len(dataset.tfrecords())
+        assert len(df.locations) == len(df.activations) == len(df.logits)
+        assert all([len(df.activations[slide]) == len(df.logits[slide]) == len(df.locations[slide]) for slide in df.activations])
+        assert len(df.activations_by_category(0)) == 2
+        assert sum([len(a) for a in df.activations_by_category(0).values()]) == sum([len(df.activations[s]) for s in df.slides])
+        lm = df.logits_mean()
+        l_perc = df.logits_percent()
+        l_pred = df.logits_predict()
+        assert len(lm) == len(df.activations)
+        assert len(lm[test_slide]) == df.num_logits
+        assert len(l_perc) == len(df.activations)
+        assert len(l_perc[test_slide]) == df.num_logits
+        assert len(l_pred) == len(df.activations)
 
-        umap = SlideMap.from_activations(AV)
+        umap = SlideMap.from_features(df)
         umap.save(join(project.root, 'stats', '2d_umap.png'))
-        tile_stats, pt_stats, cat_stats = AV.feature_stats()
-        top_features_by_tile = sorted(range(AV.num_features), key=lambda f: tile_stats[f]['p'])
+        tile_stats, pt_stats, cat_stats = df.stats()
+        top_features_by_tile = sorted(range(df.num_features), key=lambda f: tile_stats[f]['p'])
         for feature in top_features_by_tile[:5]:
             umap.save_3d_plot(join(project.root, 'stats', f'3d_feature{feature}.png'), feature=feature)
-        AV.box_plots(top_features_by_tile[:5], join(project.root, 'box_plots'))
+        df.box_plots(top_features_by_tile[:5], join(project.root, 'box_plots'))
 
     with TaskWrapper("Testing mosaic generation...") as test:
-        mosaic = project.generate_mosaic(AV)
+        mosaic = project.generate_mosaic(df)
         mosaic.save(os.path.join(project.root, "mosaic_test.png"))
 
 def activations_tester(project, model, **kwargs):
@@ -459,7 +459,7 @@ class TestSuite:
         with TaskWrapper("Testing realtime normalization, using Reinhard...") as test:
             self.project.train(outcome_label_headers='category1',
                            val_k=1,
-                           hyperparameters=self.setup_hp('categorical', normalizer='reinhard'),
+                           params=self.setup_hp('categorical', normalizer='reinhard'),
                            steps_per_epoch_override=5,
                            **train_kwargs)
 
@@ -478,7 +478,7 @@ class TestSuite:
                                           validate_on_batch=10,
                                           save_predictions=True,
                                           steps_per_epoch_override=20,
-                                          hyperparameters='sweep.json',
+                                          params='sweep.json',
                                           **train_kwargs)
 
             if not results_dict:
@@ -495,7 +495,7 @@ class TestSuite:
             with TaskWrapper("Training to multiple outcomes...") as test:
                 self.project.train(outcome_label_headers=['category1', 'category2'],
                                    val_k=1,
-                                   hyperparameters=self.setup_hp('categorical'),
+                                   params=self.setup_hp('categorical'),
                                    validate_on_batch=10,
                                    steps_per_epoch_override=20,
                                    **train_kwargs)
@@ -505,7 +505,7 @@ class TestSuite:
             with TaskWrapper("Training to multiple linear outcomes...") as test:
                 self.project.train(outcome_label_headers=['linear1', 'linear2'],
                                    val_k=1,
-                                   hyperparameters=self.setup_hp('linear'),
+                                   params=self.setup_hp('linear'),
                                    validate_on_batch=10,
                                    steps_per_epoch_override=20,
                                    **train_kwargs)
@@ -515,7 +515,7 @@ class TestSuite:
                 self.project.train(exp_label='multi_input',
                                   outcome_label_headers='category1',
                                   input_header='category2',
-                                  hyperparameters=self.setup_hp('categorical'),
+                                  params=self.setup_hp('categorical'),
                                   val_k=1,
                                   validate_on_batch=10,
                                   steps_per_epoch_override=20,
@@ -527,7 +527,7 @@ class TestSuite:
                     self.project.train(exp_label='cph',
                                        outcome_label_headers='time',
                                        input_header='event',
-                                       hyperparameters=self.setup_hp('cph'),
+                                       params=self.setup_hp('cph'),
                                        val_k=1,
                                        validate_on_batch=10,
                                        steps_per_epoch_override=20,
@@ -541,7 +541,7 @@ class TestSuite:
                     self.project.train(exp_label='multi_cph',
                                        outcome_label_headers='time',
                                        input_header=['event', 'category1'],
-                                       hyperparameters=self.setup_hp('cph'),
+                                       params=self.setup_hp('cph'),
                                        val_k=1,
                                        validate_on_batch=10,
                                        steps_per_epoch_override=20,
