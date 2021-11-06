@@ -1323,18 +1323,18 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
 
     return combined_metrics
 
-def predict_from_torch(model, dataset, pred_args, model_type='categorical'):
+def predict_from_torch(model, dataset, model_type, pred_args, **kwargs):
     """Generates predictions (y_true, y_pred, tile_to_slide) from a given PyTorch model and dataset.
 
     Args:
         model (str): Path to PyTorch model.
         dataset (tf.data.Dataset): PyTorch dataloader.
-        num_tiles (int, optional): Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.
+        pred_args (namespace): Namespace containing slide_input, update_corrects, and update_loss functions.
         model_type (str, optional): 'categorical', 'linear', or 'cph'. If multiple linear outcomes are present,
             y_true is stacked into a single vector for each image. Defaults to 'categorical'.
 
     Returns:
-        y_true, y_pred, tile_to_slides
+        y_true, y_pred, tile_to_slides, accuracy, loss
     """
 
     import torch
@@ -1409,16 +1409,19 @@ def predict_from_torch(model, dataset, pred_args, model_type='categorical'):
 
     return y_true, y_pred, tile_to_slides, acc, loss
 
-def predict_from_tensorflow(model, dataset, num_tiles=0):
+def predict_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0):
     """Generates predictions (y_true, y_pred, tile_to_slide) from a given Tensorflow model and dataset.
 
     Args:
         model (str): Path to Tensorflow model.
         dataset (tf.data.Dataset): Tensorflow dataset.
-        num_tiles (int, optional): Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.
+        model_type (str, optional): 'categorical', 'linear', or 'cph'. Will not attempt to calculate accuracy
+            for non-categorical models. Defaults to 'categorical'.
+        pred_args (namespace): Namespace containing the property `loss`, loss function used to calculate loss.
+        num_tiles (int, optional): Used for progress bar. Defaults to 0.
 
     Returns:
-        y_true, y_pred, tile_to_slides
+        y_true, y_pred, tile_to_slides, accuracy, loss
     """
 
     import tensorflow as tf
@@ -1429,36 +1432,31 @@ def predict_from_tensorflow(model, dataset, num_tiles=0):
 
     start = time.time()
     y_true, y_pred, tile_to_slides = [], [], []
-    detected_batch_size = 0
-    if log.getEffectiveLevel() <= 20 and num_tiles:
-        pb = ProgressBar(num_tiles,
-                         counter_text='images',
-                         leadtext="Generating predictions... ",
-                         show_counter=True,
-                         show_eta=True)
-    else:
-        pb = None
+    num_vals = 0
+    num_batches = 0
+    running_loss = 0
+    is_cat = (model_type == 'categorical')
+    if not is_cat: acc = None
 
-    # Get predictions and performance metrics
+    pb = tqdm(total=num_tiles, desc='Evaluating...', leave=False)
     for i, (img, yt, slide) in enumerate(dataset):
-        if pb:
-            pb.increase_bar_value(detected_batch_size)
-        elif log.getEffectiveLevel() <= 20:
-            sys.stdout.write(f"\rGenerating predictions (batch {i})...")
-            sys.stdout.flush()
+        pb.update(slide.shape[0])
+        num_vals += slide.shape[0]
+        num_batches += 1
 
-        y_pred += [get_predictions(img)]
+        yp = get_predictions(img)
+        y_pred += [yp]
 
         if type(yt) == dict:
             y_true += [[yt[f'out-{o}'].numpy() for o in range(len(yt))]]
+            yt = [yt[f'out-{o}'] for o in range(len(yt))]
         else:
             y_true += [yt.numpy()]
 
+        loss = pred_args.loss(yt, yp)
+        running_loss += tf.math.reduce_sum(loss).numpy() * slide.shape[0]
         tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in slide.numpy()]
-        if not detected_batch_size: detected_batch_size = len(tile_to_slides)
-
-    if pb: pb.end()
-    if log.getEffectiveLevel() <= 20: sf.util.clear_console()
+    pb.close()
 
     tile_to_slides = np.array(tile_to_slides)
     if type(y_pred[0]) == list:
@@ -1469,13 +1467,19 @@ def predict_from_tensorflow(model, dataset, num_tiles=0):
     if type(y_true[0]) == list:
         # Concatenate y_true for each outcome
         y_true = [np.concatenate(yt) for yt in zip(*y_true)]
+        if is_cat:
+            acc = [np.sum(y_true[i] == np.argmax(y_pred[i], axis=1)) / num_vals for i in range(len(y_true))]
     else:
         y_true = np.concatenate(y_true)
+        if is_cat:
+            acc = np.sum(y_true == np.argmax(y_pred, axis=1)) / num_vals
 
+    loss = running_loss / num_vals # Note that Keras loss during training includes regularization losses,
+                                   #  so this loss will not match validation loss calculated during training
     end = time.time()
     log.debug(f"Prediction complete. Time to completion: {int(end-start)} s")
 
-    return y_true, y_pred, tile_to_slides, None, None
+    return y_true, y_pred, tile_to_slides, acc, loss
 
 def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_layer_index=None):
     """Generate predictions from a model, providing intermediate layer input.
@@ -1513,7 +1517,7 @@ def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_l
     return y_pred
 
 def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_names=None, label=None, data_dir=None,
-                         num_tiles=0, pred_args=None, histogram=False, verbose=True, save_predictions=True, neptune_run=None):
+                         num_tiles=0, histogram=False, verbose=True, save_predictions=True, neptune_run=None, pred_args=None):
 
     """Evaluate performance of a given model on a given TFRecord dataset,
     generating a variety of statistical outcomes and graphs.
@@ -1534,15 +1538,20 @@ def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_n
         save_predictions (bool, optional): Save tile, slide, and patient-level predictions to CSV. Defaults to True.
             May take a substantial amount of time for very large datasets.
         neptune_run (:class:`neptune.Run`, optional): Neptune run in which to log results. Defaults to None.
+        pred_args (namespace, optional): Additional arguments to tensorflow and torch backends.
 
     Returns:
-        auc, r_squared, c_index
+        metrics [dict], accuracy [float], loss [float]
     """
 
     if sf.backend() == 'tensorflow':
-        y_true, y_pred, tile_to_slides, acc, loss = predict_from_tensorflow(model, dataset, num_tiles=num_tiles)
+        predict_fn = predict_from_tensorflow
+        kwargs = {'num_tiles': num_tiles}
     else:
-        y_true, y_pred, tile_to_slides, acc, loss = predict_from_torch(model, dataset, pred_args, model_type=model_type)
+        predict_fn = predict_from_torch
+        kwargs = {}
+
+    y_true, y_pred, tile_to_slides, acc, loss = predict_fn(model, dataset, model_type, pred_args, **kwargs)
 
     before_metrics = time.time()
     metrics = metrics_from_predictions(y_true=y_true,
@@ -1561,10 +1570,7 @@ def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_n
                                        neptune_run=neptune_run)
     after_metrics = time.time()
     log.debug(f'Validation metrics generated, time: {after_metrics-before_metrics:.2f} s')
-    if sf.backend() == 'tensorflow':
-        return metrics
-    else:
-        return metrics, acc, loss
+    return metrics, acc, loss
 
 def permutation_feature_importance(model, dataset, labels, patients, model_type, data_dir, outcome_names=None,
                                    label=None, num_tiles=0, feature_names=None, feature_sizes=None,

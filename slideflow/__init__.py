@@ -31,7 +31,7 @@ def backend():
 # A pylintrc file is included is the root directory to assist with formatting.
 
 # Version planning (v1.13)
-#TODO: finish a couple more tutorials
+#TODO: finish a couple more tutorials / jupyter notebooks
 #       - Tutorial 2: Heatmaps, Mosaic maps, DatasetFeatures
 #       - Tutorial 3: CLAM
 #       - Tutorial 4: Cancer non-cancer
@@ -42,20 +42,7 @@ def backend():
 #       - Tutorial 9: Class-conditional GAN with StyleGAN2
 #TODO: test all models, test custom models (attention to ActivationsInterface)
 #TODO: pytorch neptune integration
-#TODO: tensorflow metrics from predictions backend
 #TODO: better extraction reports
-
-#DONE:
-# sf.activations.ActivationsVisualizer -> sf.model.DatasetFeatures
-# sf.activations.tensorflow/torch.ActivationsInterface -> Features
-# SFP.SlideMap.from_activations -> from_features
-# DatasetFeatures.feature_stats() -> stats()
-# ActivationsError -> FeatureError
-# sf.activations.Heatmap -> sf.heatmap.Heatmap
-# SFP.generate_activations -> generate_features
-# SFP -> project
-# train(hyperparameters=) -> train(params=)
-# hyperparameters.json -> params.json
 
 # Low priority consistency/style changes:
 # ---------------------
@@ -69,9 +56,9 @@ def backend():
 
 # Future updates
 # ===============
-#TODO: ActivationsInterface compatibility for multiple outcomes
+#TODO: Features compatibility for multiple outcomes
 #TODO: PyTorch CPH outcomes
-#TODO: statistics.permutation_feature_importance (-> ActivationsInterface)
+#TODO: statistics.permutation_feature_importance (-> Features)
 #TODO: statistics.predict_from_layer (used for permutation_feature_importance)
 #TODO: implement native TF normalizers to improve realtime normalization speed
 #TODO: put tfrecord report in tfrecord directories & include information

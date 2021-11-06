@@ -15,8 +15,8 @@ class ModelParams:
 
     OptDict = {}
     ModelDict = {}
-    _LinearLoss = []
-    _AllLoss = []
+    LinearLossDict = {}
+    AllLossDict = {}
 
     def __init__(self, tile_px=299, tile_um=302, epochs=10, toplayer_epochs=0, model='xception', pooling='max',
                  loss='sparse_categorical_crossentropy', learning_rate=0.0001, learning_rate_decay=0,
@@ -207,7 +207,7 @@ class ModelParams:
         """Returns either 'linear', 'categorical', or 'cph' depending on the loss type."""
         if self.loss == 'negative_log_likelihood':
             return 'cph'
-        elif self.loss in self._LinearLoss:
+        elif self.loss in self.LinearLossDict:
             return 'linear'
         else:
             return 'categorical'

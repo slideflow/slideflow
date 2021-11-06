@@ -61,7 +61,7 @@ Available hyperparameters include:
 - **dropout** - dropout, used for post-convolutional layer.
 - **augment** - Image augmentations to perform, including flipping/rotating and random JPEG compression. Please see :class:`slideflow.model.ModelParams` for more details.
 
-If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.ModelParams._LinearLoss``, and all available loss functions are in ``slideflow.model.ModelParams._AllLoss``.
+If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.ModelParams.LinearLossDict``, and all available loss functions are in ``slideflow.model.ModelParams.AllLossDict``.
 
 Begin training
 **************

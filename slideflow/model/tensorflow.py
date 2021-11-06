@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import json
 import warnings
 import shutil
 import types
@@ -24,7 +25,7 @@ class ModelParams(_base.ModelParams):
     """Build a set of hyperparameters."""
 
     OptDict = {
-        'Adam':    tf.keras.optimizers.Adam,
+        'Adam': tf.keras.optimizers.Adam,
         'SGD': tf.keras.optimizers.SGD,
         'RMSprop': tf.keras.optimizers.RMSprop,
         'Adagrad': tf.keras.optimizers.Adagrad,
@@ -52,38 +53,39 @@ class ModelParams(_base.ModelParams):
         #'DenseNet': tf.keras.applications.DenseNet,
         #'NASNet': tf.keras.applications.NASNet
     }
-    _LinearLoss = ['mean_squared_error',
-                   'mean_absolute_error',
-                   'mean_absolute_percentage_error',
-                   'mean_squared_logarithmic_error',
-                   'squared_hinge',
-                   'hinge',
-                   'logcosh',
-                   'negative_log_likelihood']
-
-    _AllLoss = ['mean_squared_error',
-                'mean_absolute_error',
-                'mean_absolute_percentage_error',
-                'mean_squared_logarithmic_error',
-                'squared_hinge',
-                'hinge'
-                'categorical_hinge',
-                'logcosh',
-                'huber_loss',
-                'categorical_crossentropy',
-                'sparse_categorical_crossentropy',
-                'binary_crossentropy',
-                'kullback_leibler_divergence',
-                'poisson',
-                'cosine_proximity',
-                'is_categorical_crossentropy',
-                'negative_log_likelihood']
+    LinearLossDict = {
+        'mean_squared_error': tf.keras.losses.mean_squared_error,
+        'mean_absolute_error': tf.keras.losses.mean_absolute_error,
+        'mean_absolute_percentage_error': tf.keras.losses.mean_absolute_percentage_error,
+        'mean_squared_logarithmic_error': tf.keras.losses.mean_squared_logarithmic_error,
+        'squared_hinge': tf.keras.losses.squared_hinge,
+        'hinge': tf.keras.losses.hinge,
+        'logcosh': tf.keras.losses.logcosh,
+        'negative_log_likelihood': negative_log_likelihood
+    }
+    AllLossDict = {
+        'mean_squared_error': tf.keras.losses.mean_squared_error,
+        'mean_absolute_error': tf.keras.losses.mean_absolute_error,
+        'mean_absolute_percentage_error': tf.keras.losses.mean_absolute_percentage_error,
+        'mean_squared_logarithmic_error': tf.keras.losses.mean_squared_logarithmic_error,
+        'squared_hinge': tf.keras.losses.squared_hinge,
+        'hinge': tf.keras.losses.hinge,
+        'categorical_hinge': tf.keras.losses.categorical_hinge,
+        'logcosh': tf.keras.losses.logcosh,
+        'huber': tf.keras.losses.huber,
+        'categorical_crossentropy': tf.keras.losses.categorical_crossentropy,
+        'sparse_categorical_crossentropy': tf.keras.losses.sparse_categorical_crossentropy,
+        'binary_crossentropy': tf.keras.losses.binary_crossentropy,
+        'kullback_leibler_divergence': tf.keras.losses.kullback_leibler_divergence,
+        'poisson': tf.keras.losses.poisson,
+        'negative_log_likelihood': negative_log_likelihood
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         assert self.model in self.ModelDict.keys()
         assert self.optimizer in self.OptDict.keys()
-        assert self.loss in self._AllLoss
+        assert self.loss in self.AllLossDict.keys()
 
     def _add_hidden_layers(self, model, regularizer):
         for i in range(self.hidden_layers):
@@ -318,6 +320,9 @@ class ModelParams(_base.ModelParams):
         else:
             raise ModelError(f'Unknown model type: {self.model_type()}')
 
+    def get_loss(self):
+        return self.AllLossDict[self.loss]
+
     def get_opt(self):
         """Returns optimizer with appropriate learning rate."""
         if self.learning_rate_decay not in (0, 1):
@@ -336,7 +341,7 @@ class ModelParams(_base.ModelParams):
         """Returns either 'linear', 'categorical', or 'cph' depending on the loss type."""
         if self.loss == 'negative_log_likelihood':
             return 'cph'
-        elif self.loss in self._LinearLoss:
+        elif self.loss in self.LinearLossDict:
             return 'linear'
         else:
             return 'categorical'
@@ -484,23 +489,28 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         epoch = self.epoch_count
         epoch_label = f'val_epoch{epoch}'
         if not self.cb_args.skip_metrics:
-            metrics = sf.statistics.metrics_from_dataset(self.model,
-                                                         model_type=self.hp.model_type(),
-                                                         labels=self.parent.labels,
-                                                         patients=self.parent.patients,
-                                                         dataset=self.cb_args.validation_data_with_slidenames,
-                                                         outcome_names=self.parent.outcome_names,
-                                                         label=epoch_label,
-                                                         data_dir=self.parent.outdir,
-                                                         num_tiles=self.cb_args.num_val_tiles,
-                                                         histogram=False,
-                                                         verbose=True,
-                                                         save_predictions=self.cb_args.save_predictions)
+            pred_args = types.SimpleNamespace(loss=self.hp.get_loss())
+            metrics, acc, loss = sf.statistics.metrics_from_dataset(
+                self.model,
+                model_type=self.hp.model_type(),
+                labels=self.parent.labels,
+                patients=self.parent.patients,
+                dataset=self.cb_args.validation_data_with_slidenames,
+                outcome_names=self.parent.outcome_names,
+                label=epoch_label,
+                data_dir=self.parent.outdir,
+                num_tiles=self.cb_args.num_val_tiles,
+                histogram=False,
+                verbose=True,
+                save_predictions=self.cb_args.save_predictions,
+                pred_args=pred_args
+            )
 
-        val_metrics = self.model.evaluate(self.cb_args.validation_data, verbose=0, return_dict=True)
-        log.info(f'Validation metrics:')
-        for m in val_metrics:
-            log.info(f'{m}: {val_metrics[m]:.4f}')
+        # Note that Keras loss during training includes regularization losses,
+        #  so this loss will not match validation loss calculated during training
+        val_metrics = {'accuracy': acc, 'loss': loss}
+        #val_metrics = self.model.evaluate(self.cb_args.validation_data, verbose=0, return_dict=True)
+        log.info(f'Validation metrics: ' + json.dumps(val_metrics, indent=4))
         self.results['epochs'][f'epoch{epoch}'] = {'train_metrics': {k:v for k,v in logs.items() if k[:3] != 'val'},
                                                    'val_metrics': val_metrics }
         if not self.cb_args.skip_metrics:
@@ -629,7 +639,7 @@ class Trainer:
         '''Compiles keras model.'''
 
         self.model.compile(optimizer=self.hp.get_opt(),
-                           loss=self.hp.loss,
+                           loss=self.hp.get_loss(),
                            metrics=['accuracy'])
 
     def _parse_tfrecord_labels(self, image, slide):
@@ -962,8 +972,8 @@ class LinearTrainer(Trainer):
 
     def _compile_model(self):
         self.model.compile(optimizer=self.hp.get_opt(),
-                           loss=self.hp.loss,
-                           metrics=[self.hp.loss])
+                           loss=self.hp.get_loss(),
+                           metrics=[self.hp.get_loss()])
 
     def _parse_tfrecord_labels(self, image, slide):
         image_dict = { 'tile_image': image }
