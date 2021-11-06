@@ -81,7 +81,10 @@ class ActivationsInterface:
             self._model = self.hp.build_model(num_classes=len(config['outcome_labels'])) #labels=
             self._model.load_state_dict(torch.load(path))
             self._model.to(self.device)
-            self.model_type = self._model.__class__.__name__
+            if self._model.__class__.__name__ == 'ModelWrapper':
+                self.model_type = self._model.model.__class__.__name__
+            else:
+                self.model_type = self._model.__class__.__name__
             self._build()
             self._model.eval()
 
@@ -111,7 +114,10 @@ class ActivationsInterface:
         else:
             raise TypeError("Provided model is not a valid PyTorch model.")
         obj.hp = None
-        obj.model_type = obj._model.__class__.__name__
+        if obj._model.__class__.__name__ == 'ModelWrapper':
+            obj.model_type = obj._model.model.__class__.__name__
+        else:
+            obj.model_type = obj._model.__class__.__name__
         obj.tile_px = tile_px
         obj.wsi_normalizer = wsi_normalizer
         obj._build()
@@ -137,19 +143,20 @@ class ActivationsInterface:
             return
 
         class SlideIterator(torch.utils.data.IterableDataset):
-            def __init__(self, *args, **kwargs):
+            def __init__(self, parent, *args, **kwargs):
                 super(SlideIterator).__init__(*args, **kwargs)
+                self.parent = parent
             def __iter__(self):
                 for image_dict in generator():
                     np_image = torch.from_numpy(image_dict['image'])
-                    if self.wsi_normalizer:
-                        np_image = self.wsi_normalizer.rgb_to_rgb(np_image)
+                    if self.parent.wsi_normalizer:
+                        np_image = self.parent.wsi_normalizer.rgb_to_rgb(np_image)
                     np_image = np_image.permute(2, 0, 1) # WHC => CWH
                     loc = np.array(image_dict['loc'])
                     np_image = np_image / 127.5 - 1
                     yield np_image, loc
 
-        tile_dataset = torch.utils.data.DataLoader(SlideIterator(), batch_size=batch_size)
+        tile_dataset = torch.utils.data.DataLoader(SlideIterator(self), batch_size=batch_size)
 
         act_arr = []
         loc_arr = []
@@ -203,6 +210,7 @@ class ActivationsInterface:
             return list(self._model.conv5.children())[1]
         if self.model_type == 'Xception':
             return self._model.bn4
+        raise ActivationsError(f"'postconv' layer not configured for model type {self.model_type}")
 
     def _postconv_processing(self, output):
         """Applies processing (pooling, resizing) to post-convolutional outputs,

@@ -41,8 +41,9 @@ def backend():
 #       - Tutorial 8: Hyperparameter sweeps
 #       - Tutorial 9: Class-conditional GAN with StyleGAN2
 #TODO: test all models, test custom models (attention to ActivationsInterface)
-#TODO: pandas df for project annotations
 #TODO: pytorch neptune integration
+#TODO: tensorflow metrics from predictions backend
+#TODO: better extraction reports
 
 # Low priority consistency/style changes:
 # ---------------------

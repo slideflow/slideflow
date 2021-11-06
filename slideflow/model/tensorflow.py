@@ -383,7 +383,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                         sf.util.write_json(config, config_path)
                     shutil.copy(config_path,
                                 join(model_path, 'hyperparameters.json'), )
-                    shutil.copy(os.path.join(dirname(model_path), 'slide_manifest.csv'),
+                    shutil.copy(join(dirname(model_path), 'slide_manifest.csv'),
                                 join(model_path, 'slide_manifest.csv'), )
                 except:
                     log.warning('Unable to copy hyperparameters.json/slide_manifest.csv files into model folder.')

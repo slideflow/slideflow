@@ -1475,7 +1475,7 @@ def predict_from_tensorflow(model, dataset, num_tiles=0):
     end = time.time()
     log.debug(f"Prediction complete. Time to completion: {int(end-start)} s")
 
-    return y_true, y_pred, tile_to_slides
+    return y_true, y_pred, tile_to_slides, None, None
 
 def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_layer_index=None):
     """Generate predictions from a model, providing intermediate layer input.
@@ -1561,7 +1561,10 @@ def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_n
                                        neptune_run=neptune_run)
     after_metrics = time.time()
     log.debug(f'Validation metrics generated, time: {after_metrics-before_metrics:.2f} s')
-    return metrics, acc, loss
+    if sf.backend() == 'tensorflow':
+        return metrics
+    else:
+        return metrics, acc, loss
 
 def permutation_feature_importance(model, dataset, labels, patients, model_type, data_dir, outcome_names=None,
                                    label=None, num_tiles=0, feature_names=None, feature_sizes=None,

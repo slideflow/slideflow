@@ -325,7 +325,9 @@ class Trainer:
             multi_outcome=(self.num_outcomes > 1),
             update_corrects=update_corrects,
             update_loss=update_loss,
-            running_corrects=(0 if not (self.num_outcomes > 1) else {f'out-{o}':0 for o in range(self.num_outcomes)})
+            running_corrects=(0 if not (self.num_outcomes > 1) else {f'out-{o}':0 for o in range(self.num_outcomes)}),
+            num_slide_features=self.num_slide_features,
+            slide_input=self.slide_input
         )
 
         # Generate performance metrics
@@ -422,6 +424,11 @@ class Trainer:
         early_stop = False
         last_ema, ema_one_check_prior, ema_two_checks_prior = -1, -1, -1
         moving_average = []
+
+        if (self.hp.early_stop and self.hp.early_stop_method == 'accuracy' and
+           self.hp.model_type() == 'categorical' and self.num_outcomes > 1):
+
+           raise sf.util.UserError("Cannot combine 'accuracy' early stopping with multiple categorical outcomes.")
 
         # Enable TF32 (should be enabled by default)
         torch.backends.cuda.matmul.allow_tf32 = True  # Allow PyTorch to internally use tf32 for matmul
@@ -557,14 +564,22 @@ class Trainer:
                         # Log to tensorboard
                         if use_tensorboard and global_step % log_frequency == 0:
                             writer.add_scalar('Loss/train', loss.item(), global_step)
-                            writer.add_scalar('Accuracy/train', running_corrects / num_records, global_step)
+                            if self.hp.model_type() == 'categorical':
+                                if self.num_outcomes > 1:
+                                    for o, out in enumerate(outputs):
+                                        writer.add_scalar(f'Accuracy-{o}/train', running_corrects[f'out-{o}'] / num_records, global_step)
+                                else:
+                                    writer.add_scalar('Accuracy/train', running_corrects / num_records, global_step)
 
                         # === Mid-training validation =================================================================
                         if val_dts and validate_on_batch and (step % validate_on_batch == 0) and step > 0:
                             self.model.eval()
                             running_val_loss = 0
-                            running_val_correct = 0
                             num_val = 0
+
+                            if multi_outcome:   running_val_correct = {f'out-{o}':0 for o in range(self.num_outcomes)}
+                            else:               running_val_correct = 0
+
                             for _ in range(validation_steps):
                                 val_img, val_label, slides = next(mid_train_val_dts)
                                 val_img = val_img.to(device)
@@ -579,13 +594,13 @@ class Trainer:
                                         val_label = self.labels_to_device(val_label, device)
                                         val_loss = self.calculate_loss(val_outputs, val_label, loss_fn)
 
-                                _, val_preds = torch.max(val_outputs, 1)
                                 running_val_loss += val_loss.item() * val_img.size(0)
-                                running_val_correct += torch.sum(val_preds == val_label.data)
+                                running_val_correct = self.update_corrects(val_outputs, val_label, running_val_correct)
                                 num_val += val_img.size(0)
                             val_loss = running_val_loss / num_val
-                            val_acc = running_val_correct / num_val
-                            log_msg = f'Batch {step}: val loss: {val_loss:.4f} val acc: {val_acc:.4f}'
+                            val_acc_desc, val_acc = self.accuracy_description(running_val_correct, num_val)
+
+                            log_msg = f'Batch {step}: val loss: {val_loss:.4f}{val_acc_desc}'
 
                             # EMA & early stopping --------------------------------------------------------------------
                             early_stop_val = val_acc if self.hp.early_stop_method == 'accuracy' else val_loss
@@ -616,7 +631,13 @@ class Trainer:
                             log.info(log_msg)
                             if use_tensorboard:
                                 writer.add_scalar('Loss/test', val_loss, global_step)
-                                writer.add_scalar('Accuracy/test', val_acc, global_step)
+                                if self.hp.model_type() == 'categorical':
+                                    if self.num_outcomes > 1:
+                                        for o, out in enumerate(outputs):
+                                            writer.add_scalar(f'Accuracy-{o}/test', running_val_correct[f'out-{o}'] / num_val, global_step)
+                                    else:
+                                        writer.add_scalar('Accuracy/test', running_val_correct / num_val, global_step)
+
                             self.model.train()
                         # =============================================================================================
 
