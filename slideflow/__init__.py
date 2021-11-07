@@ -40,7 +40,7 @@ def backend():
 #       - Tutorial 7: Clinical models, CPH outcome, permutation feature importance
 #       - Tutorial 8: Hyperparameter sweeps
 #       - Tutorial 9: Class-conditional GAN with StyleGAN2
-#TODO: test all models, test custom models (attention to ActivationsInterface)
+#TODO: test all models, test custom models (attention to Features)
 #TODO: pytorch neptune integration
 #TODO: better extraction reports
 

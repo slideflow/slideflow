@@ -17,6 +17,7 @@ from __future__ import print_function
 import os
 import io
 import types
+import time
 import numpy as np
 import csv
 import pyvips as vips
@@ -33,6 +34,10 @@ import matplotlib.colors as mcol
 import multiprocessing as mp
 
 from os.path import join, exists
+import skimage
+import skimage.filters
+from skimage import img_as_ubyte
+from skimage.color import rgb2gray
 from PIL import Image, ImageDraw, UnidentifiedImageError
 from slideflow.util import log, SUPPORTED_FORMATS, UserError
 from slideflow.slide.normalizers import StainNormalizer
@@ -258,7 +263,7 @@ class TileCorruptionError(Exception):
 class SlideReport:
     '''Report to summarize tile extraction from a slide, including example images of extracted tiles.'''
 
-    def __init__(self, images, path, data=None, compress=True):
+    def __init__(self, images, path, thumb=None, data=None, compress=True):
         """Initializer.
 
         Args:
@@ -270,14 +275,17 @@ class SlideReport:
 
         self.data = data
         self.path = path
+        self.thumb = None if thumb is None else Image.fromarray(np.array(thumb)[:,:,0:3])
+
         if not compress:
             self.images = images
         else:
-            self.images = []
-            for image in images:
-                with io.BytesIO() as output:
-                    Image.open(io.BytesIO(image)).save(output, format="JPEG", quality=75)
-                    self.images += [output.getvalue()]
+            self.images = [self._compress(img) for img in images]
+
+    def _compress(self, img):
+        with io.BytesIO() as output:
+            Image.open(io.BytesIO(img)).save(output, format="JPEG", quality=75)
+            return output.getvalue()
 
     def image_row(self):
         '''Merges images into a single row of images'''
@@ -313,7 +321,7 @@ class ExtractionReport:
             tile_px (int): Tile size in pixels.
             tile_um (int): Tile size in microns.
         """
-
+        import shutil
         pdf = ExtractionPDF()
         pdf.alias_nb_pages()
         pdf.add_page()
@@ -337,6 +345,12 @@ class ExtractionReport:
                         pdf.image(temp.name, x, y, w=19*len(report.images), h=19, type='jpg')
                     except RuntimeError as e:
                         log.error(f"Error writing image to PDF: {e}")
+            if report.thumb:
+                with tempfile.NamedTemporaryFile() as temp:
+                    report.thumb.save(temp, format="JPEG", quality=75)
+                    x = pdf.get_x()
+                    y = pdf.get_y()
+                    pdf.image(temp.name, x, y, w=64, h=64, type='jpg')
             pdf.ln(20)
 
         self.pdf = pdf
@@ -532,6 +546,8 @@ class _BaseLoader:
         self.thumb_image = None
         self.stride_div = stride_div
         self.path = path
+        self.qc_mask = None
+        self.qc_mpp = None
         filetype = sf.util.path_to_ext(path)
 
         # Initiate supported slide reader
@@ -549,13 +565,13 @@ class _BaseLoader:
 
         # Collect basic slide information
         try:
-            self.MPP = float(self.slide.properties[OPS_MPP_X])
+            self.mpp = float(self.slide.properties[OPS_MPP_X])
         except KeyError:
             log.error(f"Slide {sf.util.green(self.name)} missing MPP property ({OPS_MPP_X})")
             self.load_error = True
             return
         self.full_shape = self.slide.dimensions
-        self.full_extract_px = int(self.tile_um / self.MPP)
+        self.full_extract_px = int(self.tile_um / self.mpp)
 
         # Load downsampled level based on desired extraction size
         downsample_desired = self.full_extract_px / tile_px
@@ -581,12 +597,40 @@ class _BaseLoader:
         return self.slide.dimensions
 
     def mpp_to_dim(self, mpp):
-        width = int((self.MPP * self.full_shape[0]) / mpp)
-        height = int((self.MPP * self.full_shape[1]) / mpp)
+        width = int((self.mpp * self.full_shape[0]) / mpp)
+        height = int((self.mpp * self.full_shape[1]) / mpp)
         return (width, height)
 
     def dim_to_mpp(self, dimensions):
-        return (self.full_shape[0] * self.MPP) / dimensions[0]
+        return (self.full_shape[0] * self.mpp) / dimensions[0]
+
+    def remove_qc(self):
+        self._build_coord()
+        log.debug(f'QC removed from slide {self.shortname}')
+
+    def qc(self, blur_radius=3, blur_threshold=0.1, filter_threshold=0.6, mpp=4):
+        starttime = time.time()
+        gray = rgb2gray(np.array(self.thumb(mpp=mpp)))
+        img_laplace = np.abs(skimage.filters.laplace(gray))
+        self.qc_mpp = mpp
+        self.qc_mask = skimage.filters.gaussian(img_laplace, sigma=blur_radius) <= blur_threshold
+        small_mask = skimage.transform.resize(self.qc_mask, (self.qc_mask.shape[0]//10, self.qc_mask.shape[1]//10))
+
+        # Filter coordinates
+        qc_ratio = self.mpp / (mpp * 10)
+        qc_width = int(self.full_extract_px * qc_ratio)
+        to_delete = []
+        for i, c in enumerate(self.coord):
+            qc_x = int(c[0] * qc_ratio)
+            qc_y = int(c[1] * qc_ratio)
+            submask = small_mask[qc_y:(qc_y+qc_width), qc_x:(qc_x+qc_width)]
+            if np.mean(submask) > filter_threshold:
+                to_delete += [i]
+        self.coord = np.delete(np.array(self.coord), to_delete, axis=0)
+        self.tile_mask = np.delete(self.tile_mask, to_delete)
+        img = Image.fromarray(img_as_ubyte(small_mask))
+        log.debug(f'QC complete for slide {self.shortname} (time: {time.time()-starttime:.2f}s)')
+        return img
 
     def square_thumb(self, width=512):
         '''Returns a square thumbnail of the slide, with black bar borders.
@@ -633,12 +677,12 @@ class _BaseLoader:
 
         # Calculate goal width/height according to specified microns-per-pixel (MPP)
         if mpp:
-            width = int((self.MPP * self.full_shape[0]) / mpp)
+            width = int((self.mpp * self.full_shape[0]) / mpp)
         # Otherwise, calculate approximate mpp based on provided width (to generate proportional height)
         else:
-            mpp = (self.MPP * self.full_shape[0]) / width
+            mpp = (self.mpp * self.full_shape[0]) / width
         # Calculate appropriate height
-        height = int((self.MPP * self.full_shape[1]) / mpp)
+        height = int((self.mpp * self.full_shape[1]) / mpp)
 
         # Get thumb via libvips & convert PIL Image
         thumbnail = vips.Image.thumbnail(self.path, width)
@@ -726,6 +770,9 @@ class _BaseLoader:
             tiles_dir = os.path.join(tiles_dir, self.name)
             if not os.path.exists(tiles_dir): os.makedirs(tiles_dir)
 
+        # Quality control
+        self.qc()
+
         # Log to keep track of when tiles have finished extracting
         # To be used in case tile extraction is interrupted, so the slide can be flagged for re-extraction
         unfinished_marker = join((tfrecord_dir if tfrecord_dir else tiles_dir), f'{self.name}.unfinished')
@@ -777,7 +824,7 @@ class _BaseLoader:
         self.slide.unbuffer()
 
         # Generate extraction report
-        report = SlideReport(sample_tiles, self.slide.path)
+        report = SlideReport(sample_tiles, self.slide.path, thumb=self.thumb(coords=locations, rois=True))
         return report
 
     def preview(self, rois=True, **kwargs):
@@ -851,17 +898,17 @@ class WSI(_BaseLoader):
         self.extracted_x_size = 0
         self.extracted_y_size = 0
         self.estimated_num_tiles = 0
-        self.coord = []
         self.annPolys = []
         self.roi_scale = 10
         self.rois = []
         self.roi_method = roi_method
+        self.randomize_origin = randomize_origin
 
         if not self.loaded_correctly():
             return
 
         # Build coordinate grid
-        self._build_coord(randomize_origin=randomize_origin)
+        self._build_coord()
 
         # Look in ROI directory if available
         if roi_dir and exists(join(roi_dir, self.name + ".csv")):
@@ -901,7 +948,7 @@ class WSI(_BaseLoader):
             self.estimated_num_tiles = int(len(self.coord))
             self.roi_method = 'ignore'
 
-        mpp_roi_msg = f'{self.MPP} um/px | {len(self.rois)} ROI(s)'
+        mpp_roi_msg = f'{self.mpp} um/px | {len(self.rois)} ROI(s)'
         size_msg = f'Size: {self.full_shape[0]} x {self.full_shape[1]}'
         log.debug(f"{self.shortname}: Slide info: {mpp_roi_msg} | {size_msg}")
         log.debug(f"{self.shortname}: Grid shape: {self.grid.shape} | Tiles to extract: {self.estimated_num_tiles}")
@@ -922,7 +969,7 @@ class WSI(_BaseLoader):
         base += ")"
         return base
 
-    def _build_coord(self, randomize_origin):
+    def _build_coord(self):
         '''Set up coordinate grid.'''
 
         # Calculate window sizes, strides, and coordinates for windows
@@ -930,7 +977,7 @@ class WSI(_BaseLoader):
         self.extracted_y_size = self.full_shape[1] - self.full_extract_px
 
         # Randomize origin, if desired
-        if randomize_origin:
+        if self.randomize_origin:
             start_x = random.randint(0, self.full_stride-1)
             start_y = random.randint(0, self.full_stride-1)
             log.info(f"Random origin: X: {start_x}, Y: {start_y}")
@@ -939,6 +986,7 @@ class WSI(_BaseLoader):
 
         # Coordinates must be in level 0 (full) format for the read_region function
         index = 0
+        self.coord = []
         y_range = np.arange(start_y, (self.full_shape[1]+1) - self.full_extract_px, self.full_stride)
         x_range = np.arange(start_x, (self.full_shape[0]+1) - self.full_extract_px, self.full_stride)
         for yi, y in enumerate(y_range):
@@ -948,7 +996,8 @@ class WSI(_BaseLoader):
                 is_unique = ((y % self.full_extract_px == 0) and (x % self.full_extract_px == 0))
                 self.coord.append([x, y, index, is_unique, xi, yi])
                 index += 1
-
+        self.coord = np.array(self.coord)
+        self.tile_mask = np.asarray([False for i in range(len(self.coord))], dtype=np.bool)
         self.grid = np.zeros((len(x_range), len(y_range)))
 
     def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None,
@@ -997,7 +1046,7 @@ class WSI(_BaseLoader):
 
         # Shuffle coordinates to randomize extraction order
         if shuffle:
-            random.shuffle(self.coord)
+            np.random.shuffle(self.coord)
 
         # Set whitespace / grayspace fraction to global defaults if not provided
         if whitespace_fraction is None:     whitespace_fraction  = DEFAULT_WHITESPACE_FRACTION
@@ -1044,12 +1093,11 @@ class WSI(_BaseLoader):
 
         def generator():
             log.debug(f"Building tile extraction generator with {num_threads} thread workers")
-            self.tile_mask = np.asarray([False for i in range(len(self.coord))], dtype=np.bool)
 
             with mp.Pool(processes=num_threads) as p:
                 if show_progress:
                     pbar = tqdm(total=self.estimated_num_tiles, ncols=80)
-                for res in p.imap(partial(_wsi_extraction_worker, args=worker_args), self.coord):
+                for idx, res in enumerate(p.imap(partial(_wsi_extraction_worker, args=worker_args), self.coord)):
                     if res == 'skip':
                         continue
 
@@ -1063,7 +1111,7 @@ class WSI(_BaseLoader):
                     if res is None:
                         continue
                     else:
-                        tile, idx = res
+                        tile, _ = res
                         self.tile_mask[idx] = True
                         yield tile
                 if show_progress:
@@ -1099,7 +1147,7 @@ class WSI(_BaseLoader):
             if mpp is None and width is None:
                 width = 1024
             if mpp is not None:
-                roi_scale = self.full_shape[0] / (int((self.MPP * self.full_shape[0]) / mpp))
+                roi_scale = self.full_shape[0] / (int((self.mpp * self.full_shape[0]) / mpp))
             else:
                 roi_scale = self.full_shape[0] / width
 
@@ -1222,7 +1270,7 @@ class TMA(_BaseLoader):
         self.pb_id = pb_id
         num_cores, self.estimated_num_tiles = self._detect_cores(report_dir=report_dir)
         size_msg = f'Size: {self.full_shape[0]} x {self.full_shape[1]}'
-        log.info(f"{self.shortname}: Slide info: {self.MPP} um/px | {size_msg}")
+        log.info(f"{self.shortname}: Slide info: {self.mpp} um/px | {size_msg}")
 
     def _get_sub_image(self, rect):
         '''Gets a sub-image from the slide using the specified rectangle as a guide.'''
@@ -1258,7 +1306,7 @@ class TMA(_BaseLoader):
     def _resize_to_target(self, image_tile):
         '''Resizes image tile to the desired target output size.'''
         target_MPP = self.tile_um / self.tile_px
-        current_MPP = self.MPP * self.downsample_factor
+        current_MPP = self.mpp * self.downsample_factor
         resize_factor = current_MPP / target_MPP
         return cv2.resize(image_tile, (0, 0), fx=resize_factor, fy=resize_factor)
 

@@ -20,8 +20,9 @@ from os.path import isdir, join, exists, dirname
 from multiprocessing.dummy import Pool as DPool
 from slideflow.util import log, TCGA, _shortname, ProgressBar
 
-def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, skip_missing_roi, randomize_origin,
-                    tma, tile_px, tile_um, stride_div, downsample, buffer, pb_counter, counter_lock, generator_kwargs):
+def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, skip_missing_roi, randomize_origin, tma,
+                    tile_px, tile_um, stride_div, downsample, buffer, pb_counter, counter_lock, reports,
+                    generator_kwargs, qc_kwargs):
     """Internal function to execute tile extraction. Slide processing needs to be process-isolated."""
 
     # Record function arguments in case we need to re-call the function (for corrupt tiles)
@@ -33,32 +34,36 @@ def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, sk
         log.debug(f'Extracting tiles for slide {sf.util.path_to_name(slide_path)}')
 
         if tma:
-            whole_slide = TMA(slide_path,
-                              tile_px,
-                              tile_um,
-                              stride_div,
-                              enable_downsample=downsample,
-                              report_dir=tfrecord_dir,
-                              buffer=buffer)
+            slide = TMA(slide_path,
+                        tile_px,
+                        tile_um,
+                        stride_div,
+                        enable_downsample=downsample,
+                        report_dir=tfrecord_dir,
+                        buffer=buffer)
         else:
-            whole_slide = WSI(slide_path,
-                              tile_px,
-                              tile_um,
-                              stride_div,
-                              enable_downsample=downsample,
-                              roi_dir=roi_dir,
-                              roi_method=roi_method,
-                              randomize_origin=randomize_origin,
-                              skip_missing_roi=skip_missing_roi,
-                              buffer=buffer,
-                              pb_counter=pb_counter,
-                              counter_lock=counter_lock)
+            slide = WSI(slide_path,
+                        tile_px,
+                        tile_um,
+                        stride_div,
+                        enable_downsample=downsample,
+                        roi_dir=roi_dir,
+                        roi_method=roi_method,
+                        randomize_origin=randomize_origin,
+                        skip_missing_roi=skip_missing_roi,
+                        buffer=buffer,
+                        pb_counter=pb_counter,
+                        counter_lock=counter_lock)
 
-        if not whole_slide.loaded_correctly():
+        # Apply quality control (blur filtering)
+        if qc_kwargs:
+            slide.qc(**qc_kwargs)
+
+        if not slide.loaded_correctly():
             return
 
         try:
-            report = whole_slide.extract_tiles(tfrecord_dir=tfrecord_dir, tiles_dir=tiles_dir, **generator_kwargs)
+            report = slide.extract_tiles(tfrecord_dir=tfrecord_dir, tiles_dir=tiles_dir, **generator_kwargs)
 
         except TileCorruptionError:
             if downsample:
@@ -67,8 +72,8 @@ def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, sk
             else:
                 log.error(f'Corrupt tile in {sf.util.path_to_name(slide_path)}; skipping slide')
                 return
-        del whole_slide
-        return report
+        del slide
+        reports.update({slide_path: report})
     except (KeyboardInterrupt, SystemExit):
         print('Exiting...')
         return
@@ -430,7 +435,7 @@ class Dataset:
 
     def extract_tiles(self, save_tiles=False, save_tfrecords=True, source=None, stride_div=1, enable_downsample=False,
                       roi_method='inside', skip_missing_roi=True, skip_extracted=True, tma=False,
-                      randomize_origin=False, buffer=None, num_workers=4, **kwargs):
+                      randomize_origin=False, buffer=None, num_workers=4, qc=False, **kwargs):
 
         """Extract tiles from a group of slides, saving extracted tiles to either loose image or in
         TFRecord binary format.
@@ -457,6 +462,8 @@ class Dataset:
             buffer (str, optional): Slides will be copied to this directory before extraction. Defaults to None.
                 Using an SSD or ramdisk buffer vastly improves tile extraction speed.
             num_workers (int, optional): Extract tiles from this many slides simultaneously. Defaults to 4.
+            qc (bool, optional): Perform quality control blur detection, discarding tiles with detected out-of-focus
+                regions or artifact. Increases tile extraction time. Defaults to False.
 
         Keyword Args:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
@@ -477,6 +484,14 @@ class Dataset:
                 Otherwise, will extract sub-images from each core using the given tile micron size. Defaults to False.
             shuffle (bool, optional): Shuffle tiles prior to storage in tfrecords. Defaults to True.
             num_threads (int, optional): Number of workers threads for each tile extractor. Defaults to 4.
+            qc_blur_radius (int, optional): Quality control blur radius for out-of-focus area detection. Only used if
+                qc=True. Defaults to 3.
+            qc_blur_threshold (float, optional): Quality control blur threshold for detecting out-of-focus areas.
+                Only used if qc=True. Defaults to 0.1
+            qc_filter_threshold (float, optional): Float between 0-1. Tiles with more than this proportion of blur
+                will be discarded. Only used if qc=True. Defaults to 0.6.
+            qc_mpp (float, optional): Microns-per-pixel indicating image magnification level at which quality control
+                is performed. Defaults to mpp=4 (effective magnification 2.5 X)
         """
 
         import slideflow.slide
@@ -489,6 +504,10 @@ class Dataset:
         else:       sources = self.sources
 
         self.verify_annotations_slides()
+
+        # Set up kwargs for tile extraction generator and quality control
+        qc_kwargs = {k[3:]:v for k,v in kwargs.items() if k[:3] == 'qc_'}
+        kwargs = {k:v for k,v in kwargs.items() if k[:3] != 'qc_'}
         sf.slide.log_extraction_params(**kwargs)
 
         for source in sources:
@@ -580,7 +599,9 @@ class Dataset:
                     'buffer': buffer,
                     'pb_counter': counter,
                     'counter_lock': counter_lock,
-                    'generator_kwargs': kwargs
+                    'generator_kwargs': kwargs,
+                    'qc_kwargs': qc_kwargs if qc else None,
+                    'reports': reports
                 }
 
                 # Worker to grab slide path from queue and start tile extraction

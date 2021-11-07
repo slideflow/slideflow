@@ -778,6 +778,8 @@ class Project:
             buffer (str, optional): Slides will be copied to this directory before extraction. Defaults to None.
                 Using an SSD or ramdisk buffer vastly improves tile extraction speed.
             num_workers (int, optional): Extract tiles from this many slides simultaneously. Defaults to 4.
+            qc (bool, optional): Perform quality control blur detection, discarding tiles with detected out-of-focus
+                regions or artifact. Increases tile extraction time. Defaults to False.
 
         Keyword Args:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
@@ -798,6 +800,14 @@ class Project:
                 Otherwise, will extract sub-images from each core using the given tile micron size. Defaults to False.
             shuffle (bool, optional): Shuffle tiles prior to storage in tfrecords. Defaults to True.
             num_threads (int, optional): Number of workers threads for each tile extractor. Defaults to 4.
+            qc_blur_radius (int, optional): Quality control blur radius for out-of-focus area detection. Only used if
+                qc=True. Defaults to 3.
+            qc_blur_threshold (float, optional): Quality control blur threshold for detecting out-of-focus areas.
+                Only used if qc=True. Defaults to 0.1
+            qc_filter_threshold (float, optional): Float between 0-1. Tiles with more than this proportion of blur
+                will be discarded. Only used if qc=True. Defaults to 0.6.
+            qc_mpp (float, optional): Microns-per-pixel indicating image magnification level at which quality control
+                is performed. Defaults to mpp=4 (effective magnification 2.5 X)
         """
 
         dataset = self.dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank, verification='slides')
