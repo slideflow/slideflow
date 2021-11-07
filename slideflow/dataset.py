@@ -516,8 +516,8 @@ class Dataset:
 
             roi_dir = self.sources[source]['roi']
             source_config = self.sources[source]
-            tfrecord_dir = join(source_config['tfrecords'], source_config['label'])
-            tiles_dir = join(source_config['tiles'], source_config['label'])
+            tfrecord_dir = join(source_config['tfrecords'], source_config['label']) if save_tfrecords else None
+            tiles_dir = join(source_config['tiles'], source_config['label']) if save_tiles else None
             if save_tfrecords and not exists(tfrecord_dir):
                 os.makedirs(tfrecord_dir)
             if save_tiles and not os.path.exists(tiles_dir):
@@ -612,7 +612,7 @@ class Dataset:
                         try:
                             path = q.get()
                             if process_isolated:
-                                process = ctx.Process(target=_tile_extractor)#, args=(path,), kwargs=extraction_kwargs)
+                                process = ctx.Process(target=_tile_extractor, args=(path,), kwargs=extraction_kwargs)
                                 process.start()
                                 process.join()
                             else:
