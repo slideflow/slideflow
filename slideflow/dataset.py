@@ -433,8 +433,8 @@ class Dataset:
         return ret
 
     def extract_tiles(self, save_tiles=False, save_tfrecords=True, source=None, stride_div=1, enable_downsample=False,
-                      roi_method='inside', skip_missing_roi=True, skip_extracted=True, tma=False,
-                      randomize_origin=False, buffer=None, num_workers=4, qc=False, report=True, **kwargs):
+                      roi_method='inside', skip_missing_roi=True, skip_extracted=True, tma=False, randomize_origin=False,
+                      buffer=None, num_workers=4, qc=False, report=True, process_isolated=False, **kwargs):
 
         """Extract tiles from a group of slides, saving extracted tiles to either loose image or in
         TFRecord binary format.
@@ -464,6 +464,9 @@ class Dataset:
             qc (bool, optional): Perform quality control blur detection, discarding tiles with detected out-of-focus
                 regions or artifact. Increases tile extraction time. Defaults to False.
             report (bool, optional): Save a PDF report of tile extraction. Defaults to True.
+            process_isolated (bool, optional): Isolated each slide's tile extraction into a separate process.
+                May circumvent libvips errors when multiple slides are being accessed simultaneously. Small performance
+                penalty when used. Defaults to False.
 
         Keyword Args:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
@@ -608,9 +611,12 @@ class Dataset:
                     while True:
                         try:
                             path = q.get()
-                            process = ctx.Process(target=_tile_extractor, args=(path,), kwargs=extraction_kwargs)
-                            process.start()
-                            process.join()
+                            if process_isolated:
+                                process = ctx.Process(target=_tile_extractor)#, args=(path,), kwargs=extraction_kwargs)
+                                process.start()
+                                process.join()
+                            else:
+                                _tile_extractor(path, **extraction_kwargs)
                             if buffer and buffer != 'vmtouch':
                                 os.remove(path)
                             q.task_done()
