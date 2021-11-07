@@ -726,7 +726,7 @@ class _BaseLoader:
             return False
         return loaded_correctly
 
-    def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, img_format='png', **kwargs):
+    def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, img_format='png', report=True, **kwargs):
         """Extracts tiles from slide using the build_generator() method,
         saving tiles into a TFRecord file or as loose JPG tiles in a directory.
 
@@ -769,9 +769,6 @@ class _BaseLoader:
         if tiles_dir:
             tiles_dir = os.path.join(tiles_dir, self.name)
             if not os.path.exists(tiles_dir): os.makedirs(tiles_dir)
-
-        # Quality control
-        self.qc()
 
         # Log to keep track of when tiles have finished extracting
         # To be used in case tile extraction is interrupted, so the slide can be flagged for re-extraction
@@ -824,8 +821,8 @@ class _BaseLoader:
         self.slide.unbuffer()
 
         # Generate extraction report
-        report = SlideReport(sample_tiles, self.slide.path, thumb=self.thumb(coords=locations, rois=True))
-        return report
+        if report:
+            return SlideReport(sample_tiles, self.slide.path, thumb=self.thumb(coords=locations, rois=True))
 
     def preview(self, rois=True, **kwargs):
         """Performs a dry run of tile extraction without saving any images, returning a PIL image of the slide

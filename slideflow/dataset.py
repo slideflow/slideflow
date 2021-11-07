@@ -22,41 +22,40 @@ from slideflow.util import log, TCGA, _shortname, ProgressBar
 
 def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, skip_missing_roi, randomize_origin, tma,
                     tile_px, tile_um, stride_div, downsample, buffer, pb_counter, counter_lock, reports,
-                    generator_kwargs, qc_kwargs):
+                    generator_kwargs, qc, qc_kwargs):
     """Internal function to execute tile extraction. Slide processing needs to be process-isolated."""
 
     # Record function arguments in case we need to re-call the function (for corrupt tiles)
     local_args = locals()
 
-    from slideflow.slide import TMA, WSI, TileCorruptionError
     log.handlers[0].flush_line = True
     try:
         log.debug(f'Extracting tiles for slide {sf.util.path_to_name(slide_path)}')
 
         if tma:
-            slide = TMA(slide_path,
-                        tile_px,
-                        tile_um,
-                        stride_div,
-                        enable_downsample=downsample,
-                        report_dir=tfrecord_dir,
-                        buffer=buffer)
+            slide = sf.slide.TMA(slide_path,
+                                 tile_px,
+                                 tile_um,
+                                 stride_div,
+                                 enable_downsample=downsample,
+                                 report_dir=tfrecord_dir,
+                                 buffer=buffer)
         else:
-            slide = WSI(slide_path,
-                        tile_px,
-                        tile_um,
-                        stride_div,
-                        enable_downsample=downsample,
-                        roi_dir=roi_dir,
-                        roi_method=roi_method,
-                        randomize_origin=randomize_origin,
-                        skip_missing_roi=skip_missing_roi,
-                        buffer=buffer,
-                        pb_counter=pb_counter,
-                        counter_lock=counter_lock)
+            slide = sf.slide.WSI(slide_path,
+                                 tile_px,
+                                 tile_um,
+                                 stride_div,
+                                 enable_downsample=downsample,
+                                 roi_dir=roi_dir,
+                                 roi_method=roi_method,
+                                 randomize_origin=randomize_origin,
+                                 skip_missing_roi=skip_missing_roi,
+                                 buffer=buffer,
+                                 pb_counter=pb_counter,
+                                 counter_lock=counter_lock)
 
         # Apply quality control (blur filtering)
-        if qc_kwargs:
+        if qc:
             slide.qc(**qc_kwargs)
 
         if not slide.loaded_correctly():
@@ -65,7 +64,7 @@ def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, sk
         try:
             report = slide.extract_tiles(tfrecord_dir=tfrecord_dir, tiles_dir=tiles_dir, **generator_kwargs)
 
-        except TileCorruptionError:
+        except sf.slide.TileCorruptionError:
             if downsample:
                 log.warning(f'Corrupt tile in {sf.util.path_to_name(slide_path)}; will try disabling downsampling')
                 report = _tile_extractor(**local_args)
@@ -435,7 +434,7 @@ class Dataset:
 
     def extract_tiles(self, save_tiles=False, save_tfrecords=True, source=None, stride_div=1, enable_downsample=False,
                       roi_method='inside', skip_missing_roi=True, skip_extracted=True, tma=False,
-                      randomize_origin=False, buffer=None, num_workers=4, qc=False, **kwargs):
+                      randomize_origin=False, buffer=None, num_workers=4, qc=False, report=True, **kwargs):
 
         """Extract tiles from a group of slides, saving extracted tiles to either loose image or in
         TFRecord binary format.
@@ -464,6 +463,7 @@ class Dataset:
             num_workers (int, optional): Extract tiles from this many slides simultaneously. Defaults to 4.
             qc (bool, optional): Perform quality control blur detection, discarding tiles with detected out-of-focus
                 regions or artifact. Increases tile extraction time. Defaults to False.
+            report (bool, optional): Save a PDF report of tile extraction. Defaults to True.
 
         Keyword Args:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
@@ -493,8 +493,6 @@ class Dataset:
             qc_mpp (float, optional): Microns-per-pixel indicating image magnification level at which quality control
                 is performed. Defaults to mpp=4 (effective magnification 2.5 X)
         """
-
-        import slideflow.slide
 
         if not save_tiles and not save_tfrecords:
             log.error('Either save_tiles or save_tfrecords must be true to extract tiles.')
@@ -600,7 +598,8 @@ class Dataset:
                     'pb_counter': counter,
                     'counter_lock': counter_lock,
                     'generator_kwargs': kwargs,
-                    'qc_kwargs': qc_kwargs if qc else None,
+                    'qc': qc,
+                    'qc_kwargs': qc_kwargs,
                     'reports': reports
                 }
 
@@ -649,10 +648,11 @@ class Dataset:
                 q.join()
                 task_finished = True
                 if pb: pb.end()
-                log.info('Generating PDF (this may take some time)...', )
-                pdf_report = sf.slide.ExtractionReport(reports.values(), tile_px=self.tile_px, tile_um=self.tile_um)
-                timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
-                pdf_report.save(join(tfrecord_dir, f'tile_extraction_report-{timestring}.pdf'))
+                if report:
+                    log.info('Generating PDF (this may take some time)...', )
+                    pdf_report = sf.slide.ExtractionReport(reports.values(), tile_px=self.tile_px, tile_um=self.tile_um)
+                    timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
+                    pdf_report.save(join(tfrecord_dir, f'tile_extraction_report-{timestring}.pdf'))
 
             # Update manifest & rebuild indices
             self.update_manifest()
