@@ -267,14 +267,7 @@ class Project:
 
     def _read_relative_path(self, path):
         """Converts relative path within project directory to global path."""
-        if path[0] == '.':
-            return join(self.root, path[2:])
-        elif path[:5] == '$ROOT':
-            log.warn('Deprecation warning: invalid path prefix $ROOT, please update project settings ' + \
-                     '(use "." for relative paths)')
-            return join(self.root, path[6:])
-        else:
-            return path
+        return sf.util.relative_path(path, self.root)
 
     def select_gpu(self, gpu):
         """Sets CUDA_VISIBLE_DEVICES in order to restrict GPU access to the given devices.
@@ -1559,17 +1552,22 @@ class Project:
         """
 
         try:
+            if self.annotations and exists(self.annotations):
+                annotations = self.annotations
+            else:
+                self.annotations = None
             dataset = Dataset(config=self.dataset_config,
                               sources=self.sources,
                               tile_px=tile_px,
                               tile_um=tile_um,
-                              annotations=self.annotations,
+                              annotations=annotations,
                               filters=filters,
                               filter_blank=filter_blank,
                               min_tiles=min_tiles)
 
         except FileNotFoundError:
-            log.warn('No datasets configured.')
+            log.error('No datasets configured.')
+            return
 
         if verification in ('both', 'slides'):
             log.debug("Verifying slide annotations...")

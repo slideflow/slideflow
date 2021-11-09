@@ -154,7 +154,7 @@ def interactive_project_setup(project_folder):
 
     project['sources'] = []
     while not project['sources']:
-        datasets_data, sources = load_sources(project['dataset_config'])
+        datasets_data, sources = load_sources(sf.util.relative_path(project['dataset_config'], project_folder))
 
         print(sf.util.bold('Detected dataset sources:'))
         if not len(sources):
@@ -165,8 +165,8 @@ def interactive_project_setup(project_folder):
             print(f' {len(sources)+1}. ADD NEW')
             valid_source_choices = [str(l) for l in range(1, len(sources)+2)]
             selection = sf.util.choice_input(f'Which datasets should be used? ',
-                                                    valid_choices=valid_source_choices,
-                                                    multi_choice=True)
+                                             valid_choices=valid_source_choices,
+                                             multi_choice=True)
 
         if not len(sources) or str(len(sources)+1) in selection:
             # Create new dataset
@@ -179,14 +179,14 @@ def interactive_project_setup(project_folder):
             source_tiles = sf.util.path_input('Image tile storage location [./tiles] ',
                                     root=project_folder, default='./tiles', create_on_invalid=True)
             source_tfrecords = sf.util.path_input('TFRecord storage location [./tfrecord] ',
-                                    root=project_folder, default='./tfrecord', create_on_invalid=True)
+                                    root=project_folder, default='./tfrecords', create_on_invalid=True)
 
             add_source(name=source_name,
-                        slides=source_slides,
-                        roi=source_roi,
-                        tiles=source_tiles,
-                        tfrecords=source_tfrecords,
-                        path=project['dataset_config'])
+                       slides=source_slides,
+                       roi=source_roi,
+                       tiles=source_tiles,
+                       tfrecords=source_tfrecords,
+                       path=sf.util.relative_path(project['dataset_config'], project_folder))
 
             print('Updated dataset configuration file.')
         else:

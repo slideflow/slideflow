@@ -332,6 +332,16 @@ def make_dir(_dir):
         except FileExistsError:
             pass
 
+def relative_path(path, root):
+    if path[0] == '.':
+        return join(root, path[2:])
+    elif path[:5] == '$ROOT':
+        log.warn('Deprecation warning: invalid path prefix $ROOT, please update project settings ' + \
+                    '(use "." for relative paths)')
+        return join(root, path[6:])
+    else:
+        return path
+
 def global_path(root, path_string):
     '''Returns global path from a local path.'''
     if not root: root = ""
