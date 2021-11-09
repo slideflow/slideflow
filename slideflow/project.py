@@ -699,7 +699,7 @@ class Project:
         outcome_dict = dict(zip(range(len(unique_labels)), unique_labels))
         with open(join(eval_dir, 'eval_annotations.csv'), 'w') as eval_file:
             writer = csv.writer(eval_file)
-            header = ['submitter_id', 'slide', outcome_label_headers]
+            header = [sf.util.TCGA.patient, sf.util.TCGA.slide, outcome_label_headers]
             writer.writerow(header)
             for slide in evaluation_slides:
                 row = [slide, slide, outcome_dict[slide_labels[slide]]]

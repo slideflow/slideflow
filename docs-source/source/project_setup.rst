@@ -98,13 +98,13 @@ Your annotations CSV file is used to label patients and slides with clinical dat
 
 The annotations file may contain as many columns as you would like, but it must contain the following headers at minimum:
 
-- **submitter_id**: patient identifier
+- **patient**: patient identifier
 - **slide**: slide name / identifier (without the file extension)
 
 An example annotations file is given below:
 
 +-----------------------+---------------+-----------+-----------------------------------+
-| *submitter_id*        | *category*    | *dataset* | *slide*                           |
+| *patient*             | *category*    | *dataset* | *slide*                           |
 +-----------------------+---------------+-----------+-----------------------------------+
 | TCGA-EL-A23A          | EGFR-mutant   | train     | TCGA-EL-A3CO-01Z-00-DX1-7BF5F     |
 +-----------------------+---------------+-----------+-----------------------------------+
@@ -121,7 +121,7 @@ An example annotations file is generated each time a new project is initialized.
 
     P.create_blank_annotations()
 
-Slide names do not need to be explicitly set in the annotations file by the user. Rather, once a dataset has been set up, slideflow will search through the linked slide directories and attempt to match slides to entries in the annotations file using **submitter_id**. Entries that are blank in the **slide** column will be auto-populated with any detected and matching slides, if available.
+Slide names do not need to be explicitly set in the annotations file by the user. Rather, once a dataset has been set up, slideflow will search through the linked slide directories and attempt to match slides to entries in the annotations file using **patient**. Entries that are blank in the **slide** column will be auto-populated with any detected and matching slides, if available.
 
 .. _execute:
 

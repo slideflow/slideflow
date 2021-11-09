@@ -292,7 +292,7 @@ class ProgressBar:
         sys.stdout.flush()
 
 class TCGA:
-    patient = 'submitter_id'
+    patient = 'patient'
     project = 'project_id'
     slide = 'slide'
 

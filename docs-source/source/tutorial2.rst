@@ -32,7 +32,7 @@ If you initialize a project with keywords, you will need to manually create a ne
     ...     tfrecords="/tfrecords/directory")
     ... )
 
-As before, set up your annotations file, including columns "submitter_id", "er_status_by_ihc", "dataset", and "slide".
+As before, set up your annotations file, including columns "patient", "er_status_by_ihc", "dataset", and "slide".
 
 Creating a Dataset
 ******************

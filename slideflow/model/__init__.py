@@ -40,7 +40,7 @@ def trainer_from_hp(hp, **kwargs):
 
     Keyword Args:
         outdir (str): Location where event logs and checkpoints will be written.
-        annotations (dict): Nested dict, mapping slide names to a dict with patient name (key 'submitter_id'),
+        annotations (dict): Nested dict, mapping slide names to a dict with patient name (key 'patient'),
             outcome labels (key 'outcome_label'), and any additional slide-level inputs (key 'input').
         name (str, optional): Optional name describing the model, used for model saving. Defaults to None.
         manifest (dict, optional): Manifest dictionary mapping TFRecords to number of tiles. Defaults to None.

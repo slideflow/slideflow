@@ -69,7 +69,7 @@ Setting up annotations
 **********************
 
 With our project initialized, we can set up our annotations file. Use the downloaded annotations file to create a new
-CSV file, with a column "submitter_id" indicating patient name (in the case of TCGA, these are in the format
+CSV file, with a column "patient" indicating patient name (in the case of TCGA, these are in the format
 TCGA-SS-XXXX, where SS indicates site of origin and XXXX is the patient identifier), and a column "er_status_by_ihc"
 containing our outcome of interest. Add a third column "slide" containing the name of the slide associated with the
 patient. If there are multiple slides per patient, list each slide on a separate row. Finally, add a column "dataset"
@@ -84,7 +84,7 @@ dataset for evaluation.
 Your annotations file should look something like:
 
 +-----------------------+--------------------+-----------+-----------------------------------+
-| *submitter_id*        | *er_status_by_ihc* | *dataset* | *slide*                           |
+| *patient*             | *er_status_by_ihc* | *dataset* | *slide*                           |
 +-----------------------+--------------------+-----------+-----------------------------------+
 | TCGA-EL-A23A          | Positive           | train     | TCGA-EL-A3CO-01Z-00-DX1-7BF5F...  |
 +-----------------------+--------------------+-----------+-----------------------------------+

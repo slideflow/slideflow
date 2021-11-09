@@ -12,6 +12,7 @@ from scipy import stats
 from torch.utils.data import Dataset
 import h5py
 
+import slideflow as sf
 from slideflow.clam.utils import generate_split, nth
 
 class ClamError(Exception):
@@ -38,8 +39,8 @@ def save_splits(split_datasets, column_keys, filename, boolean_style=False):
 class Generic_WSI_Classification_Dataset(Dataset):
 	def __init__(self,
 		csv_path = 'dataset_csv/ccrcc_clean.csv',
-		shuffle = False, 
-		seed = 7, 
+		shuffle = False,
+		seed = 7,
 		print_info = True,
 		label_dict = {},
 		filter_dict = {},
@@ -89,7 +90,7 @@ class Generic_WSI_Classification_Dataset(Dataset):
 
 	def cls_ids_prep(self):
 		# store ids corresponding each class at the patient or case level
-		self.patient_cls_ids = [[] for i in range(self.num_classes)]		
+		self.patient_cls_ids = [[] for i in range(self.num_classes)]
 		for i in range(self.num_classes):
 			self.patient_cls_ids[i] = np.where(self.patient_data['label'] == i)[0]
 
@@ -99,11 +100,11 @@ class Generic_WSI_Classification_Dataset(Dataset):
 			self.slide_cls_ids[i] = np.where(self.slide_data['label'] == i)[0]
 
 	def patient_data_prep(self, patient_voting='max'):
-		patients = np.unique(np.array(self.slide_data['submitter_id'])) # get unique patients
+		patients = np.unique(np.array(self.slide_data[sf.util.TCGA.patient])) # get unique patients
 		patient_labels = []
-		
+
 		for p in patients:
-			locations = self.slide_data[self.slide_data['submitter_id'] == p].index.tolist()
+			locations = self.slide_data[self.slide_data[sf.util.TCGA.patient] == p].index.tolist()
 			assert len(locations) > 0
 			label = self.slide_data['label'][locations].values
 			if patient_voting == 'max':
@@ -113,8 +114,8 @@ class Generic_WSI_Classification_Dataset(Dataset):
 			else:
 				raise NotImplementedError
 			patient_labels.append(label)
-		
-		self.patient_data = {'submitter_id':patients, 'label':np.array(patient_labels)}
+
+		self.patient_data = {sf.util.TCGA.patient:patients, 'label':np.array(patient_labels)}
 
 	@staticmethod
 	def df_prep(data, label_dict, ignore, label_col):
@@ -158,8 +159,8 @@ class Generic_WSI_Classification_Dataset(Dataset):
 
 	def create_splits(self, k = 3, val_num = (25, 25), test_num = (40, 40), label_frac = 1.0, custom_test_ids = None):
 		settings = {
-					'n_splits' : k, 
-					'val_num' : val_num, 
+					'n_splits' : k,
+					'val_num' : val_num,
 					'test_num': test_num,
 					'label_frac': label_frac,
 					'seed': self.seed,
@@ -181,9 +182,9 @@ class Generic_WSI_Classification_Dataset(Dataset):
 			ids = next(self.split_gen)
 
 		if self.patient_strat:
-			slide_ids = [[] for i in range(len(ids))] 
+			slide_ids = [[] for i in range(len(ids))]
 
-			for split in range(len(ids)): 
+			for split in range(len(ids)):
 				for idx in ids[split]:
 					case_id = self.patient_data['case_id'][idx]
 					slide_indices = self.slide_data[self.slide_data['case_id'] == case_id].index.tolist()
@@ -203,7 +204,7 @@ class Generic_WSI_Classification_Dataset(Dataset):
 			split = Generic_Split(df_slice, data_dir=self.data_dir, num_classes=self.num_classes, lasthalf = self.lasthalf)
 		else:
 			split = None
-		
+
 		return split
 
 	def get_merged_split_from_df(self, all_splits, split_keys=['train']):
@@ -219,7 +220,7 @@ class Generic_WSI_Classification_Dataset(Dataset):
 			split = Generic_Split(df_slice, data_dir=self.data_dir, num_classes=self.num_classes, lasthalf = self.lasthalf)
 		else:
 			split = None
-		
+
 		return split
 
 
@@ -227,36 +228,36 @@ class Generic_WSI_Classification_Dataset(Dataset):
 
 
 		if from_id:
-			
+
 			if len(self.train_ids) > 0:
 				train_data = self.slide_data.loc[self.train_ids].reset_index(drop=True)
 				train_split = Generic_Split(train_data, data_dir=self.data_dir, num_classes=self.num_classes, lasthalf = self.lasthalf)
 
 			else:
 				train_split = None
-			
+
 			if len(self.val_ids) > 0:
 				val_data = self.slide_data.loc[self.val_ids].reset_index(drop=True)
 				val_split = Generic_Split(val_data, data_dir=self.data_dir, num_classes=self.num_classes, lasthalf = self.lasthalf)
 
 			else:
 				val_split = None
-			
+
 			if len(self.test_ids) > 0:
 				test_data = self.slide_data.loc[self.test_ids].reset_index(drop=True)
 				test_split = Generic_Split(test_data, data_dir=self.data_dir, num_classes=self.num_classes, lasthalf = self.lasthalf)
-			
+
 			else:
 				test_split = None
-			
-		
+
+
 		else:
-			assert csv_path 
+			assert csv_path
 			all_splits = pd.read_csv(csv_path)
 			train_split = self.get_split_from_df(all_splits, 'train')
 			val_split = self.get_split_from_df(all_splits, 'val')
 			test_split = self.get_split_from_df(all_splits, 'test')
-			
+
 		return train_split, val_split, test_split
 
 	def get_list(self, ids):
@@ -284,7 +285,7 @@ class Generic_WSI_Classification_Dataset(Dataset):
 			print('number of samples in cls {}: {}'.format(unique[u], counts[u]))
 			if return_descriptor:
 				df.loc[index[u], 'train'] = counts[u]
-		
+
 		count = len(self.val_ids)
 		print('\nnumber of val samples: {}'.format(count))
 		labels = self.getlabel(self.val_ids)
@@ -317,7 +318,7 @@ class Generic_WSI_Classification_Dataset(Dataset):
 		df_tr = pd.DataFrame({'train': train_split})
 		df_v = pd.DataFrame({'val': val_split})
 		df_t = pd.DataFrame({'test': test_split})
-		df = pd.concat([df_tr, df_v, df_t], axis=1) 
+		df = pd.concat([df_tr, df_v, df_t], axis=1)
 		df.to_csv(filename, index = False)
 
 
@@ -325,7 +326,7 @@ class Generic_MIL_Dataset(Generic_WSI_Classification_Dataset):
 	def __init__(self,
 		data_dir,
 		**kwargs):
-	
+
 		super(Generic_MIL_Dataset, self).__init__(**kwargs)
 		self.data_dir = data_dir
 		self.use_h5 = False
@@ -349,7 +350,7 @@ class Generic_MIL_Dataset(Generic_WSI_Classification_Dataset):
 				if self.lasthalf:
 					features = torch.split(features, 1024, dim = 1)[1]
 				return features, label
-			
+
 			else:
 				return slide_id, label
 
