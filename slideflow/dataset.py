@@ -432,7 +432,7 @@ class Dataset:
 
         return ret
 
-    def extract_tiles(self, save_tiles=False, save_tfrecords=True, source=None, stride_div=1, enable_downsample=False,
+    def extract_tiles(self, save_tiles=False, save_tfrecords=True, source=None, stride_div=1, enable_downsample=True,
                       roi_method='inside', skip_missing_roi=True, skip_extracted=True, tma=False, randomize_origin=False,
                       buffer=None, num_workers=4, qc=False, report=True, process_isolated=False, **kwargs):
 
@@ -448,7 +448,7 @@ class Dataset:
             stride_div (int, optional): Stride divisor to use when extracting tiles. Defaults to 1.
                 A stride of 1 will extract non-overlapping tiles.
                 A stride_div of 2 will extract overlapping tiles, with a stride equal to 50% of the tile width.
-            enable_downsample (bool, optional): Enable downsampling when reading slide images. Defaults to False.
+            enable_downsample (bool, optional): Enable downsampling when reading slide images. Defaults to True.
                 This may result in corrupted image tiles if downsampled slide layers are corrupted or incomplete.
                 Recommend manual confirmation of tile integrity.
             roi_method (str, optional): Either 'inside', 'outside', or 'ignore'. Defaults to 'inside'.
@@ -1025,8 +1025,8 @@ class Dataset:
         else:
             return paths
 
-    def slide_report(self, stride_div=1, destination='auto', tma=False, enable_downsample=False,
-                        roi_method='inside', skip_missing_roi=False, normalizer=None, normalizer_source=None):
+    def slide_report(self, stride_div=1, destination='auto', tma=False, enable_downsample=True, roi_method='inside',
+                     skip_missing_roi=False, normalizer=None, normalizer_source=None):
 
         """Creates a PDF report of slides, including images of 10 example extracted tiles.
 
@@ -1035,7 +1035,7 @@ class Dataset:
             destination (str, optional): Either 'auto' or explicit filename at which to save the PDF report.
                 Defaults to 'auto'.
             tma (bool, optional): Interpret slides as TMA (tumor microarrays). Defaults to False.
-            enable_downsample (bool, optional): Enable downsampling during tile extraction. Defaults to False.
+            enable_downsample (bool, optional): Enable downsampling during tile extraction. Defaults to True.
             roi_method (str, optional): Either 'inside', 'outside', or 'ignore'. Defaults to 'inside'.
                 Determines how ROIs will guide tile extraction
             skip_missing_roi (bool, optional): Skip tiles that are missing ROIs. Defaults to False.

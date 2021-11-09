@@ -17,7 +17,7 @@ class Heatmap:
     """Generates heatmap by calculating predictions from a sliding scale window across a slide."""
 
     def __init__(self, slide, model, stride_div=2, roi_dir=None, rois=None, roi_method='inside', batch_size=32,
-                 num_threads=8, buffer=None):
+                 num_threads=8, buffer=None, enable_downsample=True):
 
         """Convolutes across a whole slide, calculating logits and saving predictions internally for later use.
 
@@ -32,8 +32,9 @@ class Heatmap:
                 If outside, tiles will be extracted outside ROI region.
             batch_size (int, optional): Batch size when calculating predictions. Defaults to 32.
             num_threads (int, optional): Number of tile extraction worker threads. Defaults to 8.
-            buffer (str): Either 'vmtouch' or path to directory to use for buffering slides. Defaults to None.
+            buffer (str, optional): Either 'vmtouch' or path to directory to use for buffering slides. Defaults to None.
                 Significantly improves performance for slides on HDDs.
+            enable_downsample (bool, optional): Enable the use of downsampled slide image layers. Defaults to True.
         """
 
         from slideflow.slide import WSI
@@ -64,7 +65,7 @@ class Heatmap:
                          self.tile_px,
                          self.tile_um,
                          stride_div,
-                         enable_downsample=False,
+                         enable_downsample=enable_downsample,
                          roi_dir=roi_dir,
                          rois=rois,
                          roi_method=roi_method,

@@ -1347,7 +1347,7 @@ class Project:
             umap.save_2d_plot(join(stats_root, umap_filename))
 
     def generate_thumbnails(self, size=512, dataset=None, filters=None, filter_blank=None,
-                            roi=False, enable_downsample=False):
+                            roi=False, enable_downsample=True):
 
         """Generates square slide thumbnails with black box borders of a fixed size, and saves to project folder.
 
@@ -1593,7 +1593,7 @@ class Project:
         return sf.util.neptune_utils.NeptuneLog(self.neptune_api, self.neptune_workspace)
 
     def predict_wsi(self, model, outdir, dataset=None, filters=None, filter_blank=None, stride_div=1,
-                    enable_downsample=False, roi_method='inside', skip_missing_roi=False, source=None,
+                    enable_downsample=True, roi_method='inside', skip_missing_roi=False, source=None,
                     randomize_origin=False, buffer=None, **kwargs):
 
         """Using a given model, generates a spatial map of tile-level predictions for a whole-slide image (WSI)
@@ -1613,7 +1613,7 @@ class Project:
             stride_div (int, optional): Stride divisor to use when extracting tiles. Defaults to 1.
                 A stride of 1 will extract non-overlapping tiles.
                 A stride_div of 2 will extract overlapping tiles, with a stride equal to 50% of the tile width.
-            enable_downsample (bool, optional): Enable downsampling when reading slide images. Defaults to False.
+            enable_downsample (bool, optional): Enable downsampling when reading slide images. Defaults to True.
                 This may result in corrupted image tiles if downsampled slide layers are corrupted or incomplete.
                 Recommend manual confirmation of tile integrity.
             roi_method (str, optional): Either 'inside', 'outside', or 'ignore'. Defaults to 'inside'.

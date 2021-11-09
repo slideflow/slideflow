@@ -523,7 +523,7 @@ class _BaseLoader:
     '''Object that loads an SVS slide and makes preparations for tile extraction.
     Should not be used directly; this class must be inherited and extended by either WSI or TMA child classes.'''
 
-    def __init__(self, path, tile_px, tile_um, stride_div, enable_downsample=False,
+    def __init__(self, path, tile_px, tile_um, stride_div, enable_downsample=True,
                     buffer=None, pb=None, pb_counter=None, counter_lock=None):
         self.load_error = False
 
@@ -903,7 +903,7 @@ class _BaseLoader:
 class WSI(_BaseLoader):
     '''Loads a slide and its annotated region of interest (ROI).'''
 
-    def __init__(self, path, tile_px, tile_um, stride_div=1, enable_downsample=False, roi_dir=None, rois=None,
+    def __init__(self, path, tile_px, tile_um, stride_div=1, enable_downsample=True, roi_dir=None, rois=None,
                  roi_method='inside', skip_missing_roi=False, randomize_origin=False, buffer=None, pb=None,
                  pb_counter=None, counter_lock=None, silent=False):
 
@@ -917,7 +917,7 @@ class WSI(_BaseLoader):
                 Defaults to 1.
             enable_downsample (bool, optional): Allow use of downsampled intermediate layers in the slide image pyramid,
                 which greatly improves tile extraction speed. May result in artifacts for slides with incompletely
-                generated intermediates pyramid layers. Defaults to False.
+                generated intermediates pyramid layers. Defaults to True.
             roi_dir (str, optional): Directory in which to search for ROI CSV files. Defaults to None.
             rois (list(str)): Alternatively, a list of ROI paths can be explicitly provided. Defaults to None.
             roi_method (str): Either 'inside', 'outside', or 'ignore'. Determines how ROIs are used to extract tiles.
@@ -1282,7 +1282,7 @@ class TMA(_BaseLoader):
     WHITE = (255,255,255)
 
     def __init__(self, path, tile_px, tile_um, stride_div=1, annotations_dir=None,
-                    enable_downsample=False, report_dir=None, buffer=None, pb=None, pb_id=0):
+                    enable_downsample=True, report_dir=None, buffer=None, pb=None, pb_id=0):
         '''Initializer.
 
         Args:

@@ -784,7 +784,7 @@ class Trainer:
         return val_metrics
 
     def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=512, validation_batch_size=32,
-              validation_steps=200, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=False,
+              validation_steps=200, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
               steps_per_epoch_override=None, save_predictions=False, skip_metrics=False, resume_training=None,
               pretrain='imagenet', checkpoint=None, multi_gpu=False):
 
