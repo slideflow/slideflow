@@ -608,16 +608,61 @@ class _BaseLoader:
         self._build_coord()
         log.debug(f'QC removed from slide {self.shortname}')
 
-    def qc(self, blur_radius=3, blur_threshold=0.1, filter_threshold=0.6, mpp=4):
+    def qc(self, method, blur_radius=3, blur_threshold=0.1, filter_threshold=0.6, mpp=4):
+        """Applies quality control to a slide, performing filtering based on a whole-slide image thumbnail.
+
+        'blur' method filters out blurry or out-of-focus slide sections.
+        'otsu' method filters out background based on automatic saturation thresholding in the HSV colorspace.
+        'both' applies both methods of filtering.
+
+        Args:
+            method (str): Quality control method, includes 'blur', 'otsu', or 'both'.
+            blur_radius (int, optional): Blur radius.
+            blur_threshold (float, optional): Blur threshold.
+            filter_threshold (float, optional): Percent of a tile detected as background that will trigger a tile to be
+                discarded. Defaults to 0.6.
+            mpp (float, optional): Size of WSI thumbnail on which to perform quality control, in microns-per-pixel.
+                Defaults to 4 (equivalent magnification = 2.5 X)
+        """
+
+        if method not in ('blur', 'otsu', 'both'):
+            raise ValueError(f"Unknown method {method}, valid methods include 'blur', 'otsu', 'both'")
         starttime = time.time()
-        gray = rgb2gray(np.array(self.thumb(mpp=mpp)))
+
+        thumb = np.array(self.thumb(mpp=mpp))
+        if thumb.shape[-1] == 4:
+            thumb = thumb[:,:,:3]
+        gray = rgb2gray(thumb)
         img_laplace = np.abs(skimage.filters.laplace(gray))
+        thumb_mpp = 40
         self.qc_mpp = mpp
-        self.qc_mask = skimage.filters.gaussian(img_laplace, sigma=blur_radius) <= blur_threshold
-        small_mask = skimage.transform.resize(self.qc_mask, (self.qc_mask.shape[0]//10, self.qc_mask.shape[1]//10))
+        thumb_scale = thumb_mpp / mpp
+
+        # Perform thresholding
+        if method in ('blur', 'both'):
+            blur_mask = skimage.filters.gaussian(img_laplace, sigma=blur_radius) <= blur_threshold
+            self.qc_mask = blur_mask
+        if method in ('otsu', 'both'):
+            otsu_thumb = np.array(self.thumb(mpp=thumb_mpp))
+            if otsu_thumb.shape[-1] == 4:
+                otsu_thumb = otsu_thumb[:,:,:3]
+            hsv_img = cv2.cvtColor(otsu_thumb, cv2.COLOR_RGB2HSV)
+            img_med = cv2.medianBlur(hsv_img[:,:,1], 7)
+            _, otsu_mask = cv2.threshold(img_med, 0, 255, cv2.THRESH_OTSU+cv2.THRESH_BINARY_INV)
+            otsu_mask = otsu_mask.astype(np.bool)
+            self.qc_mask = otsu_mask
+        if method == 'both':
+            otsu_mask = skimage.transform.resize(otsu_mask, blur_mask.shape)
+            self.qc_mask = np.logical_or(blur_mask, otsu_mask)
+
+        # Make a smaller thumbnail mask
+        if method in ('blur', 'both'):
+            small_mask = skimage.transform.resize(self.qc_mask, (self.qc_mask.shape[0]//thumb_scale, self.qc_mask.shape[1]//thumb_scale))
+        else:
+            small_mask = self.qc_mask
 
         # Filter coordinates
-        qc_ratio = self.mpp / (mpp * 10)
+        qc_ratio = self.mpp / (mpp * thumb_scale)
         qc_width = int(self.full_extract_px * qc_ratio)
         to_delete = []
         for i, c in enumerate(self.coord):
