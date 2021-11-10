@@ -149,7 +149,7 @@ def _roi_coords_from_image(c, args):
 def _wsi_extraction_worker(c, args):
     '''Multiprocessing worker for WSI. Extracts a tile at the given coordinates.'''
 
-    slide = _VIPSWrapper(args.path)
+    slide = _VIPSWrapper(args.path, silent=True)
     normalizer = None if not args.normalizer else StainNormalizer(method=args.normalizer, source=args.normalizer_source)
 
     index = c[2]
@@ -361,7 +361,7 @@ class ExtractionReport:
 class _VIPSWrapper:
     '''Wrapper for VIPS to preserve openslide-like functions.'''
 
-    def __init__(self, path, buffer=None):
+    def __init__(self, path, buffer=None, silent=False):
         self.path = path
         self.buffer = buffer
 
@@ -378,14 +378,26 @@ class _VIPSWrapper:
 
         # If Openslide MPP is not available, try reading from metadata
         if OPS_MPP_X not in self.properties.keys():
-            log.warning(f"Unable to detect openslide Microns-Per-Pixel (MPP) property, will search EXIF data")
+            if not silent:
+                log.debug(f"Unable to detect openslide Microns-Per-Pixel (MPP) property, will search EXIF data")
             try:
                 with Image.open(path) as img:
                     if TIF_EXIF_KEY_MPP in img.tag.keys():
-                        log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}")
+                        if not silent:
+                            log.debug(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}")
                         self.properties[OPS_MPP_X] = img.tag[TIF_EXIF_KEY_MPP][0]
+                    elif sf.util.path_to_ext(path).lower() in ('tif', 'tiff') and 'xres' in loaded_image.get_fields():
+                        xres = loaded_image.get('xres') # 4000.0
+                        if xres == 4000.0 and loaded_image.get('resolution-unit') == 'cm':
+                            # xres = xres # though resolution from tiffinfo says 40000 pixels/cm, for some reason the xres val is 4000.0, so multiple by 10
+                            mpp_x = (1/xres)*1000 # convert from pixels/cm to cm/pixels then convert to microns by multiplying by 1000
+                            self.properties[OPS_MPP_X] = str(mpp_x)
+                            if not silent:
+                                log.debug(f"Setting MPP to {mpp_x} using TIFF 'xres' field {loaded_image.get('xres')} and {loaded_image.get('resolution-unit')}")
+                    else:
+                        log.warning(f"Unable to detect openslide Microns-Per-Pixel (MPP) property from slide {sf.util.path_to_name(path)}")
             except UnidentifiedImageError:
-                log.error(f"PIL image reading error; slide {sf.util.path_to_name(path)} is corrupt.")
+                log.error(f"PIL image reading error; unable to read slide {sf.util.path_to_name(path)}.")
 
         # Prepare downsample levels
         self.loaded_downsample_levels = {
@@ -595,6 +607,10 @@ class _BaseLoader:
     @property
     def dimensions(self):
         return self.slide.dimensions
+
+    @property
+    def properties(self):
+        return self.slide.properties
 
     def mpp_to_dim(self, mpp):
         width = int((self.mpp * self.full_shape[0]) / mpp)
@@ -852,7 +868,8 @@ class _BaseLoader:
             if tfrecord_dir:
                 record = sf.io.serialized_record(slidename_bytes, image_string, location[0], location[1])
                 writer.write(record)
-        writer.close()
+        if tfrecord_dir:
+            writer.close()
         if self.counter_lock is None:
             generator_iterator.close()
 
@@ -974,8 +991,10 @@ class WSI(_BaseLoader):
             # No ROIs found because the user did not provide rois or roi_dir, but the roi_method is not set to 'ignore',
             # indicating that this may be user error.
             warn_msg = f"No ROIs provided for {self.name} (suppress this warning with roi_method='ignore')"
-            if not silent:  log.warning(warn_msg)
-            else:           log.debug(warn_msg)
+            if not silent and not (rois is None and roi_dir is None):
+                log.warning(warn_msg)
+            else:
+                log.debug(warn_msg)
         if not len(self.rois) and skip_missing_roi and roi_method != 'ignore':
             warn_msg = f"No ROI found for {sf.util.green(self.name)}, skipping slide"
             if not silent:  log.warning(warn_msg)
