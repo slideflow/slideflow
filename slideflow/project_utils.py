@@ -184,10 +184,10 @@ def interactive_project_setup(project_folder):
                                     root=project_folder, default='./tfrecords', create_on_invalid=True)
 
             add_source(name=source_name,
-                       slides=source_slides,
-                       roi=source_roi,
-                       tiles=source_tiles,
-                       tfrecords=source_tfrecords,
+                       slides=sf.util.relative_path(source_slides, project_folder),
+                       roi=sf.util.relative_path(source_roi, project_folder),
+                       tiles=sf.util.relative_path(source_tiles, project_folder),
+                       tfrecords=sf.util.relative_path(source_tfrecords, project_folder),
                        path=sf.util.relative_path(project['dataset_config'], project_folder))
 
             print('Updated dataset configuration file.')
