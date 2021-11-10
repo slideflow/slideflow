@@ -52,8 +52,8 @@ def main(P):
     # Visualize and analyze layer activations
     # ---------------------------------------------------
     #df = P.generate_features(model='/path/to/trained_model',
-#                               outcome_label_header="HPV",
-#                               filters={"HPV": ["HPV+", "HPV-"]})
+    #                         outcome_label_header="HPV",
+    #                         filters={"HPV": ["HPV+", "HPV-"]})
 
     # Generate a mosaic map of tiles using a certain model
     # ----------------------------------------------------

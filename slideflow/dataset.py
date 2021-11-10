@@ -223,15 +223,19 @@ class Dataset:
                 raise DatasetError(f"Could not find annotations file {annotations}")
             try:
                 self.annotations = pd.read_csv(annotations)
+                self.annotations.fillna('', inplace=True)
                 self.annotations_file = annotations
             except pd.errors.EmptyDataError:
                 log.error(f"Unable to load annotations from {annotations}; empty file.")
         elif isinstance(annotations, pd.core.frame.DataFrame):
             self.annotations = annotations
+            self.annotations.fillna('', inplace=True)
         else:
             raise DatasetError(f"Unrecognized annotations format {type(annotations)}; expected path (str) or DataFrame")
 
         # Check annotations
+        if len(self.annotations.columns) == 1:
+            log.error("Only one column detected - please confirm that the annotations file is in comma separated format.")
         if len(self.annotations.columns) != len(set(self.annotations.columns)):
             raise DatasetError("Annotations file containers at least one duplicate header; all headers must be unique")
         if TCGA.patient not in self.annotations.columns:
@@ -645,8 +649,8 @@ class Dataset:
                                 except OSError as e:
                                     if not warned:
                                         formatted_slide = sf.util._shortname(sf.util.path_to_name(slide_path))
-                                        log.warn(f'OSError encountered for slide {formatted_slide}: buffer likely full')
-                                        log.info(f'Q size: {q.qsize()}')
+                                        log.debug(f'OSError encountered for slide {formatted_slide}: buffer likely full')
+                                        log.debug(f'Queue size: {q.qsize()}')
                                         warned = True
                                     time.sleep(1)
                             else:
