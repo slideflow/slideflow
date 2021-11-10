@@ -7,6 +7,7 @@ import json
 import warnings
 import shutil
 import types
+import inspect
 
 warnings.filterwarnings('ignore')
 
@@ -21,67 +22,66 @@ from slideflow.util import log
 from slideflow.model.base import ModelError, FeatureError, no_scope, log_summary, log_manifest
 from slideflow.model.tensorflow_utils import *
 
-class ModelParams(_base.ModelParams):
+class ModelParams(_base._ModelParams):
     """Build a set of hyperparameters."""
 
-    OptDict = {
-        'Adam': tf.keras.optimizers.Adam,
-        'SGD': tf.keras.optimizers.SGD,
-        'RMSprop': tf.keras.optimizers.RMSprop,
-        'Adagrad': tf.keras.optimizers.Adagrad,
-        'Adadelta': tf.keras.optimizers.Adadelta,
-        'Adamax': tf.keras.optimizers.Adamax,
-        'Nadam': tf.keras.optimizers.Nadam
-    }
-    ModelDict = {
-        'xception': tf.keras.applications.Xception,
-        'vgg16': tf.keras.applications.VGG16,
-        'vgg19': tf.keras.applications.VGG19,
-        'resnet50': tf.keras.applications.ResNet50,
-        'resnet101': tf.keras.applications.ResNet101,
-        'resnet152': tf.keras.applications.ResNet152,
-        'resnet50_v2': tf.keras.applications.ResNet50V2,
-        'resnet101_v2': tf.keras.applications.ResNet101V2,
-        'resnet152_v2': tf.keras.applications.ResNet152V2,
-        #'ResNeXt50': tf.keras.applications.ResNeXt50,
-        #'ResNeXt101': tf.keras.applications.ResNeXt101,
-        'inception': tf.keras.applications.InceptionV3,
-        'nasnet_large': tf.keras.applications.NASNetLarge,
-        'inception_resnet_v2': tf.keras.applications.InceptionResNetV2,
-        'mobilenet': tf.keras.applications.MobileNet,
-        'mobilenet_v2': tf.keras.applications.MobileNetV2,
-        #'DenseNet': tf.keras.applications.DenseNet,
-        #'NASNet': tf.keras.applications.NASNet
-    }
-    LinearLossDict = {
-        'mean_squared_error': tf.keras.losses.mean_squared_error,
-        'mean_absolute_error': tf.keras.losses.mean_absolute_error,
-        'mean_absolute_percentage_error': tf.keras.losses.mean_absolute_percentage_error,
-        'mean_squared_logarithmic_error': tf.keras.losses.mean_squared_logarithmic_error,
-        'squared_hinge': tf.keras.losses.squared_hinge,
-        'hinge': tf.keras.losses.hinge,
-        'logcosh': tf.keras.losses.logcosh,
-        'negative_log_likelihood': negative_log_likelihood
-    }
-    AllLossDict = {
-        'mean_squared_error': tf.keras.losses.mean_squared_error,
-        'mean_absolute_error': tf.keras.losses.mean_absolute_error,
-        'mean_absolute_percentage_error': tf.keras.losses.mean_absolute_percentage_error,
-        'mean_squared_logarithmic_error': tf.keras.losses.mean_squared_logarithmic_error,
-        'squared_hinge': tf.keras.losses.squared_hinge,
-        'hinge': tf.keras.losses.hinge,
-        'categorical_hinge': tf.keras.losses.categorical_hinge,
-        'logcosh': tf.keras.losses.logcosh,
-        'huber': tf.keras.losses.huber,
-        'categorical_crossentropy': tf.keras.losses.categorical_crossentropy,
-        'sparse_categorical_crossentropy': tf.keras.losses.sparse_categorical_crossentropy,
-        'binary_crossentropy': tf.keras.losses.binary_crossentropy,
-        'kullback_leibler_divergence': tf.keras.losses.kullback_leibler_divergence,
-        'poisson': tf.keras.losses.poisson,
-        'negative_log_likelihood': negative_log_likelihood
-    }
-
     def __init__(self, *args, **kwargs):
+        self.OptDict = {
+            'Adam': tf.keras.optimizers.Adam,
+            'SGD': tf.keras.optimizers.SGD,
+            'RMSprop': tf.keras.optimizers.RMSprop,
+            'Adagrad': tf.keras.optimizers.Adagrad,
+            'Adadelta': tf.keras.optimizers.Adadelta,
+            'Adamax': tf.keras.optimizers.Adamax,
+            'Nadam': tf.keras.optimizers.Nadam
+        }
+        self.ModelDict = {
+            'xception': tf.keras.applications.Xception,
+            'vgg16': tf.keras.applications.VGG16,
+            'vgg19': tf.keras.applications.VGG19,
+            'resnet50': tf.keras.applications.ResNet50,
+            'resnet101': tf.keras.applications.ResNet101,
+            'resnet152': tf.keras.applications.ResNet152,
+            'resnet50_v2': tf.keras.applications.ResNet50V2,
+            'resnet101_v2': tf.keras.applications.ResNet101V2,
+            'resnet152_v2': tf.keras.applications.ResNet152V2,
+            #'ResNeXt50': tf.keras.applications.ResNeXt50,
+            #'ResNeXt101': tf.keras.applications.ResNeXt101,
+            'inception': tf.keras.applications.InceptionV3,
+            'nasnet_large': tf.keras.applications.NASNetLarge,
+            'inception_resnet_v2': tf.keras.applications.InceptionResNetV2,
+            'mobilenet': tf.keras.applications.MobileNet,
+            'mobilenet_v2': tf.keras.applications.MobileNetV2,
+            #'DenseNet': tf.keras.applications.DenseNet,
+            #'NASNet': tf.keras.applications.NASNet
+        }
+        self.LinearLossDict = {
+            'mean_squared_error': tf.keras.losses.mean_squared_error,
+            'mean_absolute_error': tf.keras.losses.mean_absolute_error,
+            'mean_absolute_percentage_error': tf.keras.losses.mean_absolute_percentage_error,
+            'mean_squared_logarithmic_error': tf.keras.losses.mean_squared_logarithmic_error,
+            'squared_hinge': tf.keras.losses.squared_hinge,
+            'hinge': tf.keras.losses.hinge,
+            'logcosh': tf.keras.losses.logcosh,
+            'negative_log_likelihood': negative_log_likelihood
+        }
+        self.AllLossDict = {
+            'mean_squared_error': tf.keras.losses.mean_squared_error,
+            'mean_absolute_error': tf.keras.losses.mean_absolute_error,
+            'mean_absolute_percentage_error': tf.keras.losses.mean_absolute_percentage_error,
+            'mean_squared_logarithmic_error': tf.keras.losses.mean_squared_logarithmic_error,
+            'squared_hinge': tf.keras.losses.squared_hinge,
+            'hinge': tf.keras.losses.hinge,
+            'categorical_hinge': tf.keras.losses.categorical_hinge,
+            'logcosh': tf.keras.losses.logcosh,
+            'huber': tf.keras.losses.huber,
+            'categorical_crossentropy': tf.keras.losses.categorical_crossentropy,
+            'sparse_categorical_crossentropy': tf.keras.losses.sparse_categorical_crossentropy,
+            'binary_crossentropy': tf.keras.losses.binary_crossentropy,
+            'kullback_leibler_divergence': tf.keras.losses.kullback_leibler_divergence,
+            'poisson': tf.keras.losses.poisson,
+            'negative_log_likelihood': negative_log_likelihood
+        }
         super().__init__(*args, **kwargs)
         assert self.model in self.ModelDict.keys()
         assert self.optimizer in self.OptDict.keys()
@@ -113,16 +113,19 @@ class ModelParams(_base.ModelParams):
 
     def _get_core(self, weights=None):
         """Returns a Keras model of the appropriate architecture, input shape, pooling, and initial weights."""
-        if self.model in ('nasnet_large', 'vgg16'):
-            input_shape = (self.tile_px, self.tile_px, 3)
-        else:
-            input_shape = None
-        return self.ModelDict[self.model](
-            input_shape=input_shape,
-            include_top=self.include_top,
-            pooling=self.pooling,
-            weights=weights
-        )
+        input_shape = (self.tile_px, self.tile_px, 3)
+        model_fn = self.ModelDict[self.model]
+        model_kwargs = {
+            'input_shape': input_shape,
+            'include_top': self.include_top,
+            'pooling': self.pooling,
+            'weights': weights
+        }
+        # Only pass kwargs accepted by model function
+        model_fn_sig = inspect.signature(model_fn)
+        model_kw = [param.name for param in model_fn_sig.parameters.values() if param.kind == param.POSITIONAL_OR_KEYWORD]
+        model_kwargs = {key:model_kwargs[key] for key in model_kw if key in model_kwargs}
+        return model_fn(**model_kwargs)
 
     def _build_base(self, pretrain='imagenet'):
         """Builds the base image model, from a Keras model core, with the appropriate input tensors and identity layers."""
@@ -423,8 +426,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             if self.neptune_run:
                 self.neptune_run["metrics/batch/batch"].log(batch)
                 self.neptune_run["metrics/batch/epoch"].log(self.epoch_count)
-                self.neptune_run["metrics/batch/val_loss"].log(round(val_loss, 3))
-                self.neptune_run["metrics/batch/val_acc"].log(round(val_acc, 3))
+                for v in val_metrics:
+                    self.neptune_run[f"metrics/batch/val_{v}"].log(round(val_metrics[v], 3))
                 self.neptune_run["metrics/batch/exp_moving_average"].log(round(self.last_ema, 3))
                 self.neptune_run["early_stop/stopped_early"] = False
 

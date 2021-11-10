@@ -2,6 +2,7 @@ import os
 import types
 import time
 import torch
+import inspect
 import torchvision
 import pretrainedmodels
 import slideflow as sf
@@ -14,7 +15,6 @@ from slideflow.model.base import FeatureError
 from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest
 from tqdm import tqdm
-from vit_pytorch import ViT
 from torch.utils.tensorboard import SummaryWriter
 
 class LinearBlock(torch.nn.Module):
@@ -51,9 +51,13 @@ class ModelWrapper(torch.nn.Module):
                 last_linear_name, last_linear = list(self.model.classifier.named_children())[-1]
                 num_ftrs = last_linear.in_features
                 setattr(self.model.classifier, last_linear_name, torch.nn.Identity())
-            else:
+            elif hasattr(self.model, 'fc'):
                 num_ftrs = self.model.fc.in_features
                 self.model.fc = torch.nn.Identity()
+            elif hasattr(self.model, 'out_features'):
+                num_ftrs = self.model.out_features
+            else:
+                raise _base.ModelError("Unable to find last linear layer")
         else:
             num_ftrs = 0
 
@@ -110,74 +114,72 @@ class ModelWrapper(torch.nn.Module):
 
         return out
 
-class ModelParams(_base.ModelParams):
+class ModelParams(_base._ModelParams):
     """Build a set of hyperparameters."""
 
-    OptDict = {
-        'Adadelta': torch.optim.Adadelta,
-        'Adagrad': torch.optim.Adagrad,
-        'Adam': torch.optim.Adam,
-        'AdamW': torch.optim.AdamW,
-        'SparseAdam': torch.optim.SparseAdam,
-        'Adamax': torch.optim.Adamax,
-        'ASGD': torch.optim.ASGD,
-        'LBFGS': torch.optim.LBFGS,
-        'RMSprop': torch.optim.RMSprop,
-        'Rprop': torch.optim.Rprop,
-        'SGD': torch.optim.SGD
-    }
-    ModelDict = {
-        'ViT': ViT,
-        'resnet18': torchvision.models.resnet18,
-        'resnet50': torchvision.models.resnet50,
-        'alexnet': torchvision.models.alexnet,
-        'squeezenet': torchvision.models.squeezenet.squeezenet1_1,
-        'densenet': torchvision.models.densenet161,
-        'inception': torchvision.models.inception_v3,
-        'googlenet': torchvision.models.googlenet,
-        'shufflenet': torchvision.models.shufflenet_v2_x1_0,
-        'resnext50_32x4d': torchvision.models.resnext50_32x4d,
-        'vgg16': torchvision.models.vgg16, # needs support added
-        'mobilenet_v2': torchvision.models.mobilenet_v2,
-        'mobilenet_v3_small': torchvision.models.mobilenet_v3_small,
-        'mobilenet_v3_large': torchvision.models.mobilenet_v3_large,
-        'wide_resnet50_2': torchvision.models.wide_resnet50_2,
-        'mnasnet': torchvision.models.mnasnet1_0,
-        'xception': pretrainedmodels.xception
-    }
-    LinearLossDict = {
-        'L1': torch.nn.L1Loss,
-        'MSE': torch.nn.MSELoss,
-        'NLL': torch.nn.NLLLoss, #negative log likelihood
-        'HingeEmbedding': torch.nn.HingeEmbeddingLoss,
-        'SmoothL1': torch.nn.SmoothL1Loss,
-        'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
-    }
-    AllLossDict = {
-        'CrossEntropy': torch.nn.CrossEntropyLoss,
-        'CTC': torch.nn.CTCLoss,
-        'PoissonNLL': torch.nn.PoissonNLLLoss,
-        'GaussianNLL': torch.nn.GaussianNLLLoss,
-        'KLDiv': torch.nn.KLDivLoss,
-        'BCE': torch.nn.BCELoss,
-        'BCEWithLogits': torch.nn.BCEWithLogitsLoss,
-        'MarginRanking': torch.nn.MarginRankingLoss,
-        'MultiLabelMargin': torch.nn.MultiLabelMarginLoss,
-        'Huber': torch.nn.HuberLoss,
-        'SoftMargin': torch.nn.SoftMarginLoss,
-        'MultiLabelSoftMargin': torch.nn.MultiLabelSoftMarginLoss,
-        'MultiMargin': torch.nn.MultiMarginLoss,
-        'TripletMargin': torch.nn.TripletMarginLoss,
-        'TripletMarginWithDistance': torch.nn.TripletMarginWithDistanceLoss,
-        'L1': torch.nn.L1Loss,
-        'MSE': torch.nn.MSELoss,
-        'NLL': torch.nn.NLLLoss, #negative log likelihood
-        'HingeEmbedding': torch.nn.HingeEmbeddingLoss,
-        'SmoothL1': torch.nn.SmoothL1Loss,
-        'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
-    }
-
     def __init__(self, model='xception', loss='CrossEntropy', **kwargs):
+        self.OptDict = {
+            'Adadelta': torch.optim.Adadelta,
+            'Adagrad': torch.optim.Adagrad,
+            'Adam': torch.optim.Adam,
+            'AdamW': torch.optim.AdamW,
+            'SparseAdam': torch.optim.SparseAdam,
+            'Adamax': torch.optim.Adamax,
+            'ASGD': torch.optim.ASGD,
+            'LBFGS': torch.optim.LBFGS,
+            'RMSprop': torch.optim.RMSprop,
+            'Rprop': torch.optim.Rprop,
+            'SGD': torch.optim.SGD
+        }
+        self.ModelDict = {
+            'resnet18': torchvision.models.resnet18,
+            'resnet50': torchvision.models.resnet50,
+            'alexnet': torchvision.models.alexnet,
+            'squeezenet': torchvision.models.squeezenet.squeezenet1_1,
+            'densenet': torchvision.models.densenet161,
+            'inception': torchvision.models.inception_v3,
+            'googlenet': torchvision.models.googlenet,
+            'shufflenet': torchvision.models.shufflenet_v2_x1_0,
+            'resnext50_32x4d': torchvision.models.resnext50_32x4d,
+            'vgg16': torchvision.models.vgg16, # needs support added
+            'mobilenet_v2': torchvision.models.mobilenet_v2,
+            'mobilenet_v3_small': torchvision.models.mobilenet_v3_small,
+            'mobilenet_v3_large': torchvision.models.mobilenet_v3_large,
+            'wide_resnet50_2': torchvision.models.wide_resnet50_2,
+            'mnasnet': torchvision.models.mnasnet1_0,
+            'xception': pretrainedmodels.xception
+        }
+        self.LinearLossDict = {
+            'L1': torch.nn.L1Loss,
+            'MSE': torch.nn.MSELoss,
+            'NLL': torch.nn.NLLLoss, #negative log likelihood
+            'HingeEmbedding': torch.nn.HingeEmbeddingLoss,
+            'SmoothL1': torch.nn.SmoothL1Loss,
+            'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
+        }
+        self.AllLossDict = {
+            'CrossEntropy': torch.nn.CrossEntropyLoss,
+            'CTC': torch.nn.CTCLoss,
+            'PoissonNLL': torch.nn.PoissonNLLLoss,
+            'GaussianNLL': torch.nn.GaussianNLLLoss,
+            'KLDiv': torch.nn.KLDivLoss,
+            'BCE': torch.nn.BCELoss,
+            'BCEWithLogits': torch.nn.BCEWithLogitsLoss,
+            'MarginRanking': torch.nn.MarginRankingLoss,
+            'MultiLabelMargin': torch.nn.MultiLabelMarginLoss,
+            'Huber': torch.nn.HuberLoss,
+            'SoftMargin': torch.nn.SoftMarginLoss,
+            'MultiLabelSoftMargin': torch.nn.MultiLabelSoftMarginLoss,
+            'MultiMargin': torch.nn.MultiMarginLoss,
+            'TripletMargin': torch.nn.TripletMarginLoss,
+            'TripletMarginWithDistance': torch.nn.TripletMarginWithDistanceLoss,
+            'L1': torch.nn.L1Loss,
+            'MSE': torch.nn.MSELoss,
+            'NLL': torch.nn.NLLLoss, #negative log likelihood
+            'HingeEmbedding': torch.nn.HingeEmbeddingLoss,
+            'SmoothL1': torch.nn.SmoothL1Loss,
+            'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
+        }
         super().__init__(model=model, loss=loss, **kwargs)
         assert self.model in self.ModelDict.keys()
         assert self.optimizer in self.OptDict.keys()
@@ -199,20 +201,15 @@ class ModelParams(_base.ModelParams):
             num_classes = {'out-0': num_classes}
 
         # Build base model
-        if self.model == 'ViT':
-            _model = ViT(image_size=self.tile_px,
-                         patch_size=32,
-                         num_classes=num_classes,
-                         dim=1024,
-                         depth=6,
-                         heads=16,
-                         mlp_dim=2048,
-                         dropout=0.1,
-                         emb_dropout=0.1)
-        elif self.model in ('xception',):
+        if self.model in ('xception',):
             _model = self.ModelDict[self.model](num_classes=1000, pretrained=pretrain)
         else:
-            _model = self.ModelDict[self.model](pretrained=pretrain)
+            model_fn = self.ModelDict[self.model]
+            # Only pass kwargs accepted by model function
+            model_fn_sig = inspect.signature(model_fn)
+            model_kw = [param.name for param in model_fn_sig.parameters.values() if param.kind == param.POSITIONAL_OR_KEYWORD]
+            model_kwargs = {'image_size': self.tile_px} if 'image_size' in model_kw else {}
+            _model = model_fn(pretrained=pretrain, **model_kwargs)
 
         # Add final layers to models
         hidden_layers = [self.hidden_layer_width for h in range(self.hidden_layers)]
@@ -955,6 +952,7 @@ class Features:
             return squeeze(output)
         if self.model_type in ('SqueezeNet', 'DenseNet', 'ShuffleNetV2', 'Xception'):
             return squeeze(pool(output))
+        return output
 
     def _build(self):
         """Builds the interface model that outputs feature activations at the designated layers and/or logits.

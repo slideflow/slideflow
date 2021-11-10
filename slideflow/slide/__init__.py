@@ -51,6 +51,7 @@ Image.MAX_IMAGE_PIXELS = 100000000000
 DEFAULT_JPG_MPP = 1
 OPS_LEVEL_COUNT = 'openslide.level-count'
 OPS_MPP_X = 'openslide.mpp-x'
+OPS_VENDOR = 'openslide.vendor'
 TIF_EXIF_KEY_MPP = 65326
 OPS_WIDTH = 'width'
 OPS_HEIGHT = 'height'
@@ -612,6 +613,13 @@ class _BaseLoader:
     def properties(self):
         return self.slide.properties
 
+    @property
+    def vendor(self):
+        if OPS_VENDOR in self.slide.properties:
+            return self.slide.properties[OPS_VENDOR]
+        else:
+            return None
+
     def mpp_to_dim(self, mpp):
         width = int((self.mpp * self.full_shape[0]) / mpp)
         height = int((self.mpp * self.full_shape[1]) / mpp)
@@ -746,7 +754,12 @@ class _BaseLoader:
         height = int((self.mpp * self.full_shape[1]) / mpp)
 
         # Get thumb via libvips & convert PIL Image
-        thumbnail = vips.Image.thumbnail(self.path, width)
+        if self.vendor and self.vendor == 'leica':
+            # The libvips thumbnail function does not work appropriately with Leica SCN images,
+            # so a downsample level must be manually specified.
+            thumbnail = vips.Image.new_from_file(self.path, fail=True, access=vips.enums.Access.RANDOM, level=self.slide.level_count-1)
+        else:
+            thumbnail = vips.Image.thumbnail(self.path, width)
         np_thumb = vips2numpy(thumbnail)
         image = Image.fromarray(np_thumb).resize((width, height))
 

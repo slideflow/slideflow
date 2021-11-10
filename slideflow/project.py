@@ -214,6 +214,8 @@ class Project:
 
         if 'neptune_workspace' in self._settings:
             return self._settings['neptune_workspace']
+        elif 'NEPTUNE_WORKSPACE' in os.environ:
+            return os.environ['NEPTUNE_WORKSPACE']
         else:
             return None
 
@@ -231,6 +233,8 @@ class Project:
 
         if 'neptune_api' in self._settings:
             return self._settings['neptune_api']
+        elif 'NEPTUNE_API_TOKEN' in os.environ:
+            return os.environ['NEPTUNE_API_TOKEN']
         else:
             return None
 
@@ -241,14 +245,6 @@ class Project:
         if not isinstance(api_token, str):
             raise sf.util.UserError('API token must be a string.')
         self._settings['neptune_api'] = api_token
-
-    @property
-    def use_neptune(self):
-        return (self.neptune_api is not None and self.neptune_workspace is not None and self._use_neptune)
-
-    @use_neptune.setter
-    def use_neptune(self, b):
-        self._use_neptune = b
 
     @property
     def sources(self):
