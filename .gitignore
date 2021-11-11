@@ -8,4 +8,4 @@ source/slideflow/util/__pycache__/*
 source/.vscode/*
 source/build/*
 source/dist/*
-
+*.pyc

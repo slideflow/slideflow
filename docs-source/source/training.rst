@@ -10,7 +10,7 @@ There are two methods for configuring model hyperparameters. If you intend to tr
 
     hp = sf.model.ModelParams(
         epochs=[1, 5],
-        model='Xception',
+        model='xception',
         loss='sparse_categorical_crossentropy',
         learning_rate=0.00001,
         batch_size=8)
@@ -19,10 +19,10 @@ Alternatively, if you intend to perform a sweep across multiple hyperparameter c
 
 .. code-block:: python
 
-    SFP.create_hyperparameter_sweep(
+    P.create_hyperparameter_sweep(
         epochs=[5],
         toplayer_epochs=0,
-        model=['Xception'],
+        model=['xception'],
         pooling=['avg'],
         loss='sparse_categorical_crossentropy',
         learning_rate=[0.01, 0.001],
@@ -61,7 +61,7 @@ Available hyperparameters include:
 - **dropout** - dropout, used for post-convolutional layer.
 - **augment** - Image augmentations to perform, including flipping/rotating and random JPEG compression. Please see :class:`slideflow.model.ModelParams` for more details.
 
-If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.ModelParams._LinearLoss``, and all available loss functions are in ``slideflow.model.ModelParams._AllLoss``.
+If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.ModelParams.LinearLossDict``, and all available loss functions are in ``slideflow.model.ModelParams.AllLossDict``.
 
 Begin training
 **************
@@ -71,7 +71,7 @@ Once your hyperparameter settings have been chosen you may begin training using 
 .. autofunction:: slideflow.project.Project.train
    :noindex:
 
-If you used the ``ModelParams`` class to configure a single combination of parameters, pass this object via the ``hyperparameters`` argument. If you configured a hyperparameter sweep, set the ``batch_file`` argument to the name of your hyperparameter sweep file (saved by default to 'batch_train.tsv').
+If you used the ``ModelParams`` class to configure a single combination of parameters, pass this object via the ``params`` argument. If you configured a hyperparameter sweep, set the ``batch_file`` argument to the name of your hyperparameter sweep file (saved by default to 'batch_train.tsv').
 
 Your outcome variable(s) are specified with the ``outcome_label_headers`` argument. You may filter slides for training using the ``filter`` argument, as previously described.
 
@@ -79,7 +79,7 @@ For example, to train using only slides labeled as "train" in the "dataset" colu
 
 .. code-block:: python
 
-    SFP.train(outcome_label_headers="category",
+    P.train(outcome_label_headers="category",
           filters={"dataset": ["train"]},
           batch_file='batch_train.tsv')
 
@@ -87,7 +87,7 @@ If you would like to use a different validation plan than the default, pass the 
 
 Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the ``results_log.csv`` file in the project directory. Additional data, including ROCs and scatter plots, are saved in the model directories.
 
-At each designated epoch, models are saved in their own folders. Each model directory will include a copy of its hyperparameters in a ``hyperparameters.json`` file, and a copy of its training/validation slide manifest in ``slide.log``.
+At each designated epoch, models are saved in their own folders. Each model directory will include a copy of its hyperparameters in a ``params.json`` file, and a copy of its training/validation slide manifest in ``slide.log``.
 
 Multiple outcomes
 *****************

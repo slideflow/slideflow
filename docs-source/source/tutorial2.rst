@@ -1,5 +1,5 @@
-Tutorial 2: Using a Trainer
-==================================
+Tutorial 2: Model training (advanced)
+=======================================
 
 In this next tutorial, we'll take a more hands-on approach by working with some of the base slideflow classes directly. We will train the same model as the first tutorial, but rather than using the project method :meth:`slideflow.project.Project.train`, we will use the :class:`slideflow.dataset.Datset` and :class:`slideflow.model.Trainer` classes directly in an interactive python session.
 
@@ -11,20 +11,20 @@ Using the same project configuration as the first tutorial, we will set up a new
 .. code-block:: python
 
     >>> import slideflow as sf
-    >>> SFP = sf.Project.from_prompt('/home/er_project')
+    >>> P = sf.Project.from_prompt('/home/er_project')
 
 Use the same settings as the first tutorial. Rather than providing this information via prompt, you could alternatively pass in all arguments via keyword to the regular initializer:
 
 .. code-block:: python
 
     >>> import slideflow as sf
-    >>> SFP = sf.Project('/home/er_project', name="Breast_ER", annotations=...)
+    >>> P = sf.Project('/home/er_project', name="Breast_ER", annotations=...)
 
 If you initialize a project with keywords, you will need to manually create a new dataset source with the :meth:`slideflow.project.Project.add_dataset` method:
 
 .. code-block:: python
 
-    >>> SFP.add_dataset(
+    >>> P.add_dataset(
     ...     name="NAME",
     ...     slides="/slides/directory",
     ...     roi="/roi/directory",
@@ -32,7 +32,7 @@ If you initialize a project with keywords, you will need to manually create a ne
     ...     tfrecords="/tfrecords/directory")
     ... )
 
-As before, set up your annotations file, including columns "submitter_id", "er_status_by_ihc", "dataset", and "slide".
+As before, set up your annotations file, including columns "patient", "er_status_by_ihc", "dataset", and "slide".
 
 Creating a Dataset
 ******************
@@ -41,7 +41,7 @@ Next, create a :class:`slideflow.dataset.Dataset` instance to indicate which sli
 
 .. code-block:: python
 
-    >>> dataset = SFP.get_dataset(
+    >>> dataset = P.dataset(
     ...     tile_px=256,
     ...     tile_um=128,
     ...     filters={
@@ -111,7 +111,7 @@ Now that our dataset is prepared, we can begin setting up our model and trainer.
     >>> hp = ModelParams(
     ...     tile_px=256,
     ...     tile_um=128,
-    ...     model='Xception',
+    ...     model='xception',
     ...     batch_size=32,
     ...     epochs=[3]
     ... )

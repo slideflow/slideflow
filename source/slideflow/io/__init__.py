@@ -1,1 +1,0 @@
-# Abstraction for tfrecord reading, with either tensorflow or torch backend
