@@ -755,12 +755,12 @@ class Trainer:
                                                                    drop_images=drop_images,
                                                                    **metric_kwargs)
         else:
-            metrics = sf.statistics.metrics_from_dataset(histogram=histogram,
-                                                         verbose=True,
-                                                         save_predictions=save_predictions,
-                                                         pred_args=types.SimpleNamespace(loss=self.hp.get_loss()),
-                                                         **metric_kwargs)
-        results_dict = { 'eval': {} }
+            metrics, acc, loss = sf.statistics.metrics_from_dataset(histogram=histogram,
+                                                                    verbose=True,
+                                                                    save_predictions=save_predictions,
+                                                                    pred_args=types.SimpleNamespace(loss=self.hp.get_loss()),
+                                                                    **metric_kwargs)
+            results_dict = { 'eval': {} }
         for metric in metrics:
             if metrics[metric]:
                 log.info(f"Tile {metric}: {metrics[metric]['tile']}")
@@ -772,8 +772,11 @@ class Trainer:
                     f'patient_{metric}': metrics[metric]['patient']
                 })
 
-        val_metrics = self.model.evaluate(tf_dts, verbose=(log.getEffectiveLevel() <= 20), return_dict=True)
 
+        # Note that Keras loss during training includes regularization losses,
+        #  so this loss will not match validation loss calculated during training
+        # val_metrics = self.model.evaluate(tf_dts, verbose=(log.getEffectiveLevel() <= 20), return_dict=True)
+        val_metrics = {'accuracy': acc, 'loss': loss}
         results_log = os.path.join(self.outdir, 'results_log.csv')
         log.info(f'Evaluation metrics:')
         for m in val_metrics:
