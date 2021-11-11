@@ -19,5 +19,4 @@ lifelines
 torch>=1.9.1
 torch-vision
 gitpython
-multiprocessing_logging
 scikit-image

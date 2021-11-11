@@ -19,20 +19,7 @@ from os.path import join
 from functools import wraps
 from tqdm import tqdm
 
-#TODO:
-#- JPG, TIFF, SVS
-#- Verify properties: dimensions, properties (dict), level_dimensions, level_count, level_downsamples
-#- Verify ROI (area, coordinates)
-#- Verify thumbnail
-#- Verify extracted tiles at different pixels and microns
-#- Verify logits and prelogits based on saved model
-#- Verify heatmaps
-#- CPH model testing
-#- CLAM testing
-
-RANDOM_TCGA = 100
-
-def get_random_tcga_slides():
+def get_tcga_slides():
     return {
             'TCGA-BJ-A2N9-01Z-00-DX1.CFCB1FA9-7890-4B1B-93AB-4066E160FBF5':'0b0b560d-f3e7-4103-9b1b-d4981e00c0e7',
             'TCGA-BJ-A3PT-01Z-00-DX1.A307F39F-AE85-42F4-B705-11AF06F391D9':'0eeb9df4-4cb0-4075-9e18-3861dea2ba05',
@@ -205,17 +192,17 @@ def reader_tester(project):
         assert torch_results == tf_results
 
 class TestConfigurator:
-    def __init__(self, path, slides=RANDOM_TCGA):
+    def __init__(self, path, slides):
         '''Test Suite configuration.
 
         Args:
             path        Path to directory for test projects and data.
-            slides      Specifies source of test slides. Either RANDOM_TCGA (default), or path to directory.
-                            If RANDOM_TCGA, will download random sample of slides from TCGA for testing.
-                            If path to directory containing slides, will use subset of slides at random for testing.
+            slides      Specifies source of test slides. Either path to directory, or 'download' to download a set of
+                            slides for testing from TCGA.  If path to directory containing slides, will use subset of
+                            slides at random for testing.
         '''
         random.seed(0)
-        slides_path = join(path, 'slides') if slides == RANDOM_TCGA else slides
+        slides_path = join(path, 'slides') if slides == 'download' else slides
         if not os.path.exists(slides_path): os.makedirs(slides_path)
         self.sources = {
             'TEST': {
@@ -234,8 +221,8 @@ class TestConfigurator:
             'eval_dir': './eval',
             'mixed_precision': True,
         }
-        if slides == RANDOM_TCGA:
-            tcga_slides = get_random_tcga_slides()
+        if slides == 'download':
+            tcga_slides = get_tcga_slides()
             with TaskWrapper("Downloading slides..."):
                 existing_slides = [sf.util.path_to_name(f) for f in os.listdir(slides_path)
                                                             if sf.util.path_to_ext(f).lower() in sf.util.SUPPORTED_FORMATS]
@@ -297,7 +284,7 @@ class TaskWrapper:
 
 class TestSuite:
     '''Class to supervise standardized testing of slideflow pipeline.'''
-    def __init__(self, root, slides=RANDOM_TCGA, buffer=None, num_threads=8,
+    def __init__(self, root, slides, buffer=None, num_threads=8,
                  verbosity=logging.WARNING, reset=False, gpu=None):
         '''Initialize testing models.'''
 

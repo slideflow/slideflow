@@ -8,7 +8,7 @@ import shutil
 import threading
 import logging
 import cv2
-import multiprocessing_logging
+#import multiprocessing_logging
 import importlib
 
 import multiprocessing as mp
@@ -112,7 +112,7 @@ class TqdmLoggingHandler(logging.StreamHandler):
             print(f"problems with msg {record}")
             self.handleError(record)
 
-multiprocessing_logging.install_mp_handler(log)
+#multiprocessing_logging.install_mp_handler(log)
 ch = TqdmLoggingHandler()
 ch.setFormatter(LogFormatter())
 ch.setLevel(log.level)

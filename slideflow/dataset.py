@@ -582,7 +582,7 @@ class Dataset:
                 q = queue.Queue()
                 task_finished = False
                 manager = multiprocessing.Manager()
-                ctx = multiprocessing.get_context('spawn')
+                ctx = multiprocessing.get_context('fork')
                 reports = manager.dict()
                 counter = manager.Value('i', 0)
                 counter_lock = manager.Lock()
