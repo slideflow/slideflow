@@ -291,6 +291,13 @@ class SlideReport:
         else:
             return None
 
+    @property
+    def num_tiles(self):
+        if 'num_tiles' in self.data:
+            return self.data['num_tiles']
+        else:
+            return None
+
     def _compress(self, img):
         with io.BytesIO() as output:
             Image.open(io.BytesIO(img)).save(output, format="JPEG", quality=75)
@@ -314,20 +321,42 @@ class SlideReport:
             return output.getvalue()
 
 class ExtractionPDF(FPDF):
+    # Length is 220
     def header(self):
-        # Select Arial bold 15
-        self.set_font('Arial', 'B', 15)
-        # Move to the right
-        self.cell(80)
+        package_directory = os.path.dirname(os.path.abspath(__file__))
+        logo = join(package_directory, 'slideflow-logo-name-small.jpg')
+
+        #if self.page_no() == 1:
+        self.set_font('Arial', size=10)
+        self.cell(80) # Moves right
+        self.set_text_color(70,70,70)
+        self.cell(40, 8, 'Intended for Research Use Only', align='C')
+        self.ln(10)
+
+        self.set_text_color(0,0,0)
         # Framed title
-        self.cell(30, 10, 'Title', 1, 0, 'C')
+        #self.cell(30, 10, 'Title', 1, 0, 'C')
+        self.set_font('Arial', 'B', 16)
+        top = self.y
+        self.cell(40, 10, 'Tile extraction report', 0, 1)
+        self.y = top
+        self.cell(150)
+        self.image(logo, 160, 20, w=40)
         # Line break
-        self.ln(20)
+        self.line(10, 30, 200, 30)
+        self.ln(10)
+        self.set_font('Arial', '', 10)
+        top = self.y
+        self.cell(20, 10, f'Generated: {datetime.now().strftime("%m/%d/%Y %H:%M:%S")}', 0, 1)
+        self.y = top
+        self.cell(150)
+        self.cell(40, 10, sf.__version__, align='R')
+        self.ln(15)
 
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
-        self.cell(0, 10, 'Page ' + str(self.page_no()) + '/{nb}', 0, 0, 'C')
+        self.cell(0, 10, 'Page ' + str(self.page_no()) + 'of {nb}', 0, 0, 'C')
 
 class ExtractionReport:
     """Creates a PDF report summarizing extracted tiles, from a collection of tile extraction reports."""
@@ -345,27 +374,103 @@ class ExtractionReport:
         pdf = ExtractionPDF()
         pdf.alias_nb_pages()
         pdf.add_page()
-        pdf.set_font('Arial', 'B', 16)
-        pdf.cell(40, 10, 'Tile extraction report', 0, 1)
-        pdf.set_font('Arial', '', 12)
-        if tile_px and tile_um:
-            pdf.cell(20, 10, f'Tile size: {tile_px}px, {tile_um}um', 0, 1)
-        pdf.cell(20, 10, f'Generated: {datetime.now()}', 0, 1)
 
+        num_tiles = np.array([r.num_tiles for r in reports])
         bb = np.array([r.blur_burden for r in reports])
         bb_names = [r.path for r in reports]
-        blur = self.blur_chart(bb)
         self.warn_txt = ''
-        for slide, bb in zip(bb_names, bb):
-            if bb > self.bb_threshold:
-                self.warn_txt += f'{slide},{bb}\n'
+        for slide, b in zip(bb_names, bb):
+            if b > self.bb_threshold:
+                self.warn_txt += f'{slide},{b}\n'
 
+        if self.num_tiles_chart(num_tiles):
+            with tempfile.NamedTemporaryFile(suffix='.png') as temp:
+                plt.savefig(temp.name)
+                pdf.image(temp.name, 107, pdf.y, w=50)
+                plt.clf()
+
+        if self.blur_chart(bb):
+            with tempfile.NamedTemporaryFile(suffix='.png') as temp:
+                plt.savefig(temp.name)
+                pdf.image(temp.name, 155, pdf.y, w=50)
+
+        # Bounding box
+        pdf.set_x(20)
+        pdf.set_y(pdf.y+5)
+        x = pdf.x
+        y = pdf.y
+        pdf.set_line_width(0.5)
+        pdf.set_draw_color(120,120,120)
+        pdf.cell(95, 30, '', 1, 0, 'L')
+        pdf.set_x(x)
+
+        # First column
+        pdf.set_y(y+1)
+        pdf.set_font('Arial', style='B')
+        for m in ('Tile size (px)', 'Tile size (um)', 'QC', 'Total slides', 'ROI method', 'Slides skipped', 'Stride'):
+            pdf.cell(20,4,m, ln=1)
+        pdf.set_y(y+1)
+        pdf.set_font('Arial')
+        for m in ('299', '302', 'both', '798', 'ignore', '17', '1'):
+            pdf.cell(30)
+            pdf.cell(20,4,m, ln=1)
+
+        # Second column
+        pdf.set_y(y+1)
+        pdf.set_font('Arial', style='B', size=10)
+        for m in ('G.S. fraction', 'G.S. threshold', 'W.S. fraction', 'W.S. threshold', 'Normalizer', 'Format'):
+            pdf.cell(45)
+            pdf.cell(20,4,m, ln=1)
+        pdf.set_y(y+1)
+        pdf.set_font('Arial')
+        for m in ('0.6', '0.05', '1', '230', 'Reinhard', 'png'):
+            pdf.cell(75)
+            pdf.cell(20,4,m, ln=1)
+
+        pdf.ln(20)
+
+        # Save thumbnail first
+        pdf.set_font('Arial', '', 7)
+        n_images = 0
         for i, report in enumerate(reports):
             if report is None: continue
-            pdf.set_font('Arial', '', 7)
-            pdf.cell(10, 10, report.path, 0, 1)
+            if report.thumb:
+
+                # Create a new row every 2 slides
+                if n_images % 2 == 0:
+                    pdf.cell(50, 90, ln=1)
+
+                # Slide thumbnail
+                with tempfile.NamedTemporaryFile() as temp:
+                    report.thumb.save(temp, format="JPEG", quality=75)
+                    x = pdf.get_x()+(n_images%2 * 100)
+                    y = pdf.get_y()-85
+                    pdf.image(temp.name, x, y, w=90, type='jpg')
+                    n_images += 1
+
+                # Slide label
+                y = pdf.get_y()
+                pdf.set_y(y-88)
+                if n_images % 2 == 1:
+                    x = pdf.get_x()
+                    pdf.cell(100, 5)
+                    #pdf.set_x(x+100)
+
+                pdf.cell(90, 0, sf.util.path_to_name(report.path), 0, 1, 'C')
+                if n_images % 2 == 1:
+                    pdf.set_x(x)
+                pdf.set_y(y)
+
+            if n_images % 2 == 0:
+                pdf.ln(1)
+
+        # Now save rows of sample tiles
+        for i, report in enumerate(reports):
+            if report is None: continue
             image_row = report.image_row()
             if image_row:
+                pdf.set_font('Arial', '', 7)
+                pdf.cell(10, 10, report.path, 0, 1)
                 with tempfile.NamedTemporaryFile() as temp:
                     temp.write(image_row)
                     x = pdf.get_x()
@@ -374,15 +479,20 @@ class ExtractionReport:
                         pdf.image(temp.name, x, y, w=19*len(report.images), h=19, type='jpg')
                     except RuntimeError as e:
                         log.error(f"Error writing image to PDF: {e}")
-            if report.thumb:
-                with tempfile.NamedTemporaryFile() as temp:
-                    report.thumb.save(temp, format="JPEG", quality=75)
-                    x = pdf.get_x()
-                    y = pdf.get_y()
-                    pdf.image(temp.name, x, y, w=64, h=64, type='jpg')
             pdf.ln(20)
 
         self.pdf = pdf
+
+    def num_tiles_chart(self, num_tiles):
+        if np.any(num_tiles):
+            plt.rc('font', size=14)
+            h = sns.histplot(num_tiles, bins=20)
+            plt.title('Number of tiles extracted')
+            plt.ylabel('Number of slides', fontsize=16, fontname='Arial')
+            plt.xlabel('Tiles extracted', fontsize=16, fontname='Arial')
+            return True
+        else:
+            return False
 
     def blur_chart(self, blur_arr):
         if np.any(blur_arr):
@@ -398,7 +508,9 @@ class ExtractionReport:
             plt.ylabel('Count', fontsize=16, fontname='Arial')
             plt.xlabel('log(blur burden)', fontsize=16, fontname='Arial')
             plt.axvline(x=-3, color='r', linestyle='--')
-            plt.show()
+            return True
+        else:
+            return False
 
     def save(self, filename):
         self.pdf.output(filename)

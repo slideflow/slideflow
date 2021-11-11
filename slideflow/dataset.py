@@ -440,7 +440,7 @@ class Dataset:
 
     def extract_tiles(self, save_tiles=False, save_tfrecords=True, source=None, stride_div=1, enable_downsample=True,
                       roi_method='inside', skip_missing_roi=True, skip_extracted=True, tma=False, randomize_origin=False,
-                      buffer=None, num_workers=4, qc=False, report=True, process_isolated=False, **kwargs):
+                      buffer=None, num_workers=4, qc=False, report=True, process_isolated=True, **kwargs):
 
         """Extract tiles from a group of slides, saving extracted tiles to either loose image or in
         TFRecord binary format.
@@ -473,7 +473,7 @@ class Dataset:
             report (bool, optional): Save a PDF report of tile extraction. Defaults to True.
             process_isolated (bool, optional): Isolated each slide's tile extraction into a separate process.
                 May circumvent libvips errors when multiple slides are being accessed simultaneously. Small performance
-                penalty when used. Defaults to False.
+                penalty when used. Defaults to True.
 
         Keyword Args:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
