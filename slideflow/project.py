@@ -767,8 +767,12 @@ class Project:
             buffer (str, optional): Slides will be copied to this directory before extraction. Defaults to None.
                 Using an SSD or ramdisk buffer vastly improves tile extraction speed.
             num_workers (int, optional): Extract tiles from this many slides simultaneously. Defaults to 4.
-            qc (bool, optional): Perform quality control blur detection, discarding tiles with detected out-of-focus
-                regions or artifact. Increases tile extraction time. Defaults to False.
+            qc (str, optional): 'otsu', 'blur', or 'both'. Perform quality control with blur detection - discarding
+                tiles with detected out-of-focus regions or artifact - and/or otsu's method. Increases tile extraction
+                time. Defaults to False.
+            process_isolated (bool, optional): Isolated each slide's tile extraction into a separate process.
+                May circumvent libvips errors when multiple slides are being accessed simultaneously. Small performance
+                penalty when used. Defaults to False.
 
         Keyword Args:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.

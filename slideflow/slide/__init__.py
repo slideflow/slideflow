@@ -28,14 +28,15 @@ import json
 import random
 import tempfile
 import warnings
-
+import seaborn as sns
 import slideflow as sf
 import matplotlib.colors as mcol
+import matplotlib.pyplot as plt
 import multiprocessing as mp
-
-from os.path import join, exists
 import skimage
 import skimage.filters
+
+from os.path import join, exists
 from skimage import img_as_ubyte
 from skimage.color import rgb2gray
 from PIL import Image, ImageDraw, UnidentifiedImageError
@@ -283,6 +284,13 @@ class SlideReport:
         else:
             self.images = [self._compress(img) for img in images]
 
+    @property
+    def blur_burden(self):
+        if 'blur_burden' in self.data:
+            return self.data['blur_burden']
+        else:
+            return None
+
     def _compress(self, img):
         with io.BytesIO() as output:
             Image.open(io.BytesIO(img)).save(output, format="JPEG", quality=75)
@@ -306,6 +314,16 @@ class SlideReport:
             return output.getvalue()
 
 class ExtractionPDF(FPDF):
+    def header(self):
+        # Select Arial bold 15
+        self.set_font('Arial', 'B', 15)
+        # Move to the right
+        self.cell(80)
+        # Framed title
+        self.cell(30, 10, 'Title', 1, 0, 'C')
+        # Line break
+        self.ln(20)
+
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
@@ -314,7 +332,7 @@ class ExtractionPDF(FPDF):
 class ExtractionReport:
     """Creates a PDF report summarizing extracted tiles, from a collection of tile extraction reports."""
 
-    def __init__(self, reports, tile_px=None, tile_um=None):
+    def __init__(self, reports, tile_px=None, tile_um=None, bb_threshold=0.05):
         """Initializer.
 
         Args:
@@ -322,7 +340,8 @@ class ExtractionReport:
             tile_px (int): Tile size in pixels.
             tile_um (int): Tile size in microns.
         """
-        import shutil
+
+        self.bb_threshold = 0.05
         pdf = ExtractionPDF()
         pdf.alias_nb_pages()
         pdf.add_page()
@@ -333,7 +352,16 @@ class ExtractionReport:
             pdf.cell(20, 10, f'Tile size: {tile_px}px, {tile_um}um', 0, 1)
         pdf.cell(20, 10, f'Generated: {datetime.now()}', 0, 1)
 
+        bb = np.array([r.blur_burden for r in reports])
+        bb_names = [r.path for r in reports]
+        blur = self.blur_chart(bb)
+        self.warn_txt = ''
+        for slide, bb in zip(bb_names, bb):
+            if bb > self.bb_threshold:
+                self.warn_txt += f'{slide},{bb}\n'
+
         for i, report in enumerate(reports):
+            if report is None: continue
             pdf.set_font('Arial', '', 7)
             pdf.cell(10, 10, report.path, 0, 1)
             image_row = report.image_row()
@@ -355,6 +383,22 @@ class ExtractionReport:
             pdf.ln(20)
 
         self.pdf = pdf
+
+    def blur_chart(self, blur_arr):
+        if np.any(blur_arr):
+            num_warn = np.count_nonzero(blur_arr > self.bb_threshold)
+            if num_warn:
+                warn_txt = f'\nwarn = {num_warn}'
+            else:
+                warn_txt = ''
+            log_b = np.log(blur_arr)
+            plt.rc('font', size=14)
+            h = sns.histplot(log_b, bins=20)
+            plt.title('Quality Control: Blur Burden'+warn_txt)
+            plt.ylabel('Count', fontsize=16, fontname='Arial')
+            plt.xlabel('log(blur burden)', fontsize=16, fontname='Arial')
+            plt.axvline(x=-3, color='r', linestyle='--')
+            plt.show()
 
     def save(self, filename):
         self.pdf.output(filename)
@@ -561,6 +605,7 @@ class _BaseLoader:
         self.path = path
         self.qc_mask = None
         self.qc_mpp = None
+        self.blur_burden = None
         filetype = sf.util.path_to_ext(path)
 
         # Initiate supported slide reader
@@ -632,7 +677,7 @@ class _BaseLoader:
         self._build_coord()
         log.debug(f'QC removed from slide {self.shortname}')
 
-    def qc(self, method, blur_radius=3, blur_threshold=0.1, filter_threshold=0.6, mpp=4):
+    def qc(self, method, blur_radius=3, blur_threshold=0.02, filter_threshold=0.6, mpp=4):
         """Applies quality control to a slide, performing filtering based on a whole-slide image thumbnail.
 
         'blur' method filters out blurry or out-of-focus slide sections.
@@ -676,8 +721,10 @@ class _BaseLoader:
             otsu_mask = otsu_mask.astype(np.bool)
             self.qc_mask = otsu_mask
         if method == 'both':
-            otsu_mask = skimage.transform.resize(otsu_mask, blur_mask.shape)
+            otsu_mask = skimage.transform.resize(otsu_mask, blur_mask.shape).astype(np.bool)
             self.qc_mask = np.logical_or(blur_mask, otsu_mask)
+            self.blur_burden = np.count_nonzero(np.logical_and(blur_mask, np.logical_xor(blur_mask, otsu_mask))) / (blur_mask.shape[0] * blur_mask.shape[1])
+            log.debug(f"Blur burden: {self.blur_burden}")
 
         # Make a smaller thumbnail mask
         if method in ('blur', 'both'):
@@ -830,12 +877,12 @@ class _BaseLoader:
             yolo (bool, optional): Export yolo-formatted tile-level ROI annotations (.txt) in the tile directory.
                 Requires that tiles_dir is set. Defaults to False.
             draw_roi (bool, optional): Draws ROIs onto extracted tiles. Defaults to False.
+            dry_run (bool, optional): Determine tiles that would be extracted, but do not export any images.
+                Defaults to None.
         """
 
         if img_format not in ('png', 'jpg', 'jpeg'):
             raise ValueError(f"Unknown image format {img_format}, must be either 'png' or 'jpg'")
-        if tfrecord_dir is None and tiles_dir is None:
-            raise UserError("Must supply either tfrecord_dir or tiles_dir as destination for tile extraction.")
 
         # Make base directories
         if tfrecord_dir:
@@ -846,9 +893,10 @@ class _BaseLoader:
 
         # Log to keep track of when tiles have finished extracting
         # To be used in case tile extraction is interrupted, so the slide can be flagged for re-extraction
-        unfinished_marker = join((tfrecord_dir if tfrecord_dir else tiles_dir), f'{self.name}.unfinished')
-        with open(unfinished_marker, 'w') as marker_file:
-            marker_file.write(' ')
+        if tfrecord_dir or tiles_dir:
+            unfinished_marker = join((tfrecord_dir if tfrecord_dir else tiles_dir), f'{self.name}.unfinished')
+            with open(unfinished_marker, 'w') as marker_file:
+                marker_file.write(' ')
         if tfrecord_dir:
             writer = sf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
 
@@ -862,14 +910,18 @@ class _BaseLoader:
         sample_tiles = []
         generator_iterator = generator()
         locations = []
+        dry_run = kwargs['dry_run'] if 'dry_run' in kwargs else False
 
         for index, tile_dict in enumerate(generator_iterator):
-            image_string = tile_dict['image']
             location = tile_dict['loc']
             locations += [location]
+
+            if dry_run: continue
+
+            image_string = tile_dict['image']
             if len(sample_tiles) < 10:
                 sample_tiles += [image_string]
-            elif not tiles_dir and not tfrecord_dir:
+            elif (not tiles_dir and not tfrecord_dir) and not dry_run:
                 break
             if tiles_dir:
                 with open(join(tiles_dir, f'{self.shortname}_{index}.{img_format}'), 'wb') as outfile:
@@ -897,7 +949,14 @@ class _BaseLoader:
 
         # Generate extraction report
         if report:
-            return SlideReport(sample_tiles, self.slide.path, thumb=self.thumb(coords=locations, rois=True))
+            report_data = {
+                'blur_burden': self.blur_burden,
+                'num_tiles': len(locations)
+            }
+            return SlideReport(sample_tiles,
+                               self.slide.path,
+                               data=report_data,
+                               thumb=self.thumb(coords=locations, rois=True))
 
     def preview(self, rois=True, **kwargs):
         """Performs a dry run of tile extraction without saving any images, returning a PIL image of the slide

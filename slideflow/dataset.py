@@ -56,7 +56,7 @@ def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, sk
 
         # Apply quality control (blur filtering)
         if qc:
-            slide.qc(**qc_kwargs)
+            slide.qc(method=qc, **qc_kwargs)
 
         if not slide.loaded_correctly():
             return
@@ -467,8 +467,9 @@ class Dataset:
             buffer (str, optional): Slides will be copied to this directory before extraction. Defaults to None.
                 Using an SSD or ramdisk buffer vastly improves tile extraction speed.
             num_workers (int, optional): Extract tiles from this many slides simultaneously. Defaults to 4.
-            qc (bool, optional): Perform quality control blur detection, discarding tiles with detected out-of-focus
-                regions or artifact. Increases tile extraction time. Defaults to False.
+            qc (str, optional): 'otsu', 'blur', or 'both'. Perform quality control with blur detection - discarding
+                tiles with detected out-of-focus regions or artifact - and/or otsu's method. Increases tile extraction
+                time. Defaults to False.
             report (bool, optional): Save a PDF report of tile extraction. Defaults to True.
             process_isolated (bool, optional): Isolated each slide's tile extraction into a separate process.
                 May circumvent libvips errors when multiple slides are being accessed simultaneously. Small performance
@@ -501,6 +502,8 @@ class Dataset:
                 will be discarded. Only used if qc=True. Defaults to 0.6.
             qc_mpp (float, optional): Microns-per-pixel indicating image magnification level at which quality control
                 is performed. Defaults to mpp=4 (effective magnification 2.5 X)
+            dry_run (bool, optional): Determine tiles that would be extracted, but do not export any images.
+                Defaults to None.
         """
 
         if not save_tiles and not save_tfrecords:
@@ -522,12 +525,16 @@ class Dataset:
 
             roi_dir = self.sources[source]['roi']
             source_config = self.sources[source]
-            tfrecord_dir = join(source_config['tfrecords'], source_config['label']) if save_tfrecords else None
-            tiles_dir = join(source_config['tiles'], source_config['label']) if save_tiles else None
-            if save_tfrecords and not exists(tfrecord_dir):
-                os.makedirs(tfrecord_dir)
-            if save_tiles and not os.path.exists(tiles_dir):
-                os.makedirs(tiles_dir)
+            if 'dry_run' not in kwargs or not kwargs['dry_run']:
+                tfrecord_dir = join(source_config['tfrecords'], source_config['label']) if save_tfrecords else None
+                tiles_dir = join(source_config['tiles'], source_config['label']) if save_tiles else None
+                if save_tfrecords and not exists(tfrecord_dir):
+                    os.makedirs(tfrecord_dir)
+                if save_tiles and not os.path.exists(tiles_dir):
+                    os.makedirs(tiles_dir)
+            else:
+                save_tfrecords, save_tiles = False, False
+                tfrecord_dir, tiles_dir = None, None
 
             # Prepare list of slides for extraction
             slide_list = self.slide_paths(source=source)
@@ -664,7 +671,10 @@ class Dataset:
                     log.info('Generating PDF (this may take some time)...', )
                     pdf_report = sf.slide.ExtractionReport(reports.values(), tile_px=self.tile_px, tile_um=self.tile_um)
                     timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
-                    pdf_report.save(join(tfrecord_dir, f'tile_extraction_report-{timestring}.pdf'))
+                    pdf_dir = tfrecord_dir if tfrecord_dir else ''
+                    pdf_report.save(join(pdf_dir, f'tile_extraction_report-{timestring}.pdf'))
+                    with open(join(pdf_dir, f'warn_report-{timestring}.txt'), 'w') as warn_f:
+                        warn_f.write(pdf_report.warn_txt)
 
             # Update manifest & rebuild indices
             self.update_manifest()
@@ -1525,10 +1535,10 @@ class Dataset:
                 elif val_strategy == 'k-fold' or val_strategy == 'k-fold-preserved-site':
                     balance = 'outcome_label' if model_type == 'categorical' else None
                     k_fold_patients = split_patients_list(patients_dict,
-                                                        k_fold,
-                                                        balance=balance,
-                                                        randomize=True,
-                                                        preserved_site=(val_strategy == 'k-fold-preserved-site'))
+                                                          k_fold,
+                                                          balance=balance,
+                                                          randomize=True,
+                                                          preserved_site=(val_strategy == 'k-fold-preserved-site'))
                     # Verify at least one patient is in each k_fold group
                     if len(k_fold_patients) != k_fold or not min([len(pl) for pl in k_fold_patients]):
                         err_msg = "Insufficient number of patients to generate validation dataset."
