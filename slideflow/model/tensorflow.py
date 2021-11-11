@@ -758,6 +758,7 @@ class Trainer:
             metrics = sf.statistics.metrics_from_dataset(histogram=histogram,
                                                          verbose=True,
                                                          save_predictions=save_predictions,
+                                                         pred_args=types.SimpleNamespace(loss=self.hp.get_loss()),
                                                          **metric_kwargs)
         results_dict = { 'eval': {} }
         for metric in metrics:

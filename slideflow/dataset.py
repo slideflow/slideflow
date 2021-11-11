@@ -5,6 +5,7 @@ import time
 import os
 import csv
 import shutil
+import types
 import multiprocessing
 import shapely.geometry as sg
 import slideflow as sf
@@ -440,7 +441,7 @@ class Dataset:
 
     def extract_tiles(self, save_tiles=False, save_tfrecords=True, source=None, stride_div=1, enable_downsample=True,
                       roi_method='inside', skip_missing_roi=True, skip_extracted=True, tma=False, randomize_origin=False,
-                      buffer=None, num_workers=4, qc=False, report=True, process_isolated=True, **kwargs):
+                      buffer=None, num_workers=4, qc=None, report=True, process_isolated=True, **kwargs):
 
         """Extract tiles from a group of slides, saving extracted tiles to either loose image or in
         TFRecord binary format.
@@ -467,9 +468,9 @@ class Dataset:
             buffer (str, optional): Slides will be copied to this directory before extraction. Defaults to None.
                 Using an SSD or ramdisk buffer vastly improves tile extraction speed.
             num_workers (int, optional): Extract tiles from this many slides simultaneously. Defaults to 4.
-            qc (str, optional): 'otsu', 'blur', or 'both'. Perform quality control with blur detection - discarding
+            qc (str, optional): 'otsu', 'blur', 'both', or None. Perform blur detection quality control - discarding
                 tiles with detected out-of-focus regions or artifact - and/or otsu's method. Increases tile extraction
-                time. Defaults to False.
+                time. Defaults to None.
             report (bool, optional): Save a PDF report of tile extraction. Defaults to True.
             process_isolated (bool, optional): Isolated each slide's tile extraction into a separate process.
                 May circumvent libvips errors when multiple slides are being accessed simultaneously. Small performance
@@ -669,7 +670,24 @@ class Dataset:
                 if pb: pb.end()
                 if report:
                     log.info('Generating PDF (this may take some time)...', )
-                    pdf_report = sf.slide.ExtractionReport(reports.values(), tile_px=self.tile_px, tile_um=self.tile_um)
+                    reports_vals = reports.values()
+                    num_slides=len(slide_list)
+                    report_meta = types.SimpleNamespace(
+                        tile_px=self.tile_px,
+                        tile_um=self.tile_um,
+                        qc=qc,
+                        total_slides=num_slides,
+                        slides_skipped=len([r for r in reports_vals if r is None]),
+                        roi_method=roi_method,
+                        stride=stride_div,
+                        gs_frac=(None if 'grayspace_fraction' not in kwargs else kwargs['grayspace_fraction']),
+                        gs_thresh=(None if 'grayspace_threshold' not in kwargs else kwargs['grayspace_threshold']),
+                        ws_frac=(None if 'whitespace_fraction' not in kwargs else kwargs['whitespace_fraction']),
+                        ws_thresh=(None if 'whitespace_threshold' not in kwargs else kwargs['whitespace_threshold']),
+                        normalizer=(None if 'normalizer' not in kwargs else kwargs['normalizer']),
+                        img_format=(None if 'img_format' not in kwargs else kwargs['img_format'])
+                    )
+                    pdf_report = sf.slide.ExtractionReport(reports_vals, meta=report_meta)
                     timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
                     pdf_dir = tfrecord_dir if tfrecord_dir else ''
                     pdf_report.save(join(pdf_dir, f'tile_extraction_report-{timestring}.pdf'))

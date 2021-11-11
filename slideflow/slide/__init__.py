@@ -327,10 +327,10 @@ class ExtractionPDF(FPDF):
         logo = join(package_directory, 'slideflow-logo-name-small.jpg')
 
         #if self.page_no() == 1:
-        self.set_font('Arial', size=10)
-        self.cell(80) # Moves right
+        self.set_font('Arial', size=9)
+        self.cell(70) # Moves right
         self.set_text_color(70,70,70)
-        self.cell(40, 8, 'Intended for Research Use Only', align='C')
+        self.cell(50, 8, 'Intended for Research Use Only', align='C')
         self.ln(10)
 
         self.set_text_color(0,0,0)
@@ -356,12 +356,12 @@ class ExtractionPDF(FPDF):
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
-        self.cell(0, 10, 'Page ' + str(self.page_no()) + 'of {nb}', 0, 0, 'C')
+        self.cell(0, 10, 'Page ' + str(self.page_no()) + ' of {nb}', 0, 0, 'C')
 
 class ExtractionReport:
     """Creates a PDF report summarizing extracted tiles, from a collection of tile extraction reports."""
 
-    def __init__(self, reports, tile_px=None, tile_um=None, bb_threshold=0.05):
+    def __init__(self, reports, meta=None, bb_threshold=0.05):
         """Initializer.
 
         Args:
@@ -370,10 +370,17 @@ class ExtractionReport:
             tile_um (int): Tile size in microns.
         """
 
-        self.bb_threshold = 0.05
+        self.bb_threshold = bb_threshold
         pdf = ExtractionPDF()
         pdf.alias_nb_pages()
         pdf.add_page()
+
+        # Update meta values for grayspace/whitespace filtering
+        if meta.ws_frac is None:     meta.ws_frac = DEFAULT_WHITESPACE_FRACTION
+        if meta.ws_thresh is None:   meta.ws_thresh = DEFAULT_WHITESPACE_THRESHOLD
+        if meta.gs_frac is None:     meta.gs_frac   = DEFAULT_GRAYSPACE_FRACTION
+        if meta.gs_thresh is None:   meta.gs_thresh  = DEFAULT_GRAYSPACE_THRESHOLD
+        if meta.img_format is None:   meta.img_format  = 'png'
 
         num_tiles = np.array([r.num_tiles for r in reports])
         bb = np.array([r.blur_burden for r in reports])
@@ -411,9 +418,9 @@ class ExtractionReport:
             pdf.cell(20,4,m, ln=1)
         pdf.set_y(y+1)
         pdf.set_font('Arial')
-        for m in ('299', '302', 'both', '798', 'ignore', '17', '1'):
+        for m in (meta.tile_px, meta.tile_um, meta.qc, meta.total_slides, meta.roi_method, meta.slides_skipped, meta.stride):
             pdf.cell(30)
-            pdf.cell(20,4,m, ln=1)
+            pdf.cell(20,4,str(m), ln=1)
 
         # Second column
         pdf.set_y(y+1)
@@ -423,9 +430,9 @@ class ExtractionReport:
             pdf.cell(20,4,m, ln=1)
         pdf.set_y(y+1)
         pdf.set_font('Arial')
-        for m in ('0.6', '0.05', '1', '230', 'Reinhard', 'png'):
+        for m in (meta.gs_frac, meta.gs_thresh, meta.ws_frac, meta.ws_thresh, meta.normalizer, meta.img_format):
             pdf.cell(75)
-            pdf.cell(20,4,m, ln=1)
+            pdf.cell(20,4,str(m), ln=1)
 
         pdf.ln(20)
 
@@ -717,6 +724,7 @@ class _BaseLoader:
         self.path = path
         self.qc_mask = None
         self.qc_mpp = None
+        self.qc_method = None
         self.blur_burden = None
         filetype = sf.util.path_to_ext(path)
 
@@ -787,6 +795,7 @@ class _BaseLoader:
 
     def remove_qc(self):
         self._build_coord()
+        self.qc_method = None
         log.debug(f'QC removed from slide {self.shortname}')
 
     def qc(self, method, blur_radius=3, blur_threshold=0.02, filter_threshold=0.6, mpp=4):
@@ -817,6 +826,7 @@ class _BaseLoader:
         img_laplace = np.abs(skimage.filters.laplace(gray))
         thumb_mpp = 40
         self.qc_mpp = mpp
+        self.qc_method = method
         thumb_scale = thumb_mpp / mpp
 
         # Perform thresholding
@@ -1063,7 +1073,7 @@ class _BaseLoader:
         if report:
             report_data = {
                 'blur_burden': self.blur_burden,
-                'num_tiles': len(locations)
+                'num_tiles': len(locations),
             }
             return SlideReport(sample_tiles,
                                self.slide.path,
