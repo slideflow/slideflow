@@ -375,7 +375,7 @@ class Mosaic:
                 writer.writerow([tfr, self.mapped_tiles[tfr]])
         log.info(f'Mosaic report saved to {sf.util.green(filename)}')
 
-    def display(self):
+    def show(self):
         """Displays the mosaic map as an interactive matplotlib figure."""
         log.info('Displaying figure...')
         while True:

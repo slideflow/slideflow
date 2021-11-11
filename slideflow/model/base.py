@@ -7,13 +7,11 @@ from slideflow.slide import StainNormalizer
 
 """Base classes to be extended by framework-specific implementations."""
 
-class ModelParams:
-    """Build a set of hyperparameters."""
+class FeatureError(Exception):
+    pass
 
-    OptDict = {}
-    ModelDict = {}
-    _LinearLoss = []
-    _AllLoss = []
+class _ModelParams:
+    """Build a set of hyperparameters."""
 
     def __init__(self, tile_px=299, tile_um=302, epochs=10, toplayer_epochs=0, model='xception', pooling='max',
                  loss='sparse_categorical_crossentropy', learning_rate=0.0001, learning_rate_decay=0,
@@ -142,6 +140,25 @@ class ModelParams:
         obj.load_dict(hp_dict)
         return obj
 
+    @property
+    def model(self):
+        return self._model
+
+    @model.setter
+    def model(self, m):
+        if isinstance(m, dict):
+            assert len(m) == 1
+            model_name, model = list(m.items())[0]
+            assert isinstance(model_name, str)
+            self.ModelDict.update(m)
+            self._model = model_name
+        elif isinstance(m, str):
+            assert m in self.ModelDict
+            self._model = m
+        else:
+            self.ModelDict.update({'custom': m})
+            self._model = 'custom'
+
     def _get_args(self):
         return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt',
                                                                             'build_model',
@@ -204,7 +221,7 @@ class ModelParams:
         """Returns either 'linear', 'categorical', or 'cph' depending on the loss type."""
         if self.loss == 'negative_log_likelihood':
             return 'cph'
-        elif self.loss in self._LinearLoss:
+        elif self.loss in self.LinearLossDict:
             return 'linear'
         else:
             return 'categorical'

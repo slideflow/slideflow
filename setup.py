@@ -20,7 +20,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     package_data = {
-        'slideflow': ['util/norm_tile.jpg']
+        'slideflow': ['slide/norm_tile.jpg', 'slide/slideflow-logo-name-small.jpg'],
     },
     python_requires='>=3.7',
 )

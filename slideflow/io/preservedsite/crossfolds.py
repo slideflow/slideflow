@@ -2,9 +2,10 @@ import pandas as pd
 import numpy as np
 import cvxpy as cp
 import cplex
+import slideflow as sf
 from slideflow.util import log
 
-def generate(data, category, values, crossfolds = 3, target_column = 'CV3', patient_column = 'submitter_id', site_column = 'SITE', timelimit = 10):
+def generate(data, category, values, crossfolds = 3, target_column = 'CV3', patient_column = sf.util.TCGA.patient, site_column = 'SITE', timelimit = 10):
 
     """Generates 3 site preserved cross folds with optimal stratification of category
     Input:

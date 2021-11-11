@@ -40,7 +40,7 @@ class Project:
     .. code-block:: python
 
         >>> import slideflow as sf
-        >>> SFP = sf.Project.from_prompt('/project/path')
+        >>> P = sf.Project.from_prompt('/project/path')
         What is the project name?
 
     *Manual configuration:*
@@ -48,7 +48,7 @@ class Project:
     .. code-block:: python
 
         >>> import slideflow as sf
-        >>> SFP = sf.Project('/project/path', name=..., ...)
+        >>> P = sf.Project('/project/path', name=..., ...)
 
     """
 
@@ -214,6 +214,8 @@ class Project:
 
         if 'neptune_workspace' in self._settings:
             return self._settings['neptune_workspace']
+        elif 'NEPTUNE_WORKSPACE' in os.environ:
+            return os.environ['NEPTUNE_WORKSPACE']
         else:
             return None
 
@@ -231,6 +233,8 @@ class Project:
 
         if 'neptune_api' in self._settings:
             return self._settings['neptune_api']
+        elif 'NEPTUNE_API_TOKEN' in os.environ:
+            return os.environ['NEPTUNE_API_TOKEN']
         else:
             return None
 
@@ -241,14 +245,6 @@ class Project:
         if not isinstance(api_token, str):
             raise sf.util.UserError('API token must be a string.')
         self._settings['neptune_api'] = api_token
-
-    @property
-    def use_neptune(self):
-        return (self.neptune_api is not None and self.neptune_workspace is not None and self._use_neptune)
-
-    @use_neptune.setter
-    def use_neptune(self, b):
-        self._use_neptune = b
 
     @property
     def sources(self):
@@ -267,14 +263,7 @@ class Project:
 
     def _read_relative_path(self, path):
         """Converts relative path within project directory to global path."""
-        if path[0] == '.':
-            return join(self.root, path[2:])
-        elif path[:5] == '$ROOT':
-            log.warn('Deprecation warning: invalid path prefix $ROOT, please update project settings ' + \
-                     '(use "." for relative paths)')
-            return join(self.root, path[6:])
-        else:
-            return path
+        return sf.util.relative_path(path, self.root)
 
     def select_gpu(self, gpu):
         """Sets CUDA_VISIBLE_DEVICES in order to restrict GPU access to the given devices.
@@ -310,10 +299,12 @@ class Project:
         if not path:
             path = self.dataset_config
         project_utils.add_source(name, slides, roi, tiles, tfrecords, path)
+        if name not in self.sources:
+            self.sources += [name]
 
     def associate_slide_names(self):
         """Automatically associate patient names with slide filenames in the annotations file."""
-        dataset = self.get_dataset(tile_px=0, tile_um=0, verification=None)
+        dataset = self.dataset(tile_px=0, tile_um=0, verification=None)
         dataset.update_annotations_with_slidenames(self.annotations)
 
     def create_blank_annotations(self, filename=None):
@@ -443,7 +434,7 @@ class Project:
 
         # Load dataset and annotations for evaluation
         if dataset is None:
-            dataset = self.get_dataset(tile_px=hp.tile_px,
+            dataset = self.dataset(tile_px=hp.tile_px,
                                         tile_um=hp.tile_um,
                                         filters=filters,
                                         filter_blank=filter_blank,
@@ -567,7 +558,7 @@ class Project:
         except:
             git_commit = None
 
-        hp_file = join(model_dir, 'hyperparameters.json')
+        hp_file = join(model_dir, 'params.json')
 
         config = {
             'slideflow_version': sf.__version__,
@@ -690,7 +681,7 @@ class Project:
         args = types.SimpleNamespace(**args_dict)
         args.save_dir = eval_dir
 
-        dataset = self.get_dataset(tile_px=tile_px,
+        dataset = self.dataset(tile_px=tile_px,
                                    tile_um=tile_um,
                                    filters=filters,
                                    filter_blank=filter_blank)
@@ -704,7 +695,7 @@ class Project:
         outcome_dict = dict(zip(range(len(unique_labels)), unique_labels))
         with open(join(eval_dir, 'eval_annotations.csv'), 'w') as eval_file:
             writer = csv.writer(eval_file)
-            header = ['submitter_id', 'slide', outcome_label_headers]
+            header = [sf.util.TCGA.patient, sf.util.TCGA.slide, outcome_label_headers]
             writer.writerow(header)
             for slide in evaluation_slides:
                 row = [slide, slide, outcome_dict[slide_labels[slide]]]
@@ -776,6 +767,12 @@ class Project:
             buffer (str, optional): Slides will be copied to this directory before extraction. Defaults to None.
                 Using an SSD or ramdisk buffer vastly improves tile extraction speed.
             num_workers (int, optional): Extract tiles from this many slides simultaneously. Defaults to 4.
+            qc (str, optional): 'otsu', 'blur', or 'both'. Perform quality control with blur detection - discarding
+                tiles with detected out-of-focus regions or artifact - and/or otsu's method. Increases tile extraction
+                time. Defaults to False.
+            process_isolated (bool, optional): Isolated each slide's tile extraction into a separate process.
+                May circumvent libvips errors when multiple slides are being accessed simultaneously. Small performance
+                penalty when used. Defaults to False.
 
         Keyword Args:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
@@ -796,9 +793,17 @@ class Project:
                 Otherwise, will extract sub-images from each core using the given tile micron size. Defaults to False.
             shuffle (bool, optional): Shuffle tiles prior to storage in tfrecords. Defaults to True.
             num_threads (int, optional): Number of workers threads for each tile extractor. Defaults to 4.
+            qc_blur_radius (int, optional): Quality control blur radius for out-of-focus area detection. Only used if
+                qc=True. Defaults to 3.
+            qc_blur_threshold (float, optional): Quality control blur threshold for detecting out-of-focus areas.
+                Only used if qc=True. Defaults to 0.1
+            qc_filter_threshold (float, optional): Float between 0-1. Tiles with more than this proportion of blur
+                will be discarded. Only used if qc=True. Defaults to 0.6.
+            qc_mpp (float, optional): Microns-per-pixel indicating image magnification level at which quality control
+                is performed. Defaults to mpp=4 (effective magnification 2.5 X)
         """
 
-        dataset = self.get_dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank, verification='slides')
+        dataset = self.dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank, verification='slides')
         dataset.extract_tiles(**kwargs)
 
     def extract_tiles_from_tfrecords(self, tile_px, tile_um, filters=None, filter_blank=None, dest=None):
@@ -813,13 +818,13 @@ class Project:
             filter_blank (list, optional): Slides blank in these columns will be excluded. Defaults to None.
             dest (str): Path to directory in which to save tile images. Defaults to None. If None, uses dataset default.
         """
-        dataset = self.get_dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank)
+        dataset = self.dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank)
         dataset.extract_tiles_from_tfrecords(dest)
 
-    def generate_activations(self, model, dataset=None, filters=None, filter_blank=None, min_tiles=0, max_tiles=0,
-                             outcome_label_headers=None, torch_export=None, **kwargs):
+    def generate_features(self, model, dataset=None, filters=None, filter_blank=None, min_tiles=0, max_tiles=0,
+                         outcome_label_headers=None, torch_export=None, **kwargs):
 
-        """Calculate final layer activations and provide interface for calculating statistics.
+        """Calculate layer features / activations and provide interface for calculating statistics.
 
         Args:
             model (str): Path to model
@@ -846,10 +851,8 @@ class Project:
             batch_size (int): Batch size to use when calculating activations. Defaults to 32.
 
         Returns:
-            :class:`slideflow.activations.ActivationsVisualizer`: Activations visualizer.
+            :class:`slideflow.model.DatasetFeatures`:
         """
-
-        from slideflow.activations import ActivationsVisualizer
 
         # Setup directories
         stats_root = join(self.root, 'stats')
@@ -860,7 +863,7 @@ class Project:
         if dataset is None:
             tile_px = config['hp']['tile_px']
             tile_um = config['hp']['tile_um']
-            dataset = self.get_dataset(tile_px=tile_px,
+            dataset = self.dataset(tile_px=tile_px,
                                        tile_um=tile_um,
                                        filters=filters,
                                        filter_blank=filter_blank)
@@ -877,15 +880,15 @@ class Project:
         outcome_annotations = dataset.labels(outcome_label_headers, format='name')[0] if outcome_label_headers else None
         log.info(f'Visualizing activations from {len(dataset.tfrecords())} slides')
 
-        AV = ActivationsVisualizer(model=model,
-                                   dataset=dataset,
-                                   annotations=outcome_annotations,
-                                   manifest=dataset.manifest(),
-                                   **kwargs)
+        df = sf.model.DatasetFeatures(model=model,
+                                      dataset=dataset,
+                                      annotations=outcome_annotations,
+                                      manifest=dataset.manifest(),
+                                      **kwargs)
         if torch_export:
-            AV.export_to_torch(torch_export)
+            df.export_to_torch(torch_export)
 
-        return AV
+        return df
 
     def generate_features_for_clam(self, model, outdir='auto', layers=['postconv'], max_tiles=0, min_tiles=16,
                                    filters=None, filter_blank=None, force_regenerate=False):
@@ -935,7 +938,7 @@ class Project:
         if force_regenerate or not len(already_generated):
             activation_filters = filters
         else:
-            pt_dataset = self.get_dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank)
+            pt_dataset = self.dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank)
             all_slides = pt_dataset.slides()
             slides_to_generate = [s for s in all_slides if s not in already_generated]
             if len(slides_to_generate) != len(all_slides):
@@ -947,21 +950,21 @@ class Project:
                 return outdir
             activation_filters = {} if filters is None else filters.copy()
             activation_filters['slide'] = slides_to_generate
-            filtered_dataset = self.get_dataset(tile_px, tile_um, filters=activation_filters, filter_blank=filter_blank)
+            filtered_dataset = self.dataset(tile_px, tile_um, filters=activation_filters, filter_blank=filter_blank)
             filtered_slides_to_generate = filtered_dataset.slides()
-            log.info(f'Activations already generated for {len(already_generated)} files, will not regenerate.')
+            log.info(f'Features already generated for {len(already_generated)} files, will not regenerate.')
             log.info(f'Attempting to generate for {len(filtered_slides_to_generate)} slides')
 
         # Set up activations interface
-        self.generate_activations(model,
-                                  filters=activation_filters,
-                                  filter_blank=filter_blank,
-                                  layers=layers,
-                                  max_tiles=max_tiles,
-                                  min_tiles=min_tiles,
-                                  torch_export=outdir,
-                                  include_logits=False,
-                                  cache=None)
+        self.generate_features(model,
+                               filters=activation_filters,
+                               filter_blank=filter_blank,
+                               layers=layers,
+                               max_tiles=max_tiles,
+                               min_tiles=min_tiles,
+                               torch_export=outdir,
+                               include_logits=False,
+                               cache=None)
         return outdir
 
     def generate_heatmaps(self, model, filters=None, filter_blank=None, outdir=None, resolution='low', batch_size=64,
@@ -1014,7 +1017,7 @@ class Project:
 
         # Prepare dataset1
         config = sf.util.get_model_config(model)
-        heatmaps_dataset = self.get_dataset(filters=filters,
+        heatmaps_dataset = self.dataset(filters=filters,
                                             filter_blank=filter_blank,
                                             tile_px=config['hp']['tile_px'],
                                             tile_um=config['hp']['tile_um'])
@@ -1056,18 +1059,18 @@ class Project:
             process.start()
             process.join()
 
-    def generate_mosaic(self, AV, dataset=None, filters=None, filter_blank=None, outcome_label_headers=None,
+    def generate_mosaic(self, df, dataset=None, filters=None, filter_blank=None, outcome_label_headers=None,
                         map_slide=None, show_prediction=None, restrict_pred=None, predict_on_axes=None, max_tiles=0,
                         umap_cache=None, use_float=False, low_memory=False, **kwargs):
 
         """Generates a mosaic map by overlaying images onto a set of mapped tiles.
-            Image tiles are extracted from the provided set of TFRecords, and predictions + post-convolutional
-            node activations are calculated using the specified model. Tiles are mapped either with dimensionality
-            reduction on post-convolutional layer activations (default behavior), or by using outcome predictions
-            for two categories, mapped to X- and Y-axis (via predict_on_axes).
+            Image tiles are extracted from the provided set of TFRecords, and predictions + features from
+            post-convolutional layer activations are calculated using the specified model. Tiles are mapped either
+            with dimensionality reduction on post-convolutional layer activations (default behavior), or by using
+            outcome predictions for two categories, mapped to X- and Y-axis (via predict_on_axes).
 
         Args:
-            AV (:class:`slideflow.activations.ActivationsVisualizer`): ActivationsVisualizer containing model activations.
+            df (:class:`slideflow.model.DatasetFeatures`): DatasetFeatures containing model features.
             dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset object from which to generate mosaic.
                 If not supplied, will generate mosaic for all project tfrecords at the tile_px/tile_um
                 matching the supplied model, optionally using provided filters and filter_blank.
@@ -1107,8 +1110,6 @@ class Project:
             :class:`slideflow.mosaic.Mosaic`: Mosaic object.
         """
 
-        from slideflow.mosaic import Mosaic
-
         # Set up paths
         stats_root = join(self.root, 'stats')
         mosaic_root = join(self.root, 'mosaic')
@@ -1116,10 +1117,10 @@ class Project:
         if not exists(mosaic_root): os.makedirs(mosaic_root)
 
         # Prepare dataset & model
-        config = sf.util.get_model_config(AV.model)
+        config = sf.util.get_model_config(df.model)
         if dataset is None:
             tile_px, tile_um = config['hp']['tile_px'], config['hp']['tile_um']
-            dataset = self.get_dataset(tile_px=tile_px,
+            dataset = self.dataset(tile_px=tile_px,
                                        tile_um=tile_um,
                                        filters=filters,
                                        filter_blank=filter_blank)
@@ -1150,11 +1151,11 @@ class Project:
 
         # If showing predictions, try to automatically load prediction labels
         if (show_prediction is not None) and (not use_float):
-            model_hp = sf.util.get_model_config(AV.model)
+            model_hp = sf.util.get_model_config(df.model)
             if model_hp:
                 outcome_labels = model_hp['outcome_labels']
                 model_type = model_type if model_type else model_hp['model_type']
-                log.info(f'Automatically loaded prediction labels found at {sf.util.green(AV.model)}')
+                log.info(f'Automatically loaded prediction labels found at {sf.util.green(df.model)}')
             else:
                 log.info(f'Unable to auto-detect prediction labels from model hyperparameters file')
 
@@ -1163,18 +1164,18 @@ class Project:
 
         if predict_on_axes:
             # Create mosaic using x- and y- axis corresponding to label predictions
-            umap_x, umap_y, umap_meta = AV.map_to_predictions(predict_on_axes[0], predict_on_axes[1])
+            umap_x, umap_y, umap_meta = df.map_to_predictions(predict_on_axes[0], predict_on_axes[1])
             umap = sf.statistics.SlideMap.from_precalculated(slides=dataset.slides(),
                                                              x=umap_x,
                                                              y=umap_y,
                                                              meta=umap_meta)
         else:
             # Create mosaic map from dimensionality reduction on post-convolutional layer activations
-            umap = sf.statistics.SlideMap.from_activations(AV,
-                                                           map_slide=map_slide,
-                                                           prediction_filter=restrict_pred,
-                                                           cache=umap_cache,
-                                                           low_memory=low_memory)
+            umap = sf.statistics.SlideMap.from_features(df,
+                                                        map_slide=map_slide,
+                                                        prediction_filter=restrict_pred,
+                                                        cache=umap_cache,
+                                                        low_memory=low_memory)
 
         # If displaying centroid AND predictions, then show slide-level predictions rather than tile-level predictions
         if (map_slide=='centroid') and show_prediction is not None:
@@ -1185,10 +1186,10 @@ class Project:
 
             # Get predictions
             if model_type == 'categorical':
-                slide_pred = AV.logits_predict(restrict_pred)
-                slide_percent = AV.logits_percent(restrict_pred)
+                slide_pred = df.logits_predict(restrict_pred)
+                slide_percent = df.logits_percent(restrict_pred)
             else:
-                slide_pred = slide_percent = AV.logits_mean()
+                slide_pred = slide_percent = df.logits_mean()
 
             # If show_prediction is provided (either a number or string),
             # then display ONLY the prediction for the provided category, as a colormap
@@ -1221,7 +1222,11 @@ class Project:
             umap.label_by_tile_meta('prediction', translation_dict=outcome_labels)
         umap.filter(dataset.slides())
 
-        mosaic = Mosaic(umap, dataset.tfrecords(), normalizer=AV.normalizer, normalizer_source=AV.normalizer_source, **kwargs)
+        mosaic = sf.Mosaic(umap,
+                           dataset.tfrecords(),
+                           normalizer=df.normalizer,
+                           normalizer_source=df.normalizer_source,
+                           **kwargs)
         return mosaic
 
     def generate_mosaic_from_annotations(self, header_x, header_y, dataset, model=None, mosaic_filename=None,
@@ -1268,9 +1273,6 @@ class Project:
             tile_zoom (int): Tile zoom level. Defaults to 15.
         """
 
-        from slideflow.activations import ActivationsVisualizer
-        from slideflow.mosaic import Mosaic
-
         # Setup paths
         stats_root = join(self.root, 'stats')
         mosaic_root = join(self.root, 'mosaic')
@@ -1301,19 +1303,18 @@ class Project:
             return
         elif use_optimal_tile:
             # Calculate most representative tile in each slide/TFRecord for display
-            AV = ActivationsVisualizer(model=model,
-                                       dataset=dataset,
-                                       batch_size=batch_size,
-                                       cache=activations_cache)
+            df = sf.model.DatasetFeatures(model=model,
+                                                dataset=dataset,
+                                                batch_size=batch_size,
+                                                cache=activations_cache)
 
-            optimal_slide_indices, _ = sf.statistics.calculate_centroid(AV.activations)
+            optimal_slide_indices, _ = sf.statistics.calculate_centroid(df.activations)
 
             # Restrict mosaic to only slides that had enough tiles to calculate an optimal index from centroid
             successful_slides = list(optimal_slide_indices.keys())
             num_warned = 0
             warn_threshold = 3
             for slide in slides:
-                print_func = print if num_warned < warn_threshold else None
                 if slide not in successful_slides:
                     log.warn(f'Unable to calculate optimal tile for {sf.util.green(slide)}; will skip')
                     num_warned += 1
@@ -1332,12 +1333,12 @@ class Project:
                                                          y=umap_y,
                                                          meta=umap_meta)
 
-        mosaic_map = Mosaic(umap,
-                            dataset.tfrecords(),
-                            tile_select='centroid' if use_optimal_tile else 'nearest',
-                            normalizer=normalizer,
-                            normalizer_source=normalizer_source,
-                            **kwargs)
+        mosaic_map = sf.Mosaic(umap,
+                               dataset.tfrecords(),
+                               tile_select='centroid' if use_optimal_tile else 'nearest',
+                               normalizer=normalizer,
+                               normalizer_source=normalizer_source,
+                               **kwargs)
         if mosaic_filename:
             mosaic_map.save(join(mosaic_root, mosaic_filename))
             mosaic_map.save_report(join(stats_root, sf.util.path_to_name(mosaic_filename)+'-mosaic_report.csv'))
@@ -1346,7 +1347,7 @@ class Project:
             umap.save_2d_plot(join(stats_root, umap_filename))
 
     def generate_thumbnails(self, size=512, dataset=None, filters=None, filter_blank=None,
-                            roi=False, enable_downsample=False):
+                            roi=False, enable_downsample=True):
 
         """Generates square slide thumbnails with black box borders of a fixed size, and saves to project folder.
 
@@ -1371,7 +1372,7 @@ class Project:
         thumb_folder = join(self.root, 'thumbs')
         if not exists(thumb_folder): os.makedirs(thumb_folder)
         if dataset is None:
-            dataset = self.get_dataset(filters=filters, filter_blank=filter_blank, tile_px=0, tile_um=0)
+            dataset = self.dataset(filters=filters, filter_blank=filter_blank, tile_px=0, tile_um=0)
         slide_list = dataset.slide_paths()
         rois = dataset.rois()
         log.info(f'Saving thumbnails to {sf.util.green(thumb_folder)}')
@@ -1413,7 +1414,7 @@ class Project:
 
         slide_name = sf.util.path_to_name(tfrecord)
         loc_dict = get_locations_from_tfrecord(tfrecord)
-        dataset = self.get_dataset(tile_px=tile_px, tile_um=tile_um)
+        dataset = self.dataset(tile_px=tile_px, tile_um=tile_um)
         slide_paths = {sf.util.path_to_name(sp):sp for sp in dataset.slide_paths()}
 
         try:
@@ -1537,8 +1538,8 @@ class Project:
         del thumb
         return stats
 
-    def get_dataset(self, tile_px=None, tile_um=None, filters=None, filter_blank=None, min_tiles=0, verification='both'):
-        """Returns :class:`slideflow.dataset.Dataset` object using project settings.
+    def dataset(self, tile_px=None, tile_um=None, filters=None, filter_blank=None, min_tiles=0, verification='both'):
+        """Returns :class:`slideflow.Dataset` object using project settings.
 
         Args:
             tile_px (int): Tile size in pixels
@@ -1551,17 +1552,22 @@ class Project:
         """
 
         try:
+            if self.annotations and exists(self.annotations):
+                annotations = self.annotations
+            else:
+                self.annotations = None
             dataset = Dataset(config=self.dataset_config,
                               sources=self.sources,
                               tile_px=tile_px,
                               tile_um=tile_um,
-                              annotations=self.annotations,
+                              annotations=annotations,
                               filters=filters,
                               filter_blank=filter_blank,
                               min_tiles=min_tiles)
 
         except FileNotFoundError:
-            log.warn('No datasets configured.')
+            log.error('No datasets configured.')
+            return
 
         if verification in ('both', 'slides'):
             log.debug("Verifying slide annotations...")
@@ -1587,7 +1593,7 @@ class Project:
         return sf.util.neptune_utils.NeptuneLog(self.neptune_api, self.neptune_workspace)
 
     def predict_wsi(self, model, outdir, dataset=None, filters=None, filter_blank=None, stride_div=1,
-                    enable_downsample=False, roi_method='inside', skip_missing_roi=False, source=None,
+                    enable_downsample=True, roi_method='inside', skip_missing_roi=False, source=None,
                     randomize_origin=False, buffer=None, **kwargs):
 
         """Using a given model, generates a spatial map of tile-level predictions for a whole-slide image (WSI)
@@ -1607,7 +1613,7 @@ class Project:
             stride_div (int, optional): Stride divisor to use when extracting tiles. Defaults to 1.
                 A stride of 1 will extract non-overlapping tiles.
                 A stride_div of 2 will extract overlapping tiles, with a stride equal to 50% of the tile width.
-            enable_downsample (bool, optional): Enable downsampling when reading slide images. Defaults to False.
+            enable_downsample (bool, optional): Enable downsampling when reading slide images. Defaults to True.
                 This may result in corrupted image tiles if downsampled slide layers are corrupted or incomplete.
                 Recommend manual confirmation of tile integrity.
             roi_method (str, optional): Either 'inside', 'outside', or 'ignore'. Defaults to 'inside'.
@@ -1629,9 +1635,6 @@ class Project:
                 Pixels in HSV format with saturation below this threshold are considered grayspace.
         """
 
-        from slideflow.slide import WSI, TileCorruptionError
-        from slideflow.activations import ActivationsInterface
-
         log.info('Generating WSI prediction / activation maps...')
         if not exists(outdir):
             os.makedirs(outdir)
@@ -1643,7 +1646,7 @@ class Project:
         config = sf.util.get_model_config(model)
         if dataset is None:
             tile_px, tile_um = config['hp']['tile_px'], config['hp']['tile_um']
-            dataset = self.get_dataset(tile_px=tile_px,
+            dataset = self.dataset(tile_px=tile_px,
                                        tile_um=tile_um,
                                        filters=filters,
                                        filter_blank=filter_blank,
@@ -1671,14 +1674,14 @@ class Project:
             log.info('Verifying slides...')
             total_tiles = 0
             for slide_path in tqdm(slide_list, leave=False):
-                slide = WSI(slide_path,
-                            tile_px,
-                            tile_um,
-                            stride_div,
-                            roi_dir=roi_dir,
-                            roi_method=roi_method,
-                            skip_missing_roi=False,
-                            buffer=None)
+                slide = sf.slide.WSI(slide_path,
+                                    tile_px,
+                                    tile_um,
+                                    stride_div,
+                                    roi_dir=roi_dir,
+                                    roi_method=roi_method,
+                                    skip_missing_roi=False,
+                                    buffer=None)
                 log.debug(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
                 total_tiles += slide.estimated_num_tiles
                 del slide
@@ -1686,28 +1689,28 @@ class Project:
 
             for slide_path in slide_list:
                 log.info(f'Working on slide {sf.util.path_to_name(slide_path)}')
-                whole_slide = WSI(slide_path,
-                                  tile_px,
-                                  tile_um,
-                                  stride_div,
-                                  enable_downsample=enable_downsample,
-                                  roi_dir=roi_dir,
-                                  roi_method=roi_method,
-                                  randomize_origin=randomize_origin,
-                                  skip_missing_roi=skip_missing_roi,
-                                  buffer=buffer)
+                whole_slide = sf.slide.WSI(slide_path,
+                                        tile_px,
+                                        tile_um,
+                                        stride_div,
+                                        enable_downsample=enable_downsample,
+                                        roi_dir=roi_dir,
+                                        roi_method=roi_method,
+                                        randomize_origin=randomize_origin,
+                                        skip_missing_roi=skip_missing_roi,
+                                        buffer=buffer)
 
                 if not whole_slide.loaded_correctly():
                     continue
 
                 try:
-                    interface = ActivationsInterface(model, include_logits=False)
+                    interface = sf.model.Features(model, include_logits=False)
                     wsi_grid = interface(whole_slide, num_threads=12)
 
                     with open (join(outdir, whole_slide.name+'.pkl'), 'wb') as pkl_file:
                         pickle.dump(wsi_grid, pkl_file)
 
-                except TileCorruptionError:
+                except sf.slide.TileCorruptionError:
                     formatted_slide = sf.util.green(sf.util.path_to_name(slide_path))
                     if enable_downsample:
                         log.warn(f'Corrupt tile in {formatted_slide}; consider disabling downsampling')
@@ -1736,7 +1739,7 @@ class Project:
 
         raise DeprecationWarning("Function moved to slideflow.dataset.Dataset.tfrecord_report()")
 
-    def train(self, outcome_label_headers, hyperparameters, exp_label=None, filters=None, filter_blank=None,
+    def train(self, outcome_label_headers, params, exp_label=None, filters=None, filter_blank=None,
               input_header=None, resume_training=None, checkpoint=None, pretrain='imagenet', min_tiles=0, max_tiles=0,
               multi_gpu=False, splits="splits.json", **training_kwargs):
 
@@ -1744,7 +1747,7 @@ class Project:
 
         Args:
             outcome_label_headers (str): Str or list of str. Annotation column header specifying the outcome label(s).
-            hyperparameters (:class:`slideflow.model.ModelParams`, list, dict, or str): Defaults to 'sweep'.
+            params (:class:`slideflow.model.ModelParams`, list, dict, or str): Defaults to 'sweep'.
                 If 'sweep', will use project batch train configuration file to sweep through all HP combinations.
                 Additionally, a :class:`slideflow.model.ModelParams` may be provided, either individually,
                 as a list, or as a dictionary mapping model names to HP objects. Please see examples below for use.
@@ -1796,25 +1799,25 @@ class Project:
             Method 1 (hyperparameter sweep from a configuration file):
 
                 >>> import slideflow.model
-                >>> SFP.train('outcome', hyperparameters='sweep.json', ...)
+                >>> P.train('outcome', params='sweep.json', ...)
 
             Method 2 (manually specified hyperparameters):
 
                 >>> from slideflow.model import ModelParams
                 >>> hp = ModelParams(...)
-                >>> SFP.train('outcome', hyperparameters=hp, ...)
+                >>> P.train('outcome', params=hp, ...)
 
             Method 3 (list of hyperparameters):
 
                 >>> from slideflow.model import ModelParams
                 >>> hp = [ModelParams(...), ModelParams(...)]
-                >>> SFP.train('outcome', hyperparameters=hp, ...)
+                >>> P.train('outcome', params=hp, ...)
 
             Method 4 (dict of hyperparameters):
 
                 >>> from slideflow.model import ModelParams
                 >>> hp = {'HP0': ModelParams(...), 'HP1': ModelParams(...)}
-                >>> SFP.train('outcome', hyperparameters=hp, ...)
+                >>> P.train('outcome', params=hp, ...)
 
         """
 
@@ -1828,25 +1831,25 @@ class Project:
             log.info(f'Training with {num_o} variables as simultaneous outcomes: {", ".join(outcome_label_headers)}')
 
         # Prepare hyperparameters
-        if isinstance(hyperparameters, str):
-            if exists(hyperparameters):
-                hp_dict = sf.model.get_hp_from_batch_file(hyperparameters)
-            elif exists(join(self.root, hyperparameters)):
-                hp_dict = sf.model.get_hp_from_batch_file(join(self.root, hyperparameters))
+        if isinstance(params, str):
+            if exists(params):
+                hp_dict = sf.model.get_hp_from_batch_file(params)
+            elif exists(join(self.root, params)):
+                hp_dict = sf.model.get_hp_from_batch_file(join(self.root, params))
             else:
-                raise OSError(f"Unable to find hyperparameters file {hyperparameters}")
-        elif isinstance(hyperparameters, sf.model.ModelParams):
-            hp_dict = {'HP0': hyperparameters}
-        elif isinstance(hyperparameters, list):
-            if not all([isinstance(hp, sf.model.ModelParams) for hp in hyperparameters]):
+                raise OSError(f"Unable to find hyperparameters file {params}")
+        elif isinstance(params, sf.model.ModelParams):
+            hp_dict = {'HP0': params}
+        elif isinstance(params, list):
+            if not all([isinstance(hp, sf.model.ModelParams) for hp in params]):
                 raise sf.util.UserError('If supplying list of hyperparameters, items must be sf.model.ModelParams')
-            hp_dict = {f'HP{i}':hp for i,hp in enumerate(hyperparameters)}
-        elif isinstance(hyperparameters, dict):
-            if not all([isinstance(hp, str) for hp in hyperparameters.keys()]):
+            hp_dict = {f'HP{i}':hp for i,hp in enumerate(params)}
+        elif isinstance(params, dict):
+            if not all([isinstance(hp, str) for hp in params.keys()]):
                 raise sf.util.UserError('If supplying dict of hyperparameters, keys must be of type str')
-            if not all([isinstance(hp, sf.model.ModelParams) for hp in hyperparameters.values()]):
+            if not all([isinstance(hp, sf.model.ModelParams) for hp in params.values()]):
                 raise sf.util.UserError('If supplying dict of hyperparameters, values must be sf.model.ModelParams')
-            hp_dict = hyperparameters
+            hp_dict = params
 
         # Get default validation settings from kwargs
         val_kwargs = {k[4:]:v for k,v in training_kwargs.items() if k[:4] == 'val_'}
@@ -1877,7 +1880,7 @@ class Project:
             if input_header:
                 input_header = [input_header] if not isinstance(input_header, list) else input_header
                 filter_blank += input_header
-            dataset = self.get_dataset(hp.tile_px, hp.tile_um)
+            dataset = self.dataset(hp.tile_px, hp.tile_um)
             dataset = dataset.filter(filters=filters, filter_blank=filter_blank, min_tiles=min_tiles)
 
             # --- Load labels -----------------------------------------------------------------------------------------
@@ -2047,7 +2050,7 @@ class Project:
                     git_commit = None
 
                 # Log model settings and hyperparameters
-                config_file = join(model_dir, 'hyperparameters.json')
+                config_file = join(model_dir, 'params.json')
                 config = {
                     'slideflow_version': sf.__version__,
                     'project': self.name,
@@ -2168,20 +2171,20 @@ class Project:
         Examples
             Train with basic settings:
 
-                >>> dataset = SFP.get_dataset(tile_px=299, tile_um=302)
-                >>> SFP.generate_features_for_clam('/model/', outdir='/pt_files/')
-                >>> SFP.train_clam('NAME', '/pt_files', 'category1', dataset)
+                >>> dataset = P.dataset(tile_px=299, tile_um=302)
+                >>> P.generate_features_for_clam('/model/', outdir='/pt_files/')
+                >>> P.train_clam('NAME', '/pt_files', 'category1', dataset)
 
             Specify a specific layer from which to generate activations:
 
-                >>> SFP.generate_features_for_clam(..., layers=['postconv'])
+                >>> P.generate_features_for_clam(..., layers=['postconv'])
 
             Manually configure CLAM settings, with 5-fold validation and SVM bag loss:
 
                 >>> import slideflow.clam as clam
                 >>> clam_args = clam.get_args(k=5, bag_loss='svm')
-                >>> SFP.generate_features_for_clam(...)
-                >>> SFP.train_clam(..., clam_args=clam_args)
+                >>> P.generate_features_for_clam(...)
+                >>> P.train_clam(..., clam_args=clam_args)
         """
 
         import slideflow.clam as clam

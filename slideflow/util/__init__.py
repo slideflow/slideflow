@@ -8,7 +8,7 @@ import shutil
 import threading
 import logging
 import cv2
-import multiprocessing_logging
+#import multiprocessing_logging
 import importlib
 
 import multiprocessing as mp
@@ -112,7 +112,7 @@ class TqdmLoggingHandler(logging.StreamHandler):
             print(f"problems with msg {record}")
             self.handleError(record)
 
-multiprocessing_logging.install_mp_handler(log)
+#multiprocessing_logging.install_mp_handler(log)
 ch = TqdmLoggingHandler()
 ch.setFormatter(LogFormatter())
 ch.setLevel(log.level)
@@ -292,7 +292,7 @@ class ProgressBar:
         sys.stdout.flush()
 
 class TCGA:
-    patient = 'submitter_id'
+    patient = 'patient'
     project = 'project_id'
     slide = 'slide'
 
@@ -331,6 +331,16 @@ def make_dir(_dir):
             os.makedirs(_dir, exist_ok=True)
         except FileExistsError:
             pass
+
+def relative_path(path, root):
+    if path[0] == '.':
+        return join(root, path[2:])
+    elif path[:5] == '$ROOT':
+        log.warn('Deprecation warning: invalid path prefix $ROOT, please update project settings ' + \
+                    '(use "." for relative paths)')
+        return join(root, path[6:])
+    else:
+        return path
 
 def global_path(root, path_string):
     '''Returns global path from a local path.'''
@@ -484,13 +494,13 @@ def get_slides_from_model_manifest(model_path, dataset=None):
 def get_model_config(model_path):
     """Loads model configuration JSON file."""
 
-    if exists(join(model_path, 'hyperparameters.json')):
-        return load_json(join(model_path, 'hyperparameters.json'))
-    elif exists(join(dirname(model_path), 'hyperparameters.json')):
+    if exists(join(model_path, 'params.json')):
+        return load_json(join(model_path, 'params.json'))
+    elif exists(join(dirname(model_path), 'params.json')):
         if sf.backend() == 'tensorflow':
             log.warning("Hyperparameters file not found in model directory; loading from parent directory. " + \
-                        "Please move hyperparameters.json into model folder.")
-        return load_json(join(dirname(model_path), 'hyperparameters.json'))
+                        "Please move params.json into model folder.")
+        return load_json(join(dirname(model_path), 'params.json'))
     else:
         log.warning("Hyperparameters file not found.")
         return None

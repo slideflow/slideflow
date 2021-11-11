@@ -9,7 +9,7 @@ An important first step in creating a new project is to determine the validation
 2) **Validation data** - data used for performance testing during training
 3) **Evaluation data** - data used for final evaluation once training has completed. Preferably an external cohort.
 
-Validation data is used to assess model performance and generalizability during training. Once the model and hyperparameters have been tuned with training/validation, the final model's performance is assessed on the held-out evaluation set.
+Validation data is used to assess model performance and generalizability during training. Once the model and parameters have been tuned with training/validation, the final model's performance is assessed on the held-out evaluation set.
 
 Configuring a validation plan
 *****************************

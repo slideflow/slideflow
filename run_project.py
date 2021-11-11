@@ -30,9 +30,9 @@ if __name__=='__main__':
     print(f'+-------------------------------+')
     print()
 
-    SFP = sf.Project.from_prompt(args.project, gpu=args.gpu, use_neptune=args.neptune)
+    P = sf.Project.from_prompt(args.project, gpu=args.gpu, use_neptune=args.neptune)
     # Auto-update slidenames for newly added slides
-    SFP.associate_slide_names()
+    P.associate_slide_names()
 
     sys.path.insert(0, args.project)
     try:
@@ -41,4 +41,4 @@ if __name__=='__main__':
         print(f"Error loading actions.py in {args.project}; either does not exist or contains an error")
         raise e
 
-    actions.main(SFP)
+    actions.main(P)

@@ -12,7 +12,7 @@ if 'SF_BACKEND' not in os.environ:
 
 import slideflow.io
 import slideflow.model
-from slideflow.activations import ActivationsInterface, ActivationsVisualizer, Heatmap
+from slideflow.heatmap import Heatmap
 from slideflow.dataset import Dataset
 from slideflow.mosaic import Mosaic
 from slideflow.project import Project
@@ -31,8 +31,8 @@ def backend():
 # A pylintrc file is included is the root directory to assist with formatting.
 
 # Version planning (v1.13)
-#TODO: finish a couple more tutorials
-#       - Tutorial 2: Heatmaps, Mosaic maps, ActivationsVisualizer
+#TODO: finish a couple more tutorials / jupyter notebooks
+#       - Tutorial 2: Heatmaps, Mosaic maps, DatasetFeatures
 #       - Tutorial 3: CLAM
 #       - Tutorial 4: Cancer non-cancer
 #       - Tutorial 5: Comparing normalizers
@@ -40,8 +40,9 @@ def backend():
 #       - Tutorial 7: Clinical models, CPH outcome, permutation feature importance
 #       - Tutorial 8: Hyperparameter sweeps
 #       - Tutorial 9: Class-conditional GAN with StyleGAN2
-#TODO: ActivationsInterface compatibility for multiple outcomes
-#TODO: test all models, test custom models (attention to ActivationsInterface)
+#TODO: test all models, test custom models (attention to Features)
+#TODO: pytorch neptune integration
+#TODO: better extraction reports
 
 # Low priority consistency/style changes:
 # ---------------------
@@ -55,8 +56,9 @@ def backend():
 
 # Future updates
 # ===============
+#TODO: Features compatibility for multiple outcomes
 #TODO: PyTorch CPH outcomes
-#TODO: statistics.permutation_feature_importance (-> ActivationsInterface)
+#TODO: statistics.permutation_feature_importance (-> Features)
 #TODO: statistics.predict_from_layer (used for permutation_feature_importance)
 #TODO: implement native TF normalizers to improve realtime normalization speed
 #TODO: put tfrecord report in tfrecord directories & include information

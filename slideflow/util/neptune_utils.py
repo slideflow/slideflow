@@ -1,3 +1,4 @@
+import random
 from slideflow.util import log
 
 class NeptuneLog:
@@ -13,23 +14,30 @@ class NeptuneLog:
         '''Starts a neptune run'''
 
         import neptune.new as neptune
+        from neptune import management
 
         if tags is None: tags = []
-        project_name = project.replace("_", "-")
-        self.run = neptune.init(project=f'{self.workspace}/{project_name}', api_token=self.api_token)
+        project_name = project.replace("_", "-").replace(".", "-")
+        project_name = f'{self.workspace}/{project_name}'
+        existing_projects = management.get_project_list()
+        if project_name not in existing_projects:
+            _id = f'SF{str(random.random())[2:9]}'
+            log.info(f"Neptune project {project_name} does not exist; creating now (ID: {_id})")
+            management.create_project(project_name, _id)
+        self.run = neptune.init(project=project_name, api_token=self.api_token)
         log.info(f'Neptune run {name} initialized at {self.workspace}/{project_name}')
         self.run['sys/name'] = name
         run_id = self.run['sys/id'].fetch()
         for t in tags:
             self.run['sys/tags'].add(t)
-        self.run['eval/annotations'] = dataset.annotations_file
+        self.run['data/annotations_file'] = dataset.annotations_file
 
         return self.run
 
     def log_config(self, hp_data, stage):
         '''Logs model hyperparameter data according to the given stage ('train' or 'eval')'''
 
-        proj_info_keys = ['dataset_config', 'sources', 'annotations']
+        proj_info_keys = ['dataset_config', 'sources']
         model_info_keys = ['model_name', 'model_type', 'k_fold_i', 'outcome_label_headers']
 
         if not hasattr(self, 'run'):

@@ -3,11 +3,11 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import csv
+import json
 import warnings
 import shutil
-import json
 import types
+import inspect
 
 warnings.filterwarnings('ignore')
 
@@ -19,75 +19,73 @@ import slideflow.util.neptune_utils
 
 from os.path import join, exists, dirname
 from slideflow.util import log
-from slideflow.model.base import ModelError, no_scope, log_summary, log_manifest
+from slideflow.model.base import ModelError, FeatureError, no_scope, log_summary, log_manifest
 from slideflow.model.tensorflow_utils import *
 
-#TODO: Fix ActivationsInterface for multiple categorical outcomes
-
-class ModelParams(_base.ModelParams):
+class ModelParams(_base._ModelParams):
     """Build a set of hyperparameters."""
 
-    OptDict = {
-        'Adam':    tf.keras.optimizers.Adam,
-        'SGD': tf.keras.optimizers.SGD,
-        'RMSprop': tf.keras.optimizers.RMSprop,
-        'Adagrad': tf.keras.optimizers.Adagrad,
-        'Adadelta': tf.keras.optimizers.Adadelta,
-        'Adamax': tf.keras.optimizers.Adamax,
-        'Nadam': tf.keras.optimizers.Nadam
-    }
-    ModelDict = {
-        'xception': tf.keras.applications.Xception,
-        'vgg16': tf.keras.applications.VGG16,
-        'vgg19': tf.keras.applications.VGG19,
-        'resnet50': tf.keras.applications.ResNet50,
-        'resnet101': tf.keras.applications.ResNet101,
-        'resnet152': tf.keras.applications.ResNet152,
-        'resnet50_v2': tf.keras.applications.ResNet50V2,
-        'resnet101_v2': tf.keras.applications.ResNet101V2,
-        'resnet152_v2': tf.keras.applications.ResNet152V2,
-        #'ResNeXt50': tf.keras.applications.ResNeXt50,
-        #'ResNeXt101': tf.keras.applications.ResNeXt101,
-        'inception': tf.keras.applications.InceptionV3,
-        'nasnet_large': tf.keras.applications.NASNetLarge,
-        'inception_resnet_v2': tf.keras.applications.InceptionResNetV2,
-        'mobilenet': tf.keras.applications.MobileNet,
-        'mobilenet_v2': tf.keras.applications.MobileNetV2,
-        #'DenseNet': tf.keras.applications.DenseNet,
-        #'NASNet': tf.keras.applications.NASNet
-    }
-    _LinearLoss = ['mean_squared_error',
-                   'mean_absolute_error',
-                   'mean_absolute_percentage_error',
-                   'mean_squared_logarithmic_error',
-                   'squared_hinge',
-                   'hinge',
-                   'logcosh',
-                   'negative_log_likelihood']
-
-    _AllLoss = ['mean_squared_error',
-                'mean_absolute_error',
-                'mean_absolute_percentage_error',
-                'mean_squared_logarithmic_error',
-                'squared_hinge',
-                'hinge'
-                'categorical_hinge',
-                'logcosh',
-                'huber_loss',
-                'categorical_crossentropy',
-                'sparse_categorical_crossentropy',
-                'binary_crossentropy',
-                'kullback_leibler_divergence',
-                'poisson',
-                'cosine_proximity',
-                'is_categorical_crossentropy',
-                'negative_log_likelihood']
-
     def __init__(self, *args, **kwargs):
+        self.OptDict = {
+            'Adam': tf.keras.optimizers.Adam,
+            'SGD': tf.keras.optimizers.SGD,
+            'RMSprop': tf.keras.optimizers.RMSprop,
+            'Adagrad': tf.keras.optimizers.Adagrad,
+            'Adadelta': tf.keras.optimizers.Adadelta,
+            'Adamax': tf.keras.optimizers.Adamax,
+            'Nadam': tf.keras.optimizers.Nadam
+        }
+        self.ModelDict = {
+            'xception': tf.keras.applications.Xception,
+            'vgg16': tf.keras.applications.VGG16,
+            'vgg19': tf.keras.applications.VGG19,
+            'resnet50': tf.keras.applications.ResNet50,
+            'resnet101': tf.keras.applications.ResNet101,
+            'resnet152': tf.keras.applications.ResNet152,
+            'resnet50_v2': tf.keras.applications.ResNet50V2,
+            'resnet101_v2': tf.keras.applications.ResNet101V2,
+            'resnet152_v2': tf.keras.applications.ResNet152V2,
+            #'ResNeXt50': tf.keras.applications.ResNeXt50,
+            #'ResNeXt101': tf.keras.applications.ResNeXt101,
+            'inception': tf.keras.applications.InceptionV3,
+            'nasnet_large': tf.keras.applications.NASNetLarge,
+            'inception_resnet_v2': tf.keras.applications.InceptionResNetV2,
+            'mobilenet': tf.keras.applications.MobileNet,
+            'mobilenet_v2': tf.keras.applications.MobileNetV2,
+            #'DenseNet': tf.keras.applications.DenseNet,
+            #'NASNet': tf.keras.applications.NASNet
+        }
+        self.LinearLossDict = {
+            'mean_squared_error': tf.keras.losses.mean_squared_error,
+            'mean_absolute_error': tf.keras.losses.mean_absolute_error,
+            'mean_absolute_percentage_error': tf.keras.losses.mean_absolute_percentage_error,
+            'mean_squared_logarithmic_error': tf.keras.losses.mean_squared_logarithmic_error,
+            'squared_hinge': tf.keras.losses.squared_hinge,
+            'hinge': tf.keras.losses.hinge,
+            'logcosh': tf.keras.losses.logcosh,
+            'negative_log_likelihood': negative_log_likelihood
+        }
+        self.AllLossDict = {
+            'mean_squared_error': tf.keras.losses.mean_squared_error,
+            'mean_absolute_error': tf.keras.losses.mean_absolute_error,
+            'mean_absolute_percentage_error': tf.keras.losses.mean_absolute_percentage_error,
+            'mean_squared_logarithmic_error': tf.keras.losses.mean_squared_logarithmic_error,
+            'squared_hinge': tf.keras.losses.squared_hinge,
+            'hinge': tf.keras.losses.hinge,
+            'categorical_hinge': tf.keras.losses.categorical_hinge,
+            'logcosh': tf.keras.losses.logcosh,
+            'huber': tf.keras.losses.huber,
+            'categorical_crossentropy': tf.keras.losses.categorical_crossentropy,
+            'sparse_categorical_crossentropy': tf.keras.losses.sparse_categorical_crossentropy,
+            'binary_crossentropy': tf.keras.losses.binary_crossentropy,
+            'kullback_leibler_divergence': tf.keras.losses.kullback_leibler_divergence,
+            'poisson': tf.keras.losses.poisson,
+            'negative_log_likelihood': negative_log_likelihood
+        }
         super().__init__(*args, **kwargs)
         assert self.model in self.ModelDict.keys()
         assert self.optimizer in self.OptDict.keys()
-        assert self.loss in self._AllLoss
+        assert self.loss in self.AllLossDict.keys()
 
     def _add_hidden_layers(self, model, regularizer):
         for i in range(self.hidden_layers):
@@ -115,16 +113,19 @@ class ModelParams(_base.ModelParams):
 
     def _get_core(self, weights=None):
         """Returns a Keras model of the appropriate architecture, input shape, pooling, and initial weights."""
-        if self.model in ('nasnet_large', 'vgg16'):
-            input_shape = (self.tile_px, self.tile_px, 3)
-        else:
-            input_shape = None
-        return self.ModelDict[self.model](
-            input_shape=input_shape,
-            include_top=self.include_top,
-            pooling=self.pooling,
-            weights=weights
-        )
+        input_shape = (self.tile_px, self.tile_px, 3)
+        model_fn = self.ModelDict[self.model]
+        model_kwargs = {
+            'input_shape': input_shape,
+            'include_top': self.include_top,
+            'pooling': self.pooling,
+            'weights': weights
+        }
+        # Only pass kwargs accepted by model function
+        model_fn_sig = inspect.signature(model_fn)
+        model_kw = [param.name for param in model_fn_sig.parameters.values() if param.kind == param.POSITIONAL_OR_KEYWORD]
+        model_kwargs = {key:model_kwargs[key] for key in model_kw if key in model_kwargs}
+        return model_fn(**model_kwargs)
 
     def _build_base(self, pretrain='imagenet'):
         """Builds the base image model, from a Keras model core, with the appropriate input tensors and identity layers."""
@@ -322,6 +323,9 @@ class ModelParams(_base.ModelParams):
         else:
             raise ModelError(f'Unknown model type: {self.model_type()}')
 
+    def get_loss(self):
+        return self.AllLossDict[self.loss]
+
     def get_opt(self):
         """Returns optimizer with appropriate learning rate."""
         if self.learning_rate_decay not in (0, 1):
@@ -340,7 +344,7 @@ class ModelParams(_base.ModelParams):
         """Returns either 'linear', 'categorical', or 'cph' depending on the loss type."""
         if self.loss == 'negative_log_likelihood':
             return 'cph'
-        elif self.loss in self._LinearLoss:
+        elif self.loss in self.LinearLossDict:
             return 'linear'
         else:
             return 'categorical'
@@ -373,19 +377,20 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             model_path = os.path.join(self.parent.outdir, f'{model_name}_epoch{self.epoch_count}')
             self.model.save(model_path)
 
-            if not exists(join(model_path, 'hyperparameters.json')):
+            # Try to copy model settings/hyperparameters file into the model folder
+            if not exists(join(model_path, 'params.json')):
                 try:
-                    config_path = join(dirname(model_path), 'hyperparameters.json')
+                    config_path = join(dirname(model_path), 'params.json')
                     if self.neptune_run:
                         config = sf.util.load_json(config_path)
                         config['neptune_id'] = self.neptune_run['sys/id'].fetch()
                         sf.util.write_json(config, config_path)
                     shutil.copy(config_path,
-                                join(model_path, 'hyperparameters.json'), )
-                    shutil.copy(os.path.join(dirname(model_path), 'slide_manifest.csv'),
+                                join(model_path, 'params.json'), )
+                    shutil.copy(join(dirname(model_path), 'slide_manifest.csv'),
                                 join(model_path, 'slide_manifest.csv'), )
                 except:
-                    log.warning('Unable to copy hyperparameters.json/slide_manifest.csv files into model folder.')
+                    log.warning('Unable to copy params.json/slide_manifest.csv files into model folder.')
 
             log.info(f'Trained model saved to {sf.util.green(model_path)}')
             if self.cb_args.using_validation:
@@ -421,8 +426,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             if self.neptune_run:
                 self.neptune_run["metrics/batch/batch"].log(batch)
                 self.neptune_run["metrics/batch/epoch"].log(self.epoch_count)
-                self.neptune_run["metrics/batch/val_loss"].log(round(val_loss, 3))
-                self.neptune_run["metrics/batch/val_acc"].log(round(val_acc, 3))
+                for v in val_metrics:
+                    self.neptune_run[f"metrics/batch/val_{v}"].log(round(val_metrics[v], 3))
                 self.neptune_run["metrics/batch/exp_moving_average"].log(round(self.last_ema, 3))
                 self.neptune_run["early_stop/stopped_early"] = False
 
@@ -487,23 +492,28 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         epoch = self.epoch_count
         epoch_label = f'val_epoch{epoch}'
         if not self.cb_args.skip_metrics:
-            metrics = sf.statistics.metrics_from_dataset(self.model,
-                                                         model_type=self.hp.model_type(),
-                                                         labels=self.parent.labels,
-                                                         patients=self.parent.patients,
-                                                         dataset=self.cb_args.validation_data_with_slidenames,
-                                                         outcome_names=self.parent.outcome_names,
-                                                         label=epoch_label,
-                                                         data_dir=self.parent.outdir,
-                                                         num_tiles=self.cb_args.num_val_tiles,
-                                                         histogram=False,
-                                                         verbose=True,
-                                                         save_predictions=self.cb_args.save_predictions)
+            pred_args = types.SimpleNamespace(loss=self.hp.get_loss())
+            metrics, acc, loss = sf.statistics.metrics_from_dataset(
+                self.model,
+                model_type=self.hp.model_type(),
+                labels=self.parent.labels,
+                patients=self.parent.patients,
+                dataset=self.cb_args.validation_data_with_slidenames,
+                outcome_names=self.parent.outcome_names,
+                label=epoch_label,
+                data_dir=self.parent.outdir,
+                num_tiles=self.cb_args.num_val_tiles,
+                histogram=False,
+                verbose=True,
+                save_predictions=self.cb_args.save_predictions,
+                pred_args=pred_args
+            )
 
-        val_metrics = self.model.evaluate(self.cb_args.validation_data, verbose=0, return_dict=True)
-        log.info(f'Validation metrics:')
-        for m in val_metrics:
-            log.info(f'{m}: {val_metrics[m]:.4f}')
+        # Note that Keras loss during training includes regularization losses,
+        #  so this loss will not match validation loss calculated during training
+        val_metrics = {'accuracy': acc, 'loss': loss}
+        #val_metrics = self.model.evaluate(self.cb_args.validation_data, verbose=0, return_dict=True)
+        log.info(f'Validation metrics: ' + json.dumps(val_metrics, indent=4))
         self.results['epochs'][f'epoch{epoch}'] = {'train_metrics': {k:v for k,v in logs.items() if k[:3] != 'val'},
                                                    'val_metrics': val_metrics }
         if not self.cb_args.skip_metrics:
@@ -632,7 +642,7 @@ class Trainer:
         '''Compiles keras model.'''
 
         self.model.compile(optimizer=self.hp.get_opt(),
-                           loss=self.hp.loss,
+                           loss=self.hp.get_loss(),
                            metrics=['accuracy'])
 
     def _parse_tfrecord_labels(self, image, slide):
@@ -745,11 +755,12 @@ class Trainer:
                                                                    drop_images=drop_images,
                                                                    **metric_kwargs)
         else:
-            metrics = sf.statistics.metrics_from_dataset(histogram=histogram,
-                                                         verbose=True,
-                                                         save_predictions=save_predictions,
-                                                         **metric_kwargs)
-        results_dict = { 'eval': {} }
+            metrics, acc, loss = sf.statistics.metrics_from_dataset(histogram=histogram,
+                                                                    verbose=True,
+                                                                    save_predictions=save_predictions,
+                                                                    pred_args=types.SimpleNamespace(loss=self.hp.get_loss()),
+                                                                    **metric_kwargs)
+            results_dict = { 'eval': {} }
         for metric in metrics:
             if metrics[metric]:
                 log.info(f"Tile {metric}: {metrics[metric]['tile']}")
@@ -761,8 +772,11 @@ class Trainer:
                     f'patient_{metric}': metrics[metric]['patient']
                 })
 
-        val_metrics = self.model.evaluate(tf_dts, verbose=(log.getEffectiveLevel() <= 20), return_dict=True)
 
+        # Note that Keras loss during training includes regularization losses,
+        #  so this loss will not match validation loss calculated during training
+        # val_metrics = self.model.evaluate(tf_dts, verbose=(log.getEffectiveLevel() <= 20), return_dict=True)
+        val_metrics = {'accuracy': acc, 'loss': loss}
         results_log = os.path.join(self.outdir, 'results_log.csv')
         log.info(f'Evaluation metrics:')
         for m in val_metrics:
@@ -777,7 +791,7 @@ class Trainer:
         return val_metrics
 
     def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=512, validation_batch_size=32,
-              validation_steps=200, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=False,
+              validation_steps=200, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
               steps_per_epoch_override=None, save_predictions=False, skip_metrics=False, resume_training=None,
               pretrain='imagenet', checkpoint=None, multi_gpu=False):
 
@@ -965,8 +979,8 @@ class LinearTrainer(Trainer):
 
     def _compile_model(self):
         self.model.compile(optimizer=self.hp.get_opt(),
-                           loss=self.hp.loss,
-                           metrics=[self.hp.loss])
+                           loss=self.hp.get_loss(),
+                           metrics=[self.hp.get_loss()])
 
     def _parse_tfrecord_labels(self, image, slide):
         image_dict = { 'tile_image': image }
@@ -1044,3 +1058,189 @@ class CPHTrainer(LinearTrainer):
             if not (self.num_slide_features == 1):
                 image_dict.update({'slide_feature_input': slide_feature_input_val})
         return image_dict, label
+
+class Features:
+    """Interface for obtaining logits and features from intermediate layer activations from Slideflow models.
+
+    Use by calling on either a batch of images (returning outputs for a single batch), or by calling on a
+    :class:`slideflow.WSI` object, which will generate an array of spatially-mapped activations matching
+    the slide.
+
+    Examples
+        *Calling on batch of images:*
+
+        .. code-block:: python
+
+            interface = Features('/model/path', layers='postconv')
+            for image_batch in train_data:
+                # Return shape: (batch_size, num_features)
+                batch_features = interface(image_batch)
+
+        *Calling on a slide:*
+
+        .. code-block:: python
+
+            slide = sf.slide.WSI(...)
+            interface = Features('/model/path', layers='postconv')
+            # Return shape: (slide.grid.shape[0], slide.grid.shape[1], num_features):
+            activations_grid = interface(slide)
+
+    Note:
+        When this interface is called on a batch of images, no image processing or stain normalization will be
+        performed, as it is assumed that normalization will occur during data loader image processing.
+        When the interface is called on a `slideflow.WSI`, the normalization strategy will be read from the model
+        configuration file, and normalization will be performed on image tiles extracted from the WSI. If this interface
+        was created from an existing model and there is no model configuration file to read, a
+        slideflow.slide.StainNormalizer object may be passed during initialization via the argument `wsi_normalizer`.
+
+    """
+
+    def __init__(self, path, layers='postconv', include_logits=False):
+        """Creates a features interface from a saved slideflow model which outputs feature activations
+        at the designated layers.
+
+        Intermediate layers are returned in the order of layers. Logits are returned last.
+
+        Args:
+            path (str): Path to saved Slideflow model.
+            layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation layer
+                is accessed via 'postconv'. Defaults to 'postconv'.
+            include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
+        """
+
+        if layers and not isinstance(layers, list): layers = [layers]
+        self.path = path
+        self.num_logits = 0
+        self.num_features = 0
+        if path is not None:
+            self._model = tf.keras.models.load_model(self.path)
+            try:
+                config = sf.util.get_model_config(path)
+            except:
+                log.warning(f"Unable to find configuration for model {path}; unable to determine normalization " + \
+                            "strategy for WSI processing.")
+
+            self.hp = sf.model.ModelParams()
+            self.hp.load_dict(config['hp'])
+            self.wsi_normalizer = self.hp.get_normalizer()
+            self._build(layers=layers, include_logits=include_logits)
+
+    @classmethod
+    def from_model(cls, model, layers='postconv', include_logits=False, wsi_normalizer=None):
+        """Creates a features interface from a loaded slideflow model which outputs feature activations
+        at the designated layers.
+
+        Intermediate layers are returned in the order of layers. Logits are returned last.
+
+        Args:
+            model (:class:`tensorflow.keras.models.Model`): Loaded model.
+            layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation layer
+                is accessed via 'postconv'. Defaults to 'postconv'.
+            include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
+            wsi_normalizer (:class:`slideflow.slide.StainNormalizer`): Stain normalizer to use on whole-slide images.
+                Is not used on individual tile datasets via __call__. Defaults to None.
+        """
+
+        obj = cls(None, layers, include_logits)
+        if isinstance(model, tf.keras.models.Model):
+            obj._model = model
+        else:
+            raise TypeError("Provided model is not a valid Tensorflow model.")
+        obj._build(layers=layers, include_logits=include_logits)
+        obj.wsi_normalizer = wsi_normalizer
+        return obj
+
+    def __call__(self, inp, **kwargs):
+        """Process a given input and return features and/or logits. Expects either a batch of images or
+        a :class:`slideflow.slide.WSI` object."""
+
+        if isinstance(inp, sf.slide.WSI):
+            return self._predict_slide(inp, **kwargs)
+        else:
+            return self._predict(inp)
+
+    def _predict_slide(self, slide, batch_size=128, dtype=np.float16, **kwargs):
+        """Generate activations from slide => activation grid array."""
+        total_out = self.num_features + self.num_logits
+        features_grid = np.zeros((slide.grid.shape[1], slide.grid.shape[0], total_out), dtype=dtype)
+        generator = slide.build_generator(shuffle=False, include_loc='grid', show_progress=True, **kwargs)
+
+        if not generator:
+            log.error(f"No tiles extracted from slide {sf.util.green(slide.name)}")
+            return
+
+        def _parse_function(record):
+            image = record['image']
+            loc = record['loc']
+            parsed_image = tf.image.per_image_standardization(image)
+            parsed_image.set_shape([slide.tile_px, slide.tile_px, 3])
+            if self.wsi_normalizer:
+                image = tf.py_function(self.wsi_normalizer.tf_to_rgb, [image], tf.int32)
+            return parsed_image, loc
+
+        # Generate dataset from the generator
+        with tf.name_scope('dataset_input'):
+            output_signature={'image':tf.TensorSpec(shape=(slide.tile_px,slide.tile_px,3), dtype=tf.uint8),
+                              'loc':tf.TensorSpec(shape=(2), dtype=tf.uint32)}
+            tile_dataset = tf.data.Dataset.from_generator(generator, output_signature=output_signature)
+            tile_dataset = tile_dataset.map(_parse_function, num_parallel_calls=8)
+            tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
+            tile_dataset = tile_dataset.prefetch(8)
+
+        act_arr = []
+        loc_arr = []
+        for i, (batch_images, batch_loc) in enumerate(tile_dataset):
+            model_out = self._predict(batch_images)
+            if not isinstance(model_out, list): model_out = [model_out]
+            act_arr += [np.concatenate([m.numpy() for m in model_out])]
+            loc_arr += [batch_loc.numpy()]
+
+        act_arr = np.concatenate(act_arr)
+        loc_arr = np.concatenate(loc_arr)
+
+        for i, act in enumerate(act_arr):
+            xi = loc_arr[i][0]
+            yi = loc_arr[i][1]
+            features_grid[yi][xi] = act
+
+        return features_grid
+
+    @tf.function
+    def _predict(self, inp):
+        """Return activations for a single batch of images."""
+        return self.model(inp, training=False)
+
+    def _build(self, layers, include_logits=True):
+        """Builds the interface model that outputs feature activations at the designated layers and/or logits.
+            Intermediate layers are returned in the order of layers. Logits are returned last."""
+
+        if layers:
+            log.debug(f"Setting up interface to return activations from layers {', '.join(layers)}")
+            other_layers = [l for l in layers if l != 'postconv']
+        else:
+            other_layers = []
+        outputs = {}
+        if layers:
+            intermediate_core = tf.keras.models.Model(inputs=self._model.layers[1].input,
+                                                      outputs=[self._model.layers[1].get_layer(l).output for l in other_layers])
+            if len(other_layers) > 1:
+                int_out = intermediate_core(self._model.input)
+                for l, layer in enumerate(other_layers):
+                    outputs[layer] = int_out[l]
+            elif len(other_layers):
+                outputs[other_layers[0]] = intermediate_core(self._model.input)
+            if 'postconv' in layers:
+                outputs['postconv'] = self._model.layers[1].get_output_at(0)
+        outputs_list = [] if not layers else [outputs[l] for l in layers]
+        if include_logits:
+            outputs_list += [self._model.output]
+        self.model = tf.keras.models.Model(inputs=self._model.input, outputs=outputs_list)
+        self.num_features = sum([outputs[o].shape[1] for o in outputs])
+        if isinstance(self._model.output, list):
+            log.warning("Multi-categorical outcomes not yet supported for this interface.")
+            self.num_logits = 0
+        else:
+            self.num_logits = 0 if not include_logits else self._model.output.shape[1]
+        if include_logits:
+            log.debug(f'Number of logits: {self.num_logits}')
+        log.debug(f'Number of activation features: {self.num_features}')

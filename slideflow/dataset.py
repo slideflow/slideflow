@@ -5,6 +5,7 @@ import time
 import os
 import csv
 import shutil
+import types
 import multiprocessing
 import shapely.geometry as sg
 import slideflow as sf
@@ -20,55 +21,59 @@ from os.path import isdir, join, exists, dirname
 from multiprocessing.dummy import Pool as DPool
 from slideflow.util import log, TCGA, _shortname, ProgressBar
 
-def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, skip_missing_roi, randomize_origin,
-                    tma, tile_px, tile_um, stride_div, downsample, buffer, pb_counter, counter_lock, generator_kwargs):
+def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, skip_missing_roi, randomize_origin, tma,
+                    tile_px, tile_um, stride_div, downsample, buffer, pb_counter, counter_lock, reports,
+                    generator_kwargs, qc, qc_kwargs):
     """Internal function to execute tile extraction. Slide processing needs to be process-isolated."""
 
     # Record function arguments in case we need to re-call the function (for corrupt tiles)
     local_args = locals()
 
-    from slideflow.slide import TMA, WSI, TileCorruptionError
     log.handlers[0].flush_line = True
     try:
         log.debug(f'Extracting tiles for slide {sf.util.path_to_name(slide_path)}')
 
         if tma:
-            whole_slide = TMA(slide_path,
-                              tile_px,
-                              tile_um,
-                              stride_div,
-                              enable_downsample=downsample,
-                              report_dir=tfrecord_dir,
-                              buffer=buffer)
+            slide = sf.slide.TMA(slide_path,
+                                 tile_px,
+                                 tile_um,
+                                 stride_div,
+                                 enable_downsample=downsample,
+                                 report_dir=tfrecord_dir,
+                                 buffer=buffer)
         else:
-            whole_slide = WSI(slide_path,
-                              tile_px,
-                              tile_um,
-                              stride_div,
-                              enable_downsample=downsample,
-                              roi_dir=roi_dir,
-                              roi_method=roi_method,
-                              randomize_origin=randomize_origin,
-                              skip_missing_roi=skip_missing_roi,
-                              buffer=buffer,
-                              pb_counter=pb_counter,
-                              counter_lock=counter_lock)
+            slide = sf.slide.WSI(slide_path,
+                                 tile_px,
+                                 tile_um,
+                                 stride_div,
+                                 enable_downsample=downsample,
+                                 roi_dir=roi_dir,
+                                 roi_method=roi_method,
+                                 randomize_origin=randomize_origin,
+                                 skip_missing_roi=skip_missing_roi,
+                                 buffer=buffer,
+                                 pb_counter=pb_counter,
+                                 counter_lock=counter_lock)
 
-        if not whole_slide.loaded_correctly():
+        # Apply quality control (blur filtering)
+        if qc:
+            slide.qc(method=qc, **qc_kwargs)
+
+        if not slide.loaded_correctly():
             return
 
         try:
-            report = whole_slide.extract_tiles(tfrecord_dir=tfrecord_dir, tiles_dir=tiles_dir, **generator_kwargs)
+            report = slide.extract_tiles(tfrecord_dir=tfrecord_dir, tiles_dir=tiles_dir, **generator_kwargs)
 
-        except TileCorruptionError:
+        except sf.slide.TileCorruptionError:
             if downsample:
                 log.warning(f'Corrupt tile in {sf.util.path_to_name(slide_path)}; will try disabling downsampling')
                 report = _tile_extractor(**local_args)
             else:
                 log.error(f'Corrupt tile in {sf.util.path_to_name(slide_path)}; skipping slide')
                 return
-        del whole_slide
-        return report
+        del slide
+        reports.update({slide_path: report})
     except (KeyboardInterrupt, SystemExit):
         print('Exiting...')
         return
@@ -148,8 +153,6 @@ class Dataset:
 
         self.tile_px = tile_px
         self.tile_um = tile_um
-        self.annotations = []
-        self.annotations_file = None
         self._filters = filters if filters else {}
         self._filter_blank = filter_blank if filter_blank else []
         self._filter_blank = [self.filter_blank] if not isinstance(self._filter_blank, list) else self._filter_blank
@@ -157,6 +160,8 @@ class Dataset:
         self._clip = {}
         self.prob_weights = None
         self._config = config
+        self.annotations = None
+        self.annotations_file = None
 
         loaded_config = sf.util.load_json(config)
         sources = sources if isinstance(sources, list) else [sources]
@@ -178,11 +183,8 @@ class Dataset:
         for source in self.sources:
             self.sources[source]['label'] = label
 
-        if annotations:
-            if os.path.exists(annotations):
-                self._load_annotations(annotations)
-            else:
-                log.warning(f"Unable to load annotations from {sf.util.green(annotations)}; file does not exist.")
+        if annotations is not None:
+            self.load_annotations(annotations)
 
     def __repr__(self):
         return "Dataset(config={!r}, sources={!r}, tile_px={!r}, tile_um={!r})".format(self._config, self.sources_names, self.tile_px, self.tile_um)
@@ -211,38 +213,38 @@ class Dataset:
         """Returns the active min_tiles filter, if any (defaults to 0)."""
         return self._min_tiles
 
-    def _load_annotations(self, annotations_file):
-        """Load annotations from a given CSV file."""
-        # Verify annotations file exists
-        if not os.path.exists(annotations_file):
-            raise DatasetError(f"Annotations file {sf.util.green(annotations_file)} does not exist, unable to load")
+    @property
+    def filtered_annotations(self):
+        return self.annotations[self.annotations[TCGA.slide].isin(self.slides())]
 
-        header, current_annotations = sf.util.read_annotations(annotations_file)
+    def load_annotations(self, annotations):
+        # Load annotations
+        if isinstance(annotations, str):
+            if not os.path.exists(annotations):
+                raise DatasetError(f"Could not find annotations file {annotations}")
+            try:
+                self.annotations = pd.read_csv(annotations)
+                self.annotations.fillna('', inplace=True)
+                self.annotations_file = annotations
+            except pd.errors.EmptyDataError:
+                log.error(f"Unable to load annotations from {annotations}; empty file.")
+        elif isinstance(annotations, pd.core.frame.DataFrame):
+            self.annotations = annotations
+            self.annotations.fillna('', inplace=True)
+        else:
+            raise DatasetError(f"Unrecognized annotations format {type(annotations)}; expected path (str) or DataFrame")
 
-        # Check for duplicate headers in annotations file
-        if len(header) != len(set(header)):
-            err_msg = "Annotations file containers at least one duplicate header; all headers must be unique"
-            log.error(err_msg)
-            raise DatasetError(err_msg)
-
-        # Verify there is a patient header
-        try:
-            patient_index = header.index(TCGA.patient)
-        except:
-            err_msg = f"Check that annotations file is formatted correctly and contains header '{TCGA.patient}'."
-            log.error(err_msg)
-            raise DatasetError(err_msg)
-
-        # Verify that a slide header exists; if not, offer to make one and
-        # automatically associate slide names with patients
-        try:
-            slide_index = header.index(TCGA.slide)
-        except:
-            log.info(f"Header column '{TCGA.slide}' not found. Attempting to associate patients with slides...")
-            self.update_annotations_with_slidenames(annotations_file)
-            header, current_annotations = sf.util.read_annotations(annotations_file)
-        self.annotations = current_annotations
-        self.annotations_file = annotations_file
+        # Check annotations
+        if len(self.annotations.columns) == 1:
+            log.error("Only one column detected - please confirm that the annotations file is in comma separated format.")
+        if len(self.annotations.columns) != len(set(self.annotations.columns)):
+            raise DatasetError("Annotations file containers at least one duplicate header; all headers must be unique")
+        if TCGA.patient not in self.annotations.columns:
+            raise DatasetError(f"Patient identifier {TCGA.patient} not found in annotations.")
+        if TCGA.slide not in self.annotations.columns:
+            log.info(f"Column '{TCGA.slide}' not found in annotations. Attempting to associate patients with slides...")
+            self.update_annotations_with_slidenames(annotations)
+            self.load_annotations(annotations)
 
     def balance(self, headers=None, strategy='category', force=False):
         """Returns a dataset with prob_weights reflecting balancing per tile, slide, patient, or category.
@@ -437,9 +439,9 @@ class Dataset:
 
         return ret
 
-    def extract_tiles(self, save_tiles=False, save_tfrecords=True, source=None, stride_div=1, enable_downsample=False,
-                      roi_method='inside', skip_missing_roi=True, skip_extracted=True, tma=False,
-                      randomize_origin=False, buffer=None, num_workers=4, **kwargs):
+    def extract_tiles(self, save_tiles=False, save_tfrecords=True, source=None, stride_div=1, enable_downsample=True,
+                      roi_method='inside', skip_missing_roi=True, skip_extracted=True, tma=False, randomize_origin=False,
+                      buffer=None, num_workers=4, qc=None, report=True, process_isolated=True, **kwargs):
 
         """Extract tiles from a group of slides, saving extracted tiles to either loose image or in
         TFRecord binary format.
@@ -453,7 +455,7 @@ class Dataset:
             stride_div (int, optional): Stride divisor to use when extracting tiles. Defaults to 1.
                 A stride of 1 will extract non-overlapping tiles.
                 A stride_div of 2 will extract overlapping tiles, with a stride equal to 50% of the tile width.
-            enable_downsample (bool, optional): Enable downsampling when reading slide images. Defaults to False.
+            enable_downsample (bool, optional): Enable downsampling when reading slide images. Defaults to True.
                 This may result in corrupted image tiles if downsampled slide layers are corrupted or incomplete.
                 Recommend manual confirmation of tile integrity.
             roi_method (str, optional): Either 'inside', 'outside', or 'ignore'. Defaults to 'inside'.
@@ -466,6 +468,13 @@ class Dataset:
             buffer (str, optional): Slides will be copied to this directory before extraction. Defaults to None.
                 Using an SSD or ramdisk buffer vastly improves tile extraction speed.
             num_workers (int, optional): Extract tiles from this many slides simultaneously. Defaults to 4.
+            qc (str, optional): 'otsu', 'blur', 'both', or None. Perform blur detection quality control - discarding
+                tiles with detected out-of-focus regions or artifact - and/or otsu's method. Increases tile extraction
+                time. Defaults to None.
+            report (bool, optional): Save a PDF report of tile extraction. Defaults to True.
+            process_isolated (bool, optional): Isolated each slide's tile extraction into a separate process.
+                May circumvent libvips errors when multiple slides are being accessed simultaneously. Small performance
+                penalty when used. Defaults to True.
 
         Keyword Args:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
@@ -486,9 +495,17 @@ class Dataset:
                 Otherwise, will extract sub-images from each core using the given tile micron size. Defaults to False.
             shuffle (bool, optional): Shuffle tiles prior to storage in tfrecords. Defaults to True.
             num_threads (int, optional): Number of workers threads for each tile extractor. Defaults to 4.
+            qc_blur_radius (int, optional): Quality control blur radius for out-of-focus area detection. Only used if
+                qc=True. Defaults to 3.
+            qc_blur_threshold (float, optional): Quality control blur threshold for detecting out-of-focus areas.
+                Only used if qc=True. Defaults to 0.1
+            qc_filter_threshold (float, optional): Float between 0-1. Tiles with more than this proportion of blur
+                will be discarded. Only used if qc=True. Defaults to 0.6.
+            qc_mpp (float, optional): Microns-per-pixel indicating image magnification level at which quality control
+                is performed. Defaults to mpp=4 (effective magnification 2.5 X)
+            dry_run (bool, optional): Determine tiles that would be extracted, but do not export any images.
+                Defaults to None.
         """
-
-        import slideflow.slide
 
         if not save_tiles and not save_tfrecords:
             log.error('Either save_tiles or save_tfrecords must be true to extract tiles.')
@@ -498,6 +515,10 @@ class Dataset:
         else:       sources = self.sources
 
         self.verify_annotations_slides()
+
+        # Set up kwargs for tile extraction generator and quality control
+        qc_kwargs = {k[3:]:v for k,v in kwargs.items() if k[:3] == 'qc_'}
+        kwargs = {k:v for k,v in kwargs.items() if k[:3] != 'qc_'}
         sf.slide.log_extraction_params(**kwargs)
 
         for source in sources:
@@ -505,12 +526,16 @@ class Dataset:
 
             roi_dir = self.sources[source]['roi']
             source_config = self.sources[source]
-            tfrecord_dir = join(source_config['tfrecords'], source_config['label'])
-            tiles_dir = join(source_config['tiles'], source_config['label'])
-            if save_tfrecords and not exists(tfrecord_dir):
-                os.makedirs(tfrecord_dir)
-            if save_tiles and not os.path.exists(tiles_dir):
-                os.makedirs(tiles_dir)
+            if 'dry_run' not in kwargs or not kwargs['dry_run']:
+                tfrecord_dir = join(source_config['tfrecords'], source_config['label']) if save_tfrecords else None
+                tiles_dir = join(source_config['tiles'], source_config['label']) if save_tiles else None
+                if save_tfrecords and not exists(tfrecord_dir):
+                    os.makedirs(tfrecord_dir)
+                if save_tiles and not os.path.exists(tiles_dir):
+                    os.makedirs(tiles_dir)
+            else:
+                save_tfrecords, save_tiles = False, False
+                tfrecord_dir, tiles_dir = None, None
 
             # Prepare list of slides for extraction
             slide_list = self.slide_paths(source=source)
@@ -545,7 +570,8 @@ class Dataset:
                                          stride_div,
                                          roi_dir=roi_dir,
                                          roi_method=roi_method,
-                                         skip_missing_roi=skip_missing_roi)
+                                         skip_missing_roi=skip_missing_roi,
+                                         silent=True)
                 log.debug(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
                 total_tiles += slide.estimated_num_tiles
                 del slide
@@ -556,7 +582,7 @@ class Dataset:
                 q = queue.Queue()
                 task_finished = False
                 manager = multiprocessing.Manager()
-                ctx = multiprocessing.get_context('spawn')
+                ctx = multiprocessing.get_context('fork')
                 reports = manager.dict()
                 counter = manager.Value('i', 0)
                 counter_lock = manager.Lock()
@@ -588,7 +614,10 @@ class Dataset:
                     'buffer': buffer,
                     'pb_counter': counter,
                     'counter_lock': counter_lock,
-                    'generator_kwargs': kwargs
+                    'generator_kwargs': kwargs,
+                    'qc': qc,
+                    'qc_kwargs': qc_kwargs,
+                    'reports': reports
                 }
 
                 # Worker to grab slide path from queue and start tile extraction
@@ -596,9 +625,12 @@ class Dataset:
                     while True:
                         try:
                             path = q.get()
-                            process = ctx.Process(target=_tile_extractor, args=(path,), kwargs=extraction_kwargs)
-                            process.start()
-                            process.join()
+                            if process_isolated:
+                                process = ctx.Process(target=_tile_extractor, args=(path,), kwargs=extraction_kwargs)
+                                process.start()
+                                process.join()
+                            else:
+                                _tile_extractor(path, **extraction_kwargs)
                             if buffer and buffer != 'vmtouch':
                                 os.remove(path)
                             q.task_done()
@@ -625,8 +657,8 @@ class Dataset:
                                 except OSError as e:
                                     if not warned:
                                         formatted_slide = sf.util._shortname(sf.util.path_to_name(slide_path))
-                                        log.warn(f'OSError encountered for slide {formatted_slide}: buffer likely full')
-                                        log.info(f'Q size: {q.qsize()}')
+                                        log.debug(f'OSError encountered for slide {formatted_slide}: buffer likely full')
+                                        log.debug(f'Queue size: {q.qsize()}')
                                         warned = True
                                     time.sleep(1)
                             else:
@@ -636,10 +668,31 @@ class Dataset:
                 q.join()
                 task_finished = True
                 if pb: pb.end()
-                log.info('Generating PDF (this may take some time)...', )
-                pdf_report = sf.slide.ExtractionReport(reports.values(), tile_px=self.tile_px, tile_um=self.tile_um)
-                timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
-                pdf_report.save(join(tfrecord_dir, f'tile_extraction_report-{timestring}.pdf'))
+                if report:
+                    log.info('Generating PDF (this may take some time)...', )
+                    reports_vals = reports.values()
+                    num_slides=len(slide_list)
+                    report_meta = types.SimpleNamespace(
+                        tile_px=self.tile_px,
+                        tile_um=self.tile_um,
+                        qc=qc,
+                        total_slides=num_slides,
+                        slides_skipped=len([r for r in reports_vals if r is None]),
+                        roi_method=roi_method,
+                        stride=stride_div,
+                        gs_frac=(None if 'grayspace_fraction' not in kwargs else kwargs['grayspace_fraction']),
+                        gs_thresh=(None if 'grayspace_threshold' not in kwargs else kwargs['grayspace_threshold']),
+                        ws_frac=(None if 'whitespace_fraction' not in kwargs else kwargs['whitespace_fraction']),
+                        ws_thresh=(None if 'whitespace_threshold' not in kwargs else kwargs['whitespace_threshold']),
+                        normalizer=(None if 'normalizer' not in kwargs else kwargs['normalizer']),
+                        img_format=(None if 'img_format' not in kwargs else kwargs['img_format'])
+                    )
+                    pdf_report = sf.slide.ExtractionReport(reports_vals, meta=report_meta)
+                    timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
+                    pdf_dir = tfrecord_dir if tfrecord_dir else ''
+                    pdf_report.save(join(pdf_dir, f'tile_extraction_report-{timestring}.pdf'))
+                    with open(join(pdf_dir, f'warn_report-{timestring}.txt'), 'w') as warn_f:
+                        warn_f.write(pdf_report.warn_txt)
 
             # Update manifest & rebuild indices
             self.update_manifest()
@@ -663,7 +716,7 @@ class Dataset:
             for tfr in to_extract_tfrecords:
                 sf.io.extract_tiles(tfr, tiles_dir)
 
-    def filter(self, **kwargs):
+    def filter(self, *args, **kwargs):
         """Return a filtered dataset.
 
         Keyword Args:
@@ -675,7 +728,11 @@ class Dataset:
         Returns:
             :class:`slideflow.dataset.Dataset` object.
         """
-
+        if len(args) == 1 and 'filters' not in kwargs:
+            kwargs['filters'] = args[0]
+        elif len(args):
+            raise DatasetError("filter() accepts either only one argument (filters), or any combination of keyword" + \
+                               "arguments (filters, filter_blank, min_tiles)")
         for kwarg in kwargs:
             if kwarg not in ('filters', 'filter_blank', 'min_tiles'):
                 raise sf.util.UserError(f'Unknown filtering argument {kwarg}')
@@ -697,9 +754,7 @@ class Dataset:
     def is_float(self, header):
         """Returns True if labels in the given header can all be converted to `float`, else False."""
 
-        slides = self.slides()
-        filtered_annotations = [a for a in self.annotations if a[TCGA.slide] in slides]
-        filtered_labels = [a[header] for a in filtered_annotations]
+        filtered_labels = self.filtered_annotations[header]
         try:
             filtered_labels = [float(o) for o in filtered_labels]
             return True
@@ -733,7 +788,6 @@ class Dataset:
         """
 
         slides = self.slides()
-        filtered_annotations = [a for a in self.annotations if a[TCGA.slide] in slides]
         results = {}
         headers = [headers] if not isinstance(headers, list) else headers
         assigned_headers = {}
@@ -749,7 +803,7 @@ class Dataset:
             unique_labels_for_this_header = []
             assigned_headers[header] = {}
             try:
-                filtered_labels = [a[header] for a in filtered_annotations]
+                filtered_labels = self.filtered_annotations[header]
             except KeyError:
                 log.error(f"Unable to find column {header} in annotation file.")
                 raise DatasetError(f"Unable to find column {header} in annotation file.")
@@ -802,7 +856,7 @@ class Dataset:
             patient_labels = {}
             num_warned = 0
             warn_threshold = 3
-            for annotation in filtered_annotations:
+            for annotation in self.filtered_annotations.to_dict(orient="records"):
                 slide = annotation[TCGA.slide]
                 patient = annotation[TCGA.patient]
                 annotation_label = _process_label(annotation[header])
@@ -907,11 +961,9 @@ class Dataset:
     def patients(self):
         """Returns a list of patient IDs from this dataset."""
 
-        slides = self.slides()
         result = {}
-        for annotation in self.annotations:
-            slide = annotation[TCGA.slide]
-            patient = annotation[TCGA.patient]
+        pairs = list(zip(self.filtered_annotations[TCGA.slide], self.filtered_annotations[TCGA.patient]))
+        for slide, patient in pairs:
             if slide in result and result[slide] != patient:
                 raise DatasetError(f"Slide {slide} assigned to multiple patients in annotations file ({patient}, {result[slide]})")
             else:
@@ -1007,8 +1059,8 @@ class Dataset:
         else:
             return paths
 
-    def slide_report(self, stride_div=1, destination='auto', tma=False, enable_downsample=False,
-                        roi_method='inside', skip_missing_roi=False, normalizer=None, normalizer_source=None):
+    def slide_report(self, stride_div=1, destination='auto', tma=False, enable_downsample=True, roi_method='inside',
+                     skip_missing_roi=False, normalizer=None, normalizer_source=None):
 
         """Creates a PDF report of slides, including images of 10 example extracted tiles.
 
@@ -1017,7 +1069,7 @@ class Dataset:
             destination (str, optional): Either 'auto' or explicit filename at which to save the PDF report.
                 Defaults to 'auto'.
             tma (bool, optional): Interpret slides as TMA (tumor microarrays). Defaults to False.
-            enable_downsample (bool, optional): Enable downsampling during tile extraction. Defaults to False.
+            enable_downsample (bool, optional): Enable downsampling during tile extraction. Defaults to True.
             roi_method (str, optional): Either 'inside', 'outside', or 'ignore'. Defaults to 'inside'.
                 Determines how ROIs will guide tile extraction
             skip_missing_roi (bool, optional): Skip tiles that are missing ROIs. Defaults to False.
@@ -1078,9 +1130,9 @@ class Dataset:
         # Begin filtering slides with annotations
         slides = []
         slide_patient_dict = {}
-        if not len(self.annotations):
+        if self.annotations is None:
             log.error("No annotations loaded; is the annotations file empty?")
-        for ann in self.annotations:
+        for ann in self.annotations.to_dict(orient="records"):
             skip_annotation = False
             if TCGA.slide not in ann.keys():
                 err_msg = f"{TCGA.slide} not found in annotations file."
@@ -1201,7 +1253,8 @@ class Dataset:
                 among workers without duplications. Defaults to 0 (first worker).
             num_replicas (int, optional): Number of GPUs or unique instances which will have their own DataLoader. Used to
                 interleave results among workers without duplications. Defaults to 1.
-            normalizer (:class:`slideflow.slide.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
+            normalizer (:class:`slideflow.slide.StainNormalizer` or str, optional): Normalizer to use on images.
+                Defaults to None.
             seed (int, optional): Use the following seed when randomly interleaving. Necessary for synchronized
                 multiprocessing distributed reading.
             chunk_size (int, optional): Chunk size for image decoding. Defaults to 16.
@@ -1214,6 +1267,9 @@ class Dataset:
         """
 
         from slideflow.io.tensorflow import interleave
+
+        if 'normalizer' in kwargs and isinstance(kwargs['normalizer'], str):
+            kwargs['normalizer'] = sf.slide.StainNormalizer(kwargs['normalizer'])
 
         return interleave(tfrecords=self.tfrecords(),
                           labels=labels,
@@ -1293,7 +1349,7 @@ class Dataset:
             tfrecords_list += glob(join(folder, "*.tfrecords"))
 
         # Filter the list by filters
-        if self.annotations:
+        if self.annotations is not None:
             slides = self.slides()
             filtered_tfrecords_list = [tfrecord for tfrecord in tfrecords_list if sf.util.path_to_name(tfrecord) in slides]
             filtered = filtered_tfrecords_list
@@ -1497,10 +1553,10 @@ class Dataset:
                 elif val_strategy == 'k-fold' or val_strategy == 'k-fold-preserved-site':
                     balance = 'outcome_label' if model_type == 'categorical' else None
                     k_fold_patients = split_patients_list(patients_dict,
-                                                        k_fold,
-                                                        balance=balance,
-                                                        randomize=True,
-                                                        preserved_site=(val_strategy == 'k-fold-preserved-site'))
+                                                          k_fold,
+                                                          balance=balance,
+                                                          randomize=True,
+                                                          preserved_site=(val_strategy == 'k-fold-preserved-site'))
                     # Verify at least one patient is in each k_fold group
                     if len(k_fold_patients) != k_fold or not min([len(pl) for pl in k_fold_patients]):
                         err_msg = "Insufficient number of patients to generate validation dataset."
@@ -1588,7 +1644,8 @@ class Dataset:
                 among workers without duplications. Defaults to 0 (first worker).
             num_replicas (int, optional): Number of GPUs or unique instances which will have their own DataLoader. Used to
                 interleave results among workers without duplications. Defaults to 1.
-            normalizer (:class:`slideflow.slide.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
+            normalizer (:class:`slideflow.slide.StainNormalizer` or str, optional): Normalizer to use on images.
+                Defaults to None.
             seed (int, optional): Use the following seed when randomly interleaving. Necessary for synchronized
                 multiprocessing distributed reading.
             chunk_size (int, optional): Chunk size for image decoding. Defaults to 16.
@@ -1605,6 +1662,9 @@ class Dataset:
 
         if isinstance(labels, str):
             labels = self.labels(labels)[0]
+
+        if 'normalizer' in kwargs and isinstance(kwargs['normalizer'], str):
+            kwargs['normalizer'] = sf.slide.StainNormalizer(kwargs['normalizer'])
 
         self.build_index(rebuild_index)
         tfrecords = self.tfrecords()
@@ -1774,7 +1834,7 @@ class Dataset:
         # Verify all slides in the annotation column are valid
         num_warned = 0
         warn_threshold = 3
-        for annotation in self.annotations:
+        for annotation in self.annotations.to_dict(orient="records"):
             slide = annotation[TCGA.slide]
             if slide == '':
                 log.warning(f"Patient {sf.util.green(annotation[TCGA.patient])} has no slide assigned.")

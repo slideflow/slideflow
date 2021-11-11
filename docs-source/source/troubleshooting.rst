@@ -7,7 +7,7 @@ If you're running into problems, look for more information by including debug lo
 
     import logging
     logging.getLogger('slideflow').setLevel(logging.DEBUG)
-    SFP = sf.Project(...)
+    P = sf.Project(...)
 
 To check for errors in your environment or installation, you can also use the included testing suite ``slideflow.test.TestSuite`` to look for issues with executing pipeline functions.
 

@@ -8,9 +8,11 @@ from os.path import join, exists
 from slideflow.util import log
 
 def _project_config(name='MyProject', annotations='./annotations.csv', dataset_config='./datasets.json',
-                    sources='source1', models_dir='./models', eval_dir='./eval', mixed_precision=True):
+                    sources=None, models_dir='./models', eval_dir='./eval', mixed_precision=True):
     args = locals()
     args['slideflow_version'] = sf.__version__
+    if sources is None:
+        args['sources'] = []
     return args
 
 def _heatmap_worker(slide, heatmap_args, kwargs):
@@ -22,15 +24,14 @@ def _heatmap_worker(slide, heatmap_args, kwargs):
     sequentially is a functional workaround, hence the process-isolated worker.
     """
 
-    from slideflow.activations import Heatmap
-    heatmap = Heatmap(slide,
-                      model=heatmap_args.model,
-                      stride_div=heatmap_args.stride_div,
-                      rois=heatmap_args.rois,
-                      roi_method=heatmap_args.roi_method,
-                      buffer=heatmap_args.buffer,
-                      batch_size=heatmap_args.batch_size,
-                      num_threads=heatmap_args.num_threads)
+    heatmap = sf.Heatmap(slide,
+                        model=heatmap_args.model,
+                        stride_div=heatmap_args.stride_div,
+                        rois=heatmap_args.rois,
+                        roi_method=heatmap_args.roi_method,
+                        buffer=heatmap_args.buffer,
+                        batch_size=heatmap_args.batch_size,
+                        num_threads=heatmap_args.num_threads)
     heatmap.save(heatmap_args.outdir, **kwargs)
 
 def _train_worker(training_args, model_kwargs, training_kwargs, results_dict):
@@ -90,6 +91,8 @@ def get_validation_settings(**kwargs):
         args_dict[k] = kwargs[k]
     args = types.SimpleNamespace(**args_dict)
 
+    if args.strategy is None:
+        args.strategy = 'none'
     if (args.k_fold_header is None and args.strategy == 'k-fold-manual'):
         raise Exception("Must supply 'k_fold_header' if validation strategy is 'k-fold-manual'")
 
@@ -153,7 +156,7 @@ def interactive_project_setup(project_folder):
 
     project['sources'] = []
     while not project['sources']:
-        datasets_data, sources = load_sources(project['dataset_config'])
+        datasets_data, sources = load_sources(sf.util.relative_path(project['dataset_config'], project_folder))
 
         print(sf.util.bold('Detected dataset sources:'))
         if not len(sources):
@@ -164,8 +167,8 @@ def interactive_project_setup(project_folder):
             print(f' {len(sources)+1}. ADD NEW')
             valid_source_choices = [str(l) for l in range(1, len(sources)+2)]
             selection = sf.util.choice_input(f'Which datasets should be used? ',
-                                                    valid_choices=valid_source_choices,
-                                                    multi_choice=True)
+                                             valid_choices=valid_source_choices,
+                                             multi_choice=True)
 
         if not len(sources) or str(len(sources)+1) in selection:
             # Create new dataset
@@ -178,14 +181,14 @@ def interactive_project_setup(project_folder):
             source_tiles = sf.util.path_input('Image tile storage location [./tiles] ',
                                     root=project_folder, default='./tiles', create_on_invalid=True)
             source_tfrecords = sf.util.path_input('TFRecord storage location [./tfrecord] ',
-                                    root=project_folder, default='./tfrecord', create_on_invalid=True)
+                                    root=project_folder, default='./tfrecords', create_on_invalid=True)
 
             add_source(name=source_name,
-                        slides=source_slides,
-                        roi=source_roi,
-                        tiles=source_tiles,
-                        tfrecords=source_tfrecords,
-                        path=project['dataset_config'])
+                       slides=sf.util.relative_path(source_slides, project_folder),
+                       roi=sf.util.relative_path(source_roi, project_folder),
+                       tiles=sf.util.relative_path(source_tiles, project_folder),
+                       tfrecords=sf.util.relative_path(source_tfrecords, project_folder),
+                       path=sf.util.relative_path(project['dataset_config'], project_folder))
 
             print('Updated dataset configuration file.')
         else:

@@ -2,6 +2,7 @@ import os
 import types
 import time
 import torch
+import inspect
 import torchvision
 import pretrainedmodels
 import slideflow as sf
@@ -10,10 +11,10 @@ import numpy as np
 from os.path import join
 from slideflow.util import log
 from slideflow.model import base as _base
+from slideflow.model.base import FeatureError
 from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest
 from tqdm import tqdm
-from vit_pytorch import ViT
 from torch.utils.tensorboard import SummaryWriter
 
 class LinearBlock(torch.nn.Module):
@@ -50,9 +51,13 @@ class ModelWrapper(torch.nn.Module):
                 last_linear_name, last_linear = list(self.model.classifier.named_children())[-1]
                 num_ftrs = last_linear.in_features
                 setattr(self.model.classifier, last_linear_name, torch.nn.Identity())
-            else:
+            elif hasattr(self.model, 'fc'):
                 num_ftrs = self.model.fc.in_features
                 self.model.fc = torch.nn.Identity()
+            elif hasattr(self.model, 'out_features'):
+                num_ftrs = self.model.out_features
+            else:
+                raise _base.ModelError("Unable to find last linear layer")
         else:
             num_ftrs = 0
 
@@ -109,74 +114,72 @@ class ModelWrapper(torch.nn.Module):
 
         return out
 
-class ModelParams(_base.ModelParams):
+class ModelParams(_base._ModelParams):
     """Build a set of hyperparameters."""
 
-    OptDict = {
-        'Adadelta': torch.optim.Adadelta,
-        'Adagrad': torch.optim.Adagrad,
-        'Adam': torch.optim.Adam,
-        'AdamW': torch.optim.AdamW,
-        'SparseAdam': torch.optim.SparseAdam,
-        'Adamax': torch.optim.Adamax,
-        'ASGD': torch.optim.ASGD,
-        'LBFGS': torch.optim.LBFGS,
-        'RMSprop': torch.optim.RMSprop,
-        'Rprop': torch.optim.Rprop,
-        'SGD': torch.optim.SGD
-    }
-    ModelDict = {
-        'ViT': ViT,
-        'resnet18': torchvision.models.resnet18,
-        'resnet50': torchvision.models.resnet50,
-        'alexnet': torchvision.models.alexnet,
-        'squeezenet': torchvision.models.squeezenet.squeezenet1_1,
-        'densenet': torchvision.models.densenet161,
-        'inception': torchvision.models.inception_v3,
-        'googlenet': torchvision.models.googlenet,
-        'shufflenet': torchvision.models.shufflenet_v2_x1_0,
-        'resnext50_32x4d': torchvision.models.resnext50_32x4d,
-        'vgg16': torchvision.models.vgg16, # needs support added
-        'mobilenet_v2': torchvision.models.mobilenet_v2,
-        'mobilenet_v3_small': torchvision.models.mobilenet_v3_small,
-        'mobilenet_v3_large': torchvision.models.mobilenet_v3_large,
-        'wide_resnet50_2': torchvision.models.wide_resnet50_2,
-        'mnasnet': torchvision.models.mnasnet1_0,
-        'xception': pretrainedmodels.xception
-    }
-    LinearLossDict = {
-        'L1': torch.nn.L1Loss,
-        'MSE': torch.nn.MSELoss,
-        'NLL': torch.nn.NLLLoss, #negative log likelihood
-        'HingeEmbedding': torch.nn.HingeEmbeddingLoss,
-        'SmoothL1': torch.nn.SmoothL1Loss,
-        'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
-    }
-    AllLossDict = {
-        'CrossEntropy': torch.nn.CrossEntropyLoss,
-        'CTC': torch.nn.CTCLoss,
-        'PoissonNLL': torch.nn.PoissonNLLLoss,
-        'GaussianNLL': torch.nn.GaussianNLLLoss,
-        'KLDiv': torch.nn.KLDivLoss,
-        'BCE': torch.nn.BCELoss,
-        'BCEWithLogits': torch.nn.BCEWithLogitsLoss,
-        'MarginRanking': torch.nn.MarginRankingLoss,
-        'MultiLabelMargin': torch.nn.MultiLabelMarginLoss,
-        'Huber': torch.nn.HuberLoss,
-        'SoftMargin': torch.nn.SoftMarginLoss,
-        'MultiLabelSoftMargin': torch.nn.MultiLabelSoftMarginLoss,
-        'MultiMargin': torch.nn.MultiMarginLoss,
-        'TripletMargin': torch.nn.TripletMarginLoss,
-        'TripletMarginWithDistance': torch.nn.TripletMarginWithDistanceLoss,
-        'L1': torch.nn.L1Loss,
-        'MSE': torch.nn.MSELoss,
-        'NLL': torch.nn.NLLLoss, #negative log likelihood
-        'HingeEmbedding': torch.nn.HingeEmbeddingLoss,
-        'SmoothL1': torch.nn.SmoothL1Loss,
-        'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
-    }
-
     def __init__(self, model='xception', loss='CrossEntropy', **kwargs):
+        self.OptDict = {
+            'Adadelta': torch.optim.Adadelta,
+            'Adagrad': torch.optim.Adagrad,
+            'Adam': torch.optim.Adam,
+            'AdamW': torch.optim.AdamW,
+            'SparseAdam': torch.optim.SparseAdam,
+            'Adamax': torch.optim.Adamax,
+            'ASGD': torch.optim.ASGD,
+            'LBFGS': torch.optim.LBFGS,
+            'RMSprop': torch.optim.RMSprop,
+            'Rprop': torch.optim.Rprop,
+            'SGD': torch.optim.SGD
+        }
+        self.ModelDict = {
+            'resnet18': torchvision.models.resnet18,
+            'resnet50': torchvision.models.resnet50,
+            'alexnet': torchvision.models.alexnet,
+            'squeezenet': torchvision.models.squeezenet.squeezenet1_1,
+            'densenet': torchvision.models.densenet161,
+            'inception': torchvision.models.inception_v3,
+            'googlenet': torchvision.models.googlenet,
+            'shufflenet': torchvision.models.shufflenet_v2_x1_0,
+            'resnext50_32x4d': torchvision.models.resnext50_32x4d,
+            'vgg16': torchvision.models.vgg16, # needs support added
+            'mobilenet_v2': torchvision.models.mobilenet_v2,
+            'mobilenet_v3_small': torchvision.models.mobilenet_v3_small,
+            'mobilenet_v3_large': torchvision.models.mobilenet_v3_large,
+            'wide_resnet50_2': torchvision.models.wide_resnet50_2,
+            'mnasnet': torchvision.models.mnasnet1_0,
+            'xception': pretrainedmodels.xception
+        }
+        self.LinearLossDict = {
+            'L1': torch.nn.L1Loss,
+            'MSE': torch.nn.MSELoss,
+            'NLL': torch.nn.NLLLoss, #negative log likelihood
+            'HingeEmbedding': torch.nn.HingeEmbeddingLoss,
+            'SmoothL1': torch.nn.SmoothL1Loss,
+            'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
+        }
+        self.AllLossDict = {
+            'CrossEntropy': torch.nn.CrossEntropyLoss,
+            'CTC': torch.nn.CTCLoss,
+            'PoissonNLL': torch.nn.PoissonNLLLoss,
+            'GaussianNLL': torch.nn.GaussianNLLLoss,
+            'KLDiv': torch.nn.KLDivLoss,
+            'BCE': torch.nn.BCELoss,
+            'BCEWithLogits': torch.nn.BCEWithLogitsLoss,
+            'MarginRanking': torch.nn.MarginRankingLoss,
+            'MultiLabelMargin': torch.nn.MultiLabelMarginLoss,
+            'Huber': torch.nn.HuberLoss,
+            'SoftMargin': torch.nn.SoftMarginLoss,
+            'MultiLabelSoftMargin': torch.nn.MultiLabelSoftMarginLoss,
+            'MultiMargin': torch.nn.MultiMarginLoss,
+            'TripletMargin': torch.nn.TripletMarginLoss,
+            'TripletMarginWithDistance': torch.nn.TripletMarginWithDistanceLoss,
+            'L1': torch.nn.L1Loss,
+            'MSE': torch.nn.MSELoss,
+            'NLL': torch.nn.NLLLoss, #negative log likelihood
+            'HingeEmbedding': torch.nn.HingeEmbeddingLoss,
+            'SmoothL1': torch.nn.SmoothL1Loss,
+            'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
+        }
         super().__init__(model=model, loss=loss, **kwargs)
         assert self.model in self.ModelDict.keys()
         assert self.optimizer in self.OptDict.keys()
@@ -198,20 +201,15 @@ class ModelParams(_base.ModelParams):
             num_classes = {'out-0': num_classes}
 
         # Build base model
-        if self.model == 'ViT':
-            _model = ViT(image_size=self.tile_px,
-                         patch_size=32,
-                         num_classes=num_classes,
-                         dim=1024,
-                         depth=6,
-                         heads=16,
-                         mlp_dim=2048,
-                         dropout=0.1,
-                         emb_dropout=0.1)
-        elif self.model in ('xception',):
+        if self.model in ('xception',):
             _model = self.ModelDict[self.model](num_classes=1000, pretrained=pretrain)
         else:
-            _model = self.ModelDict[self.model](pretrained=pretrain)
+            model_fn = self.ModelDict[self.model]
+            # Only pass kwargs accepted by model function
+            model_fn_sig = inspect.signature(model_fn)
+            model_kw = [param.name for param in model_fn_sig.parameters.values() if param.kind == param.POSITIONAL_OR_KEYWORD]
+            model_kwargs = {'image_size': self.tile_px} if 'image_size' in model_kw else {}
+            _model = model_fn(pretrained=pretrain, **model_kwargs)
 
         # Add final layers to models
         hidden_layers = [self.hidden_layer_width for h in range(self.hidden_layers)]
@@ -242,7 +240,7 @@ class Trainer:
         self.mixed_precision = mixed_precision
 
         # Slide-level input args
-        self.slide_input = {k:[float(vi) for vi in v] for k,v in slide_input.items()}
+        self.slide_input = None if not slide_input else {k:[float(vi) for vi in v] for k,v in slide_input.items()}
         self.feature_names = feature_names
         self.feature_sizes = feature_sizes
         self.num_slide_features = 0 if not feature_sizes else sum(feature_sizes)
@@ -325,7 +323,9 @@ class Trainer:
             multi_outcome=(self.num_outcomes > 1),
             update_corrects=update_corrects,
             update_loss=update_loss,
-            running_corrects=(0 if not (self.num_outcomes > 1) else {f'out-{o}':0 for o in range(self.num_outcomes)})
+            running_corrects=(0 if not (self.num_outcomes > 1) else {f'out-{o}':0 for o in range(self.num_outcomes)}),
+            num_slide_features=self.num_slide_features,
+            slide_input=self.slide_input
         )
 
         # Generate performance metrics
@@ -422,6 +422,11 @@ class Trainer:
         early_stop = False
         last_ema, ema_one_check_prior, ema_two_checks_prior = -1, -1, -1
         moving_average = []
+
+        if (self.hp.early_stop and self.hp.early_stop_method == 'accuracy' and
+           self.hp.model_type() == 'categorical' and self.num_outcomes > 1):
+
+           raise sf.util.UserError("Cannot combine 'accuracy' early stopping with multiple categorical outcomes.")
 
         # Enable TF32 (should be enabled by default)
         torch.backends.cuda.matmul.allow_tf32 = True  # Allow PyTorch to internally use tf32 for matmul
@@ -557,14 +562,22 @@ class Trainer:
                         # Log to tensorboard
                         if use_tensorboard and global_step % log_frequency == 0:
                             writer.add_scalar('Loss/train', loss.item(), global_step)
-                            writer.add_scalar('Accuracy/train', running_corrects / num_records, global_step)
+                            if self.hp.model_type() == 'categorical':
+                                if self.num_outcomes > 1:
+                                    for o, out in enumerate(outputs):
+                                        writer.add_scalar(f'Accuracy-{o}/train', running_corrects[f'out-{o}'] / num_records, global_step)
+                                else:
+                                    writer.add_scalar('Accuracy/train', running_corrects / num_records, global_step)
 
                         # === Mid-training validation =================================================================
                         if val_dts and validate_on_batch and (step % validate_on_batch == 0) and step > 0:
                             self.model.eval()
                             running_val_loss = 0
-                            running_val_correct = 0
                             num_val = 0
+
+                            if multi_outcome:   running_val_correct = {f'out-{o}':0 for o in range(self.num_outcomes)}
+                            else:               running_val_correct = 0
+
                             for _ in range(validation_steps):
                                 val_img, val_label, slides = next(mid_train_val_dts)
                                 val_img = val_img.to(device)
@@ -579,13 +592,13 @@ class Trainer:
                                         val_label = self.labels_to_device(val_label, device)
                                         val_loss = self.calculate_loss(val_outputs, val_label, loss_fn)
 
-                                _, val_preds = torch.max(val_outputs, 1)
                                 running_val_loss += val_loss.item() * val_img.size(0)
-                                running_val_correct += torch.sum(val_preds == val_label.data)
+                                running_val_correct = self.update_corrects(val_outputs, val_label, running_val_correct)
                                 num_val += val_img.size(0)
                             val_loss = running_val_loss / num_val
-                            val_acc = running_val_correct / num_val
-                            log_msg = f'Batch {step}: val loss: {val_loss:.4f} val acc: {val_acc:.4f}'
+                            val_acc_desc, val_acc = self.accuracy_description(running_val_correct, num_val)
+
+                            log_msg = f'Batch {step}: val loss: {val_loss:.4f}{val_acc_desc}'
 
                             # EMA & early stopping --------------------------------------------------------------------
                             early_stop_val = val_acc if self.hp.early_stop_method == 'accuracy' else val_loss
@@ -616,7 +629,13 @@ class Trainer:
                             log.info(log_msg)
                             if use_tensorboard:
                                 writer.add_scalar('Loss/test', val_loss, global_step)
-                                writer.add_scalar('Accuracy/test', val_acc, global_step)
+                                if self.hp.model_type() == 'categorical':
+                                    if self.num_outcomes > 1:
+                                        for o, out in enumerate(outputs):
+                                            writer.add_scalar(f'Accuracy-{o}/test', running_val_correct[f'out-{o}'] / num_val, global_step)
+                                    else:
+                                        writer.add_scalar('Accuracy/test', running_val_correct / num_val, global_step)
+
                             self.model.train()
                         # =============================================================================================
 
@@ -711,3 +730,255 @@ class LinearTrainer(Trainer):
 class CPHTrainer(Trainer):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError
+
+class Features:
+    """Interface for obtaining logits and features from intermediate layer activations from Slideflow models.
+
+    Use by calling on either a batch of images (returning outputs for a single batch), or by calling on a
+    :class:`slideflow.WSI` object, which will generate an array of spatially-mapped activations matching
+    the slide.
+
+    Examples
+        *Calling on batch of images:*
+
+        .. code-block:: python
+
+            interface = Features('/model/path', layers='postconv')
+            for image_batch in train_data:
+                # Return shape: (batch_size, num_features)
+                batch_features = interface(image_batch)
+
+        *Calling on a slide:*
+
+        .. code-block:: python
+
+            slide = sf.slide.WSI(...)
+            interface = Features('/model/path', layers='postconv')
+            # Return shape: (slide.grid.shape[0], slide.grid.shape[1], num_features):
+            activations_grid = interface(slide)
+
+    Note:
+        When this interface is called on a batch of images, no image processing or stain normalization will be
+        performed, as it is assumed that normalization will occur during data loader image processing.
+        When the interface is called on a `slideflow.WSI`, the normalization strategy will be read from the model
+        configuration file, and normalization will be performed on image tiles extracted from the WSI. If this interface
+        was created from an existing model and there is no model configuration file to read, a
+        slideflow.slide.StainNormalizer object may be passed during initialization via the argument `wsi_normalizer`.
+
+    """
+
+    def __init__(self, path, layers='postconv', include_logits=False, mixed_precision=True, device=None):
+        """Creates an activations interface from a saved slideflow model which outputs feature activations
+        at the designated layers.
+
+        Intermediate layers are returned in the order of layers. Logits are returned last.
+
+        Args:
+            path (str): Path to saved Slideflow model.
+            layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation layer
+                is accessed via 'postconv'. Defaults to 'postconv'.
+            include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
+            mixed_precision (bool, optional): Use mixed precision. Defaults to True.
+            device (:class:`torch.device`, optional): Device for model. Defaults to torch.device('cuda')
+        """
+
+        if layers and isinstance(layers, str): layers = [layers]
+        self.path = path
+        self.num_logits = 0
+        self.num_features = 0
+        self.mixed_precision = mixed_precision
+        self.activation = {}
+        self.layers = layers
+        self.include_logits = include_logits
+        self.device = device if device is not None else torch.device('cuda')
+
+        if path is not None:
+            try:
+                config = sf.util.get_model_config(path)
+            except:
+                raise FeatureError(f"Unable to find configuration for model {path}")
+
+            self.hp = ModelParams()
+            self.hp.load_dict(config['hp'])
+            self.wsi_normalizer = self.hp.get_normalizer()
+            self.tile_px = self.hp.tile_px
+            self._model = self.hp.build_model(num_classes=len(config['outcome_labels'])) #labels=
+            self._model.load_state_dict(torch.load(path))
+            self._model.to(self.device)
+            if self._model.__class__.__name__ == 'ModelWrapper':
+                self.model_type = self._model.model.__class__.__name__
+            else:
+                self.model_type = self._model.__class__.__name__
+            self._build()
+            self._model.eval()
+
+    @classmethod
+    def from_model(cls, model, tile_px, layers='postconv', include_logits=False, mixed_precision=True,
+                   wsi_normalizer=None, device=None):
+        """Creates an activations interface from a loaded slideflow model which outputs feature activations
+        at the designated layers.
+
+        Intermediate layers are returned in the order of layers. Logits are returned last.
+
+        Args:
+            model (:class:`tensorflow.keras.models.Model`): Loaded model.
+            tile_px (int): Width/height of input image size.
+            layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation layer
+                is accessed via 'postconv'. Defaults to 'postconv'.
+            include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
+            wsi_normalizer (:class:`slideflow.slide.StainNormalizer`): Stain normalizer to use on whole-slide images.
+                Is not used on individual tile datasets via __call__. Defaults to None.
+            device (:class:`torch.device`, optional): Device for model. Defaults to torch.device('cuda')
+        """
+
+        obj = cls(None, layers, include_logits, mixed_precision, device)
+        if isinstance(model, torch.nn.Module):
+            obj._model = model.to(obj.device)
+            obj._model.eval()
+        else:
+            raise TypeError("Provided model is not a valid PyTorch model.")
+        obj.hp = None
+        if obj._model.__class__.__name__ == 'ModelWrapper':
+            obj.model_type = obj._model.model.__class__.__name__
+        else:
+            obj.model_type = obj._model.__class__.__name__
+        obj.tile_px = tile_px
+        obj.wsi_normalizer = wsi_normalizer
+        obj._build()
+        return obj
+
+    def __call__(self, inp, **kwargs):
+        """Process a given input and return activations and/or logits. Expects either a batch of images or
+        a :class:`slideflow.slide.WSI` object."""
+
+        if isinstance(inp, sf.slide.WSI):
+            return self._predict_slide(inp, **kwargs)
+        else:
+            return self._predict(inp)
+
+    def _predict_slide(self, slide, batch_size=128, dtype=np.float16, **kwargs):
+        """Generate activations from slide => activation grid array."""
+        total_out = self.num_features + self.num_logits
+        features_grid = np.zeros((slide.grid.shape[1], slide.grid.shape[0], total_out), dtype=dtype)
+        generator = slide.build_generator(shuffle=False, include_loc='grid', show_progress=True, **kwargs)
+
+        if not generator:
+            log.error(f"No tiles extracted from slide {sf.util.green(slide.name)}")
+            return
+
+        class SlideIterator(torch.utils.data.IterableDataset):
+            def __init__(self, parent, *args, **kwargs):
+                super(SlideIterator).__init__(*args, **kwargs)
+                self.parent = parent
+            def __iter__(self):
+                for image_dict in generator():
+                    np_image = torch.from_numpy(image_dict['image'])
+                    if self.parent.wsi_normalizer:
+                        np_image = self.parent.wsi_normalizer.rgb_to_rgb(np_image)
+                    np_image = np_image.permute(2, 0, 1) # WHC => CWH
+                    loc = np.array(image_dict['loc'])
+                    np_image = np_image / 127.5 - 1
+                    yield np_image, loc
+
+        tile_dataset = torch.utils.data.DataLoader(SlideIterator(self), batch_size=batch_size)
+
+        act_arr = []
+        loc_arr = []
+        for i, (batch_images, batch_loc) in enumerate(tile_dataset):
+            model_out = self._predict(batch_images)
+            if not isinstance(model_out, list): model_out = [model_out]
+            act_arr += [np.concatenate([m.cpu().detach().numpy() for m in model_out])]
+            loc_arr += [batch_loc]
+
+        act_arr = np.concatenate(act_arr)
+        loc_arr = np.concatenate(loc_arr)
+
+        for i, act in enumerate(act_arr):
+            xi = loc_arr[i][0]
+            yi = loc_arr[i][1]
+            features_grid[yi][xi] = act
+
+        return features_grid
+
+    def _predict(self, inp):
+        """Return activations for a single batch of images."""
+        with torch.cuda.amp.autocast() if self.mixed_precision else sf.model.no_scope():
+            with torch.no_grad():
+                logits = self._model(inp.to(self.device))
+
+        layer_activations = []
+        if self.layers:
+            for l in self.layers:
+                act = self.activation[l]
+                if l == 'postconv':
+                    act = self._postconv_processing(act)
+                layer_activations.append(act)
+
+        if self.include_logits:
+            layer_activations += [logits]
+        self.activation = {}
+        return layer_activations
+
+    def _get_postconv(self):
+        """Returns post-convolutional layer."""
+
+        if self.model_type == 'ViT':
+            return self._model.to_latent
+        if self.model_type in ('ResNet', 'Inception3', 'GoogLeNet'):
+            return self._model.avgpool
+        if self.model_type in ('AlexNet', 'SqueezeNet', 'VGG', 'MobileNetV2', 'MobileNetV3', 'MNASNet'):
+            return next(self._model.classifier.children())
+        if self.model_type == 'DenseNet':
+            return self._model.features.norm5
+        if self.model_type == 'ShuffleNetV2':
+            return list(self._model.conv5.children())[1]
+        if self.model_type == 'Xception':
+            return self._model.bn4
+        raise FeatureError(f"'postconv' layer not configured for model type {self.model_type}")
+
+    def _postconv_processing(self, output):
+        """Applies processing (pooling, resizing) to post-convolutional outputs,
+        to convert output to the shape (batch_size, num_features)"""
+
+        def pool(x):
+            return torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
+
+        def squeeze(x):
+            return x.view(x.size(0), -1)
+
+        if self.model_type in ('ViT', 'AlexNet', 'VGG', 'MobileNetV2', 'MobileNetV3', 'MNASNet'):
+            return output
+        if self.model_type in ('ResNet', 'Inception3', 'GoogLeNet'):
+            return squeeze(output)
+        if self.model_type in ('SqueezeNet', 'DenseNet', 'ShuffleNetV2', 'Xception'):
+            return squeeze(pool(output))
+        return output
+
+    def _build(self):
+        """Builds the interface model that outputs feature activations at the designated layers and/or logits.
+            Intermediate layers are returned in the order of layers. Logits are returned last."""
+
+        self.activation = {}
+        def get_activation(name):
+            def hook(model, input, output):
+                self.activation[name] = output.detach()
+            return hook
+
+        if isinstance(self.layers, list):
+            for l in self.layers:
+                if l == 'postconv':
+                    self._get_postconv().register_forward_hook(get_activation('postconv'))
+                else:
+                    getattr(self._model, l).register_forward_hook(get_activation(l))
+        elif self.layers is not None:
+            raise TypeError(f"Unrecognized type {type(self.layers)} for self.layers")
+
+        # Calculate output and layer sizes
+        rand_data = torch.rand(1, 3, self.tile_px, self.tile_px)
+        output = self._model(rand_data.to(self.device))
+        self.num_logits = output.shape[1] if self.include_logits else 0
+        self.num_features = sum([f.shape[1] for f in self.activation.values()])
+
+        if self.include_logits:
+            log.debug(f'Number of logits: {self.num_logits}')
+        log.debug(f'Number of activation features: {self.num_features}')

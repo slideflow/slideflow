@@ -388,15 +388,15 @@ class Model:
         self.outcome_labels = None
         self.last_modified = None
         self.subset = None
-        if not exists(join(self.dir, "hyperparameters.json")):
+        if not exists(join(self.dir, "params.json")):
             self.hyperparameters = None
         else:
-            with open(join(self.dir, "hyperparameters.json"), 'r') as hp_file:
+            with open(join(self.dir, "params.json"), 'r') as hp_file:
                 self.hyperparameters = json.load(hp_file)
             if "model_type" not in self.hyperparameters:
                 self.hyperparameters.update({'model_type': 'categorical'})
-                sf.util.write_json(self.hyperparameters, join(self.dir, 'hyperparameters.json'))
-                log.info(f"Updated {sf.util.green(join(self.dir, 'hyperparameters.json'))} to specify model_type='categorical'")
+                sf.util.write_json(self.hyperparameters, join(self.dir, 'params.json'))
+                log.info(f"Updated {sf.util.green(join(self.dir, 'params.json'))} to specify model_type='categorical'")
             if "outcome_label_headers" not in self.hyperparameters:
                 if not interactive or not self.get_outcome_label_headers():
                     self.hyperparameters = None
@@ -422,7 +422,7 @@ class Model:
                     self.model_type = self.hyperparameters['model_type']
                     self.outcome_labels = self.hyperparameters['outcome_labels']
                 except KeyError:
-                    log.error(f"Model {join(self.dir, 'hyperparameters.json')} file incorrectly formatted")
+                    log.error(f"Model {join(self.dir, 'params.json')} file incorrectly formatted")
                     self.hyperparameters = None
 
     def load_results(self, results_log):
@@ -463,8 +463,8 @@ class Model:
         if "<skip>" in oh:
             return False
         self.hyperparameters.update({'outcome_label_headers': oh})
-        sf.util.write_json(self.hyperparameters, join(self.dir, "hyperparameters.json"))
-        log.info(f"Updated {sf.util.green(join(self.dir, 'hyperparameters.json'))} with 'outcome_label_headers'={oh}")
+        sf.util.write_json(self.hyperparameters, join(self.dir, "params.json"))
+        log.info(f"Updated {sf.util.green(join(self.dir, 'params.json'))} with 'outcome_label_headers'={oh}")
         return True
 
     def get_outcomes(self):
@@ -486,8 +486,8 @@ class Model:
             log.error(f'Unable to load results for model {sf.util.green(self.dir)}; could not find all filters "{filters}" in the annotations file {annotations})')
             return False
         self.hyperparameters.update({"outcome_labels": None if self.hyperparameters['model_type'] != 'categorical' else dict(zip(range(len(unique_outcomes)), unique_outcomes))})
-        sf.util.write_json(self.hyperparameters, join(self.dir, "hyperparameters.json"))
-        log.info(f"Updated {sf.util.green(join(self.dir, 'hyperparameters.json'))} with 'outcome_labels'={self.hyperparameters['outcome_labels']}")
+        sf.util.write_json(self.hyperparameters, join(self.dir, "params.json"))
+        log.info(f"Updated {sf.util.green(join(self.dir, 'params.json'))} with 'outcome_labels'={self.hyperparameters['outcome_labels']}")
         return True
 
     def get_predictions(self, epoch, level='patient'):

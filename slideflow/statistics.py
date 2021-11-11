@@ -36,13 +36,13 @@ class SlideMap:
     """Two-dimensional slide map used for visualization, as well as subsequent construction of mosaic maps.
 
     Slides are mapped in 2D either explicitly with pre-specified coordinates, or with dimensionality reduction
-    from post-convolutional layer weights, provided from :class:`slideflow.activations.ActivationsVisualizer`.
+    from post-convolutional layer weights, provided from :class:`slideflow.model.DatasetFeatures`.
 
     """
 
     def __init__(self, slides, cache=None):
-        """Backend for mapping slides into two dimensional space. Can use an ActivationsVisualizer object
-        to map slides according to UMAP of activations, or map according to pre-specified coordinates.
+        """Backend for mapping slides into two dimensional space. Can use an DatasetFeatures object
+        to map slides according to UMAP of features, or map according to pre-specified coordinates.
 
         Args:
             slides (list(str)): List of slide names
@@ -83,12 +83,12 @@ class SlideMap:
         return obj
 
     @classmethod
-    def from_activations(cls, AV, exclude_slides=None, prediction_filter=None, recalculate=False,
+    def from_features(cls, df, exclude_slides=None, prediction_filter=None, recalculate=False,
                          map_slide=None, cache=None, low_memory=False, umap_dim=2):
-        """Initializes map from an activations visualizer.
+        """Initializes map from dataset features.
 
         Args:
-            AV (:class:`slideflow.activations.ActivationsVisualizer`): ActivationsVisualizer object.
+            df (:class:`slideflow.model.DatasetFeatures`): DatasetFeatures object.
             exclude_slides (list, optional): List of slides to exclude from map.
             prediction_filter (list, optional) Restrict outcome predictions to only these provided categories.
             recalculate (bool, optional):  Force recalculation of umap despite presence of cache.
@@ -102,12 +102,12 @@ class SlideMap:
             raise StatisticsError(f"map_slide must be None (default), 'centroid', or 'average', not '{map_slide}'")
 
         if not exclude_slides:
-            slides = AV.slides
+            slides = df.slides
         else:
-            slides = [slide for slide in AV.slides if slide not in exclude_slides]
+            slides = [slide for slide in df.slides if slide not in exclude_slides]
 
         obj = cls(slides, cache=cache)
-        obj.AV = AV
+        obj.df = df
         if map_slide:
             obj._calculate_from_slides(method=map_slide,
                                        prediction_filter=prediction_filter,
@@ -122,8 +122,8 @@ class SlideMap:
 
     def _calculate_from_tiles(self, prediction_filter=None, recalculate=False, **umap_kwargs):
 
-        """Internal function to guide calculation of UMAP from final layer activations,
-        as provided by ActivationsVisualizer.
+        """Internal function to guide calculation of UMAP from final layer features / activations,
+        as provided by DatasetFeatures.
 
         Args:
             prediction_filter (list, optional): Restrict predictions to this list of logits. Default is None.
@@ -140,13 +140,13 @@ class SlideMap:
         if prediction_filter:
             log.info("UMAP logit predictions are masked through a provided prediction filter.")
         else:
-            prediction_filter = range(self.AV.num_logits)
+            prediction_filter = range(self.df.num_logits)
 
         if len(self.x) and len(self.y) and not recalculate:
             log.debug("UMAP loaded from cache, will not recalculate")
 
             # First, filter out slides not included in provided activations
-            filtered_idx = list(filter(lambda x: x['slide'] in self.AV.slides, range(len(self.point_meta))))
+            filtered_idx = list(filter(lambda x: x['slide'] in self.df.slides, range(len(self.point_meta))))
             self.x = self.x[filtered_idx]
             self.y = self.y[filtered_idx]
             self.point_meta = self.point_meta[filtered_idx]
@@ -155,21 +155,21 @@ class SlideMap:
             for i in range(len(self.point_meta)):
                 slide = self.point_meta[i]['slide']
                 tile_index = self.point_meta[i]['index']
-                logits = self.AV.logits[slide][tile_index]
+                logits = self.df.logits[slide][tile_index]
                 prediction = filtered_prediction(logits, prediction_filter)
                 self.point_meta[i]['logits'] = logits
                 self.point_meta[i]['prediction'] = prediction
             return
 
         # Calculate UMAP
-        node_activations = np.concatenate([self.AV.activations[slide] for slide in self.slides])
-        self.map_meta['num_features'] = self.AV.num_features
+        node_activations = np.concatenate([self.df.activations[slide] for slide in self.slides])
+        self.map_meta['num_features'] = self.df.num_features
         log.info("Calculating UMAP...")
         for slide in self.slides:
-            for i in range(self.AV.activations[slide].shape[0]):
-                location = self.AV.locations[slide][i]
-                logits = self.AV.logits[slide][i]
-                if self.AV.logits[slide] != []:
+            for i in range(self.df.activations[slide].shape[0]):
+                location = self.df.locations[slide][i]
+                logits = self.df.logits[slide][i]
+                if self.df.logits[slide] != []:
                     pred = filtered_prediction(logits, prediction_filter)
                 else:
                     pred = None
@@ -193,7 +193,7 @@ class SlideMap:
     def _calculate_from_slides(self, method='centroid', prediction_filter=None, recalculate=False, **umap_kwargs):
 
         """ Internal function to guide calculation of UMAP from final layer activations for each tile,
-            as provided via ActivationsVisualizer nodes, and then map only the centroid tile for each slide.
+            as provided via DatasetFeatures, and then map only the centroid tile for each slide.
 
         Args:
             method (str, optional): Either 'centroid' or 'average'. If centroid, will calculate UMAP only
@@ -215,12 +215,12 @@ class SlideMap:
             raise StatisticsError(f'Method must be either "centroid" or "average", not {method}')
 
         log.info("Calculating centroid indices...")
-        optimal_slide_indices, centroid_activations = calculate_centroid(self.AV.activations)
+        optimal_slide_indices, centroid_activations = calculate_centroid(self.df.activations)
 
         # Restrict mosaic to only slides that had enough tiles to calculate an optimal index from centroid
         successful_slides = list(optimal_slide_indices.keys())
         num_warned = 0
-        for slide in self.AV.slides:
+        for slide in self.df.slides:
             if slide not in successful_slides:
                 log.debug(f"Unable to calculate centroid for {sf.util.green(slide)}; will not include")
         if num_warned:
@@ -236,7 +236,7 @@ class SlideMap:
                     new_y += [self.y[i]]
                     if prediction_filter:
                         tile_index = self.point_meta[i]['index']
-                        logits = self.AV.logits[slide][tile_index]
+                        logits = self.df.logits[slide][tile_index]
                         prediction = filtered_prediction(logits, prediction_filter)
                         meta = {
                             'slide': slide,
@@ -257,7 +257,7 @@ class SlideMap:
                 if method == 'centroid':
                     umap_input += [centroid_activations[slide]]
                 elif method == 'average':
-                    activation_averages = np.mean(self.AV.activations[slide])
+                    activation_averages = np.mean(self.df.activations[slide])
                     umap_input += [activation_averages]
                 self.point_meta += [{
                     'slide': slide,
@@ -272,7 +272,7 @@ class SlideMap:
             self.save_cache()
 
     def cluster(self, n_clusters):
-        """Performs clustering on data and adds to metadata labels. Requires an ActivationsVisualizer backend.
+        """Performs clustering on data and adds to metadata labels. Requires a DatasetFeatures backend.
 
         Clusters are saved to self.point_meta[i]['cluster'].
 
@@ -283,7 +283,7 @@ class SlideMap:
             ndarray: Array with cluster labels corresponding to tiles in self.point_meta.
         """
 
-        activations = [self.AV.activations[pm['slide']][pm['index']] for pm in self.point_meta]
+        activations = [self.df.activations[pm['slide']][pm['index']] for pm in self.point_meta]
         log.info(f"Calculating K-means clustering (n={n_clusters})")
         kmeans = KMeans(n_clusters=n_clusters).fit(activations)
         labels = kmeans.labels_
@@ -325,7 +325,7 @@ class SlideMap:
 
         from sklearn.neighbors import NearestNeighbors
         log.info("Initializing neighbor search...")
-        X = np.array([self.AV.activations[pm['slide']][pm['index']] for pm in self.point_meta])
+        X = np.array([self.df.activations[pm['slide']][pm['index']] for pm in self.point_meta])
         nbrs = NearestNeighbors(n_neighbors=100, algorithm=algorithm, n_jobs=-1).fit(X)
         log.info("Calculating nearest neighbors...")
         _, indices = nbrs.kneighbors(X)
@@ -356,21 +356,21 @@ class SlideMap:
         self.x = np.array([self.x[xi] for xi in range(len(self.x)) if self.point_meta[xi]['slide'] in slides])
         self.y = np.array([self.y[yi] for yi in range(len(self.y)) if self.point_meta[yi]['slide'] in slides])
 
-    def show_neighbors(self, neighbor_AV, slide):
-        """Filters map to only show neighbors with a corresponding neighbor ActivationsVisualizer and neighbor slide.
+    def show_neighbors(self, neighbor_df, slide):
+        """Filters map to only show neighbors with a corresponding neighbor DatasetFeatures and neighbor slide.
 
         Args:
-            neighbor_AV (:class:`slideflow.activations.ActivationsVisualizer`): ActivationsVisualizer object
+            neighbor_df (:class:`slideflow.model.DatasetFeatures`): DatasetFeatures object
                 containing activations for neighboring slide.
             slide (str): Name of neighboring slide.
         """
 
-        if slide not in neighbor_AV.activations:
-            raise StatisticsError(f"Slide {slide} not found in ActivationsVisualizer, unable to find neighbors")
-        if not hasattr(self, 'AV'):
-            raise StatisticsError(f"SlideMap does not have an ActivationsVisualizer, unable to calculate neighbors")
+        if slide not in neighbor_df.activations:
+            raise StatisticsError(f"Slide {slide} not found in DatasetFeatures, unable to find neighbors")
+        if not hasattr(self, 'df'):
+            raise StatisticsError(f"SlideMap does not have an DatasetFeatures, unable to calculate neighbors")
 
-        tile_neighbors = self.AV.neighbors(neighbor_AV, slide, n_neighbors=5)
+        tile_neighbors = self.df.neighbors(neighbor_df, slide, n_neighbors=5)
 
         if not hasattr(self, 'full_x'):
             # Backup full coordinates
@@ -522,7 +522,7 @@ class SlideMap:
 
         # Get feature activations for 3rd dimension
         if z is None:
-            z = np.array([self.AV.activations[m['slide']][m['index']][feature] for m in self.point_meta])
+            z = np.array([self.df.activations[m['slide']][m['index']][feature] for m in self.point_meta])
 
         # Subsampling
         if subsample:
@@ -1323,18 +1323,18 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
 
     return combined_metrics
 
-def predict_from_torch(model, dataset, pred_args, model_type='categorical'):
+def predict_from_torch(model, dataset, model_type, pred_args, **kwargs):
     """Generates predictions (y_true, y_pred, tile_to_slide) from a given PyTorch model and dataset.
 
     Args:
         model (str): Path to PyTorch model.
         dataset (tf.data.Dataset): PyTorch dataloader.
-        num_tiles (int, optional): Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.
+        pred_args (namespace): Namespace containing slide_input, update_corrects, and update_loss functions.
         model_type (str, optional): 'categorical', 'linear', or 'cph'. If multiple linear outcomes are present,
             y_true is stacked into a single vector for each image. Defaults to 'categorical'.
 
     Returns:
-        y_true, y_pred, tile_to_slides
+        y_true, y_pred, tile_to_slides, accuracy, loss
     """
 
     import torch
@@ -1409,16 +1409,19 @@ def predict_from_torch(model, dataset, pred_args, model_type='categorical'):
 
     return y_true, y_pred, tile_to_slides, acc, loss
 
-def predict_from_tensorflow(model, dataset, num_tiles=0):
+def predict_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0):
     """Generates predictions (y_true, y_pred, tile_to_slide) from a given Tensorflow model and dataset.
 
     Args:
         model (str): Path to Tensorflow model.
         dataset (tf.data.Dataset): Tensorflow dataset.
-        num_tiles (int, optional): Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.
+        model_type (str, optional): 'categorical', 'linear', or 'cph'. Will not attempt to calculate accuracy
+            for non-categorical models. Defaults to 'categorical'.
+        pred_args (namespace): Namespace containing the property `loss`, loss function used to calculate loss.
+        num_tiles (int, optional): Used for progress bar. Defaults to 0.
 
     Returns:
-        y_true, y_pred, tile_to_slides
+        y_true, y_pred, tile_to_slides, accuracy, loss
     """
 
     import tensorflow as tf
@@ -1429,36 +1432,31 @@ def predict_from_tensorflow(model, dataset, num_tiles=0):
 
     start = time.time()
     y_true, y_pred, tile_to_slides = [], [], []
-    detected_batch_size = 0
-    if log.getEffectiveLevel() <= 20 and num_tiles:
-        pb = ProgressBar(num_tiles,
-                         counter_text='images',
-                         leadtext="Generating predictions... ",
-                         show_counter=True,
-                         show_eta=True)
-    else:
-        pb = None
+    num_vals = 0
+    num_batches = 0
+    running_loss = 0
+    is_cat = (model_type == 'categorical')
+    if not is_cat: acc = None
 
-    # Get predictions and performance metrics
+    pb = tqdm(total=num_tiles, desc='Evaluating...', leave=False)
     for i, (img, yt, slide) in enumerate(dataset):
-        if pb:
-            pb.increase_bar_value(detected_batch_size)
-        elif log.getEffectiveLevel() <= 20:
-            sys.stdout.write(f"\rGenerating predictions (batch {i})...")
-            sys.stdout.flush()
+        pb.update(slide.shape[0])
+        num_vals += slide.shape[0]
+        num_batches += 1
 
-        y_pred += [get_predictions(img)]
+        yp = get_predictions(img)
+        y_pred += [yp]
 
         if type(yt) == dict:
             y_true += [[yt[f'out-{o}'].numpy() for o in range(len(yt))]]
+            yt = [yt[f'out-{o}'] for o in range(len(yt))]
         else:
             y_true += [yt.numpy()]
 
+        loss = pred_args.loss(yt, yp)
+        running_loss += tf.math.reduce_sum(loss).numpy() * slide.shape[0]
         tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in slide.numpy()]
-        if not detected_batch_size: detected_batch_size = len(tile_to_slides)
-
-    if pb: pb.end()
-    if log.getEffectiveLevel() <= 20: sf.util.clear_console()
+    pb.close()
 
     tile_to_slides = np.array(tile_to_slides)
     if type(y_pred[0]) == list:
@@ -1469,13 +1467,19 @@ def predict_from_tensorflow(model, dataset, num_tiles=0):
     if type(y_true[0]) == list:
         # Concatenate y_true for each outcome
         y_true = [np.concatenate(yt) for yt in zip(*y_true)]
+        if is_cat:
+            acc = [np.sum(y_true[i] == np.argmax(y_pred[i], axis=1)) / num_vals for i in range(len(y_true))]
     else:
         y_true = np.concatenate(y_true)
+        if is_cat:
+            acc = np.sum(y_true == np.argmax(y_pred, axis=1)) / num_vals
 
+    loss = running_loss / num_vals # Note that Keras loss during training includes regularization losses,
+                                   #  so this loss will not match validation loss calculated during training
     end = time.time()
     log.debug(f"Prediction complete. Time to completion: {int(end-start)} s")
 
-    return y_true, y_pred, tile_to_slides
+    return y_true, y_pred, tile_to_slides, acc, loss
 
 def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_layer_index=None):
     """Generate predictions from a model, providing intermediate layer input.
@@ -1513,7 +1517,7 @@ def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_l
     return y_pred
 
 def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_names=None, label=None, data_dir=None,
-                         num_tiles=0, pred_args=None, histogram=False, verbose=True, save_predictions=True, neptune_run=None):
+                         num_tiles=0, histogram=False, verbose=True, save_predictions=True, neptune_run=None, pred_args=None):
 
     """Evaluate performance of a given model on a given TFRecord dataset,
     generating a variety of statistical outcomes and graphs.
@@ -1534,15 +1538,20 @@ def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_n
         save_predictions (bool, optional): Save tile, slide, and patient-level predictions to CSV. Defaults to True.
             May take a substantial amount of time for very large datasets.
         neptune_run (:class:`neptune.Run`, optional): Neptune run in which to log results. Defaults to None.
+        pred_args (namespace, optional): Additional arguments to tensorflow and torch backends.
 
     Returns:
-        auc, r_squared, c_index
+        metrics [dict], accuracy [float], loss [float]
     """
 
     if sf.backend() == 'tensorflow':
-        y_true, y_pred, tile_to_slides, acc, loss = predict_from_tensorflow(model, dataset, num_tiles=num_tiles)
+        predict_fn = predict_from_tensorflow
+        kwargs = {'num_tiles': num_tiles}
     else:
-        y_true, y_pred, tile_to_slides, acc, loss = predict_from_torch(model, dataset, pred_args, model_type=model_type)
+        predict_fn = predict_from_torch
+        kwargs = {}
+
+    y_true, y_pred, tile_to_slides, acc, loss = predict_fn(model, dataset, model_type, pred_args, **kwargs)
 
     before_metrics = time.time()
     metrics = metrics_from_predictions(y_true=y_true,

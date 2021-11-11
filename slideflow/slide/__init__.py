@@ -17,6 +17,7 @@ from __future__ import print_function
 import os
 import io
 import types
+import time
 import numpy as np
 import csv
 import pyvips as vips
@@ -27,12 +28,17 @@ import json
 import random
 import tempfile
 import warnings
-
+import seaborn as sns
 import slideflow as sf
 import matplotlib.colors as mcol
+import matplotlib.pyplot as plt
 import multiprocessing as mp
+import skimage
+import skimage.filters
 
 from os.path import join, exists
+from skimage import img_as_ubyte
+from skimage.color import rgb2gray
 from PIL import Image, ImageDraw, UnidentifiedImageError
 from slideflow.util import log, SUPPORTED_FORMATS, UserError
 from slideflow.slide.normalizers import StainNormalizer
@@ -46,6 +52,7 @@ Image.MAX_IMAGE_PIXELS = 100000000000
 DEFAULT_JPG_MPP = 1
 OPS_LEVEL_COUNT = 'openslide.level-count'
 OPS_MPP_X = 'openslide.mpp-x'
+OPS_VENDOR = 'openslide.vendor'
 TIF_EXIF_KEY_MPP = 65326
 OPS_WIDTH = 'width'
 OPS_HEIGHT = 'height'
@@ -144,7 +151,7 @@ def _roi_coords_from_image(c, args):
 def _wsi_extraction_worker(c, args):
     '''Multiprocessing worker for WSI. Extracts a tile at the given coordinates.'''
 
-    slide = _VIPSWrapper(args.path)
+    slide = _VIPSWrapper(args.path, silent=True)
     normalizer = None if not args.normalizer else StainNormalizer(method=args.normalizer, source=args.normalizer_source)
 
     index = c[2]
@@ -258,7 +265,7 @@ class TileCorruptionError(Exception):
 class SlideReport:
     '''Report to summarize tile extraction from a slide, including example images of extracted tiles.'''
 
-    def __init__(self, images, path, data=None, compress=True):
+    def __init__(self, images, path, thumb=None, data=None, compress=True):
         """Initializer.
 
         Args:
@@ -270,14 +277,31 @@ class SlideReport:
 
         self.data = data
         self.path = path
+        self.thumb = None if thumb is None else Image.fromarray(np.array(thumb)[:,:,0:3])
+
         if not compress:
             self.images = images
         else:
-            self.images = []
-            for image in images:
-                with io.BytesIO() as output:
-                    Image.open(io.BytesIO(image)).save(output, format="JPEG", quality=75)
-                    self.images += [output.getvalue()]
+            self.images = [self._compress(img) for img in images]
+
+    @property
+    def blur_burden(self):
+        if 'blur_burden' in self.data:
+            return self.data['blur_burden']
+        else:
+            return None
+
+    @property
+    def num_tiles(self):
+        if 'num_tiles' in self.data:
+            return self.data['num_tiles']
+        else:
+            return None
+
+    def _compress(self, img):
+        with io.BytesIO() as output:
+            Image.open(io.BytesIO(img)).save(output, format="JPEG", quality=75)
+            return output.getvalue()
 
     def image_row(self):
         '''Merges images into a single row of images'''
@@ -297,15 +321,47 @@ class SlideReport:
             return output.getvalue()
 
 class ExtractionPDF(FPDF):
+    # Length is 220
+    def header(self):
+        package_directory = os.path.dirname(os.path.abspath(__file__))
+        logo = join(package_directory, 'slideflow-logo-name-small.jpg')
+
+        #if self.page_no() == 1:
+        self.set_font('Arial', size=9)
+        self.cell(70) # Moves right
+        self.set_text_color(70,70,70)
+        self.cell(50, 8, 'Intended for Research Use Only', align='C')
+        self.ln(10)
+
+        self.set_text_color(0,0,0)
+        # Framed title
+        #self.cell(30, 10, 'Title', 1, 0, 'C')
+        self.set_font('Arial', 'B', 16)
+        top = self.y
+        self.cell(40, 10, 'Tile extraction report', 0, 1)
+        self.y = top
+        self.cell(150)
+        self.image(logo, 160, 20, w=40)
+        # Line break
+        self.line(10, 30, 200, 30)
+        self.ln(10)
+        self.set_font('Arial', '', 10)
+        top = self.y
+        self.cell(20, 10, f'Generated: {datetime.now().strftime("%m/%d/%Y %H:%M:%S")}', 0, 1)
+        self.y = top
+        self.cell(150)
+        self.cell(40, 10, sf.__version__, align='R')
+        self.ln(15)
+
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
-        self.cell(0, 10, 'Page ' + str(self.page_no()) + '/{nb}', 0, 0, 'C')
+        self.cell(0, 10, 'Page ' + str(self.page_no()) + ' of {nb}', 0, 0, 'C')
 
 class ExtractionReport:
     """Creates a PDF report summarizing extracted tiles, from a collection of tile extraction reports."""
 
-    def __init__(self, reports, tile_px=None, tile_um=None):
+    def __init__(self, reports, meta=None, bb_threshold=0.05):
         """Initializer.
 
         Args:
@@ -314,21 +370,114 @@ class ExtractionReport:
             tile_um (int): Tile size in microns.
         """
 
+        self.bb_threshold = bb_threshold
         pdf = ExtractionPDF()
         pdf.alias_nb_pages()
         pdf.add_page()
-        pdf.set_font('Arial', 'B', 16)
-        pdf.cell(40, 10, 'Tile extraction report', 0, 1)
-        pdf.set_font('Arial', '', 12)
-        if tile_px and tile_um:
-            pdf.cell(20, 10, f'Tile size: {tile_px}px, {tile_um}um', 0, 1)
-        pdf.cell(20, 10, f'Generated: {datetime.now()}', 0, 1)
 
+        # Update meta values for grayspace/whitespace filtering
+        if meta.ws_frac is None:     meta.ws_frac = DEFAULT_WHITESPACE_FRACTION
+        if meta.ws_thresh is None:   meta.ws_thresh = DEFAULT_WHITESPACE_THRESHOLD
+        if meta.gs_frac is None:     meta.gs_frac   = DEFAULT_GRAYSPACE_FRACTION
+        if meta.gs_thresh is None:   meta.gs_thresh  = DEFAULT_GRAYSPACE_THRESHOLD
+        if meta.img_format is None:   meta.img_format  = 'png'
+
+        num_tiles = np.array([r.num_tiles for r in reports])
+        bb = np.array([r.blur_burden for r in reports])
+        bb_names = [r.path for r in reports]
+        self.warn_txt = ''
+        for slide, b in zip(bb_names, bb):
+            if b > self.bb_threshold:
+                self.warn_txt += f'{slide},{b}\n'
+
+        if self.num_tiles_chart(num_tiles):
+            with tempfile.NamedTemporaryFile(suffix='.png') as temp:
+                plt.savefig(temp.name)
+                pdf.image(temp.name, 107, pdf.y, w=50)
+                plt.clf()
+
+        if self.blur_chart(bb):
+            with tempfile.NamedTemporaryFile(suffix='.png') as temp:
+                plt.savefig(temp.name)
+                pdf.image(temp.name, 155, pdf.y, w=50)
+
+        # Bounding box
+        pdf.set_x(20)
+        pdf.set_y(pdf.y+5)
+        x = pdf.x
+        y = pdf.y
+        pdf.set_line_width(0.5)
+        pdf.set_draw_color(120,120,120)
+        pdf.cell(95, 30, '', 1, 0, 'L')
+        pdf.set_x(x)
+
+        # First column
+        pdf.set_y(y+1)
+        pdf.set_font('Arial', style='B')
+        for m in ('Tile size (px)', 'Tile size (um)', 'QC', 'Total slides', 'ROI method', 'Slides skipped', 'Stride'):
+            pdf.cell(20,4,m, ln=1)
+        pdf.set_y(y+1)
+        pdf.set_font('Arial')
+        for m in (meta.tile_px, meta.tile_um, meta.qc, meta.total_slides, meta.roi_method, meta.slides_skipped, meta.stride):
+            pdf.cell(30)
+            pdf.cell(20,4,str(m), ln=1)
+
+        # Second column
+        pdf.set_y(y+1)
+        pdf.set_font('Arial', style='B', size=10)
+        for m in ('G.S. fraction', 'G.S. threshold', 'W.S. fraction', 'W.S. threshold', 'Normalizer', 'Format'):
+            pdf.cell(45)
+            pdf.cell(20,4,m, ln=1)
+        pdf.set_y(y+1)
+        pdf.set_font('Arial')
+        for m in (meta.gs_frac, meta.gs_thresh, meta.ws_frac, meta.ws_thresh, meta.normalizer, meta.img_format):
+            pdf.cell(75)
+            pdf.cell(20,4,str(m), ln=1)
+
+        pdf.ln(20)
+
+        # Save thumbnail first
+        pdf.set_font('Arial', '', 7)
+        n_images = 0
         for i, report in enumerate(reports):
-            pdf.set_font('Arial', '', 7)
-            pdf.cell(10, 10, report.path, 0, 1)
+            if report is None: continue
+            if report.thumb:
+
+                # Create a new row every 2 slides
+                if n_images % 2 == 0:
+                    pdf.cell(50, 90, ln=1)
+
+                # Slide thumbnail
+                with tempfile.NamedTemporaryFile() as temp:
+                    report.thumb.save(temp, format="JPEG", quality=75)
+                    x = pdf.get_x()+(n_images%2 * 100)
+                    y = pdf.get_y()-85
+                    pdf.image(temp.name, x, y, w=90, type='jpg')
+                    n_images += 1
+
+                # Slide label
+                y = pdf.get_y()
+                pdf.set_y(y-88)
+                if n_images % 2 == 1:
+                    x = pdf.get_x()
+                    pdf.cell(100, 5)
+                    #pdf.set_x(x+100)
+
+                pdf.cell(90, 0, sf.util.path_to_name(report.path), 0, 1, 'C')
+                if n_images % 2 == 1:
+                    pdf.set_x(x)
+                pdf.set_y(y)
+
+            if n_images % 2 == 0:
+                pdf.ln(1)
+
+        # Now save rows of sample tiles
+        for i, report in enumerate(reports):
+            if report is None: continue
             image_row = report.image_row()
             if image_row:
+                pdf.set_font('Arial', '', 7)
+                pdf.cell(10, 10, report.path, 0, 1)
                 with tempfile.NamedTemporaryFile() as temp:
                     temp.write(image_row)
                     x = pdf.get_x()
@@ -341,13 +490,42 @@ class ExtractionReport:
 
         self.pdf = pdf
 
+    def num_tiles_chart(self, num_tiles):
+        if np.any(num_tiles):
+            plt.rc('font', size=14)
+            h = sns.histplot(num_tiles, bins=20)
+            plt.title('Number of tiles extracted')
+            plt.ylabel('Number of slides', fontsize=16, fontname='Arial')
+            plt.xlabel('Tiles extracted', fontsize=16, fontname='Arial')
+            return True
+        else:
+            return False
+
+    def blur_chart(self, blur_arr):
+        if np.any(blur_arr):
+            num_warn = np.count_nonzero(blur_arr > self.bb_threshold)
+            if num_warn:
+                warn_txt = f'\nwarn = {num_warn}'
+            else:
+                warn_txt = ''
+            log_b = np.log(blur_arr)
+            plt.rc('font', size=14)
+            h = sns.histplot(log_b, bins=20)
+            plt.title('Quality Control: Blur Burden'+warn_txt)
+            plt.ylabel('Count', fontsize=16, fontname='Arial')
+            plt.xlabel('log(blur burden)', fontsize=16, fontname='Arial')
+            plt.axvline(x=-3, color='r', linestyle='--')
+            return True
+        else:
+            return False
+
     def save(self, filename):
         self.pdf.output(filename)
 
 class _VIPSWrapper:
     '''Wrapper for VIPS to preserve openslide-like functions.'''
 
-    def __init__(self, path, buffer=None):
+    def __init__(self, path, buffer=None, silent=False):
         self.path = path
         self.buffer = buffer
 
@@ -364,14 +542,26 @@ class _VIPSWrapper:
 
         # If Openslide MPP is not available, try reading from metadata
         if OPS_MPP_X not in self.properties.keys():
-            log.warning(f"Unable to detect openslide Microns-Per-Pixel (MPP) property, will search EXIF data")
+            if not silent:
+                log.debug(f"Unable to detect openslide Microns-Per-Pixel (MPP) property, will search EXIF data")
             try:
                 with Image.open(path) as img:
                     if TIF_EXIF_KEY_MPP in img.tag.keys():
-                        log.info(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}")
+                        if not silent:
+                            log.debug(f"Setting MPP to {img.tag[TIF_EXIF_KEY_MPP][0]} per EXIF field {TIF_EXIF_KEY_MPP}")
                         self.properties[OPS_MPP_X] = img.tag[TIF_EXIF_KEY_MPP][0]
+                    elif sf.util.path_to_ext(path).lower() in ('tif', 'tiff') and 'xres' in loaded_image.get_fields():
+                        xres = loaded_image.get('xres') # 4000.0
+                        if xres == 4000.0 and loaded_image.get('resolution-unit') == 'cm':
+                            # xres = xres # though resolution from tiffinfo says 40000 pixels/cm, for some reason the xres val is 4000.0, so multiple by 10
+                            mpp_x = (1/xres)*1000 # convert from pixels/cm to cm/pixels then convert to microns by multiplying by 1000
+                            self.properties[OPS_MPP_X] = str(mpp_x)
+                            if not silent:
+                                log.debug(f"Setting MPP to {mpp_x} using TIFF 'xres' field {loaded_image.get('xres')} and {loaded_image.get('resolution-unit')}")
+                    else:
+                        log.warning(f"Unable to detect openslide Microns-Per-Pixel (MPP) property from slide {sf.util.path_to_name(path)}")
             except UnidentifiedImageError:
-                log.error(f"PIL image reading error; slide {sf.util.path_to_name(path)} is corrupt.")
+                log.error(f"PIL image reading error; unable to read slide {sf.util.path_to_name(path)}.")
 
         # Prepare downsample levels
         self.loaded_downsample_levels = {
@@ -509,7 +699,7 @@ class _BaseLoader:
     '''Object that loads an SVS slide and makes preparations for tile extraction.
     Should not be used directly; this class must be inherited and extended by either WSI or TMA child classes.'''
 
-    def __init__(self, path, tile_px, tile_um, stride_div, enable_downsample=False,
+    def __init__(self, path, tile_px, tile_um, stride_div, enable_downsample=True,
                     buffer=None, pb=None, pb_counter=None, counter_lock=None):
         self.load_error = False
 
@@ -532,6 +722,10 @@ class _BaseLoader:
         self.thumb_image = None
         self.stride_div = stride_div
         self.path = path
+        self.qc_mask = None
+        self.qc_mpp = None
+        self.qc_method = None
+        self.blur_burden = None
         filetype = sf.util.path_to_ext(path)
 
         # Initiate supported slide reader
@@ -549,13 +743,13 @@ class _BaseLoader:
 
         # Collect basic slide information
         try:
-            self.MPP = float(self.slide.properties[OPS_MPP_X])
+            self.mpp = float(self.slide.properties[OPS_MPP_X])
         except KeyError:
             log.error(f"Slide {sf.util.green(self.name)} missing MPP property ({OPS_MPP_X})")
             self.load_error = True
             return
         self.full_shape = self.slide.dimensions
-        self.full_extract_px = int(self.tile_um / self.MPP)
+        self.full_extract_px = int(self.tile_um / self.mpp)
 
         # Load downsampled level based on desired extraction size
         downsample_desired = self.full_extract_px / tile_px
@@ -580,13 +774,101 @@ class _BaseLoader:
     def dimensions(self):
         return self.slide.dimensions
 
+    @property
+    def properties(self):
+        return self.slide.properties
+
+    @property
+    def vendor(self):
+        if OPS_VENDOR in self.slide.properties:
+            return self.slide.properties[OPS_VENDOR]
+        else:
+            return None
+
     def mpp_to_dim(self, mpp):
-        width = int((self.MPP * self.full_shape[0]) / mpp)
-        height = int((self.MPP * self.full_shape[1]) / mpp)
+        width = int((self.mpp * self.full_shape[0]) / mpp)
+        height = int((self.mpp * self.full_shape[1]) / mpp)
         return (width, height)
 
     def dim_to_mpp(self, dimensions):
-        return (self.full_shape[0] * self.MPP) / dimensions[0]
+        return (self.full_shape[0] * self.mpp) / dimensions[0]
+
+    def remove_qc(self):
+        self._build_coord()
+        self.qc_method = None
+        log.debug(f'QC removed from slide {self.shortname}')
+
+    def qc(self, method, blur_radius=3, blur_threshold=0.02, filter_threshold=0.6, mpp=4):
+        """Applies quality control to a slide, performing filtering based on a whole-slide image thumbnail.
+
+        'blur' method filters out blurry or out-of-focus slide sections.
+        'otsu' method filters out background based on automatic saturation thresholding in the HSV colorspace.
+        'both' applies both methods of filtering.
+
+        Args:
+            method (str): Quality control method, includes 'blur', 'otsu', or 'both'.
+            blur_radius (int, optional): Blur radius.
+            blur_threshold (float, optional): Blur threshold.
+            filter_threshold (float, optional): Percent of a tile detected as background that will trigger a tile to be
+                discarded. Defaults to 0.6.
+            mpp (float, optional): Size of WSI thumbnail on which to perform quality control, in microns-per-pixel.
+                Defaults to 4 (equivalent magnification = 2.5 X)
+        """
+
+        if method not in ('blur', 'otsu', 'both'):
+            raise ValueError(f"Unknown method {method}, valid methods include 'blur', 'otsu', 'both'")
+        starttime = time.time()
+
+        thumb = np.array(self.thumb(mpp=mpp))
+        if thumb.shape[-1] == 4:
+            thumb = thumb[:,:,:3]
+        gray = rgb2gray(thumb)
+        img_laplace = np.abs(skimage.filters.laplace(gray))
+        thumb_mpp = 40
+        self.qc_mpp = mpp
+        self.qc_method = method
+        thumb_scale = thumb_mpp / mpp
+
+        # Perform thresholding
+        if method in ('blur', 'both'):
+            blur_mask = skimage.filters.gaussian(img_laplace, sigma=blur_radius) <= blur_threshold
+            self.qc_mask = blur_mask
+        if method in ('otsu', 'both'):
+            otsu_thumb = np.array(self.thumb(mpp=thumb_mpp))
+            if otsu_thumb.shape[-1] == 4:
+                otsu_thumb = otsu_thumb[:,:,:3]
+            hsv_img = cv2.cvtColor(otsu_thumb, cv2.COLOR_RGB2HSV)
+            img_med = cv2.medianBlur(hsv_img[:,:,1], 7)
+            _, otsu_mask = cv2.threshold(img_med, 0, 255, cv2.THRESH_OTSU+cv2.THRESH_BINARY_INV)
+            otsu_mask = otsu_mask.astype(np.bool)
+            self.qc_mask = otsu_mask
+        if method == 'both':
+            otsu_mask = skimage.transform.resize(otsu_mask, blur_mask.shape).astype(np.bool)
+            self.qc_mask = np.logical_or(blur_mask, otsu_mask)
+            self.blur_burden = np.count_nonzero(np.logical_and(blur_mask, np.logical_xor(blur_mask, otsu_mask))) / (blur_mask.shape[0] * blur_mask.shape[1])
+            log.debug(f"Blur burden: {self.blur_burden}")
+
+        # Make a smaller thumbnail mask
+        if method in ('blur', 'both'):
+            small_mask = skimage.transform.resize(self.qc_mask, (self.qc_mask.shape[0]//thumb_scale, self.qc_mask.shape[1]//thumb_scale))
+        else:
+            small_mask = self.qc_mask
+
+        # Filter coordinates
+        qc_ratio = self.mpp / (mpp * thumb_scale)
+        qc_width = int(self.full_extract_px * qc_ratio)
+        to_delete = []
+        for i, c in enumerate(self.coord):
+            qc_x = int(c[0] * qc_ratio)
+            qc_y = int(c[1] * qc_ratio)
+            submask = small_mask[qc_y:(qc_y+qc_width), qc_x:(qc_x+qc_width)]
+            if np.mean(submask) > filter_threshold:
+                to_delete += [i]
+        self.coord = np.delete(np.array(self.coord), to_delete, axis=0)
+        self.tile_mask = np.delete(self.tile_mask, to_delete)
+        img = Image.fromarray(img_as_ubyte(small_mask))
+        log.debug(f'QC complete for slide {self.shortname} (time: {time.time()-starttime:.2f}s)')
+        return img
 
     def square_thumb(self, width=512):
         '''Returns a square thumbnail of the slide, with black bar borders.
@@ -633,15 +915,20 @@ class _BaseLoader:
 
         # Calculate goal width/height according to specified microns-per-pixel (MPP)
         if mpp:
-            width = int((self.MPP * self.full_shape[0]) / mpp)
+            width = int((self.mpp * self.full_shape[0]) / mpp)
         # Otherwise, calculate approximate mpp based on provided width (to generate proportional height)
         else:
-            mpp = (self.MPP * self.full_shape[0]) / width
+            mpp = (self.mpp * self.full_shape[0]) / width
         # Calculate appropriate height
-        height = int((self.MPP * self.full_shape[1]) / mpp)
+        height = int((self.mpp * self.full_shape[1]) / mpp)
 
         # Get thumb via libvips & convert PIL Image
-        thumbnail = vips.Image.thumbnail(self.path, width)
+        if self.vendor and self.vendor == 'leica':
+            # The libvips thumbnail function does not work appropriately with Leica SCN images,
+            # so a downsample level must be manually specified.
+            thumbnail = vips.Image.new_from_file(self.path, fail=True, access=vips.enums.Access.RANDOM, level=self.slide.level_count-1)
+        else:
+            thumbnail = vips.Image.thumbnail(self.path, width)
         np_thumb = vips2numpy(thumbnail)
         image = Image.fromarray(np_thumb).resize((width, height))
 
@@ -682,7 +969,7 @@ class _BaseLoader:
             return False
         return loaded_correctly
 
-    def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, img_format='png', **kwargs):
+    def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, img_format='png', report=True, **kwargs):
         """Extracts tiles from slide using the build_generator() method,
         saving tiles into a TFRecord file or as loose JPG tiles in a directory.
 
@@ -712,12 +999,12 @@ class _BaseLoader:
             yolo (bool, optional): Export yolo-formatted tile-level ROI annotations (.txt) in the tile directory.
                 Requires that tiles_dir is set. Defaults to False.
             draw_roi (bool, optional): Draws ROIs onto extracted tiles. Defaults to False.
+            dry_run (bool, optional): Determine tiles that would be extracted, but do not export any images.
+                Defaults to None.
         """
 
         if img_format not in ('png', 'jpg', 'jpeg'):
             raise ValueError(f"Unknown image format {img_format}, must be either 'png' or 'jpg'")
-        if tfrecord_dir is None and tiles_dir is None:
-            raise UserError("Must supply either tfrecord_dir or tiles_dir as destination for tile extraction.")
 
         # Make base directories
         if tfrecord_dir:
@@ -728,9 +1015,10 @@ class _BaseLoader:
 
         # Log to keep track of when tiles have finished extracting
         # To be used in case tile extraction is interrupted, so the slide can be flagged for re-extraction
-        unfinished_marker = join((tfrecord_dir if tfrecord_dir else tiles_dir), f'{self.name}.unfinished')
-        with open(unfinished_marker, 'w') as marker_file:
-            marker_file.write(' ')
+        if tfrecord_dir or tiles_dir:
+            unfinished_marker = join((tfrecord_dir if tfrecord_dir else tiles_dir), f'{self.name}.unfinished')
+            with open(unfinished_marker, 'w') as marker_file:
+                marker_file.write(' ')
         if tfrecord_dir:
             writer = sf.io.TFRecordWriter(join(tfrecord_dir, self.name+".tfrecords"))
 
@@ -744,14 +1032,18 @@ class _BaseLoader:
         sample_tiles = []
         generator_iterator = generator()
         locations = []
+        dry_run = kwargs['dry_run'] if 'dry_run' in kwargs else False
 
         for index, tile_dict in enumerate(generator_iterator):
-            image_string = tile_dict['image']
             location = tile_dict['loc']
             locations += [location]
+
+            if dry_run: continue
+
+            image_string = tile_dict['image']
             if len(sample_tiles) < 10:
                 sample_tiles += [image_string]
-            elif not tiles_dir and not tfrecord_dir:
+            elif (not tiles_dir and not tfrecord_dir) and not dry_run:
                 break
             if tiles_dir:
                 with open(join(tiles_dir, f'{self.shortname}_{index}.{img_format}'), 'wb') as outfile:
@@ -763,7 +1055,8 @@ class _BaseLoader:
             if tfrecord_dir:
                 record = sf.io.serialized_record(slidename_bytes, image_string, location[0], location[1])
                 writer.write(record)
-        writer.close()
+        if tfrecord_dir:
+            writer.close()
         if self.counter_lock is None:
             generator_iterator.close()
 
@@ -777,8 +1070,15 @@ class _BaseLoader:
         self.slide.unbuffer()
 
         # Generate extraction report
-        report = SlideReport(sample_tiles, self.slide.path)
-        return report
+        if report:
+            report_data = {
+                'blur_burden': self.blur_burden,
+                'num_tiles': len(locations),
+            }
+            return SlideReport(sample_tiles,
+                               self.slide.path,
+                               data=report_data,
+                               thumb=self.thumb(coords=locations, rois=True))
 
     def preview(self, rois=True, **kwargs):
         """Performs a dry run of tile extraction without saving any images, returning a PIL image of the slide
@@ -814,9 +1114,9 @@ class _BaseLoader:
 class WSI(_BaseLoader):
     '''Loads a slide and its annotated region of interest (ROI).'''
 
-    def __init__(self, path, tile_px, tile_um, stride_div=1, enable_downsample=False, roi_dir=None, rois=None,
+    def __init__(self, path, tile_px, tile_um, stride_div=1, enable_downsample=True, roi_dir=None, rois=None,
                  roi_method='inside', skip_missing_roi=False, randomize_origin=False, buffer=None, pb=None,
-                 pb_counter=None, counter_lock=None):
+                 pb_counter=None, counter_lock=None, silent=False):
 
         """Loads slide and ROI(s).
 
@@ -828,7 +1128,7 @@ class WSI(_BaseLoader):
                 Defaults to 1.
             enable_downsample (bool, optional): Allow use of downsampled intermediate layers in the slide image pyramid,
                 which greatly improves tile extraction speed. May result in artifacts for slides with incompletely
-                generated intermediates pyramid layers. Defaults to False.
+                generated intermediates pyramid layers. Defaults to True.
             roi_dir (str, optional): Directory in which to search for ROI CSV files. Defaults to None.
             rois (list(str)): Alternatively, a list of ROI paths can be explicitly provided. Defaults to None.
             roi_method (str): Either 'inside', 'outside', or 'ignore'. Determines how ROIs are used to extract tiles.
@@ -842,6 +1142,7 @@ class WSI(_BaseLoader):
             pb_counter (obj): Multiprocessing counter (a multiprocessing Value, from Progress Bar) used to follow
                 tile extraction progress. Defaults to None.
             counter_lock (obj): Lock object for updating pb_counter, if provided. Defaults to None.
+            silent (bool, optional): Suppresses warnings about slide skipping if ROIs are missing. Defaults to False.
         """
 
         super().__init__(path, tile_px, tile_um, stride_div, enable_downsample, buffer, pb, pb_counter, counter_lock)
@@ -850,17 +1151,17 @@ class WSI(_BaseLoader):
         self.extracted_x_size = 0
         self.extracted_y_size = 0
         self.estimated_num_tiles = 0
-        self.coord = []
         self.annPolys = []
         self.roi_scale = 10
         self.rois = []
         self.roi_method = roi_method
+        self.randomize_origin = randomize_origin
 
         if not self.loaded_correctly():
             return
 
         # Build coordinate grid
-        self._build_coord(randomize_origin=randomize_origin)
+        self._build_coord()
 
         # Look in ROI directory if available
         if roi_dir and exists(join(roi_dir, self.name + ".csv")):
@@ -883,18 +1184,26 @@ class WSI(_BaseLoader):
         if not len(self.rois) and roi_method != 'ignore' and not (rois or roi_dir):
             # No ROIs found because the user did not provide rois or roi_dir, but the roi_method is not set to 'ignore',
             # indicating that this may be user error.
-            log.warning(f"No ROIs provided for {self.name} (suppress this warning with roi_method='ignore')")
+            warn_msg = f"No ROIs provided for {self.name} (suppress this warning with roi_method='ignore')"
+            if not silent and not (rois is None and roi_dir is None):
+                log.warning(warn_msg)
+            else:
+                log.debug(warn_msg)
         if not len(self.rois) and skip_missing_roi and roi_method != 'ignore':
-            log.error(f"No ROI found for, skipping slide")
+            warn_msg = f"No ROI found for {sf.util.green(self.name)}, skipping slide"
+            if not silent:  log.warning(warn_msg)
+            else:           log.debug(warn_msg)
             self.shape = None
             self.load_error = True
             return None
         elif not len(self.rois):
+            info_msg = f"No ROI found for {sf.util.green(self.name)}, using whole slide."
+            if not silent:  log.info(info_msg)
+            else:           log.debug(info_msg)
             self.estimated_num_tiles = int(len(self.coord))
-            log.info(f"No ROI found for {sf.util.green(self.name)}, using whole slide.")
             self.roi_method = 'ignore'
 
-        mpp_roi_msg = f'{self.MPP} um/px | {len(self.rois)} ROI(s)'
+        mpp_roi_msg = f'{self.mpp} um/px | {len(self.rois)} ROI(s)'
         size_msg = f'Size: {self.full_shape[0]} x {self.full_shape[1]}'
         log.debug(f"{self.shortname}: Slide info: {mpp_roi_msg} | {size_msg}")
         log.debug(f"{self.shortname}: Grid shape: {self.grid.shape} | Tiles to extract: {self.estimated_num_tiles}")
@@ -915,7 +1224,7 @@ class WSI(_BaseLoader):
         base += ")"
         return base
 
-    def _build_coord(self, randomize_origin):
+    def _build_coord(self):
         '''Set up coordinate grid.'''
 
         # Calculate window sizes, strides, and coordinates for windows
@@ -923,7 +1232,7 @@ class WSI(_BaseLoader):
         self.extracted_y_size = self.full_shape[1] - self.full_extract_px
 
         # Randomize origin, if desired
-        if randomize_origin:
+        if self.randomize_origin:
             start_x = random.randint(0, self.full_stride-1)
             start_y = random.randint(0, self.full_stride-1)
             log.info(f"Random origin: X: {start_x}, Y: {start_y}")
@@ -932,6 +1241,7 @@ class WSI(_BaseLoader):
 
         # Coordinates must be in level 0 (full) format for the read_region function
         index = 0
+        self.coord = []
         y_range = np.arange(start_y, (self.full_shape[1]+1) - self.full_extract_px, self.full_stride)
         x_range = np.arange(start_x, (self.full_shape[0]+1) - self.full_extract_px, self.full_stride)
         for yi, y in enumerate(y_range):
@@ -941,7 +1251,8 @@ class WSI(_BaseLoader):
                 is_unique = ((y % self.full_extract_px == 0) and (x % self.full_extract_px == 0))
                 self.coord.append([x, y, index, is_unique, xi, yi])
                 index += 1
-
+        self.coord = np.array(self.coord)
+        self.tile_mask = np.asarray([False for i in range(len(self.coord))], dtype=np.bool)
         self.grid = np.zeros((len(x_range), len(y_range)))
 
     def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None,
@@ -990,7 +1301,7 @@ class WSI(_BaseLoader):
 
         # Shuffle coordinates to randomize extraction order
         if shuffle:
-            random.shuffle(self.coord)
+            np.random.shuffle(self.coord)
 
         # Set whitespace / grayspace fraction to global defaults if not provided
         if whitespace_fraction is None:     whitespace_fraction  = DEFAULT_WHITESPACE_FRACTION
@@ -1037,12 +1348,11 @@ class WSI(_BaseLoader):
 
         def generator():
             log.debug(f"Building tile extraction generator with {num_threads} thread workers")
-            self.tile_mask = np.asarray([False for i in range(len(self.coord))], dtype=np.bool)
 
             with mp.Pool(processes=num_threads) as p:
                 if show_progress:
                     pbar = tqdm(total=self.estimated_num_tiles, ncols=80)
-                for res in p.imap(partial(_wsi_extraction_worker, args=worker_args), self.coord):
+                for idx, res in enumerate(p.imap(partial(_wsi_extraction_worker, args=worker_args), self.coord)):
                     if res == 'skip':
                         continue
 
@@ -1056,7 +1366,7 @@ class WSI(_BaseLoader):
                     if res is None:
                         continue
                     else:
-                        tile, idx = res
+                        tile, _ = res
                         self.tile_mask[idx] = True
                         yield tile
                 if show_progress:
@@ -1092,7 +1402,7 @@ class WSI(_BaseLoader):
             if mpp is None and width is None:
                 width = 1024
             if mpp is not None:
-                roi_scale = self.full_shape[0] / (int((self.MPP * self.full_shape[0]) / mpp))
+                roi_scale = self.full_shape[0] / (int((self.mpp * self.full_shape[0]) / mpp))
             else:
                 roi_scale = self.full_shape[0] / width
 
@@ -1185,7 +1495,7 @@ class TMA(_BaseLoader):
     WHITE = (255,255,255)
 
     def __init__(self, path, tile_px, tile_um, stride_div=1, annotations_dir=None,
-                    enable_downsample=False, report_dir=None, buffer=None, pb=None, pb_id=0):
+                    enable_downsample=True, report_dir=None, buffer=None, pb=None, pb_id=0):
         '''Initializer.
 
         Args:
@@ -1215,7 +1525,7 @@ class TMA(_BaseLoader):
         self.pb_id = pb_id
         num_cores, self.estimated_num_tiles = self._detect_cores(report_dir=report_dir)
         size_msg = f'Size: {self.full_shape[0]} x {self.full_shape[1]}'
-        log.info(f"{self.shortname}: Slide info: {self.MPP} um/px | {size_msg}")
+        log.info(f"{self.shortname}: Slide info: {self.mpp} um/px | {size_msg}")
 
     def _get_sub_image(self, rect):
         '''Gets a sub-image from the slide using the specified rectangle as a guide.'''
@@ -1251,7 +1561,7 @@ class TMA(_BaseLoader):
     def _resize_to_target(self, image_tile):
         '''Resizes image tile to the desired target output size.'''
         target_MPP = self.tile_um / self.tile_px
-        current_MPP = self.MPP * self.downsample_factor
+        current_MPP = self.mpp * self.downsample_factor
         resize_factor = current_MPP / target_MPP
         return cv2.resize(image_tile, (0, 0), fx=resize_factor, fy=resize_factor)
 
