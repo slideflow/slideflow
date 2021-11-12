@@ -79,7 +79,6 @@ def update_manifest_at_dir(directory, force_update=False):
             del(raw_dataset)
             return 'delete'
         rel_tfr_manifest[rel_tfr]['total'] = total
-        del(raw_dataset)
         return rel_tfr_manifest
 
     pool = DPool(8)
