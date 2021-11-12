@@ -207,6 +207,7 @@ def _wsi_extraction_worker(c, args):
 
     # Read the target downsample region now, if we were filtering at a different level
     region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
+    if region.bands == 4: region = region.flatten() # removes alpha
     if int(args.tile_px) != int(args.extract_px):
         region = region.resize(args.tile_px/args.extract_px)
     assert(region.width == region.height == args.tile_px)
@@ -224,7 +225,6 @@ def _wsi_extraction_worker(c, args):
             try:    image = normalizer.jpeg_to_jpeg(image)
             except: return # The image could not be normalized, which happens when a tile is primarily one solid color
     else:
-        if region.bands == 4: region = region.flatten() # removes alpha
         image = vips2numpy(region)  # Read regions into memory and convert to numpy arrays
 
         # Apply normalization
