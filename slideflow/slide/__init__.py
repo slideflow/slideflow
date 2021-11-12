@@ -395,9 +395,9 @@ class ExtractionReport:
         if meta.gs_thresh is None:   meta.gs_thresh  = DEFAULT_GRAYSPACE_THRESHOLD
         if meta.img_format is None:   meta.img_format  = 'png'
 
-        num_tiles = np.array([r.num_tiles for r in reports])
-        bb = np.array([r.blur_burden for r in reports])
-        bb_names = [r.path for r in reports]
+        num_tiles = np.array([r.num_tiles for r in reports if r is not None])
+        bb = np.array([r.blur_burden for r in reports if r is not None])
+        bb_names = [r.path for r in reports if r is not None]
         self.warn_txt = ''
         for slide, b in zip(bb_names, bb):
             if b is not None and b > self.bb_threshold:
