@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tutorial 1: Quick Start &mdash; slideflow 1.12.0 documentation</title>
+  <title>Tutorial 1: Model training (simple) &mdash; slideflow 1.0.0 documentation</title>
   
 
   
@@ -31,7 +31,7 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Tutorial 2: Using a Trainer" href="tutorial2.html" />
+    <link rel="next" title="Tutorial 2: Model training (advanced)" href="tutorial2.html" />
     <link rel="prev" title="slideflow.util" href="util.html" />
   <!-- Google Analytics -->
   
@@ -75,11 +75,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Tutorials</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Showcase</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
@@ -114,7 +110,7 @@
               
               
                 <div class="version">
-                  1.12
+                  1.0
                 </div>
               
             
@@ -150,7 +146,7 @@
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
@@ -159,8 +155,8 @@
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
@@ -171,8 +167,8 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 1: Quick Start</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Using a Trainer</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
 </ul>
 
             
@@ -213,7 +209,7 @@
       </li>
 
         
-      <li>Tutorial 1: Quick Start</li>
+      <li>Tutorial 1: Model training (simple)</li>
     
     
       <li class="pytorch-breadcrumbs-aside">
@@ -245,8 +241,8 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="tutorial-1-quick-start">
-<h1>Tutorial 1: Quick Start<a class="headerlink" href="#tutorial-1-quick-start" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="tutorial-1-model-training-simple">
+<h1>Tutorial 1: Model training (simple)<a class="headerlink" href="#tutorial-1-model-training-simple" title="Permalink to this headline">¶</a></h1>
 <p>In this first tutorial, we will walk through the steps needed to take an example project from start to finish, using
 the bundled <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script to execute pipeline functions. As with all of these tutorials, we will use
 publicly available data from <a class="reference external" href="https://portal.gdc.cancer.gov">The Cancer Genome Atlas (TCGA)</a>. In this first tutorial,
@@ -329,7 +325,7 @@ Naik et al in which whole-slide images were used. Subsequent tutorials will expl
 <div class="section" id="setting-up-annotations">
 <h2>Setting up annotations<a class="headerlink" href="#setting-up-annotations" title="Permalink to this headline">¶</a></h2>
 <p>With our project initialized, we can set up our annotations file. Use the downloaded annotations file to create a new
-CSV file, with a column “submitter_id” indicating patient name (in the case of TCGA, these are in the format
+CSV file, with a column “patient” indicating patient name (in the case of TCGA, these are in the format
 TCGA-SS-XXXX, where SS indicates site of origin and XXXX is the patient identifier), and a column “er_status_by_ihc”
 containing our outcome of interest. Add a third column “slide” containing the name of the slide associated with the
 patient. If there are multiple slides per patient, list each slide on a separate row. Finally, add a column “dataset”
@@ -349,7 +345,7 @@ slideflow will auto-associate slides to patients.</p>
 <col style="width: 39%" />
 </colgroup>
 <tbody>
-<tr class="row-odd"><td><p><em>submitter_id</em></p></td>
+<tr class="row-odd"><td><p><em>patient</em></p></td>
 <td><p><em>er_status_by_ihc</em></p></td>
 <td><p><em>dataset</em></p></td>
 <td><p><em>slide</em></p></td>
@@ -388,9 +384,9 @@ slideflow will auto-associate slides to patients.</p>
 will modify and use to execute our pipeline functions. Delete the commented-out examples in this file.</p>
 <p>To replicate the results by Naik, we will use a 256px x 256px tile size, at 0.5 µm/pixel (128 um). Add the following
 to the project <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">SFP</span><span class="p">):</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">P</span><span class="p">):</span>
     <span class="c1"># Extract tiles at 256 pixels, 0.5 um/px</span>
-    <span class="n">SFP</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>
+    <span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="admonition hint">
@@ -401,7 +397,7 @@ CPU core counts, the number of worker threads can be set higher than the default
 Finally, extraction on slides with pyramidal or multi-resolution formats can be greatly increased by enabling use of
 downsampled pyramidal layers. This behavior is disabled by default, as some slides may have corrupt or incomplete
 pyramidal layers.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span>
     <span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
     <span class="n">tile_um</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
     <span class="n">buffer</span><span class="o">=</span><span class="s1">&#39;/mnt/ramdisk&#39;</span><span class="p">,</span>
@@ -417,30 +413,30 @@ pyramidal layers.</p>
 <p>After tiles are extracted, the dataset will be ready for training. We will train with a single set of manually defined
 hyperparameters, which we can configure with <a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a>. We will use the
 <a class="reference external" href="https://arxiv.org/abs/1610.02357">Xception</a> model with a batch size of 32, otherwise keeping defaults.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">SFP</span><span class="p">):</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">P</span><span class="p">):</span>
     <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
     <span class="o">...</span>
 
     <span class="n">hp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span>
         <span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
         <span class="n">tile_um</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
-        <span class="n">model</span><span class="o">=</span><span class="s1">&#39;Xception&#39;</span><span class="p">,</span>
+        <span class="n">model</span><span class="o">=</span><span class="s1">&#39;xception&#39;</span><span class="p">,</span>
         <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
         <span class="n">epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
     <span class="p">)</span>
 </pre></div>
 </div>
 <p>For training, we will use 5-fold cross-validation on the training dataset. To set up training, invoke the
-<code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.train()</span></code> function with the outcome of interest, our hyperparameters, and our validation plan.
+<a class="reference internal" href="project.html#slideflow.Project.train" title="slideflow.Project.train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.train()</span></code></a> function with the outcome of interest, our hyperparameters, and our validation plan.
 We will use the <code class="docutils literal notranslate"><span class="pre">filters</span></code> argument to limit our training to the “train” dataset, as well as limit the training
 to only include patients with documented ER status (otherwise a blank “” would be marked as a third outcome).</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">SFP</span><span class="p">):</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">P</span><span class="p">):</span>
     <span class="o">...</span>
 
     <span class="c1"># Train with 5-fold cross-validation</span>
-    <span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
+    <span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
         <span class="s1">&#39;ER_status&#39;</span><span class="p">,</span>
-        <span class="n">hyperparameters</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span>
+        <span class="n">params</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span>
         <span class="n">val_k_fold</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
         <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">],</span>
                  <span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;Positive&#39;</span><span class="p">,</span> <span class="s1">&#39;Negative&#39;</span><span class="p">]}</span>
@@ -450,13 +446,13 @@ to only include patients with documented ER status (otherwise a blank “” wou
 <p>After cross validation is complete, we will want to have a model trained across the entire dataset, so we can assess
 performance on our held-out evaluation set. To train a model across the entire training dataset without validation,
 we will set <code class="docutils literal notranslate"><span class="pre">val_strategy</span></code> to <code class="docutils literal notranslate"><span class="pre">None</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">SFP</span><span class="p">):</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">P</span><span class="p">):</span>
     <span class="o">...</span>
 
     <span class="c1"># Train across the entire training dataset</span>
-    <span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
+    <span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
         <span class="s1">&#39;ER_status&#39;</span><span class="p">,</span>
-        <span class="n">hyperparameters</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span>
+        <span class="n">params</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span>
         <span class="n">val_strategy</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span>
         <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">],</span>
                  <span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;Positive&#39;</span><span class="p">,</span> <span class="s1">&#39;Negative&#39;</span><span class="p">]}</span>
@@ -464,33 +460,33 @@ we will set <code class="docutils literal notranslate"><span class="pre">val_str
 </pre></div>
 </div>
 <p>Now, it’s time to start our pipeline. To review, our <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file at this point should look like:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">SFP</span><span class="p">):</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">P</span><span class="p">):</span>
     <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
 
     <span class="c1"># Extract tiles at 256 pixels, 0.5 um/px</span>
-    <span class="n">SFP</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>
+    <span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>
 
     <span class="n">hp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span>
         <span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
         <span class="n">tile_um</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
-        <span class="n">model</span><span class="o">=</span><span class="s1">&#39;Xception&#39;</span><span class="p">,</span>
+        <span class="n">model</span><span class="o">=</span><span class="s1">&#39;xception&#39;</span><span class="p">,</span>
         <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
         <span class="n">epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span>
     <span class="p">)</span>
 
     <span class="c1"># Train with 5-fold cross-validation</span>
-    <span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
+    <span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
         <span class="s1">&#39;ER_status&#39;</span><span class="p">,</span>
-        <span class="n">hyperparameters</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span>
+        <span class="n">params</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span>
         <span class="n">val_k_fold</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
         <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">],</span>
                  <span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;Positive&#39;</span><span class="p">,</span> <span class="s1">&#39;Negative&#39;</span><span class="p">]}</span>
     <span class="p">)</span>
 
     <span class="c1"># Train across the entire training dataset</span>
-    <span class="n">SFP</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
+    <span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
         <span class="s1">&#39;ER_status&#39;</span><span class="p">,</span>
-        <span class="n">hyperparameters</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span>
+        <span class="n">params</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span>
         <span class="n">val_strategy</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span>
         <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">],</span>
                  <span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;Positive&#39;</span><span class="p">,</span> <span class="s1">&#39;Negative&#39;</span><span class="p">]}</span>
@@ -531,8 +527,8 @@ The final trained model should be stored at <code class="docutils literal notran
 so we will include the following in our <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file to evaluate the saved model:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="s1">&#39;/home/er_project/models/00003-er_status_by_ihc/er_status_by_ihc_epoch3&#39;</span>
 
-<span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">SFP</span><span class="p">):</span>
-    <span class="n">SFP</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span>
+<span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">P</span><span class="p">):</span>
+    <span class="n">P</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span>
         <span class="n">model</span><span class="p">,</span>
         <span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">,</span>
         <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;eval&#39;</span><span class="p">],</span>
@@ -574,7 +570,7 @@ generating slide heatmaps, mosaic maps, and intermediate layer activations.</p>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="tutorial2.html" class="btn btn-neutral float-right" title="Tutorial 2: Using a Trainer" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="tutorial2.html" class="btn btn-neutral float-right" title="Tutorial 2: Model training (advanced)" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
         <a href="util.html" class="btn btn-neutral" title="slideflow.util" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
@@ -609,7 +605,7 @@ generating slide heatmaps, mosaic maps, and intermediate layer activations.</p>
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
-<li><a class="reference internal" href="#">Tutorial 1: Quick Start</a><ul>
+<li><a class="reference internal" href="#">Tutorial 1: Model training (simple)</a><ul>
 <li><a class="reference internal" href="#project-planning">Project Planning</a></li>
 <li><a class="reference internal" href="#setting-up-annotations">Setting up annotations</a></li>
 <li><a class="reference internal" href="#tile-extraction">Tile extraction</a></li>

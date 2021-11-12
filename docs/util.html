@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.util &mdash; slideflow 1.12.0 documentation</title>
+  <title>slideflow.util &mdash; slideflow 1.0.0 documentation</title>
   
 
   
@@ -31,7 +31,7 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Tutorial 1: Quick Start" href="tutorial1.html" />
+    <link rel="next" title="Tutorial 1: Model training (simple)" href="tutorial1.html" />
     <link rel="prev" title="slideflow.statistics" href="statistics.html" />
   <!-- Google Analytics -->
   
@@ -75,11 +75,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Tutorials</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Showcase</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
@@ -114,7 +110,7 @@
               
               
                 <div class="version">
-                  1.12
+                  1.0
                 </div>
               
             
@@ -150,7 +146,7 @@
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
@@ -159,8 +155,8 @@
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
@@ -171,8 +167,8 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Using a Trainer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
 </ul>
 
             
@@ -303,62 +299,6 @@ it is formatted using formatException() and appended to the message.</p>
 </dd></dl>
 
 <dl class="py class">
-<dt class="sig sig-object py" id="slideflow.util.StainNormalizer">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">StainNormalizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'reinhard'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.StainNormalizer" title="Permalink to this definition">¶</a></dt>
-<dd><p>Object to supervise stain normalization for images and efficiently convert between common image types.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="slideflow.util.StainNormalizer.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'reinhard'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.StainNormalizer.__init__" title="Permalink to this definition">¶</a></dt>
-<dd><p>Initializer. Establishes normalization method.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Either ‘macenko’, ‘reinhard’, or ‘vahadane’. Defaults to ‘reinhard’.</p></li>
-<li><p><strong>source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to source image for normalizer. If not provided, defaults to an internal example image.</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="slideflow.util.StainNormalizer.jpeg_to_jpeg">
-<span class="sig-name descname"><span class="pre">jpeg_to_jpeg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">jpeg_string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.StainNormalizer.jpeg_to_jpeg" title="Permalink to this definition">¶</a></dt>
-<dd><p>Non-normalized compressed JPG string data -&gt; normalized compressed JPG string data</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="slideflow.util.StainNormalizer.jpeg_to_rgb">
-<span class="sig-name descname"><span class="pre">jpeg_to_rgb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">jpeg_string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.StainNormalizer.jpeg_to_rgb" title="Permalink to this definition">¶</a></dt>
-<dd><p>Non-normalized compressed JPG string data -&gt; normalized RGB numpy array</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="slideflow.util.StainNormalizer.pil_to_pil">
-<span class="sig-name descname"><span class="pre">pil_to_pil</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.StainNormalizer.pil_to_pil" title="Permalink to this definition">¶</a></dt>
-<dd><p>Non-normalized PIL.Image -&gt; normalized PIL.Image</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="slideflow.util.StainNormalizer.png_to_rgb">
-<span class="sig-name descname"><span class="pre">png_to_rgb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">png_string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.StainNormalizer.png_to_rgb" title="Permalink to this definition">¶</a></dt>
-<dd><p>Non-normalized compressed PNG string data -&gt; normalized RGB numpy array</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="slideflow.util.StainNormalizer.rgb_to_rgb">
-<span class="sig-name descname"><span class="pre">rgb_to_rgb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.StainNormalizer.rgb_to_rgb" title="Permalink to this definition">¶</a></dt>
-<dd><p>Non-normalized RGB numpy array -&gt; normalized RGB numpy array</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="slideflow.util.StainNormalizer.tf_to_rgb">
-<span class="sig-name descname"><span class="pre">tf_to_rgb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.StainNormalizer.tf_to_rgb" title="Permalink to this definition">¶</a></dt>
-<dd><p>Non-normalized tensorflow image array -&gt; normalized RGB numpy array</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
 <dt class="sig sig-object py" id="slideflow.util.TqdmLoggingHandler">
 <em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">TqdmLoggingHandler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.TqdmLoggingHandler" title="Permalink to this definition">¶</a></dt>
 <dd><p>Avoid tqdm progress bar interruption by logger’s output to console</p>
@@ -401,9 +341,9 @@ output to the stream.</p>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="slideflow.util.get_model_params">
-<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">get_model_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.get_model_params" title="Permalink to this definition">¶</a></dt>
-<dd><p>Loads model hyperparameters JSON file.</p>
+<dt class="sig sig-object py" id="slideflow.util.get_model_config">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">get_model_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.get_model_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads model configuration JSON file.</p>
 </dd></dl>
 
 <dl class="py function">
@@ -487,6 +427,20 @@ output to the stream.</p>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="slideflow.util.to_onehot">
+<span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">to_onehot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">val</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.to_onehot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts value to one-hot encoding</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>val</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Value to encode</p></li>
+<li><p><strong>max</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Maximum value (length of onehot encoding)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="slideflow.util.update_results_log">
 <span class="sig-prename descclassname"><span class="pre">slideflow.util.</span></span><span class="sig-name descname"><span class="pre">update_results_log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results_log_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">results_dict</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.util.update_results_log" title="Permalink to this definition">¶</a></dt>
 <dd><p>Dynamically update results_log when recording training metrics.</p>
@@ -514,7 +468,7 @@ output to the stream.</p>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="tutorial1.html" class="btn btn-neutral float-right" title="Tutorial 1: Quick Start" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="tutorial1.html" class="btn btn-neutral float-right" title="Tutorial 1: Model training (simple)" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
         <a href="statistics.html" class="btn btn-neutral" title="slideflow.statistics" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>

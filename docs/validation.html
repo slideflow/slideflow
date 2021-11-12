@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Validation Planning &mdash; slideflow 1.12.0 documentation</title>
+  <title>Validation Planning &mdash; slideflow 1.0.0 documentation</title>
   
 
   
@@ -75,11 +75,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Tutorials</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Showcase</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
@@ -114,7 +110,7 @@
               
               
                 <div class="version">
-                  1.12
+                  1.0
                 </div>
               
             
@@ -150,7 +146,7 @@
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
@@ -159,8 +155,8 @@
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
@@ -171,8 +167,8 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Using a Trainer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
 </ul>
 
             
@@ -253,7 +249,7 @@
 <li><p><strong>Validation data</strong> - data used for performance testing during training</p></li>
 <li><p><strong>Evaluation data</strong> - data used for final evaluation once training has completed. Preferably an external cohort.</p></li>
 </ol>
-<p>Validation data is used to assess model performance and generalizability during training. Once the model and hyperparameters have been tuned with training/validation, the final model’s performance is assessed on the held-out evaluation set.</p>
+<p>Validation data is used to assess model performance and generalizability during training. Once the model and parameters have been tuned with training/validation, the final model’s performance is assessed on the held-out evaluation set.</p>
 <div class="section" id="configuring-a-validation-plan">
 <h2>Configuring a validation plan<a class="headerlink" href="#configuring-a-validation-plan" title="Permalink to this headline">¶</a></h2>
 <p>There are several ways you can plan to validate your data. The validation settings available include:</p>

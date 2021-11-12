@@ -1,11 +1,6 @@
-# +-----------------------------------------+
-# | Written and maintained by James Dolezal |
-# | james.dolezal@uchospitals.edu           |
-# +-----------------------------------------+
-
 import os
 
-__version__ = "1.13.0-dev1"
+__version__ = "1.0.0"
 
 if 'SF_BACKEND' not in os.environ:
     os.environ['SF_BACKEND'] = 'tensorflow'
@@ -40,9 +35,7 @@ def backend():
 #       - Tutorial 7: Clinical models, CPH outcome, permutation feature importance
 #       - Tutorial 8: Hyperparameter sweeps
 #       - Tutorial 9: Class-conditional GAN with StyleGAN2
-#TODO: test all models, test custom models (attention to Features)
 #TODO: pytorch neptune integration
-#TODO: better extraction reports
 
 # Low priority consistency/style changes:
 # ---------------------
@@ -52,7 +45,6 @@ def backend():
 #TODO: filter.py script
 #TODO: update.py script
 #TODO: resize_tfrecords()
-#TODO: consistent "decode" for get_tfrecord_parser in tensorflow/torch (decode should decode images + slide name)
 
 # Future updates
 # ===============
@@ -61,6 +53,3 @@ def backend():
 #TODO: statistics.permutation_feature_importance (-> Features)
 #TODO: statistics.predict_from_layer (used for permutation_feature_importance)
 #TODO: implement native TF normalizers to improve realtime normalization speed
-#TODO: put tfrecord report in tfrecord directories & include information
-#         on normalization, filtering, slideflow version, etc
-#TODO: consider multithreading sf.tfrecord.reader:255-258 (parsing of records)

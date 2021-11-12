@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.mosaic &mdash; slideflow 1.12.0 documentation</title>
+  <title>slideflow.mosaic &mdash; slideflow 1.0.0 documentation</title>
   
 
   
@@ -75,11 +75,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Tutorials</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Showcase</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
@@ -114,7 +110,7 @@
               
               
                 <div class="version">
-                  1.12
+                  1.0
                 </div>
               
             
@@ -150,7 +146,7 @@
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
@@ -159,8 +155,8 @@
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
@@ -171,8 +167,8 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Using a Trainer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
 </ul>
 
             
@@ -247,31 +243,31 @@
               
   <div class="section" id="slideflow-mosaic">
 <h1>slideflow.mosaic<a class="headerlink" href="#slideflow-mosaic" title="Permalink to this headline">¶</a></h1>
-<p>This module provides the <a class="reference internal" href="#slideflow.mosaic.Mosaic" title="slideflow.mosaic.Mosaic"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.mosaic.Mosaic</span></code></a> class, which plots tile images onto a map of slides,
+<p>This module provides the <a class="reference internal" href="#slideflow.Mosaic" title="slideflow.Mosaic"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Mosaic</span></code></a> class, which plots tile images onto a map of slides,
 generating mosaic maps.</p>
 <p>The idea of a mosaic map is to visualize image feature variation across slides and among categories, in an attempt
 to better understand the kinds of image features discriminative models might be using to generate class predictions.
-They are created by first generating whole-dataset activations (using
-<a class="reference internal" href="activations.html#slideflow.activations.ActivationsVisualizer" title="slideflow.activations.ActivationsVisualizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.activations.ActivationsVisualizer</span></code></a>), which are then mapped into two-dimensional space using UMAP
-dimensionality reduction (<a class="reference internal" href="statistics.html#slideflow.statistics.SlideMap" title="slideflow.statistics.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.statistics.SlideMap</span></code></a>). This resulting SlideMap is then passed to
-<a class="reference internal" href="#slideflow.mosaic.Mosaic" title="slideflow.mosaic.Mosaic"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.mosaic.Mosaic</span></code></a>, which overlays tile images onto the dimensionality-reduced slide map.</p>
+They are created by first generating whole-dataset layer features (using
+<a class="reference internal" href="model.html#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.DatasetFeatures</span></code></a>), which are then mapped into two-dimensional space using UMAP
+dimensionality reduction (<a class="reference internal" href="statistics.html#slideflow.SlideMap" title="slideflow.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code></a>). This resulting SlideMap is then passed to
+<a class="reference internal" href="#slideflow.Mosaic" title="slideflow.Mosaic"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Mosaic</span></code></a>, which overlays tile images onto the dimensionality-reduced slide map.</p>
 <p>An example of a mosaic map can be found in Figure 4 of <a class="reference external" href="https://doi.org/10.1038/s41379-020-00724-3">this paper</a>.
 It bears some resemblence to the Activation Atlases created by
 <a class="reference external" href="https://distill.pub/2019/activation-atlas/">Google and OpenAI</a>, without the use of feature inversion.</p>
 <div class="section" id="mosaic">
 <h2>Mosaic<a class="headerlink" href="#mosaic" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
-<dt class="sig sig-object py" id="slideflow.mosaic.Mosaic">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.mosaic.</span></span><span class="sig-name descname"><span class="pre">Mosaic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slide_map</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tfrecords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focus</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">leniency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expanded</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_zoom</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_tiles_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'high'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_select</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'nearest'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_meta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focus_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.mosaic.Mosaic" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="slideflow.Mosaic">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.</span></span><span class="sig-name descname"><span class="pre">Mosaic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slide_map</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tfrecords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focus</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">leniency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expanded</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_zoom</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_tiles_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'high'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_select</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'nearest'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_meta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focus_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Mosaic" title="Permalink to this definition">¶</a></dt>
 <dd><p>Visualization of tiles mapped using dimensionality reduction.</p>
 <dl class="py method">
-<dt class="sig sig-object py" id="slideflow.mosaic.Mosaic.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slide_map</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tfrecords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focus</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">leniency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expanded</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_zoom</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_tiles_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'high'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_select</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'nearest'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_meta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focus_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.mosaic.Mosaic.__init__" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="slideflow.Mosaic.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slide_map</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tfrecords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focus</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">leniency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expanded</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_zoom</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_tiles_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'high'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_select</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'nearest'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_meta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focus_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Mosaic.__init__" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generate a mosaic map.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>slide_map</strong> (<a class="reference internal" href="statistics.html#slideflow.statistics.SlideMap" title="slideflow.statistics.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.statistics.SlideMap</span></code></a>) – SlideMap object.</p></li>
+<li><p><strong>slide_map</strong> (<a class="reference internal" href="statistics.html#slideflow.SlideMap" title="slideflow.statistics.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.statistics.SlideMap</span></code></a>) – SlideMap object.</p></li>
 <li><p><strong>tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em>) – List of tfrecords paths.</p></li>
 <li><p><strong>focus</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – List of tfrecords (paths) to highlight on the mosaic.</p></li>
 <li><p><strong>leniency</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – UMAP leniency.</p></li>
@@ -292,36 +288,36 @@ Dictionary should have slide names as keys, mapped to .ist of metadata
 <li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy to use on image tiles. Defaults to None.</p></li>
 <li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image. Defaults to None.
 If None but using a normalizer, will use an internal tile for normalization.
-Internal default tile can be found at slideflow.util.norm_tile.jpg</p></li>
+Internal default tile can be found at slideflow.slide.norm_tile.jpg</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="slideflow.mosaic.Mosaic.display">
-<span class="sig-name descname"><span class="pre">display</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.mosaic.Mosaic.display" title="Permalink to this definition">¶</a></dt>
-<dd><p>Displays the mosaic map as an interactive matplotlib figure.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="slideflow.mosaic.Mosaic.focus">
-<span class="sig-name descname"><span class="pre">focus</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfrecords</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.mosaic.Mosaic.focus" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="slideflow.Mosaic.focus">
+<span class="sig-name descname"><span class="pre">focus</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfrecords</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Mosaic.focus" title="Permalink to this definition">¶</a></dt>
 <dd><p>Highlights certain tiles according to a focus list if list provided,
 or resets highlighting if no tfrecords provided.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="slideflow.mosaic.Mosaic.save">
-<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.mosaic.Mosaic.save" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="slideflow.Mosaic.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Mosaic.save" title="Permalink to this definition">¶</a></dt>
 <dd><p>Saves the mosaic map figure to the given filename.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="slideflow.mosaic.Mosaic.save_report">
-<span class="sig-name descname"><span class="pre">save_report</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.mosaic.Mosaic.save_report" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="slideflow.Mosaic.save_report">
+<span class="sig-name descname"><span class="pre">save_report</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Mosaic.save_report" title="Permalink to this definition">¶</a></dt>
 <dd><p>Saves a report of which tiles (and their corresponding slide)
 were displayed on the Mosaic map, in CSV format.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.Mosaic.show">
+<span class="sig-name descname"><span class="pre">show</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Mosaic.show" title="Permalink to this definition">¶</a></dt>
+<dd><p>Displays the mosaic map as an interactive matplotlib figure.</p>
 </dd></dl>
 
 </dd></dl>

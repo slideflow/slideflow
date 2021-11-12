@@ -15,7 +15,7 @@ Once training and hyperparameter tuning is complete, you can test model performa
         outcome_label_headers="category",
         filters={"dataset": ["evaluation"]})
 
-.. autofunction:: slideflow.project.Project.evaluate
+.. autofunction:: slideflow.Project.evaluate
    :noindex:
 
 Heatmaps
@@ -29,7 +29,7 @@ To generate a predictive heatmap for a set of slides, use the ``generate_heatmap
         model="/path/to/trained_model_epoch1",
         filters={"dataset": ["evaluation"]})
 
-.. autofunction:: slideflow.project.Project.generate_heatmaps
+.. autofunction:: slideflow.Project.generate_heatmaps
    :noindex:
 
 If you would like to directly interact with the calculated heatmap data, create a :class:`slideflow.Heatmap` object by providing a path to a slide, a path to a model, and tile size information:

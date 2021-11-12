@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Setting up a Project &mdash; slideflow 1.12.0 documentation</title>
+  <title>Setting up a Project &mdash; slideflow 1.0.0 documentation</title>
   
 
   
@@ -75,11 +75,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Tutorials</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Showcase</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
@@ -114,7 +110,7 @@
               
               
                 <div class="version">
-                  1.12
+                  1.0
                 </div>
               
             
@@ -150,7 +146,7 @@
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
@@ -159,8 +155,8 @@
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
@@ -171,8 +167,8 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Using a Trainer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
 </ul>
 
             
@@ -273,36 +269,32 @@ Each line is a unique slide.</p></td>
 <tr class="row-even"><td><p><strong>eval_dir</strong></p></td>
 <td><p>Path, where model evaluation results are saved.</p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>batch_train_config</strong></p></td>
-<td><p>Path to TSV file, where hyperparameter sweep
-configurations will be saved.</p></td>
-</tr>
-<tr class="row-even"><td><p><strong>mixed_precision</strong></p></td>
+<tr class="row-odd"><td><p><strong>mixed_precision</strong></p></td>
 <td><p>Bool, whether models should be trained using
 mixed precision (16-bit vs. 32-bit).</p></td>
 </tr>
 </tbody>
 </table>
-<div class="section" id="sf-project">
-<h2>sf.Project<a class="headerlink" href="#sf-project" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="project-class">
+<h2>Project class<a class="headerlink" href="#project-class" title="Permalink to this headline">¶</a></h2>
 <p>To interactively create a new project, initialize a Project with the <code class="docutils literal notranslate"><span class="pre">from_prompt</span></code> initializer:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-<span class="n">SFP</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="o">.</span><span class="n">from_prompt</span><span class="p">(</span><span class="s1">&#39;/path/to/project/directory&#39;</span><span class="p">)</span>
+<span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="o">.</span><span class="n">from_prompt</span><span class="p">(</span><span class="s1">&#39;/path/to/project/directory&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>You will then be prompted for each project configuration setting.</p>
 <p>Alternatively, you may provide this configuration through keyword arguments:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-<span class="n">SFP</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/path/to/project/directory&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;MyProject&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+<span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/path/to/project/directory&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;MyProject&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Once a project has been initialized at a directory, you may then load the project with the following syntax:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-<span class="n">SFP</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/path/to/project/directory&#39;</span><span class="p">)</span>
+<span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/path/to/project/directory&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Pipeline functions are then called on <code class="docutils literal notranslate"><span class="pre">SFP</span></code>.</p>
-<p>Alternatively, you can use the bundled <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script to execute project functions. This script helps by setting some useful environmental variables and can be used to easily manage GPU allocations. It initializes a <code class="docutils literal notranslate"><span class="pre">Project</span></code> object at a given directory, then looks for and loads an <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file in this directory, executing functions contained therein.</p>
+<p>Pipeline functions are then called on <code class="docutils literal notranslate"><span class="pre">P</span></code>.</p>
+<p>Alternatively, you can use the bundled <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script to execute project functions stored in <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> files in project directories. When <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> is run, it initializes a <code class="docutils literal notranslate"><span class="pre">Project</span></code> object at a given directory, then looks for and loads an <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file in this directory, executing functions contained therein.</p>
 <p>To create a new project with this script, or execute functions on an existing project, use the following syntax:</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">james@example:~/slideflow/source$ </span>python3 run_project.py -p /path/to/project/directory
 </pre></div>
@@ -325,11 +317,11 @@ mixed precision (16-bit vs. 32-bit).</p></td>
 </pre></div>
 </div>
 <p>Datasets are configured either interactively at the time of project initialization, or may be added by calling <code class="docutils literal notranslate"><span class="pre">Project.add_dataset()</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">add_dataset</span><span class="p">(</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;NAME&quot;</span><span class="p">,</span>
-                 <span class="n">slides</span><span class="o">=</span><span class="s2">&quot;/slides/directory&quot;</span><span class="p">,</span>
-                 <span class="n">roi</span><span class="o">=</span><span class="s2">&quot;/roi/directory&quot;</span><span class="p">,</span>
-                 <span class="n">tiles</span><span class="o">=</span><span class="s2">&quot;/tiles/directory&quot;</span><span class="p">,</span>
-                 <span class="n">tfrecords</span><span class="o">=</span><span class="s2">&quot;/tfrecords/directory&quot;</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">add_dataset</span><span class="p">(</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;NAME&quot;</span><span class="p">,</span>
+               <span class="n">slides</span><span class="o">=</span><span class="s2">&quot;/slides/directory&quot;</span><span class="p">,</span>
+               <span class="n">roi</span><span class="o">=</span><span class="s2">&quot;/roi/directory&quot;</span><span class="p">,</span>
+               <span class="n">tiles</span><span class="o">=</span><span class="s2">&quot;/tiles/directory&quot;</span><span class="p">,</span>
+               <span class="n">tfrecords</span><span class="o">=</span><span class="s2">&quot;/tfrecords/directory&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -338,7 +330,7 @@ mixed precision (16-bit vs. 32-bit).</p></td>
 <p>Your annotations CSV file is used to label patients and slides with clinical data and/or other outcome variables (or additional input variables) that will be used for training. Each line in the annotations file should correspond to a unique slide.</p>
 <p>The annotations file may contain as many columns as you would like, but it must contain the following headers at minimum:</p>
 <ul class="simple">
-<li><p><strong>submitter_id</strong>: patient identifier</p></li>
+<li><p><strong>patient</strong>: patient identifier</p></li>
 <li><p><strong>slide</strong>: slide name / identifier (without the file extension)</p></li>
 </ul>
 <p>An example annotations file is given below:</p>
@@ -350,7 +342,7 @@ mixed precision (16-bit vs. 32-bit).</p></td>
 <col style="width: 42%" />
 </colgroup>
 <tbody>
-<tr class="row-odd"><td><p><em>submitter_id</em></p></td>
+<tr class="row-odd"><td><p><em>patient</em></p></td>
 <td><p><em>category</em></p></td>
 <td><p><em>dataset</em></p></td>
 <td><p><em>slide</em></p></td>
@@ -378,18 +370,18 @@ mixed precision (16-bit vs. 32-bit).</p></td>
 </tbody>
 </table>
 <p>An example annotations file is generated each time a new project is initialized. To manually generate an empty annotations file that contains all detected slides, use the bundled <code class="docutils literal notranslate"><span class="pre">Project</span></code> function:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">create_blank_annotations</span><span class="p">()</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">create_blank_annotations</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>Slide names do not need to be explicitly set in the annotations file by the user. Rather, once a dataset has been set up, slideflow will search through the linked slide directories and attempt to match slides to entries in the annotations file using <strong>submitter_id</strong>. Entries that are blank in the <strong>slide</strong> column will be auto-populated with any detected and matching slides, if available.</p>
+<p>Slide names do not need to be explicitly set in the annotations file by the user. Rather, once a dataset has been set up, slideflow will search through the linked slide directories and attempt to match slides to entries in the annotations file using <strong>patient</strong>. Entries that are blank in the <strong>slide</strong> column will be auto-populated with any detected and matching slides, if available.</p>
 </div>
 <div class="section" id="executing-commands">
 <span id="execute"></span><h2>Executing commands<a class="headerlink" href="#executing-commands" title="Permalink to this headline">¶</a></h2>
 <p>If you plan to use <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code>, open the <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file located in the project directory. It should look something like this:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">SFP</span><span class="p">):</span>
-    <span class="c1">#SFP.extract_tiles(filters = {&#39;to_extract&#39;: &#39;yes&#39;})</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">P</span><span class="p">):</span>
+    <span class="c1">#P.extract_tiles(filters = {&#39;to_extract&#39;: &#39;yes&#39;})</span>
 
-    <span class="c1">#SFP.train(</span>
+    <span class="c1">#P.train(</span>
     <span class="c1">#      outcome_label_headers=&quot;category&quot;,</span>
     <span class="c1">#      filters = {</span>
     <span class="c1">#          &#39;dataset&#39;: &#39;train&#39;,</span>
@@ -398,15 +390,15 @@ mixed precision (16-bit vs. 32-bit).</p></td>
     <span class="c1">#      batch_file=&#39;batch_train.tsv&#39;)</span>
 
     <span class="c1">#model_to_evaluate = &#39;/path_to_model/&#39;</span>
-    <span class="c1">#SFP.evaluate(model=model_to_evaluate, outcome_label_headers=&quot;category&quot;, filters = {&#39;dataset&#39;: &#39;eval&#39;})</span>
-    <span class="c1">#SFP.generate_heatmaps(model_to_evaluate)</span>
-    <span class="c1">#SFP.generate_mosaic(model_to_evaluate)</span>
+    <span class="c1">#P.evaluate(model=model_to_evaluate, outcome_label_headers=&quot;category&quot;, filters = {&#39;dataset&#39;: &#39;eval&#39;})</span>
+    <span class="c1">#P.generate_heatmaps(model_to_evaluate)</span>
+    <span class="c1">#P.generate_mosaic(model_to_evaluate)</span>
     <span class="k">pass</span>
 </pre></div>
 </div>
 <p>The <code class="docutils literal notranslate"><span class="pre">main()</span></code> function contains several example functions. These serve as examples to help remind you of functions and arguments you can use on projects.</p>
 <p>To execute the commands you have prepared in this file, execute the <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script pointing to your project directory.</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">james@example:~/slideflow/source$ </span>python3 run_project.py -g <span class="m">1</span> -p /path/to/project/directory
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">james@example:~/slideflow/source$ </span>python3 run_project.py -p /path/to/project/directory
 </pre></div>
 </div>
 </div>
@@ -456,7 +448,7 @@ mixed precision (16-bit vs. 32-bit).</p></td>
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
 <li><a class="reference internal" href="#">Setting up a Project</a><ul>
-<li><a class="reference internal" href="#sf-project">sf.Project</a></li>
+<li><a class="reference internal" href="#project-class">Project class</a></li>
 <li><a class="reference internal" href="#configuring-datasets">Configuring Datasets</a></li>
 <li><a class="reference internal" href="#setting-up-annotations">Setting up annotations</a></li>
 <li><a class="reference internal" href="#executing-commands">Executing commands</a></li>

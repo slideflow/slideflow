@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>CLAM &mdash; slideflow 1.12.0 documentation</title>
+  <title>CLAM &mdash; slideflow 1.0.0 documentation</title>
   
 
   
@@ -32,7 +32,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="PyTorch" href="torch.html" />
-    <link rel="prev" title="Layer activations" href="layer_activations.html" />
+    <link rel="prev" title="Features / layer activations" href="layer_activations.html" />
   <!-- Google Analytics -->
   
   <!-- End Google Analytics -->
@@ -75,11 +75,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Tutorials</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Showcase</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
@@ -114,7 +110,7 @@
               
               
                 <div class="version">
-                  1.12
+                  1.0
                 </div>
               
             
@@ -150,7 +146,7 @@
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
@@ -159,8 +155,8 @@
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
@@ -171,8 +167,8 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Using a Trainer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
 </ul>
 
             
@@ -250,8 +246,8 @@
 <p>In addition to standard Tensorflow/Keras model applications, slideflow supports training models with <a class="reference external" href="https://github.com/mahmoodlab/CLAM">CLAM</a>. A slightly modified version of CLAM which supports slideflow dataset and input pipelines is included in <code class="docutils literal notranslate"><span class="pre">slideflow.clam</span></code>.</p>
 <div class="section" id="creating-slide-activations">
 <h2>Creating slide activations<a class="headerlink" href="#creating-slide-activations" title="Permalink to this headline">¶</a></h2>
-<p>The first step in the CLAM pipeline is generating tile-level activations across whole-slide images. While the original <a class="reference external" href="https://arxiv.org/abs/2004.09666">CLAM paper</a> used features generated from an imagenet-trained model, we have found it useful to generate feature activations from models pretrained with histology images. To this end, the project function <a class="reference internal" href="project.html#slideflow.project.Project.generate_features_for_clam" title="slideflow.project.Project.generate_features_for_clam"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.project.Project.generate_features_for_clam()</span></code></a> accepts any model as input and will generate feature vectors from the specified intermediate layers. For example:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">generate_features_for_clam</span><span class="p">(</span>
+<p>The first step in the CLAM pipeline is generating tile-level activations across whole-slide images. While the original <a class="reference external" href="https://arxiv.org/abs/2004.09666">CLAM paper</a> used features generated from an imagenet-trained model, we have found it useful to generate feature activations from models pretrained with histology images. To this end, the project function <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.project.Project.generate_features_for_clam()</span></code> accepts any model as input and will generate feature vectors from the specified intermediate layers. For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">generate_features_for_clam</span><span class="p">(</span>
     <span class="n">model</span><span class="o">=</span><span class="s1">&#39;/path/to/saved/model&#39;</span><span class="p">,</span>
     <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/clam/path&#39;</span><span class="p">,</span>
     <span class="n">layers</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;postconv&#39;</span><span class="p">]</span>
@@ -261,13 +257,13 @@
 </div>
 <div class="section" id="training">
 <h2>Training<a class="headerlink" href="#training" title="Permalink to this headline">¶</a></h2>
-<p>To train a CLAM model, use the project function <a class="reference internal" href="project.html#slideflow.project.Project.train_clam" title="slideflow.project.Project.train_clam"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.project.Project.train_clam()</span></code></a>. Clam arguments are configured with <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.clam.get_args()</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">SFP</span><span class="o">.</span><span class="n">get_dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
-<span class="n">SFP</span><span class="o">.</span><span class="n">generate_features_for_clam</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/clam/path&#39;</span><span class="p">)</span>
+<p>To train a CLAM model, use the project function <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.project.Project.train_clam()</span></code>. Clam arguments are configured with <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.clam.get_args()</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
+<span class="n">P</span><span class="o">.</span><span class="n">generate_features_for_clam</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/clam/path&#39;</span><span class="p">)</span>
 
 <span class="n">clam_args</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">clam</span><span class="o">.</span><span class="n">get_args</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">bag_loss</span><span class="o">=</span><span class="s1">&#39;svm&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 
-<span class="n">SFP</span><span class="o">.</span><span class="n">train_clam</span><span class="p">(</span>
+<span class="n">P</span><span class="o">.</span><span class="n">train_clam</span><span class="p">(</span>
     <span class="n">exp_name</span><span class="o">=</span><span class="s1">&#39;test_experiment&#39;</span><span class="p">,</span>
     <span class="n">pt_files</span><span class="o">=</span><span class="s1">&#39;/clam/path&#39;</span><span class="p">,</span>
     <span class="n">outcome_label_headers</span><span class="o">=</span><span class="s1">&#39;category1&#39;</span><span class="p">,</span>
@@ -280,10 +276,10 @@
 </div>
 <div class="section" id="evaluation">
 <h2>Evaluation<a class="headerlink" href="#evaluation" title="Permalink to this headline">¶</a></h2>
-<p>To evaluate a saved CLAM model on an external dataset, first extract features from this dataset, then use the project function <a class="reference internal" href="project.html#slideflow.project.Project.evaluate_clam" title="slideflow.project.Project.evaluate_clam"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.project.Project.evaluate_clam()</span></code></a>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span><span class="o">.</span><span class="n">generate_features_for_clam</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/eval/clam/path&#39;</span><span class="p">)</span>
+<p>To evaluate a saved CLAM model on an external dataset, first extract features from this dataset, then use the project function <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.project.Project.evaluate_clam()</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">generate_features_for_clam</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/eval/clam/path&#39;</span><span class="p">)</span>
 
-<span class="n">SFP</span><span class="o">.</span><span class="n">evaluate_clam</span><span class="p">(</span>
+<span class="n">P</span><span class="o">.</span><span class="n">evaluate_clam</span><span class="p">(</span>
     <span class="n">exp_name</span><span class="o">=</span><span class="s1">&#39;evaluation&#39;</span><span class="p">,</span>
     <span class="n">pt_files</span><span class="o">=</span><span class="s1">&#39;/eval/clam/path&#39;</span><span class="p">,</span>
     <span class="n">outcome_label_headers</span><span class="o">=</span><span class="s1">&#39;category1&#39;</span><span class="p">,</span>
@@ -306,7 +302,7 @@
         <a href="torch.html" class="btn btn-neutral float-right" title="PyTorch" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
-        <a href="layer_activations.html" class="btn btn-neutral" title="Layer activations" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+        <a href="layer_activations.html" class="btn btn-neutral" title="Features / layer activations" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
       
     </div>
   

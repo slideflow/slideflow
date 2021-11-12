@@ -1,27 +1,21 @@
 Troubleshooting
 ===============
 
-If you're running into problems, look for more information by including debug logging. To enable debug logging, use python's built-in ``logging`` class to set the ``'slideflow'`` logging level to ``logging.DEBUG`` prior to loading a model:
+If you're running into problems, look for more information by including debug logging. To enable debug logging, set the environmental variable ``SF_BACKEND=10``.
 
-.. code-block:: python
-
-    import logging
-    logging.getLogger('slideflow').setLevel(logging.DEBUG)
-    P = sf.Project(...)
-
-To check for errors in your environment or installation, you can also use the included testing suite ``slideflow.test.TestSuite`` to look for issues with executing pipeline functions.
+To check for errors in your environment or installation, you can also use the included testing suite ``slideflow.test.TestSuite`` to look for issues with executing pipeline functions, as described below.
 
 Testing
 *******
 
-The ``slideflow.test.TestSuite`` can use either a directory of already available slides, or it can download a set of example files from `The Cancer Genome Atlas <https://portal.gdc.cancer.gov/>`_ (TCGA) for testing. To initialize the testing suite, use the following syntax:
+The ``slideflow.test.TestSuite`` can test all pipeline functions using a directory of available slides. To initialize the testing suite, use the following syntax:
 
 .. code-block:: python
 
     from slideflow.test import TestSuite
     TS = TestSuite('/path/to/testing/directory', slides='/path/to/slides')
 
-If ``slides`` is not provided, a set of random slides will be downloaded from TCGA for testing.
+If ``slides`` is set to ``'download'``, a set of slides will be downloaded from The Cancer Genome Atlas (TCGA) for testing.
 
 For debugging and troubleshooting, you can use the verbosity argument to include debugging logs:
 

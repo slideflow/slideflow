@@ -1,11 +1,9 @@
 Pipeline Overview
 =================
 
-.. image:: pipeline_overview.png
-
 The overall pipeline is separated into two phases and 6 steps.
 
-The first phase - **Model Creation** - involves three steps: 1) labeling slides with regions of interest (ROIs), 2) tessellating and preparing image tiles from the slides, and 3) training a model.
+The first phase - **Model Creation** - involves three steps: 1) labeling slides with regions of interest (ROIs), 2) segmenting and preparing image tiles from the slides, and 3) training a model.
 
 The second phase - **Model Assessment** - also involves three steps: 1) analytics describing model performance, including basic measures like percent accuracy, ROCs, and scatter plots, 2) creating heatmap overlays for whole-slide images to visualize predictions, and 3) generating mosaic maps to visualize learned image features.
 
@@ -22,13 +20,7 @@ Step 1: Create ROIs
 Step 2: Data Preparation
 ************************
 
-.. image:: tile_extraction.png
-
-.. image:: saving_tfrecords.png
-
 2) **Extract tiles**. Once ROIs have been created, tiles will need to be extracted from the ROIs across all of your slides. Tiles will be extracted at a given magnification size in microns, and saved at a given resolution in pixels. The optimal extraction size in both microns and pixels will depend on your dataset and model architecture. Poor quality tiles - including background tiles or tiles with high whitespace content - will be automatically discarded. Tiles will be stored as TFRecords, a binary file format used to improve dataset reading performance during training. Each slide will have its own TFRecord file containing its extracted tiles.
-
-.. image:: dataset_assembly.png
 
 3) **Set aside final evaluation set**. Using the project annotations CSV file, designate which slides should be saved for final evaluation.
 

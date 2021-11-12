@@ -1270,6 +1270,41 @@ class WSI(_BaseLoader):
         self.tile_mask = np.asarray([False for i in range(len(self.coord))], dtype=np.bool)
         self.grid = np.zeros((len(x_range), len(y_range)))
 
+    def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, img_format='png', report=True, **kwargs):
+        """Extracts tiles from slide using the build_generator() method,
+        saving tiles into a TFRecord file or as loose JPG tiles in a directory.
+
+        Args:
+            tfrecord_dir (str): If provided, saves tiles into a TFRecord file (named according to slide name) here.
+            tiles_dir (str): If provided, saves loose images into a subdirectory (per slide name) here.
+            img_format (str): 'png' or 'jpg'. Format of images for internal storage in tfrecords.
+                PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
+
+        Keyword Args:
+            whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
+                Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.
+            whitespace_threshold (int, optional): Range 0-255. Defaults to 230.
+                Threshold above which a pixel (RGB average) is considered whitespace.
+            grayspace_fraction (float, optional): Range 0-1. Defaults to 0.6.
+                Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.
+            grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
+                Pixels in HSV format with saturation below this threshold are considered grayspace.
+            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
+                If None but using a normalizer, will use an internal tile for normalization.
+                Internal default tile can be found at slideflow.slide.norm_tile.jpg
+            full_core (bool, optional): Extract an entire detected core, rather than subdividing into image tiles.
+                Defaults to False.
+            shuffle (bool): Shuffle images during extraction.
+            num_threads (int): Number of threads to allocate to tile extraction workers.
+            yolo (bool, optional): Export yolo-formatted tile-level ROI annotations (.txt) in the tile directory.
+                Requires that tiles_dir is set. Defaults to False.
+            draw_roi (bool, optional): Draws ROIs onto extracted tiles. Defaults to False.
+            dry_run (bool, optional): Determine tiles that would be extracted, but do not export any images.
+                Defaults to None.
+        """
+        super().extract_tiles(tfrecord_dir, tiles_dir, img_format, report, **kwargs)
+
     def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None,
                         grayspace_fraction=None, grayspace_threshold=None, normalizer=None, normalizer_source=None,
                         include_loc=True, num_threads=8, show_progress=False, img_format='numpy', full_core=None,
@@ -1301,11 +1336,9 @@ class WSI(_BaseLoader):
                 Defaults to None.
 
         Returns:
-            dict: {
-                'image': image data, formatted according to `img_format`
-                'yolo':  optional, yolo-formatted annotations in list format (x_center, y_center, width, height)
-                'grid':  [x, y] slide coordinates (include_loc==True), or [x, y] grid coordinates (include_loc=='grid').
-            }
+            dict, with keys 'image' (image data), 'yolo' (optional yolo-formatted annotations, (x_center, y_center,
+            width, height)) and 'grid' ((x, y) slide or grid coordinates)
+
         """
 
         super().build_generator()
@@ -1668,6 +1701,41 @@ class TMA(_BaseLoader):
             cv2.imwrite(join(report_dir, "tma_extraction_report.jpg"), cv2.resize(img_annotated, (1400, 1000)))
 
         return num_filtered, num_filtered
+
+    def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, img_format='png', report=True, **kwargs):
+        """Extracts tiles from slide using the build_generator() method,
+        saving tiles into a TFRecord file or as loose JPG tiles in a directory.
+
+        Args:
+            tfrecord_dir (str): If provided, saves tiles into a TFRecord file (named according to slide name) here.
+            tiles_dir (str): If provided, saves loose images into a subdirectory (per slide name) here.
+            img_format (str): 'png' or 'jpg'. Format of images for internal storage in tfrecords.
+                PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
+
+        Keyword Args:
+            whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
+                Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.
+            whitespace_threshold (int, optional): Range 0-255. Defaults to 230.
+                Threshold above which a pixel (RGB average) is considered whitespace.
+            grayspace_fraction (float, optional): Range 0-1. Defaults to 0.6.
+                Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.
+            grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
+                Pixels in HSV format with saturation below this threshold are considered grayspace.
+            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
+                If None but using a normalizer, will use an internal tile for normalization.
+                Internal default tile can be found at slideflow.slide.norm_tile.jpg
+            full_core (bool, optional): Extract an entire detected core, rather than subdividing into image tiles.
+                Defaults to False.
+            shuffle (bool): Shuffle images during extraction.
+            num_threads (int): Number of threads to allocate to tile extraction workers.
+            yolo (bool, optional): Export yolo-formatted tile-level ROI annotations (.txt) in the tile directory.
+                Requires that tiles_dir is set. Defaults to False.
+            draw_roi (bool, optional): Draws ROIs onto extracted tiles. Defaults to False.
+            dry_run (bool, optional): Determine tiles that would be extracted, but do not export any images.
+                Defaults to None.
+        """
+        super().extract_tiles(tfrecord_dir, tiles_dir, img_format, report, **kwargs)
 
     def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None, grayspace_fraction=None,
                         grayspace_threshold=None, normalizer=None, normalizer_source=None, include_loc=True,

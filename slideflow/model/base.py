@@ -13,7 +13,7 @@ class FeatureError(Exception):
 class _ModelParams:
     """Build a set of hyperparameters."""
 
-    def __init__(self, tile_px=299, tile_um=302, epochs=10, toplayer_epochs=0, model='xception', pooling='max',
+    def __init__(self, tile_px=299, tile_um=302, epochs=3, toplayer_epochs=0, model='xception', pooling='max',
                  loss='sparse_categorical_crossentropy', learning_rate=0.0001, learning_rate_decay=0,
                  learning_rate_decay_steps=100000, batch_size=16, hidden_layers=0, hidden_layer_width=500,
                  optimizer='Adam', early_stop=False, early_stop_patience=0, early_stop_method='loss',
@@ -25,7 +25,7 @@ class _ModelParams:
         Args:
             tile_px (int, optional): Tile width in pixels. Defaults to 299.
             tile_um (int, optional): Tile width in microns. Defaults to 302.
-            epochs (int, optional): Number of epochs to train the full model. Defaults to 10.
+            epochs (int, optional): Number of epochs to train the full model. Defaults to 3.
             toplayer_epochs (int, optional): Number of epochs to only train the fully-connected layers. Defaults to 0.
             model (str, optional): Base model architecture name. Defaults to 'xception'.
             pooling (str, optional): Post-convolution pooling. 'max', 'avg', or 'none'. Defaults to 'max'.

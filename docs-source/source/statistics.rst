@@ -20,7 +20,7 @@ method:
 
 .. code-block:: python
 
-    df = sf.activations.DatasetFeatures(model='/path/', ...)
+    df = sf.model.DatasetFeatures(model='/path/', ...)
     slide_map = sf.SlideMap.from_features(df)
 
 Alternatively, if you would like to map slides from a dataset in two-dimensional space using pre-calculated *x* and *y*
@@ -43,7 +43,7 @@ index in the slide TFRecord.
 SlideMap
 --------
 
-.. autoclass:: SlideMap
+.. autoclass:: slideflow.SlideMap
     :inherited-members:
 
 basic_metrics

@@ -22,5 +22,5 @@ It bears some resemblence to the Activation Atlases created by
 Mosaic
 ------
 
-.. autoclass:: Mosaic
+.. autoclass:: slideflow.Mosaic
     :inherited-members:

@@ -17,15 +17,12 @@ The easiest way to use ``slideflow`` is through the bundled project management c
 +-------------------------------+-------------------------------------------------------+
 | **eval_dir**                  | Path, where model evaluation results are saved.       |
 +-------------------------------+-------------------------------------------------------+
-| **batch_train_config**        | Path to TSV file, where hyperparameter sweep          |
-|                               | configurations will be saved.                         |
-+-------------------------------+-------------------------------------------------------+
 | **mixed_precision**           | Bool, whether models should be trained using          |
 |                               | mixed precision (16-bit vs. 32-bit).                  |
 +-------------------------------+-------------------------------------------------------+
 
-sf.Project
-**********
+Project class
+*************
 
 To interactively create a new project, initialize a Project with the ``from_prompt`` initializer:
 
@@ -52,7 +49,7 @@ Once a project has been initialized at a directory, you may then load the projec
 
 Pipeline functions are then called on ``P``.
 
-Alternatively, you can use the bundled ``run_project.py`` script to execute project functions. This script helps by setting some useful environmental variables and can be used to easily manage GPU allocations. It initializes a ``Project`` object at a given directory, then looks for and loads an ``actions.py`` file in this directory, executing functions contained therein.
+Alternatively, you can use the bundled ``run_project.py`` script to execute project functions stored in ``actions.py`` files in project directories. When ``run_project.py`` is run, it initializes a ``Project`` object at a given directory, then looks for and loads an ``actions.py`` file in this directory, executing functions contained therein.
 
 To create a new project with this script, or execute functions on an existing project, use the following syntax:
 
@@ -86,10 +83,10 @@ Datasets are configured either interactively at the time of project initializati
 .. code-block:: python
 
     P.add_dataset( name="NAME",
-                     slides="/slides/directory",
-                     roi="/roi/directory",
-                     tiles="/tiles/directory",
-                     tfrecords="/tfrecords/directory")
+                   slides="/slides/directory",
+                   roi="/roi/directory",
+                   tiles="/tiles/directory",
+                   tfrecords="/tfrecords/directory")
 
 Setting up annotations
 **********************
@@ -155,4 +152,4 @@ To execute the commands you have prepared in this file, execute the ``run_projec
 
 .. code-block:: console
 
-    james@example:~/slideflow/source$ python3 run_project.py -g 1 -p /path/to/project/directory
+    james@example:~/slideflow/source$ python3 run_project.py -p /path/to/project/directory

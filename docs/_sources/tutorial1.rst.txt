@@ -1,5 +1,5 @@
-Tutorial 1: Quick Start
-=======================
+Tutorial 1: Model training (simple)
+=====================================
 
 In this first tutorial, we will walk through the steps needed to take an example project from start to finish, using
 the bundled ``run_project.py`` script to execute pipeline functions. As with all of these tutorials, we will use
@@ -69,7 +69,7 @@ Setting up annotations
 **********************
 
 With our project initialized, we can set up our annotations file. Use the downloaded annotations file to create a new
-CSV file, with a column "submitter_id" indicating patient name (in the case of TCGA, these are in the format
+CSV file, with a column "patient" indicating patient name (in the case of TCGA, these are in the format
 TCGA-SS-XXXX, where SS indicates site of origin and XXXX is the patient identifier), and a column "er_status_by_ihc"
 containing our outcome of interest. Add a third column "slide" containing the name of the slide associated with the
 patient. If there are multiple slides per patient, list each slide on a separate row. Finally, add a column "dataset"
@@ -84,7 +84,7 @@ dataset for evaluation.
 Your annotations file should look something like:
 
 +-----------------------+--------------------+-----------+-----------------------------------+
-| *submitter_id*        | *er_status_by_ihc* | *dataset* | *slide*                           |
+| *patient*             | *er_status_by_ihc* | *dataset* | *slide*                           |
 +-----------------------+--------------------+-----------+-----------------------------------+
 | TCGA-EL-A23A          | Positive           | train     | TCGA-EL-A3CO-01Z-00-DX1-7BF5F...  |
 +-----------------------+--------------------+-----------+-----------------------------------+
@@ -109,9 +109,9 @@ to the project ``actions.py`` file:
 
 .. code-block:: python
 
-    def main(SFP):
+    def main(P):
         # Extract tiles at 256 pixels, 0.5 um/px
-        SFP.extract_tiles(tile_px=256, tile_um=128)
+        P.extract_tiles(tile_px=256, tile_um=128)
 
 .. hint::
     Tile extraction speed is greatly improved when slides are on an SSD or ramdisk. Slides can be automatically
@@ -123,7 +123,7 @@ to the project ``actions.py`` file:
 
     .. code-block:: python
 
-        SFP.extract_tiles(
+        P.extract_tiles(
             tile_px=256,
             tile_um=128,
             buffer='/mnt/ramdisk',
@@ -140,14 +140,14 @@ hyperparameters, which we can configure with :class:`slideflow.model.ModelParams
 
 .. code-block:: python
 
-    def main(SFP):
+    def main(P):
         from slideflow.model import ModelParams
         ...
 
         hp = ModelParams(
             tile_px=256,
             tile_um=128,
-            model='Xception',
+            model='xception',
             batch_size=32,
             epochs=[3]
         )
@@ -159,13 +159,13 @@ to only include patients with documented ER status (otherwise a blank "" would b
 
 .. code-block:: python
 
-    def main(SFP):
+    def main(P):
         ...
 
         # Train with 5-fold cross-validation
-        SFP.train(
+        P.train(
             'ER_status',
-            hyperparameters=hp,
+            params=hp,
             val_k_fold=5,
             filters={'dataset': ['train'],
                      'er_status_by_ihc': ['Positive', 'Negative']}
@@ -177,13 +177,13 @@ we will set ``val_strategy`` to ``None``:
 
 .. code-block:: python
 
-    def main(SFP):
+    def main(P):
         ...
 
         # Train across the entire training dataset
-        SFP.train(
+        P.train(
             'ER_status',
-            hyperparameters=hp,
+            params=hp,
             val_strategy='none',
             filters={'dataset': ['train'],
                      'er_status_by_ihc': ['Positive', 'Negative']}
@@ -193,33 +193,33 @@ Now, it's time to start our pipeline. To review, our ``actions.py`` file at this
 
 .. code-block:: python
 
-    def main(SFP):
+    def main(P):
         from slideflow.model import ModelParams
 
         # Extract tiles at 256 pixels, 0.5 um/px
-        SFP.extract_tiles(tile_px=256, tile_um=128)
+        P.extract_tiles(tile_px=256, tile_um=128)
 
         hp = ModelParams(
             tile_px=256,
             tile_um=128,
-            model='Xception',
+            model='xception',
             batch_size=32,
             epochs=[3, 5, 10]
         )
 
         # Train with 5-fold cross-validation
-        SFP.train(
+        P.train(
             'ER_status',
-            hyperparameters=hp,
+            params=hp,
             val_k_fold=5,
             filters={'dataset': ['train'],
                      'er_status_by_ihc': ['Positive', 'Negative']}
         )
 
         # Train across the entire training dataset
-        SFP.train(
+        P.train(
             'ER_status',
-            hyperparameters=hp,
+            params=hp,
             val_strategy='none',
             filters={'dataset': ['train'],
                      'er_status_by_ihc': ['Positive', 'Negative']}
@@ -256,8 +256,8 @@ so we will include the following in our ``actions.py`` file to evaluate the save
 
     model = '/home/er_project/models/00003-er_status_by_ihc/er_status_by_ihc_epoch3'
 
-    def main(SFP):
-        SFP.evaluate(
+    def main(P):
+        P.evaluate(
             model,
             'er_status_by_ihc',
             filters={'dataset': ['eval'],

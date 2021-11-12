@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>PyTorch &mdash; slideflow 1.12.0 documentation</title>
+  <title>PyTorch &mdash; slideflow 1.0.0 documentation</title>
   
 
   
@@ -75,11 +75,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Tutorials</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Showcase</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
@@ -114,7 +110,7 @@
               
               
                 <div class="version">
-                  1.12
+                  1.0
                 </div>
               
             
@@ -150,7 +146,7 @@
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
@@ -159,8 +155,8 @@
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
@@ -171,8 +167,8 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Using a Trainer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
 </ul>
 
             
@@ -247,19 +243,24 @@
               
   <div class="section" id="pytorch">
 <h1>PyTorch<a class="headerlink" href="#pytorch" title="Permalink to this headline">¶</a></h1>
-<p>While the primary backend for this package is Tensorflow/Keras, it includes a PyTorch TFRecord reader to ensure extracted and saved image tiles can be served to either Tensorflow or PyTorch models in cross-compatible fashion. There is also early support for a PyTorch model Trainer; full backend support is in development.</p>
-<div class="section" id="tfrecord-dataloader">
-<h2>TFRecord DataLoader<a class="headerlink" href="#tfrecord-dataloader" title="Permalink to this headline">¶</a></h2>
-<p>To use existing TFRecords that contain tiles extracted with <code class="docutils literal notranslate"><span class="pre">slideflow</span></code>, use the <a class="reference internal" href="dataset.html#slideflow.dataset.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a> class and its <code class="xref py py-func docutils literal notranslate"><span class="pre">torch()</span></code> function to create a DataLoader instance that loads and interleaves TFRecords with the same functionality as the Tensorflow backend. To start, load a saved project and select a dataset:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">SFP</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/project/path&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
-<span class="n">dts</span> <span class="o">=</span> <span class="n">SFP</span><span class="o">.</span><span class="n">get_dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">,</span> <span class="n">filters</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<p>While the default backend for this package is Tensorflow/Keras, it also includes a PyTorch backend, including a dedicated TFRecord reader/writer that ensures saved image tiles can be served to both Tensorflow or PyTorch models in cross-compatible fashion.</p>
+<p>If using the Tensorflow backend, PyTorch does not need to be installed; the reverse is true as well.</p>
+<p>To switch backends, simply set the environmental variable <code class="docutils literal notranslate"><span class="pre">SF_BACKEND</span></code> equal to either <code class="docutils literal notranslate"><span class="pre">torch</span></code> or <code class="docutils literal notranslate"><span class="pre">tensorflow</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">SF_BACKEND</span><span class="o">=</span>torch
 </pre></div>
 </div>
-<p>If you want to perform any balancing, use the <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.dataset.Datset.balance()</span></code> method:</p>
+<div class="section" id="tfrecord-dataloader">
+<h2>TFRecord DataLoader<a class="headerlink" href="#tfrecord-dataloader" title="Permalink to this headline">¶</a></h2>
+<p>In addition to using the built-in training tools, you can use tiles that have been extracted with Slideflow with completely external projects. The <a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a> class includes both <code class="xref py py-func docutils literal notranslate"><span class="pre">torch()</span></code> and <code class="xref py py-func docutils literal notranslate"><span class="pre">tensorflow()</span></code> functions to prepare a DataLoader or Tensorflow tf.data.Dataset instance that interleaves and processs images from stored TFRecords.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/project/path&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+<span class="n">dts</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">,</span> <span class="n">filters</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If you want to perform any balancing, use the <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Datset.balance()</span></code> method:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dts</span> <span class="o">=</span> <span class="n">dts</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span><span class="s1">&#39;HPV_status&#39;</span><span class="p">,</span> <span class="n">strategy</span><span class="o">=</span><span class="s1">&#39;category&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Finally, use the <a class="reference internal" href="dataset.html#slideflow.dataset.Dataset.torch" title="slideflow.dataset.Dataset.torch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset.torch()</span></code></a> method to create a DataLoader object:</p>
+<p>Finally, use the <a class="reference internal" href="dataset.html#slideflow.Dataset.torch" title="slideflow.Dataset.torch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.torch()</span></code></a> method to create a DataLoader object:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataloader</span> <span class="o">=</span> <span class="n">dts</span><span class="o">.</span><span class="n">torch</span><span class="p">(</span>
     <span class="n">labels</span>       <span class="o">=</span> <span class="o">...</span>       <span class="c1"># Your outcome label</span>
     <span class="n">batch_size</span>   <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>       <span class="c1"># Batch size</span>
@@ -271,14 +272,7 @@
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>The returned dataloader can then be used directly with your PyTorch applications.</p>
-</div>
-<div class="section" id="training-with-pytorch">
-<h2>Training with PyTorch<a class="headerlink" href="#training-with-pytorch" title="Permalink to this headline">¶</a></h2>
-<p>Single-outcome categorical models can be trained with the experimental PyTorch backend by setting the environmental
-variable <code class="docutils literal notranslate"><span class="pre">SF_BACKEND</span></code> to “torch”. This can be done with either <code class="docutils literal notranslate"><span class="pre">os.environ</span></code>, or by calling
-<code class="docutils literal notranslate"><span class="pre">slideflow.set_backend('torch')</span></code>. Models are then trained in the same way, using <code class="xref py py-func docutils literal notranslate"><span class="pre">sf.Project.train()</span></code>.
-Some options are not yet implemented, and models other than single-outcome categorical models are not yet supported.</p>
+<p>The returned dataloader can then be used directly with your external PyTorch applications.</p>
 </div>
 </div>
 
@@ -327,7 +321,6 @@ Some options are not yet implemented, and models other than single-outcome categ
               <ul>
 <li><a class="reference internal" href="#">PyTorch</a><ul>
 <li><a class="reference internal" href="#tfrecord-dataloader">TFRecord DataLoader</a></li>
-<li><a class="reference internal" href="#training-with-pytorch">Training with PyTorch</a></li>
 </ul>
 </li>
 </ul>

@@ -10,7 +10,7 @@ The first step in the CLAM pipeline is generating tile-level activations across 
 
 .. code-block:: python
 
-    SFP.generate_features_for_clam(
+    P.generate_features_for_clam(
         model='/path/to/saved/model',
         outdir='/clam/path',
         layers=['postconv']
@@ -23,12 +23,12 @@ To train a CLAM model, use the project function :func:`slideflow.project.Project
 
 .. code-block:: python
 
-    dataset = SFP.get_dataset(tile_px=299, tile_um=302)
-    SFP.generate_features_for_clam(..., outdir='/clam/path')
+    dataset = P.dataset(tile_px=299, tile_um=302)
+    P.generate_features_for_clam(..., outdir='/clam/path')
 
     clam_args = sf.clam.get_args(k=3, bag_loss='svm', ...)
 
-    SFP.train_clam(
+    P.train_clam(
         exp_name='test_experiment',
         pt_files='/clam/path',
         outcome_label_headers='category1',
@@ -45,9 +45,9 @@ To evaluate a saved CLAM model on an external dataset, first extract features fr
 
 .. code-block:: python
 
-    SFP.generate_features_for_clam(..., outdir='/eval/clam/path')
+    P.generate_features_for_clam(..., outdir='/eval/clam/path')
 
-    SFP.evaluate_clam(
+    P.evaluate_clam(
         exp_name='evaluation',
         pt_files='/eval/clam/path',
         outcome_label_headers='category1',

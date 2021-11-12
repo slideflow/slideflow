@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Index &mdash; slideflow 1.12.0 documentation</title>
+  <title>Index &mdash; slideflow 1.0.0 documentation</title>
   
 
   
@@ -73,11 +73,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Tutorials</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Showcase</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
@@ -112,7 +108,7 @@
               
               
                 <div class="version">
-                  1.12
+                  1.0
                 </div>
               
             
@@ -148,7 +144,7 @@
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
@@ -157,8 +153,8 @@
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
@@ -169,8 +165,8 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Using a Trainer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
 </ul>
 
             
@@ -260,6 +256,7 @@
  | <a href="#M"><strong>M</strong></a>
  | <a href="#N"><strong>N</strong></a>
  | <a href="#P"><strong>P</strong></a>
+ | <a href="#Q"><strong>Q</strong></a>
  | <a href="#R"><strong>R</strong></a>
  | <a href="#S"><strong>S</strong></a>
  | <a href="#T"><strong>T</strong></a>
@@ -272,18 +269,18 @@
 <h2 id="_">_</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="activations.html#slideflow.activations.ActivationsInterface.__init__">__init__() (slideflow.activations.ActivationsInterface method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.__init__">__init__() (slideflow.Dataset method)</a>
 
       <ul>
-        <li><a href="activations.html#slideflow.activations.ActivationsVisualizer.__init__">(slideflow.activations.ActivationsVisualizer method)</a>
-</li>
-        <li><a href="activations.html#slideflow.activations.Heatmap.__init__">(slideflow.activations.Heatmap method)</a>
-</li>
-        <li><a href="dataset.html#slideflow.dataset.Dataset.__init__">(slideflow.dataset.Dataset method)</a>
+        <li><a href="heatmap.html#slideflow.Heatmap.__init__">(slideflow.Heatmap method)</a>
 </li>
         <li><a href="reader.html#slideflow.io.torch.InterleaveIterator.__init__">(slideflow.io.torch.InterleaveIterator method)</a>
 </li>
         <li><a href="model.html#slideflow.model.CPHTrainer.__init__">(slideflow.model.CPHTrainer method)</a>
+</li>
+        <li><a href="model.html#slideflow.model.DatasetFeatures.__init__">(slideflow.model.DatasetFeatures method)</a>
+</li>
+        <li><a href="model.html#slideflow.model.Features.__init__">(slideflow.model.Features method)</a>
 </li>
         <li><a href="model.html#slideflow.model.LinearTrainer.__init__">(slideflow.model.LinearTrainer method)</a>
 </li>
@@ -291,23 +288,17 @@
 </li>
         <li><a href="model.html#slideflow.model.Trainer.__init__">(slideflow.model.Trainer method)</a>
 </li>
-        <li><a href="mosaic.html#slideflow.mosaic.Mosaic.__init__">(slideflow.mosaic.Mosaic method)</a>
+        <li><a href="mosaic.html#slideflow.Mosaic.__init__">(slideflow.Mosaic method)</a>
 </li>
-        <li><a href="project.html#slideflow.project.Project.__init__">(slideflow.project.Project method)</a>
-</li>
-        <li><a href="slide.html#slideflow.slide.ExtractionReport.__init__">(slideflow.slide.ExtractionReport method)</a>
-</li>
-        <li><a href="slide.html#slideflow.slide.SlideReport.__init__">(slideflow.slide.SlideReport method)</a>
+        <li><a href="project.html#slideflow.Project.__init__">(slideflow.Project method)</a>
 </li>
         <li><a href="slide.html#slideflow.slide.TMA.__init__">(slideflow.slide.TMA method)</a>
 </li>
         <li><a href="slide.html#slideflow.slide.WSI.__init__">(slideflow.slide.WSI method)</a>
 </li>
-        <li><a href="statistics.html#slideflow.statistics.SlideMap.__init__">(slideflow.statistics.SlideMap method)</a>
+        <li><a href="statistics.html#slideflow.SlideMap.__init__">(slideflow.SlideMap method)</a>
 </li>
         <li><a href="util.html#slideflow.util.ProgressBar.__init__">(slideflow.util.ProgressBar method)</a>
-</li>
-        <li><a href="util.html#slideflow.util.StainNormalizer.__init__">(slideflow.util.StainNormalizer method)</a>
 </li>
         <li><a href="util.html#slideflow.util.TqdmLoggingHandler.__init__">(slideflow.util.TqdmLoggingHandler method)</a>
 </li>
@@ -318,19 +309,15 @@
 <h2 id="A">A</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="activations.html#slideflow.activations.ActivationsVisualizer.activations_by_category">activations_by_category() (slideflow.activations.ActivationsVisualizer method)</a>
+      <li><a href="model.html#slideflow.model.DatasetFeatures.activations_by_category">activations_by_category() (slideflow.model.DatasetFeatures method)</a>
 </li>
-      <li><a href="activations.html#slideflow.activations.ActivationsInterface">ActivationsInterface (class in slideflow.activations)</a>
-</li>
-      <li><a href="activations.html#slideflow.activations.ActivationsVisualizer">ActivationsVisualizer (class in slideflow.activations)</a>
+      <li><a href="project.html#slideflow.Project.add_source">add_source() (slideflow.Project method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="project.html#slideflow.project.Project.add_source">add_source() (slideflow.project.Project method)</a>
+      <li><a href="project.html#slideflow.Project.annotations">annotations (slideflow.Project property)</a>
 </li>
-      <li><a href="slide.html#slideflow.slide.WSI.annotated_thumb">annotated_thumb() (slideflow.slide.WSI method)</a>
-</li>
-      <li><a href="project.html#slideflow.project.Project.associate_slide_names">associate_slide_names() (slideflow.project.Project method)</a>
+      <li><a href="project.html#slideflow.Project.associate_slide_names">associate_slide_names() (slideflow.Project method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -338,11 +325,11 @@
 <h2 id="B">B</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.balance">balance() (slideflow.dataset.Dataset method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.balance">balance() (slideflow.Dataset method)</a>
 </li>
       <li><a href="statistics.html#slideflow.statistics.basic_metrics">basic_metrics() (in module slideflow.statistics)</a>
 </li>
-      <li><a href="activations.html#slideflow.activations.ActivationsVisualizer.box_plots">box_plots() (slideflow.activations.ActivationsVisualizer method)</a>
+      <li><a href="model.html#slideflow.model.DatasetFeatures.box_plots">box_plots() (slideflow.model.DatasetFeatures method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
@@ -352,6 +339,8 @@
         <li><a href="slide.html#slideflow.slide.WSI.build_generator">(slideflow.slide.WSI method)</a>
 </li>
       </ul></li>
+      <li><a href="dataset.html#slideflow.Dataset.build_index">build_index() (slideflow.Dataset method)</a>
+</li>
       <li><a href="model.html#slideflow.model.ModelParams.build_model">build_model() (slideflow.model.ModelParams method)</a>
 </li>
   </ul></td>
@@ -366,25 +355,23 @@
 </li>
       <li><a href="util.html#slideflow.util.choice_input">choice_input() (in module slideflow.util)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.clear_filters">clear_filters() (slideflow.dataset.Dataset method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.clear_filters">clear_filters() (slideflow.Dataset method)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.clip">clip() (slideflow.dataset.Dataset method)</a>
-</li>
-      <li><a href="statistics.html#slideflow.statistics.SlideMap.cluster">cluster() (slideflow.statistics.SlideMap method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.clip">clip() (slideflow.Dataset method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="statistics.html#slideflow.SlideMap.cluster">cluster() (slideflow.SlideMap method)</a>
+</li>
       <li><a href="statistics.html#slideflow.statistics.concordance_index">concordance_index() (in module slideflow.statistics)</a>
 </li>
       <li><a href="model.html#slideflow.model.CPHTrainer">CPHTrainer (class in slideflow.model)</a>
 </li>
       <li><a href="util.html#slideflow.util.CPLEXError">CPLEXError</a>
 </li>
-      <li><a href="project.html#slideflow.project.Project.create_blank_annotations">create_blank_annotations() (slideflow.project.Project method)</a>
+      <li><a href="project.html#slideflow.Project.create_blank_annotations">create_blank_annotations() (slideflow.Project method)</a>
 </li>
-      <li><a href="project.html#slideflow.project.Project.create_blank_train_config">create_blank_train_config() (slideflow.project.Project method)</a>
-</li>
-      <li><a href="project.html#slideflow.project.Project.create_hyperparameter_sweep">create_hyperparameter_sweep() (slideflow.project.Project method)</a>
+      <li><a href="project.html#slideflow.Project.create_hyperparameter_sweep">create_hyperparameter_sweep() (slideflow.Project method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -392,7 +379,15 @@
 <h2 id="D">D</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="dataset.html#slideflow.dataset.Dataset">Dataset (class in slideflow.dataset)</a>
+      <li><a href="dataset.html#slideflow.Dataset">Dataset (class in slideflow)</a>
+</li>
+      <li><a href="project.html#slideflow.Project.dataset">dataset() (slideflow.Project method)</a>
+</li>
+      <li><a href="project.html#slideflow.Project.dataset_config">dataset_config (slideflow.Project property)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="model.html#slideflow.model.DatasetFeatures">DatasetFeatures (class in slideflow.model)</a>
 </li>
       <li><a href="tfrecords.html#slideflow.io.tensorflow.detect_tfrecord_format">detect_tfrecord_format() (in module slideflow.io.tensorflow)</a>
 
@@ -400,14 +395,8 @@
         <li><a href="reader.html#slideflow.io.torch.detect_tfrecord_format">(in module slideflow.io.torch)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="activations.html#slideflow.activations.Heatmap.display">display() (slideflow.activations.Heatmap method)</a>
-
-      <ul>
-        <li><a href="mosaic.html#slideflow.mosaic.Mosaic.display">(slideflow.mosaic.Mosaic method)</a>
+      <li><a href="heatmap.html#slideflow.Heatmap.display">display() (slideflow.Heatmap method)</a>
 </li>
-      </ul></li>
   </ul></td>
 </tr></table>
 
@@ -418,6 +407,8 @@
 </li>
       <li><a href="reader.html#slideflow.io.torch.EmptyTFRecordsError">EmptyTFRecordsError</a>
 </li>
+      <li><a href="project.html#slideflow.Project.eval_dir">eval_dir (slideflow.Project property)</a>
+</li>
       <li><a href="model.html#slideflow.model.CPHTrainer.evaluate">evaluate() (slideflow.model.CPHTrainer method)</a>
 
       <ul>
@@ -425,68 +416,64 @@
 </li>
         <li><a href="model.html#slideflow.model.Trainer.evaluate">(slideflow.model.Trainer method)</a>
 </li>
-        <li><a href="project.html#slideflow.project.Project.evaluate">(slideflow.project.Project method)</a>
+        <li><a href="project.html#slideflow.Project.evaluate">(slideflow.Project method)</a>
 </li>
       </ul></li>
-      <li><a href="project.html#slideflow.project.Project.evaluate_clam">evaluate_clam() (slideflow.project.Project method)</a>
+      <li><a href="project.html#slideflow.Project.evaluate_clam">evaluate_clam() (slideflow.Project method)</a>
 </li>
-      <li><a href="activations.html#slideflow.activations.ActivationsVisualizer.export_to_csv">export_to_csv() (slideflow.activations.ActivationsVisualizer method)</a>
-
-      <ul>
-        <li><a href="statistics.html#slideflow.statistics.SlideMap.export_to_csv">(slideflow.statistics.SlideMap method)</a>
-</li>
-      </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="activations.html#slideflow.activations.ActivationsVisualizer.export_to_torch">export_to_torch() (slideflow.activations.ActivationsVisualizer method)</a>
-</li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.extract_tiles">extract_tiles() (in module slideflow.io.tensorflow)</a>
+      <li><a href="model.html#slideflow.model.DatasetFeatures.export_to_csv">export_to_csv() (slideflow.model.DatasetFeatures method)</a>
 
       <ul>
-        <li><a href="dataset.html#slideflow.dataset.Dataset.extract_tiles">(slideflow.dataset.Dataset method)</a>
-</li>
-        <li><a href="project.html#slideflow.project.Project.extract_tiles">(slideflow.project.Project method)</a>
+        <li><a href="statistics.html#slideflow.SlideMap.export_to_csv">(slideflow.SlideMap method)</a>
 </li>
       </ul></li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.extract_tiles_from_tfrecords">extract_tiles_from_tfrecords() (slideflow.dataset.Dataset method)</a>
+      <li><a href="model.html#slideflow.model.DatasetFeatures.export_to_torch">export_to_torch() (slideflow.model.DatasetFeatures method)</a>
+</li>
+      <li><a href="dataset.html#slideflow.Dataset.extract_tiles">extract_tiles() (slideflow.Dataset method)</a>
 
       <ul>
-        <li><a href="project.html#slideflow.project.Project.extract_tiles_from_tfrecords">(slideflow.project.Project method)</a>
+        <li><a href="project.html#slideflow.Project.extract_tiles">(slideflow.Project method)</a>
+</li>
+        <li><a href="slide.html#slideflow.slide.TMA.extract_tiles">(slideflow.slide.TMA method)</a>
+</li>
+        <li><a href="slide.html#slideflow.slide.WSI.extract_tiles">(slideflow.slide.WSI method)</a>
 </li>
       </ul></li>
-      <li><a href="slide.html#slideflow.slide.ExtractionPDF">ExtractionPDF (class in slideflow.slide)</a>
+      <li><a href="dataset.html#slideflow.Dataset.extract_tiles_from_tfrecords">extract_tiles_from_tfrecords() (slideflow.Dataset method)</a>
+
+      <ul>
+        <li><a href="project.html#slideflow.Project.extract_tiles_from_tfrecords">(slideflow.Project method)</a>
 </li>
-      <li><a href="slide.html#slideflow.slide.ExtractionReport">ExtractionReport (class in slideflow.slide)</a>
-</li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
 <h2 id="F">F</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="activations.html#slideflow.activations.ActivationsVisualizer.feature_stats">feature_stats() (slideflow.activations.ActivationsVisualizer method)</a>
+      <li><a href="model.html#slideflow.model.Features">Features (class in slideflow.model)</a>
 </li>
       <li><a href="util.html#slideflow.util.FileFormatter">FileFormatter (class in slideflow.util)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.filter">filter() (slideflow.dataset.Dataset method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.filter">filter() (slideflow.Dataset method)</a>
 
       <ul>
-        <li><a href="statistics.html#slideflow.statistics.SlideMap.filter">(slideflow.statistics.SlideMap method)</a>
+        <li><a href="statistics.html#slideflow.SlideMap.filter">(slideflow.SlideMap method)</a>
 </li>
       </ul></li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.filter_blank">filter_blank (slideflow.dataset.Dataset property)</a>
+      <li><a href="dataset.html#slideflow.Dataset.filter_blank">filter_blank (slideflow.Dataset property)</a>
 </li>
       <li><a href="statistics.html#slideflow.statistics.filtered_prediction">filtered_prediction() (in module slideflow.statistics)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.filters">filters (slideflow.dataset.Dataset property)</a>
-</li>
-      <li><a href="util.html#slideflow.util.float_input">float_input() (in module slideflow.util)</a>
+      <li><a href="dataset.html#slideflow.Dataset.filters">filters (slideflow.Dataset property)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="mosaic.html#slideflow.mosaic.Mosaic.focus">focus() (slideflow.mosaic.Mosaic method)</a>
+      <li><a href="util.html#slideflow.util.float_input">float_input() (in module slideflow.util)</a>
 </li>
-      <li><a href="slide.html#slideflow.slide.ExtractionPDF.footer">footer() (slideflow.slide.ExtractionPDF method)</a>
+      <li><a href="mosaic.html#slideflow.Mosaic.focus">focus() (slideflow.Mosaic method)</a>
 </li>
       <li><a href="util.html#slideflow.util.FileFormatter.format">format() (slideflow.util.FileFormatter method)</a>
 
@@ -494,13 +481,13 @@
         <li><a href="util.html#slideflow.util.LogFormatter.format">(slideflow.util.LogFormatter method)</a>
 </li>
       </ul></li>
-      <li><a href="statistics.html#slideflow.statistics.SlideMap.from_activations">from_activations() (slideflow.statistics.SlideMap class method)</a>
+      <li><a href="statistics.html#slideflow.SlideMap.from_features">from_features() (slideflow.SlideMap class method)</a>
 </li>
-      <li><a href="activations.html#slideflow.activations.ActivationsInterface.from_model">from_model() (slideflow.activations.ActivationsInterface method)</a>
+      <li><a href="model.html#slideflow.model.Features.from_model">from_model() (slideflow.model.Features class method)</a>
 </li>
-      <li><a href="statistics.html#slideflow.statistics.SlideMap.from_precalculated">from_precalculated() (slideflow.statistics.SlideMap class method)</a>
+      <li><a href="statistics.html#slideflow.SlideMap.from_precalculated">from_precalculated() (slideflow.SlideMap class method)</a>
 </li>
-      <li><a href="project.html#slideflow.project.Project.from_prompt">from_prompt() (slideflow.project.Project class method)</a>
+      <li><a href="project.html#slideflow.Project.from_prompt">from_prompt() (slideflow.Project class method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -510,37 +497,35 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="statistics.html#slideflow.statistics.gen_umap">gen_umap() (in module slideflow.statistics)</a>
 </li>
-      <li><a href="project.html#slideflow.project.Project.generate_activations">generate_activations() (slideflow.project.Project method)</a>
-</li>
       <li><a href="statistics.html#slideflow.statistics.generate_combined_roc">generate_combined_roc() (in module slideflow.statistics)</a>
 </li>
-      <li><a href="project.html#slideflow.project.Project.generate_features_for_clam">generate_features_for_clam() (slideflow.project.Project method)</a>
+      <li><a href="project.html#slideflow.Project.generate_features">generate_features() (slideflow.Project method)</a>
 </li>
-      <li><a href="project.html#slideflow.project.Project.generate_heatmaps">generate_heatmaps() (slideflow.project.Project method)</a>
+      <li><a href="project.html#slideflow.Project.generate_features_for_clam">generate_features_for_clam() (slideflow.Project method)</a>
 </li>
-      <li><a href="project.html#slideflow.project.Project.generate_mosaic">generate_mosaic() (slideflow.project.Project method)</a>
+      <li><a href="project.html#slideflow.Project.generate_heatmaps">generate_heatmaps() (slideflow.Project method)</a>
 </li>
-      <li><a href="project.html#slideflow.project.Project.generate_mosaic_from_annotations">generate_mosaic_from_annotations() (slideflow.project.Project method)</a>
+      <li><a href="project.html#slideflow.Project.generate_mosaic">generate_mosaic() (slideflow.Project method)</a>
+</li>
+      <li><a href="project.html#slideflow.Project.generate_mosaic_from_annotations">generate_mosaic_from_annotations() (slideflow.Project method)</a>
 </li>
       <li><a href="statistics.html#slideflow.statistics.generate_roc">generate_roc() (in module slideflow.statistics)</a>
 </li>
       <li><a href="statistics.html#slideflow.statistics.generate_scatter">generate_scatter() (in module slideflow.statistics)</a>
 </li>
-      <li><a href="project.html#slideflow.project.Project.generate_tfrecord_heatmap">generate_tfrecord_heatmap() (slideflow.project.Project method)</a>
+      <li><a href="project.html#slideflow.Project.generate_tfrecord_heatmap">generate_tfrecord_heatmap() (slideflow.Project method)</a>
 </li>
-      <li><a href="project.html#slideflow.project.Project.generate_thumbnails">generate_thumbnails() (slideflow.project.Project method)</a>
-</li>
-      <li><a href="statistics.html#slideflow.statistics.get_centroid_index">get_centroid_index() (in module slideflow.statistics)</a>
+      <li><a href="project.html#slideflow.Project.generate_thumbnails">generate_thumbnails() (slideflow.Project method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="project.html#slideflow.project.Project.get_dataset">get_dataset() (slideflow.project.Project method)</a>
+      <li><a href="statistics.html#slideflow.statistics.get_centroid_index">get_centroid_index() (in module slideflow.statistics)</a>
 </li>
       <li><a href="reader.html#slideflow.io.torch.InterleaveIterator.get_label">get_label() (slideflow.io.torch.InterleaveIterator method)</a>
 </li>
       <li><a href="tfrecords.html#slideflow.io.tensorflow.get_locations_from_tfrecord">get_locations_from_tfrecord() (in module slideflow.io.tensorflow)</a>
 </li>
-      <li><a href="util.html#slideflow.util.get_model_params">get_model_params() (in module slideflow.util)</a>
+      <li><a href="util.html#slideflow.util.get_model_config">get_model_config() (in module slideflow.util)</a>
 </li>
       <li><a href="model.html#slideflow.model.ModelParams.get_opt">get_opt() (slideflow.model.ModelParams method)</a>
 </li>
@@ -550,15 +535,13 @@
 </li>
       <li><a href="util.html#slideflow.util.get_slides_from_model_manifest">get_slides_from_model_manifest() (in module slideflow.util)</a>
 </li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.get_tfrecord_by_index">get_tfrecord_by_index() (in module slideflow.io.tensorflow)</a>
-</li>
       <li><a href="tfrecords.html#slideflow.io.tensorflow.get_tfrecord_parser">get_tfrecord_parser() (in module slideflow.io.tensorflow)</a>
 
       <ul>
         <li><a href="reader.html#slideflow.io.torch.get_tfrecord_parser">(in module slideflow.io.torch)</a>
 </li>
       </ul></li>
-      <li><a href="statistics.html#slideflow.statistics.SlideMap.get_tiles_in_area">get_tiles_in_area() (slideflow.statistics.SlideMap method)</a>
+      <li><a href="statistics.html#slideflow.SlideMap.get_tiles_in_area">get_tiles_in_area() (slideflow.SlideMap method)</a>
 </li>
       <li><a href="util.html#slideflow.util.global_path">global_path() (in module slideflow.util)</a>
 </li>
@@ -568,7 +551,7 @@
 <h2 id="H">H</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="activations.html#slideflow.activations.Heatmap">Heatmap (class in slideflow.activations)</a>
+      <li><a href="heatmap.html#slideflow.Heatmap">Heatmap (class in slideflow)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -576,8 +559,6 @@
 <h2 id="I">I</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="slide.html#slideflow.slide.SlideReport.image_row">image_row() (slideflow.slide.SlideReport method)</a>
-</li>
       <li><a href="util.html#slideflow.util.int_input">int_input() (in module slideflow.util)</a>
 </li>
       <li><a href="tfrecords.html#slideflow.io.tensorflow.interleave">interleave() (in module slideflow.io.tensorflow)</a>
@@ -592,7 +573,7 @@
 </li>
       <li><a href="reader.html#slideflow.io.torch.InterleaveIterator">InterleaveIterator (class in slideflow.io.torch)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.is_float">is_float() (slideflow.dataset.Dataset method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.is_float">is_float() (slideflow.Dataset method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -603,48 +584,48 @@
       <li><a href="tfrecords.html#slideflow.io.tensorflow.join_tfrecord">join_tfrecord() (in module slideflow.io.tensorflow)</a>
 </li>
   </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="util.html#slideflow.util.StainNormalizer.jpeg_to_jpeg">jpeg_to_jpeg() (slideflow.util.StainNormalizer method)</a>
-</li>
-      <li><a href="util.html#slideflow.util.StainNormalizer.jpeg_to_rgb">jpeg_to_rgb() (slideflow.util.StainNormalizer method)</a>
-</li>
-  </ul></td>
 </tr></table>
 
 <h2 id="L">L</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="statistics.html#slideflow.statistics.SlideMap.label_by_logits">label_by_logits() (slideflow.statistics.SlideMap method)</a>
+      <li><a href="statistics.html#slideflow.SlideMap.label_by_logits">label_by_logits() (slideflow.SlideMap method)</a>
 </li>
-      <li><a href="statistics.html#slideflow.statistics.SlideMap.label_by_slide">label_by_slide() (slideflow.statistics.SlideMap method)</a>
+      <li><a href="statistics.html#slideflow.SlideMap.label_by_slide">label_by_slide() (slideflow.SlideMap method)</a>
 </li>
-      <li><a href="statistics.html#slideflow.statistics.SlideMap.label_by_tile_meta">label_by_tile_meta() (slideflow.statistics.SlideMap method)</a>
+      <li><a href="statistics.html#slideflow.SlideMap.label_by_tile_meta">label_by_tile_meta() (slideflow.SlideMap method)</a>
 </li>
       <li><a href="reader.html#slideflow.io.torch.InterleaveIterator.label_shape">label_shape (slideflow.io.torch.InterleaveIterator property)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.labels">labels() (slideflow.dataset.Dataset method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.labels">labels() (slideflow.Dataset method)</a>
 </li>
       <li><a href="model.html#slideflow.model.LinearTrainer">LinearTrainer (class in slideflow.model)</a>
 </li>
-      <li><a href="statistics.html#slideflow.statistics.SlideMap.load_cache">load_cache() (slideflow.statistics.SlideMap method)</a>
+      <li><a href="statistics.html#slideflow.SlideMap.load_cache">load_cache() (slideflow.SlideMap method)</a>
+</li>
+      <li><a href="slide.html#slideflow.slide.WSI.load_csv_roi">load_csv_roi() (slideflow.slide.WSI method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="slide.html#slideflow.slide.WSI.load_csv_roi">load_csv_roi() (slideflow.slide.WSI method)</a>
-</li>
       <li><a href="util.html#slideflow.util.load_json">load_json() (in module slideflow.util)</a>
 </li>
       <li><a href="slide.html#slideflow.slide.WSI.load_json_roi">load_json_roi() (slideflow.slide.WSI method)</a>
 </li>
-      <li><a href="slide.html#slideflow.slide.log_extraction_params">log_extraction_params() (in module slideflow.slide)</a>
+      <li><a href="project.html#slideflow.Project.load_project">load_project() (slideflow.Project method)</a>
 </li>
+      <li><a href="slide.html#slideflow.slide.TMA.loaded_correctly">loaded_correctly() (slideflow.slide.TMA method)</a>
+
+      <ul>
+        <li><a href="slide.html#slideflow.slide.WSI.loaded_correctly">(slideflow.slide.WSI method)</a>
+</li>
+      </ul></li>
       <li><a href="util.html#slideflow.util.LogFormatter">LogFormatter (class in slideflow.util)</a>
 </li>
-      <li><a href="activations.html#slideflow.activations.ActivationsVisualizer.logits_mean">logits_mean() (slideflow.activations.ActivationsVisualizer method)</a>
+      <li><a href="model.html#slideflow.model.DatasetFeatures.logits_mean">logits_mean() (slideflow.model.DatasetFeatures method)</a>
 </li>
-      <li><a href="activations.html#slideflow.activations.ActivationsVisualizer.logits_percent">logits_percent() (slideflow.activations.ActivationsVisualizer method)</a>
+      <li><a href="model.html#slideflow.model.DatasetFeatures.logits_percent">logits_percent() (slideflow.model.DatasetFeatures method)</a>
 </li>
-      <li><a href="activations.html#slideflow.activations.ActivationsVisualizer.logits_predict">logits_predict() (slideflow.activations.ActivationsVisualizer method)</a>
+      <li><a href="model.html#slideflow.model.DatasetFeatures.logits_predict">logits_predict() (slideflow.model.DatasetFeatures method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -654,9 +635,9 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="util.html#slideflow.util.make_dir">make_dir() (in module slideflow.util)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.manifest">manifest() (slideflow.dataset.Dataset method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.manifest">manifest() (slideflow.Dataset method)</a>
 </li>
-      <li><a href="activations.html#slideflow.activations.ActivationsVisualizer.map_to_predictions">map_to_predictions() (slideflow.activations.ActivationsVisualizer method)</a>
+      <li><a href="model.html#slideflow.model.DatasetFeatures.map_to_predictions">map_to_predictions() (slideflow.model.DatasetFeatures method)</a>
 </li>
       <li><a href="tfrecords.html#slideflow.io.tensorflow.merge_split_tfrecords">merge_split_tfrecords() (in module slideflow.io.tensorflow)</a>
 </li>
@@ -664,13 +645,17 @@
 </li>
       <li><a href="statistics.html#slideflow.statistics.metrics_from_predictions">metrics_from_predictions() (in module slideflow.statistics)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.min_tiles">min_tiles (slideflow.dataset.Dataset property)</a>
+      <li><a href="dataset.html#slideflow.Dataset.min_tiles">min_tiles (slideflow.Dataset property)</a>
 </li>
-      <li><a href="model.html#slideflow.model.ModelParams.model_type">model_type() (slideflow.model.ModelParams method)</a>
+      <li><a href="project.html#slideflow.Project.mixed_precision">mixed_precision (slideflow.Project property)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="model.html#slideflow.model.ModelParams.model_type">model_type() (slideflow.model.ModelParams method)</a>
+</li>
       <li><a href="model.html#slideflow.model.ModelParams">ModelParams (class in slideflow.model)</a>
+</li>
+      <li><a href="project.html#slideflow.Project.models_dir">models_dir (slideflow.Project property)</a>
 </li>
       <li>
     module
@@ -680,12 +665,10 @@
 </li>
         <li><a href="reader.html#module-slideflow.io.torch">slideflow.io.torch</a>
 </li>
-        <li><a href="slide.html#module-slideflow.slide">slideflow.slide</a>
-</li>
         <li><a href="util.html#module-slideflow.util">slideflow.util</a>
 </li>
       </ul></li>
-      <li><a href="mosaic.html#slideflow.mosaic.Mosaic">Mosaic (class in slideflow.mosaic)</a>
+      <li><a href="mosaic.html#slideflow.Mosaic">Mosaic (class in slideflow)</a>
 </li>
       <li><a href="tfrecords.html#slideflow.io.tensorflow.multi_image_example">multi_image_example() (in module slideflow.io.tensorflow)</a>
 </li>
@@ -695,13 +678,19 @@
 <h2 id="N">N</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="statistics.html#slideflow.statistics.SlideMap.neighbors">neighbors() (slideflow.statistics.SlideMap method)</a>
+      <li><a href="project.html#slideflow.Project.name">name (slideflow.Project property)</a>
+</li>
+      <li><a href="statistics.html#slideflow.SlideMap.neighbors">neighbors() (slideflow.SlideMap method)</a>
+</li>
+      <li><a href="project.html#slideflow.Project.neptune_api">neptune_api (slideflow.Project property)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="project.html#slideflow.Project.neptune_workspace">neptune_workspace (slideflow.Project property)</a>
+</li>
       <li><a href="statistics.html#slideflow.statistics.normalize_layout">normalize_layout() (in module slideflow.statistics)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.num_tiles">num_tiles (slideflow.dataset.Dataset property)</a>
+      <li><a href="dataset.html#slideflow.Dataset.num_tiles">num_tiles (slideflow.Dataset property)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -709,34 +698,52 @@
 <h2 id="P">P</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="tfrecords.html#slideflow.io.tensorflow.parser_from_labels">parser_from_labels() (in module slideflow.io.tensorflow)</a>
+</li>
       <li><a href="util.html#slideflow.util.path_input">path_input() (in module slideflow.util)</a>
 </li>
       <li><a href="util.html#slideflow.util.path_to_ext">path_to_ext() (in module slideflow.util)</a>
 </li>
       <li><a href="util.html#slideflow.util.path_to_name">path_to_name() (in module slideflow.util)</a>
 </li>
+      <li><a href="dataset.html#slideflow.Dataset.patients">patients() (slideflow.Dataset method)</a>
+</li>
       <li><a href="statistics.html#slideflow.statistics.permutation_feature_importance">permutation_feature_importance() (in module slideflow.statistics)</a>
 </li>
-      <li><a href="util.html#slideflow.util.StainNormalizer.pil_to_pil">pil_to_pil() (slideflow.util.StainNormalizer method)</a>
-</li>
-      <li><a href="util.html#slideflow.util.StainNormalizer.png_to_rgb">png_to_rgb() (slideflow.util.StainNormalizer method)</a>
+      <li><a href="statistics.html#slideflow.statistics.predict_from_layer">predict_from_layer() (in module slideflow.statistics)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="statistics.html#slideflow.statistics.predict_from_layer">predict_from_layer() (in module slideflow.statistics)</a>
-</li>
       <li><a href="statistics.html#slideflow.statistics.predict_from_tensorflow">predict_from_tensorflow() (in module slideflow.statistics)</a>
 </li>
       <li><a href="statistics.html#slideflow.statistics.predict_from_torch">predict_from_torch() (in module slideflow.statistics)</a>
 </li>
-      <li><a href="project.html#slideflow.project.Project.predict_wsi">predict_wsi() (slideflow.project.Project method)</a>
+      <li><a href="project.html#slideflow.Project.predict_wsi">predict_wsi() (slideflow.Project method)</a>
 </li>
+      <li><a href="slide.html#slideflow.slide.TMA.preview">preview() (slideflow.slide.TMA method)</a>
+
+      <ul>
+        <li><a href="slide.html#slideflow.slide.WSI.preview">(slideflow.slide.WSI method)</a>
+</li>
+      </ul></li>
       <li><a href="tfrecords.html#slideflow.io.tensorflow.print_tfrecord">print_tfrecord() (in module slideflow.io.tensorflow)</a>
 </li>
       <li><a href="util.html#slideflow.util.ProgressBar">ProgressBar (class in slideflow.util)</a>
 </li>
-      <li><a href="project.html#slideflow.project.Project">Project (class in slideflow.project)</a>
+      <li><a href="project.html#slideflow.Project">Project (class in slideflow)</a>
 </li>
+  </ul></td>
+</tr></table>
+
+<h2 id="Q">Q</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="slide.html#slideflow.slide.TMA.qc">qc() (slideflow.slide.TMA method)</a>
+
+      <ul>
+        <li><a href="slide.html#slideflow.slide.WSI.qc">(slideflow.slide.WSI method)</a>
+</li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
@@ -747,21 +754,21 @@
 </li>
       <li><a href="statistics.html#slideflow.statistics.read_predictions">read_predictions() (in module slideflow.statistics)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.remove_filter">remove_filter() (slideflow.dataset.Dataset method)</a>
+      <li><a href="reader.html#slideflow.io.torch.InterleaveIterator.reinforce_type">reinforce_type() (slideflow.io.torch.InterleaveIterator method)</a>
 </li>
-      <li><a href="activations.html#slideflow.activations.ActivationsVisualizer.remove_slide">remove_slide() (slideflow.activations.ActivationsVisualizer method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.remove_filter">remove_filter() (slideflow.Dataset method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.resize_tfrecords">resize_tfrecords() (slideflow.dataset.Dataset method)</a>
+      <li><a href="model.html#slideflow.model.DatasetFeatures.remove_slide">remove_slide() (slideflow.model.DatasetFeatures method)</a>
+</li>
+      <li><a href="dataset.html#slideflow.Dataset.resize_tfrecords">resize_tfrecords() (slideflow.Dataset method)</a>
 
       <ul>
-        <li><a href="project.html#slideflow.project.Project.resize_tfrecords">(slideflow.project.Project method)</a>
+        <li><a href="project.html#slideflow.Project.resize_tfrecords">(slideflow.Project method)</a>
 </li>
       </ul></li>
-      <li><a href="util.html#slideflow.util.StainNormalizer.rgb_to_rgb">rgb_to_rgb() (slideflow.util.StainNormalizer method)</a>
-</li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.rois">rois() (slideflow.dataset.Dataset method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.rois">rois() (slideflow.Dataset method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -769,46 +776,54 @@
 <h2 id="S">S</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="activations.html#slideflow.activations.Heatmap.save">save() (slideflow.activations.Heatmap method)</a>
+      <li><a href="heatmap.html#slideflow.Heatmap.save">save() (slideflow.Heatmap method)</a>
 
       <ul>
-        <li><a href="mosaic.html#slideflow.mosaic.Mosaic.save">(slideflow.mosaic.Mosaic method)</a>
+        <li><a href="mosaic.html#slideflow.Mosaic.save">(slideflow.Mosaic method)</a>
 </li>
-        <li><a href="project.html#slideflow.project.Project.save">(slideflow.project.Project method)</a>
+        <li><a href="project.html#slideflow.Project.save">(slideflow.Project method)</a>
 </li>
-        <li><a href="statistics.html#slideflow.statistics.SlideMap.save">(slideflow.statistics.SlideMap method)</a>
+        <li><a href="statistics.html#slideflow.SlideMap.save">(slideflow.SlideMap method)</a>
 </li>
       </ul></li>
-      <li><a href="statistics.html#slideflow.statistics.SlideMap.save_2d_plot">save_2d_plot() (slideflow.statistics.SlideMap method)</a>
+      <li><a href="statistics.html#slideflow.SlideMap.save_2d_plot">save_2d_plot() (slideflow.SlideMap method)</a>
 </li>
-      <li><a href="statistics.html#slideflow.statistics.SlideMap.save_3d_plot">save_3d_plot() (slideflow.statistics.SlideMap method)</a>
+      <li><a href="statistics.html#slideflow.SlideMap.save_3d_plot">save_3d_plot() (slideflow.SlideMap method)</a>
 </li>
-      <li><a href="statistics.html#slideflow.statistics.SlideMap.save_cache">save_cache() (slideflow.statistics.SlideMap method)</a>
+      <li><a href="statistics.html#slideflow.SlideMap.save_cache">save_cache() (slideflow.SlideMap method)</a>
 </li>
-      <li><a href="activations.html#slideflow.activations.ActivationsVisualizer.save_example_tiles">save_example_tiles() (slideflow.activations.ActivationsVisualizer method)</a>
+      <li><a href="model.html#slideflow.model.DatasetFeatures.save_example_tiles">save_example_tiles() (slideflow.model.DatasetFeatures method)</a>
 </li>
       <li><a href="statistics.html#slideflow.statistics.save_histogram">save_histogram() (in module slideflow.statistics)</a>
 </li>
       <li><a href="statistics.html#slideflow.statistics.save_predictions_to_csv">save_predictions_to_csv() (in module slideflow.statistics)</a>
 </li>
-      <li><a href="mosaic.html#slideflow.mosaic.Mosaic.save_report">save_report() (slideflow.mosaic.Mosaic method)</a>
+      <li><a href="mosaic.html#slideflow.Mosaic.save_report">save_report() (slideflow.Mosaic method)</a>
 </li>
-      <li><a href="project.html#slideflow.project.Project.select_gpu">select_gpu() (slideflow.project.Project method)</a>
+      <li><a href="project.html#slideflow.Project.select_gpu">select_gpu() (slideflow.Project method)</a>
 </li>
-      <li><a href="statistics.html#slideflow.statistics.SlideMap.show_neighbors">show_neighbors() (slideflow.statistics.SlideMap method)</a>
+      <li><a href="tfrecords.html#slideflow.io.tensorflow.serialized_record">serialized_record() (in module slideflow.io.tensorflow)</a>
+
+      <ul>
+        <li><a href="reader.html#slideflow.io.torch.serialized_record">(in module slideflow.io.torch)</a>
+</li>
+      </ul></li>
+      <li><a href="mosaic.html#slideflow.Mosaic.show">show() (slideflow.Mosaic method)</a>
+</li>
+      <li><a href="statistics.html#slideflow.SlideMap.show_neighbors">show_neighbors() (slideflow.SlideMap method)</a>
 </li>
       <li><a href="tfrecords.html#slideflow.io.tensorflow.shuffle_tfrecord">shuffle_tfrecord() (in module slideflow.io.tensorflow)</a>
 </li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.shuffle_tfrecords_by_dir">shuffle_tfrecords_by_dir() (in module slideflow.io.tensorflow)</a>
-</li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.slide_paths">slide_paths() (slideflow.dataset.Dataset method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.slide_report">slide_report() (slideflow.dataset.Dataset method)</a>
+      <li><a href="tfrecords.html#slideflow.io.tensorflow.shuffle_tfrecords_by_dir">shuffle_tfrecords_by_dir() (in module slideflow.io.tensorflow)</a>
+</li>
+      <li><a href="dataset.html#slideflow.Dataset.slide_paths">slide_paths() (slideflow.Dataset method)</a>
+</li>
+      <li><a href="dataset.html#slideflow.Dataset.slide_report">slide_report() (slideflow.Dataset method)</a>
 
       <ul>
-        <li><a href="project.html#slideflow.project.Project.slide_report">(slideflow.project.Project method)</a>
+        <li><a href="project.html#slideflow.Project.slide_report">(slideflow.Project method)</a>
 </li>
       </ul></li>
       <li>
@@ -826,30 +841,29 @@
 </li>
       </ul></li>
       <li>
-    slideflow.slide
-
-      <ul>
-        <li><a href="slide.html#module-slideflow.slide">module</a>
-</li>
-      </ul></li>
-      <li>
     slideflow.util
 
       <ul>
         <li><a href="util.html#module-slideflow.util">module</a>
 </li>
       </ul></li>
-      <li><a href="statistics.html#slideflow.statistics.SlideMap">SlideMap (class in slideflow.statistics)</a>
+      <li><a href="statistics.html#slideflow.SlideMap">SlideMap (class in slideflow)</a>
 </li>
-      <li><a href="slide.html#slideflow.slide.SlideReport">SlideReport (class in slideflow.slide)</a>
+      <li><a href="dataset.html#slideflow.Dataset.slides">slides() (slideflow.Dataset method)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.slides">slides() (slideflow.dataset.Dataset method)</a>
+      <li><a href="project.html#slideflow.Project.sources">sources (slideflow.Project property)</a>
 </li>
       <li><a href="tfrecords.html#slideflow.io.tensorflow.split_tfrecord">split_tfrecord() (in module slideflow.io.tensorflow)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.split_tfrecords_by_roi">split_tfrecords_by_roi() (slideflow.dataset.Dataset method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.split_tfrecords_by_roi">split_tfrecords_by_roi() (slideflow.Dataset method)</a>
 </li>
-      <li><a href="util.html#slideflow.util.StainNormalizer">StainNormalizer (class in slideflow.util)</a>
+      <li><a href="slide.html#slideflow.slide.TMA.square_thumb">square_thumb() (slideflow.slide.TMA method)</a>
+
+      <ul>
+        <li><a href="slide.html#slideflow.slide.WSI.square_thumb">(slideflow.slide.WSI method)</a>
+</li>
+      </ul></li>
+      <li><a href="model.html#slideflow.model.DatasetFeatures.stats">stats() (slideflow.model.DatasetFeatures method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -857,37 +871,43 @@
 <h2 id="T">T</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.tensorflow">tensorflow() (slideflow.dataset.Dataset method)</a>
-</li>
-      <li><a href="util.html#slideflow.util.StainNormalizer.tf_to_rgb">tf_to_rgb() (slideflow.util.StainNormalizer method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.tensorflow">tensorflow() (slideflow.Dataset method)</a>
 </li>
       <li><a href="tfrecords.html#slideflow.io.tensorflow.tfrecord_example">tfrecord_example() (in module slideflow.io.tensorflow)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.tfrecord_report">tfrecord_report() (slideflow.dataset.Dataset method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.tfrecord_report">tfrecord_report() (slideflow.Dataset method)</a>
 
       <ul>
-        <li><a href="project.html#slideflow.project.Project.tfrecord_report">(slideflow.project.Project method)</a>
+        <li><a href="project.html#slideflow.Project.tfrecord_report">(slideflow.Project method)</a>
 </li>
       </ul></li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.tfrecords">tfrecords() (slideflow.dataset.Dataset method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.tfrecords">tfrecords() (slideflow.Dataset method)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.tfrecords_by_subfolder">tfrecords_by_subfolder() (slideflow.dataset.Dataset method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.tfrecords_by_subfolder">tfrecords_by_subfolder() (slideflow.Dataset method)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.tfrecords_folders">tfrecords_folders() (slideflow.dataset.Dataset method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.tfrecords_folders">tfrecords_folders() (slideflow.Dataset method)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.tfrecords_from_tiles">tfrecords_from_tiles() (slideflow.dataset.Dataset method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.tfrecords_from_tiles">tfrecords_from_tiles() (slideflow.Dataset method)</a>
 </li>
       <li><a href="reader.html#slideflow.io.torch.TFRecordsError">TFRecordsError</a>, <a href="tfrecords.html#slideflow.io.tensorflow.TFRecordsError">[1]</a>
 </li>
-      <li><a href="slide.html#slideflow.slide.TileCorruptionError">TileCorruptionError</a>
+      <li><a href="slide.html#slideflow.slide.TMA.thumb">thumb() (slideflow.slide.TMA method)</a>
+
+      <ul>
+        <li><a href="slide.html#slideflow.slide.WSI.thumb">(slideflow.slide.WSI method)</a>
 </li>
+      </ul></li>
       <li><a href="slide.html#slideflow.slide.TMA">TMA (class in slideflow.slide)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="statistics.html#slideflow.statistics.to_onehot">to_onehot() (in module slideflow.statistics)</a>
+
+      <ul>
+        <li><a href="util.html#slideflow.util.to_onehot">(in module slideflow.util)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.torch">torch() (slideflow.dataset.Dataset method)</a>
+      </ul></li>
+      <li><a href="dataset.html#slideflow.Dataset.torch">torch() (slideflow.Dataset method)</a>
 </li>
       <li><a href="util.html#slideflow.util.TqdmLoggingHandler">TqdmLoggingHandler (class in slideflow.util)</a>
 </li>
@@ -898,16 +918,16 @@
 </li>
         <li><a href="model.html#slideflow.model.Trainer.train">(slideflow.model.Trainer method)</a>
 </li>
-        <li><a href="project.html#slideflow.project.Project.train">(slideflow.project.Project method)</a>
+        <li><a href="project.html#slideflow.Project.train">(slideflow.Project method)</a>
 </li>
       </ul></li>
-      <li><a href="project.html#slideflow.project.Project.train_clam">train_clam() (slideflow.project.Project method)</a>
+      <li><a href="project.html#slideflow.Project.train_clam">train_clam() (slideflow.Project method)</a>
 </li>
       <li><a href="model.html#slideflow.model.Trainer">Trainer (class in slideflow.model)</a>
 </li>
       <li><a href="model.html#slideflow.model.trainer_from_hp">trainer_from_hp() (in module slideflow.model)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.training_validation_split">training_validation_split() (slideflow.dataset.Dataset method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.training_validation_split">training_validation_split() (slideflow.Dataset method)</a>
 </li>
       <li><a href="tfrecords.html#slideflow.io.tensorflow.transform_tfrecord">transform_tfrecord() (in module slideflow.io.tensorflow)</a>
 </li>
@@ -917,13 +937,11 @@
 <h2 id="U">U</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.unclip">unclip() (slideflow.dataset.Dataset method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.unclip">unclip() (slideflow.Dataset method)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.update_annotations_with_slidenames">update_annotations_with_slidenames() (slideflow.dataset.Dataset method)</a>
+      <li><a href="dataset.html#slideflow.Dataset.update_annotations_with_slidenames">update_annotations_with_slidenames() (slideflow.Dataset method)</a>
 </li>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.update_manifest">update_manifest() (slideflow.dataset.Dataset method)</a>
-</li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.update_manifest_at_dir">update_manifest_at_dir() (in module slideflow.io.tensorflow)</a>
+      <li><a href="dataset.html#slideflow.Dataset.update_manifest">update_manifest() (slideflow.Dataset method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
@@ -945,9 +963,7 @@
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="dataset.html#slideflow.dataset.Dataset.verify_annotations_slides">verify_annotations_slides() (slideflow.dataset.Dataset method)</a>
-</li>
-      <li><a href="slide.html#slideflow.slide.vips2numpy">vips2numpy() (in module slideflow.slide)</a>
+      <li><a href="dataset.html#slideflow.Dataset.verify_annotations_slides">verify_annotations_slides() (slideflow.Dataset method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -957,14 +973,8 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="util.html#slideflow.util.write_json">write_json() (in module slideflow.util)</a>
 </li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.write_tfrecords_merge">write_tfrecords_merge() (in module slideflow.io.tensorflow)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.write_tfrecords_multi">write_tfrecords_multi() (in module slideflow.io.tensorflow)</a>
-</li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.write_tfrecords_single">write_tfrecords_single() (in module slideflow.io.tensorflow)</a>
-</li>
       <li><a href="slide.html#slideflow.slide.WSI">WSI (class in slideflow.slide)</a>
 </li>
   </ul></td>

@@ -28,8 +28,10 @@ class EmptyTFRecordsError(Exception):
     pass
 
 class InterleaveIterator(torch.utils.data.IterableDataset):
-    """Pytorch Iterable Dataset that interleaves tfrecords with the interleave() function below, serving as a bridge
-    between the python generator returned by interleave() and the pytorch DataLoader class."""
+    """Pytorch Iterable Dataset that interleaves tfrecords with the interleave() function below.
+
+    Serves as a bridge between the python generator returned by interleave() and the pytorch DataLoader class.
+    """
 
     def __init__(self,
         tfrecords,                                  # Path to tfrecord files to interleave
@@ -196,8 +198,8 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         raise NotImplementedError
 
     def get_label(self, idx):
-        '''#Randomly returns a label, for use with StyleGAN2
-        if self.use_labels and self.model_type == 'categorical':
+        #Randomly returns a label, for use with StyleGAN2
+        '''if self.use_labels and self.model_type == 'categorical':
             label = random.choices(self.unique_labels, weights=self.label_prob, k=1)[0]
             return label.copy() if not self.onehot else to_onehot(label, self.max_label+1).copy()
         elif self.use_labels:

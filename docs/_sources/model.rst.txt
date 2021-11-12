@@ -10,69 +10,69 @@ are extensions of this class, supporting linear and Cox Proportional Hazards out
 :func:`trainer_from_hp` can choose and return the correct model instance based on the provided
 hyperparameters.
 
-:class:`ModelParams` will build models according to a set of model parameters and a given set of
-outcome labels. To change the core image convolutional model to a different architecture, add the custom model class
-to the ModelParams class variable ``ModelDict`` with a recognizable name. Then, set the ``model`` variable of the
-instanced ModelParams object to this name. For example:
-
-.. code-block:: python
-
-    import CustomModel
-    from slideflow.model import ModelParams
-
-    ModelParams.ModelDict['custom'] = CustomModel
-    mp = ModelParams(model='custom', ...)
-
-To build a completely custom model without utilizing any of the automatic input/output setups according to your
-outcome labels, write a class which inherits the ModelParams class and implements the function :func:`build_model`.
-
 .. note::
     In order to support both Tensorflow and PyTorch backends, the :mod:`slideflow.model` module will import either
     :mod:`slideflow.model.tensorflow` or :mod:`slideflow.model.torch` according to the currently active backend,
-    indicated by the environmental variable ``SF_BACKEND``. As the PyTorch backend is currently under development,
-    :mod:`slideflow.model.tensorflow` will be used by default, and all documentation listed here is reflective of the
-    Tensorflow backend.
+    indicated by the environmental variable ``SF_BACKEND``.
 
+Configuring and training models
+*******************************
 
 :class:`slideflow.model.ModelParams` will build models according to a set of model parameters and a given set of
-outcome labels. To change the core image convolutional model to another architecture, add the custom model class
-to the ModelParams class variable ModelDict with a recognizable name. Then, change the instanced ModelParams object
-"model" variable to this name. For example:
+outcome labels. To change the core image convolutional model to another architecture, set the ``model`` parameter
+to the custom model class.
 
 .. code-block:: python
 
     import CustomModel
     from slideflow.model import ModelParams
 
-    ModelParams.ModelDict['custom'] = CustomModel
-    mp = ModelParams(model='custom', ...)
+    mp = ModelParams(model=CustomModel, ...)
 
-To build a completely custom model without utilizing any of the automatic input/output setups according to your
-outcome labels, write a class which inherits the ModelParams class and implements the function :func:`build_model`.
+Working with layer activations
+******************************
+
+:class:`slideflow.model.Features` creates an interface to efficiently generate features/layer activations and logits
+from either a batch of images (returning a batch of activations/logits) or a whole-slide image (returning a grid of
+activations/logits).
+
+:class:`slideflow.model.DatasetFeatures` calculates features and logits for an entire dataset, storing
+result arrays into a dictionary mapping slide names to the generated activations. This buffer of whole-dataset
+activations can then be used for functions requiring analysis of whole-dataset activations, including
+:class:`slideflow.statistics.SlideMap` and :class:`slideflow.mosiac.Mosaic`.
 
 .. automodule: slideflow.model
 
 ModelParams
----------------
-
+***********
 .. autoclass:: ModelParams
     :inherited-members:
 
 Trainer
---------
+***********
 .. autoclass:: Trainer
     :inherited-members:
 
 LinearTrainer
---------------
+*************
 .. autoclass:: LinearTrainer
     :inherited-members:
 
 CPHTrainer
------------
+***********
 .. autoclass:: CPHTrainer
     :inherited-members:
 
 trainer_from_hp
----------------
+***************
 .. autofunction:: trainer_from_hp
+
+Features
+***********
+.. autoclass:: Features
+    :inherited-members:
+
+DatasetFeatures
+****************
+.. autoclass:: DatasetFeatures
+    :inherited-members:

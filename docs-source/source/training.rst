@@ -25,7 +25,7 @@ Alternatively, if you intend to perform a sweep across multiple hyperparameter c
         model=['xception'],
         pooling=['avg'],
         loss='sparse_categorical_crossentropy',
-        learning_rate=[0.01, 0.001],
+        learning_rate=[0.001, 0.0001],
         batch_size=64,
         hidden_layers=[1],
         optimizer='Adam',
@@ -68,10 +68,10 @@ Begin training
 
 Once your hyperparameter settings have been chosen you may begin training using the ``train`` function. Documentation of the function is given below:
 
-.. autofunction:: slideflow.project.Project.train
+.. autofunction:: slideflow.Project.train
    :noindex:
 
-If you used the ``ModelParams`` class to configure a single combination of parameters, pass this object via the ``params`` argument. If you configured a hyperparameter sweep, set the ``batch_file`` argument to the name of your hyperparameter sweep file (saved by default to 'batch_train.tsv').
+If you used the ``ModelParams`` class to configure a single combination of parameters, pass this object via the ``params`` argument. If you configured a hyperparameter sweep, set this argument to the name of your hyperparameter sweep file (saved by default to 'sweep.json').
 
 Your outcome variable(s) are specified with the ``outcome_label_headers`` argument. You may filter slides for training using the ``filter`` argument, as previously described.
 
@@ -80,8 +80,8 @@ For example, to train using only slides labeled as "train" in the "dataset" colu
 .. code-block:: python
 
     P.train(outcome_label_headers="category",
-          filters={"dataset": ["train"]},
-          batch_file='batch_train.tsv')
+            filters={"dataset": ["train"]},
+            params='sweep.json')
 
 If you would like to use a different validation plan than the default, pass the relevant keyword arguments to the training function.
 
@@ -106,13 +106,13 @@ Cox Proportional Hazards (CPH) models
 
 Models can also be trained to a time series outcome using CPH and negative log likelihood loss. For CPH models, use 'negative_log_likelihood' loss and set ``outcome_label_header`` equal to the annotation column indicating event *time*. Specify the event *type* (0 or 1) by passing the event type annotation column to the argument ``input_header``. If you are using multiple clinical inputs, the first header passed to ``input_header`` must be event type. CPH models are not compatible with multiple outcomes.
 
+.. note::
+    CPH models are currently unavailable with the Tensorflow backend. PyTorch support for CPH outcomes is in development.
+
 Distributed training across GPUs
 ********************************
 
 If multiple GPUs are available, training can be distributed by passing the argument ``multi_gpu=True``. If provided, slideflow will use all available (and visible) GPUs for training.
-
-.. note::
-    There is currently a bug in Tensorflow 2.5+ with Python 3.8+ which prevents multi gpu training using MirroredStrategy. You can follow the issue on `Tensorflow Github <https://github.com/tensorflow/tensorflow/issues/50487>`_.
 
 Monitoring performance
 **********************

@@ -1,26 +1,34 @@
 PyTorch
 =======
 
-While the primary backend for this package is Tensorflow/Keras, it includes a PyTorch TFRecord reader to ensure extracted and saved image tiles can be served to either Tensorflow or PyTorch models in cross-compatible fashion. There is also early support for a PyTorch model Trainer; full backend support is in development.
+While the default backend for this package is Tensorflow/Keras, it also includes a PyTorch backend, including a dedicated TFRecord reader/writer that ensures saved image tiles can be served to both Tensorflow or PyTorch models in cross-compatible fashion.
+
+If using the Tensorflow backend, PyTorch does not need to be installed; the reverse is true as well.
+
+To switch backends, simply set the environmental variable ``SF_BACKEND`` equal to either ``torch`` or ``tensorflow``:
+
+.. code-block:: bash
+
+    export SF_BACKEND=torch
 
 
 TFRecord DataLoader
 *******************
 
-To use existing TFRecords that contain tiles extracted with ``slideflow``, use the :class:`slideflow.dataset.Dataset` class and its :func:`torch` function to create a DataLoader instance that loads and interleaves TFRecords with the same functionality as the Tensorflow backend. To start, load a saved project and select a dataset:
+In addition to using the built-in training tools, you can use tiles that have been extracted with Slideflow with completely external projects. The :class:`slideflow.Dataset` class includes both :func:`torch` and :func:`tensorflow` functions to prepare a DataLoader or Tensorflow tf.data.Dataset instance that interleaves and processs images from stored TFRecords.
 
 .. code-block:: python
 
-    SFP = sf.Project('/project/path', ...)
-    dts = SFP.get_dataset(tile_px=299, tile_um=302, filters=None)
+    P = sf.Project('/project/path', ...)
+    dts = P.dataset(tile_px=299, tile_um=302, filters=None)
 
-If you want to perform any balancing, use the :meth:`slideflow.dataset.Datset.balance` method:
+If you want to perform any balancing, use the :meth:`slideflow.Datset.balance` method:
 
 .. code-block:: python
 
     dts = dts.balance('HPV_status', strategy='category')
 
-Finally, use the :meth:`slideflow.dataset.Dataset.torch` method to create a DataLoader object:
+Finally, use the :meth:`slideflow.Dataset.torch` method to create a DataLoader object:
 
 .. code-block:: python
 
@@ -34,12 +42,4 @@ Finally, use the :meth:`slideflow.dataset.Dataset.torch` method to create a Data
         pin_memory   = False,    # Pin memory to GPUs
     )
 
-The returned dataloader can then be used directly with your PyTorch applications.
-
-Training with PyTorch
-*********************
-
-Single-outcome categorical models can be trained with the experimental PyTorch backend by setting the environmental
-variable ``SF_BACKEND`` to "torch". This can be done with either ``os.environ``, or by calling
-``slideflow.set_backend('torch')``. Models are then trained in the same way, using :func:`sf.Project.train`.
-Some options are not yet implemented, and models other than single-outcome categorical models are not yet supported.
+The returned dataloader can then be used directly with your external PyTorch applications.

@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Troubleshooting &mdash; slideflow 1.12.0 documentation</title>
+  <title>Troubleshooting &mdash; slideflow 1.0.0 documentation</title>
   
 
   
@@ -75,11 +75,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Tutorials</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Showcase</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
@@ -114,7 +110,7 @@
               
               
                 <div class="version">
-                  1.12
+                  1.0
                 </div>
               
             
@@ -150,7 +146,7 @@
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Troubleshooting</a></li>
@@ -159,8 +155,8 @@
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
@@ -171,8 +167,8 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Using a Trainer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
 </ul>
 
             
@@ -247,21 +243,16 @@
               
   <div class="section" id="troubleshooting">
 <h1>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permalink to this headline">¶</a></h1>
-<p>If you’re running into problems, look for more information by including debug logging. To enable debug logging, use python’s built-in <code class="docutils literal notranslate"><span class="pre">logging</span></code> class to set the <code class="docutils literal notranslate"><span class="pre">'slideflow'</span></code> logging level to <code class="docutils literal notranslate"><span class="pre">logging.DEBUG</span></code> prior to loading a model:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">logging</span>
-<span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;slideflow&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
-<span class="n">SFP</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>To check for errors in your environment or installation, you can also use the included testing suite <code class="docutils literal notranslate"><span class="pre">slideflow.test.TestSuite</span></code> to look for issues with executing pipeline functions.</p>
+<p>If you’re running into problems, look for more information by including debug logging. To enable debug logging, set the environmental variable <code class="docutils literal notranslate"><span class="pre">SF_BACKEND=10</span></code>.</p>
+<p>To check for errors in your environment or installation, you can also use the included testing suite <code class="docutils literal notranslate"><span class="pre">slideflow.test.TestSuite</span></code> to look for issues with executing pipeline functions, as described below.</p>
 <div class="section" id="testing">
 <h2>Testing<a class="headerlink" href="#testing" title="Permalink to this headline">¶</a></h2>
-<p>The <code class="docutils literal notranslate"><span class="pre">slideflow.test.TestSuite</span></code> can use either a directory of already available slides, or it can download a set of example files from <a class="reference external" href="https://portal.gdc.cancer.gov/">The Cancer Genome Atlas</a> (TCGA) for testing. To initialize the testing suite, use the following syntax:</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">slideflow.test.TestSuite</span></code> can test all pipeline functions using a directory of available slides. To initialize the testing suite, use the following syntax:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.test</span> <span class="kn">import</span> <span class="n">TestSuite</span>
 <span class="n">TS</span> <span class="o">=</span> <span class="n">TestSuite</span><span class="p">(</span><span class="s1">&#39;/path/to/testing/directory&#39;</span><span class="p">,</span> <span class="n">slides</span><span class="o">=</span><span class="s1">&#39;/path/to/slides&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>If <code class="docutils literal notranslate"><span class="pre">slides</span></code> is not provided, a set of random slides will be downloaded from TCGA for testing.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">slides</span></code> is set to <code class="docutils literal notranslate"><span class="pre">'download'</span></code>, a set of slides will be downloaded from The Cancer Genome Atlas (TCGA) for testing.</p>
 <p>For debugging and troubleshooting, you can use the verbosity argument to include debugging logs:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">logging</span>
 <span class="n">TS</span> <span class="o">=</span> <span class="n">TestSuite</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>

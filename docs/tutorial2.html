@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tutorial 2: Using a Trainer &mdash; slideflow 1.12.0 documentation</title>
+  <title>Tutorial 2: Model training (advanced) &mdash; slideflow 1.0.0 documentation</title>
   
 
   
@@ -31,7 +31,7 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="prev" title="Tutorial 1: Quick Start" href="tutorial1.html" />
+    <link rel="prev" title="Tutorial 1: Model training (simple)" href="tutorial1.html" />
   <!-- Google Analytics -->
   
   <!-- End Google Analytics -->
@@ -74,11 +74,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Tutorials</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Showcase</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
@@ -113,7 +109,7 @@
               
               
                 <div class="version">
-                  1.12
+                  1.0
                 </div>
               
             
@@ -149,7 +145,7 @@
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
@@ -158,8 +154,8 @@
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="activations.html">slideflow.activations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
@@ -170,8 +166,8 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Quick Start</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 2: Using a Trainer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 2: Model training (advanced)</a></li>
 </ul>
 
             
@@ -212,7 +208,7 @@
       </li>
 
         
-      <li>Tutorial 2: Using a Trainer</li>
+      <li>Tutorial 2: Model training (advanced)</li>
     
     
       <li class="pytorch-breadcrumbs-aside">
@@ -244,23 +240,23 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="tutorial-2-using-a-trainer">
-<h1>Tutorial 2: Using a Trainer<a class="headerlink" href="#tutorial-2-using-a-trainer" title="Permalink to this headline">¶</a></h1>
-<p>In this next tutorial, we’ll take a more hands-on approach by working with some of the base slideflow classes directly. We will train the same model as the first tutorial, but rather than using the project method <a class="reference internal" href="project.html#slideflow.project.Project.train" title="slideflow.project.Project.train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.project.Project.train()</span></code></a>, we will use the <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Datset</span></code> and <a class="reference internal" href="model.html#slideflow.model.Trainer" title="slideflow.model.Trainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Trainer</span></code></a> classes directly in an interactive python session.</p>
+  <div class="section" id="tutorial-2-model-training-advanced">
+<h1>Tutorial 2: Model training (advanced)<a class="headerlink" href="#tutorial-2-model-training-advanced" title="Permalink to this headline">¶</a></h1>
+<p>In this next tutorial, we’ll take a more hands-on approach by working with some of the base slideflow classes directly. We will train the same model as the first tutorial, but rather than using the project method <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.project.Project.train()</span></code>, we will use the <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Datset</span></code> and <a class="reference internal" href="model.html#slideflow.model.Trainer" title="slideflow.model.Trainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Trainer</span></code></a> classes directly in an interactive python session.</p>
 <div class="section" id="project-setup">
 <h2>Project Setup<a class="headerlink" href="#project-setup" title="Permalink to this headline">¶</a></h2>
-<p>Using the same project configuration as the first tutorial, we will set up a new project with the <a class="reference internal" href="project.html#slideflow.project.Project.from_prompt" title="slideflow.project.Project.from_prompt"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.project.Project.from_prompt()</span></code></a> initializer:</p>
+<p>Using the same project configuration as the first tutorial, we will set up a new project with the <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.project.Project.from_prompt()</span></code> initializer:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">SFP</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="o">.</span><span class="n">from_prompt</span><span class="p">(</span><span class="s1">&#39;/home/er_project&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="o">.</span><span class="n">from_prompt</span><span class="p">(</span><span class="s1">&#39;/home/er_project&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Use the same settings as the first tutorial. Rather than providing this information via prompt, you could alternatively pass in all arguments via keyword to the regular initializer:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">SFP</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/home/er_project&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Breast_ER&quot;</span><span class="p">,</span> <span class="n">annotations</span><span class="o">=...</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/home/er_project&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Breast_ER&quot;</span><span class="p">,</span> <span class="n">annotations</span><span class="o">=...</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>If you initialize a project with keywords, you will need to manually create a new dataset source with the <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.project.Project.add_dataset()</span></code> method:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">SFP</span><span class="o">.</span><span class="n">add_dataset</span><span class="p">(</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">P</span><span class="o">.</span><span class="n">add_dataset</span><span class="p">(</span>
 <span class="gp">... </span>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;NAME&quot;</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">slides</span><span class="o">=</span><span class="s2">&quot;/slides/directory&quot;</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">roi</span><span class="o">=</span><span class="s2">&quot;/roi/directory&quot;</span><span class="p">,</span>
@@ -269,12 +265,12 @@
 <span class="gp">... </span><span class="p">)</span>
 </pre></div>
 </div>
-<p>As before, set up your annotations file, including columns “submitter_id”, “er_status_by_ihc”, “dataset”, and “slide”.</p>
+<p>As before, set up your annotations file, including columns “patient”, “er_status_by_ihc”, “dataset”, and “slide”.</p>
 </div>
 <div class="section" id="creating-a-dataset">
 <h2>Creating a Dataset<a class="headerlink" href="#creating-a-dataset" title="Permalink to this headline">¶</a></h2>
-<p>Next, create a <a class="reference internal" href="dataset.html#slideflow.dataset.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a> instance to indicate which slides we will be working with (again, we are working with 256 px tiles at 128 um). We only want to use our training set for now, and only include slides with an ER status annotation. For this, we will use the filters arguments.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span> <span class="o">=</span> <span class="n">SFP</span><span class="o">.</span><span class="n">get_dataset</span><span class="p">(</span>
+<p>Next, create a <a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a> instance to indicate which slides we will be working with (again, we are working with 256 px tiles at 128 um). We only want to use our training set for now, and only include slides with an ER status annotation. For this, we will use the filters arguments.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span>
 <span class="gp">... </span>    <span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">tile_um</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">filters</span><span class="o">=</span><span class="p">{</span>
@@ -283,7 +279,7 @@
 <span class="gp">... </span><span class="p">})</span>
 </pre></div>
 </div>
-<p>To extract tiles from the slides in this dataset, use the <a class="reference internal" href="dataset.html#slideflow.dataset.Dataset.extract_tiles" title="slideflow.dataset.Dataset.extract_tiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset.extract_tiles()</span></code></a> method:</p>
+<p>To extract tiles from the slides in this dataset, use the <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset.extract_tiles()</span></code> method:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -292,14 +288,14 @@
 <span class="go">4503965</span>
 </pre></div>
 </div>
-<p>We can use the dataset to get our ER status labels. The <a class="reference internal" href="dataset.html#slideflow.dataset.Dataset.labels" title="slideflow.dataset.Dataset.labels"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset.labels()</span></code></a> method returns the dictionary mapping slides names to outcomes as the first parameter, and a list of unique outcomes as the second parameter (which is not required at this time).</p>
+<p>We can use the dataset to get our ER status labels. The <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset.labels()</span></code> method returns the dictionary mapping slides names to outcomes as the first parameter, and a list of unique outcomes as the second parameter (which is not required at this time).</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">labels</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">)</span>
 <span class="go">2021-10-06 13:27:00 [INFO] - er_status_by_ihc &#39;Negative&#39; assigned to value &#39;0&#39; [234 slides]</span>
 <span class="go">2021-10-06 13:27:00 [INFO] - er_status_by_ihc &#39;Positive&#39; assigned to value &#39;1&#39; [842 slides]</span>
 </pre></div>
 </div>
 <p>We can see the slideflow logs showing us that 234 slides with the outcome label “Negative” were assigned to the numerical outcome “0”, and 842 “Positive” slides were assigned “1”.</p>
-<p>Next, we’ll need to split this dataset into a training and validation set. We’ll start by training on the first of 3 k-folds for cross-validated training. To split a dataset, use the <a class="reference internal" href="dataset.html#slideflow.dataset.Dataset.training_validation_split" title="slideflow.dataset.Dataset.training_validation_split"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset.training_validation_split()</span></code></a> method. We’ll need to provide our labels to ensure that the outcome categories are balanced in the training and validation sets.</p>
+<p>Next, we’ll need to split this dataset into a training and validation set. We’ll start by training on the first of 3 k-folds for cross-validated training. To split a dataset, use the <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset.training_validation_split()</span></code> method. We’ll need to provide our labels to ensure that the outcome categories are balanced in the training and validation sets.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">train_dts</span><span class="p">,</span> <span class="n">val_dts</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">training_validation_split</span><span class="p">(</span>
 <span class="gp">... </span>    <span class="n">model_type</span><span class="o">=</span><span class="s1">&#39;categorical&#39;</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
@@ -317,7 +313,7 @@
 </div>
 <p>The first informational log tells us that no validation log was provided. We could have optionally provided a JSON file path to the argument <code class="docutils literal notranslate"><span class="pre">validation_log</span></code>; this method can record splits to the provided validation log file for automatic re-use later (helpful for hyperparameter sweeps). However, for the purposes of this tutorial, we have opted not to save our validation plan.</p>
 <p>The rest of the log output shows us the distribution of our outcome categories among the k-folds, as well as the total number of slides for training and validation.</p>
-<p>At this point, we can also add categorical balancing to our dataset (see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a>). Since we have nearly 4 times as many ER-positive samples as ER-negative, it may be helpful to balance each batch to have an equal proportion of positives and negatives. We can accomplish this with the <a class="reference internal" href="dataset.html#slideflow.dataset.Dataset.balance" title="slideflow.dataset.Dataset.balance"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset.balance()</span></code></a> method:</p>
+<p>At this point, we can also add categorical balancing to our dataset (see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a>). Since we have nearly 4 times as many ER-positive samples as ER-negative, it may be helpful to balance each batch to have an equal proportion of positives and negatives. We can accomplish this with the <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset.balance()</span></code> method:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">train_dts</span> <span class="o">=</span> <span class="n">train_dts</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span><span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -329,7 +325,7 @@
 <span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span>
 <span class="gp">... </span>    <span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">tile_um</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">model</span><span class="o">=</span><span class="s1">&#39;Xception&#39;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">model</span><span class="o">=</span><span class="s1">&#39;xception&#39;</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
 <span class="gp">... </span><span class="p">)</span>
@@ -398,7 +394,7 @@
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
       
-        <a href="tutorial1.html" class="btn btn-neutral" title="Tutorial 1: Quick Start" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+        <a href="tutorial1.html" class="btn btn-neutral" title="Tutorial 1: Model training (simple)" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
       
     </div>
   
@@ -430,7 +426,7 @@
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
-<li><a class="reference internal" href="#">Tutorial 2: Using a Trainer</a><ul>
+<li><a class="reference internal" href="#">Tutorial 2: Model training (advanced)</a><ul>
 <li><a class="reference internal" href="#project-setup">Project Setup</a></li>
 <li><a class="reference internal" href="#creating-a-dataset">Creating a Dataset</a></li>
 <li><a class="reference internal" href="#training">Training</a></li>

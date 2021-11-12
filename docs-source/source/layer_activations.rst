@@ -18,16 +18,11 @@ The easiest way to get started with layer activations is to calculate and displa
 .. autofunction:: slideflow.Project.generate_mosaic
    :noindex:
 
-.. image:: mosaic_example2.jpg
+.. image:: mosaic_example.png
 
+If you provide a filename to the ``umap_filename`` argument, a plot of the constituent tiles will also be saved. If you additionally provide an outcome header (as saved in the annotations file) to the argument ``outcome_label_headers``, these tiles will be colored according to the slide-level annotation in the provided outcome header column of the annotations file.
 
-If you provide a filename to the ``umap_filename`` argument, a plot of the constituent tiles will also be saved. If you additionally provide an outcome header (as saved in the annotations file) to the argument ``outcome_label_headers``, these tiles will be colored according to the slide-level annotation in the provided outcome header column of the annotations file:
-
-.. image:: umap_example.png
-
-Instead of mapping all tiles within a slide, you can choose instead to map only centroid tiles by passing ``map_slide='centroid'``:
-
-.. image:: umap_example_centroid.png
+Instead of mapping all tiles within a slide, you can choose instead to map only centroid tiles by passing ``map_slide='centroid'``.
 
 There are many additional arguments that can be provided to the :meth:`slideflow.Project.generate_mosaic()` function to customize the mosaic and UMAP plots. However, you may choose to further customize these plots by working with the :class:`slideflow.Mosaic` object directly, which are returned from the ``generate_mosaic()`` function.
 

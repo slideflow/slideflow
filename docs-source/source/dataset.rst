@@ -128,5 +128,5 @@ Finally, Datasets can also return either a ``tf.data.Datasets`` or ``torch.utils
 Dataset
 --------
 
-.. autoclass:: Dataset
+.. autoclass:: slideflow.Dataset
     :inherited-members:

@@ -754,16 +754,24 @@ def _categorical_metrics(args, outcome_name, starttime=None):
     with ctx.Pool(processes=8) as p:
         # TODO: this is memory inefficient as it copies y_true / y_pred to each subprocess
         # Furthermore, it copies all categories when only one category is needed for each process
-        # Consider implementing shared memory, ideally compatible with python 3.7
-        for i, (auc, ap, thresh) in enumerate(p.imap(partial(_generate_tile_roc,
-                                                             y_true=args.y_true,
-                                                             y_pred=args.y_pred,
-                                                             data_dir=args.data_dir,
-                                                             label_start=args.label_start + outcome_name + "_",
-                                                             histogram=args.histogram), range(num_cat))):
-            args.auc['tile'][outcome_name] += [auc]
-            if args.verbose:
-                log.info(f"Tile-level AUC (cat #{i:>2}): {auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
+        # Consider implementing shared memory (although this would eliminate compatibility with python 3.7)
+        try:
+            for i, (auc, ap, thresh) in enumerate(p.imap(partial(_generate_tile_roc,
+                                                                y_true=args.y_true,
+                                                                y_pred=args.y_pred,
+                                                                data_dir=args.data_dir,
+                                                                label_start=args.label_start + outcome_name + "_",
+                                                                histogram=args.histogram), range(num_cat))):
+                args.auc['tile'][outcome_name] += [auc]
+                if args.verbose:
+                    log.info(f"Tile-level AUC (cat #{i:>2}): {auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
+        except ValueError as e:
+            # Occurs when predictions contain NaN
+            log.error(f'Error encountered when generating AUC: {e}')
+            args.auc['tile'][outcome_name] = -1
+            args.auc['slide'][outcome_name] = -1
+            args.auc['patient'][outcome_name] = -1
+            return
 
     # Convert predictions to one-hot encoding
     onehot_predictions = np.array([to_onehot(x, num_cat) for x in np.argmax(args.y_pred, axis=1)])
