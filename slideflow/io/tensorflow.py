@@ -255,12 +255,17 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
     with tf.device('cpu'):
         # -------- Get the base TFRecord parser, based on the first tfrecord ------
         features_to_return = ('image_raw', 'slide') if not incl_loc else ('image_raw', 'slide', 'loc_x', 'loc_y')
-        base_parser = get_tfrecord_parser(tfrecords[0],
-                                          features_to_return,
-                                          standardize=standardize,
-                                          img_size=img_size,
-                                          normalizer=normalizer,
-                                          augment=augment)
+        base_parser = None
+        for i in range(len(tfrecords)):
+            if base_parser is not None: continue
+            if i > 0:
+                log.debug(f"Unable to get parser from tfrecord, will try another (n={i})...")
+            base_parser = get_tfrecord_parser(tfrecords[i],
+                                             features_to_return,
+                                             standardize=standardize,
+                                             img_size=img_size,
+                                             normalizer=normalizer,
+                                             augment=augment)
 
         datasets = []
         weights = [] if prob_weights else None

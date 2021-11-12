@@ -15,6 +15,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import time
 import io
 import types
 import time
@@ -97,7 +98,10 @@ def _convert_img_to_format(image, img_format):
 def _draw_roi(img, coords):
     # Draw ROIs
     annPolys = [sg.Polygon(b) for b in coords]
-    annotated_img = Image.fromarray(img)
+    if isinstance(img, np.ndarray):
+        annotated_img = Image.fromarray(img)
+    elif isinstance(img, str):
+        annotated_img = Image.open(io.BytesIO(img))
     draw = ImageDraw.Draw(annotated_img)
     for poly in annPolys:
         x,y = poly.exterior.coords.xy
@@ -151,9 +155,6 @@ def _roi_coords_from_image(c, args):
 def _wsi_extraction_worker(c, args):
     '''Multiprocessing worker for WSI. Extracts a tile at the given coordinates.'''
 
-    slide = _VIPSWrapper(args.path, silent=True)
-    normalizer = None if not args.normalizer else StainNormalizer(method=args.normalizer, source=args.normalizer_source)
-
     index = c[2]
     grid_xi = c[4]
     grid_yi = c[5]
@@ -173,58 +174,70 @@ def _wsi_extraction_worker(c, args):
 
     # If downsampling is enabled, read image from highest level to perform filtering;
     # Otherwise filter from our target level
-    if args.filter_downsample_ratio > 1:
-        filter_extract_px = args.extract_px // args.filter_downsample_ratio
-        filter_region = slide.read_region((c[0], c[1]), args.filter_downsample_level, [filter_extract_px, filter_extract_px])
-    else:
-        # Read the region and resize to target size
-        filter_region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
+    slide = _VIPSWrapper(args.path, silent=True)
+    if args.whitespace_fraction < 1 or args.grayspace_fraction < 1:
+        if args.filter_downsample_ratio > 1:
+            filter_extract_px = args.extract_px // args.filter_downsample_ratio
+            filter_region = slide.read_region((c[0], c[1]), args.filter_downsample_level, [filter_extract_px, filter_extract_px])
+        else:
+            # Read the region and resize to target size
+            filter_region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
 
-    # Remove alpha channel if present
-    if filter_region.bands == 4:
-        filter_region = filter_region.flatten()
+        # Remove alpha channel if present
+        if filter_region.bands == 4:
+            filter_region = filter_region.flatten()
 
-    # Perform whitespace filtering [Libvips]
-    if args.whitespace_fraction < 1:
-        fraction = filter_region.bandmean().relational_const('more', args.whitespace_threshold).avg() / 255
-        if fraction > args.whitespace_fraction: return
+        # Perform whitespace filtering [Libvips]
+        if args.whitespace_fraction < 1:
+            fraction = filter_region.bandmean().relational_const('more', args.whitespace_threshold).avg() / 255
+            if fraction > args.whitespace_fraction: return
 
-    # Perform grayspace filtering [Libvips]
-    if args.grayspace_fraction < 1:
-        hsv_region = filter_region.sRGB2HSV()
-        fraction = hsv_region[1].relational_const('less', args.grayspace_threshold*255).avg() / 255
-        if fraction > args.grayspace_fraction: return
+        # Perform grayspace filtering [Libvips]
+        if args.grayspace_fraction < 1:
+            hsv_region = filter_region.sRGB2HSV()
+            fraction = hsv_region[1].relational_const('less', args.grayspace_threshold*255).avg() / 255
+            if fraction > args.grayspace_fraction: return
 
     # If dry run, return the current coordinates only
     if args.dry_run:
         return {'loc': [x_coord, y_coord]}, index
 
+    # Normalizer
+    normalizer = None if not args.normalizer else StainNormalizer(method=args.normalizer, source=args.normalizer_source)
+
     # Read the target downsample region now, if we were filtering at a different level
     region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
-    region = region.thumbnail_image(args.tile_px)
-    if region.bands == 4: region = region.flatten() # removes alpha
-    np_image = vips2numpy(region)  # Read regions into memory and convert to numpy arrays
+    if int(args.tile_px) != int(args.extract_px):
+        region = region.resize(args.tile_px/args.extract_px)
+    assert(region.width == region.height == args.tile_px)
 
-    # Apply normalization
-    if normalizer:
-        try:
-            np_image = normalizer.rgb_to_rgb(np_image)
-        except:
-            # The image could not be normalized, which happens when a tile is primarily one solid color (background)
-            return
+    if args.img_format != 'numpy':
+        if args.img_format == 'png':
+            image = region.pngsave_buffer()
+        elif args.img_format in ('jpg', 'jpeg'):
+            image = region.jpegsave_buffer()
+        else:
+            raise ValueError(f"Unknown image format {args.img_format}")
+
+        # Apply normalization
+        if normalizer:
+            try:    image = normalizer.jpeg_to_jpeg(image)
+            except: return # The image could not be normalized, which happens when a tile is primarily one solid color
+    else:
+        if region.bands == 4: region = region.flatten() # removes alpha
+        image = vips2numpy(region)  # Read regions into memory and convert to numpy arrays
+
+        # Apply normalization
+        if normalizer:
+            try:    image = normalizer.rgb_to_rgb(image)
+            except: return # The image could not be normalized, which happens when a tile is primarily one solid color
 
     # Include ROI / bounding box processing.
     # Used to visualize ROIs on extracted tiles, or to generate YoloV5 labels.
     if args.yolo or args.draw_roi:
         coords, boxes, yolo_anns = _roi_coords_from_image(c, args)
     if args.draw_roi:
-        np_image = _draw_roi(np_image, coords)
-
-    # Convert to final format
-    if args.img_format != 'numpy':
-        image = _convert_img_to_format(np_image, args.img_format)
-    else:
-        image = np_image
+        image = _draw_roi(image, coords)
 
     return_dict = {'image': image}
     if args.yolo:
@@ -387,16 +400,16 @@ class ExtractionReport:
         bb_names = [r.path for r in reports]
         self.warn_txt = ''
         for slide, b in zip(bb_names, bb):
-            if b > self.bb_threshold:
+            if b is not None and b > self.bb_threshold:
                 self.warn_txt += f'{slide},{b}\n'
 
-        if self.num_tiles_chart(num_tiles):
+        if np.any(num_tiles) and self.num_tiles_chart(num_tiles):
             with tempfile.NamedTemporaryFile(suffix='.png') as temp:
                 plt.savefig(temp.name)
                 pdf.image(temp.name, 107, pdf.y, w=50)
                 plt.clf()
 
-        if self.blur_chart(bb):
+        if np.any(bb) and self.blur_chart(bb):
             with tempfile.NamedTemporaryFile(suffix='.png') as temp:
                 plt.savefig(temp.name)
                 pdf.image(temp.name, 155, pdf.y, w=50)
@@ -819,11 +832,6 @@ class _BaseLoader:
             raise ValueError(f"Unknown method {method}, valid methods include 'blur', 'otsu', 'both'")
         starttime = time.time()
 
-        thumb = np.array(self.thumb(mpp=mpp))
-        if thumb.shape[-1] == 4:
-            thumb = thumb[:,:,:3]
-        gray = rgb2gray(thumb)
-        img_laplace = np.abs(skimage.filters.laplace(gray))
         thumb_mpp = 40
         self.qc_mpp = mpp
         self.qc_method = method
@@ -831,10 +839,17 @@ class _BaseLoader:
 
         # Perform thresholding
         if method in ('blur', 'both'):
+            thumb = np.array(self.thumb(mpp=mpp))
+            if thumb.shape[-1] == 4:
+                thumb = thumb[:,:,:3]
+            gray = rgb2gray(thumb)
+            img_laplace = np.abs(skimage.filters.laplace(gray))
             blur_mask = skimage.filters.gaussian(img_laplace, sigma=blur_radius) <= blur_threshold
             self.qc_mask = blur_mask
         if method in ('otsu', 'both'):
-            otsu_thumb = np.array(self.thumb(mpp=thumb_mpp))
+            otsu_thumb = vips.Image.new_from_file(self.path, fail=True, access=vips.enums.Access.RANDOM, level=self.slide.level_count-1)
+            otsu_thumb = vips2numpy(otsu_thumb)
+            #otsu_thumb = np.array(self.thumb(mpp=thumb_mpp))
             if otsu_thumb.shape[-1] == 4:
                 otsu_thumb = otsu_thumb[:,:,:3]
             hsv_img = cv2.cvtColor(otsu_thumb, cv2.COLOR_RGB2HSV)
@@ -855,7 +870,8 @@ class _BaseLoader:
             small_mask = self.qc_mask
 
         # Filter coordinates
-        qc_ratio = self.mpp / (mpp * thumb_scale)
+        #qc_ratio = self.mpp / (mpp * thumb_scale)
+        qc_ratio = 1/self.slide.level_downsamples[self.slide.level_count-1]
         qc_width = int(self.full_extract_px * qc_ratio)
         to_delete = []
         for i, c in enumerate(self.coord):
@@ -866,7 +882,8 @@ class _BaseLoader:
                 to_delete += [i]
         self.coord = np.delete(np.array(self.coord), to_delete, axis=0)
         self.tile_mask = np.delete(self.tile_mask, to_delete)
-        img = Image.fromarray(img_as_ubyte(small_mask))
+        self.estimated_num_tiles = self.coord.shape[0]
+        img = None#Image.fromarray(img_as_ubyte(small_mask))
         log.debug(f'QC complete for slide {self.shortname} (time: {time.time()-starttime:.2f}s)')
         return img
 
@@ -1200,7 +1217,6 @@ class WSI(_BaseLoader):
             info_msg = f"No ROI found for {sf.util.green(self.name)}, using whole slide."
             if not silent:  log.info(info_msg)
             else:           log.debug(info_msg)
-            self.estimated_num_tiles = int(len(self.coord))
             self.roi_method = 'ignore'
 
         mpp_roi_msg = f'{self.mpp} um/px | {len(self.rois)} ROI(s)'
@@ -1252,6 +1268,7 @@ class WSI(_BaseLoader):
                 self.coord.append([x, y, index, is_unique, xi, yi])
                 index += 1
         self.coord = np.array(self.coord)
+        self.estimated_num_tiles = self.coord.shape[0]
         self.tile_mask = np.asarray([False for i in range(len(self.coord))], dtype=np.bool)
         self.grid = np.zeros((len(x_range), len(y_range)))
 
@@ -1461,12 +1478,12 @@ class WSI(_BaseLoader):
         else:
             roi_area = 1
         total_area = (self.full_shape[0]/self.roi_scale) * (self.full_shape[1]/self.roi_scale)
-        roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
+        self.roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
 
         if self.roi_method == 'inside':
-            self.estimated_num_tiles = int(len(self.coord) * roi_area_fraction)
+            self.estimated_num_tiles = self.coord.shape[0] * self.roi_area_fraction
         else:
-            self.estimated_num_tiles = int(len(self.coord) * (1-roi_area_fraction))
+            self.estimated_num_tiles = self.coord.shape[0] * (1-self.roi_area_fraction)
 
         return len(self.rois)
 
