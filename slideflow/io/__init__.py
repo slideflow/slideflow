@@ -2,6 +2,7 @@
 
 import os
 import copy
+import struct
 import slideflow as sf
 
 from tqdm import tqdm
@@ -57,26 +58,10 @@ def update_manifest_at_dir(directory, force_update=False):
 
         rel_tfr_manifest = {rel_tfr: {}}
         try:
-            raw_dataset = TFRecordDataset(tfr)
-            parser = get_tfrecord_parser(tfr, ('slide',), to_numpy=True)
-        except StopIteration:
-            return None
-        #except Exception as e:
-        #    log.error(f"Unable to open TFRecords file with {os.environ['SF_BACKEND']}: {str(e)}")
-        #    return None
-        total = 0
-        try:
-            for raw_record in raw_dataset:
-                slide = parser(raw_record)[0]
-                if hasattr(slide, 'decode'):
-                    slide = slide.decode('utf-8')
-                if slide not in rel_tfr_manifest[rel_tfr]:
-                    rel_tfr_manifest[rel_tfr][slide] = 1
-                else:
-                    rel_tfr_manifest[rel_tfr][slide] += 1
-                total += 1
+            total = read_tfrecord_length(tfr)
         except dataloss_errors:
-            del(raw_dataset)
+            return 'delete'
+        if total is None:
             return 'delete'
         rel_tfr_manifest[rel_tfr]['total'] = total
         return rel_tfr_manifest
@@ -213,3 +198,25 @@ def extract_tiles(tfrecord, destination):
         image_string = open(join(dest_folder, tile_filename), 'wb')
         image_string.write(image_raw)
         image_string.close()
+
+def read_tfrecord_length(tfrecord):
+    """Returns number of records stored in the given tfrecord file."""
+    infile = open(tfrecord, "rb")
+    num_records = 0
+    while True:
+        current = infile.tell()
+        try:
+            byte_len = infile.read(8)
+            if len(byte_len) == 0:
+                break
+            infile.read(4)
+            proto_len = struct.unpack("q", byte_len)[0]
+            infile.read(proto_len)
+            infile.read(4)
+            num_records += 1
+        except:
+            log.error(f"Failed to parse TFRecord at {tfrecord}")
+            infile.close()
+            return None
+    infile.close()
+    return num_records

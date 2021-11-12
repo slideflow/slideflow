@@ -440,7 +440,7 @@ class Dataset:
         return ret
 
     def extract_tiles(self, save_tiles=False, save_tfrecords=True, source=None, stride_div=1, enable_downsample=True,
-                      roi_method='inside', skip_missing_roi=True, skip_extracted=True, tma=False, randomize_origin=False,
+                      roi_method='inside', skip_missing_roi=False, skip_extracted=True, tma=False, randomize_origin=False,
                       buffer=None, num_workers=4, qc=None, report=True, process_isolated=True, **kwargs):
 
         """Extract tiles from a group of slides, saving extracted tiles to either loose image or in
@@ -460,7 +460,7 @@ class Dataset:
                 Recommend manual confirmation of tile integrity.
             roi_method (str, optional): Either 'inside', 'outside', or 'ignore'. Defaults to 'inside'.
                 Indicates whether tiles are extracted inside or outside ROIs, or if ROIs are ignored entirely.
-            skip_missing_roi (bool, optional): Skip slides that are missing ROIs. Defaults to True.
+            skip_missing_roi (bool, optional): Skip slides that are missing ROIs. Defaults to False.
             skip_extracted (bool, optional): Skip slides that have already been extracted. Defaults to True.
             tma (bool, optional): Reads slides as Tumor Micro-Arrays (TMAs), detecting and extracting tumor cores.
                 Defaults to False. Experimental function with limited testing.
