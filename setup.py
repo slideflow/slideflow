@@ -39,6 +39,7 @@ setuptools.setup(
         'spams',
         'lifelines',
         'gitpython',
-        'scikit-image'
+        'scikit-image',
+        'tqdm'
     ],
 )
