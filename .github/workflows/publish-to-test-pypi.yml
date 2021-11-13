@@ -1,4 +1,4 @@
-name: Publish Python 🐍 distributions 📦 to PyPI and TestPyPI
+name: pypi package
 
 on: push
 
@@ -13,6 +13,8 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: 3.8
+    - name: Install libvips
+      run: sudo apt-get install -y libvips
     - name: Install pypa/build
       run: >-
         python -m
