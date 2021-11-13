@@ -23,4 +23,23 @@ setuptools.setup(
         'slideflow': ['slide/norm_tile.jpg', 'slide/slideflow-logo-name-small.jpg'],
     },
     python_requires='>=3.7',
+    install_requires=[
+        'gast>=0.3.3',
+        'scipy',
+        'sklearn',
+        'matplotlib>=3.2',
+        'imageio',
+        'opencv-python',
+        'shapely',
+        'umap-learn',
+        'seaborn',
+        'pandas',
+        'pyvips',
+        'fpdf',
+        'spams',
+        'cplex',
+        'lifelines',
+        'gitpython',
+        'scikit-image'
+    ],
 )
