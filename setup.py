@@ -37,7 +37,6 @@ setuptools.setup(
         'pyvips',
         'fpdf',
         'spams',
-        'cplex',
         'lifelines',
         'gitpython',
         'scikit-image'
