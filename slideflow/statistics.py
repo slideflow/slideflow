@@ -752,9 +752,9 @@ def _categorical_metrics(args, outcome_name, starttime=None):
 
     ctx = mp.get_context('spawn')
     with ctx.Pool(processes=8) as p:
-        # TODO: this is memory inefficient as it copies y_true / y_pred to each subprocess
-        # Furthermore, it copies all categories when only one category is needed for each process
-        # Consider implementing shared memory (although this would eliminate compatibility with python 3.7)
+    # TODO: this is memory inefficient as it copies y_true / y_pred to each subprocess
+    # Furthermore, it copies all categories when only one category is needed for each process
+    # Consider implementing shared memory (although this would eliminate compatibility with python 3.7)
         try:
             for i, (auc, ap, thresh) in enumerate(p.imap(partial(_generate_tile_roc,
                                                                 y_true=args.y_true,
@@ -928,8 +928,14 @@ def gen_umap(array, dim=2, n_neighbors=50, min_dist=0.1, metric='cosine', low_me
 
     return normalize_layout(layout)
 
-def save_histogram(y_true, y_pred, outdir, name='histogram', neptune_run=None):
+def save_histogram(y_true, y_pred, outdir, name='histogram', neptune_run=None, subsample=500):
     """Generates histogram of y_pred, labeled by y_true, saving to outdir."""
+    # Subsample
+    if subsample and y_pred.shape[0] > subsample:
+        idx = np.arange(y_pred.shape[0])
+        idx = np.random.choice(idx, subsample)
+        y_pred = y_pred[idx]
+        y_true = y_true[idx]
 
     cat_false = [yp for i, yp in enumerate(y_pred) if y_true[i] == 0]
     cat_true = [yp for i, yp in enumerate(y_pred) if y_true[i] == 1]
@@ -937,8 +943,8 @@ def save_histogram(y_true, y_pred, outdir, name='histogram', neptune_run=None):
     plt.clf()
     plt.title('Tile-level Predictions')
     try:
-        sns.histplot(cat_false, kde=True, stat="density", linewidth=0, color="skyblue", label="Negative")
-        sns.histplot(cat_true, kde=True, stat="density", linewidth=0, color="red", label="Positive")
+        sns.histplot(cat_false, bins=30, kde=True, stat="density", linewidth=0, color="skyblue", label="Negative")
+        sns.histplot(cat_true, bins=30, kde=True, stat="density", linewidth=0, color="red", label="Positive")
     except np.linalg.LinAlgError:
         log.warning("Unable to generate histogram, insufficient data")
     plt.legend()

@@ -539,8 +539,8 @@ class Trainer:
     _model_type = 'categorical'
 
     def __init__(self, hp, outdir, labels, patients, slide_input=None, name=None, manifest=None, feature_sizes=None,
-                 feature_names=None, outcome_names=None, mixed_precision=True, config=None, neptune_api=None,
-                 neptune_workspace=None):
+                 feature_names=None, outcome_names=None, mixed_precision=True, config=None, use_neptune=False,
+                 neptune_api=None, neptune_workspace=None):
 
         """Sets base configuration, preparing model inputs and outputs.
 
@@ -560,6 +560,7 @@ class Trainer:
             outcome_names (list, optional): Name of each outcome. Defaults to "Outcome {X}" for each outcome.
             mixed_precision (bool, optional): Use FP16 mixed precision (rather than FP32). Defaults to True.
             config (dict, optional): Training configuration dictionary, used for logging. Defaults to None.
+            use_neptune (bool, optional): Use Neptune API logging. Defaults to False
             neptune_api (str, optional): Neptune API token, used for logging. Defaults to None.
             neptune_workspace (str, optional): Neptune workspace, used for logging. Defaults to None.
         """
@@ -620,7 +621,7 @@ class Trainer:
                 )]
 
         # Initialize Neptune
-        self.use_neptune = (neptune_api and neptune_workspace)
+        self.use_neptune = use_neptune
         if self.use_neptune:
             self.neptune_logger = sf.util.neptune_utils.NeptuneLog(neptune_api, neptune_workspace)
 
@@ -780,7 +781,7 @@ class Trainer:
         results_log = os.path.join(self.outdir, 'results_log.csv')
         log.info(f'Evaluation metrics:')
         for m in val_metrics:
-            log.info(f'{m}: {val_metrics[m]:.4f}')
+            log.info(f'{m}: {val_metrics[m]}')
         results_dict['eval'].update(val_metrics)
         sf.util.update_results_log(results_log, 'eval_model', results_dict)
 

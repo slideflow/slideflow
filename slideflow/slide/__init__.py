@@ -183,10 +183,6 @@ def _wsi_extraction_worker(c, args):
             # Read the region and resize to target size
             filter_region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
 
-        # Remove alpha channel if present
-        if filter_region.bands == 4:
-            filter_region = filter_region.flatten()
-
         # Perform whitespace filtering [Libvips]
         if args.whitespace_fraction < 1:
             fraction = filter_region.bandmean().relational_const('more', args.whitespace_threshold).avg() / 255
@@ -984,7 +980,7 @@ class _BaseLoader:
             return False
         return loaded_correctly
 
-    def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, img_format='png', report=True, **kwargs):
+    def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, img_format='jpg', report=True, **kwargs):
         """Extracts tiles from slide using the build_generator() method,
         saving tiles into a TFRecord file or as loose JPG tiles in a directory.
 
@@ -993,6 +989,7 @@ class _BaseLoader:
             tiles_dir (str): If provided, saves loose images into a subdirectory (per slide name) here.
             img_format (str): 'png' or 'jpg'. Format of images for internal storage in tfrecords.
                 PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
+                Defaults to 'jpg'.
 
         Keyword Args:
             whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
@@ -1270,7 +1267,7 @@ class WSI(_BaseLoader):
         self.tile_mask = np.asarray([False for i in range(len(self.coord))], dtype=np.bool)
         self.grid = np.zeros((len(x_range), len(y_range)))
 
-    def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, img_format='png', report=True, **kwargs):
+    def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, img_format='jpg', report=True, **kwargs):
         """Extracts tiles from slide using the build_generator() method,
         saving tiles into a TFRecord file or as loose JPG tiles in a directory.
 
@@ -1279,6 +1276,7 @@ class WSI(_BaseLoader):
             tiles_dir (str): If provided, saves loose images into a subdirectory (per slide name) here.
             img_format (str): 'png' or 'jpg'. Format of images for internal storage in tfrecords.
                 PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
+                Defaults to 'jpg'.
 
         Keyword Args:
             whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
@@ -1702,7 +1700,7 @@ class TMA(_BaseLoader):
 
         return num_filtered, num_filtered
 
-    def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, img_format='png', report=True, **kwargs):
+    def extract_tiles(self, tfrecord_dir=None, tiles_dir=None, img_format='jpg', report=True, **kwargs):
         """Extracts tiles from slide using the build_generator() method,
         saving tiles into a TFRecord file or as loose JPG tiles in a directory.
 
@@ -1711,6 +1709,7 @@ class TMA(_BaseLoader):
             tiles_dir (str): If provided, saves loose images into a subdirectory (per slide name) here.
             img_format (str): 'png' or 'jpg'. Format of images for internal storage in tfrecords.
                 PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
+                Defaults to 'jpg'.
 
         Keyword Args:
             whitespace_fraction (float, optional): Range 0-1. Defaults to 1.

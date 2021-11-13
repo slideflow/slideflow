@@ -441,7 +441,7 @@ class Dataset:
 
     def extract_tiles(self, save_tiles=False, save_tfrecords=True, source=None, stride_div=1, enable_downsample=True,
                       roi_method='inside', skip_missing_roi=False, skip_extracted=True, tma=False, randomize_origin=False,
-                      buffer=None, num_workers=2, qc=None, report=True, process_isolated=True, **kwargs):
+                      buffer=None, num_workers=1, qc=None, report=True, **kwargs):
 
         """Extract tiles from a group of slides, saving extracted tiles to either loose image or in
         TFRecord binary format.
@@ -472,9 +472,6 @@ class Dataset:
                 tiles with detected out-of-focus regions or artifact - and/or otsu's method. Increases tile extraction
                 time. Defaults to None.
             report (bool, optional): Save a PDF report of tile extraction. Defaults to True.
-            process_isolated (bool, optional): Isolated each slide's tile extraction into a separate process.
-                May circumvent libvips errors when multiple slides are being accessed simultaneously. Small performance
-                penalty when used. Defaults to True.
 
         Keyword Args:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
@@ -489,7 +486,7 @@ class Dataset:
                 Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.
             grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
                 Pixels in HSV format with saturation below this threshold are considered grayspace.
-            img_format (str, optional): 'png' or 'jpg'. Defaults to 'png'. Image format to use in tfrecords.
+            img_format (str, optional): 'png' or 'jpg'. Defaults to 'jpg'. Image format to use in tfrecords.
                 PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
             full_core (bool, optional): Only used if extracting from TMA. If True, will save entire TMA core as image.
                 Otherwise, will extract sub-images from each core using the given tile micron size. Defaults to False.
@@ -625,12 +622,9 @@ class Dataset:
                     while True:
                         try:
                             path = q.get()
-                            if process_isolated:
-                                process = ctx.Process(target=_tile_extractor, args=(path,), kwargs=extraction_kwargs)
-                                process.start()
-                                process.join()
-                            else:
-                                _tile_extractor(path, **extraction_kwargs)
+                            process = ctx.Process(target=_tile_extractor, args=(path,), kwargs=extraction_kwargs)
+                            process.start()
+                            process.join()
                             if buffer and buffer != 'vmtouch':
                                 os.remove(path)
                             q.task_done()

@@ -47,6 +47,7 @@ def _train_worker(training_args, model_kwargs, training_kwargs, results_dict):
                                         patients=training_args.patients,
                                         slide_input=training_args.slide_input,
                                         config=training_args.config,
+                                        use_neptune=training_args.use_neptune,
                                         neptune_api=training_args.neptune_api,
                                         neptune_workspace=training_args.neptune_workspace,
                                         **model_kwargs)

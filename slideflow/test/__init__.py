@@ -622,9 +622,6 @@ class TestSuite:
             dataset = self.project.dataset(299, 302)
             self.project.train_clam('TEST_CLAM', join(self.project.root, 'clam'), 'category1', dataset)
 
-        with TaskWrapper('Evaluating CLAM...') as test:
-            pass
-
     def test(self, extract=True, reader=True, train=True, normalizer=True, evaluate=True, heatmap=True,
              activations=True, predict_wsi=True, clam=True):
         '''Perform and report results of all available testing.'''

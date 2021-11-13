@@ -605,7 +605,10 @@ class Project:
                                            mixed_precision=self.mixed_precision,
                                            feature_names=input_header,
                                            feature_sizes=feature_sizes,
-                                           outcome_names=outcome_label_headers)
+                                           outcome_names=outcome_label_headers,
+                                           use_neptune=self.use_neptune,
+                                           neptune_api=self.neptune_api,
+                                           neptune_workspace=self.neptune_workspace,)
         if isinstance(model, str):
             trainer.load(model)
         if checkpoint:
@@ -770,9 +773,7 @@ class Project:
             qc (str, optional): 'otsu', 'blur', or 'both'. Perform quality control with blur detection - discarding
                 tiles with detected out-of-focus regions or artifact - and/or otsu's method. Increases tile extraction
                 time. Defaults to False.
-            process_isolated (bool, optional): Isolated each slide's tile extraction into a separate process.
-                May circumvent libvips errors when multiple slides are being accessed simultaneously. Small performance
-                penalty when used. Defaults to False.
+            report (bool, optional): Save a PDF report of tile extraction. Defaults to True.
 
         Keyword Args:
             normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
@@ -787,7 +788,7 @@ class Project:
                 Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.
             grayspace_threshold (float, optional): Range 0-1. Defaults to 0.05.
                 Pixels in HSV format with saturation below this threshold are considered grayspace.
-            img_format (str, optional): 'png' or 'jpg'. Defaults to 'png'. Image format to use in tfrecords.
+            img_format (str, optional): 'png' or 'jpg'. Defaults to 'jpg'. Image format to use in tfrecords.
                 PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
             full_core (bool, optional): Only used if extracting from TMA. If True, will save entire TMA core as image.
                 Otherwise, will extract sub-images from each core using the given tile micron size. Defaults to False.
@@ -801,6 +802,8 @@ class Project:
                 will be discarded. Only used if qc=True. Defaults to 0.6.
             qc_mpp (float, optional): Microns-per-pixel indicating image magnification level at which quality control
                 is performed. Defaults to mpp=4 (effective magnification 2.5 X)
+            dry_run (bool, optional): Determine tiles that would be extracted, but do not export any images.
+                Defaults to None.
         """
 
         dataset = self.dataset(tile_px, tile_um, filters=filters, filter_blank=filter_blank, verification='slides')
@@ -2097,6 +2100,7 @@ class Project:
                     resume_training=resume_training,
                     multi_gpu=multi_gpu,
                     checkpoint=checkpoint,
+                    use_neptune=self.use_neptune,
                     neptune_api=self.neptune_api,
                     neptune_workspace=self.neptune_workspace
                 )
