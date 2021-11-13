@@ -439,6 +439,7 @@ class TestSuite:
                                    source=['TEST'],
                                    roi_method='ignore',
                                    skip_extracted=False,
+                                   img_format='png',
                                    enable_downsample=enable_downsample,
                                    **kwargs)
 
