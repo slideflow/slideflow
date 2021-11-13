@@ -104,9 +104,8 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True, preserve
         # Get unique outcomes
         unique_labels = list(set(patient_outcome_labels))
         if preserved_site:
+            site_list = [patients_dict[p]['site'] for p in patient_list]
             import slideflow.io.preservedsite.crossfolds as cv
-
-            site_list = [p[5:7] for p in patient_list]
             df = pd.DataFrame(list(zip(patient_list, patient_outcome_labels, site_list)),
                               columns = ['patient', 'outcome_label', 'site'])
             df = cv.generate(df,
@@ -1402,8 +1401,8 @@ class Dataset:
             if delete_tiles:
                 shutil.rmtree(tiles_dir)
 
-    def training_validation_split(self, model_type, labels, val_strategy, splits=None,
-                                  val_fraction=None, val_k_fold=None, k_fold_iter=None, read_only=False):
+    def training_validation_split(self, model_type, labels, val_strategy, splits=None, val_fraction=None,
+                                  val_k_fold=None, k_fold_iter=None, site_labels=None, read_only=False):
 
         """From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
         If a validation split has already been prepared (e.g. K-fold iterations were already determined),
@@ -1422,6 +1421,7 @@ class Dataset:
             val_k_fold (int): K, required if using K-fold validation. Defaults to None.
             k_fold_iter (int, optional): Which K-fold iteration to generate starting at 1. Fequired if using K-fold
                 validation. Defaults to None.
+            site_labels (dict, optional): Dict mapping patients to site labels. Used for site preserved cross validation.
             read_only (bool): Prevents writing validation splits to file. Defaults to False.
 
         Returns:
@@ -1432,6 +1432,11 @@ class Dataset:
             raise DatasetError("If strategy is 'k-fold', must supply k_fold_iter (int starting at 1)")
         if (not val_k_fold and val_strategy=='k-fold'):
             raise DatasetError("If strategy is 'k-fold', must supply val_k_fold (K)")
+        if val_strategy == 'k-fold-preserved-site' and not site_labels:
+            raise DatasetError("k-fold-preserved-site requires site_labels (dict mapping patients to sites, or " + \
+                                "name of annotation column header")
+        if isinstance(site_labels, str):
+            site_labels, _ = self.labels(site_labels, verbose=False, format='name')
 
         # Prepare dataset
         patients = self.patients()
@@ -1468,6 +1473,24 @@ class Dataset:
                 raise DatasetError(err_msg)
             else:
                 patients_dict[patient]['slides'] += [slide]
+
+        # Add site labels to the patients dict if doing preserved-site cross-validation
+        if val_strategy == 'k-fold-preserved-site':
+            site_slide_list = list(site_labels.keys())
+            for slide in site_slide_list:
+                patient = slide if not patients else patients[slide]
+                # Skip slides not found in directory
+                if slide not in tfrecord_dir_list_names:
+                    continue
+                if 'site' not in patients_dict[patient]:
+                    patients_dict[patient]['site'] = site_labels[slide]
+                elif patients_dict[patient]['site'] != site_labels[slide]:
+                    ol = patients_dict[patient]['slide']
+                    ok = site_labels[slide]
+                    err_msg = f"Multiple site labels found for patient {patient} ({ol}, {ok})"
+                    log.error(err_msg)
+                    raise DatasetError(err_msg)
+
         if num_warned:
             log.warning(f"Total of {num_warned} slides not found in tfrecord directory, skipping")
         patients_list = list(patients_dict.keys())
