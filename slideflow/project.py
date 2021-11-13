@@ -1772,8 +1772,9 @@ class Project:
                 Options include bootstrap, k-fold, k-fold-manual, k-fold-preserved-site, fixed, and none.
             val_k_fold (int): Total number of K if using K-fold validation. Defaults to 3.
             val_k (int): Iteration of K-fold to train, starting at 1. Defaults to None (training all k-folds).
-            val_k_fold_header (str): Annotations file header column for manually specifying k-fold or for preserved-site cross validation.
-                Only used if validation strategy is 'k-fold-manual' or 'k-fold-preserved-site'. Defaults to None for k-fold-manual and 'site' for k-fold-preserved-site.
+            val_k_fold_header (str): Annotations file header column for manually specifying k-fold or for preserved-site
+                cross validation. Only used if validation strategy is 'k-fold-manual' or 'k-fold-preserved-site'.
+                Defaults to None for k-fold-manual and 'site' for k-fold-preserved-site.
             val_fraction (float): Fraction of dataset to use for validation testing, if strategy is 'fixed'.
             val_source (str): Dataset source to use for validation. Defaults to None (same as training).
             val_annotations (str): Path to annotations file for validation dataset. Defaults to None (same as training).
@@ -1960,11 +1961,8 @@ class Project:
 
                 # Otherwise, calculate k-fold splits
                 else:
-                    site_labels = None
-                    if val_settings.strategy == 'k-fold-preserved-site' and not val_settings.k_fold_header:
-                        site_labels, _ = dataset.labels('site', verbose = False, format = 'name')
-                    else:
-                        site_labels, _ = dataset.labels(val_settings.k_fold_header, verbose = False, format = 'name')
+                    if val_settings.strategy == 'k-fold-preserved-site':
+                        site_labels, _ = dataset.labels(val_settings.k_fold_header, verbose=False, format='name')
                     train_dts, val_dts = dataset.training_validation_split(hp.model_type(),
                                                                            labels_for_split,
                                                                            val_strategy=val_settings.strategy,
@@ -1972,7 +1970,7 @@ class Project:
                                                                            val_fraction=val_settings.fraction,
                                                                            val_k_fold=val_settings.k_fold,
                                                                            k_fold_iter=k,
-                                                                           site_labels = site_labels)
+                                                                           site_labels=site_labels)
 
                 # ---- Balance and clip datasets ---------------------------------------------------------------------
                 train_dts = train_dts.balance(outcome_label_headers, hp.training_balance).clip(max_tiles)

@@ -70,18 +70,21 @@ def get_validation_settings(**kwargs):
         k (int): Iteration of K-fold to train, starting at 1. Defaults to None (training all k-folds).
         k_fold_header (str): Annotations file header column for manually specifying k-fold.
             Only used if validation strategy is 'k-fold-manual'. Defaults to None.
+        k_fold_header (str): Annotations file header column for manually specifying k-fold or for preserved-site
+                cross validation. Only used if validation strategy is 'k-fold-manual' or 'k-fold-preserved-site'.
+                Defaults to None for k-fold-manual and 'site' for k-fold-preserved-site.
         fraction (float): Fraction of dataset to use for validation testing, if strategy is 'fixed'.
         source (str): Dataset source to use for validation. Defaults to None (same as training).
         annotations (str): Path to annotations file for validation dataset. Defaults to None (same as training).
         filters (dict): Filters dictionary to use for validation dataset. Defaults to None (same as training).
 
     """
-
+    default_header = 'site' if 'strategy' in kwargs and kwargs['strategy'] == 'k-fold-preserved-site' else None
     args_dict = {
         'strategy': 'k-fold',
         'k_fold': 3,
         'k': None,
-        'k_fold_header': None,
+        'k_fold_header': default_header,
         'fraction': None,
         'source': None,
         'annotations': None,
