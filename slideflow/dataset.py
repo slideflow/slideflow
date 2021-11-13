@@ -1481,8 +1481,8 @@ class Dataset:
                 patients_dict[patient]['slides'] += [slide]
 
         # Add site labels to the patients dict if doing preserved-site cross-validation
-        site_slide_list = list(site_labels.keys())
         if val_strategy == 'k-fold-preserved-site':
+            site_slide_list = list(site_labels.keys())
             for slide in site_slide_list:
                 patient = slide if not patients else patients[slide]
                 # Skip slides not found in directory

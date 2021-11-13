@@ -1963,6 +1963,8 @@ class Project:
                 else:
                     if val_settings.strategy == 'k-fold-preserved-site':
                         site_labels, _ = dataset.labels(val_settings.k_fold_header, verbose=False, format='name')
+                    else:
+                        site_labels = None
                     train_dts, val_dts = dataset.training_validation_split(hp.model_type(),
                                                                            labels_for_split,
                                                                            val_strategy=val_settings.strategy,
