@@ -100,13 +100,14 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True, preserve
     if balance:
         # Get patient outcome labels
         patient_outcome_labels = [patients_dict[p][balance] for p in patient_list]
+        
 
         # Get unique outcomes
         unique_labels = list(set(patient_outcome_labels))
         if preserved_site:
+            # Get site list
+            site_list = [patients_dict[p]['site'] for p in patient_list]
             import slideflow.io.preservedsite.crossfolds as cv
-
-            site_list = [p[5:7] for p in patient_list]
             df = pd.DataFrame(list(zip(patient_list, patient_outcome_labels, site_list)),
                               columns = ['patient', 'outcome_label', 'site'])
             df = cv.generate(df,
@@ -1409,7 +1410,7 @@ class Dataset:
                 shutil.rmtree(tiles_dir)
 
     def training_validation_split(self, model_type, labels, val_strategy, splits=None,
-                                  val_fraction=None, val_k_fold=None, k_fold_iter=None, read_only=False):
+                                  val_fraction=None, val_k_fold=None, k_fold_iter=None, read_only=False, site_labels = None):
 
         """From a specified subfolder within the project's main TFRecord folder, prepare a training set and validation set.
         If a validation split has already been prepared (e.g. K-fold iterations were already determined),
@@ -1474,6 +1475,21 @@ class Dataset:
                 raise DatasetError(err_msg)
             else:
                 patients_dict[patient]['slides'] += [slide]
+        site_slide_list = list(site_labels.keys())
+        if val_strategy == 'k-fold-preserved-site': # need to add site labels to dict
+            for slide in site_slide_list:
+                patient = slide if not patients else patients[slide]
+                # Skip slides not found in directory
+                if slide not in tfrecord_dir_list_names:
+                    continue
+                if 'site' not in patients_dict[patient]:
+                    patients_dict[patient]['site'] = site_labels[slide]
+                elif patients_dict[patient]['site'] != site_labels[slide]:
+                    ol = patients_dict[patient]['slide']
+                    ok = site_labels[slide]
+                    err_msg = f"Multiple site labels found for patient {patient} ({ol}, {ok})"
+                    log.error(err_msg)
+                    raise DatasetError(err_msg)
         if num_warned:
             log.warning(f"Total of {num_warned} slides not found in tfrecord directory, skipping")
         patients_list = list(patients_dict.keys())
