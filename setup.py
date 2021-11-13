@@ -1,7 +1,7 @@
 import slideflow
 import setuptools
 
-with open("../README.md", "r") as fh:
+with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
@@ -9,14 +9,14 @@ setuptools.setup(
     version=slideflow.__version__,
     author="James Dolezal",
     author_email="james.dolezal@uchospitals.edu",
-    description="Tools for deep learning from tumor histology",
+    description="Deep learning tools for digital histology",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/pearson-laboratory/slideflow",
+    url="https://github.com/jamesdolezal/slideflow",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: GPL-3 License",
         "Operating System :: OS Independent",
     ],
     package_data = {
