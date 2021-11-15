@@ -9,7 +9,6 @@ shapely
 umap-learn
 seaborn
 pandas
-tabulate
 pyvips==2.1.11
 fpdf
 spams
