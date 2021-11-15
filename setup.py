@@ -38,8 +38,8 @@ setuptools.setup(
         'fpdf',
         'spams',
         'lifelines',
-        'gitpython',
         'scikit-image',
-        'tqdm'
+        'tqdm',
+        'click'
     ],
 )
