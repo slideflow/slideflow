@@ -1,4 +1,5 @@
 import random
+import slideflow as sf
 from slideflow.util import log
 
 class NeptuneLog:
@@ -44,6 +45,7 @@ class NeptuneLog:
             raise ValueError("Unable to log; a neptune run has not yet been initialized (start with start_run())")
 
         self.run['stage'] = hp_data['stage']
+        self.run['backend'] = sf.backend()
         self.run['project_info'] = {key: hp_data[key] for key in proj_info_keys}
         self.run['model_info'] = {key: hp_data[key] for key in model_info_keys}
         self.run['model_info/outcomes'] = {str(key): str(value) for key, value in hp_data['outcome_labels'].items()}

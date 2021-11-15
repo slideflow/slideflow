@@ -1,3 +1,3 @@
-from slideflow.tfrecord.tools import tfrecord2idx
+from slideflow.util import tfrecord2idx
 
-from slideflow.tfrecord.tools.tfrecord2idx import create_index
+from slideflow.util.tfrecord2idx import create_index

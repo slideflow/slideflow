@@ -227,8 +227,8 @@ class ModelParams(_base._ModelParams):
 
 class Trainer:
     def __init__(self, hp, outdir, labels, patients, name=None, manifest=None, slide_input=None, feature_sizes=None,
-                 feature_names=None, outcome_names=None, mixed_precision=True,
-                 config=None, use_neptune=None, neptune_api=None, neptune_workspace=None):
+                 feature_names=None, outcome_names=None, mixed_precision=True, config=None, use_neptune=None,
+                 neptune_api=None, neptune_workspace=None):
 
         self.hp = hp
         self.outdir = outdir
@@ -258,6 +258,13 @@ class Trainer:
                                     f"the number of outcomes ({outcome_labels.shape[1]})")
         if not os.path.exists(outdir): os.makedirs(outdir)
 
+        # Neptune logging
+        self.config = config
+        self.use_neptune = use_neptune
+        self.neptune_run = None
+        if self.use_neptune:
+            self.neptune_logger = sf.util.neptune_utils.NeptuneLog(neptune_api, neptune_workspace)
+
     @property
     def num_outcomes(self):
         if self.hp.model_type() == 'categorical':
@@ -283,6 +290,12 @@ class Trainer:
         log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
         if not batch_size: batch_size = self.hp.batch_size
 
+        # Prepare neptune run
+        if self.use_neptune:
+            self.neptune_run = self.neptune_logger.start_run(self.name, self.config['project'], dataset, tags='eval')
+            self.neptune_logger.log_config(self.config, 'eval')
+            self.neptune_run['data/slide_manifest'].upload(os.path.join(self.outdir, 'slide_manifest.csv'))
+
         # Setup dataloaders
         interleave_args = types.SimpleNamespace(
             rank=0,
@@ -306,6 +319,7 @@ class Trainer:
             outcome_names=self.outcome_names,
             data_dir=self.outdir,
             num_tiles=dataset.num_tiles,
+            neptune_run=self.neptune_run,
             label='eval'
         )
 
@@ -351,6 +365,12 @@ class Trainer:
 
         results_log = os.path.join(self.outdir, 'results_log.csv')
         sf.util.update_results_log(results_log, 'eval_model', results_dict)
+
+        # Update neptune log
+        if self.neptune_run:
+            self.neptune_run['eval/results'] = results_dict['eval']
+            self.neptune_run.stop()
+
         return results_dict
 
     def labels_to_device(self, labels, device):
@@ -445,6 +465,21 @@ class Trainer:
         if use_tensorboard:
             writer = SummaryWriter(self.outdir, flush_secs=60)
 
+        # Prepare neptune run
+        if self.use_neptune:
+            tags = ['train']
+            if 'k-fold' in self.config['validation_strategy']:
+	            tags += [f'k-fold{self.config["k_fold_i"]}']
+            self.neptune_run = self.neptune_logger.start_run(self.name, self.config['project'], train_dts, tags=tags)
+            self.neptune_logger.log_config(self.config, 'train')
+            self.neptune_run['data/slide_manifest'].upload(os.path.join(self.outdir, 'slide_manifest.csv'))
+            try:
+                config_path = join(self.outdir, 'params.json')
+                config = sf.util.load_json(config_path)
+                config['neptune_id'] = self.neptune_run['sys/id'].fetch()
+            except:
+                log.info("Unable to log model parameters file (params.json) with Neptune.")
+
         # Build model
         if checkpoint:
             log.info(f"Loading checkpoint at {sf.util.green(checkpoint)}")
@@ -457,7 +492,9 @@ class Trainer:
         if self.num_slide_features:
             empty_inp += [torch.empty([self.hp.batch_size, self.num_slide_features])]
         if log.getEffectiveLevel() <= 20:
-            torch_utils.print_module_summary(self.model, empty_inp)
+            model_summary = torch_utils.print_module_summary(self.model, empty_inp)
+            if self.neptune_run:
+                self.neptune_run['model_info/summary'] = model_summary
 
         # Multi-GPU
         inference_model = self.model
@@ -554,7 +591,7 @@ class Trainer:
                         # Record accuracy and loss
                         num_records += images.size(0)
                         running_corrects = self.update_corrects(outputs, labels, running_corrects)
-                        acc_desc, _ = self.accuracy_description(running_corrects, num_records)
+                        acc_desc, train_acc = self.accuracy_description(running_corrects, num_records)
                         running_loss += loss.item() * images.size(0)
                         pb.set_description(f'{sf.util.bold(sf.util.blue(phase))} loss: {running_loss / num_records:.4f} {acc_desc}')
                         pb.update(images.size(0))
@@ -568,6 +605,16 @@ class Trainer:
                                         writer.add_scalar(f'Accuracy-{o}/train', running_corrects[f'out-{o}'] / num_records, global_step)
                                 else:
                                     writer.add_scalar('Accuracy/train', running_corrects / num_records, global_step)
+
+                        # Log to neptune
+                        if self.neptune_run:
+                            self.neptune_run[f"metrics/train/batch/loss"].log(round(loss.item(), 3))
+                            if self.hp.model_type() == 'categorical':
+                                if isinstance(train_acc, list):
+                                    for acc_idx, acc in enumerate(train_acc):
+                                        self.neptune_run[f"metrics/train/batch/accuracy-{acc_idx}"].log(round(acc.item(), 3))
+                                else:
+                                    self.neptune_run[f"metrics/train/batch/accuracy"].log(round(train_acc.item(), 3))
 
                         # === Mid-training validation =================================================================
                         if val_dts and validate_on_batch and (step % validate_on_batch == 0) and step > 0:
@@ -597,8 +644,17 @@ class Trainer:
                                 num_val += val_img.size(0)
                             val_loss = running_val_loss / num_val
                             val_acc_desc, val_acc = self.accuracy_description(running_val_correct, num_val)
+                            log_msg = f'Batch {step}: val loss: {val_loss:.4f} {val_acc_desc}'
 
-                            log_msg = f'Batch {step}: val loss: {val_loss:.4f}{val_acc_desc}'
+                            # Log validation metrics to neptune
+                            if self.neptune_run:
+                                self.neptune_run[f"metrics/test/batch/loss"].log(round(val_loss, 3))
+                                if self.hp.model_type() == 'categorical':
+                                    if isinstance(val_acc, list):
+                                        for acc_idx, acc in enumerate(val_acc):
+                                            self.neptune_run[f"metrics/test/batch/accuracy-{acc_idx}"].log(round(acc.item(), 3))
+                                    else:
+                                        self.neptune_run[f"metrics/test/batch/accuracy"].log(round(val_acc.item(), 3))
 
                             # EMA & early stopping --------------------------------------------------------------------
                             early_stop_val = val_acc if self.hp.early_stop_method == 'accuracy' else val_loss
@@ -612,16 +668,26 @@ class Trainer:
                                     last_ema = (early_stop_val * (ema_smoothing / (1 + ema_observations))) + \
                                                (last_ema * (1 - (ema_smoothing / (1 + ema_observations))))
                                     log_msg += f' (EMA: {last_ema:.3f})'
+                                    if self.neptune_run:
+                                        self.neptune_run["metrics/batch/exp_moving_average"].log(round(last_ema, 3))
 
                                 if self.hp.early_stop and ema_two_checks_prior != -1 and epoch > self.hp.early_stop_patience:
                                     if ((self.hp.early_stop_method == 'accuracy' and last_ema <= ema_two_checks_prior) or
                                         (self.hp.early_stop_method == 'loss'     and last_ema >= ema_two_checks_prior)):
 
                                         log.info(f'Early stop triggered: epoch {epoch}, step {step}')
+
+                                        # Log early stop to neptune
+                                        if self.neptune_run:
+                                            self.neptune_run["early_stop/early_stop_epoch"] = epoch
+                                            self.neptune_run["early_stop/early_stop_batch"] = step
+                                            self.neptune_run["early_stop/method"] = self.hp.early_stop_method
+                                            self.neptune_run["sys/tags"].add("early_stopped")
+
                                         if epoch not in self.hp.epochs:
                                             self.hp.epochs += [epoch]
-                                            early_stop = True
-                                            break
+                                        early_stop = True
+                                        break
 
                                 ema_two_checks_prior = ema_one_check_prior
                                 ema_one_check_prior = last_ema
@@ -661,6 +727,16 @@ class Trainer:
                         else:
                             epoch_metrics.update({'accuracy': epoch_accuracy.cpu().numpy().tolist()})
                     results['epochs'][f'epoch{epoch}'].update({f'train_metrics': epoch_metrics})
+
+                    # Log epoch-level validation metrics to neptune
+                    if self.neptune_run:
+                        self.neptune_run[f"metrics/train/epoch/loss"].log(round(epoch_loss, 3))
+                        if self.hp.model_type() == 'categorical':
+                            if isinstance(epoch_accuracy, list):
+                                for acc_idx, acc in enumerate(epoch_accuracy):
+                                    self.neptune_run[f"metrics/train/epoch/accuracy-{acc_idx}"].log(round(acc.item(), 3))
+                            else:
+                                self.neptune_run[f"metrics/train/epoch/accuracy"].log(round(epoch_accuracy.item(), 3))
 
                 # === Full dataset validation =========================================================================
                 # Perform full evaluation if the epoch is one of the predetermined epochs at which to save/eval a model
@@ -703,6 +779,7 @@ class Trainer:
                                                                                 data_dir=self.outdir,
                                                                                 outcome_names=self.outcome_names,
                                                                                 save_predictions=save_predictions,
+                                                                                neptune_run=self.neptune_run,
                                                                                 pred_args=pred_args)
 
                         epoch_metrics = {'loss': epoch_loss}
@@ -719,8 +796,15 @@ class Trainer:
                             epoch_results['patient'] = metrics[metric]['patient']
                     results['epochs'][f'epoch{epoch}'].update(epoch_results)
                     sf.util.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': results['epochs'][f'epoch{epoch}']})
+
+                    if self.use_neptune:
+                        self.neptune_run['results/logged_epochs'] = [int(e[5:]) for e in results['epochs'] if e[:5] == 'epoch']
+                        self.neptune_run['results/epochs'] = results['epochs']
                 # =====================================================================================================
 
+        if self.neptune_run:
+            self.neptune_run['sys/tags'].add('training_complete')
+            self.neptune_run.stop()
         return results
 
 class LinearTrainer(Trainer):
