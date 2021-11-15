@@ -5,7 +5,6 @@ import json
 import logging
 import itertools
 import csv
-import git
 import copy
 import pickle
 import numpy as np
@@ -24,6 +23,11 @@ from slideflow import project_utils
 from slideflow.dataset import Dataset
 from slideflow.util import log
 from slideflow.project_utils import get_validation_settings
+
+try:
+    import git
+except ImportError: # git is not needed for pypi distribution
+    git = None
 
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -553,10 +557,12 @@ class Project:
         outcome_labels = None if hp.model_type() != 'categorical' else dict(zip(range(len(unique_labels)), unique_labels))
 
         # Check git commit if running from source
-        try:
-            git_commit = git.Repo(search_parent_directories=True).head.object.hexsha
-        except:
-            git_commit = None
+        git_commit = None
+        if git is not None:
+            try:
+                git_commit = git.Repo(search_parent_directories=True).head.object.hexsha
+            except:
+                pass
 
         hp_file = join(model_dir, 'params.json')
 
@@ -2052,10 +2058,12 @@ class Project:
                 os.makedirs(model_dir)
 
                 # Check git commit if running from source
-                try:
-                    git_commit = git.Repo(search_parent_directories=True).head.object.hexsha
-                except:
-                    git_commit = None
+                git_commit = None
+                if git is not None:
+                    try:
+                        git_commit = git.Repo(search_parent_directories=True).head.object.hexsha
+                    except:
+                        pass
 
                 # Log model settings and hyperparameters
                 config_file = join(model_dir, 'params.json')

@@ -1,13 +1,14 @@
 ![slideflow logo](docs-source/pytorch_sphinx_theme/images/slideflow-banner.png)
 
-[![Python application](https://github.com/pearson-laboratory/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/pearson-laboratory/slideflow/actions/workflows/python-app.yml)
+[![Python application](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/pearson-laboratory/slideflow/actions/workflows/python-app.yml)
 [![PyPI version](https://badge.fury.io/py/slideflow.svg)](https://badge.fury.io/py/slideflow)
 
 Slideflow is a computational pathology Python package which aims to provide an easy and intuitive way of building and testing deep learning models for use in histology image analysis. It is built with both Tensorflow/Keras and PyTorch backends, supporting standard and custom architectures, as well as [CLAM](https://github.com/mahmoodlab/CLAM). The overarching goal of the package is to provide tools to train and test models on histology slides, apply these models to new slides, and assess performance using analytical tools including predictive heatmaps, mosaic maps, ROCs, and more.
 
+## Installation
 Slideflow requires Python 3.7+ and [libvips](https://libvips.github.io/libvips/).
 
-To get started, ensure you have the latest version of pip, setuptools, and wheel installed:
+Ensure you have the latest version of pip, setuptools, and wheel installed:
 
 ```
 pip3 install --upgrade setuptools pip wheel
@@ -19,6 +20,13 @@ Install package requirements from source/requirements.txt:
 pip3 install -r requirements.txt
 ```
 
+Finally, install using pip:
+
+```
+pip3 install slideflow
+```
+
+## Getting started
 Import the module in python and initialize a new project:
 
 ```python
@@ -59,4 +67,4 @@ params = sf.model.ModelParams(tile_px=299,
 P.train('category1', params=params)
 ```
 
-Please see the documentation at [slideflow.dev](https://www.slideflow.dev/).
+For complete documentation of all pipeline functions and example tutorials, please see the documentation at [slideflow.dev](https://www.slideflow.dev/).

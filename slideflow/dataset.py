@@ -340,7 +340,7 @@ class Dataset:
     def build_index(self, force=True):
         """Builds index files for TFRecords, required for PyTorch dataloader."""
 
-        from slideflow.tfrecord.tools import tfrecord2idx
+        from slideflow.util import tfrecord2idx
 
         def create_index(filename):
             nonlocal force
