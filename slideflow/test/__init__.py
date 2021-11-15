@@ -624,12 +624,25 @@ class TestSuite:
         perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1') #self._get_model('category1-manual_hp-HP0-kfold1')
         assert os.path.exists(perf_model)
 
+        try:
+            skip_test = False
+            import torch
+        except:
+            log.warning("Unable to import both tensorflow and pytorch, will skip TFRecord reading test")
+            skip_test = True
+
         with TaskWrapper("Testing CLAM feature export...") as test:
-            clam_feature_generator(self.project, perf_model)
+            if skip_test:
+                test.skip()
+            else:
+                clam_feature_generator(self.project, perf_model)
 
         with TaskWrapper("Testing CLAM training...") as test:
-            dataset = self.project.dataset(299, 302)
-            self.project.train_clam('TEST_CLAM', join(self.project.root, 'clam'), 'category1', dataset)
+            if skip_test:
+                test.skip()
+            else:
+                dataset = self.project.dataset(299, 302)
+                self.project.train_clam('TEST_CLAM', join(self.project.root, 'clam'), 'category1', dataset)
 
     def test(self, extract=True, reader=True, train=True, normalizer=True, evaluate=True, heatmap=True,
              activations=True, predict_wsi=True, clam=True):
