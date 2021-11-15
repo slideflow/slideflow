@@ -20,3 +20,4 @@ torch-vision
 gitpython
 scikit-image
 tqdm
+click
