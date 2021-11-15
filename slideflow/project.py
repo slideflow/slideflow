@@ -557,11 +557,12 @@ class Project:
         outcome_labels = None if hp.model_type() != 'categorical' else dict(zip(range(len(unique_labels)), unique_labels))
 
         # Check git commit if running from source
+        git_commit = None
         if git is not None:
             try:
                 git_commit = git.Repo(search_parent_directories=True).head.object.hexsha
             except:
-                git_commit = None
+                pass
 
         hp_file = join(model_dir, 'params.json')
 
@@ -2057,11 +2058,12 @@ class Project:
                 os.makedirs(model_dir)
 
                 # Check git commit if running from source
+                git_commit = None
                 if git is not None:
                     try:
                         git_commit = git.Repo(search_parent_directories=True).head.object.hexsha
                     except:
-                        git_commit = None
+                        pass
 
                 # Log model settings and hyperparameters
                 config_file = join(model_dir, 'params.json')

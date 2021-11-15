@@ -169,6 +169,14 @@ def reader_tester(project):
     assert len(tfrecords)
 
     with TaskWrapper("Testing torch and tensorflow readers...") as test:
+        try:
+            import tensorflow as tf
+            import torch
+        except:
+            log.warning("Unable to import both tensorflow and pytorch, will skip TFRecord reading test")
+            test.skip()
+            return
+
         # Torch backend
         from slideflow.io.torch import interleave_dataloader
         torch_results = []
