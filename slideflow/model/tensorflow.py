@@ -788,6 +788,7 @@ class Trainer:
         # Update neptune log
         if self.neptune_run:
             self.neptune_run['eval/results'] = val_metrics
+            self.neptune_run.stop()
 
         return val_metrics
 
@@ -964,6 +965,7 @@ class Trainer:
             if self.use_neptune:
                 self.neptune_run['results/logged_epochs'] = [int(e[5:]) for e in results['epochs'] if e[:5] == 'epoch']
                 self.neptune_run['results/epochs'] = results['epochs']
+                self.neptune_run.stop()
 
             return results
 

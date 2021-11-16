@@ -40,6 +40,11 @@ setuptools.setup(
         'lifelines',
         'scikit-image',
         'tqdm',
-        'click'
+        'click',
+        'protobuf',
+        'tensorboard',
+        'crc32c',
+        'h5py',
+        'numpy<1.21'
     ],
 )

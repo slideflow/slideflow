@@ -35,7 +35,6 @@ def backend():
 #       - Tutorial 7: Clinical models, CPH outcome, permutation feature importance
 #       - Tutorial 8: Hyperparameter sweeps
 #       - Tutorial 9: Class-conditional GAN with StyleGAN2
-#TODO: pytorch neptune integration
 
 # Low priority consistency/style changes:
 # ---------------------

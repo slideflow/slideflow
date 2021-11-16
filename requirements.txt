@@ -17,7 +17,13 @@ cvxpy>=1.1.15
 lifelines
 torch>=1.9.1
 torch-vision
+pretrainedmodels
 gitpython
 scikit-image
 tqdm
 click
+protobuf
+tensorboard
+crc32c
+h5py
+numpy<1.21
