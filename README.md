@@ -1,4 +1,4 @@
-![slideflow logo](docs-source/pytorch_sphinx_theme/images/slideflow-banner.png)
+![slideflow logo](https://github.com/jamesdolezal/slideflow/raw/master/docs-source/pytorch_sphinx_theme/images/slideflow-banner.png)
 [![DOI](https://zenodo.org/badge/208283588.svg)](https://zenodo.org/badge/latestdoi/208283588)
 [![Python application](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/pearson-laboratory/slideflow/actions/workflows/python-app.yml)
 [![PyPI version](https://badge.fury.io/py/slideflow.svg)](https://badge.fury.io/py/slideflow)
