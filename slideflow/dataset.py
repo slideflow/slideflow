@@ -440,7 +440,7 @@ class Dataset:
 
     def extract_tiles(self, save_tiles=False, save_tfrecords=True, source=None, stride_div=1, enable_downsample=True,
                       roi_method='inside', skip_missing_roi=False, skip_extracted=True, tma=False, randomize_origin=False,
-                      buffer=None, num_workers=1, qc=None, report=True, **kwargs):
+                      buffer=None, num_workers=1, q_size=4, qc=None, report=True, **kwargs):
 
         """Extract tiles from a group of slides, saving extracted tiles to either loose image or in
         TFRecord binary format.
@@ -467,6 +467,7 @@ class Dataset:
             buffer (str, optional): Slides will be copied to this directory before extraction. Defaults to None.
                 Using an SSD or ramdisk buffer vastly improves tile extraction speed.
             num_workers (int, optional): Extract tiles from this many slides simultaneously. Defaults to 4.
+            q_size (int, optional): Size of queue when using a buffer. Defaults to 4.
             qc (str, optional): 'otsu', 'blur', 'both', or None. Perform blur detection quality control - discarding
                 tiles with detected out-of-focus regions or artifact - and/or otsu's method. Increases tile extraction
                 time. Defaults to None.
@@ -506,6 +507,8 @@ class Dataset:
         if not save_tiles and not save_tfrecords:
             log.error('Either save_tiles or save_tfrecords must be true to extract tiles.')
             return
+        if q_size < num_workers:
+            log.warn(f"q_size ({q_size}) less than num_workers {num_workers}; some workers will not be used")
 
         if source:  sources = [source] if not isinstance(source, list) else source
         else:       sources = self.sources
@@ -595,6 +598,11 @@ class Dataset:
                 else:
                     pb = None
 
+                # If only one worker, use a single shared multiprocessing pool
+                if num_workers == 1:
+                    num_threads = 8 if 'num_threads' not in kwargs else kwargs['num_threads']
+                    kwargs['pool'] = multiprocessing.Pool(num_threads)
+
                 extraction_kwargs = {
                     'tfrecord_dir': tfrecord_dir,
                     'tiles_dir': tiles_dir,
@@ -621,9 +629,12 @@ class Dataset:
                     while True:
                         try:
                             path = q.get()
-                            process = ctx.Process(target=_tile_extractor, args=(path,), kwargs=extraction_kwargs)
-                            process.start()
-                            process.join()
+                            if num_workers > 1:
+                                process = ctx.Process(target=_tile_extractor, args=(path,), kwargs=extraction_kwargs)
+                                process.start()
+                                process.join()
+                            else:
+                                _tile_extractor(path, **extraction_kwargs)
                             if buffer and buffer != 'vmtouch':
                                 os.remove(path)
                             q.task_done()
@@ -641,7 +652,7 @@ class Dataset:
                     warned = False
                     if buffer and buffer != 'vmtouch':
                         while True:
-                            if q.qsize() < num_workers:
+                            if q.qsize() < q_size:
                                 try:
                                     buffered_path = join(buffer, os.path.basename(slide_path))
                                     shutil.copy(slide_path, buffered_path)

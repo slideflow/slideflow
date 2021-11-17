@@ -763,12 +763,12 @@ class Project:
             stride_div (int, optional): Stride divisor to use when extracting tiles. Defaults to 1.
                 A stride of 1 will extract non-overlapping tiles.
                 A stride_div of 2 will extract overlapping tiles, with a stride equal to 50% of the tile width.
-            enable_downsample (bool, optional): Enable downsampling when reading slide images. Defaults to False.
+            enable_downsample (bool, optional): Enable downsampling when reading slide images. Defaults to True.
                 This may result in corrupted image tiles if downsampled slide layers are corrupted or incomplete.
                 Recommend manual confirmation of tile integrity.
             roi_method (str, optional): Either 'inside', 'outside', or 'ignore'. Defaults to 'inside'.
                 Indicates whether tiles are extracted inside or outside ROIs, or if ROIs are ignored entirely.
-            skip_missing_roi (bool, optional): Skip slides that are missing ROIs. Defaults to True.
+            skip_missing_roi (bool, optional): Skip slides that are missing ROIs. Defaults to False.
             skip_extracted (bool, optional): Skip slides that have already been extracted. Defaults to True.
             tma (bool, optional): Reads slides as Tumor Micro-Arrays (TMAs), detecting and extracting tumor cores.
                 Defaults to False. Experimental function with limited testing.
@@ -776,9 +776,10 @@ class Project:
             buffer (str, optional): Slides will be copied to this directory before extraction. Defaults to None.
                 Using an SSD or ramdisk buffer vastly improves tile extraction speed.
             num_workers (int, optional): Extract tiles from this many slides simultaneously. Defaults to 4.
-            qc (str, optional): 'otsu', 'blur', or 'both'. Perform quality control with blur detection - discarding
+            q_size (int, optional): Size of queue when using a buffer. Defaults to 4.
+            qc (str, optional): 'otsu', 'blur', 'both', or None. Perform blur detection quality control - discarding
                 tiles with detected out-of-focus regions or artifact - and/or otsu's method. Increases tile extraction
-                time. Defaults to False.
+                time. Defaults to None.
             report (bool, optional): Save a PDF report of tile extraction. Defaults to True.
 
         Keyword Args:

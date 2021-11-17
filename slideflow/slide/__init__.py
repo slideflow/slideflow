@@ -1307,7 +1307,7 @@ class WSI(_BaseLoader):
     def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None,
                         grayspace_fraction=None, grayspace_threshold=None, normalizer=None, normalizer_source=None,
                         include_loc=True, num_threads=8, show_progress=False, img_format='numpy', full_core=None,
-                        yolo=False, draw_roi=False, dry_run=False):
+                        yolo=False, draw_roi=False, pool=None, dry_run=False):
 
         """Builds tile generator to extract tiles from this slide.
 
@@ -1394,30 +1394,37 @@ class WSI(_BaseLoader):
         worker_args = types.SimpleNamespace(**worker_args)
 
         def generator():
-            log.debug(f"Building tile extraction generator with {num_threads} thread workers")
+            nonlocal pool
+            if pool is None:
+                log.debug("Building tile extraction generator with a shared pool")
+                pool = mp.Pool(processes=num_threads)
+                should_close = True
+            else:
+                log.debug(f"Building tile extraction generator with {num_threads} thread workers")
+                should_close = False
+            if show_progress:
+                pbar = tqdm(total=self.estimated_num_tiles, ncols=80)
+            for idx, res in enumerate(pool.imap(partial(_wsi_extraction_worker, args=worker_args), self.coord)):
+                if res == 'skip':
+                    continue
 
-            with mp.Pool(processes=num_threads) as p:
+                # Increase progress bars, if provided
                 if show_progress:
-                    pbar = tqdm(total=self.estimated_num_tiles, ncols=80)
-                for idx, res in enumerate(p.imap(partial(_wsi_extraction_worker, args=worker_args), self.coord)):
-                    if res == 'skip':
-                        continue
+                    pbar.update(1)
+                elif self.counter_lock is not None:
+                    with self.counter_lock:
+                        self.pb_counter.value += 1
 
-                    # Increase progress bars, if provided
-                    if show_progress:
-                        pbar.update(1)
-                    elif self.counter_lock is not None:
-                        with self.counter_lock:
-                            self.pb_counter.value += 1
-
-                    if res is None:
-                        continue
-                    else:
-                        tile, _ = res
-                        self.tile_mask[idx] = True
-                        yield tile
-                if show_progress:
-                    pbar.close()
+                if res is None:
+                    continue
+                else:
+                    tile, _ = res
+                    self.tile_mask[idx] = True
+                    yield tile
+            if show_progress:
+                pbar.close()
+            if should_close:
+                pool.close()
 
             name_msg = sf.util.green(self.shortname)
             num_msg = f'({np.sum(self.tile_mask)} tiles of {len(self.coord)} possible)'
@@ -1739,7 +1746,7 @@ class TMA(_BaseLoader):
 
     def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None, grayspace_fraction=None,
                         grayspace_threshold=None, normalizer=None, normalizer_source=None, include_loc=True,
-                        num_threads=8, img_format='numpy', full_core=False):
+                        num_threads=8, pool=None, img_format='numpy', full_core=False):
 
         """Builds tile generator to extract of tiles across the slide.
 
@@ -1757,6 +1764,12 @@ class TMA(_BaseLoader):
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
                 Internal default tile can be found at slideflow.slide.norm_tile.jpg
+            include_loc (bool, optional): Include location information in returned dictionary. Defaults to True.
+            num_threads (int, optional): Number of threads for pool. Unused if `pool` is specified.
+            pool (:obj:`multiprocessing.Pool`, optional): Multiprocessing pool to use. By using a shared pool, a slide
+                no longer needs to spin up its own new pool for tile extraction, decreasing tile extraction time for
+                large datasets. Defaults to None (create a new pool, using `num_threads`).
+            img_format (str, optional): 'png', 'jpg', or 'numpy'. Format images should be returned in.
             full_core (bool, optional): Extract an entire detected core, rather than subdividing into image tiles.
                 Defaults to False.
         """
