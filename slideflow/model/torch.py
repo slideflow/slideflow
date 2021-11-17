@@ -1,3 +1,5 @@
+'''PyTorch backend for the slideflow.model submodule.'''
+
 import os
 import types
 import time
@@ -18,6 +20,8 @@ from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
 class LinearBlock(torch.nn.Module):
+    '''Block module that includes a linear layer -> ReLU -> BatchNorm'''
+
     def __init__(self, in_ftrs, out_ftrs):
         super().__init__()
         self.in_ftrs = in_ftrs
@@ -34,6 +38,8 @@ class LinearBlock(torch.nn.Module):
         return x
 
 class ModelWrapper(torch.nn.Module):
+    '''Wrapper for PyTorch modules to support multiple outcomes, clinical inputs, and additional hidden layers.'''
+
     def __init__(self, model, n_classes, num_slide_features=0, hidden_layers=None, drop_images=False):
         super().__init__()
         self.model = model
@@ -226,9 +232,43 @@ class ModelParams(_base._ModelParams):
             return 'categorical'
 
 class Trainer:
-    def __init__(self, hp, outdir, labels, patients, name=None, manifest=None, slide_input=None, feature_sizes=None,
+    """Base trainer class containing functionality for model building, input processing, training, and evaluation.
+
+    This base class requires categorical outcome(s). Additional outcome types are supported by
+    :class:`slideflow.model.LinearTrainer` and :class:`slideflow.model.CPHTrainer`.
+
+    Slide-level (e.g. clinical) features can be used as additional model input by providing slide labels
+    in the slide annotations dictionary, under the key 'input'.
+    """
+
+    _model_type = 'categorical'
+
+    def __init__(self, hp, outdir, labels, patients, slide_input=None, name=None, manifest=None, feature_sizes=None,
                  feature_names=None, outcome_names=None, mixed_precision=True, config=None, use_neptune=None,
                  neptune_api=None, neptune_workspace=None):
+
+        """Sets base configuration, preparing model inputs and outputs.
+
+        Args:
+            hp (:class:`slideflow.model.ModelParams`): ModelParams object.
+            outdir (str): Location where event logs and checkpoints will be written.
+            labels (dict): Dict mapping slide names to outcome labels (int or float format).
+            patients (dict): Dict mapping slide names to patient ID, as some patients may have multiple slides.
+                If not provided, assumes 1:1 mapping between slide names and patients.
+            slide_input (dict): Dict mapping slide names to additional slide-level input, concatenated after post-conv.
+            name (str, optional): Optional name describing the model, used for model saving. Defaults to None.
+            manifest (dict, optional): Manifest dictionary mapping TFRecords to number of tiles. Defaults to None.
+            model_type (str, optional): Type of model outcome, 'categorical' or 'linear'. Defaults to 'categorical'.
+            feature_sizes (list, optional): List of sizes of input features. Required if providing additional
+                input features as input to the model.
+            feature_names (list, optional): List of names for input features. Used when permuting feature importance.
+            outcome_names (list, optional): Name of each outcome. Defaults to "Outcome {X}" for each outcome.
+            mixed_precision (bool, optional): Use FP16 mixed precision (rather than FP32). Defaults to True.
+            config (dict, optional): Training configuration dictionary, used for logging. Defaults to None.
+            use_neptune (bool, optional): Use Neptune API logging. Defaults to False
+            neptune_api (str, optional): Neptune API token, used for logging. Defaults to None.
+            neptune_workspace (str, optional): Neptune workspace, used for logging. Defaults to None.
+        """
 
         self.hp = hp
         self.outdir = outdir
@@ -273,10 +313,29 @@ class Trainer:
             return 1
 
     def load(self, model):
+        """Loads a state dict at the given model location. Requires that the Trainer's hyperparameters (Trainer.hp)
+        match the hyperparameters of the model to be loaded."""
+
         self.model = self.hp.build_model(labels=self.labels, num_slide_features=self.num_slide_features)
         self.model.load_state_dict(torch.load(model))
 
     def evaluate(self, dataset, batch_size=None, histogram=False, save_predictions=False, permutation_importance=False):
+
+        """Evaluate model, saving metrics and predictions.
+
+        Args:
+            dataset (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords to evaluate.
+            batch_size (int, optional): Evaluation batch size. Defaults to the same as training (per self.hp)
+
+            histogram (bool, optional): Save histogram of tile predictions. Poorly optimized, uses seaborn, may
+                drastically increase evaluation time. Defaults to False.
+            save_predictions (bool, optional): Save tile, slide, and patient-level predictions to CSV. Defaults to False.
+            permutation_importance (bool, optional): Currently not supported for the PyTorch backend; argument exists
+                for compatibility. Will raise a NotImplementedError if used. Planned as an update for a future version.
+
+        Returns:
+            Dictionary of evaluation metrics.
+        """
 
         # Load and initialize model
         if permutation_importance:
@@ -427,10 +486,38 @@ class Trainer:
         elapsed = time.strftime('%H:%M:%S', time.gmtime(time.time() - starttime))
         log.info(f'{sf.util.bold(sf.util.blue(phase))} Epoch {epoch} | loss: {loss:.4f} {accuracy_description} (Elapsed: {elapsed})')
 
-    def train(self, train_dts, val_dts, validate_on_batch=512, validation_batch_size=32, validation_steps=50,
-              save_predictions=False, skip_metrics=False, seed=0, log_frequency=20, starting_epoch=0,
-              ema_observations=20, ema_smoothing=2, use_tensorboard=True, steps_per_epoch_override=0,
-              multi_gpu=True, pretrain='imagenet', checkpoint=None, resume_training=None):
+    def train(self, train_dts, val_dts, log_frequency=20, validate_on_batch=512, validation_batch_size=32,
+              validation_steps=50, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
+              steps_per_epoch_override=0, save_predictions=False, skip_metrics=False, resume_training=None,
+              pretrain='imagenet', checkpoint=None, multi_gpu=True, seed=0):
+
+        """Builds and trains a model from hyperparameters.
+
+        Args:
+            train_dts (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords for training.
+            val_dts (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords for validation.
+            log_frequency (int, optional): How frequent to update Tensorboard logs, in batches. Defaults to 100.
+            validate_on_batch (int, optional): How frequent o perform validation, in batches. Defaults to 512.
+            validation_batch_size (int, optional): Batch size to use during validation. Defaults to 32.
+            validation_steps (int, optional): Number of batches to use for each instance of validation. Defaults to 200.
+            starting_epoch (int, optional): Starts training at the specified epoch. Defaults to 0.
+            ema_observations (int, optional): Number of observations over which to perform exponential moving average
+                smoothing. Defaults to 20.
+            ema_smoothing (int, optional): Exponential average smoothing value. Defaults to 2.
+            use_tensoboard (bool, optional): Enable tensorboard callbacks. Defaults to False.
+            steps_per_epoch_override (int, optional): Manually set the number of steps per epoch. Defaults to None.
+            save_predictions (bool, optional): Save tile, slide, and patient-level predictions at each evaluation.
+                Defaults to False.
+            skip_metrics (bool, optional): Skip validation metrics. Defaults to False.
+            resume_training (str, optional): Not applicable to PyTorch backend. Included as argument for compatibility
+                with Tensorflow backend. Will raise NotImplementedError if supplied.
+            pretrain (str, optional): Either 'imagenet' or path to Tensorflow model from which to load weights.
+                Defaults to 'imagenet'.
+            checkpoint (str, optional): Path to cp.ckpt from which to load weights. Defaults to None.
+
+        Returns:
+            Nested results dictionary containing metrics for each evaluated epoch.
+        """
 
         if resume_training is not None:
             raise NotImplementedError("PyTorch backend does not support `resume_training`; please use `checkpoint`")
@@ -808,10 +895,25 @@ class Trainer:
         return results
 
 class LinearTrainer(Trainer):
+
+    """Extends the base :class:`slideflow.model.Trainer` class to add support for linear outcomes. Requires that all
+    outcomes be linear, with appropriate linear loss function. Uses R-squared as the evaluation metric, rather
+    than AUROC.
+
+    In this case, for the PyTorch backend, the linear outcomes support is already baked into the base Trainer class,
+    so no additional modifications are required. This class is written to inherit the Trainer class without modification
+    to maintain consistency with the Tensorflow backend.
+    """
+
+    _model_type = 'linear'
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
 class CPHTrainer(Trainer):
+
+    """Cox proportional hazards (CPH) models are not yet implemented, but are planned for a future update."""
+
     def __init__(self, *args, **kwargs):
         raise NotImplementedError
 

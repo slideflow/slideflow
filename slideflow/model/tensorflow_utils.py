@@ -1,4 +1,5 @@
 """Tensorflow model utility functions."""
+
 import tensorflow as tf
 import os
 import tempfile

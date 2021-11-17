@@ -1,3 +1,5 @@
+"""PyTorch model utility functions."""
+
 import torch
 import types
 

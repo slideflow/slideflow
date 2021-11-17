@@ -24,7 +24,7 @@ from slideflow.util import log, TCGA, _shortname, ProgressBar
 def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, skip_missing_roi, randomize_origin, tma,
                     tile_px, tile_um, stride_div, downsample, buffer, pb_counter, counter_lock, reports,
                     generator_kwargs, qc, qc_kwargs):
-    """Internal function to execute tile extraction. Slide processing needs to be process-isolated."""
+    """Internal function to extract tiles. Slide processing needs to be process-isolated when num_workers > 1 ."""
 
     # Record function arguments in case we need to re-call the function (for corrupt tiles)
     local_args = locals()
