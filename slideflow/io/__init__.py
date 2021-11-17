@@ -220,3 +220,14 @@ def read_tfrecord_length(tfrecord):
             return None
     infile.close()
     return num_records
+
+def get_locations_from_tfrecord(filename):
+    '''Returns dictionary mapping indices to tile locations (X, Y)'''
+
+    dataset = TFRecordDataset(filename)
+    loc_dict = {}
+    parser = get_tfrecord_parser(filename, ('loc_x', 'loc_y'), to_numpy=True)
+    for i, record in enumerate(dataset):
+        loc_x, loc_y = parser(record)
+        loc_dict.update({ i: (loc_x, loc_y)    })
+    return loc_dict

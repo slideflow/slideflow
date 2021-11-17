@@ -61,6 +61,15 @@
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
 </head>
 
 <div class="container-fluid header-holder tutorials-header" id="header-holder">
@@ -338,8 +347,9 @@ filename in project root directory. Defaults to “splits.json”.</p></li>
 Options include bootstrap, k-fold, k-fold-manual, k-fold-preserved-site, fixed, and none.</p></li>
 <li><p><strong>val_k_fold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Total number of K if using K-fold validation. Defaults to 3.</p></li>
 <li><p><strong>val_k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Iteration of K-fold to train, starting at 1. Defaults to None (training all k-folds).</p></li>
-<li><p><strong>val_k_fold_header</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Annotations file header column for manually specifying k-fold.
-Only used if validation strategy is ‘k-fold-manual’. Defaults to None.</p></li>
+<li><p><strong>val_k_fold_header</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Annotations file header column for manually specifying k-fold or for preserved-site
+cross validation. Only used if validation strategy is ‘k-fold-manual’ or ‘k-fold-preserved-site’.
+Defaults to None for k-fold-manual and ‘site’ for k-fold-preserved-site.</p></li>
 <li><p><strong>val_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a>) – Fraction of dataset to use for validation testing, if strategy is ‘fixed’.</p></li>
 <li><p><strong>val_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Dataset source to use for validation. Defaults to None (same as training).</p></li>
 <li><p><strong>val_annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to annotations file for validation dataset. Defaults to None (same as training).</p></li>

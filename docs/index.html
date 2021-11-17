@@ -60,6 +60,15 @@
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
 </head>
 
 <div class="container-fluid header-holder tutorials-header" id="header-holder">
@@ -242,7 +251,7 @@
               
   <div class="section" id="slideflow-documentation">
 <h1>Slideflow Documentation<a class="headerlink" href="#slideflow-documentation" title="Permalink to this headline">¶</a></h1>
-<p><code class="docutils literal notranslate"><span class="pre">slideflow</span></code> is a computational pathology Python package which aims to provide an easy and intuitive way of building and testing deep learning models in histology image analysis. It is built with both <a class="reference external" href="https://www.tensorflow.org/">Tensorflow/Keras</a> and <a class="reference external" href="https://pytorch.org">PyTorch</a> backends, with fully cross-compatible TFRecord data storage, as well as <a class="reference external" href="https://github.com/mahmoodlab/CLAM">CLAM</a>. The overarching goal of the package is to provide tools to efficiently process histology slides in tile-wise fashion suitable for deep learning models; enable easy model training and testing from extracted tiles; and supply functional tools to assist with model analysis and interpretability, including predictive heatmaps, mosaic maps, and more.</p>
+<p><code class="docutils literal notranslate"><span class="pre">slideflow</span></code> is a computational pathology Python package which aims to provide an easy and intuitive way of building and testing deep learning models for histology image analysis. It is built with both <a class="reference external" href="https://www.tensorflow.org/">Tensorflow/Keras</a> and <a class="reference external" href="https://pytorch.org">PyTorch</a> backends, with fully cross-compatible TFRecord data storage, as well as <a class="reference external" href="https://github.com/mahmoodlab/CLAM">CLAM</a>. The overarching goal of the package is to provide tools to efficiently process histology slides in tile-wise fashion suitable for deep learning models; enable easy model training and testing from extracted tiles; and supply functional tools to assist with model analysis and interpretability, including predictive heatmaps, mosaic maps, and more.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">slideflow</span></code> package includes a <code class="docutils literal notranslate"><span class="pre">Project</span></code> class to help coordinate project organization and supervise execution of the pipeline.  This documentation starts with a high-level overview of the pipeline, and will include examples of how to execute functions using the <code class="docutils literal notranslate"><span class="pre">Project</span></code> class. We will end by describing some of the source code components in more detail and provide examples for how you may further customize this pipeline according to your needs.</p>
 <p>The current implementation has been developed and tested in Python 3.7/3.8, using Tensorflow 2.5-2.7 and PyTorch 1.9-1.10, in Ubuntu 20.04, CentOS 7, and CentOS 8.</p>
 <div class="toctree-wrapper compound">

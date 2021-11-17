@@ -1,3 +1,5 @@
+'''Tensorflow backend for the slideflow.model submodule.'''
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -788,6 +790,7 @@ class Trainer:
         # Update neptune log
         if self.neptune_run:
             self.neptune_run['eval/results'] = val_metrics
+            self.neptune_run.stop()
 
         return val_metrics
 
@@ -822,6 +825,7 @@ class Trainer:
         Returns:
             Nested results dictionary containing metrics for each evaluated epoch.
         """
+
         if self.hp.model_type() != self._model_type:
             raise ModelError(f"Incomptable model types: {self.hp.model_type()} (hp) and {self._model_type} (model)")
         tf.keras.backend.clear_session() # Clear prior Tensorflow graph to free memory
@@ -964,6 +968,7 @@ class Trainer:
             if self.use_neptune:
                 self.neptune_run['results/logged_epochs'] = [int(e[5:]) for e in results['epochs'] if e[:5] == 'epoch']
                 self.neptune_run['results/epochs'] = results['epochs']
+                self.neptune_run.stop()
 
             return results
 

@@ -1,3 +1,9 @@
+'''Submodule that includes models, trainers, and tools for intermediate layer activations.
+
+Supports both PyTorch and Tensorflow backends, importing either model.tensorflow or model.pytorch based on
+the active backend given by the environmental variable SF_BACKEND.
+'''
+
 import sys
 import os
 import csv
