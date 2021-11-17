@@ -431,7 +431,8 @@ class DatasetFeatures:
         """
 
         import torch
-
+        if not exists(outdir):
+            os.makedirs(outdir)
         slides = self.slides if not slides else slides
         for slide in tqdm(slides, ncols=80, leave=False):
             if self.activations[slide] == []:
