@@ -389,7 +389,7 @@ class ExtractionReport:
         if meta.ws_thresh is None:   meta.ws_thresh = DEFAULT_WHITESPACE_THRESHOLD
         if meta.gs_frac is None:     meta.gs_frac   = DEFAULT_GRAYSPACE_FRACTION
         if meta.gs_thresh is None:   meta.gs_thresh  = DEFAULT_GRAYSPACE_THRESHOLD
-        if meta.img_format is None:   meta.img_format  = 'png'
+        if meta.img_format is None:  meta.img_format  = 'png'
 
         num_tiles = np.array([r.num_tiles for r in reports if r is not None])
         bb = np.array([r.blur_burden for r in reports if r is not None])
@@ -1087,10 +1087,11 @@ class _BaseLoader:
                 'blur_burden': self.blur_burden,
                 'num_tiles': len(locations),
             }
-            return SlideReport(sample_tiles,
-                               self.slide.path,
-                               data=report_data,
-                               thumb=self.thumb(coords=locations, rois=True))
+            slide_report = SlideReport(sample_tiles,
+                                       self.slide.path,
+                                       data=report_data,
+                                       thumb=self.thumb(coords=locations, rois=(self.roi_method != 'ignore')))
+            return slide_report
 
     def preview(self, rois=True, **kwargs):
         """Performs a dry run of tile extraction without saving any images, returning a PIL image of the slide
@@ -1301,7 +1302,7 @@ class WSI(_BaseLoader):
             dry_run (bool, optional): Determine tiles that would be extracted, but do not export any images.
                 Defaults to None.
         """
-        super().extract_tiles(tfrecord_dir, tiles_dir, img_format, report, **kwargs)
+        return super().extract_tiles(tfrecord_dir, tiles_dir, img_format, report, **kwargs)
 
     def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None,
                         grayspace_fraction=None, grayspace_threshold=None, normalizer=None, normalizer_source=None,
@@ -1510,9 +1511,9 @@ class WSI(_BaseLoader):
         self.roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
 
         if self.roi_method == 'inside':
-            self.estimated_num_tiles = self.coord.shape[0] * self.roi_area_fraction
+            self.estimated_num_tiles = int(self.coord.shape[0] * self.roi_area_fraction)
         else:
-            self.estimated_num_tiles = self.coord.shape[0] * (1-self.roi_area_fraction)
+            self.estimated_num_tiles = int(self.coord.shape[0] * (1-self.roi_area_fraction))
 
         return len(self.rois)
 
@@ -1734,7 +1735,7 @@ class TMA(_BaseLoader):
             dry_run (bool, optional): Determine tiles that would be extracted, but do not export any images.
                 Defaults to None.
         """
-        super().extract_tiles(tfrecord_dir, tiles_dir, img_format, report, **kwargs)
+        return super().extract_tiles(tfrecord_dir, tiles_dir, img_format, report, **kwargs)
 
     def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None, grayspace_fraction=None,
                         grayspace_threshold=None, normalizer=None, normalizer_source=None, include_loc=True,

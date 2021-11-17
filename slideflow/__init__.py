@@ -1,6 +1,6 @@
 import os
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 if 'SF_BACKEND' not in os.environ:
     os.environ['SF_BACKEND'] = 'tensorflow'
@@ -38,12 +38,10 @@ def backend():
 
 # Low priority consistency/style changes:
 # ---------------------
-#TODO: PyTorch ModelParams get_loss -> @property
 #TODO: consider pytorch to_numpy=False returns tensor objects
 #TODO: for tfrecord parser, combine utf-8 and image decoding into single `decode` argument (rather than decode_images)
-#TODO: filter.py script
-#TODO: update.py script
 #TODO: resize_tfrecords()
+#TODO: improve estimated_num_tiles when doing tile extraction & no ROI (or QC)
 
 # Future updates
 # ===============
